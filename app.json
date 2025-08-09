@@ -1,8 +1,10 @@
 {
   "expo": {
-    "name": "MyAIFriends",
-    "slug": "MyAIFriends",
+    "name": "My AI Friends",
+    "slug": "my-ai-friends",
     "version": "1.0.0",
+    "description": "Chat with multiple AI personalities in one conversation",
+    "primaryColor": "#0E9594",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -10,7 +12,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0E9594"
     },
     "ios": {
       "supportsTablet": true
@@ -24,6 +26,9 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
   }
 }
