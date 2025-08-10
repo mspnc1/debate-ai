@@ -1,0 +1,94 @@
+import React from 'react';
+import { TouchableOpacity, ViewStyle } from 'react-native';
+import Animated, { 
+  FadeInUp,
+  useAnimatedStyle,
+  withSpring,
+  useSharedValue,
+} from 'react-native-reanimated';
+import { ThemedView, ThemedText } from '../core';
+import { useTheme } from '../../theme';
+import * as Haptics from 'expo-haptics';
+
+interface QuickStartTileProps {
+  emoji: string;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  index: number;
+  disabled?: boolean;
+  style?: ViewStyle;
+}
+
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+
+export const QuickStartTile: React.FC<QuickStartTileProps> = ({
+  emoji,
+  title,
+  subtitle,
+  onPress,
+  index,
+  disabled = false,
+  style,
+}) => {
+  const { theme } = useTheme();
+  const scale = useSharedValue(1);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  
+  const handlePressIn = () => {
+    if (!disabled) {
+      scale.value = withSpring(0.95, { damping: 15 });
+    }
+  };
+  
+  const handlePressOut = () => {
+    if (!disabled) {
+      scale.value = withSpring(1, { damping: 15 });
+    }
+  };
+  
+  const handlePress = () => {
+    if (!disabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onPress();
+    }
+  };
+  
+  return (
+    <AnimatedTouchable
+      entering={FadeInUp.delay(400 + index * 50).springify()}
+      style={[
+        animatedStyle,
+        {
+          flex: 1,
+          backgroundColor: theme.colors.card,
+          borderRadius: theme.borderRadius.lg,
+          padding: theme.spacing.md,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          ...style,
+        }
+      ]}
+      onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      activeOpacity={1}
+      disabled={disabled}
+    >
+      <ThemedView>
+        <ThemedText style={{ fontSize: 28, marginBottom: 8 }}>
+          {emoji}
+        </ThemedText>
+        <ThemedText variant="subtitle" weight="semibold" numberOfLines={1}>
+          {title}
+        </ThemedText>
+        <ThemedText variant="caption" color="secondary" numberOfLines={2}>
+          {subtitle}
+        </ThemedText>
+      </ThemedView>
+    </AnimatedTouchable>
+  );
+};

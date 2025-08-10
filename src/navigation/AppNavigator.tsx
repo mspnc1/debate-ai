@@ -3,6 +3,7 @@ import { View, Text } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { RootStackParamList } from '../types';
@@ -16,6 +17,7 @@ import HistoryScreen from '../screens/HistoryScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import APIConfigScreen from '../screens/APIConfigScreen';
 import DebateScreen from '../screens/DebateScreen';
+import DebateSetupScreen from '../screens/DebateSetupScreen';
 // import SubscriptionScreen from '../screens/SubscriptionScreen';
 // import ExpertModeScreen from '../screens/ExpertModeScreen';
 
@@ -52,7 +54,25 @@ const MainTabs = () => {
         options={{
           tabBarLabel: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <Text style={{ fontSize: 24, color }}>{focused ? '🏠' : '🏡'}</Text>
+            <Ionicons 
+              name={focused ? 'home' : 'home-outline'} 
+              size={24} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="DebateTab"
+        component={DebateSetupScreen}
+        options={{
+          tabBarLabel: 'Debate',
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons 
+              name="sword-cross" 
+              size={24} 
+              color={color} 
+            />
           ),
         }}
       />
@@ -61,8 +81,12 @@ const MainTabs = () => {
         component={HistoryScreen}
         options={{
           tabBarLabel: 'History',
-          tabBarIcon: ({ color, focused }) => (
-            <Text style={{ fontSize: 24, color }}>{focused ? '🕐' : '📋'}</Text>
+          tabBarIcon: ({ color }) => (
+            <MaterialIcons 
+              name="history" 
+              size={26} 
+              color={color} 
+            />
           ),
         }}
       />
@@ -72,7 +96,11 @@ const MainTabs = () => {
         options={{
           tabBarLabel: 'Settings',
           tabBarIcon: ({ color, focused }) => (
-            <Text style={{ fontSize: 24, color }}>{focused ? '⚙️' : '🔧'}</Text>
+            <Ionicons 
+              name={focused ? 'settings' : 'settings-outline'} 
+              size={24} 
+              color={color} 
+            />
           ),
         }}
       />

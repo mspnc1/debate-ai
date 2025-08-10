@@ -1,0 +1,40 @@
+import React from 'react';
+import { View, ViewStyle } from 'react-native';
+import { ThemedText } from '../core';
+import { useTheme } from '../../theme';
+
+interface SectionHeaderProps {
+  title: string;
+  subtitle?: string;
+  icon?: string;
+  style?: ViewStyle;
+}
+
+export const SectionHeader: React.FC<SectionHeaderProps> = ({
+  title,
+  subtitle,
+  icon,
+  style,
+}) => {
+  const { theme } = useTheme();
+  
+  return (
+    <View style={[{ marginBottom: theme.spacing.md }, style]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+        {icon && (
+          <ThemedText style={{ fontSize: 20, marginRight: 8 }}>
+            {icon}
+          </ThemedText>
+        )}
+        <ThemedText variant="title" weight="semibold">
+          {title}
+        </ThemedText>
+      </View>
+      {subtitle && (
+        <ThemedText variant="body" color="secondary">
+          {subtitle}
+        </ThemedText>
+      )}
+    </View>
+  );
+};
