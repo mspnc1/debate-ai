@@ -1,12 +1,16 @@
 import React, { useEffect } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
   ScrollView,
+  StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { 
+  ThemedView, 
+  ThemedText, 
+  ThemedButton, 
+  ThemedSafeAreaView,
+  GradientButton 
+} from '../components/core';
+import { useTheme } from '../theme';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -29,6 +33,7 @@ interface WelcomeScreenProps {
 
 const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
   const dispatch = useDispatch();
+  const { theme, isDark } = useTheme();
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(50);
@@ -62,9 +67,9 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ThemedSafeAreaView>
       <ScrollView 
-        style={{ flex: 1 }}
+        style={{ flex: 1, backgroundColor: theme.colors.background }}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
         bounces={true}
@@ -73,10 +78,12 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
         {/* Logo and Title */}
         <Animated.View style={[styles.logoContainer, animatedLogoStyle]}>
           <AppLogo size={120} />
-          <Text style={styles.title}>My AI Friends</Text>
-          <Text style={styles.subtitle}>
+          <ThemedText variant="heading" align="center" style={{ marginTop: 20, marginBottom: 8 }}>
+            My AI Friends
+          </ThemedText>
+          <ThemedText variant="body" color="secondary" align="center">
             Where artificial intelligence meets{'\n'}actual conversation
-          </Text>
+          </ThemedText>
         </Animated.View>
 
         {/* Feature Cards */}
@@ -84,44 +91,80 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
           entering={FadeInDown.delay(400).springify()}
           style={styles.featuresContainer}
         >
-          <View style={styles.featureCard}>
-            <View style={styles.featureIcon}>
-              <Text style={styles.featureEmoji}>💬</Text>
-            </View>
-            <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>Multi-AI Conversations</Text>
-              <Text style={styles.featureDescription}>
+          <ThemedView style={[
+            styles.featureCard,
+            { 
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+              shadowColor: theme.colors.shadow,
+            }
+          ]}>
+            <ThemedView style={[
+              styles.featureIcon,
+              { backgroundColor: isDark ? theme.colors.gray[800] : theme.colors.gray[100] }
+            ]}>
+              <ThemedText style={styles.featureEmoji}>💬</ThemedText>
+            </ThemedView>
+            <ThemedView style={styles.featureContent}>
+              <ThemedText variant="subtitle" weight="semibold">
+                Multi-AI Conversations
+              </ThemedText>
+              <ThemedText variant="body" color="secondary" style={{ marginTop: 4 }}>
                 Chat with Claude, ChatGPT, and Gemini at once. 
                 Like a group chat where everyone actually has something smart to say.
-              </Text>
-            </View>
-          </View>
+              </ThemedText>
+            </ThemedView>
+          </ThemedView>
 
-          <View style={styles.featureCard}>
-            <View style={styles.featureIcon}>
-              <Text style={styles.featureEmoji}>🎭</Text>
-            </View>
-            <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>Personality Modes</Text>
-              <Text style={styles.featureDescription}>
+          <ThemedView style={[
+            styles.featureCard,
+            { 
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+              shadowColor: theme.colors.shadow,
+            }
+          ]}>
+            <ThemedView style={[
+              styles.featureIcon,
+              { backgroundColor: isDark ? theme.colors.gray[800] : theme.colors.gray[100] }
+            ]}>
+              <ThemedText style={styles.featureEmoji}>🎭</ThemedText>
+            </ThemedView>
+            <ThemedView style={styles.featureContent}>
+              <ThemedText variant="subtitle" weight="semibold">
+                Personality Modes
+              </ThemedText>
+              <ThemedText variant="body" color="secondary" style={{ marginTop: 4 }}>
                 From professor to comedian to therapist. 
                 It's like having multiple personalities, but productive.
-              </Text>
-            </View>
-          </View>
+              </ThemedText>
+            </ThemedView>
+          </ThemedView>
 
-          <View style={styles.featureCard}>
-            <View style={styles.featureIcon}>
-              <Text style={styles.featureEmoji}>🎯</Text>
-            </View>
-            <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>Simple or Expert</Text>
-              <Text style={styles.featureDescription}>
+          <ThemedView style={[
+            styles.featureCard,
+            { 
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+              shadowColor: theme.colors.shadow,
+            }
+          ]}>
+            <ThemedView style={[
+              styles.featureIcon,
+              { backgroundColor: isDark ? theme.colors.gray[800] : theme.colors.gray[100] }
+            ]}>
+              <ThemedText style={styles.featureEmoji}>🎯</ThemedText>
+            </ThemedView>
+            <ThemedView style={styles.featureContent}>
+              <ThemedText variant="subtitle" weight="semibold">
+                Simple or Expert
+              </ThemedText>
+              <ThemedText variant="body" color="secondary" style={{ marginTop: 4 }}>
                 Start easy, go deep when you're ready. 
                 Like Instagram filters vs. Photoshop.
-              </Text>
-            </View>
-          </View>
+              </ThemedText>
+            </ThemedView>
+          </ThemedView>
         </Animated.View>
 
         {/* CTA Buttons */}
@@ -129,25 +172,20 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
           entering={FadeInDown.delay(600).springify()}
           style={styles.ctaContainer}
         >
-          <TouchableOpacity 
-            style={styles.primaryButton}
+          <GradientButton
+            title="Let's do this"
             onPress={handleGetStarted}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.primaryButtonText}>
-              Let's do this
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.secondaryButton}
+            gradient={isDark ? theme.colors.gradients.premium : theme.colors.gradients.ocean}
+            style={{ marginBottom: 12 }}
+          />
+          
+          <ThemedButton
+            title="I need a minute"
             onPress={handleLookAround}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.secondaryButtonText}>
-              I need a minute
-            </Text>
-          </TouchableOpacity>
+            variant="secondary"
+            size="large"
+            fullWidth
+          />
         </Animated.View>
 
         {/* Footer */}
@@ -155,22 +193,18 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
           entering={FadeIn.delay(800)}
           style={styles.footer}
         >
-          <Text style={styles.footerText}>
+          <ThemedText variant="caption" color="secondary" align="center">
             No ads. No tracking. No BS.{'\n'}
             Just AI conversations that don't suck.
-          </Text>
+          </ThemedText>
         </Animated.View>
 
       </ScrollView>
-    </SafeAreaView>
+    </ThemedSafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FAFAFA',
-  },
   scrollContent: {
     paddingHorizontal: 24,
     paddingBottom: 40,
@@ -180,40 +214,25 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 20,
   },
-  title: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 8,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 17,
-    color: '#666666',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
   featuresContainer: {
     marginTop: 10,
     marginBottom: 20,
   },
   featureCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 3,
+    borderWidth: 1,
   },
   featureIcon: {
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#F5F5F7',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -224,62 +243,15 @@ const styles = StyleSheet.create({
   featureContent: {
     flex: 1,
   },
-  featureTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 4,
-  },
-  featureDescription: {
-    fontSize: 14,
-    color: '#666666',
-    lineHeight: 20,
-  },
   ctaContainer: {
     marginTop: 20,
     marginBottom: 24,
     paddingHorizontal: 0,
   },
-  primaryButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 14,
-    paddingVertical: 18,
-    paddingHorizontal: 32,
-    marginBottom: 12,
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  secondaryButton: {
-    backgroundColor: '#F5F5F7',
-    borderRadius: 14,
-    paddingVertical: 18,
-    paddingHorizontal: 32,
-  },
-  secondaryButtonText: {
-    color: '#666666',
-    fontSize: 17,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
   footer: {
     alignItems: 'center',
     marginTop: 20,
     paddingBottom: 20,
-  },
-  footerText: {
-    fontSize: 13,
-    color: '#999999',
-    textAlign: 'center',
-    lineHeight: 18,
   },
 });
 

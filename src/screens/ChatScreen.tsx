@@ -1,16 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  View,
-  Text,
   StyleSheet,
-  TextInput,
-  TouchableOpacity,
   FlatList,
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  TouchableOpacity,
+  Text,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { 
+  ThemedView, 
+  ThemedText, 
+  ThemedButton, 
+  ThemedTextInput, 
+  ThemedSafeAreaView 
+} from '../components/core';
+import { useTheme } from '../theme';
 import Animated, {
   FadeInDown,
   FadeIn,
@@ -22,7 +27,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import { addMessage, setTypingAI } from '../store';
 import { Message, ChatSession } from '../types';
-import { AIService } from '../services/aiAdapter';
+import { useAIService } from '../providers/AIServiceProvider';
+import AIServiceLoading from '../components/AIServiceLoading';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface ChatScreenProps {
@@ -43,6 +49,7 @@ interface ChatScreenProps {
 const MessageBubble: React.FC<{ message: Message; isLast: boolean; searchTerm?: string }> = ({ message, isLast, searchTerm }) => {
   const isUser = message.senderType === 'user';
   const scale = useSharedValue(isLast ? 0 : 1);
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (isLast) {
@@ -66,107 +73,151 @@ const MessageBubble: React.FC<{ message: Message; isLast: boolean; searchTerm?: 
       ]}
     >
       {!isUser && (
-        <View style={styles.aiHeader}>
-          <Text style={styles.aiName}>{message.sender}</Text>
-        </View>
+        <ThemedView style={styles.aiHeader}>
+          <ThemedText variant="caption" color="secondary" weight="semibold">
+            {message.sender}
+          </ThemedText>
+        </ThemedView>
       )}
-      <View
+      <ThemedView
         style={[
           styles.messageBubble,
-          isUser ? styles.userBubble : styles.aiBubble,
+          isUser ? {
+            backgroundColor: theme.colors.primary[500],
+            borderBottomRightRadius: 4,
+          } : {
+            backgroundColor: theme.colors.card,
+            borderBottomLeftRadius: 4,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+          },
         ]}
       >
-        <Text style={[styles.messageText, isUser && styles.userMessageText]}>
-          {searchTerm ? highlightSearchTerm(message.content, searchTerm) : highlightMentions(message.content)}
-        </Text>
-      </View>
-      <Text style={[styles.timestamp, isUser && styles.userTimestamp]}>
+        <ThemedText style={[
+          { fontSize: 16, lineHeight: 22 },
+          isUser && { color: theme.colors.text.inverse }
+        ]}>
+          {searchTerm ? <HighlightedText text={message.content} searchTerm={searchTerm} /> : highlightMentions(message.content)}
+        </ThemedText>
+      </ThemedView>
+      <ThemedText 
+        variant="caption" 
+        color="secondary"
+        style={[
+          styles.timestamp,
+          isUser && styles.userTimestamp
+        ]}
+      >
         {formatTime(message.timestamp)}
-      </Text>
+      </ThemedText>
     </Animated.View>
   );
 };
 
 // Typing indicator component
 const TypingIndicator: React.FC<{ aiName: string }> = ({ aiName }) => {
+  const { theme } = useTheme();
+  
   return (
     <Animated.View
       entering={FadeIn}
       style={styles.typingContainer}
     >
-      <View style={styles.typingBubble}>
-        <Text style={styles.typingText}>{aiName} is thinking</Text>
-        <View style={styles.typingDots}>
+      <ThemedView style={[
+        styles.typingBubble,
+        {
+          backgroundColor: theme.colors.card,
+          borderColor: theme.colors.border,
+        }
+      ]}>
+        <ThemedText variant="caption" color="secondary">
+          {aiName} is thinking
+        </ThemedText>
+        <ThemedView style={styles.typingDots}>
           {[0, 1, 2].map((i) => (
             <Animated.View
               key={i}
-              style={[styles.dot]}
+              style={[
+                styles.dot,
+                { backgroundColor: theme.colors.text.secondary }
+              ]}
             />
           ))}
-        </View>
-      </View>
+        </ThemedView>
+      </ThemedView>
     </Animated.View>
   );
 };
 
-// Helper function to highlight search terms
-const highlightSearchTerm = (text: string, searchTerm: string) => {
-  if (!searchTerm) return text;
+// Helper component to highlight search terms
+const HighlightedText: React.FC<{ text: string; searchTerm: string }> = ({ text, searchTerm }) => {
+  const { theme } = useTheme();
+  
+  if (!searchTerm) return <>{text}</>;
   
   const parts = text.split(new RegExp(`(${searchTerm})`, 'gi'));
   
-  return parts.map((part, index) => {
-    if (part.toLowerCase() === searchTerm.toLowerCase()) {
-      return (
-        <Text key={index} style={{ backgroundColor: '#FFE066', fontWeight: '600' }}>
-          {part}
-        </Text>
-      );
-    }
-    return part;
-  });
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (part.toLowerCase() === searchTerm.toLowerCase()) {
+          return (
+            <ThemedText key={index} style={{ backgroundColor: theme.colors.warning[50], fontWeight: '600' }}>
+              {part}
+            </ThemedText>
+          );
+        }
+        return part;
+      })}
+    </>
+  );
 };
 
 const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   const dispatch = useDispatch();
+  const { theme } = useTheme();
   const [inputText, setInputText] = useState('');
   const [showMentions, setShowMentions] = useState(false);
-  const [aiService, setAiService] = useState<AIService | null>(null);
+  const [initialPromptSent, setInitialPromptSent] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
+  const { aiService, isInitialized, isLoading, error } = useAIService();
   const { currentSession, typingAIs } = useSelector((state: RootState) => state.chat);
-  const apiKeys = useSelector((state: RootState) => state.settings.apiKeys);
   const messages = currentSession?.messages || [];
   const selectedAIs = currentSession?.selectedAIs || [];
   const searchTerm = route.params?.searchTerm;
   const initialPrompt = route.params?.initialPrompt;
 
-  // Initialize AI service when API keys change
-  useEffect(() => {
-    const service = new AIService(apiKeys || {});
-    setAiService(service);
-  }, [apiKeys]);
 
-  // Send initial prompt if provided
+  // Send initial prompt if provided - only when service is ready and not sent before
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
-    if (initialPrompt && typeof initialPrompt === 'string' && messages.length === 0 && currentSession) {
+    if (
+      initialPrompt && 
+      typeof initialPrompt === 'string' && 
+      messages.length === 0 && 
+      currentSession && 
+      isInitialized && 
+      aiService && 
+      !initialPromptSent
+    ) {
       setInputText(initialPrompt);
+      setInitialPromptSent(true);
+      
       // Auto-send after a short delay to let the UI settle
       timeoutId = setTimeout(() => {
-        // Call sendMessage with the initial prompt directly
         if (initialPrompt.trim()) {
           handleSendMessage(initialPrompt);
         }
-      }, 500);
+      }, 800); // Slightly longer delay to ensure service is fully ready
     }
     
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialPrompt, currentSession]);
+  }, [initialPrompt, currentSession, isInitialized, aiService, initialPromptSent, messages.length]);
 
   // Save session to AsyncStorage whenever it changes
   useEffect(() => {
@@ -268,8 +319,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
 
         // Get AI response using service
-        if (!aiService) {
-          throw new Error('AI service not initialized');
+        if (!aiService || !isInitialized) {
+          throw new Error('AI service not ready. Please wait for initialization to complete.');
         }
 
         // For round-robin: Each AI sees the full conversation including previous AI responses
@@ -337,31 +388,48 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     setShowMentions(false);
   };
 
+  // Show loading screen while AI service is initializing
+  if (isLoading || !isInitialized) {
+    return <AIServiceLoading error={error} />;
+  }
+
   return (
-    <SafeAreaView style={styles.container}>
+    <ThemedSafeAreaView>
       <KeyboardAvoidingView
-        style={styles.container}
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backButton}>←</Text>
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>AI Conversation</Text>
-            <View style={styles.participantsRow}>
+        <ThemedView style={[
+          styles.header,
+          { 
+            backgroundColor: theme.colors.surface,
+            borderBottomColor: theme.colors.border,
+          }
+        ]}>
+          <ThemedButton 
+            onPress={() => navigation.goBack()}
+            variant="ghost"
+            style={{ borderWidth: 0, minWidth: 44 }}
+          >
+            <ThemedText size="2xl" color="brand">←</ThemedText>
+          </ThemedButton>
+          <ThemedView style={styles.headerCenter}>
+            <ThemedText variant="subtitle" weight="semibold">
+              AI Conversation
+            </ThemedText>
+            <ThemedView style={styles.participantsRow}>
               {selectedAIs.map((ai, index) => (
-                <Text key={ai.id} style={styles.participantChip}>
+                <ThemedText key={ai.id} variant="caption" color="secondary">
                   {ai.name}
                   {index < selectedAIs.length - 1 && ' • '}
-                </Text>
+                </ThemedText>
               ))}
-            </View>
-          </View>
-          <View style={styles.headerRight} />
-        </View>
+            </ThemedView>
+          </ThemedView>
+          <ThemedView style={styles.headerRight} />
+        </ThemedView>
 
         {/* Messages */}
         <FlatList
@@ -377,69 +445,90 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
           )}
           contentContainerStyle={styles.messagesList}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+          style={{ backgroundColor: theme.colors.background }}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateEmoji}>💭</Text>
-              <Text style={styles.emptyStateText}>
+            <ThemedView style={styles.emptyState}>
+              <ThemedText style={styles.emptyStateEmoji}>💭</ThemedText>
+              <ThemedText variant="title" align="center" style={{ marginBottom: 8 }}>
                 Start the conversation
-              </Text>
-              <Text style={styles.emptyStateSubtext}>
+              </ThemedText>
+              <ThemedText variant="body" color="secondary" align="center">
                 Type a message or @ mention specific AIs
-              </Text>
-            </View>
+              </ThemedText>
+            </ThemedView>
           }
         />
 
         {/* Typing indicators */}
         {typingAIs.length > 0 && (
-          <View style={styles.typingIndicators}>
+          <ThemedView style={styles.typingIndicators}>
             {typingAIs.map((ai) => (
               <TypingIndicator key={ai} aiName={ai} />
             ))}
-          </View>
+          </ThemedView>
         )}
 
         {/* Mention suggestions */}
         {showMentions && (
           <Animated.View 
             entering={FadeInDown.springify()}
-            style={styles.mentionSuggestions}
+            style={[
+              styles.mentionSuggestions,
+              {
+                backgroundColor: theme.colors.card,
+                shadowColor: theme.colors.shadow,
+              }
+            ]}
           >
             {selectedAIs.map((ai) => (
-              <TouchableOpacity
+              <ThemedButton
                 key={ai.id}
-                style={styles.mentionItem}
+                variant="ghost"
+                style={{ ...styles.mentionItem, borderWidth: 0 }}
                 onPress={() => insertMention(ai.name)}
               >
-                <Text style={styles.mentionText}>@{ai.name.toLowerCase()}</Text>
-              </TouchableOpacity>
+                <ThemedText color="brand" weight="medium">
+                  @{ai.name.toLowerCase()}
+                </ThemedText>
+              </ThemedButton>
             ))}
           </Animated.View>
         )}
 
         {/* Input bar */}
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
+        <ThemedView style={[
+          styles.inputContainer,
+          {
+            backgroundColor: theme.colors.surface,
+            borderTopColor: theme.colors.border,
+          }
+        ]}>
+          <ThemedTextInput
+            style={{
+              ...styles.input,
+              backgroundColor: theme.colors.surface,
+            }}
             value={inputText}
             onChangeText={handleInputChange}
             placeholder="Type a message..."
-            placeholderTextColor="#999999"
             multiline
+            variant="filled"
+            borderRadius="xl"
           />
           <TouchableOpacity
-            style={[
-              styles.sendButton,
-              !inputText.trim() && styles.sendButtonDisabled,
-            ]}
+            style={{
+              ...styles.sendButton,
+              borderRadius: 18,
+              backgroundColor: (!inputText.trim()) ? theme.colors.gray[400] : theme.colors.primary[500],
+            }}
             onPress={sendMessage}
             disabled={!inputText.trim()}
           >
-            <Text style={styles.sendButtonText}>↑</Text>
+            <Text style={{ color: '#FFFFFF', fontSize: 20, fontWeight: 'bold' }}>↑</Text>
           </TouchableOpacity>
-        </View>
+        </ThemedView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </ThemedSafeAreaView>
   );
 };
 
@@ -463,39 +552,19 @@ const highlightMentions = (text: string) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FAFAFA',
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  backButton: {
-    fontSize: 28,
-    color: '#007AFF',
-    paddingRight: 16,
   },
   headerCenter: {
     flex: 1,
   },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
   participantsRow: {
     flexDirection: 'row',
     marginTop: 2,
-  },
-  participantChip: {
-    fontSize: 13,
-    color: '#666666',
   },
   headerRight: {
     width: 44,
@@ -515,38 +584,13 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     marginLeft: 12,
   },
-  aiName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#666666',
-  },
   messageBubble: {
     maxWidth: '80%',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
   },
-  userBubble: {
-    backgroundColor: '#007AFF',
-    borderBottomRightRadius: 4,
-  },
-  aiBubble: {
-    backgroundColor: '#FFFFFF',
-    borderBottomLeftRadius: 4,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  messageText: {
-    fontSize: 16,
-    lineHeight: 22,
-    color: '#1A1A1A',
-  },
-  userMessageText: {
-    color: '#FFFFFF',
-  },
   timestamp: {
-    fontSize: 11,
-    color: '#999999',
     marginTop: 4,
     marginLeft: 12,
   },
@@ -564,16 +608,6 @@ const styles = StyleSheet.create({
     fontSize: 48,
     marginBottom: 16,
   },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 8,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: '#666666',
-  },
   typingIndicators: {
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -584,27 +618,20 @@ const styles = StyleSheet.create({
   typingBubble: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
     alignSelf: 'flex-start',
-  },
-  typingText: {
-    fontSize: 13,
-    color: '#666666',
-    marginRight: 8,
   },
   typingDots: {
     flexDirection: 'row',
+    marginLeft: 8,
   },
   dot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#999999',
     marginHorizontal: 2,
   },
   mentionSuggestions: {
@@ -612,9 +639,7 @@ const styles = StyleSheet.create({
     bottom: 80,
     left: 16,
     right: 16,
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -625,46 +650,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  mentionText: {
-    fontSize: 16,
-    color: '#007AFF',
-    fontWeight: '500',
-  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
   },
   input: {
     flex: 1,
-    backgroundColor: '#F5F5F7',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
     marginRight: 8,
-    fontSize: 16,
     maxHeight: 100,
-    color: '#1A1A1A',
   },
   sendButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  sendButtonDisabled: {
-    backgroundColor: '#E0E0E0',
-  },
-  sendButtonText: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: 'bold',
   },
 });
 

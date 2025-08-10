@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
   ScrollView,
   Dimensions,
   Alert,
@@ -16,6 +12,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import { startSession } from '../store';
 import { AIConfig } from '../types';
+import { useTheme } from '../theme';
+import { ThemedView, ThemedText, GlassCard, GradientButton, AnimatedPressable } from '../components/core';
 
 const { width } = Dimensions.get('window');
 
@@ -62,6 +60,7 @@ const QUICK_TOPICS = [
 ];
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
+  const { theme } = useTheme();
   const dispatch = useDispatch();
   const [selectedAIs, setSelectedAIs] = useState<AIConfig[]>([]);
   // const [showQuickStartWizard, setShowQuickStartWizard] = useState(false);
@@ -129,158 +128,197 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.greeting}>
-            {getGreeting()}
-          </Text>
-          <Text style={styles.subGreeting}>
-            Pick your AI squad
-          </Text>
-        </View>
-
-        {/* AI Selection */}
-        <Animated.View 
-          entering={FadeInDown.delay(100).springify()}
-          style={styles.aiSection}
+    <ThemedView flex={1} backgroundColor="background">
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView 
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: theme.spacing.xl }}
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.sectionTitle}>Select your AIs</Text>
-          <Text style={styles.sectionSubtitle}>
-            {subscription === 'free' 
-              ? `Choose up to ${maxAIs} (upgrade for the full crew)`
-              : 'All AIs unlocked and ready'}
-          </Text>
-          
-          <View style={styles.aiGrid}>
-            {AI_OPTIONS.map((ai, index) => {
-              const isSelected = selectedAIs.find(s => s.id === ai.id);
-              const isDisabled = !isSelected && selectedAIs.length >= maxAIs;
+          {/* Header */}
+          <ThemedView paddingHorizontal="lg" paddingVertical="lg">
+            <ThemedText variant="heading" color="primary">
+              {getGreeting()}
+            </ThemedText>
+            <ThemedText variant="subtitle" color="secondary">
+              Pick your AI squad
+            </ThemedText>
+          </ThemedView>
+
+          {/* AI Selection */}
+          <Animated.View 
+            entering={FadeInDown.delay(100).springify()}
+          >
+            <ThemedView paddingHorizontal="lg" marginBottom="xl">
+              <ThemedText variant="title" color="primary">
+                Select your AIs
+              </ThemedText>
+              <ThemedView marginBottom="md">
+                <ThemedText variant="caption" color="secondary">
+                  {subscription === 'free' 
+                    ? `Choose up to ${maxAIs} (upgrade for the full crew)`
+                    : 'All AIs unlocked and ready'}
+                </ThemedText>
+              </ThemedView>
               
-              return (
-                <Animated.View
-                  key={ai.id}
-                  entering={FadeInDown.delay(200 + index * 100).springify()}
-                >
-                  <TouchableOpacity
-                    style={[
-                      styles.aiCard,
-                      isSelected && styles.aiCardSelected,
-                      isSelected && { borderColor: ai.color },
-                      isDisabled && styles.aiCardDisabled,
-                    ]}
-                    onPress={() => toggleAI(ai)}
-                    activeOpacity={0.7}
-                    disabled={isDisabled}
-                  >
-                    <View style={[
-                      styles.aiAvatar,
-                      isSelected && { backgroundColor: ai.color + '20' }
-                    ]}>
-                      <Text style={styles.aiEmoji}>{ai.avatar}</Text>
-                    </View>
-                    <Text style={[
-                      styles.aiName,
-                      isSelected && { color: ai.color }
-                    ]}>
-                      {ai.name}
-                    </Text>
-                    {isSelected && (
-                      <View style={[styles.selectedBadge, { backgroundColor: ai.color }]}>
-                        <Text style={styles.selectedBadgeText}>✓</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                </Animated.View>
-              );
-            })}
-          </View>
-        </Animated.View>
+              <ThemedView flexDirection="row" justifyContent="space-between">
+                {AI_OPTIONS.map((ai, index) => {
+                  const isSelected = selectedAIs.find(s => s.id === ai.id);
+                  const isDisabled = !isSelected && selectedAIs.length >= maxAIs;
+                  
+                  return (
+                    <Animated.View
+                      key={ai.id}
+                      entering={FadeInDown.delay(200 + index * 100).springify()}
+                      style={{ width: (width - 48 - 20) / 3 }}
+                    >
+                      <GlassCard
+                        onPress={() => toggleAI(ai)}
+                        disabled={isDisabled}
+                        style={{
+                          borderColor: isSelected ? ai.color : 'transparent',
+                          borderWidth: isSelected ? 2 : 0,
+                          opacity: isDisabled ? 0.4 : 1,
+                        }}
+                        padding="md"
+                      >
+                        <ThemedView alignItems="center">
+                          <ThemedView
+                            style={{
+                              width: 56,
+                              height: 56,
+                              borderRadius: 28,
+                              backgroundColor: isSelected ? ai.color + '20' : theme.colors.gray[100],
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              marginBottom: theme.spacing.sm,
+                            }}
+                          >
+                            <ThemedText style={{ fontSize: 28 }}>
+                              {ai.avatar}
+                            </ThemedText>
+                          </ThemedView>
+                          <ThemedText 
+                            variant="caption" 
+                            weight="semibold"
+                            color={isSelected ? 'brand' : 'primary'}
+                          >
+                            {ai.name}
+                          </ThemedText>
+                          {isSelected && (
+                            <ThemedView
+                              style={{
+                                position: 'absolute',
+                                top: -8,
+                                right: -8,
+                                width: 20,
+                                height: 20,
+                                borderRadius: 10,
+                                backgroundColor: ai.color,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <ThemedText style={{ color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' }}>
+                                ✓
+                              </ThemedText>
+                            </ThemedView>
+                          )}
+                        </ThemedView>
+                      </GlassCard>
+                    </Animated.View>
+                  );
+                })}
+              </ThemedView>
+            </ThemedView>
+          </Animated.View>
 
-        {/* Quick Start Topics */}
-        <Animated.View 
-          entering={FadeInDown.delay(500).springify()}
-          style={styles.topicsSection}
-        >
-          <View style={styles.quickStartHeader}>
-            <Text style={styles.sectionTitle}>Quick starts</Text>
-            {selectedAIs.length === 0 && (
-              <Text style={styles.quickStartHint}>Select AI above to enable</Text>
-            )}
-          </View>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.topicsScroll}
+          {/* Quick Start Topics */}
+          <Animated.View 
+            entering={FadeInDown.delay(500).springify()}
           >
-            {QUICK_TOPICS.map((topic) => (
-              <TouchableOpacity 
-                key={topic.id} 
-                style={[
-                  styles.topicCard,
-                  selectedAIs.length === 0 && styles.topicCardDisabled
-                ]}
-                activeOpacity={selectedAIs.length === 0 ? 1 : 0.7}
-                onPress={() => handleQuickStart(topic)}
-                disabled={selectedAIs.length === 0}
+            <ThemedView paddingHorizontal="lg" marginBottom="xl">
+              <ThemedView flexDirection="row" justifyContent="space-between" alignItems="center" marginBottom="md">
+                <ThemedText variant="title" color="primary">
+                  Quick starts
+                </ThemedText>
+                {selectedAIs.length === 0 && (
+                  <ThemedText variant="caption" color="secondary" style={{ fontStyle: 'italic' }}>
+                    Select AI above to enable
+                  </ThemedText>
+                )}
+              </ThemedView>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
               >
-                <Text style={[
-                  styles.topicEmoji,
-                  selectedAIs.length === 0 && styles.topicTextDisabled
-                ]}>{topic.emoji}</Text>
-                <Text style={[
-                  styles.topicTitle,
-                  selectedAIs.length === 0 && styles.topicTextDisabled
-                ]}>{topic.title}</Text>
-                <Text style={[
-                  styles.topicSubtitle,
-                  selectedAIs.length === 0 && styles.topicTextDisabled
-                ]}>{topic.subtitle}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </Animated.View>
+                {QUICK_TOPICS.map((topic) => (
+                  <AnimatedPressable
+                    key={topic.id} 
+                    onPress={() => handleQuickStart(topic)}
+                    disabled={selectedAIs.length === 0}
+                    hapticFeedback
+                    hapticType="light"
+                    style={{ marginRight: theme.spacing.sm }}
+                  >
+                    <GlassCard
+                      style={{
+                        width: 140,
+                        opacity: selectedAIs.length === 0 ? 0.5 : 1,
+                      }}
+                      padding="md"
+                    >
+                      <ThemedText style={{ fontSize: 32, marginBottom: theme.spacing.sm }}>
+                        {topic.emoji}
+                      </ThemedText>
+                      <ThemedText variant="subtitle" color="primary" style={{ marginBottom: 4 }}>
+                        {topic.title}
+                      </ThemedText>
+                      <ThemedText variant="caption" color="secondary">
+                        {topic.subtitle}
+                      </ThemedText>
+                    </GlassCard>
+                  </AnimatedPressable>
+                ))}
+              </ScrollView>
+            </ThemedView>
+          </Animated.View>
 
-        {/* Start Button */}
-        <Animated.View 
-          entering={FadeInDown.delay(700).springify()}
-          style={styles.buttonContainer}
-        >
-          <TouchableOpacity
-            style={[
-              styles.startButton,
-              selectedAIs.length === 0 && styles.startButtonDisabled
-            ]}
-            onPress={() => startChat()}
-            activeOpacity={0.8}
-            disabled={selectedAIs.length === 0}
+          {/* Start Button */}
+          <Animated.View 
+            entering={FadeInDown.delay(700).springify()}
           >
-            <Text style={styles.startButtonText}>
-              {selectedAIs.length === 0 
-                ? 'Select at least one AI'
-                : selectedAIs.length === 1
-                ? `Chat with ${selectedAIs[0].name}`
-                : `Start ${selectedAIs.length}-way conversation`}
-            </Text>
-          </TouchableOpacity>
+            <ThemedView paddingHorizontal="lg">
+              <GradientButton
+                title={
+                  selectedAIs.length === 0 
+                    ? 'Select at least one AI'
+                    : selectedAIs.length === 1
+                    ? `Chat with ${selectedAIs[0].name}`
+                    : `Start ${selectedAIs.length}-way conversation`
+                }
+                onPress={() => startChat()}
+                disabled={selectedAIs.length === 0}
+                fullWidth
+                hapticType="medium"
+              />
 
-          {subscription === 'free' && (
-            <TouchableOpacity 
-              style={styles.upgradeHint}
-              onPress={() => navigation.navigate('Subscription')}
-            >
-              <Text style={styles.upgradeHintText}>
-                ✨ Unlock all features with Pro
-              </Text>
-            </TouchableOpacity>
-          )}
-        </Animated.View>
-      </ScrollView>
-    </SafeAreaView>
+              {subscription === 'free' && (
+                <AnimatedPressable
+                  onPress={() => navigation.navigate('Subscription')}
+                  hapticFeedback
+                  hapticType="light"
+                  style={{ marginTop: theme.spacing.sm, alignItems: 'center' }}
+                >
+                  <ThemedText variant="body" color="brand">
+                    ✨ Unlock all features with Pro
+                  </ThemedText>
+                </AnimatedPressable>
+              )}
+            </ThemedView>
+          </Animated.View>
+        </ScrollView>
+      </SafeAreaView>
+    </ThemedView>
   );
 };
 
@@ -290,180 +328,5 @@ const getGreeting = () => {
   if (hour < 17) return 'Good afternoon';
   return 'Good evening';
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FAFAFA',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 40,
-  },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 24,
-  },
-  greeting: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 4,
-  },
-  subGreeting: {
-    fontSize: 17,
-    color: '#666666',
-  },
-  aiSection: {
-    paddingHorizontal: 24,
-    marginBottom: 32,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: '#999999',
-    marginBottom: 16,
-  },
-  aiGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  aiCard: {
-    width: (width - 48 - 20) / 3,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#F0F0F0',
-  },
-  aiCardSelected: {
-    borderWidth: 2,
-    backgroundColor: '#FFFFFF',
-  },
-  aiCardDisabled: {
-    opacity: 0.4,
-  },
-  aiAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#F5F5F7',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  aiEmoji: {
-    fontSize: 28,
-  },
-  aiName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333333',
-  },
-  selectedBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  selectedBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  topicsSection: {
-    marginBottom: 32,
-    paddingHorizontal: 24,
-  },
-  quickStartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  quickStartHint: {
-    fontSize: 13,
-    color: '#999999',
-    fontStyle: 'italic',
-  },
-  topicsScroll: {
-    // Remove horizontal padding since the section already has it
-  },
-  topicCard: {
-    width: 140,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginRight: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  topicCardDisabled: {
-    backgroundColor: '#F5F5F5',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  topicTextDisabled: {
-    opacity: 0.4,
-  },
-  topicEmoji: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  topicTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 4,
-  },
-  topicSubtitle: {
-    fontSize: 12,
-    color: '#999999',
-  },
-  buttonContainer: {
-    paddingHorizontal: 24,
-  },
-  startButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 14,
-    paddingVertical: 18,
-    alignItems: 'center',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  startButtonDisabled: {
-    backgroundColor: '#E0E0E0',
-    shadowOpacity: 0,
-  },
-  startButtonText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  upgradeHint: {
-    marginTop: 12,
-    alignItems: 'center',
-  },
-  upgradeHintText: {
-    fontSize: 14,
-    color: '#007AFF',
-  },
-});
 
 export default HomeScreen;

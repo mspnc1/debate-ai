@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { RootStackParamList } from '../types';
+import { useTheme } from '../theme';
 
 // Import screens
 import WelcomeScreen from '../screens/WelcomeScreen';
@@ -23,16 +24,18 @@ const Tab = createBottomTabNavigator();
 
 // Main Tab Navigator
 const MainTabs = () => {
+  const { theme, isDark } = useTheme();
+  
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: '#666',
+        tabBarActiveTintColor: theme.colors.primary[500],
+        tabBarInactiveTintColor: theme.colors.text.secondary,
         tabBarStyle: {
-          backgroundColor: '#fff',
+          backgroundColor: isDark ? '#000000' : '#FFFFFF',
           borderTopWidth: 1,
-          borderTopColor: '#e0e0e0',
+          borderTopColor: theme.colors.border,
           paddingBottom: 5,
           paddingTop: 5,
           height: 60,
@@ -44,12 +47,12 @@ const MainTabs = () => {
       }}
     >
       <Tab.Screen
-        name="NewChat"
+        name="Home"
         component={HomeScreen}
         options={{
-          tabBarLabel: 'New Chat',
+          tabBarLabel: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <Text style={{ fontSize: 24, color }}>{focused ? '🤖' : '💬'}</Text>
+            <Text style={{ fontSize: 24, color }}>{focused ? '🏠' : '🏡'}</Text>
           ),
         }}
       />
@@ -107,19 +110,43 @@ const styles = {
 } as const;
 
 export default function AppNavigator() {
+  const { theme, isDark } = useTheme();
   const uiMode = useSelector((state: RootState) => state.user.uiMode);
   const hasCompletedOnboarding = useSelector(
     (state: RootState) => state.settings.hasCompletedOnboarding
   );
 
+  // Custom navigation theme
+  const navigationTheme = isDark ? {
+    ...DarkTheme,
+    colors: {
+      ...DarkTheme.colors,
+      primary: theme.colors.primary[500],
+      background: theme.colors.background,
+      card: theme.colors.surface,
+      text: theme.colors.text.primary,
+      border: theme.colors.border,
+    },
+  } : {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      primary: theme.colors.primary[500],
+      background: theme.colors.background,
+      card: theme.colors.surface,
+      text: theme.colors.text.primary,
+      border: theme.colors.border,
+    },
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator
         screenOptions={{
           headerStyle: {
-            backgroundColor: uiMode === 'expert' ? '#1a1a1a' : '#667eea',
+            backgroundColor: isDark ? theme.colors.surface : theme.colors.primary[500],
           },
-          headerTintColor: '#fff',
+          headerTintColor: isDark ? theme.colors.text.primary : '#fff',
           headerTitleStyle: {
             fontWeight: 'bold',
           },
@@ -151,7 +178,7 @@ export default function AppNavigator() {
             <Stack.Screen
               name="APIConfig"
               component={APIConfigScreen}
-              options={{ title: 'API Configuration' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="Subscription"

@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View,
-  Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
   Alert,
-  TextInput,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { 
+  ThemedView, 
+  ThemedText, 
+  ThemedButton, 
+  ThemedTextInput, 
+  ThemedSafeAreaView 
+} from '../components/core';
+import { useTheme } from '../theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
@@ -28,31 +31,34 @@ interface HistoryScreenProps {
 const SessionPreview: React.FC<{ 
   text: string; 
   searchTerm: string; 
-  style: object 
+  style?: object 
 }> = ({ text, searchTerm, style }) => {
+  const { theme } = useTheme();
+  
   if (!searchTerm) {
-    return <Text style={style}>{text}</Text>;
+    return <ThemedText style={style} color="secondary" variant="body">{text}</ThemedText>;
   }
 
   const parts = text.split(new RegExp(`(${searchTerm})`, 'gi'));
   
   return (
-    <Text style={style}>
+    <ThemedText style={style} color="secondary" variant="body">
       {parts.map((part, index) => 
         part.toLowerCase() === searchTerm.toLowerCase() ? (
-          <Text key={index} style={{ backgroundColor: '#FFE066', fontWeight: '600' }}>
+          <ThemedText key={index} style={{ backgroundColor: theme.colors.warning[50], fontWeight: '600' }}>
             {part}
-          </Text>
+          </ThemedText>
         ) : (
-          <Text key={index}>{part}</Text>
+          part
         )
       )}
-    </Text>
+    </ThemedText>
   );
 };
 
 const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
   const dispatch = useDispatch();
+  const { theme } = useTheme();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [filteredSessions, setFilteredSessions] = useState<ChatSession[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -104,43 +110,42 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
   };
 
   const filterSessions = () => {
-    if (!searchQuery.trim()) {
+    if (!searchQuery) {
       setFilteredSessions(sessions);
       return;
     }
 
-    const searchLower = searchQuery.toLowerCase().trim();
+    const query = searchQuery.toLowerCase();
     const filtered = sessions.filter(session => {
-      // Search in messages content and sender names
-      const messageMatch = session.messages.some(msg => 
-        msg.content.toLowerCase().includes(searchLower) ||
-        msg.sender.toLowerCase().includes(searchLower)
-      );
-      
       // Search in AI names
-      const aiMatch = session.selectedAIs.some(ai =>
-        ai.name.toLowerCase().includes(searchLower)
+      if (session.selectedAIs.some(ai => ai.name.toLowerCase().includes(query))) {
+        return true;
+      }
+      // Search in messages
+      return session.messages.some(msg => 
+        msg.content.toLowerCase().includes(query)
       );
-      
-      return messageMatch || aiMatch;
     });
     
-    // console.log(`Search for "${searchQuery}": found ${filtered.length} of ${sessions.length} sessions`);
     setFilteredSessions(filtered);
   };
 
   const resumeSession = (session: ChatSession) => {
+    // console.log('Resuming session:', session.id);
+    // console.log('Session has', session.messages.length, 'messages');
     dispatch(loadSession(session));
-    navigation.navigate('Chat', { 
-      sessionId: session.id, 
-      resuming: true,
-      searchTerm: searchQuery.trim() // Pass search term for highlighting
-    });
+    
+    // If searching, pass the search term to highlight it
+    const params = searchQuery 
+      ? { sessionId: session.id, resuming: true, searchTerm: searchQuery }
+      : { sessionId: session.id, resuming: true };
+    
+    navigation.navigate('Chat', params);
   };
 
   const deleteSession = async (sessionId: string) => {
     Alert.alert(
-      'Delete Conversation',
+      'Delete Chat',
       'Are you sure you want to delete this conversation?',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -149,9 +154,9 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              const newSessions = sessions.filter(s => s.id !== sessionId);
-              setSessions(newSessions);
-              await AsyncStorage.setItem('chatSessions', JSON.stringify(newSessions));
+              const updated = sessions.filter(s => s.id !== sessionId);
+              setSessions(updated);
+              await AsyncStorage.setItem('chatSessions', JSON.stringify(updated));
             } catch (error) {
               console.error('Error deleting session:', error);
             }
@@ -168,374 +173,285 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     
     if (days === 0) {
-      return 'Today';
+      return `Today, ${date.toLocaleTimeString('en-GB', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      })}`;
     } else if (days === 1) {
-      return 'Yesterday';
+      return `Yesterday, ${date.toLocaleTimeString('en-GB', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      })}`;
     } else if (days < 7) {
-      return `${days} days ago`;
+      return date.toLocaleDateString('en-GB', { 
+        weekday: 'short', 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
     } else {
-      return date.toLocaleDateString();
+      return date.toLocaleDateString('en-GB', { 
+        day: 'numeric', 
+        month: 'short',
+        year: days > 365 ? 'numeric' : undefined
+      });
     }
-  };
-
-  const getSessionSummary = (session: ChatSession) => {
-    if (session.messages.length === 0) return 'No messages';
-    
-    // If searching, try to show the matching message
-    if (searchQuery.trim()) {
-      const searchLower = searchQuery.toLowerCase().trim();
-      const matchingMessage = session.messages.find(msg => 
-        msg.content.toLowerCase().includes(searchLower)
-      );
-      
-      if (matchingMessage) {
-        const content = matchingMessage.content;
-        const matchIndex = content.toLowerCase().indexOf(searchLower);
-        
-        // Show context around the match
-        const contextStart = Math.max(0, matchIndex - 20);
-        const contextEnd = Math.min(content.length, matchIndex + searchQuery.length + 30);
-        
-        let preview = '';
-        if (contextStart > 0) preview += '...';
-        preview += content.substring(contextStart, contextEnd);
-        if (contextEnd < content.length) preview += '...';
-        
-        return preview;
-      }
-    }
-    
-    // Default to showing last message
-    const lastMessage = session.messages[session.messages.length - 1];
-    return lastMessage.content.length > 50 
-      ? lastMessage.content.substring(0, 50) + '...'
-      : lastMessage.content;
-  };
-
-  const getSessionTitle = (session: ChatSession) => {
-    const aiNames = session.selectedAIs.map(ai => ai.name).join(', ');
-    return `Chat with ${aiNames}`;
   };
 
   const renderRightActions = (sessionId: string) => {
     return (
-      <TouchableOpacity
-        style={styles.deleteButton}
-        onPress={() => deleteSession(sessionId)}
-      >
-        <Text style={styles.deleteButtonText}>Delete</Text>
-      </TouchableOpacity>
+      <ThemedView style={[styles.deleteAction, { backgroundColor: theme.colors.error[500] }]}>
+        <ThemedButton
+          onPress={() => deleteSession(sessionId)}
+          style={{ backgroundColor: 'transparent' }}
+        >
+          <ThemedText color="inverse" weight="semibold">Delete</ThemedText>
+        </ThemedButton>
+      </ThemedView>
     );
   };
 
   const renderSession = ({ item, index }: { item: ChatSession; index: number }) => {
+    const lastMessage = item.messages[item.messages.length - 1];
+    const preview = lastMessage?.content || 'No messages yet';
+    const aiNames = item.selectedAIs.map(ai => ai.name).join(' • ');
+    
+    // Check if this session contains the search term
+    const containsSearchTerm = searchQuery && (
+      item.selectedAIs.some(ai => ai.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      item.messages.some(msg => msg.content.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+    
     return (
-      <Swipeable
-        renderRightActions={() => renderRightActions(item.id)}
-        overshootRight={false}
-      >
-        <Animated.View
-          entering={FadeInDown.delay(index * 100).springify()}
+      <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
+        <Swipeable
+          renderRightActions={() => renderRightActions(item.id)}
+          overshootRight={false}
         >
-          <TouchableOpacity
-            style={styles.sessionCard}
+          <ThemedButton
             onPress={() => resumeSession(item)}
-            activeOpacity={0.7}
+            variant="ghost"
+            style={{
+              ...styles.sessionCard,
+              backgroundColor: theme.colors.card,
+              borderColor: containsSearchTerm ? theme.colors.primary[500] : theme.colors.border,
+              borderWidth: containsSearchTerm ? 2 : 1,
+              shadowColor: theme.colors.shadow,
+            }}
           >
-            <View style={styles.sessionHeader}>
-              <View style={styles.aiAvatars}>
-                {item.selectedAIs.map((ai, idx) => (
-                  <View key={ai.id} style={[styles.avatar, { marginLeft: idx > 0 ? -8 : 0 }]}>
-                    <Text style={styles.avatarText}>{ai.avatar || '🤖'}</Text>
-                  </View>
-                ))}
-              </View>
-              <Text style={styles.sessionDate}>{formatDate(item.createdAt)}</Text>
-            </View>
-            
-            <Text style={styles.sessionTitle}>{getSessionTitle(item)}</Text>
-            <SessionPreview 
-              text={getSessionSummary(item)} 
-              searchTerm={searchQuery.trim()}
-              style={styles.sessionPreview}
-            />
-            
-            <View style={styles.sessionFooter}>
-              <Text style={styles.messageCount}>
-                {item.messages.length} messages
-              </Text>
-              {item.isActive && (
-                <View style={styles.activeBadge}>
-                  <Text style={styles.activeBadgeText}>Active</Text>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
-      </Swipeable>
+            <ThemedView style={styles.sessionContent}>
+              <ThemedView style={styles.sessionHeader}>
+                <ThemedText variant="subtitle" weight="semibold" numberOfLines={1}>
+                  {aiNames}
+                </ThemedText>
+                <ThemedText variant="caption" color="secondary">
+                  {formatDate(item.createdAt)}
+                </ThemedText>
+              </ThemedView>
+              <SessionPreview 
+                text={preview}
+                searchTerm={searchQuery}
+                style={styles.preview}
+              />
+              <ThemedView style={styles.sessionFooter}>
+                <ThemedText variant="caption" color="secondary">
+                  {item.messages.length} messages
+                </ThemedText>
+                {containsSearchTerm && (
+                  <ThemedView style={[styles.matchBadge, { backgroundColor: theme.colors.warning[50] }]}>
+                    <ThemedText variant="caption" style={{ color: theme.colors.warning[600] }}>
+                      Match found
+                    </ThemedText>
+                  </ThemedView>
+                )}
+              </ThemedView>
+            </ThemedView>
+          </ThemedButton>
+        </Swipeable>
+      </Animated.View>
     );
   };
 
-
-  const EmptyState = () => (
-    <View style={styles.emptyState}>
-      <Text style={styles.emptyStateEmoji}>💬</Text>
-      <Text style={styles.emptyStateTitle}>No conversations yet</Text>
-      <Text style={styles.emptyStateText}>
-        Start a new chat to see your history here
-      </Text>
-      <TouchableOpacity
-        style={styles.startChatButton}
-        onPress={() => navigation.navigate('NewChat')}
-      >
-        <Text style={styles.startChatButtonText}>Start New Chat</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading conversations...</Text>
-        </View>
-      </SafeAreaView>
+      <ThemedSafeAreaView>
+        <ThemedView style={styles.centered}>
+          <ThemedText variant="body" color="secondary">Loading conversations...</ThemedText>
+        </ThemedView>
+      </ThemedSafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Chat History</Text>
-        {subscription === 'free' && sessions.length >= maxSessions && (
-          <TouchableOpacity 
-            style={styles.upgradeBanner}
-            onPress={() => navigation.navigate('Subscription')}
-          >
-            <Text style={styles.upgradeBannerText}>
-              🔒 Showing last {maxSessions} chats • Upgrade for unlimited
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
+    <ThemedSafeAreaView>
+      <ThemedView flex={1}>
+        {/* Header */}
+        <ThemedView style={[
+          styles.header,
+          { 
+            backgroundColor: theme.colors.surface,
+            borderBottomColor: theme.colors.border,
+          }
+        ]}>
+          <ThemedText variant="title" weight="bold">
+            Chat History
+          </ThemedText>
+          {subscription === 'free' && (
+            <ThemedView style={[
+              styles.limitBadge,
+              { backgroundColor: theme.colors.warning[50] }
+            ]}>
+              <ThemedText variant="caption" style={{ color: theme.colors.warning[600] }}>
+                {sessions.length}/{maxSessions} chats (Free plan)
+              </ThemedText>
+            </ThemedView>
+          )}
+        </ThemedView>
 
-      {sessions.length > 0 && (
-        <View style={styles.searchContainer}>
-          <TextInput
+        {/* Search Bar */}
+        <ThemedView style={[
+          styles.searchContainer,
+          { backgroundColor: theme.colors.surface }
+        ]}>
+          <ThemedTextInput
             style={styles.searchInput}
-            placeholder="Search for keywords in your chats..."
+            placeholder="Search messages or AI names..."
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholderTextColor="#999"
-            returnKeyType="search"
-            clearButtonMode="while-editing"
+            variant="filled"
+            borderRadius="lg"
           />
-          {searchQuery.length > 0 && (
-            <Text style={styles.searchResultCount}>
-              {filteredSessions.length} result{filteredSessions.length !== 1 ? 's' : ''}
-            </Text>
-          )}
-        </View>
-      )}
+        </ThemedView>
 
-      <FlatList
-        data={filteredSessions}
-        keyExtractor={(item) => item.id}
-        renderItem={renderSession}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={sessions.length === 0 ? <EmptyState /> : (
-          <View style={styles.noResults}>
-            <Text style={styles.noResultsText}>No conversations match your search</Text>
-          </View>
+        {/* Sessions List */}
+        <FlatList
+          data={filteredSessions}
+          keyExtractor={(item) => item.id}
+          renderItem={renderSession}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <ThemedView style={styles.emptyState}>
+              <ThemedText style={styles.emptyStateEmoji}>
+                {searchQuery ? '🔍' : '💬'}
+              </ThemedText>
+              <ThemedText variant="title" align="center" style={{ marginBottom: 8 }}>
+                {searchQuery ? 'No matches found' : 'No conversations yet'}
+              </ThemedText>
+              <ThemedText variant="body" color="secondary" align="center">
+                {searchQuery 
+                  ? 'Try a different search term'
+                  : 'Start a new chat to see it here'}
+              </ThemedText>
+            </ThemedView>
+          }
+          showsVerticalScrollIndicator={false}
+        />
+
+        {/* Stats or Tips */}
+        {sessions.length > 0 && !searchQuery && (
+          <ThemedView style={[
+            styles.statsBar,
+            { 
+              backgroundColor: theme.colors.surface,
+              borderTopColor: theme.colors.border,
+            }
+          ]}>
+            <ThemedText variant="caption" color="secondary">
+              {sessions.length} conversation{sessions.length !== 1 ? 's' : ''} • 
+              {' '}{sessions.reduce((acc, s) => acc + s.messages.length, 0)} total messages
+            </ThemedText>
+          </ThemedView>
         )}
-        showsVerticalScrollIndicator={false}
-      />
-    </SafeAreaView>
+      </ThemedView>
+    </ThemedSafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  centered: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  title: {
-    fontSize: 34,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 8,
-  },
-  upgradeBanner: {
-    backgroundColor: '#FFF3CD',
+  limitBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 8,
-    padding: 10,
-  },
-  upgradeBannerText: {
-    fontSize: 13,
-    color: '#856404',
-    fontWeight: '500',
   },
   searchContainer: {
     paddingHorizontal: 20,
-    marginBottom: 16,
+    paddingVertical: 12,
   },
   searchInput: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
     fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  searchResultCount: {
-    fontSize: 12,
-    color: '#666666',
-    marginTop: 6,
-    paddingHorizontal: 4,
   },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingVertical: 16,
+    flexGrow: 1,
   },
   sessionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
+    borderRadius: 12,
+    padding: 16,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
     elevation: 2,
+  },
+  sessionContent: {
+    flex: 1,
   },
   sessionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  aiAvatars: {
-    flexDirection: 'row',
-  },
-  avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#F5F5F7',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  avatarText: {
-    fontSize: 14,
-  },
-  sessionDate: {
-    fontSize: 13,
-    color: '#999999',
-  },
-  sessionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 6,
-  },
-  sessionPreview: {
-    fontSize: 14,
-    color: '#666666',
+  preview: {
+    marginBottom: 8,
     lineHeight: 20,
-    marginBottom: 12,
   },
   sessionFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  messageCount: {
-    fontSize: 12,
-    color: '#999999',
+  matchBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
   },
-  activeBadge: {
-    backgroundColor: '#10B981',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  activeBadgeText: {
-    fontSize: 11,
-    color: '#FFFFFF',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  deleteButton: {
-    backgroundColor: '#FF3B30',
+  deleteAction: {
     justifyContent: 'center',
     alignItems: 'center',
     width: 80,
+    height: '100%',
     marginBottom: 12,
-    borderRadius: 16,
-    marginLeft: 8,
-  },
-  deleteButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 14,
+    borderRadius: 12,
   },
   emptyState: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 100,
+    justifyContent: 'center',
+    paddingVertical: 60,
   },
   emptyStateEmoji: {
-    fontSize: 64,
-    marginBottom: 20,
+    fontSize: 48,
+    marginBottom: 16,
   },
-  emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 8,
-  },
-  emptyStateText: {
-    fontSize: 16,
-    color: '#666666',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  startChatButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 12,
-    paddingHorizontal: 24,
+  statsBar: {
+    paddingHorizontal: 20,
     paddingVertical: 12,
-  },
-  startChatButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+    borderTopWidth: 1,
     alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#666666',
-  },
-  noResults: {
-    paddingTop: 50,
-    alignItems: 'center',
-  },
-  noResultsText: {
-    fontSize: 16,
-    color: '#999999',
   },
 });
 

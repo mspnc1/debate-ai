@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  View,
   Text,
   StyleSheet,
   TouchableOpacity,
@@ -23,6 +22,8 @@ import { addMessage, setTypingAI, startSession } from '../store';
 import { Message, AI } from '../types';
 import { AIService } from '../services/aiAdapter';
 import { DEBATE_TOPICS, AI_PERSONALITIES, DEBATE_REACTIONS } from '../constants/debateTopics';
+import { useTheme } from '../theme';
+import { ThemedView, ThemedText, GradientButton, ThemedButton } from '../components/core';
 
 interface DebateScreenProps {
   navigation: {
@@ -40,6 +41,7 @@ interface DebateScreenProps {
 
 const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   const dispatch = useDispatch();
+  const { theme } = useTheme();
   const { selectedAIs, topic: initialTopic, personalities: initialPersonalities } = route.params;
   
   const [selectedTopic, setSelectedTopic] = useState(initialTopic || '');
@@ -253,6 +255,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   };
 
   const MessageBubble: React.FC<{ message: Message; index: number }> = React.memo(({ message }) => {
+    const { theme } = useTheme();
     const isHost = message.sender === 'Debate Host';
     const scale = useSharedValue(0);
     const hasAnimated = useRef(false);
@@ -281,97 +284,126 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     return (
       <Animated.View style={[styles.messageContainer, animatedStyle]}>
         {!isHost && (
-          <View style={styles.aiHeader}>
-            <Text style={styles.aiName}>{message.sender}</Text>
-          </View>
+          <ThemedView style={styles.aiHeader}>
+            <ThemedText variant="subtitle" color="brand" weight="semibold">
+              {message.sender}
+            </ThemedText>
+          </ThemedView>
         )}
-        <View style={[
+        <ThemedView style={[
           styles.messageBubble,
-          isHost ? styles.hostBubble : styles.aiBubble,
+          isHost ? [
+            styles.hostBubble,
+            { backgroundColor: theme.colors.warning[50], borderColor: theme.colors.warning[500] }
+          ] : [
+            styles.aiBubble,
+            { backgroundColor: theme.colors.card, borderColor: theme.colors.border }
+          ],
         ]}>
-          <Text style={[styles.messageText, isHost && styles.hostText]}>
+          <ThemedText 
+            variant="body" 
+            style={[
+              styles.messageText,
+              isHost && { textAlign: 'center', fontWeight: '600', color: theme.colors.warning[600] }
+            ]}
+          >
             {message.content}
-          </Text>
-        </View>
+          </ThemedText>
+        </ThemedView>
       </Animated.View>
     );
   }, (prevProps, nextProps) => prevProps.message.id === nextProps.message.id);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <ThemedView style={[styles.header, { 
+        backgroundColor: theme.colors.surface,
+        borderBottomColor: theme.colors.border 
+      }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>←</Text>
+          <ThemedText style={[styles.backButton, { color: theme.colors.primary[500] }]}>←</ThemedText>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>🎭 AI Debate Arena</Text>
-        <View style={styles.headerRight}>
+        <ThemedText variant="title" weight="bold">🎭 AI Debate Arena</ThemedText>
+        <ThemedView style={styles.headerRight}>
           {debateStarted && (
-            <Text style={styles.roundText}>Round {currentRound}/{maxRounds}</Text>
+            <ThemedText variant="body" style={{ color: theme.colors.error[500], fontWeight: '600' }}>
+              Round {currentRound}/{maxRounds}
+            </ThemedText>
           )}
-        </View>
-      </View>
+        </ThemedView>
+      </ThemedView>
 
       {/* Topic Selector */}
       {showTopicPicker && (
-        <Animated.View entering={FadeInDown} style={styles.topicSelector}>
-          <Text style={styles.sectionTitle}>Choose Your Battle!</Text>
+        <Animated.View entering={FadeInDown} style={[styles.topicSelector, {
+          backgroundColor: theme.colors.card,
+          borderBottomColor: theme.colors.border
+        }]}>
+          <ThemedText variant="title" weight="semibold">Choose Your Battle!</ThemedText>
           
           {/* Topic Mode Selector */}
-          <View style={styles.topicModeContainer}>
-            <TouchableOpacity
-              style={[styles.topicModeButton, topicMode === 'preset' && styles.topicModeButtonActive]}
+          <ThemedView style={styles.topicModeContainer}>
+            <ThemedButton
+              title="📋 Select Topic"
               onPress={() => {
                 setTopicMode('preset');
                 setSelectedTopic('');
                 setCustomTopic('');
               }}
-            >
-              <Text style={[styles.topicModeText, topicMode === 'preset' && styles.topicModeTextActive]}>
-                📋 Select Topic
-              </Text>
-            </TouchableOpacity>
+              variant={topicMode === 'preset' ? 'primary' : 'secondary'}
+              size="medium"
+              style={{ flex: 1, marginRight: 4 }}
+            />
             
-            <TouchableOpacity
-              style={[styles.topicModeButton, topicMode === 'custom' && styles.topicModeButtonActive]}
+            <ThemedButton
+              title="✏️ Custom Topic"
               onPress={() => {
                 setTopicMode('custom');
                 setSelectedTopic('');
               }}
-            >
-              <Text style={[styles.topicModeText, topicMode === 'custom' && styles.topicModeTextActive]}>
-                ✏️ Custom Topic
-              </Text>
-            </TouchableOpacity>
-          </View>
+              variant={topicMode === 'custom' ? 'primary' : 'secondary'}
+              size="medium"
+              style={{ flex: 1, marginLeft: 4 }}
+            />
+          </ThemedView>
 
           {topicMode === 'preset' ? (
             <>
               {/* Dropdown Selector */}
               <TouchableOpacity
-                style={styles.dropdownButton}
+                style={[styles.dropdownButton, {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border
+                }]}
                 onPress={() => setShowTopicDropdown(!showTopicDropdown)}
               >
-                <Text style={styles.dropdownButtonText}>
+                <ThemedText style={styles.dropdownButtonText}>
                   {selectedTopic || 'Select a debate topic...'}
-                </Text>
-                <Text style={styles.dropdownArrow}>{showTopicDropdown ? '▲' : '▼'}</Text>
+                </ThemedText>
+                <ThemedText style={[styles.dropdownArrow, { color: theme.colors.text.secondary }]}>
+                  {showTopicDropdown ? '▲' : '▼'}
+                </ThemedText>
               </TouchableOpacity>
 
               {/* Dropdown List */}
               {showTopicDropdown && (
-                <Animated.View entering={FadeIn} style={styles.dropdownList}>
+                <Animated.View entering={FadeIn} style={[styles.dropdownList, {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                  shadowColor: theme.colors.shadow
+                }]}>
                   <ScrollView style={styles.dropdownScroll} nestedScrollEnabled={true}>
                     {DEBATE_TOPICS.map((topic, index) => (
                       <TouchableOpacity
                         key={index}
-                        style={styles.dropdownItem}
+                        style={[styles.dropdownItem, { borderBottomColor: theme.colors.border }]}
                         onPress={() => {
                           setSelectedTopic(topic);
                           setShowTopicDropdown(false);
                         }}
                       >
-                        <Text style={styles.dropdownItemText}>{topic}</Text>
+                        <ThemedText style={styles.dropdownItemText}>{topic}</ThemedText>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
@@ -379,32 +411,41 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
               )}
 
               {/* Random Topic Button */}
-              <TouchableOpacity style={styles.randomButton} onPress={() => {
-                selectRandomTopic();
-                setShowTopicDropdown(false);
-              }}>
-                <Text style={styles.randomButtonText}>🎲 Surprise Me!</Text>
-              </TouchableOpacity>
+              <GradientButton
+                title="🎲 Surprise Me!"
+                onPress={() => {
+                  selectRandomTopic();
+                  setShowTopicDropdown(false);
+                }}
+                gradient={theme.colors.gradients.sunset}
+                fullWidth
+                style={{ marginTop: 12 }}
+              />
             </>
           ) : (
             <>
               {/* Custom Topic Input */}
               <TextInput
-                style={styles.customTopicInput}
+                style={[styles.customTopicInput, {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                  color: theme.colors.text.primary
+                }]}
                 placeholder="Enter your debate topic..."
-                placeholderTextColor="#999999"
+                placeholderTextColor={theme.colors.text.disabled}
                 value={customTopic}
                 onChangeText={setCustomTopic}
                 multiline
                 numberOfLines={2}
               />
-              <TouchableOpacity
-                style={[styles.useCustomButton, !customTopic && styles.useCustomButtonDisabled]}
+              <GradientButton
+                title="Use This Topic"
                 onPress={() => customTopic && setSelectedTopic(customTopic)}
                 disabled={!customTopic}
-              >
-                <Text style={styles.useCustomButtonText}>Use This Topic</Text>
-              </TouchableOpacity>
+                gradient={theme.colors.gradients.primary}
+                fullWidth
+                style={{ marginTop: 12 }}
+              />
             </>
           )}
         </Animated.View>
@@ -412,42 +453,40 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
 
       {/* Selected Topic Display */}
       {((topicMode === 'preset' && selectedTopic) || (topicMode === 'custom' && customTopic)) && !debateStarted && (
-        <View style={styles.selectedTopicDisplay}>
-          <Text style={styles.selectedTopicLabel}>Topic:</Text>
-          <Text style={styles.selectedTopicDisplayText}>"{topicMode === 'custom' ? customTopic : selectedTopic}"</Text>
-        </View>
+        <ThemedView style={[styles.selectedTopicDisplay, {
+          backgroundColor: theme.colors.card,
+          shadowColor: theme.colors.shadow
+        }]}>
+          <ThemedText variant="caption" color="brand" weight="medium">Topic:</ThemedText>
+          <ThemedText variant="title" weight="semibold">
+            "{topicMode === 'custom' ? customTopic : selectedTopic}"
+          </ThemedText>
+        </ThemedView>
       )}
 
       {/* Personality Selector */}
       {!debateStarted && ((topicMode === 'preset' && selectedTopic) || (topicMode === 'custom' && customTopic)) && (
         <Animated.View entering={FadeInDown.delay(200)} style={styles.personalitySection}>
-          <Text style={styles.sectionTitle}>Choose Personalities</Text>
+          <ThemedText variant="title" weight="semibold">Choose Personalities</ThemedText>
           {selectedAIs.map((ai) => (
-            <View key={ai.id} style={styles.personalityRow}>
-              <Text style={styles.aiLabel}>{ai.name}:</Text>
+            <ThemedView key={ai.id} style={styles.personalityRow}>
+              <ThemedText variant="subtitle" color="brand" weight="semibold">{ai.name}:</ThemedText>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {AI_PERSONALITIES[ai.id as keyof typeof AI_PERSONALITIES]?.map((personality) => (
-                  <TouchableOpacity
+                  <ThemedButton
                     key={personality.id}
-                    style={[
-                      styles.personalityChip,
-                      aiPersonalities[ai.id] === personality.id && styles.selectedPersonalityChip,
-                    ]}
+                    title={personality.name}
                     onPress={() => setAiPersonalities({
                       ...aiPersonalities,
                       [ai.id]: personality.id,
                     })}
-                  >
-                    <Text style={[
-                      styles.personalityText,
-                      aiPersonalities[ai.id] === personality.id && styles.selectedPersonalityText,
-                    ]}>
-                      {personality.name}
-                    </Text>
-                  </TouchableOpacity>
+                    variant={aiPersonalities[ai.id] === personality.id ? 'primary' : 'secondary'}
+                    size="small"
+                    style={{ marginRight: 8 }}
+                  />
                 ))}
               </ScrollView>
-            </View>
+            </ThemedView>
           ))}
         </Animated.View>
       )}
@@ -455,12 +494,16 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
       {/* Start Button */}
       {!debateStarted && ((topicMode === 'preset' && selectedTopic) || (topicMode === 'custom' && customTopic)) && (
         <>
-          <TouchableOpacity style={styles.startButton} onPress={startDebate}>
-            <Text style={styles.startButtonText}>🤜 Start the Debate! 🤛</Text>
-          </TouchableOpacity>
-          <Text style={styles.rateNote}>
+          <GradientButton
+            title="🤜 Start the Debate! 🤛"
+            onPress={startDebate}
+            gradient={theme.colors.gradients.ocean}
+            fullWidth
+            style={{ marginHorizontal: 16, marginBottom: 16 }}
+          />
+          <ThemedText variant="caption" color="secondary" align="center" style={styles.rateNote}>
             Note: Debates have built-in delays to respect API rate limits
-          </Text>
+          </ThemedText>
         </>
       )}
 
@@ -480,15 +523,18 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
 
           {/* Typing Indicator */}
           {typingAIs.length > 0 && (
-            <View style={styles.typingIndicator}>
-              <Text style={styles.typingText}>
+            <ThemedView style={styles.typingIndicator}>
+              <ThemedText variant="body" color="brand" style={{ fontStyle: 'italic' }}>
                 {typingAIs[0]} is thinking... 🤔
-              </Text>
-            </View>
+              </ThemedText>
+            </ThemedView>
           )}
 
           {/* Reactions */}
-          <View style={styles.reactionsContainer}>
+          <ThemedView style={[styles.reactionsContainer, {
+            backgroundColor: theme.colors.surface,
+            borderTopColor: theme.colors.border
+          }]}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {DEBATE_REACTIONS.map((reaction) => (
                 <TouchableOpacity
@@ -497,11 +543,11 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
                   onPress={() => addReaction(reaction.emoji)}
                 >
                   <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
-                  <Text style={styles.reactionLabel}>{reaction.label}</Text>
+                  <ThemedText variant="caption" color="secondary">{reaction.label}</ThemedText>
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </View>
+          </ThemedView>
 
           {/* Floating Reactions */}
           {reactions.map((emoji, index) => (
@@ -522,7 +568,6 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
   },
   header: {
     flexDirection: 'row',
@@ -530,263 +575,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
   },
   backButton: {
     fontSize: 28,
-    color: '#007AFF',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1A1A1A',
   },
   headerRight: {
     minWidth: 80,
   },
-  roundText: {
-    color: '#FF6B6B',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   topicSelector: {
     padding: 16,
-    backgroundColor: '#FFFFFF',
     marginBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 12,
-  },
-  topicChip: {
-    backgroundColor: '#F5F5F7',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  selectedTopicChip: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  topicText: {
-    color: '#666666',
-    fontSize: 14,
-  },
-  selectedTopicText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  randomButton: {
-    backgroundColor: '#FFE066',
-    paddingVertical: 12,
-    borderRadius: 25,
-    marginTop: 12,
-    alignItems: 'center',
-  },
-  randomButtonText: {
-    color: '#1A1A1A',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  selectedTopicDisplay: {
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  selectedTopicLabel: {
-    color: '#007AFF',
-    fontSize: 14,
-    marginBottom: 4,
-    fontWeight: '500',
-  },
-  selectedTopicDisplayText: {
-    color: '#1A1A1A',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  personalitySection: {
-    padding: 16,
-  },
-  personalityRow: {
-    marginBottom: 12,
-  },
-  aiLabel: {
-    color: '#007AFF',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  personalityChip: {
-    backgroundColor: '#F5F5F7',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  selectedPersonalityChip: {
-    backgroundColor: '#34C759',
-    borderColor: '#34C759',
-  },
-  personalityText: {
-    color: '#666666',
-    fontSize: 13,
-  },
-  selectedPersonalityText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  startButton: {
-    backgroundColor: '#007AFF',
-    marginHorizontal: 16,
-    paddingVertical: 16,
-    borderRadius: 25,
-    alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  startButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  messagesList: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  messageContainer: {
-    marginBottom: 16,
-  },
-  aiHeader: {
-    marginBottom: 4,
-  },
-  aiName: {
-    color: '#007AFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  messageBubble: {
-    padding: 12,
-    borderRadius: 16,
-    maxWidth: '85%',
-  },
-  hostBubble: {
-    backgroundColor: '#FFE066',
-    alignSelf: 'center',
-    borderWidth: 1,
-    borderColor: '#FFC107',
-  },
-  aiBubble: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  messageText: {
-    color: '#1A1A1A',
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  hostText: {
-    textAlign: 'center',
-    fontWeight: '600',
-    color: '#856404',
-  },
-  typingIndicator: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  typingText: {
-    color: '#007AFF',
-    fontSize: 14,
-    fontStyle: 'italic',
-  },
-  reactionsContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-  },
-  reactionButton: {
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  reactionEmoji: {
-    fontSize: 28,
-  },
-  reactionLabel: {
-    color: '#999999',
-    fontSize: 11,
-    marginTop: 4,
-  },
-  floatingReaction: {
-    position: 'absolute',
-    fontSize: 40,
-    alignSelf: 'center',
-  },
-  rateNote: {
-    color: '#666666',
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: -8,
-    marginBottom: 16,
-    fontStyle: 'italic',
   },
   topicModeContainer: {
     flexDirection: 'row',
     gap: 8,
     marginBottom: 16,
   },
-  topicModeButton: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: '#F5F5F7',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    alignItems: 'center',
-  },
-  topicModeButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  topicModeText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666666',
-  },
-  topicModeTextActive: {
-    color: '#FFFFFF',
-  },
   dropdownButton: {
-    backgroundColor: '#F5F5F7',
     borderRadius: 10,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -794,26 +601,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
   },
   dropdownButtonText: {
     flex: 1,
     fontSize: 15,
-    color: '#1A1A1A',
   },
   dropdownArrow: {
     fontSize: 14,
-    color: '#666666',
     marginLeft: 8,
   },
   dropdownList: {
     marginTop: 8,
-    backgroundColor: '#FFFFFF',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
     maxHeight: 200,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
@@ -826,38 +627,89 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
   },
   dropdownItemText: {
     fontSize: 14,
-    color: '#1A1A1A',
   },
   customTopicInput: {
-    backgroundColor: '#F5F5F7',
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 16,
     fontSize: 15,
-    color: '#1A1A1A',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
     minHeight: 60,
     textAlignVertical: 'top',
   },
-  useCustomButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 12,
+  selectedTopicDisplay: {
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  useCustomButtonDisabled: {
-    backgroundColor: '#C8C8C8',
+  personalitySection: {
+    padding: 16,
   },
-  useCustomButtonText: {
-    color: '#FFFFFF',
+  personalityRow: {
+    marginBottom: 12,
+  },
+  messagesList: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  messageContainer: {
+    marginBottom: 16,
+  },
+  aiHeader: {
+    marginBottom: 4,
+  },
+  messageBubble: {
+    padding: 12,
+    borderRadius: 16,
+    maxWidth: '85%',
+  },
+  hostBubble: {
+    alignSelf: 'center',
+    borderWidth: 1,
+  },
+  aiBubble: {
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  messageText: {
     fontSize: 15,
-    fontWeight: '600',
+    lineHeight: 22,
+  },
+  typingIndicator: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  reactionsContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+  },
+  reactionButton: {
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  reactionEmoji: {
+    fontSize: 28,
+  },
+  floatingReaction: {
+    position: 'absolute',
+    fontSize: 40,
+    alignSelf: 'center',
+  },
+  rateNote: {
+    marginTop: -8,
+    marginBottom: 16,
   },
 });
 
