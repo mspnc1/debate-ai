@@ -276,35 +276,6 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
     );
   };
 
-  // Debug function to test storage
-  const testStorage = async () => {
-    const testSession: ChatSession = {
-      id: 'test_' + Date.now(),
-      selectedAIs: [{ id: 'test', provider: 'claude', name: 'Test AI' }],
-      messages: [
-        {
-          id: 'msg1',
-          sender: 'You',
-          senderType: 'user',
-          content: 'Test message',
-          timestamp: Date.now()
-        }
-      ],
-      isActive: false,
-      createdAt: Date.now()
-    };
-    
-    try {
-      const stored = await AsyncStorage.getItem('chatSessions');
-      const sessions = stored ? JSON.parse(stored) : [];
-      sessions.push(testSession);
-      await AsyncStorage.setItem('chatSessions', JSON.stringify(sessions));
-      // console.log('Test session saved');
-      loadChatHistory();
-    } catch (error) {
-      console.error('Test storage error:', error);
-    }
-  };
 
   const EmptyState = () => (
     <View style={styles.emptyState}>
@@ -318,13 +289,6 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
         onPress={() => navigation.navigate('NewChat')}
       >
         <Text style={styles.startChatButtonText}>Start New Chat</Text>
-      </TouchableOpacity>
-      {/* Debug button - remove in production */}
-      <TouchableOpacity
-        style={[styles.startChatButton, { marginTop: 10, backgroundColor: '#666' }]}
-        onPress={testStorage}
-      >
-        <Text style={styles.startChatButtonText}>Test Storage (Debug)</Text>
       </TouchableOpacity>
     </View>
   );
@@ -498,15 +462,16 @@ const styles = StyleSheet.create({
     color: '#999999',
   },
   activeBadge: {
-    backgroundColor: '#D4EDDA',
+    backgroundColor: '#10B981',
     borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   activeBadgeText: {
     fontSize: 11,
-    color: '#155724',
+    color: '#FFFFFF',
     fontWeight: '600',
+    textTransform: 'uppercase',
   },
   deleteButton: {
     backgroundColor: '#FF3B30',

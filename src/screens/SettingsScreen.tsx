@@ -25,6 +25,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const { theme } = useSelector((state: RootState) => state.settings);
   
   const isExpertMode = uiMode === 'expert';
+  // const hasApiKeys = apiKeys && (apiKeys.claude || apiKeys.openai || apiKeys.google);
+
   const isDarkMode = theme === 'dark';
 
   return (

@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
@@ -63,6 +64,8 @@ const QUICK_TOPICS = [
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const dispatch = useDispatch();
   const [selectedAIs, setSelectedAIs] = useState<AIConfig[]>([]);
+  // const [showQuickStartWizard, setShowQuickStartWizard] = useState(false);
+  // const [selectedTopic, setSelectedTopic] = useState<typeof QUICK_TOPICS[0] | null>(null);
   const subscription = useSelector((state: RootState) => state.user.currentUser?.subscription || 'free');
   
   const maxAIs = subscription === 'free' ? 2 : 3;
@@ -75,11 +78,54 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   };
 
-  const startChat = () => {
+  const startChat = (initialPrompt?: string) => {
     if (selectedAIs.length > 0) {
       dispatch(startSession({ selectedAIs }));
-      navigation.navigate('Chat', { sessionId: `session_${Date.now()}` });
+      const sessionId = `session_${Date.now()}`;
+      const params: Record<string, unknown> = { sessionId };
+      // Only add initialPrompt if it's defined
+      if (initialPrompt) {
+        params.initialPrompt = initialPrompt;
+      }
+      navigation.navigate('Chat', params);
     }
+  };
+
+  const handleQuickStart = (topic: typeof QUICK_TOPICS[0]) => {
+    // Don't allow quick start without AIs selected
+    if (selectedAIs.length === 0) {
+      return;
+    }
+    
+    // Generate a starter prompt based on the topic
+    let initialPrompt = '';
+    switch(topic.id) {
+      case '1': // Morning Chat
+        initialPrompt = selectedAIs.length > 1 
+          ? "Good morning! Let's have a casual conversation about what's new today. What interesting topics are trending in your respective domains?"
+          : "Good morning! Let's have a casual conversation. What's interesting in the world today?";
+        break;
+      case '2': // Brainstorm
+        initialPrompt = selectedAIs.length > 1
+          ? "I need help brainstorming ideas. Let's think creatively together about innovative solutions. Each of you bring your unique perspective!"
+          : "Help me brainstorm some creative ideas. Let's think outside the box!";
+        break;
+      case '3': // Debate Mode
+        // Navigate to dedicated Debate Screen instead of regular chat
+        if (selectedAIs.length < 2) {
+          Alert.alert('Select More AIs', 'You need at least 2 AIs for a debate!');
+          return;
+        }
+        navigation.navigate('Debate', { selectedAIs });
+        return; // Don't continue to startChat
+      case '4': // Learn Stuff
+        initialPrompt = selectedAIs.length > 1
+          ? "I'm curious to learn something new today. Can you each teach me something fascinating from your area of expertise?"
+          : "Teach me something new and interesting today. What's a fascinating fact or concept?";
+        break;
+    }
+    
+    startChat(initialPrompt);
   };
 
   return (
@@ -160,7 +206,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           entering={FadeInDown.delay(500).springify()}
           style={styles.topicsSection}
         >
-          <Text style={styles.sectionTitle}>Quick starts</Text>
+          <View style={styles.quickStartHeader}>
+            <Text style={styles.sectionTitle}>Quick starts</Text>
+            {selectedAIs.length === 0 && (
+              <Text style={styles.quickStartHint}>Select AI above to enable</Text>
+            )}
+          </View>
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
@@ -169,12 +220,26 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             {QUICK_TOPICS.map((topic) => (
               <TouchableOpacity 
                 key={topic.id} 
-                style={styles.topicCard}
-                activeOpacity={0.7}
+                style={[
+                  styles.topicCard,
+                  selectedAIs.length === 0 && styles.topicCardDisabled
+                ]}
+                activeOpacity={selectedAIs.length === 0 ? 1 : 0.7}
+                onPress={() => handleQuickStart(topic)}
+                disabled={selectedAIs.length === 0}
               >
-                <Text style={styles.topicEmoji}>{topic.emoji}</Text>
-                <Text style={styles.topicTitle}>{topic.title}</Text>
-                <Text style={styles.topicSubtitle}>{topic.subtitle}</Text>
+                <Text style={[
+                  styles.topicEmoji,
+                  selectedAIs.length === 0 && styles.topicTextDisabled
+                ]}>{topic.emoji}</Text>
+                <Text style={[
+                  styles.topicTitle,
+                  selectedAIs.length === 0 && styles.topicTextDisabled
+                ]}>{topic.title}</Text>
+                <Text style={[
+                  styles.topicSubtitle,
+                  selectedAIs.length === 0 && styles.topicTextDisabled
+                ]}>{topic.subtitle}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -190,7 +255,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               styles.startButton,
               selectedAIs.length === 0 && styles.startButtonDisabled
             ]}
-            onPress={startChat}
+            onPress={() => startChat()}
             activeOpacity={0.8}
             disabled={selectedAIs.length === 0}
           >
@@ -258,7 +323,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: '#1A1A1A',
-    marginBottom: 4,
   },
   sectionSubtitle: {
     fontSize: 14,
@@ -319,9 +383,21 @@ const styles = StyleSheet.create({
   },
   topicsSection: {
     marginBottom: 32,
+    paddingHorizontal: 24,
+  },
+  quickStartHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  quickStartHint: {
+    fontSize: 13,
+    color: '#999999',
+    fontStyle: 'italic',
   },
   topicsScroll: {
-    paddingHorizontal: 24,
+    // Remove horizontal padding since the section already has it
   },
   topicCard: {
     width: 140,
@@ -334,6 +410,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
+  },
+  topicCardDisabled: {
+    backgroundColor: '#F5F5F5',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  topicTextDisabled: {
+    opacity: 0.4,
   },
   topicEmoji: {
     fontSize: 32,

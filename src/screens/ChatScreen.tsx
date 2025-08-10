@@ -34,6 +34,7 @@ interface ChatScreenProps {
       sessionId: string;
       resuming?: boolean;
       searchTerm?: string;
+      initialPrompt?: string;
     };
   };
 }
@@ -138,12 +139,34 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   const messages = currentSession?.messages || [];
   const selectedAIs = currentSession?.selectedAIs || [];
   const searchTerm = route.params?.searchTerm;
+  const initialPrompt = route.params?.initialPrompt;
 
   // Initialize AI service when API keys change
   useEffect(() => {
-    const service = new AIService(apiKeys);
+    const service = new AIService(apiKeys || {});
     setAiService(service);
   }, [apiKeys]);
+
+  // Send initial prompt if provided
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    if (initialPrompt && typeof initialPrompt === 'string' && messages.length === 0 && currentSession) {
+      setInputText(initialPrompt);
+      // Auto-send after a short delay to let the UI settle
+      timeoutId = setTimeout(() => {
+        // Call sendMessage with the initial prompt directly
+        if (initialPrompt.trim()) {
+          handleSendMessage(initialPrompt);
+        }
+      }, 500);
+    }
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPrompt, currentSession]);
 
   // Save session to AsyncStorage whenever it changes
   useEffect(() => {
@@ -156,6 +179,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
 
   // Scroll to first matching message when search term is present
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
     if (searchTerm && messages.length > 0) {
       const matchIndex = messages.findIndex(msg => 
         msg.content.toLowerCase().includes(searchTerm.toLowerCase())
@@ -163,7 +188,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
       
       if (matchIndex >= 0) {
         // Small delay to ensure list is rendered
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           flatListRef.current?.scrollToIndex({ 
             index: matchIndex, 
             animated: true,
@@ -172,6 +197,10 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         }, 100);
       }
     }
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, messages.length]);
 
@@ -201,15 +230,20 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   };
 
   const sendMessage = async () => {
-    if (!inputText.trim() || !currentSession) return;
+    if (!inputText.trim()) return;
+    await handleSendMessage(inputText);
+  };
+
+  const handleSendMessage = async (messageText: string) => {
+    if (!messageText.trim() || !currentSession) return;
 
     const userMessage: Message = {
       id: `msg_${Date.now()}`,
       sender: 'You',
       senderType: 'user',
-      content: inputText.trim(),
+      content: messageText.trim(),
       timestamp: Date.now(),
-      mentions: parseMentions(inputText),
+      mentions: parseMentions(messageText),
     };
 
     dispatch(addMessage(userMessage));
@@ -217,28 +251,41 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     Keyboard.dismiss();
 
     // Determine which AIs should respond
-    const mentions = parseMentions(inputText);
+    const mentions = parseMentions(messageText);
     const respondingAIs = mentions.length > 0
       ? selectedAIs.filter(ai => mentions.includes(ai.name.toLowerCase()))
       : selectedAIs;
 
-    // Process AI responses
+    // Build conversation context incrementally (round-robin style)
+    let conversationContext = [...messages, userMessage];
+    
+    // Process AI responses sequentially (round-robin)
     for (const ai of respondingAIs) {
       dispatch(setTypingAI({ ai: ai.name, isTyping: true }));
 
       try {
-        // Simulate delay for natural conversation
-        await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 1000));
+        // Simulate natural typing delay
+        await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
 
         // Get AI response using service
         if (!aiService) {
           throw new Error('AI service not initialized');
         }
 
+        // For round-robin: Each AI sees the full conversation including previous AI responses
+        // The last message in the context is what they're responding to
+        const lastMessage = conversationContext[conversationContext.length - 1];
+        const promptForAI = lastMessage.content;
+        
+        // Check if this is debate mode
+        const isDebateMode = promptForAI.includes('[DEBATE MODE]') || 
+                           (conversationContext.length > 0 && conversationContext[0].content.includes('[DEBATE MODE]'));
+
         const response = await aiService.sendMessage(
           ai.id,
-          userMessage.content,
-          messages
+          promptForAI,
+          conversationContext,
+          isDebateMode
         );
 
         const aiMessage: Message = {
@@ -250,6 +297,10 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         };
 
         dispatch(addMessage(aiMessage));
+        
+        // Add this AI's response to the context for the next AI
+        conversationContext = [...conversationContext, aiMessage];
+        
       } catch (error) {
         console.error(`Error getting response from ${ai.name}:`, error);
         
@@ -264,6 +315,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
           timestamp: Date.now(),
         };
         dispatch(addMessage(errorMessage));
+        
+        // Even error messages are part of the conversation context
+        conversationContext = [...conversationContext, errorMessage];
       } finally {
         dispatch(setTypingAI({ ai: ai.name, isTyping: false }));
       }

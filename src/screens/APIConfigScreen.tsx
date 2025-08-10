@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,13 +10,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { updateApiKeys } from '../store';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import secureStorage from '../services/secureStorage';
 
 interface APIConfigScreenProps {
   navigation: {
@@ -24,7 +25,15 @@ interface APIConfigScreenProps {
   };
 }
 
-const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
+interface TestResult {
+  provider: 'claude' | 'openai' | 'google';
+  status: 'idle' | 'testing' | 'success' | 'failed';
+  message?: string;
+  model?: string;
+  latency?: number;
+}
+
+const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation: _navigation }) => {
   const dispatch = useDispatch();
   const existingKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
   
@@ -34,52 +43,283 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
     google: existingKeys.google || '',
   });
   
-  const [showKeys, setShowKeys] = useState({
+  const [savedKeys, setSavedKeys] = useState({
+    claude: existingKeys.claude || '',
+    openai: existingKeys.openai || '',
+    google: existingKeys.google || '',
+  });
+  
+  const [editMode, setEditMode] = useState({
     claude: false,
     openai: false,
     google: false,
   });
 
-  const [expandedSection, setExpandedSection] = useState<string | null>('claude');
+  const [testResults, setTestResults] = useState<{
+    claude: TestResult;
+    openai: TestResult;
+    google: TestResult;
+  }>({
+    claude: { provider: 'claude', status: 'idle' },
+    openai: { provider: 'openai', status: 'idle' },
+    google: { provider: 'google', status: 'idle' },
+  });
 
-  const handleSave = async () => {
-    try {
-      // Save to AsyncStorage for persistence
-      await AsyncStorage.setItem('apiKeys', JSON.stringify(apiKeys));
-      
-      // Update Redux store
-      dispatch(updateApiKeys(apiKeys));
-      
-      Alert.alert('Success', 'API keys saved securely', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
-    } catch {
-      Alert.alert('Error', 'Failed to save API keys');
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  
+  // Initialize test results based on existing keys
+  useEffect(() => {
+    if (existingKeys.claude) {
+      setTestResults(prev => ({
+        ...prev,
+        claude: { 
+          provider: 'claude', 
+          status: 'success', 
+          message: 'Key configured'
+        }
+      }));
     }
+    if (existingKeys.openai) {
+      setTestResults(prev => ({
+        ...prev,
+        openai: { 
+          provider: 'openai', 
+          status: 'success', 
+          message: 'Key configured'
+        }
+      }));
+    }
+    if (existingKeys.google) {
+      setTestResults(prev => ({
+        ...prev,
+        google: { 
+          provider: 'google', 
+          status: 'success', 
+          message: 'Key configured'
+        }
+      }));
+    }
+  }, [existingKeys.claude, existingKeys.openai, existingKeys.google]);
+
+  // Check if keys have been modified
+  // const isKeyModified = (provider: 'claude' | 'openai' | 'google') => {
+  //   return apiKeys[provider] !== savedKeys[provider];
+  // };
+
+  const hasAnyKey = apiKeys.claude || apiKeys.openai || apiKeys.google;
+  const keyCount = [apiKeys.claude, apiKeys.openai, apiKeys.google].filter(k => k).length;
+
+  const handleClearAllKeys = () => {
+    Alert.alert(
+      '⚠️ Clear All API Keys',
+      'This will permanently remove all API keys. This action cannot be undone. You will need to re-enter them to use the app.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Clear All', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await secureStorage.clearApiKeys();
+              dispatch(updateApiKeys({}));
+              setApiKeys({ claude: '', openai: '', google: '' });
+              setSavedKeys({ claude: '', openai: '', google: '' });
+              setTestResults({
+                claude: { provider: 'claude', status: 'idle' },
+                openai: { provider: 'openai', status: 'idle' },
+                google: { provider: 'google', status: 'idle' },
+              });
+              Alert.alert('Success', 'All API keys have been cleared');
+            } catch {
+              Alert.alert('Error', 'Failed to clear API keys');
+            }
+          }
+        }
+      ]
+    );
   };
 
-  const toggleShowKey = (key: 'claude' | 'openai' | 'google') => {
-    setShowKeys(prev => ({ ...prev, [key]: !prev[key] }));
+  const toggleEditMode = (key: 'claude' | 'openai' | 'google') => {
+    setEditMode(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const validateAndTestKey = async (provider: 'claude' | 'openai' | 'google') => {
+  const testApiKey = async (provider: 'claude' | 'openai' | 'google') => {
     const key = apiKeys[provider];
     if (!key) {
       Alert.alert('Error', 'Please enter an API key first');
       return;
     }
 
-    // Here we would test the API key
-    Alert.alert('Testing', `Validating ${provider} API key...`);
-    // TODO: Implement actual API key validation
+    // Update test status to testing
+    setTestResults(prev => ({
+      ...prev,
+      [provider]: { provider, status: 'testing', message: 'Connecting...' }
+    }));
+
+    const startTime = Date.now();
+
+    try {
+      let response;
+      let model = '';
+
+      switch (provider) {
+        case 'claude':
+          response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': key,
+              'anthropic-version': '2023-06-01',
+            },
+            body: JSON.stringify({
+              model: 'claude-3-5-sonnet-20241022',
+              max_tokens: 10,
+              messages: [{ role: 'user', content: 'Test connection. Reply with "OK".' }],
+            }),
+          });
+          model = 'Claude 3.5 Sonnet';
+          break;
+
+        case 'openai':
+          response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${key}`,
+            },
+            body: JSON.stringify({
+              model: 'gpt-4',
+              max_tokens: 10,
+              messages: [
+                { role: 'system', content: 'Test connection' },
+                { role: 'user', content: 'Reply with OK' }
+              ],
+            }),
+          });
+          model = 'GPT-4';
+          break;
+
+        case 'google':
+          // Use Gemini 2.5 Flash with thinking capabilities
+          response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                contents: [{
+                  role: 'user',
+                  parts: [{ text: 'Test connection. Reply with OK.' }]
+                }],
+                generationConfig: {
+                  maxOutputTokens: 10,
+                },
+              }),
+            }
+          );
+          model = 'Gemini 2.5 Flash';
+          break;
+      }
+
+      const latency = Date.now() - startTime;
+
+      if (response!.ok) {
+        // Parse response to get actual model info
+        const responseData = await response!.json();
+        
+        // Extract actual model from response
+        switch (provider) {
+          case 'claude':
+            // Claude returns the model in the response
+            model = responseData.model || model;
+            // Format Claude model name for display
+            if (model.includes('claude-3-5-sonnet')) model = 'Claude 3.5 Sonnet';
+            else if (model.includes('claude-3-opus')) model = 'Claude 3 Opus';
+            else if (model.includes('claude-3-haiku')) model = 'Claude 3 Haiku';
+            break;
+          case 'openai':
+            // OpenAI returns model in the response
+            model = responseData.model || model;
+            // Format OpenAI model name for display
+            if (model.includes('gpt-4-turbo')) model = 'GPT-4 Turbo';
+            else if (model.includes('gpt-4o')) model = 'GPT-4o';
+            else if (model.includes('gpt-4')) model = 'GPT-4';
+            else if (model.includes('gpt-3.5')) model = 'GPT-3.5 Turbo';
+            break;
+          case 'google':
+            // Check if response has model metadata
+            if (responseData.modelVersion) {
+              model = `Gemini ${responseData.modelVersion}`;
+            } else {
+              // Parse from the URL we used or response metadata
+              model = 'Gemini 2.5 Flash';
+            }
+            break;
+        }
+        
+        // Success - save the key
+        const updatedKeys = { ...savedKeys, [provider]: key };
+        setSavedKeys(updatedKeys);
+        
+        // Save to secure storage
+        await secureStorage.saveApiKeys(updatedKeys);
+        dispatch(updateApiKeys(updatedKeys));
+
+        setTestResults(prev => ({
+          ...prev,
+          [provider]: {
+            provider,
+            status: 'success',
+            message: `Connected successfully!`,
+            model,
+            latency,
+          }
+        }));
+      } else {
+        // const errorData = await response!.text();
+        let errorMessage = 'Connection failed';
+        
+        if (response!.status === 401) {
+          errorMessage = 'Invalid API key';
+        } else if (response!.status === 429) {
+          errorMessage = 'Rate limit exceeded';
+        } else if (response!.status === 403) {
+          errorMessage = 'Access forbidden - check key permissions';
+        }
+
+        setTestResults(prev => ({
+          ...prev,
+          [provider]: {
+            provider,
+            status: 'failed',
+            message: errorMessage,
+          }
+        }));
+      }
+    } catch {
+      setTestResults(prev => ({
+        ...prev,
+        [provider]: {
+          provider,
+          status: 'failed',
+          message: 'Network error - check your connection',
+        }
+      }));
+    }
   };
 
   const openURL = (url: string) => {
     Linking.openURL(url);
   };
 
-  const hasAnyKey = apiKeys.claude || apiKeys.openai || apiKeys.google;
-  const keyCount = [apiKeys.claude, apiKeys.openai, apiKeys.google].filter(k => k).length;
+  const getMaskedKey = (key: string) => {
+    if (!key) return '';
+    // Show first 3 and last 3 characters
+    if (key.length <= 10) return '•'.repeat(key.length);
+    return key.slice(0, 3) + '•'.repeat(key.length - 6) + key.slice(-3);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -93,9 +333,9 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
         >
           {/* Header with progress */}
           <View style={styles.header}>
-            <Text style={styles.title}>Let's Get You Connected</Text>
+            <Text style={styles.title}>API Configuration</Text>
             <Text style={styles.subtitle}>
-              You'll need at least one API key to start chatting with AI
+              Connect your AI services to start chatting
             </Text>
             
             {/* Progress indicator */}
@@ -110,32 +350,23 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
               </View>
               <Text style={styles.progressText}>
                 {keyCount === 0 
-                  ? 'No keys configured yet'
+                  ? 'No keys configured'
                   : keyCount === 3 
-                  ? 'All set! 🎉' 
+                  ? 'All services connected! 🎉' 
                   : `${keyCount} of 3 configured`}
               </Text>
             </View>
           </View>
 
-          {/* Intro card */}
-          {keyCount === 0 && (
-            <Animated.View 
-              entering={FadeInDown.delay(100).springify()}
-              style={styles.introCard}
+          {/* Clear All Button */}
+          {hasAnyKey && (
+            <TouchableOpacity
+              style={styles.clearAllButton}
+              onPress={handleClearAllKeys}
+              activeOpacity={0.7}
             >
-              <Text style={styles.introTitle}>🎯 Quick Start Guide</Text>
-              <Text style={styles.introText}>
-                1. Choose an AI provider below{'\n'}
-                2. Click "Get Free API Key" to sign up{'\n'}
-                3. Copy your key and paste it here{'\n'}
-                4. Test to make sure it works{'\n'}
-                5. Save and start chatting!
-              </Text>
-              <Text style={styles.introNote}>
-                💡 Tip: Start with Claude or ChatGPT - they're easiest to set up
-              </Text>
-            </Animated.View>
+              <Text style={styles.clearAllButtonText}>🗑️ Clear All Keys</Text>
+            </TouchableOpacity>
           )}
 
           {/* Claude API Key */}
@@ -152,8 +383,20 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                 <Text style={styles.sectionIcon}>🎓</Text>
                 <View style={styles.sectionInfo}>
                   <Text style={styles.sectionTitle}>Claude (Anthropic)</Text>
-                  <Text style={styles.sectionStatus}>
-                    {apiKeys.claude ? '✅ Configured' : '⚪ Not configured'}
+                  <Text style={[
+                    styles.sectionStatus,
+                    testResults.claude.status === 'success' && styles.statusSuccess,
+                    testResults.claude.status === 'failed' && styles.statusFailed,
+                  ]}>
+                    {testResults.claude.status === 'success' 
+                      ? testResults.claude.model 
+                        ? `✅ Connected (${testResults.claude.model})`
+                        : '✅ Connected'
+                      : testResults.claude.status === 'failed'
+                      ? `❌ ${testResults.claude.message}`
+                      : apiKeys.claude 
+                      ? '🔑 Key entered' 
+                      : '⚪ Not configured'}
                   </Text>
                 </View>
               </View>
@@ -169,46 +412,68 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                   style={styles.linkButton}
                   onPress={() => openURL('https://console.anthropic.com/account/keys')}
                 >
-                  <Text style={styles.linkButtonText}>Get Free API Key →</Text>
+                  <Text style={styles.linkButtonText}>Get API Key →</Text>
                 </TouchableOpacity>
                 
-                <Text style={styles.stepTitle}>Step 2: Paste your key here</Text>
-                <View style={styles.inputContainer}>
+                <Text style={styles.stepTitle}>Step 2: Enter your key</Text>
+                <View style={[styles.inputContainer, savedKeys.claude && !editMode.claude && styles.inputContainerSaved]}>
                   <TextInput
-                    style={styles.input}
+                    style={[
+                      styles.input,
+                      savedKeys.claude && !editMode.claude && styles.inputSaved,
+                      testResults.claude.status === 'failed' && styles.inputFailed,
+                    ]}
                     placeholder="sk-ant-api03-..."
-                    value={apiKeys.claude}
-                    onChangeText={(text) => setApiKeys(prev => ({ ...prev, claude: text }))}
-                    secureTextEntry={!showKeys.claude}
+                    value={savedKeys.claude && !editMode.claude
+                      ? getMaskedKey(apiKeys.claude)
+                      : apiKeys.claude
+                    }
+                    onChangeText={(text) => {
+                      setApiKeys(prev => ({ ...prev, claude: text }));
+                      setTestResults(prev => ({ ...prev, claude: { provider: 'claude', status: 'idle' }}));
+                    }}
                     autoCapitalize="none"
                     autoCorrect={false}
+                    editable={editMode.claude || !savedKeys.claude || testResults.claude.status === 'testing'}
                   />
-                  <TouchableOpacity
-                    onPress={() => toggleShowKey('claude')}
-                    style={styles.eyeButton}
-                  >
-                    <Text>{showKeys.claude ? '👁' : '👁‍🗨'}</Text>
-                  </TouchableOpacity>
+                  {savedKeys.claude && (
+                    <TouchableOpacity
+                      onPress={() => toggleEditMode('claude')}
+                      style={styles.editButton}
+                    >
+                      <Text style={styles.editIcon}>{editMode.claude ? '✓' : '✏️'}</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 
-                <Text style={styles.stepTitle}>Step 3: Test your key</Text>
+                <Text style={styles.stepTitle}>Step 3: Test your connection</Text>
                 <TouchableOpacity
-                  onPress={() => validateAndTestKey('claude')}
-                  style={[styles.testButton, !apiKeys.claude && styles.testButtonDisabled]}
-                  disabled={!apiKeys.claude}
+                  onPress={() => testApiKey('claude')}
+                  style={[
+                    styles.testButton,
+                    !apiKeys.claude && styles.testButtonDisabled,
+                    testResults.claude.status === 'success' && styles.testButtonSuccess,
+                  ]}
+                  disabled={!apiKeys.claude || testResults.claude.status === 'testing'}
                 >
-                  <Text style={styles.testButtonText}>Test Connection</Text>
+                  {testResults.claude.status === 'testing' ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.testButtonText}>
+                      {testResults.claude.status === 'success' 
+                        ? `✅ Connected (${testResults.claude.latency}ms)`
+                        : 'Test Connection'}
+                    </Text>
+                  )}
                 </TouchableOpacity>
-                
-                <View style={styles.helpBox}>
-                  <Text style={styles.helpTitle}>ℹ️ About Claude</Text>
-                  <Text style={styles.helpText}>
-                    • Best for thoughtful, nuanced responses{'\n'}
-                    • Great at analysis and writing{'\n'}
-                    • Free tier includes 1000 messages/month{'\n'}
-                    • Most ethical and safety-focused
-                  </Text>
-                </View>
+
+                {testResults.claude.status === 'testing' && (
+                  <Animated.View entering={FadeIn} style={styles.telemetryBox}>
+                    <Text style={styles.telemetryText}>🔄 Establishing connection...</Text>
+                    <Text style={styles.telemetryText}>📡 Sending handshake...</Text>
+                    <Text style={styles.telemetryText}>⏱️ Measuring latency...</Text>
+                  </Animated.View>
+                )}
               </View>
             )}
           </Animated.View>
@@ -227,8 +492,20 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                 <Text style={styles.sectionIcon}>💡</Text>
                 <View style={styles.sectionInfo}>
                   <Text style={styles.sectionTitle}>ChatGPT (OpenAI)</Text>
-                  <Text style={styles.sectionStatus}>
-                    {apiKeys.openai ? '✅ Configured' : '⚪ Not configured'}
+                  <Text style={[
+                    styles.sectionStatus,
+                    testResults.openai.status === 'success' && styles.statusSuccess,
+                    testResults.openai.status === 'failed' && styles.statusFailed,
+                  ]}>
+                    {testResults.openai.status === 'success' 
+                      ? testResults.openai.model 
+                        ? `✅ Connected (${testResults.openai.model})`
+                        : '✅ Connected'
+                      : testResults.openai.status === 'failed'
+                      ? `❌ ${testResults.openai.message}`
+                      : apiKeys.openai 
+                      ? '🔑 Key entered' 
+                      : '⚪ Not configured'}
                   </Text>
                 </View>
               </View>
@@ -244,46 +521,68 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                   style={styles.linkButton}
                   onPress={() => openURL('https://platform.openai.com/api-keys')}
                 >
-                  <Text style={styles.linkButtonText}>Get API Key (Free Credits) →</Text>
+                  <Text style={styles.linkButtonText}>Get API Key →</Text>
                 </TouchableOpacity>
                 
-                <Text style={styles.stepTitle}>Step 2: Paste your key here</Text>
-                <View style={styles.inputContainer}>
+                <Text style={styles.stepTitle}>Step 2: Enter your key</Text>
+                <View style={[styles.inputContainer, savedKeys.openai && !editMode.openai && styles.inputContainerSaved]}>
                   <TextInput
-                    style={styles.input}
+                    style={[
+                      styles.input,
+                      savedKeys.openai && !editMode.openai && styles.inputSaved,
+                      testResults.openai.status === 'failed' && styles.inputFailed,
+                    ]}
                     placeholder="sk-proj-..."
-                    value={apiKeys.openai}
-                    onChangeText={(text) => setApiKeys(prev => ({ ...prev, openai: text }))}
-                    secureTextEntry={!showKeys.openai}
+                    value={savedKeys.openai && !editMode.openai
+                      ? getMaskedKey(apiKeys.openai)
+                      : apiKeys.openai
+                    }
+                    onChangeText={(text) => {
+                      setApiKeys(prev => ({ ...prev, openai: text }));
+                      setTestResults(prev => ({ ...prev, openai: { provider: 'openai', status: 'idle' }}));
+                    }}
                     autoCapitalize="none"
                     autoCorrect={false}
+                    editable={editMode.openai || !savedKeys.openai || testResults.openai.status === 'testing'}
                   />
-                  <TouchableOpacity
-                    onPress={() => toggleShowKey('openai')}
-                    style={styles.eyeButton}
-                  >
-                    <Text>{showKeys.openai ? '👁' : '👁‍🗨'}</Text>
-                  </TouchableOpacity>
+                  {savedKeys.openai && (
+                    <TouchableOpacity
+                      onPress={() => toggleEditMode('openai')}
+                      style={styles.editButton}
+                    >
+                      <Text style={styles.editIcon}>{editMode.openai ? '✓' : '✏️'}</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 
-                <Text style={styles.stepTitle}>Step 3: Test your key</Text>
+                <Text style={styles.stepTitle}>Step 3: Test your connection</Text>
                 <TouchableOpacity
-                  onPress={() => validateAndTestKey('openai')}
-                  style={[styles.testButton, !apiKeys.openai && styles.testButtonDisabled]}
-                  disabled={!apiKeys.openai}
+                  onPress={() => testApiKey('openai')}
+                  style={[
+                    styles.testButton,
+                    !apiKeys.openai && styles.testButtonDisabled,
+                    testResults.openai.status === 'success' && styles.testButtonSuccess,
+                  ]}
+                  disabled={!apiKeys.openai || testResults.openai.status === 'testing'}
                 >
-                  <Text style={styles.testButtonText}>Test Connection</Text>
+                  {testResults.openai.status === 'testing' ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.testButtonText}>
+                      {testResults.openai.status === 'success' 
+                        ? `✅ Connected (${testResults.openai.latency}ms)`
+                        : 'Test Connection'}
+                    </Text>
+                  )}
                 </TouchableOpacity>
-                
-                <View style={styles.helpBox}>
-                  <Text style={styles.helpTitle}>ℹ️ About ChatGPT</Text>
-                  <Text style={styles.helpText}>
-                    • Most popular and versatile{'\n'}
-                    • Great for general conversations{'\n'}
-                    • $5 free credits for new accounts{'\n'}
-                    • Wide range of capabilities
-                  </Text>
-                </View>
+
+                {testResults.openai.status === 'testing' && (
+                  <Animated.View entering={FadeIn} style={styles.telemetryBox}>
+                    <Text style={styles.telemetryText}>🔄 Establishing connection...</Text>
+                    <Text style={styles.telemetryText}>📡 Sending handshake...</Text>
+                    <Text style={styles.telemetryText}>⏱️ Measuring latency...</Text>
+                  </Animated.View>
+                )}
               </View>
             )}
           </Animated.View>
@@ -302,8 +601,20 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                 <Text style={styles.sectionIcon}>✨</Text>
                 <View style={styles.sectionInfo}>
                   <Text style={styles.sectionTitle}>Gemini (Google)</Text>
-                  <Text style={styles.sectionStatus}>
-                    {apiKeys.google ? '✅ Configured' : '⚪ Not configured'}
+                  <Text style={[
+                    styles.sectionStatus,
+                    testResults.google.status === 'success' && styles.statusSuccess,
+                    testResults.google.status === 'failed' && styles.statusFailed,
+                  ]}>
+                    {testResults.google.status === 'success' 
+                      ? testResults.google.model 
+                        ? `✅ Connected (${testResults.google.model})`
+                        : '✅ Connected'
+                      : testResults.google.status === 'failed'
+                      ? `❌ ${testResults.google.message}`
+                      : apiKeys.google 
+                      ? '🔑 Key entered' 
+                      : '⚪ Not configured'}
                   </Text>
                 </View>
               </View>
@@ -319,46 +630,68 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                   style={styles.linkButton}
                   onPress={() => openURL('https://makersuite.google.com/app/apikey')}
                 >
-                  <Text style={styles.linkButtonText}>Get Free API Key →</Text>
+                  <Text style={styles.linkButtonText}>Get API Key →</Text>
                 </TouchableOpacity>
                 
-                <Text style={styles.stepTitle}>Step 2: Paste your key here</Text>
-                <View style={styles.inputContainer}>
+                <Text style={styles.stepTitle}>Step 2: Enter your key</Text>
+                <View style={[styles.inputContainer, savedKeys.google && !editMode.google && styles.inputContainerSaved]}>
                   <TextInput
-                    style={styles.input}
+                    style={[
+                      styles.input,
+                      savedKeys.google && !editMode.google && styles.inputSaved,
+                      testResults.google.status === 'failed' && styles.inputFailed,
+                    ]}
                     placeholder="AIzaSy..."
-                    value={apiKeys.google}
-                    onChangeText={(text) => setApiKeys(prev => ({ ...prev, google: text }))}
-                    secureTextEntry={!showKeys.google}
+                    value={savedKeys.google && !editMode.google
+                      ? getMaskedKey(apiKeys.google)
+                      : apiKeys.google
+                    }
+                    onChangeText={(text) => {
+                      setApiKeys(prev => ({ ...prev, google: text }));
+                      setTestResults(prev => ({ ...prev, google: { provider: 'google', status: 'idle' }}));
+                    }}
                     autoCapitalize="none"
                     autoCorrect={false}
+                    editable={editMode.google || !savedKeys.google || testResults.google.status === 'testing'}
                   />
-                  <TouchableOpacity
-                    onPress={() => toggleShowKey('google')}
-                    style={styles.eyeButton}
-                  >
-                    <Text>{showKeys.google ? '👁' : '👁‍🗨'}</Text>
-                  </TouchableOpacity>
+                  {savedKeys.google && (
+                    <TouchableOpacity
+                      onPress={() => toggleEditMode('google')}
+                      style={styles.editButton}
+                    >
+                      <Text style={styles.editIcon}>{editMode.google ? '✓' : '✏️'}</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 
-                <Text style={styles.stepTitle}>Step 3: Test your key</Text>
+                <Text style={styles.stepTitle}>Step 3: Test your connection</Text>
                 <TouchableOpacity
-                  onPress={() => validateAndTestKey('google')}
-                  style={[styles.testButton, !apiKeys.google && styles.testButtonDisabled]}
-                  disabled={!apiKeys.google}
+                  onPress={() => testApiKey('google')}
+                  style={[
+                    styles.testButton,
+                    !apiKeys.google && styles.testButtonDisabled,
+                    testResults.google.status === 'success' && styles.testButtonSuccess,
+                  ]}
+                  disabled={!apiKeys.google || testResults.google.status === 'testing'}
                 >
-                  <Text style={styles.testButtonText}>Test Connection</Text>
+                  {testResults.google.status === 'testing' ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.testButtonText}>
+                      {testResults.google.status === 'success' 
+                        ? `✅ Connected (${testResults.google.latency}ms)`
+                        : 'Test Connection'}
+                    </Text>
+                  )}
                 </TouchableOpacity>
-                
-                <View style={styles.helpBox}>
-                  <Text style={styles.helpTitle}>ℹ️ About Gemini</Text>
-                  <Text style={styles.helpText}>
-                    • Google's latest AI model{'\n'}
-                    • Good at creative tasks{'\n'}
-                    • Generous free tier{'\n'}
-                    • Fast response times
-                  </Text>
-                </View>
+
+                {testResults.google.status === 'testing' && (
+                  <Animated.View entering={FadeIn} style={styles.telemetryBox}>
+                    <Text style={styles.telemetryText}>🔄 Establishing connection...</Text>
+                    <Text style={styles.telemetryText}>📡 Sending handshake...</Text>
+                    <Text style={styles.telemetryText}>⏱️ Measuring latency...</Text>
+                  </Animated.View>
+                )}
               </View>
             )}
           </Animated.View>
@@ -368,62 +701,13 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
             entering={FadeInDown.delay(500).springify()}
             style={styles.securityNote}
           >
-            <Text style={styles.securityTitle}>🔒 Your Security Matters</Text>
+            <Text style={styles.securityTitle}>🔒 Your Security</Text>
             <Text style={styles.securityText}>
-              • Keys are stored locally on your device only{'\n'}
+              • Keys are encrypted and stored locally{'\n'}
+              • Successfully tested keys are auto-saved{'\n'}
               • We never send keys to our servers{'\n'}
-              • You can delete them anytime{'\n'}
-              • Each provider bills you directly
+              • You can modify or clear keys anytime
             </Text>
-          </Animated.View>
-
-          {/* Action buttons */}
-          <Animated.View 
-            entering={FadeInDown.delay(600).springify()}
-            style={styles.buttonContainer}
-          >
-            {hasAnyKey ? (
-              <>
-                <TouchableOpacity
-                  style={styles.saveButton}
-                  onPress={handleSave}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.saveButtonText}>
-                    Save & Start Chatting
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.skipButton}
-                  onPress={() => navigation.goBack()}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.skipButtonText}>Cancel</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <TouchableOpacity
-                  style={styles.skipButton}
-                  onPress={() => {
-                    Alert.alert(
-                      'Continue without API keys?',
-                      'You can try the app in demo mode with simulated responses.',
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        { 
-                          text: 'Use Demo Mode', 
-                          onPress: () => navigation.goBack() 
-                        }
-                      ]
-                    );
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.skipButtonText}>Try Demo Mode</Text>
-                </TouchableOpacity>
-              </>
-            )}
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -438,7 +722,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 100,
+    flexGrow: 1,
   },
   header: {
     marginTop: 10,
@@ -475,28 +760,19 @@ const styles = StyleSheet.create({
     color: '#666666',
     textAlign: 'center',
   },
-  introCard: {
-    backgroundColor: '#E8F4FD',
+  clearAllButton: {
+    backgroundColor: '#FFF3CD',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFC107',
   },
-  introTitle: {
-    fontSize: 18,
+  clearAllButtonText: {
+    color: '#856404',
+    fontSize: 16,
     fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 12,
-  },
-  introText: {
-    fontSize: 14,
-    color: '#333333',
-    lineHeight: 22,
-    marginBottom: 12,
-  },
-  introNote: {
-    fontSize: 13,
-    color: '#007AFF',
-    fontStyle: 'italic',
   },
   section: {
     backgroundColor: '#FFFFFF',
@@ -535,6 +811,14 @@ const styles = StyleSheet.create({
   sectionStatus: {
     fontSize: 13,
     color: '#666666',
+  },
+  statusSuccess: {
+    color: '#34C759',
+    fontWeight: '500',
+  },
+  statusFailed: {
+    color: '#FF3B30',
+    fontWeight: '500',
   },
   expandIcon: {
     fontSize: 24,
@@ -580,39 +864,57 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
-  eyeButton: {
-    padding: 8,
+  inputContainerSaved: {
+    backgroundColor: '#F8F8FA',
+    borderColor: '#D1D1D6',
+  },
+  inputSaved: {
+    color: '#8E8E93',
+    fontWeight: '500',
+  },
+  inputFailed: {
+    borderColor: '#FF3B30',
+    backgroundColor: '#FFF5F5',
+  },
+  editButton: {
+    padding: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editIcon: {
+    fontSize: 18,
   },
   testButton: {
     backgroundColor: '#34C759',
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
   },
   testButtonDisabled: {
     backgroundColor: '#C8C8C8',
+  },
+  testButtonSuccess: {
+    backgroundColor: '#007AFF',
   },
   testButtonText: {
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '600',
   },
-  helpBox: {
-    backgroundColor: '#F5F5F7',
+  telemetryBox: {
+    backgroundColor: '#F0F9FF',
     borderRadius: 8,
     padding: 12,
-    marginTop: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#B3E5FC',
   },
-  helpTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333333',
-    marginBottom: 6,
-  },
-  helpText: {
+  telemetryText: {
     fontSize: 13,
-    color: '#666666',
-    lineHeight: 20,
+    color: '#0277BD',
+    marginVertical: 2,
   },
   securityNote: {
     backgroundColor: '#F0F9FF',
@@ -633,36 +935,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#555555',
     lineHeight: 20,
-  },
-  buttonContainer: {
-    gap: 12,
-  },
-  saveButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 14,
-    paddingVertical: 18,
-    alignItems: 'center',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  saveButtonText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  skipButton: {
-    backgroundColor: '#F5F5F7',
-    borderRadius: 14,
-    paddingVertical: 18,
-    alignItems: 'center',
-  },
-  skipButtonText: {
-    color: '#666666',
-    fontSize: 17,
-    fontWeight: '500',
   },
 });
 

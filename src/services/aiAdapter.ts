@@ -7,11 +7,12 @@ interface AIAdapterConfig {
   model?: string;
   personality?: PersonalityConfig;
   parameters?: ModelParameters;
+  isDebateMode?: boolean;
 }
 
 // Base adapter class
 abstract class AIAdapter {
-  protected config: AIAdapterConfig;
+  public config: AIAdapterConfig;
   
   constructor(config: AIAdapterConfig) {
     this.config = config;
@@ -23,6 +24,10 @@ abstract class AIAdapter {
   ): Promise<string>;
   
   protected getSystemPrompt(): string {
+    // Check if this is a debate context
+    if (this.config.isDebateMode) {
+      return 'You are participating in a lively debate. Take strong positions, directly address and challenge the previous speaker\'s arguments, and make compelling points. Be respectful but assertive. Build on or refute what was just said. Provide substantive arguments with examples, reasoning, or evidence. Aim for responses that are engaging and thought-provoking (3-5 sentences).';
+    }
     if (this.config.personality) {
       return this.config.personality.systemPrompt;
     }
@@ -30,10 +35,13 @@ abstract class AIAdapter {
   }
   
   protected formatHistory(history: Message[]): Array<{ role: string; content: string }> {
+    // Include sender names for context in multi-AI conversations
     return history.slice(-10).map(msg => ({
       role: msg.senderType === 'user' ? 'user' : 'assistant',
-      content: msg.content
-    }));
+      content: msg.senderType === 'ai' && msg.sender !== this.config.provider 
+        ? `[${msg.sender}]: ${msg.content || ''}`
+        : msg.content || ''
+    })).filter(msg => msg.content); // Filter out any empty messages
   }
 }
 
@@ -52,7 +60,7 @@ class ClaudeAdapter extends AIAdapter {
       },
       body: JSON.stringify({
         model: this.config.model || 'claude-3-5-sonnet-20241022',
-        max_tokens: this.config.parameters?.maxTokens || 150,
+        max_tokens: this.config.parameters?.maxTokens || 1024,
         temperature: this.config.parameters?.temperature || 0.8,
         system: this.getSystemPrompt(),
         messages: [
@@ -85,7 +93,7 @@ class ChatGPTAdapter extends AIAdapter {
       },
       body: JSON.stringify({
         model: this.config.model || 'gpt-4',
-        max_tokens: this.config.parameters?.maxTokens || 150,
+        max_tokens: this.config.parameters?.maxTokens || 1024,
         temperature: this.config.parameters?.temperature || 0.8,
         messages: [
           { role: 'system', content: this.getSystemPrompt() },
@@ -110,13 +118,15 @@ class GeminiAdapter extends AIAdapter {
     message: string,
     conversationHistory: Message[] = []
   ): Promise<string> {
-    const history = this.formatHistory(conversationHistory).map(msg => ({
-      role: msg.role === 'assistant' ? 'model' : msg.role,
-      parts: [{ text: msg.content }]
-    }));
+    const history = this.formatHistory(conversationHistory)
+      .filter(msg => msg && msg.content) // Additional safety check
+      .map(msg => ({
+        role: msg.role === 'assistant' ? 'model' : msg.role,
+        parts: [{ text: msg.content || '' }]
+      }));
     
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${this.config.model || 'gemini-1.5-flash'}:generateContent?key=${this.config.apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${this.config.model || 'gemini-2.5-flash'}:generateContent?key=${this.config.apiKey}`,
       {
         method: 'POST',
         headers: {
@@ -127,12 +137,12 @@ class GeminiAdapter extends AIAdapter {
             ...history,
             {
               role: 'user',
-              parts: [{ text: message }]
+              parts: [{ text: message || '' }]
             }
           ],
           generationConfig: {
             temperature: this.config.parameters?.temperature || 0.8,
-            maxOutputTokens: this.config.parameters?.maxTokens || 150,
+            maxOutputTokens: this.config.parameters?.maxTokens || 2048, // Increased for Gemini
           },
           systemInstruction: {
             parts: [{ text: this.getSystemPrompt() }]
@@ -142,10 +152,22 @@ class GeminiAdapter extends AIAdapter {
     );
     
     if (!response.ok) {
+      if (response.status === 429) {
+        throw new Error(`Gemini API error: 429 - Rate limit exceeded. Please wait a moment.`);
+      }
+      const errorText = await response.text();
+      console.error('Gemini API error response:', errorText);
       throw new Error(`Gemini API error: ${response.status}`);
     }
     
     const data = await response.json();
+    
+    // Safely extract the response text
+    if (!data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+      console.error('Unexpected Gemini response structure:', data);
+      throw new Error('Invalid response from Gemini API');
+    }
+    
     return data.candidates[0].content.parts[0].text;
   }
 }
@@ -311,14 +333,25 @@ export class AIService {
   async sendMessage(
     aiId: string,
     message: string,
-    conversationHistory: Message[]
+    conversationHistory: Message[],
+    isDebateMode: boolean = false
   ): Promise<string> {
     const adapter = this.adapters.get(aiId);
     if (!adapter) {
       if (this.useMockMode) {
-        return `[Mock ${aiId}]: I received your message about "${message}"`;
+        // Enhanced mock responses for debate mode
+        if (isDebateMode && conversationHistory.length > 0) {
+          const lastMessage = conversationHistory[conversationHistory.length - 1];
+          return `[Mock ${aiId}]: I disagree with "${lastMessage.content.slice(0, 50)}..." because...`;
+        }
+        return `[Mock ${aiId}]: I received your message about "${message.slice(0, 50)}..."`;
       }
       throw new Error(`AI ${aiId} is not configured. Please add API key in settings.`);
+    }
+
+    // Set debate mode in adapter config if needed
+    if (isDebateMode && adapter.config) {
+      adapter.config.isDebateMode = true;
     }
 
     try {
@@ -329,6 +362,11 @@ export class AIService {
         throw new Error(`Invalid API key for ${aiId}. Please check your settings.`);
       }
       throw error;
+    } finally {
+      // Reset debate mode after use
+      if (adapter.config) {
+        adapter.config.isDebateMode = false;
+      }
     }
   }
 

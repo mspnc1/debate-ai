@@ -45,6 +45,7 @@ export interface ChatSession {
   messages: Message[];
   isActive: boolean;
   createdAt: number;
+  startTime?: number;
 }
 
 export interface PersonalityConfig {
@@ -83,13 +84,17 @@ export interface ExpertConfig {
   turnOrder: 'round-robin' | 'free-for-all' | 'moderated';
 }
 
+// Type alias for AI (same as AIConfig for compatibility)
+export type AI = AIConfig;
+
 // Navigation types
 export type RootStackParamList = {
   Welcome: undefined;
   Home: undefined;
-  Chat: { sessionId: string };
+  Chat: { sessionId: string; initialPrompt?: string };
   Settings: undefined;
   APIConfig: undefined;
   Subscription: undefined;
   ExpertMode: undefined;
+  Debate: { selectedAIs: AI[]; topic?: string; personalities?: { [key: string]: string } };
 };

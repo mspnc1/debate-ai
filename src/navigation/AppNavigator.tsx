@@ -14,6 +14,7 @@ import ChatScreen from '../screens/ChatScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import APIConfigScreen from '../screens/APIConfigScreen';
+import DebateScreen from '../screens/DebateScreen';
 // import SubscriptionScreen from '../screens/SubscriptionScreen';
 // import ExpertModeScreen from '../screens/ExpertModeScreen';
 
@@ -48,7 +49,7 @@ const MainTabs = () => {
         options={{
           tabBarLabel: 'New Chat',
           tabBarIcon: ({ color, focused }) => (
-            <Text style={{ fontSize: 24, color }}>{focused ? '💬' : '💭'}</Text>
+            <Text style={{ fontSize: 24, color }}>{focused ? '🤖' : '💬'}</Text>
           ),
         }}
       />
@@ -58,7 +59,7 @@ const MainTabs = () => {
         options={{
           tabBarLabel: 'History',
           tabBarIcon: ({ color, focused }) => (
-            <Text style={{ fontSize: 24, color }}>{focused ? '📚' : '📖'}</Text>
+            <Text style={{ fontSize: 24, color }}>{focused ? '🕐' : '📋'}</Text>
           ),
         }}
       />
@@ -68,7 +69,7 @@ const MainTabs = () => {
         options={{
           tabBarLabel: 'Settings',
           tabBarIcon: ({ color, focused }) => (
-            <Text style={{ fontSize: 24, color }}>{focused ? '⚙️' : '⚡'}</Text>
+            <Text style={{ fontSize: 24, color }}>{focused ? '⚙️' : '🔧'}</Text>
           ),
         }}
       />
@@ -140,6 +141,11 @@ export default function AppNavigator() {
             <Stack.Screen
               name="Chat"
               component={ChatScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Debate"
+              component={DebateScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
