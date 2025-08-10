@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Linking,
   Alert,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -27,6 +28,7 @@ interface ProviderCardProps {
   onToggleExpand: () => void;
   index: number;
   testStatus?: 'idle' | 'testing' | 'success' | 'failed';
+  testStatusMessage?: string;
   selectedModel?: string;
   expertModeEnabled?: boolean;
 }
@@ -41,6 +43,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
   onToggleExpand,
   index,
   testStatus = 'idle',
+  testStatusMessage,
   selectedModel,
   expertModeEnabled = false,
 }) => {
@@ -86,7 +89,11 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
   return (
     <Animated.View
       entering={FadeInDown.delay(index * 100).springify()}
-      style={{ marginBottom: 16 }}
+      style={{ 
+        marginBottom: 16,
+        zIndex: isExpanded ? 1000 - index : 1, // Higher z-index for expanded cards
+        elevation: isExpanded && Platform.OS === 'android' ? 10 : 0,
+      }}
     >
       <TouchableOpacity
         onPress={onToggleExpand}
@@ -152,7 +159,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
                                 fontWeight: '500'
                               }}
                             >
-                              Connected
+                              {testStatusMessage || 'Connected'}
                             </ThemedText>
                             <ThemedText variant="caption" color="secondary">•</ThemedText>
                             <ThemedText variant="caption" color="secondary">
@@ -206,7 +213,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
                             fontWeight: '500'
                           }}
                         >
-                          Connected
+                          {testStatusMessage || 'Connected'}
                         </ThemedText>
                         {(pricing || freeInfo) && (
                           <View style={{ marginTop: 2 }}>
@@ -252,6 +259,10 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
             marginTop: 8,
             borderWidth: 1,
             borderColor: theme.colors.border,
+            // Fix for Android elevation/z-index issues
+            elevation: Platform.OS === 'android' ? 5 : 0,
+            zIndex: 1000,
+            position: 'relative',
           }}
         >
           {/* Provider Description */}

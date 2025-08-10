@@ -273,7 +273,7 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
 
   if (isLoading) {
     return (
-      <ThemedSafeAreaView>
+      <ThemedSafeAreaView edges={['top', 'left', 'right']}>
         <ThemedView style={styles.centered}>
           <ThemedText variant="body" color="secondary">Loading conversations...</ThemedText>
         </ThemedView>

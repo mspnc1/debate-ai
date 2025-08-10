@@ -107,7 +107,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   };
   
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <SafeAreaView 
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
+      edges={['top', 'left', 'right']}>
       <GradientHeader
         title={getGreeting()}
         subtitle={`Welcome back${user?.email ? `, ${user.email.split('@')[0]}` : ''}!`}

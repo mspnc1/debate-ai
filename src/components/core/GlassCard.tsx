@@ -41,11 +41,15 @@ export const GlassCard: React.FC<GlassCardProps> = ({
     const neumorphicStyle: ViewStyle = {
       ...contentStyle,
       backgroundColor: theme.colors.card,
-      shadowColor: theme.colors.neumorph.shadow1,
-      shadowOffset: { width: -6, height: -6 },
-      shadowOpacity: 0.6,
-      shadowRadius: 16,
-      elevation: 8,
+      // Android-friendly shadows
+      ...(Platform.OS === 'ios' ? {
+        shadowColor: theme.colors.neumorph.shadow1,
+        shadowOffset: { width: -6, height: -6 },
+        shadowOpacity: 0.6,
+        shadowRadius: 16,
+      } : {
+        elevation: 4,
+      }),
       // Inner shadow effect (approximated)
       borderWidth: 1,
       borderColor: 'rgba(255, 255, 255, 0.8)',

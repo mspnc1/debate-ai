@@ -5,7 +5,6 @@ import { SectionHeader } from '../atoms/SectionHeader';
 import { AICard } from '../molecules/AICard';
 import { AIConfig } from '../../types';
 import { useTheme } from '../../theme';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -29,7 +28,7 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
   onAddAI,
   isPremium,
 }) => {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   
   const getSubtitle = () => {
     if (configuredAIs.length === 0) {
@@ -93,44 +92,38 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
                       onPress={handleAddAI}
                       style={{
                         height: 120,
+                        backgroundColor: theme.colors.card,
+                        borderRadius: theme.borderRadius.lg,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: theme.spacing.md,
                       }}
                     >
-                      <LinearGradient
-                        colors={[theme.colors.gray[200], theme.colors.gray[100]]}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          borderRadius: theme.borderRadius.lg,
-                          borderWidth: 2,
-                          borderColor: theme.colors.border,
-                          borderStyle: 'dashed',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: theme.spacing.sm,
+                      <View style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 22,
+                        backgroundColor: isDark 
+                          ? 'rgba(255, 255, 255, 0.05)' 
+                          : 'rgba(0, 0, 0, 0.03)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: theme.spacing.xs,
+                      }}>
+                        <Text style={{ fontSize: 24 }}>➕</Text>
+                      </View>
+                      <ThemedText 
+                        variant="caption" 
+                        weight="semibold"
+                        color="secondary"
+                        style={{ 
+                          textAlign: 'center',
                         }}
                       >
-                        <View style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 20,
-                          backgroundColor: theme.colors.background,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          marginBottom: theme.spacing.xs,
-                        }}>
-                          <Text style={{ fontSize: 24 }}>➕</Text>
-                        </View>
-                        <ThemedText 
-                          variant="caption" 
-                          weight="semibold"
-                          style={{ 
-                            textAlign: 'center',
-                            marginTop: 4,
-                          }}
-                        >
-                          Add AI{'\n'}Friend
-                        </ThemedText>
-                      </LinearGradient>
+                        Add AI{'\n'}Friend
+                      </ThemedText>
                     </TouchableOpacity>
                   </View>
                 );

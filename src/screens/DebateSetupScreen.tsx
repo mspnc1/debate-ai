@@ -121,7 +121,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
   };
   
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['top', 'left', 'right']}>
       <GradientHeader
         title="Debate Mode"
         subtitle="Set up an AI debate"

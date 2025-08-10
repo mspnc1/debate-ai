@@ -20,7 +20,6 @@ interface QuickStartTileProps {
   style?: ViewStyle;
 }
 
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 export const QuickStartTile: React.FC<QuickStartTileProps> = ({
   emoji,
@@ -58,37 +57,44 @@ export const QuickStartTile: React.FC<QuickStartTileProps> = ({
   };
   
   return (
-    <AnimatedTouchable
+    <Animated.View
       entering={FadeInUp.delay(400 + index * 50).springify()}
       style={[
-        animatedStyle,
         {
           flex: 1,
-          backgroundColor: theme.colors.card,
-          borderRadius: theme.borderRadius.lg,
-          padding: theme.spacing.md,
-          borderWidth: 1,
-          borderColor: theme.colors.border,
           ...style,
         }
       ]}
-      onPress={handlePress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      activeOpacity={1}
-      disabled={disabled}
     >
-      <ThemedView>
-        <ThemedText style={{ fontSize: 28, marginBottom: 8 }}>
-          {emoji}
-        </ThemedText>
-        <ThemedText variant="subtitle" weight="semibold" numberOfLines={1}>
-          {title}
-        </ThemedText>
-        <ThemedText variant="caption" color="secondary" numberOfLines={2}>
-          {subtitle}
-        </ThemedText>
-      </ThemedView>
-    </AnimatedTouchable>
+      <Animated.View style={animatedStyle}>
+        <TouchableOpacity
+          style={{
+            backgroundColor: theme.colors.card,
+            borderRadius: theme.borderRadius.lg,
+            padding: theme.spacing.md,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            height: '100%',
+          }}
+          onPress={handlePress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          activeOpacity={1}
+          disabled={disabled}
+        >
+          <ThemedView>
+            <ThemedText style={{ fontSize: 28, marginBottom: 8 }}>
+              {emoji}
+            </ThemedText>
+            <ThemedText variant="subtitle" weight="semibold" numberOfLines={1}>
+              {title}
+            </ThemedText>
+            <ThemedText variant="caption" color="secondary" numberOfLines={2}>
+              {subtitle}
+            </ThemedText>
+          </ThemedView>
+        </TouchableOpacity>
+      </Animated.View>
+    </Animated.View>
   );
 };

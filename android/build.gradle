@@ -33,5 +33,16 @@ allprojects {
   }
 }
 
+// Force NDK version for all projects
+subprojects {
+  afterEvaluate { project ->
+    if (project.hasProperty("android")) {
+      android {
+        ndkVersion = "26.1.10909125"
+      }
+    }
+  }
+}
+
 apply plugin: "expo-root-project"
-apply plugin: "com.facebook.react.rootproject"
+// apply plugin: "com.facebook.react.rootproject" // Disabled - causing NDK issues

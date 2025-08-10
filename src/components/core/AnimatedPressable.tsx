@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, PressableProps, GestureResponderEvent } from 'react-native';
+import { Pressable, PressableProps, GestureResponderEvent, ViewStyle } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -8,10 +8,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
-const AnimatedPressableComponent = Animated.createAnimatedComponent(Pressable);
-
-interface AnimatedPressableProps extends PressableProps {
+interface AnimatedPressableProps extends Omit<PressableProps, 'style'> {
   children: React.ReactNode;
+  style?: ViewStyle | ViewStyle[];
   scaleOnPress?: number;
   hapticFeedback?: boolean;
   hapticType?: 'light' | 'medium' | 'heavy' | 'selection';
@@ -101,15 +100,17 @@ export const AnimatedPressable: React.FC<AnimatedPressableProps> = ({
   };
   
   return (
-    <AnimatedPressableComponent
-      style={[animatedStyle, style]}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      onPress={handlePress}
-      disabled={disabled}
-      {...props}
-    >
-      {children}
-    </AnimatedPressableComponent>
+    <Animated.View style={[animatedStyle, style]}>
+      <Pressable
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onPress={handlePress}
+        disabled={disabled}
+        {...props}
+        style={undefined}
+      >
+        {children}
+      </Pressable>
+    </Animated.View>
   );
 };

@@ -475,7 +475,8 @@ export class AIService {
         }));
       }
       if (apiKeys?.openai) {
-        this.adapters.set('chatgpt', AIFactory.create({
+        // Store under 'openai' to match the provider ID from aiProviders.ts
+        this.adapters.set('openai', AIFactory.create({
           provider: 'chatgpt',
           apiKey: apiKeys.openai,
           personality: PERSONALITIES.neutral,

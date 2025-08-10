@@ -132,6 +132,14 @@ interface SettingsState {
     claude?: string;
     openai?: string;
     google?: string;
+    nomi?: string;
+    mistral?: string;
+    perplexity?: string;
+    [key: string]: string | undefined; // Allow any provider
+  };
+  verifiedProviders: string[]; // List of provider IDs that have been verified
+  verificationTimestamps: {
+    [key: string]: number; // Unix timestamp of when each provider was verified
   };
   expertMode: {
     claude?: ExpertModeConfig;
@@ -145,6 +153,8 @@ const initialSettingsState: SettingsState = {
   theme: 'auto',
   fontSize: 'medium',
   apiKeys: {},
+  verifiedProviders: [],
+  verificationTimestamps: {},
   expertMode: {},
   hasCompletedOnboarding: false,
 };
@@ -162,8 +172,41 @@ const settingsSlice = createSlice({
     setAPIKey: (state, action: PayloadAction<{ provider: 'claude' | 'openai' | 'google'; key: string }>) => {
       state.apiKeys[action.payload.provider] = action.payload.key;
     },
-    updateApiKeys: (state, action: PayloadAction<{ claude?: string; openai?: string; google?: string }>) => {
-      state.apiKeys = { ...state.apiKeys, ...action.payload };
+    updateApiKeys: (state, action: PayloadAction<Record<string, string | undefined>>) => {
+      // If payload is empty object, clear all keys
+      if (Object.keys(action.payload).length === 0) {
+        state.apiKeys = {};
+      } else {
+        state.apiKeys = { ...state.apiKeys, ...action.payload };
+      }
+      // Remove providers from verified list if their keys are removed
+      const verifiedToRemove: string[] = [];
+      Object.entries(action.payload).forEach(([provider, key]) => {
+        if (!key && state.verifiedProviders.includes(provider)) {
+          verifiedToRemove.push(provider);
+        }
+      });
+      state.verifiedProviders = state.verifiedProviders.filter(p => !verifiedToRemove.includes(p));
+    },
+    setVerifiedProviders: (state, action: PayloadAction<string[]>) => {
+      state.verifiedProviders = action.payload;
+      // Clear all timestamps and only keep ones for verified providers
+      state.verificationTimestamps = {};
+      action.payload.forEach(provider => {
+        state.verificationTimestamps[provider] = Date.now();
+      });
+    },
+    addVerifiedProvider: (state, action: PayloadAction<string>) => {
+      if (!state.verifiedProviders.includes(action.payload)) {
+        state.verifiedProviders.push(action.payload);
+      }
+      // Store verification timestamp
+      state.verificationTimestamps[action.payload] = Date.now();
+    },
+    removeVerifiedProvider: (state, action: PayloadAction<string>) => {
+      state.verifiedProviders = state.verifiedProviders.filter(p => p !== action.payload);
+      // Remove verification timestamp
+      delete state.verificationTimestamps[action.payload];
     },
     completeOnboarding: (state) => {
       state.hasCompletedOnboarding = true;
@@ -192,4 +235,14 @@ export type AppDispatch = typeof store.dispatch;
 // Export actions
 export const { setUser, updateUIMode, updateSubscription, logout } = userSlice.actions;
 export const { startSession, addMessage, setTypingAI, endSession, loadSession, setLoading } = chatSlice.actions;
-export const { updateTheme, updateFontSize, setAPIKey, updateApiKeys, completeOnboarding, updateExpertMode } = settingsSlice.actions;
+export const { 
+  updateTheme, 
+  updateFontSize, 
+  setAPIKey, 
+  updateApiKeys, 
+  setVerifiedProviders,
+  addVerifiedProvider,
+  removeVerifiedProvider,
+  completeOnboarding, 
+  updateExpertMode 
+} = settingsSlice.actions;

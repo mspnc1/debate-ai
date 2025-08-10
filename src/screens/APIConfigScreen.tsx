@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ScrollView,
   Alert,
@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { updateApiKeys, updateExpertMode } from '../store';
+import { updateApiKeys, updateExpertMode, addVerifiedProvider, removeVerifiedProvider, setVerifiedProviders } from '../store';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../theme';
 import { ThemedView, ThemedText, ThemedButton } from '../components/core';
@@ -41,13 +41,15 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();
   const dispatch = useDispatch();
   const existingKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
+  const verifiedProviders = useSelector((state: RootState) => state.settings.verifiedProviders || []);
+  const verificationTimestamps = useSelector((state: RootState) => state.settings.verificationTimestamps || {});
   const expertModeConfigs = useSelector((state: RootState) => state.settings.expertMode || {});
   const currentUser = useSelector((state: RootState) => state.user.currentUser);
   // TODO: Remove true || for production - defaulting to premium for development
   // eslint-disable-next-line no-constant-binary-expression
   const isPremium = true || currentUser?.subscription === 'pro' || currentUser?.subscription === 'business';
   
-  // State for all API keys
+  // State for all API keys - initialized from Redux
   const [apiKeys, setApiKeys] = useState<{ [key: string]: string }>(() => {
     const keys: { [key: string]: string } = {};
     AI_PROVIDERS.forEach(provider => {
@@ -56,15 +58,46 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
     });
     return keys;
   });
+  
+  // Sync local state with Redux when existingKeys change
+  useEffect(() => {
+    const keys: { [key: string]: string } = {};
+    AI_PROVIDERS.forEach(provider => {
+      const existingKey = existingKeys ? existingKeys[provider.id as keyof typeof existingKeys] : undefined;
+      keys[provider.id] = existingKey || '';
+    });
+    setApiKeys(keys);
+  }, [existingKeys]);
+
+  // Helper function to format verification time
+  const formatVerificationTime = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Verified just now';
+    if (diffMins < 60) return `Verified ${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `Verified ${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `Verified ${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    return `Verified ${date.toLocaleDateString()}`;
+  };
 
   // State for test results
   const [providerStatus, setProviderStatus] = useState<ProviderStatus>(() => {
     const status: ProviderStatus = {};
     AI_PROVIDERS.forEach(provider => {
-      const existingKey = existingKeys ? existingKeys[provider.id as keyof typeof existingKeys] : undefined;
+      const hasKey = existingKeys ? existingKeys[provider.id as keyof typeof existingKeys] : undefined;
+      const isVerified = verifiedProviders.includes(provider.id);
+      const verificationTime = verificationTimestamps[provider.id];
+      
       status[provider.id] = {
-        status: existingKey ? 'success' : 'idle',
-        message: existingKey ? 'Connected' : undefined,
+        status: hasKey && isVerified ? 'success' : 'idle',
+        message: hasKey && isVerified && verificationTime 
+          ? formatVerificationTime(verificationTime)
+          : undefined,
       };
     });
     return status;
@@ -73,9 +106,12 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
   // State for expanded cards
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
 
-  // Get enabled providers
+  // Get enabled providers - use existingKeys from Redux for accurate count
   const enabledProviders = getEnabledProviders();
-  const configuredCount = enabledProviders.filter(p => apiKeys[p.id]).length;
+  const configuredCount = enabledProviders.filter(p => {
+    const key = existingKeys ? existingKeys[p.id as keyof typeof existingKeys] : undefined;
+    return !!key;
+  }).length;
   const progressPercentage = (configuredCount / enabledProviders.length) * 100;
 
   // Test API connection
@@ -97,15 +133,19 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
       const success = key.length > 10;
       
       if (success) {
+        // Add to verified providers on successful test (this also updates timestamp)
+        dispatch(addVerifiedProvider(providerId));
+        
         setProviderStatus(prev => ({
           ...prev,
           [providerId]: {
             status: 'success',
-            message: 'Connected successfully',
+            message: 'Verified just now',
             model: 'Model v1.0', // This would come from actual API response
           },
         }));
-        return { success: true, message: 'Connected successfully', model: 'Model v1.0' };
+        
+        return { success: true, message: 'Verified just now', model: 'Model v1.0' };
       } else {
         setProviderStatus(prev => ({
           ...prev,
@@ -114,6 +154,8 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
             message: 'Invalid API key',
           },
         }));
+        // Remove from verified providers on failed test
+        dispatch(removeVerifiedProvider(providerId));
         return { success: false, message: 'Invalid API key' };
       }
     } catch {
@@ -130,9 +172,29 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
 
   // Save API key
   const saveApiKey = async (providerId: string) => {
-    const updatedKeys = { ...existingKeys, [providerId]: apiKeys[providerId] };
-    await secureStorage.saveApiKeys(updatedKeys);
-    dispatch(updateApiKeys(updatedKeys));
+    const key = apiKeys[providerId];
+    if (!key) {
+      // If key is empty, remove it
+      const updatedKeys = { ...existingKeys };
+      delete updatedKeys[providerId as keyof typeof updatedKeys];
+      // Filter out undefined values for secureStorage
+      const cleanedKeys: Record<string, string> = {};
+      Object.entries(updatedKeys).forEach(([k, v]) => {
+        if (v) cleanedKeys[k] = v;
+      });
+      await secureStorage.saveApiKeys(cleanedKeys);
+      dispatch(updateApiKeys(updatedKeys));
+      dispatch(removeVerifiedProvider(providerId));
+    } else {
+      const updatedKeys = { ...existingKeys, [providerId]: key };
+      // Filter out undefined values for secureStorage
+      const cleanedKeys: Record<string, string> = {};
+      Object.entries(updatedKeys).forEach(([k, v]) => {
+        if (v) cleanedKeys[k] = v;
+      });
+      await secureStorage.saveApiKeys(cleanedKeys);
+      dispatch(updateApiKeys(updatedKeys));
+    }
   };
 
   // Clear all keys
@@ -148,6 +210,7 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
           onPress: async () => {
             await secureStorage.clearApiKeys();
             dispatch(updateApiKeys({}));
+            dispatch(setVerifiedProviders([])); // Clear all verified providers
             setApiKeys({});
             setProviderStatus({});
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -279,6 +342,14 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                       apiKey={apiKeys[provider.id] || ''}
                       onKeyChange={(key) => {
                         setApiKeys(prev => ({ ...prev, [provider.id]: key }));
+                        // If key is cleared, remove from verified providers
+                        if (!key) {
+                          dispatch(removeVerifiedProvider(provider.id));
+                          setProviderStatus(prev => ({
+                            ...prev,
+                            [provider.id]: { status: 'idle' },
+                          }));
+                        }
                       }}
                       onTest={() => testConnection(provider.id)}
                       onSave={() => saveApiKey(provider.id)}
@@ -286,6 +357,7 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                       onToggleExpand={() => toggleProvider(provider.id)}
                       index={index}
                       testStatus={providerStatus[provider.id]?.status}
+                      testStatusMessage={providerStatus[provider.id]?.message}
                       selectedModel={expertConfig.enabled ? expertConfig.selectedModel : undefined}
                       expertModeEnabled={expertConfig.enabled === true}
                     />

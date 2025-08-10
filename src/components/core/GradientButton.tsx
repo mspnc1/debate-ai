@@ -107,12 +107,13 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
   };
   
   return (
-    <Animated.View style={[style, animatedStyle]}>
-      <AnimatedPressable
-        onPress={handlePress}
-        disabled={disabled}
-        animationType="opacity"
-      >
+    <AnimatedPressable
+      onPress={handlePress}
+      disabled={disabled}
+      animationType="opacity"
+      style={style}
+    >
+      <Animated.View style={animatedStyle}>
         <LinearGradient
           colors={disabled ? disabledGradient : defaultGradient}
           start={{ x: 0, y: 0 }}
@@ -126,7 +127,7 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
             {title}
           </ThemedText>
         </LinearGradient>
-      </AnimatedPressable>
-    </Animated.View>
+      </Animated.View>
+    </AnimatedPressable>
   );
 };

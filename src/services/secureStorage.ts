@@ -2,11 +2,8 @@ import * as SecureStore from 'expo-secure-store';
 
 const API_KEYS_STORAGE_KEY = 'my_ai_friends_api_keys';
 
-interface StoredApiKeys {
-  claude?: string;
-  openai?: string;
-  google?: string;
-}
+// Dynamic interface to support all providers
+type StoredApiKeys = Record<string, string>;
 
 class SecureStorageService {
   // Save API keys securely
@@ -36,7 +33,7 @@ class SecureStorageService {
   }
 
   // Update a single API key
-  async updateApiKey(provider: 'claude' | 'openai' | 'google', key: string): Promise<void> {
+  async updateApiKey(provider: string, key: string): Promise<void> {
     try {
       const currentKeys = await this.getApiKeys() || {};
       currentKeys[provider] = key;
@@ -60,7 +57,7 @@ class SecureStorageService {
   // Check if we have any keys stored
   async hasApiKeys(): Promise<boolean> {
     const keys = await this.getApiKeys();
-    return keys !== null && (!!keys.claude || !!keys.openai || !!keys.google);
+    return keys !== null && Object.keys(keys).length > 0;
   }
 }
 

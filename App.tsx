@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Provider, useDispatch } from 'react-redux';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { store } from './src/store';
 import { updateApiKeys } from './src/store';
 import AppNavigator from './src/navigation/AppNavigator';
@@ -31,12 +32,14 @@ function AppContent() {
   }, [dispatch]);
 
   return (
-    <ThemeProvider>
-      <AIServiceProvider>
-        <AppNavigator />
-        <StatusBar style="auto" />
-      </AIServiceProvider>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AIServiceProvider>
+          <AppNavigator />
+          <StatusBar style="auto" />
+        </AIServiceProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 

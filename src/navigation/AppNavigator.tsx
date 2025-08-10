@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Platform } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { RootStackParamList } from '../types';
@@ -27,6 +28,11 @@ const Tab = createBottomTabNavigator();
 // Main Tab Navigator
 const MainTabs = () => {
   const { theme, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
+  
+  // Calculate tab bar height with safe area
+  const tabBarHeight = 60;
+  const totalHeight = tabBarHeight + insets.bottom;
   
   return (
     <Tab.Navigator
@@ -38,9 +44,9 @@ const MainTabs = () => {
           backgroundColor: isDark ? '#000000' : '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: theme.colors.border,
-          paddingBottom: 5,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : Platform.OS === 'android' ? 5 : 5,
           paddingTop: 5,
-          height: 60,
+          height: totalHeight,
         },
         tabBarLabelStyle: {
           fontSize: 12,
