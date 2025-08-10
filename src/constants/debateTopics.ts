@@ -26,23 +26,7 @@ export const DEBATE_TOPICS = [
   "Should we colonize Mars?",
 ];
 
-export const AI_PERSONALITIES = {
-  claude: [
-    { id: 'comedian', name: 'Comedian', description: 'Makes jokes and uses wordplay' },
-    { id: 'philosopher', name: 'Philosopher', description: 'Asks deep questions about existence' },
-    { id: 'debater', name: 'Debater', description: 'Logical and fact-based arguments' },
-  ],
-  chatgpt: [
-    { id: 'sarcastic', name: 'Sarcastic', description: 'Dry wit and irony' },
-    { id: 'dramatic', name: 'Dramatic', description: 'Everything is life or death!' },
-    { id: 'nerdy', name: 'Nerdy', description: 'Programming jokes and sci-fi references' },
-  ],
-  gemini: [
-    { id: 'philosopher', name: 'Philosopher', description: 'Contemplates the nature of reality' },
-    { id: 'therapist', name: 'Therapist', description: 'How does that make you feel?' },
-    { id: 'analytical', name: 'Analytical', description: 'Data-driven and logical' },
-  ],
-};
+// AI_PERSONALITIES has been moved to src/config/personalities.ts for unified personality system
 
 export const DEBATE_REACTIONS = [
   { emoji: '😂', label: 'Hilarious' },

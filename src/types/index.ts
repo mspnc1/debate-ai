@@ -101,4 +101,5 @@ export type RootStackParamList = {
   Subscription: undefined;
   ExpertMode: undefined;
   Debate: { selectedAIs: AI[]; topic?: string; personalities?: { [key: string]: string } };
+  Stats: undefined;
 };

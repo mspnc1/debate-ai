@@ -14,9 +14,11 @@ interface DynamicAISelectorProps {
   selectedAIs: AIConfig[];
   maxAIs: number;
   onToggleAI: (ai: AIConfig) => void;
-  onStartChat: () => void;
+  onStartChat?: () => void;  // Made optional
   onAddAI: () => void;
   isPremium: boolean;
+  customSubtitle?: string;
+  hideStartButton?: boolean;  // New prop to hide the start button
 }
 
 export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
@@ -27,10 +29,15 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
   onStartChat,
   onAddAI,
   isPremium,
+  customSubtitle,
+  hideStartButton = false,
 }) => {
   const { theme, isDark } = useTheme();
   
   const getSubtitle = () => {
+    if (customSubtitle) {
+      return customSubtitle;
+    }
     if (configuredAIs.length === 0) {
       return 'No AIs configured yet';
     } else if (configuredAIs.length === 1) {
@@ -156,26 +163,28 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
         ))}
       </View>
       
-      {configuredAIs.length > 0 ? (
-        <GradientButton
-          title={selectedAIs.length === 0 
-            ? "Select AIs to start" 
-            : `Start Chat with ${selectedAIs.length} AI${selectedAIs.length > 1 ? 's' : ''}`
-          }
-          onPress={onStartChat}
-          disabled={selectedAIs.length === 0}
-          gradient={theme.colors.gradients.ocean}
-          fullWidth
-          hapticType="medium"
-        />
-      ) : (
-        <GradientButton
-          title="Configure Your First AI"
-          onPress={onAddAI}
-          gradient={theme.colors.gradients.primary}
-          fullWidth
-          hapticType="medium"
-        />
+      {!hideStartButton && (
+        configuredAIs.length > 0 ? (
+          <GradientButton
+            title={selectedAIs.length === 0 
+              ? "Select AIs to start" 
+              : `Start Chat with ${selectedAIs.length} AI${selectedAIs.length > 1 ? 's' : ''}`
+            }
+            onPress={onStartChat || (() => {})}
+            disabled={selectedAIs.length === 0}
+            gradient={theme.colors.gradients.ocean}
+            fullWidth
+            hapticType="medium"
+          />
+        ) : (
+          <GradientButton
+            title="Configure Your First AI"
+            onPress={onAddAI}
+            gradient={theme.colors.gradients.primary}
+            fullWidth
+            hapticType="medium"
+          />
+        )
       )}
     </ThemedView>
   );

@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
   FlatList,
   Alert,
   TextInput,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
@@ -14,14 +14,20 @@ import Animated, {
   FadeIn,
   useAnimatedStyle,
   withSpring,
+  withTiming,
+  withRepeat,
+  withSequence,
+  withDelay,
   useSharedValue,
+  Easing,
 } from 'react-native-reanimated';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
-import { addMessage, setTypingAI, startSession } from '../store';
+import { addMessage, setTypingAI, startSession, startDebate, recordRoundWinner, recordOverallWinner } from '../store';
 import { Message, AI } from '../types';
 import { AIService } from '../services/aiAdapter';
-import { DEBATE_TOPICS, AI_PERSONALITIES, DEBATE_REACTIONS } from '../constants/debateTopics';
+import { DEBATE_TOPICS } from '../constants/debateTopics';
+import { UNIVERSAL_PERSONALITIES, getDebatePrompt } from '../config/personalities';
 import { useTheme } from '../theme';
 import { ThemedView, ThemedText, GradientButton, ThemedButton } from '../components/core';
 
@@ -39,6 +45,75 @@ interface DebateScreenProps {
   };
 }
 
+// Smooth animated typing dots component
+const TypingDots: React.FC = () => {
+  const { theme } = useTheme();
+  const dot1 = useSharedValue(0);
+  const dot2 = useSharedValue(0);
+  const dot3 = useSharedValue(0);
+
+  React.useLayoutEffect(() => {
+    // Smooth wave animation for dots
+    dot1.value = withRepeat(
+      withSequence(
+        withDelay(0, withSpring(1, { damping: 15, stiffness: 200 })),
+        withSpring(0, { damping: 15, stiffness: 200 })
+      ),
+      -1,
+      false
+    );
+    dot2.value = withRepeat(
+      withSequence(
+        withDelay(150, withSpring(1, { damping: 15, stiffness: 200 })),
+        withSpring(0, { damping: 15, stiffness: 200 })
+      ),
+      -1,
+      false
+    );
+    dot3.value = withRepeat(
+      withSequence(
+        withDelay(300, withSpring(1, { damping: 15, stiffness: 200 })),
+        withSpring(0, { damping: 15, stiffness: 200 })
+      ),
+      -1,
+      false
+    );
+  }, [dot1, dot2, dot3]);
+
+  const dot1Style = useAnimatedStyle(() => ({
+    opacity: 0.4 + dot1.value * 0.6,
+    transform: [{ translateY: -dot1.value * 4 }],
+  }));
+
+  const dot2Style = useAnimatedStyle(() => ({
+    opacity: 0.4 + dot2.value * 0.6,
+    transform: [{ translateY: -dot2.value * 4 }],
+  }));
+
+  const dot3Style = useAnimatedStyle(() => ({
+    opacity: 0.4 + dot3.value * 0.6,
+    transform: [{ translateY: -dot3.value * 4 }],
+  }));
+
+  const dotBaseStyle = {
+    fontSize: 20,
+    color: theme.colors.text.secondary,
+  };
+
+  return (
+    <View style={{ 
+      flexDirection: 'row', 
+      gap: theme.spacing.xs, 
+      marginLeft: theme.spacing.sm, 
+      alignItems: 'center' 
+    }}>
+      <Animated.Text style={[dotBaseStyle, dot1Style]}>•</Animated.Text>
+      <Animated.Text style={[dotBaseStyle, dot2Style]}>•</Animated.Text>
+      <Animated.Text style={[dotBaseStyle, dot3Style]}>•</Animated.Text>
+    </View>
+  );
+};
+
 const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   const dispatch = useDispatch();
   const { theme } = useTheme();
@@ -54,10 +129,15 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   const [debateStarted, setDebateStarted] = useState(false);
   const [currentRound, setCurrentRound] = useState(0);
   const [showTopicPicker, setShowTopicPicker] = useState(!initialTopic);
-  const [reactions, setReactions] = useState<string[]>([]);
   const [aiService, setAiService] = useState<AIService | null>(null);
   const [debateEnded, setDebateEnded] = useState(false);
   const [activeTopic, setActiveTopic] = useState('');
+  const [votes, setVotes] = useState<{ [round: number]: string }>({});
+  const [showVoting, setShowVoting] = useState(false);
+  const [votingRound, setVotingRound] = useState(0);
+  const [isFinalVote, setIsFinalVote] = useState(false);
+  const [isOverallVote, setIsOverallVote] = useState(false);
+  const [pendingNextRound, setPendingNextRound] = useState<{prompt: string, aiIndex: number, messageCount: number, topic: string} | null>(null);
   
   const flatListRef = useRef<FlatList>(null);
   const roundCountRef = useRef(0);
@@ -79,7 +159,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     setSelectedTopic(DEBATE_TOPICS[randomIndex]);
   };
 
-  const startDebate = async () => {
+  const startDebateFlow = async () => {
     const finalTopic = topicMode === 'custom' ? customTopic : selectedTopic;
     if (!finalTopic) {
       Alert.alert('Select a Topic', 'Please choose a debate topic first!');
@@ -92,15 +172,26 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     // Reset state
     setDebateEnded(false);
     roundCountRef.current = 1;
+    setVotes({});
     
     // Create a new session for the debate
     dispatch(startSession({ selectedAIs }));
     setDebateStarted(true);
     setCurrentRound(1);
     setShowTopicPicker(false);
+    
+    // Initialize debate stats
+    const debateId = `debate_${Date.now()}`;
+    dispatch(startDebate({ 
+      debateId, 
+      topic: finalTopic, 
+      participants: selectedAIs.map(ai => ai.id) 
+    }));
 
-    // Create the opening prompt
-    const openingPrompt = `[DEBATE MODE] Topic: "${finalTopic}"\n\nYou are ${selectedAIs[0].name} with a ${aiPersonalities[selectedAIs[0].id] || 'neutral'} personality. Take a strong position on this topic and make your opening argument. Be persuasive and engaging!`;
+    // Create the opening prompt with personality
+    const personalityId = aiPersonalities[selectedAIs[0].id] || 'default';
+    const personalityPrompt = getDebatePrompt(personalityId);
+    const openingPrompt = `[DEBATE MODE] Topic: "${finalTopic}"\n\n${personalityPrompt}\n\nYou are ${selectedAIs[0].name}. Take a strong position on this topic and make your opening argument. Be persuasive and engaging!`;
 
     // Add user message to start the debate
     const startMessage: Message = {
@@ -129,23 +220,64 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     const currentAI = selectedAIs[aiIndex];
     const nextAIIndex = (aiIndex + 1) % selectedAIs.length;
     
-    // Update round counter - a round is one complete cycle through all AIs
-    const newRound = Math.floor((messageCount - 1) / selectedAIs.length) + 1;
-    if (newRound !== roundCountRef.current) {
-      setCurrentRound(newRound);
-      roundCountRef.current = newRound;
+    // Check if we're starting a new round
+    const currentMessageRound = Math.floor((messageCount - 1) / selectedAIs.length) + 1;
+    const isNewRound = currentMessageRound !== roundCountRef.current;
+    const isFirstAIInRound = aiIndex === 0;
+    
+    // If it's a new round and we need to vote on the previous round
+    if (isNewRound && roundCountRef.current > 0 && !votes[roundCountRef.current] && isFirstAIInRound) {
+      // Store the next round info to continue after voting
+      setPendingNextRound({ prompt, aiIndex, messageCount, topic: debateTopic });
+      
+      // Show voting for the previous round
+      setVotingRound(roundCountRef.current);
+      setIsFinalVote(false);
+      setShowVoting(true);
+      
+      // Update the round counter for next time
+      setCurrentRound(currentMessageRound);
+      roundCountRef.current = currentMessageRound;
+      
+      // Don't continue the debate - wait for voting
+      return;
+    }
+    
+    // Update round counter if needed
+    if (isNewRound) {
+      setCurrentRound(currentMessageRound);
+      roundCountRef.current = currentMessageRound;
+      
+      // Announce new round
+      if (currentMessageRound < maxRounds) {
+        const roundMessage: Message = {
+          id: `msg_${Date.now()}_round_start_${currentMessageRound}`,
+          sender: 'Debate Host',
+          senderType: 'user',
+          content: `📢 ROUND ${currentMessageRound} BEGINS!`,
+          timestamp: Date.now(),
+        };
+        dispatch(addMessage(roundMessage));
+      } else if (currentMessageRound === maxRounds) {
+        const finalRoundMessage: Message = {
+          id: `msg_${Date.now()}_final_round`,
+          sender: 'Debate Host',
+          senderType: 'user',
+          content: `🔔 FINAL ROUND! Make your strongest arguments!`,
+          timestamp: Date.now(),
+        };
+        dispatch(addMessage(finalRoundMessage));
+      }
     }
     
     dispatch(setTypingAI({ ai: currentAI.name, isTyping: true }));
 
     try {
       // Add personality to the prompt
-      const personality = aiPersonalities[currentAI.id];
-      const personalityPrompt = personality 
-        ? `Remember, you have a ${personality} personality. `
-        : '';
+      const personalityId = aiPersonalities[currentAI.id] || 'default';
+      const personalityPrompt = getDebatePrompt(personalityId);
       
-      const fullPrompt = personalityPrompt + (prompt || '');
+      const fullPrompt = `${personalityPrompt}\n\n${prompt || ''}`;
 
       // Get AI response - only pass messages from current debate session
       const currentDebateMessages = messages.filter(msg => 
@@ -158,9 +290,10 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         true // isDebateMode
       );
 
+      const personalityName = UNIVERSAL_PERSONALITIES.find(p => p.id === personalityId)?.name || 'Default';
       const aiMessage: Message = {
         id: `msg_${Date.now()}_${currentAI.id}`,
-        sender: `${currentAI.name} (${personality || 'neutral'})`,
+        sender: `${currentAI.name} (${personalityName})`,
         senderType: 'ai',
         content: response,
         timestamp: Date.now(),
@@ -240,52 +373,167 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
       id: `msg_${Date.now()}_end`,
       sender: 'Debate Host',
       senderType: 'user',
-      content: '🎭 DEBATE COMPLETE! 🎭\n\nWho won? That\'s for you to decide! Use the reactions to show your favorite moments!',
+      content: '🎭 DEBATE COMPLETE! 🎭\n\nTime to vote on the final round!',
       timestamp: Date.now(),
     };
     dispatch(addMessage(endMessage));
+    
+    // Show voting for the final round first
+    setVotingRound(maxRounds);
+    setIsFinalVote(true);
+    setIsOverallVote(false);
+    setShowVoting(true);
   };
 
-  const addReaction = (emoji: string) => {
-    setReactions([...reactions, emoji]);
-    // Remove reaction after animation
-    setTimeout(() => {
-      setReactions(prev => prev.filter((_, i) => i !== 0));
-    }, 2000);
+  const handleVote = (aiId: string) => {
+    if (isOverallVote) {
+      // Overall winner vote
+      setVotes(prev => ({ ...prev, overall: aiId }));
+      setShowVoting(false);
+      setIsOverallVote(false);
+      
+      // Record overall winner in stats
+      dispatch(recordOverallWinner({ winnerId: aiId }));
+      
+      // Show final results
+      const winner = selectedAIs.find(ai => ai.id === aiId);
+      const finalMessage: Message = {
+        id: `msg_${Date.now()}_winner`,
+        sender: 'Debate Host',
+        senderType: 'user',
+        content: `🏆 OVERALL WINNER: ${winner?.name}! 🏆\n\nThanks for participating in this debate!`,
+        timestamp: Date.now(),
+      };
+      dispatch(addMessage(finalMessage));
+    } else if (isFinalVote) {
+      // Final round vote
+      setVotes(prev => ({ ...prev, [votingRound]: aiId }));
+      setShowVoting(false);
+      setIsFinalVote(false);
+      
+      // Record round winner in stats
+      dispatch(recordRoundWinner({ round: votingRound, winnerId: aiId }));
+      
+      // Announce final round winner
+      const winner = selectedAIs.find(ai => ai.id === aiId);
+      const roundMessage: Message = {
+        id: `msg_${Date.now()}_round_${votingRound}`,
+        sender: 'Debate Host',
+        senderType: 'user',
+        content: `🏅 Final Round Winner: ${winner?.name}!`,
+        timestamp: Date.now(),
+      };
+      dispatch(addMessage(roundMessage));
+      
+      // Now show overall winner vote
+      setTimeout(() => {
+        setVotingRound(maxRounds + 1); // Special round for overall
+        setIsOverallVote(true);
+        setShowVoting(true);
+      }, 1500);
+    } else {
+      // Regular round vote
+      setVotes(prev => ({ ...prev, [votingRound]: aiId }));
+      setShowVoting(false);
+      
+      // Record round winner in stats
+      dispatch(recordRoundWinner({ round: votingRound, winnerId: aiId }));
+      
+      // Announce round winner
+      const winner = selectedAIs.find(ai => ai.id === aiId);
+      const roundMessage: Message = {
+        id: `msg_${Date.now()}_round_${votingRound}`,
+        sender: 'Debate Host',
+        senderType: 'user',
+        content: `🏅 Round ${votingRound} Winner: ${winner?.name}!`,
+        timestamp: Date.now(),
+      };
+      dispatch(addMessage(roundMessage));
+      
+      // Continue with the next round if there's one pending
+      if (pendingNextRound) {
+        const { prompt, aiIndex, messageCount, topic } = pendingNextRound;
+        setPendingNextRound(null);
+        
+        // Small delay before continuing
+        setTimeout(() => {
+          runDebateRound(prompt, aiIndex, messageCount, topic);
+        }, 2000);
+      }
+    }
+  };
+
+  // Typing indicator as a message-like component
+  const TypingIndicator: React.FC<{ aiName: string }> = ({ aiName }) => {
+    const { theme } = useTheme();
+    return (
+      <Animated.View 
+        entering={FadeIn.duration(200)}
+        style={[styles.messageContainer, { marginBottom: theme.spacing.sm }]}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <ThemedText variant="body" color="brand" style={{ fontStyle: 'italic' }}>
+            {aiName} is thinking
+          </ThemedText>
+          <TypingDots />
+        </View>
+      </Animated.View>
+    );
   };
 
   const MessageBubble: React.FC<{ message: Message; index: number }> = React.memo(({ message }) => {
-    const { theme } = useTheme();
+    const { theme, isDark } = useTheme();
     const isHost = message.sender === 'Debate Host';
-    const scale = useSharedValue(0);
-    const hasAnimated = useRef(false);
+    
+    // Get AI-specific color from the message sender using theme brand colors
+    const getAIColor = () => {
+      if (isHost) return null;
+      
+      // Extract AI name from sender (format: "AI Name (Personality)")
+      const aiName = message.sender.split(' (')[0].toLowerCase();
+      
+      // Map AI names to their brand color keys
+      const aiBrandKey = aiName === 'chatgpt' ? 'chatgpt' : 
+                         aiName === 'claude' ? 'claude' :
+                         aiName === 'gemini' ? 'gemini' :
+                         aiName === 'nomi' ? 'nomi' : null;
+      
+      if (!aiBrandKey) return null;
+      
+      const brandColors = theme.colors[aiBrandKey];
+      return {
+        light: brandColors[50],
+        dark: theme.colors.surface, // Use surface color with tinted border in dark mode
+        border: brandColors[500],
+      };
+    };
+    
+    const aiColor = getAIColor();
+    
+    // Simple fade-in
+    const opacity = useSharedValue(0);
 
     useEffect(() => {
-      // Only animate once when the message first appears
-      if (!hasAnimated.current) {
-        hasAnimated.current = true;
-        // Small delay to ensure proper mounting
-        const timer = setTimeout(() => {
-          scale.value = withSpring(1, {
-            damping: 15,
-            stiffness: 150,
-          });
-        }, 50);
-        return () => clearTimeout(timer);
-      }
-      return undefined;
+      opacity.value = withTiming(1, {
+        duration: 300,
+        easing: Easing.out(Easing.ease),
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Empty dependency - only run once on mount
+    }, []);
 
     const animatedStyle = useAnimatedStyle(() => ({
-      transform: [{ scale: scale.value }],
+      opacity: opacity.value,
     }));
 
     return (
       <Animated.View style={[styles.messageContainer, animatedStyle]}>
         {!isHost && (
           <ThemedView style={styles.aiHeader}>
-            <ThemedText variant="subtitle" color="brand" weight="semibold">
+            <ThemedText 
+              variant="subtitle" 
+              weight="semibold"
+              style={{ color: aiColor?.border || theme.colors.primary[500] }}
+            >
               {message.sender}
             </ThemedText>
           </ThemedView>
@@ -294,10 +542,17 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
           styles.messageBubble,
           isHost ? [
             styles.hostBubble,
-            { backgroundColor: theme.colors.warning[50], borderColor: theme.colors.warning[500] }
+            { 
+              backgroundColor: theme.colors.warning[50], 
+              borderColor: theme.colors.warning[500] 
+            }
           ] : [
             styles.aiBubble,
-            { backgroundColor: theme.colors.card, borderColor: theme.colors.border }
+            { 
+              backgroundColor: aiColor ? (isDark ? aiColor.dark : aiColor.light) : theme.colors.card, 
+              borderColor: aiColor?.border || theme.colors.border,
+              borderWidth: 1,
+            }
           ],
         ]}>
           <ThemedText 
@@ -471,8 +726,8 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
           {selectedAIs.map((ai) => (
             <ThemedView key={ai.id} style={styles.personalityRow}>
               <ThemedText variant="subtitle" color="brand" weight="semibold">{ai.name}:</ThemedText>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {AI_PERSONALITIES[ai.id as keyof typeof AI_PERSONALITIES]?.map((personality) => (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                {UNIVERSAL_PERSONALITIES.map((personality) => (
                   <ThemedButton
                     key={personality.id}
                     title={personality.name}
@@ -496,7 +751,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         <>
           <GradientButton
             title="🤜 Start the Debate! 🤛"
-            onPress={startDebate}
+            onPress={startDebateFlow}
             gradient={theme.colors.gradients.ocean}
             fullWidth
             style={{ marginHorizontal: 16, marginBottom: 16 }}
@@ -517,48 +772,140 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
             renderItem={({ item, index }) => (
               <MessageBubble message={item} index={index} />
             )}
+            ListFooterComponent={
+              typingAIs.length > 0 ? <TypingIndicator aiName={typingAIs[0]} /> : null
+            }
             contentContainerStyle={styles.messagesList}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+            onContentSizeChange={() => {
+              // Auto-scroll to show new messages
+              setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+              }, 100);
+            }}
+            showsVerticalScrollIndicator={false}
           />
 
-          {/* Typing Indicator */}
-          {typingAIs.length > 0 && (
-            <ThemedView style={styles.typingIndicator}>
-              <ThemedText variant="body" color="brand" style={{ fontStyle: 'italic' }}>
-                {typingAIs[0]} is thinking... 🤔
+          {/* Voting Interface */}
+          {showVoting && (
+            <Animated.View 
+              entering={FadeInDown.duration(300)}
+              style={[styles.votingContainer, {
+                backgroundColor: theme.colors.surface,
+                borderTopColor: theme.colors.border
+              }]}
+            >
+              <ThemedText variant="title" weight="bold" align="center" style={{ marginBottom: theme.spacing.md }}>
+                {isOverallVote ? '🏆 Vote for Overall Winner!' : 
+                 isFinalVote ? `🏅 Who won the Final Round?` : 
+                 `🏅 Who won Round ${votingRound}?`}
               </ThemedText>
+              
+              {/* Show current scores during overall vote */}
+              {isOverallVote && (
+                <View style={[styles.currentScores, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                  <ThemedText variant="caption" weight="semibold" color="brand">Current Scores:</ThemedText>
+                  <View style={styles.scoreRow}>
+                    {selectedAIs.map((ai) => {
+                      const roundsWon = Object.entries(votes)
+                        .filter(([key, value]) => key !== 'overall' && value === ai.id)
+                        .length;
+                      const aiColor = ai.id === 'chatgpt' ? theme.colors.chatgpt :
+                                      ai.id === 'claude' ? theme.colors.claude :
+                                      ai.id === 'gemini' ? theme.colors.gemini :
+                                      ai.id === 'nomi' ? theme.colors.nomi :
+                                      theme.colors.primary;
+                      
+                      return (
+                        <View key={ai.id} style={styles.scoreItem}>
+                          <ThemedText 
+                            variant="body" 
+                            weight="semibold"
+                            style={{ color: aiColor[600] }}
+                          >
+                            {ai.name}
+                          </ThemedText>
+                          <ThemedText variant="title" weight="bold">
+                            {roundsWon}
+                          </ThemedText>
+                        </View>
+                      );
+                    })}
+                  </View>
+                  <ThemedText variant="caption" color="secondary" align="center" style={{ marginTop: 8 }}>
+                    Despite the scores, you can crown any AI as the overall winner!
+                  </ThemedText>
+                </View>
+              )}
+              <View style={styles.votingButtons}>
+                {selectedAIs.map((ai) => {
+                  const aiColor = ai.id === 'chatgpt' ? theme.colors.chatgpt :
+                                  ai.id === 'claude' ? theme.colors.claude :
+                                  ai.id === 'gemini' ? theme.colors.gemini :
+                                  ai.id === 'nomi' ? theme.colors.nomi :
+                                  theme.colors.primary;
+                  
+                  return (
+                    <TouchableOpacity
+                      key={ai.id}
+                      style={[
+                        styles.voteButton,
+                        {
+                          backgroundColor: aiColor[50],
+                          borderColor: aiColor[500],
+                          borderWidth: 2,
+                        }
+                      ]}
+                      onPress={() => handleVote(ai.id)}
+                    >
+                      <ThemedText 
+                        variant="subtitle" 
+                        weight="bold" 
+                        align="center"
+                        style={{ color: aiColor[700] }}
+                      >
+                        {ai.name}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </Animated.View>
+          )}
+          
+          {/* Score Display */}
+          {Object.keys(votes).length > 0 && !showVoting && (
+            <ThemedView style={[styles.scoreContainer, {
+              backgroundColor: theme.colors.surface,
+              borderTopColor: theme.colors.border
+            }]}>
+              <ThemedText variant="caption" weight="semibold" color="brand">Current Scores:</ThemedText>
+              <View style={styles.scoreRow}>
+                {selectedAIs.map((ai) => {
+                  const roundsWon = Object.values(votes).filter(v => v === ai.id && v !== 'overall').length;
+                  const aiColor = ai.id === 'chatgpt' ? theme.colors.chatgpt :
+                                  ai.id === 'claude' ? theme.colors.claude :
+                                  ai.id === 'gemini' ? theme.colors.gemini :
+                                  ai.id === 'nomi' ? theme.colors.nomi :
+                                  theme.colors.primary;
+                  
+                  return (
+                    <View key={ai.id} style={styles.scoreItem}>
+                      <ThemedText 
+                        variant="body" 
+                        weight="semibold"
+                        style={{ color: aiColor[600] }}
+                      >
+                        {ai.name}
+                      </ThemedText>
+                      <ThemedText variant="title" weight="bold">
+                        {roundsWon}
+                      </ThemedText>
+                    </View>
+                  );
+                })}
+              </View>
             </ThemedView>
           )}
-
-          {/* Reactions */}
-          <ThemedView style={[styles.reactionsContainer, {
-            backgroundColor: theme.colors.surface,
-            borderTopColor: theme.colors.border
-          }]}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {DEBATE_REACTIONS.map((reaction) => (
-                <TouchableOpacity
-                  key={reaction.emoji}
-                  style={styles.reactionButton}
-                  onPress={() => addReaction(reaction.emoji)}
-                >
-                  <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
-                  <ThemedText variant="caption" color="secondary">{reaction.label}</ThemedText>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </ThemedView>
-
-          {/* Floating Reactions */}
-          {reactions.map((emoji, index) => (
-            <Animated.Text
-              key={`${emoji}-${index}`}
-              entering={FadeIn}
-              style={[styles.floatingReaction, { bottom: 100 + index * 30 }]}
-            >
-              {emoji}
-            </Animated.Text>
-          ))}
         </>
       )}
     </SafeAreaView>
@@ -690,22 +1037,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  reactionsContainer: {
+  votingContainer: {
+    padding: 16,
+    borderTopWidth: 1,
+  },
+  votingButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    gap: 12,
+  },
+  voteButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  scoreContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
   },
-  reactionButton: {
+  scoreRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 8,
+  },
+  scoreItem: {
     alignItems: 'center',
-    marginRight: 16,
   },
-  reactionEmoji: {
-    fontSize: 28,
-  },
-  floatingReaction: {
-    position: 'absolute',
-    fontSize: 40,
-    alignSelf: 'center',
+  currentScores: {
+    padding: 12,
+    marginBottom: 12,
+    borderRadius: 8,
+    borderWidth: 1,
   },
   rateNote: {
     marginTop: -8,

@@ -24,7 +24,7 @@ abstract class AIAdapter {
   ): Promise<string>;
   
   protected getSystemPrompt(): string {
-    // Check if this is a debate context
+    // Check if this is a debate context - personality is handled in the debate prompt itself
     if (this.config.isDebateMode) {
       return 'You are participating in a lively debate. Take strong positions, directly address and challenge the previous speaker\'s arguments, and make compelling points. Be respectful but assertive. Build on or refute what was just said. Provide substantive arguments with examples, reasoning, or evidence. Aim for responses that are engaging and thought-provoking (3-5 sentences).';
     }
@@ -32,6 +32,11 @@ abstract class AIAdapter {
       return this.config.personality.systemPrompt;
     }
     return 'You are a helpful AI assistant.';
+  }
+  
+  // Method to temporarily set personality for a single message
+  setTemporaryPersonality(personality: PersonalityConfig | undefined): void {
+    this.config.personality = personality;
   }
   
   protected formatHistory(history: Message[]): Array<{ role: string; content: string }> {
@@ -60,7 +65,7 @@ class ClaudeAdapter extends AIAdapter {
       },
       body: JSON.stringify({
         model: this.config.model || 'claude-3-5-sonnet-20241022',
-        max_tokens: this.config.parameters?.maxTokens || 1024,
+        max_tokens: this.config.parameters?.maxTokens || 2048, // Balanced for complete but concise responses
         temperature: this.config.parameters?.temperature || 0.7,
         top_p: this.config.parameters?.topP,
         system: this.getSystemPrompt(),
@@ -94,7 +99,7 @@ class ChatGPTAdapter extends AIAdapter {
       },
       body: JSON.stringify({
         model: this.config.model || 'gpt-4o',
-        max_tokens: this.config.parameters?.maxTokens || 1024,
+        max_tokens: this.config.parameters?.maxTokens || 2048, // Balanced for complete but concise responses
         temperature: this.config.parameters?.temperature || 0.7,
         top_p: this.config.parameters?.topP,
         frequency_penalty: this.config.parameters?.frequencyPenalty,
@@ -147,7 +152,7 @@ class GeminiAdapter extends AIAdapter {
           ],
           generationConfig: {
             temperature: this.config.parameters?.temperature || 0.8,
-            maxOutputTokens: this.config.parameters?.maxTokens || 2048, // Increased for Gemini
+            maxOutputTokens: this.config.parameters?.maxTokens || 2048, // Balanced for complete but concise responses
           },
           systemInstruction: {
             parts: [{ text: this.getSystemPrompt() }]

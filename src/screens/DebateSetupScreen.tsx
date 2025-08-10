@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ScrollView, View, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { GradientHeader, GradientButton, ThemedButton } from '../components/core';
-import { AISelector } from '../components/organisms/AISelector';
+import { GradientHeader, GradientButton, ThemedButton, ThemedView } from '../components/core';
+import { DynamicAISelector } from '../components/organisms/DynamicAISelector';
 import { SectionHeader } from '../components/atoms/SectionHeader';
 
 import { useTheme } from '../theme';
-import { useAuth } from '../hooks/useAuth';
-import { useAISelection } from '../hooks/useAISelection';
 import { AIConfig } from '../types';
+import { AI_PROVIDERS } from '../config/aiProviders';
 import { DEBATE_TOPICS } from '../constants/debateTopics';
 
 interface DebateSetupScreenProps {
@@ -18,34 +19,6 @@ interface DebateSetupScreenProps {
     navigate: (screen: string, params?: Record<string, unknown>) => void;
   };
 }
-
-// Available AI configurations
-const AI_CONFIGS: AIConfig[] = [
-  {
-    id: 'claude',
-    provider: 'claude',
-    name: 'Claude',
-    personality: 'thoughtful',
-    avatar: '🎓',
-    color: '#FF6B35',
-  },
-  {
-    id: 'chatgpt',
-    provider: 'chatgpt',
-    name: 'ChatGPT',
-    personality: 'friendly',
-    avatar: '💡',
-    color: '#10A37F',
-  },
-  {
-    id: 'gemini',
-    provider: 'gemini',
-    name: 'Gemini',
-    personality: 'analytical',
-    avatar: '✨',
-    color: '#4285F4',
-  },
-];
 
 interface DebateTopicCardProps {
   topic: string;
@@ -82,19 +55,56 @@ const DebateTopicCard: React.FC<DebateTopicCardProps> = ({
 
 const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();
-  // TODO: Remove true || for production - defaulting to premium for development
-  const { isPremium: authPremium } = useAuth();
-  // eslint-disable-next-line no-constant-binary-expression
-  const isPremium = true || authPremium;
-  const { 
-    selectedAIs, 
-    toggleAI, 
-    hasMinimumSelection,
-  } = useAISelection({ minSelection: 2, maxSelection: isPremium ? 3 : 2 });
+  const user = useSelector((state: RootState) => state.user.currentUser);
+  const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
   
+  // TODO: Remove true || for production - defaulting to premium for development
+  // eslint-disable-next-line no-constant-binary-expression
+  const isPremium = true || user?.subscription === 'pro' || user?.subscription === 'business';
+  
+  // Get configured AIs based on which ones have API keys
+  const configuredAIs = useMemo(() => {
+    return AI_PROVIDERS
+      .filter(provider => provider.enabled && apiKeys[provider.id as keyof typeof apiKeys])
+      .map(provider => ({
+        id: provider.id,
+        provider: provider.id,
+        name: provider.name,
+        personality: 'balanced',
+        avatar: provider.icon,
+        color: provider.color,
+      } as AIConfig));
+  }, [apiKeys]);
+  
+  const [selectedAIs, setSelectedAIs] = useState<AIConfig[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<string>('');
   const [customTopic, setCustomTopic] = useState('');
   const [topicMode, setTopicMode] = useState<'preset' | 'custom'>('preset');
+  
+  // Debate mode always requires exactly 2 AIs
+  const maxAIs = 2;
+  
+  const handleToggleAI = (ai: AIConfig) => {
+    setSelectedAIs(prev => {
+      const isSelected = prev.some(s => s.id === ai.id);
+      if (isSelected) {
+        return prev.filter(s => s.id !== ai.id);
+      } else if (prev.length < maxAIs) {
+        return [...prev, ai];
+      }
+      return prev;
+    });
+  };
+  
+  const getDebateSubtitle = () => {
+    if (configuredAIs.length === 0) {
+      return 'No AIs configured yet';
+    } else if (configuredAIs.length === 1) {
+      return 'Need at least 2 AIs for debate';
+    } else {
+      return `${configuredAIs.length} AIs ready • Select 2 for debate`;
+    }
+  };
   
   const handleStartDebate = () => {
     if (selectedAIs.length < 2) {
@@ -128,6 +138,27 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
         gradient={theme.colors.gradients.sunset}
       />
       
+      {/* Stats Button */}
+      <ThemedView style={{ 
+        position: 'absolute', 
+        top: 60, 
+        right: 16,
+        zIndex: 10,
+      }}>
+        <ThemedButton
+          title="📊 Stats"
+          onPress={() => navigation.navigate('Stats')}
+          variant="secondary"
+          size="small"
+          style={{
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 20,
+            backgroundColor: theme.colors.surface,
+          }}
+        />
+      </ThemedView>
+      
       <ScrollView 
         style={{ flex: 1 }}
         contentContainerStyle={{ 
@@ -138,18 +169,20 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
       >
         {/* AI Selection */}
         <View style={{ marginBottom: theme.spacing.xl }}>
-          <AISelector
-            availableAIs={AI_CONFIGS}
+          <DynamicAISelector
+            configuredAIs={configuredAIs}
             selectedAIs={selectedAIs}
-            maxAIs={isPremium ? 3 : 2}
-            onToggleAI={toggleAI}
-            onStartChat={() => {}}
+            maxAIs={maxAIs}
+            onToggleAI={handleToggleAI}
+            onAddAI={() => navigation.navigate('APIConfig')}
             isPremium={isPremium}
+            customSubtitle={getDebateSubtitle()}
+            hideStartButton={true}
           />
         </View>
         
         {/* Topic Selection */}
-        {hasMinimumSelection && (
+        {selectedAIs.length >= 2 && (
           <Animated.View 
             entering={FadeInDown.delay(300).springify()}
             style={{ marginBottom: theme.spacing.xl }}
@@ -228,12 +261,12 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
         )}
         
         {/* Start Debate Button */}
-        {hasMinimumSelection && (
+        {selectedAIs.length >= 2 && (
           <Animated.View entering={FadeInDown.delay(500).springify()}>
             <GradientButton
               title="Start Debate"
               onPress={handleStartDebate}
-              disabled={!hasMinimumSelection || (!selectedTopic && !customTopic)}
+              disabled={selectedAIs.length < 2 || (!selectedTopic && !customTopic)}
               gradient={theme.colors.gradients.sunset}
               fullWidth
               hapticType="medium"

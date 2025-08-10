@@ -1,6 +1,7 @@
 // Redux store configuration
 import { configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { User, ChatSession, Message, UIMode, SubscriptionTier, AIConfig } from '../types';
+import debateStatsReducer from './debateStatsSlice';
 
 // User slice
 interface UserState {
@@ -226,6 +227,7 @@ export const store = configureStore({
     user: userSlice.reducer,
     chat: chatSlice.reducer,
     settings: settingsSlice.reducer,
+    debateStats: debateStatsReducer,
   },
 });
 
@@ -246,3 +248,5 @@ export const {
   completeOnboarding, 
   updateExpertMode 
 } = settingsSlice.actions;
+
+export { startDebate, recordRoundWinner, recordOverallWinner, clearStats } from './debateStatsSlice';

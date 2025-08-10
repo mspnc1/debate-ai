@@ -19,6 +19,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import APIConfigScreen from '../screens/APIConfigScreen';
 import DebateScreen from '../screens/DebateScreen';
 import DebateSetupScreen from '../screens/DebateSetupScreen';
+import StatsScreen from '../screens/StatsScreen';
 // import SubscriptionScreen from '../screens/SubscriptionScreen';
 // import ExpertModeScreen from '../screens/ExpertModeScreen';
 
@@ -212,6 +213,11 @@ export default function AppNavigator() {
             <Stack.Screen
               name="APIConfig"
               component={APIConfigScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Stats"
+              component={StatsScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
