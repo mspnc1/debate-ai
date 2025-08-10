@@ -84,6 +84,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
   const { theme } = useTheme();
   // TODO: Remove true || for production - defaulting to premium for development
   const { isPremium: authPremium } = useAuth();
+  // eslint-disable-next-line no-constant-binary-expression
   const isPremium = true || authPremium;
   const { 
     selectedAIs, 

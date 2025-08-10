@@ -12,7 +12,7 @@ import { useTheme } from '../../theme';
 import { ThemedText } from './ThemedText';
 import { AnimatedPressable } from './AnimatedPressable';
 
-const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
+// Removed AnimatedLinearGradient - no longer needed
 
 interface GradientButtonProps {
   title: string;
@@ -107,24 +107,26 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
   };
   
   return (
-    <AnimatedPressable
-      onPress={handlePress}
-      disabled={disabled}
-      style={style}
-    >
-      <AnimatedLinearGradient
-        colors={disabled ? disabledGradient : defaultGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[gradientStyle, animatedStyle]}
+    <Animated.View style={[style, animatedStyle]}>
+      <AnimatedPressable
+        onPress={handlePress}
+        disabled={disabled}
+        animationType="opacity"
       >
-        <ThemedText 
-          style={[buttonTextStyle, textStyle]}
-          numberOfLines={1}
+        <LinearGradient
+          colors={disabled ? disabledGradient : defaultGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={gradientStyle}
         >
-          {title}
-        </ThemedText>
-      </AnimatedLinearGradient>
-    </AnimatedPressable>
+          <ThemedText 
+            style={[buttonTextStyle, textStyle]}
+            numberOfLines={1}
+          >
+            {title}
+          </ThemedText>
+        </LinearGradient>
+      </AnimatedPressable>
+    </Animated.View>
   );
 };

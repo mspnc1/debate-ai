@@ -44,6 +44,7 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
   const expertModeConfigs = useSelector((state: RootState) => state.settings.expertMode || {});
   const currentUser = useSelector((state: RootState) => state.user.currentUser);
   // TODO: Remove true || for production - defaulting to premium for development
+  // eslint-disable-next-line no-constant-binary-expression
   const isPremium = true || currentUser?.subscription === 'pro' || currentUser?.subscription === 'business';
   
   // State for all API keys

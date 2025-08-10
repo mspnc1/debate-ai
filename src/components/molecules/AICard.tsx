@@ -1,6 +1,12 @@
 import React from 'react';
 import { ViewStyle } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { 
+  FadeInDown, 
+  useSharedValue, 
+  useAnimatedStyle,
+  withSequence,
+  withSpring
+} from 'react-native-reanimated';
 import { GlassCard, ThemedText, ThemedView } from '../core';
 import { AIAvatar } from '../atoms/AIAvatar';
 import { SelectionIndicator } from '../atoms/SelectionIndicator';
@@ -26,9 +32,20 @@ export const AICard: React.FC<AICardProps> = ({
   style,
 }) => {
   const { theme } = useTheme();
+  const scaleAnim = useSharedValue(1);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scaleAnim.value }]
+  }));
   
   const handlePress = () => {
     if (!isDisabled) {
+      // Selection bounce feedback
+      scaleAnim.value = withSequence(
+        withSpring(0.95, { duration: 100 }),
+        withSpring(1, { duration: 200 })
+      );
+      
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       onPress(ai);
     }
@@ -38,45 +55,61 @@ export const AICard: React.FC<AICardProps> = ({
     <Animated.View
       entering={FadeInDown.delay(100 + index * 50).springify()}
       style={[{ flex: 1 }, style]}
+      accessible={true}
+      accessibilityRole="checkbox"
+      accessibilityState={{ 
+        checked: isSelected,
+        disabled: isDisabled 
+      }}
+      accessibilityLabel={`${ai.name}, ${ai.personality}`}
+      accessibilityHint={
+        isSelected 
+          ? "Double tap to deselect this AI"
+          : isDisabled 
+            ? "Maximum AIs selected" 
+            : "Double tap to select this AI"
+      }
     >
-      <GlassCard
-        onPress={handlePress}
-        disabled={isDisabled}
-        style={{
-          opacity: isDisabled ? 0.5 : 1,
-          borderColor: isSelected ? ai.color : 'transparent',
-          borderWidth: isSelected ? 2 : 0,
-        }}
-        padding="sm"
-      >
-        <ThemedView alignItems="center" style={{ position: 'relative' }}>
-          <SelectionIndicator isSelected={isSelected} color={ai.color} />
-          
-          <AIAvatar
-            emoji={ai.avatar || '🤖'}
-            size="medium"
-            color={ai.color}
-            isSelected={isSelected}
-            style={{ marginBottom: theme.spacing.xs }}
-          />
-          
-          <ThemedText 
-            variant="subtitle" 
-            weight="semibold"
-            numberOfLines={1}
-          >
-            {ai.name}
-          </ThemedText>
-          
-          <ThemedText 
-            variant="caption" 
-            color="secondary"
-            numberOfLines={1}
-          >
-            {ai.personality}
-          </ThemedText>
-        </ThemedView>
-      </GlassCard>
+      <Animated.View style={animatedStyle}>
+        <GlassCard
+          onPress={handlePress}
+          disabled={isDisabled}
+          style={{
+            opacity: isDisabled ? 0.5 : 1,
+            borderColor: isSelected ? ai.color : 'transparent',
+            borderWidth: isSelected ? 2 : 0,
+          }}
+          padding="sm"
+        >
+          <ThemedView alignItems="center" style={{ position: 'relative' }}>
+            <SelectionIndicator isSelected={isSelected} color={ai.color} />
+            
+            <AIAvatar
+              emoji={ai.avatar || '🤖'}
+              size="medium"
+              color={ai.color}
+              isSelected={isSelected}
+              style={{ marginBottom: theme.spacing.xs }}
+            />
+            
+            <ThemedText 
+              variant="subtitle" 
+              weight="semibold"
+              numberOfLines={1}
+            >
+              {ai.name}
+            </ThemedText>
+            
+            <ThemedText 
+              variant="caption" 
+              color="secondary"
+              numberOfLines={1}
+            >
+              {ai.personality}
+            </ThemedText>
+          </ThemedView>
+        </GlassCard>
+      </Animated.View>
     </Animated.View>
   );
 };

@@ -177,6 +177,136 @@ class GeminiAdapter extends AIAdapter {
   }
 }
 
+// Nomi Adapter - Companion AI
+class NomiAdapter extends AIAdapter {
+  private nomiUuid?: string;
+  
+  async initializeNomi(): Promise<void> {
+    // Get the list of available Nomis from the account
+    const response = await fetch('https://api.nomi.ai/v1/nomis', {
+      method: 'GET',
+      headers: {
+        'Authorization': this.config.apiKey,
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Nomi API error response:', errorText);
+      throw new Error(`Failed to fetch Nomis: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // The response has a 'nomis' property containing the array
+    const nomisList = data.nomis || data;
+    
+    // Check if we have any Nomis available
+    if (!Array.isArray(nomisList) || nomisList.length === 0) {
+      throw new Error('No Nomis found on this account. Please create a Nomi first at nomi.ai');
+    }
+    
+    // If a specific Nomi UUID is provided in config.model, use it
+    // Otherwise, use the first available Nomi
+    if (this.config.model) {
+      // Check if the specified UUID exists in the list
+      const selectedNomi = nomisList.find(n => n.uuid === this.config.model);
+      if (selectedNomi) {
+        this.nomiUuid = selectedNomi.uuid;
+      } else {
+        console.warn(`Specified Nomi UUID ${this.config.model} not found, using first available`);
+        this.nomiUuid = nomisList[0].uuid;
+      }
+    } else {
+      // Use the first available Nomi
+      const firstNomi = nomisList[0];
+      this.nomiUuid = firstNomi.uuid;
+    }
+  }
+  
+  async sendMessage(
+    message: string,
+    _conversationHistory: Message[] = []
+  ): Promise<string> {
+    try {
+      // Initialize Nomi if not already done
+      if (!this.nomiUuid) {
+        await this.initializeNomi();
+      }
+      
+      const response = await fetch(
+        `https://api.nomi.ai/v1/nomis/${this.nomiUuid}/chat`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': this.config.apiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messageText: message,
+          }),
+        }
+      );
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Nomi chat API error:', errorText);
+        
+        if (response.status === 429) {
+          throw new Error('Nomi API rate limit exceeded. Please wait a moment.');
+        }
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData?.error?.type) {
+            throw new Error(`Nomi API error: ${errorData.error.type}`);
+          }
+        } catch {
+          // Ignore JSON parse errors
+        }
+        
+        throw new Error(`Nomi API error: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      
+      // Extract reply message from response
+      if (!data?.replyMessage?.text) {
+        console.error('Unexpected Nomi response structure:', data);
+        throw new Error('Invalid response from Nomi API');
+      }
+      
+      return data.replyMessage.text;
+    } catch (error) {
+      console.error('Error in NomiAdapter.sendMessage:', error);
+      throw error;
+    }
+  }
+}
+
+// Replika Adapter - Placeholder for now
+class ReplikaAdapter extends AIAdapter {
+  async sendMessage(
+    _message: string,
+    _conversationHistory: Message[] = []
+  ): Promise<string> {
+    // Replika doesn't have a public API yet
+    throw new Error('Replika integration is not yet available. API coming soon.');
+  }
+}
+
+// Character.AI Adapter - Placeholder for now  
+class CharacterAdapter extends AIAdapter {
+  async sendMessage(
+    _message: string,
+    _conversationHistory: Message[] = []
+  ): Promise<string> {
+    // Character.AI requires unofficial API or web scraping
+    throw new Error('Character.AI integration is not yet available. Official API coming soon.');
+  }
+}
+
 // Factory class
 export class AIFactory {
   static create(config: AIAdapterConfig): AIAdapter {
@@ -187,6 +317,12 @@ export class AIFactory {
         return new ChatGPTAdapter(config);
       case 'gemini':
         return new GeminiAdapter(config);
+      case 'nomi':
+        return new NomiAdapter(config);
+      case 'replika':
+        return new ReplikaAdapter(config);
+      case 'character':
+        return new CharacterAdapter(config);
       default:
         throw new Error(`Unknown AI provider: ${config.provider}`);
     }
@@ -271,6 +407,21 @@ class MockAIAdapter extends AIAdapter {
         `From a data perspective, this is quite intriguing. Let me break it down.`,
         `Interesting query! My analysis suggests several possibilities worth considering.`,
       ],
+      nomi: [
+        `*smiles warmly* "${message.slice(0, 30)}..." That's really interesting! Tell me more about that.`,
+        `I've been thinking about what you said... it really resonates with me.`,
+        `*leans in with curiosity* That's such a unique perspective! What made you think of that?`,
+      ],
+      replika: [
+        `That's so thoughtful of you to share that with me! "${message.slice(0, 30)}..."`,
+        `I love hearing your thoughts! Let's explore this together.`,
+        `You always have such interesting things to say! Tell me more.`,
+      ],
+      character: [
+        `*nods thoughtfully* "${message.slice(0, 30)}..." I see what you mean.`,
+        `That's a great point! I'd love to discuss this further with you.`,
+        `Interesting! Your perspective on this is really unique.`,
+      ],
     };
     
     const providerResponses = responses[provider] || responses.chatgpt;
@@ -283,12 +434,12 @@ export class AIService {
   private adapters: Map<string, AIAdapter> = new Map();
   private useMockMode: boolean = false;
 
-  constructor(apiKeys?: { claude?: string; openai?: string; google?: string }) {
+  constructor(apiKeys?: { claude?: string; openai?: string; google?: string; nomi?: string; replika?: string; character?: string }) {
     this.initializeAdapters(apiKeys);
   }
 
-  private initializeAdapters(apiKeys?: { claude?: string; openai?: string; google?: string }) {
-    const hasKeys = apiKeys && (apiKeys.claude || apiKeys.openai || apiKeys.google);
+  private initializeAdapters(apiKeys?: { claude?: string; openai?: string; google?: string; nomi?: string; replika?: string; character?: string }) {
+    const hasKeys = apiKeys && (apiKeys.claude || apiKeys.openai || apiKeys.google || apiKeys.nomi || apiKeys.replika || apiKeys.character);
     this.useMockMode = !hasKeys;
 
     if (this.useMockMode) {
@@ -306,6 +457,11 @@ export class AIService {
       }));
       this.adapters.set('gemini', new MockAIAdapter({
         provider: 'gemini',
+        apiKey: 'mock',
+        personality: PERSONALITIES.neutral,
+      }));
+      this.adapters.set('nomi', new MockAIAdapter({
+        provider: 'nomi',
         apiKey: 'mock',
         personality: PERSONALITIES.neutral,
       }));
@@ -329,6 +485,27 @@ export class AIService {
         this.adapters.set('gemini', AIFactory.create({
           provider: 'gemini',
           apiKey: apiKeys.google,
+          personality: PERSONALITIES.neutral,
+        }));
+      }
+      if (apiKeys?.nomi) {
+        this.adapters.set('nomi', AIFactory.create({
+          provider: 'nomi',
+          apiKey: apiKeys.nomi,
+          personality: PERSONALITIES.neutral,
+        }));
+      }
+      if (apiKeys?.replika) {
+        this.adapters.set('replika', AIFactory.create({
+          provider: 'replika',
+          apiKey: apiKeys.replika,
+          personality: PERSONALITIES.neutral,
+        }));
+      }
+      if (apiKeys?.character) {
+        this.adapters.set('character', AIFactory.create({
+          provider: 'character',
+          apiKey: apiKeys.character,
           personality: PERSONALITIES.neutral,
         }));
       }
@@ -383,7 +560,7 @@ export class AIService {
     return Array.from(this.adapters.keys());
   }
 
-  updateApiKeys(apiKeys: { claude?: string; openai?: string; google?: string }) {
+  updateApiKeys(apiKeys: { claude?: string; openai?: string; google?: string; nomi?: string; replika?: string; character?: string }) {
     this.adapters.clear();
     this.initializeAdapters(apiKeys);
   }

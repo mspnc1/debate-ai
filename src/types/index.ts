@@ -1,6 +1,6 @@
 // Core type definitions for My AI Friends
 
-export type AIProvider = 'claude' | 'chatgpt' | 'gemini';
+export type AIProvider = 'claude' | 'chatgpt' | 'gemini' | 'nomi' | 'replika' | 'character';
 export type UIMode = 'simple' | 'expert';
 export type SubscriptionTier = 'free' | 'pro' | 'business';
 
@@ -13,6 +13,9 @@ export interface User {
     claude?: string;
     openai?: string;
     google?: string;
+    nomi?: string;
+    replika?: string;
+    character?: string;
   };
   preferences: {
     theme: 'light' | 'dark' | 'auto';
@@ -90,6 +93,7 @@ export type AI = AIConfig;
 // Navigation types
 export type RootStackParamList = {
   Welcome: undefined;
+  MainTabs: undefined;
   Home: undefined;
   Chat: { sessionId: string; initialPrompt?: string };
   Settings: undefined;

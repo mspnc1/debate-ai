@@ -189,7 +189,7 @@ export default function AppNavigator() {
         ) : (
           <>
             <Stack.Screen
-              name="Home"
+              name="MainTabs"
               component={MainTabs}
               options={{ headerShown: false }}
             />
