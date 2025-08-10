@@ -64,7 +64,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [selectedTopic, setSelectedTopic] = useState<QuickStartTopic | null>(null);
   const [showPromptWizard, setShowPromptWizard] = useState(false);
   
-  const isPremium = user?.subscription === 'pro' || user?.subscription === 'business';
+  // TODO: Remove true || for production - defaulting to premium for development
+  const isPremium = true || user?.subscription === 'pro' || user?.subscription === 'business';
   const maxAIs = isPremium ? AI_CONFIGS.length : 2;
   
   const handleToggleAI = (ai: AIConfig) => {

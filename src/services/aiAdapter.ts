@@ -61,7 +61,8 @@ class ClaudeAdapter extends AIAdapter {
       body: JSON.stringify({
         model: this.config.model || 'claude-3-5-sonnet-20241022',
         max_tokens: this.config.parameters?.maxTokens || 1024,
-        temperature: this.config.parameters?.temperature || 0.8,
+        temperature: this.config.parameters?.temperature || 0.7,
+        top_p: this.config.parameters?.topP,
         system: this.getSystemPrompt(),
         messages: [
           ...this.formatHistory(conversationHistory),
@@ -92,9 +93,13 @@ class ChatGPTAdapter extends AIAdapter {
         'Authorization': `Bearer ${this.config.apiKey}`,
       },
       body: JSON.stringify({
-        model: this.config.model || 'gpt-4',
+        model: this.config.model || 'gpt-4o',
         max_tokens: this.config.parameters?.maxTokens || 1024,
-        temperature: this.config.parameters?.temperature || 0.8,
+        temperature: this.config.parameters?.temperature || 0.7,
+        top_p: this.config.parameters?.topP,
+        frequency_penalty: this.config.parameters?.frequencyPenalty,
+        presence_penalty: this.config.parameters?.presencePenalty,
+        seed: this.config.parameters?.seed,
         messages: [
           { role: 'system', content: this.getSystemPrompt() },
           ...this.formatHistory(conversationHistory),

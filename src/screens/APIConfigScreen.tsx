@@ -11,12 +11,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { updateApiKeys } from '../store';
+import { updateApiKeys, updateExpertMode } from '../store';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../theme';
 import { ThemedView, ThemedText, ThemedButton } from '../components/core';
 import { ProviderCard } from '../components/ProviderCard';
+import { ProviderExpertSettings } from '../components/organisms/ProviderExpertSettings';
 import { AI_PROVIDERS, getEnabledProviders } from '../config/aiProviders';
+import { DEFAULT_PARAMETERS } from '../config/modelConfigs';
 import secureStorage from '../services/secureStorage';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -39,6 +41,10 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();
   const dispatch = useDispatch();
   const existingKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
+  const expertModeConfigs = useSelector((state: RootState) => state.settings.expertMode || {});
+  const currentUser = useSelector((state: RootState) => state.user.currentUser);
+  // TODO: Remove true || for production - defaulting to premium for development
+  const isPremium = true || currentUser?.subscription === 'pro' || currentUser?.subscription === 'business';
   
   // State for all API keys
   const [apiKeys, setApiKeys] = useState<{ [key: string]: string }>(() => {
@@ -258,23 +264,73 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                 Available AI Services
               </ThemedText>
               
-              {enabledProviders.map((provider, index) => (
-                <ProviderCard
-                  key={provider.id}
-                  provider={provider}
-                  apiKey={apiKeys[provider.id] || ''}
-                  onKeyChange={(key) => {
-                    setApiKeys(prev => ({ ...prev, [provider.id]: key }));
-                  }}
-                  onTest={() => testConnection(provider.id)}
-                  onSave={() => saveApiKey(provider.id)}
-                  isExpanded={expandedProvider === provider.id}
-                  onToggleExpand={() => toggleProvider(provider.id)}
-                  index={index}
-                  testStatus={providerStatus[provider.id]?.status}
-                  testMessage={providerStatus[provider.id]?.message}
-                />
-              ))}
+              {enabledProviders.map((provider, index) => {
+                const providerKey = provider.id as 'claude' | 'openai' | 'google';
+                const expertConfig = expertModeConfigs[providerKey] || { 
+                  enabled: false, 
+                  parameters: DEFAULT_PARAMETERS 
+                };
+                
+                return (
+                  <View key={provider.id} style={{ marginBottom: theme.spacing.lg }}>
+                    <ProviderCard
+                      provider={provider}
+                      apiKey={apiKeys[provider.id] || ''}
+                      onKeyChange={(key) => {
+                        setApiKeys(prev => ({ ...prev, [provider.id]: key }));
+                      }}
+                      onTest={() => testConnection(provider.id)}
+                      onSave={() => saveApiKey(provider.id)}
+                      isExpanded={expandedProvider === provider.id}
+                      onToggleExpand={() => toggleProvider(provider.id)}
+                      index={index}
+                      testStatus={providerStatus[provider.id]?.status}
+                      selectedModel={expertConfig.enabled ? expertConfig.selectedModel : undefined}
+                      expertModeEnabled={expertConfig.enabled === true}
+                    />
+                    
+                    {/* Expert Mode Settings */}
+                    {expandedProvider === provider.id && apiKeys[provider.id] && (
+                      <View style={{ marginTop: theme.spacing.md }}>
+                        <ProviderExpertSettings
+                          providerId={provider.id}
+                          isEnabled={expertConfig.enabled}
+                          isPremium={isPremium}
+                          onToggle={(enabled) => {
+                            dispatch(updateExpertMode({
+                              provider: providerKey,
+                              config: { ...expertConfig, enabled }
+                            }));
+                          }}
+                          selectedModel={expertConfig.selectedModel}
+                          onModelChange={(modelId) => {
+                            dispatch(updateExpertMode({
+                              provider: providerKey,
+                              config: { ...expertConfig, selectedModel: modelId }
+                            }));
+                          }}
+                          parameters={{
+                            ...DEFAULT_PARAMETERS,
+                            ...expertConfig.parameters
+                          }}
+                          onParameterChange={(param, value) => {
+                            dispatch(updateExpertMode({
+                              provider: providerKey,
+                              config: {
+                                ...expertConfig,
+                                parameters: {
+                                  ...expertConfig.parameters,
+                                  [param]: value
+                                }
+                              }
+                            }));
+                          }}
+                        />
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
             </View>
 
             {/* Coming Soon Section */}

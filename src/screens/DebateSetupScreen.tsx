@@ -82,7 +82,9 @@ const DebateTopicCard: React.FC<DebateTopicCardProps> = ({
 
 const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();
-  const { isPremium } = useAuth();
+  // TODO: Remove true || for production - defaulting to premium for development
+  const { isPremium: authPremium } = useAuth();
+  const isPremium = true || authPremium;
   const { 
     selectedAIs, 
     toggleAI, 

@@ -71,7 +71,7 @@ export const AI_PROVIDERS: AIProvider[] = [
     apiKeyPrefix: 'nomi_',
     apiKeyPlaceholder: 'nomi_...',
     docsUrl: 'https://nomi.ai/developers',
-    getKeyUrl: 'https://nomi.ai/api',
+    getKeyUrl: 'https://beta.nomi.ai/profile/integrations',
     description: 'Emotional AI companion',
     features: ['Emotional intelligence', 'Memory', 'Personality'],
     enabled: true,

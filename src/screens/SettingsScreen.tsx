@@ -9,7 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
-import { updateUIMode, logout } from '../store';
+import { logout } from '../store';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../theme';
 import { ThemedView, ThemedText } from '../components/core';
@@ -22,11 +22,8 @@ interface SettingsScreenProps {
 
 const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const dispatch = useDispatch();
-  const { uiMode, currentUser } = useSelector((state: RootState) => state.user);
+  const { currentUser } = useSelector((state: RootState) => state.user);
   const { theme, setThemeMode, isDark } = useTheme();
-  
-  const isExpertMode = uiMode === 'expert';
-  // const hasApiKeys = apiKeys && (apiKeys.claude || apiKeys.openai || apiKeys.google);
 
   return (
     <ThemedView flex={1} backgroundColor="background">
@@ -37,39 +34,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         >
           <ThemedText variant="heading" style={{ marginTop: 20, marginBottom: 24 }}>Settings</ThemedText>
 
-        {/* Mode Toggle */}
-        <Animated.View 
-          entering={FadeInDown.delay(100).springify()}
-          style={{ marginBottom: 32 }}
-        >
-          <ThemedText variant="title" style={{ marginBottom: 16 }}>Interface Mode</ThemedText>
-          <ThemedView 
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: theme.colors.card,
-              borderRadius: 12,
-              padding: 16,
-              ...theme.shadows.sm,
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <ThemedText variant="subtitle" weight="semibold">Expert Mode</ThemedText>
-              <ThemedText variant="caption" color="secondary" style={{ marginTop: 4 }}>
-                {isExpertMode 
-                  ? 'Full control over AI parameters' 
-                  : 'Simple, friendly interface'}
-              </ThemedText>
-            </View>
-            <Switch
-              value={isExpertMode}
-              onValueChange={(value) => {
-                dispatch(updateUIMode(value ? 'expert' : 'simple'));
-              }}
-              trackColor={{ false: theme.colors.gray[300], true: theme.colors.primary[500] }}
-            />
-          </ThemedView>
-        </Animated.View>
 
         {/* Appearance */}
         <Animated.View 

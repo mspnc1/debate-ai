@@ -112,6 +112,19 @@ const chatSlice = createSlice({
 });
 
 // Settings slice
+interface ExpertModeConfig {
+  enabled: boolean;
+  selectedModel?: string;
+  parameters?: {
+    temperature?: number;
+    maxTokens?: number;
+    topP?: number;
+    topK?: number;
+    frequencyPenalty?: number;
+    presencePenalty?: number;
+  };
+}
+
 interface SettingsState {
   theme: 'light' | 'dark' | 'auto';
   fontSize: 'small' | 'medium' | 'large';
@@ -120,6 +133,11 @@ interface SettingsState {
     openai?: string;
     google?: string;
   };
+  expertMode: {
+    claude?: ExpertModeConfig;
+    openai?: ExpertModeConfig;
+    google?: ExpertModeConfig;
+  };
   hasCompletedOnboarding: boolean;
 }
 
@@ -127,6 +145,7 @@ const initialSettingsState: SettingsState = {
   theme: 'auto',
   fontSize: 'medium',
   apiKeys: {},
+  expertMode: {},
   hasCompletedOnboarding: false,
 };
 
@@ -149,6 +168,12 @@ const settingsSlice = createSlice({
     completeOnboarding: (state) => {
       state.hasCompletedOnboarding = true;
     },
+    updateExpertMode: (state, action: PayloadAction<{ 
+      provider: 'claude' | 'openai' | 'google'; 
+      config: ExpertModeConfig 
+    }>) => {
+      state.expertMode[action.payload.provider] = action.payload.config;
+    },
   },
 });
 
@@ -167,4 +192,4 @@ export type AppDispatch = typeof store.dispatch;
 // Export actions
 export const { setUser, updateUIMode, updateSubscription, logout } = userSlice.actions;
 export const { startSession, addMessage, setTypingAI, endSession, loadSession, setLoading } = chatSlice.actions;
-export const { updateTheme, updateFontSize, setAPIKey, updateApiKeys, completeOnboarding } = settingsSlice.actions;
+export const { updateTheme, updateFontSize, setAPIKey, updateApiKeys, completeOnboarding, updateExpertMode } = settingsSlice.actions;

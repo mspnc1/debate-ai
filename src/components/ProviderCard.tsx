@@ -12,6 +12,9 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../theme';
 import { ThemedText, GradientButton } from './core';
 import { AIProvider } from '../config/aiProviders';
+import { AI_MODELS } from '../config/modelConfigs';
+import { MODEL_PRICING, getFreeMessageInfo } from '../config/modelPricing';
+import { ActualPricing } from './atoms/ActualPricing';
 import * as Haptics from 'expo-haptics';
 
 interface ProviderCardProps {
@@ -24,7 +27,8 @@ interface ProviderCardProps {
   onToggleExpand: () => void;
   index: number;
   testStatus?: 'idle' | 'testing' | 'success' | 'failed';
-  testMessage?: string;
+  selectedModel?: string;
+  expertModeEnabled?: boolean;
 }
 
 export const ProviderCard: React.FC<ProviderCardProps> = ({
@@ -37,7 +41,8 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
   onToggleExpand,
   index,
   testStatus = 'idle',
-  testMessage,
+  selectedModel,
+  expertModeEnabled = false,
 }) => {
   const { theme, isDark } = useTheme();
   const [isEditing, setIsEditing] = useState(!apiKey);
@@ -77,31 +82,6 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
     }
   };
 
-  const getStatusIcon = () => {
-    switch (testStatus) {
-      case 'success':
-        return '✅';
-      case 'failed':
-        return '❌';
-      case 'testing':
-        return '⏳';
-      default:
-        return apiKey ? '🔑' : '⚪';
-    }
-  };
-
-  const getStatusText = () => {
-    switch (testStatus) {
-      case 'success':
-        return testMessage || 'Connected';
-      case 'failed':
-        return testMessage || 'Connection failed';
-      case 'testing':
-        return 'Testing...';
-      default:
-        return apiKey ? 'Key configured' : 'Not configured';
-    }
-  };
 
   return (
     <Animated.View
@@ -137,12 +117,123 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
             </LinearGradient>
             
             <View style={{ flex: 1 }}>
-              <ThemedText variant="subtitle" weight="semibold">
-                {provider.name}
-              </ThemedText>
-              <ThemedText variant="caption" color="secondary">
-                {getStatusIcon()} {getStatusText()}
-              </ThemedText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ThemedText variant="subtitle" weight="semibold">
+                  {provider.name}
+                </ThemedText>
+                {/* Connection status icon */}
+                {testStatus === 'success' && apiKey && (
+                  <Text style={{ fontSize: 16 }}>✅</Text>
+                )}
+              </View>
+              
+              {/* Connection status and pricing */}
+              {testStatus === 'success' && apiKey ? (
+                <View style={{ marginTop: 4 }}>
+                  {/* Model and pricing info */}
+                  {(() => {
+                    const models = AI_MODELS[provider.id] || [];
+                    const currentModel = selectedModel 
+                      ? models.find(m => m.id === selectedModel)
+                      : models.find(m => m.isDefault);
+                    
+                    if (currentModel) {
+                      const pricing = MODEL_PRICING[provider.id]?.[currentModel.id];
+                      const freeInfo = getFreeMessageInfo(provider.id, currentModel.id);
+                      
+                      return (
+                        <>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <ThemedText 
+                              variant="body" 
+                              style={{ 
+                                color: theme.colors.success[600],
+                                fontSize: 14,
+                                fontWeight: '500'
+                              }}
+                            >
+                              Connected
+                            </ThemedText>
+                            <ThemedText variant="caption" color="secondary">•</ThemedText>
+                            <ThemedText variant="caption" color="secondary">
+                              {currentModel.name}
+                            </ThemedText>
+                            {expertModeEnabled && (
+                              <View style={{
+                                backgroundColor: theme.colors.primary[100],
+                                paddingHorizontal: 6,
+                                paddingVertical: 1,
+                                borderRadius: 8,
+                              }}>
+                                <Text style={{ 
+                                  color: theme.colors.primary[600], 
+                                  fontSize: 10, 
+                                  fontWeight: 'bold' 
+                                }}>
+                                  EXPERT
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                          {(pricing || freeInfo) ? (
+                            <View style={{ marginTop: 2 }}>
+                              <ActualPricing
+                                inputPricePerM={pricing?.inputPer1M}
+                                outputPricePerM={pricing?.outputPer1M}
+                                freeInfo={freeInfo}
+                                compact={true}
+                              />
+                            </View>
+                          ) : (
+                            <ThemedText variant="caption" color="warning">
+                              No pricing data available
+                            </ThemedText>
+                          )}
+                        </>
+                      );
+                    }
+                    // Fallback for providers without model configs (like Nomi)
+                    const pricing = MODEL_PRICING[provider.id]?.['default'];
+                    const freeInfo = getFreeMessageInfo(provider.id, 'default');
+                    
+                    return (
+                      <>
+                        <ThemedText 
+                          variant="body" 
+                          style={{ 
+                            color: theme.colors.success[600],
+                            fontSize: 14,
+                            fontWeight: '500'
+                          }}
+                        >
+                          Connected
+                        </ThemedText>
+                        {(pricing || freeInfo) && (
+                          <View style={{ marginTop: 2 }}>
+                            <ActualPricing
+                              inputPricePerM={pricing?.inputPer1M}
+                              outputPricePerM={pricing?.outputPer1M}
+                              freeInfo={freeInfo}
+                              compact={true}
+                            />
+                          </View>
+                        )}
+                      </>
+                    );
+                  })()}
+                </View>
+              ) : (
+                <ThemedText 
+                  variant="body" 
+                  style={{ 
+                    color: theme.colors.text.secondary,
+                    fontSize: 14,
+                    marginTop: 4
+                  }}
+                >
+                  Not connected
+                </ThemedText>
+              )}
             </View>
           </View>
           
