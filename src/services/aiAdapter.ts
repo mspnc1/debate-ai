@@ -40,12 +40,12 @@ abstract class AIAdapter {
   }
   
   protected formatHistory(history: Message[]): Array<{ role: string; content: string }> {
-    // Include sender names for context in multi-AI conversations
+    // Include sender names for ALL messages in multi-AI conversations for clarity
     return history.slice(-10).map(msg => ({
       role: msg.senderType === 'user' ? 'user' : 'assistant',
-      content: msg.senderType === 'ai' && msg.sender !== this.config.provider 
+      content: msg.senderType === 'ai' 
         ? `[${msg.sender}]: ${msg.content || ''}`
-        : msg.content || ''
+        : `[User]: ${msg.content || ''}`
     })).filter(msg => msg.content); // Filter out any empty messages
   }
 }

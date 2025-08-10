@@ -303,9 +303,21 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
 
     // Determine which AIs should respond
     const mentions = parseMentions(messageText);
-    const respondingAIs = mentions.length > 0
-      ? selectedAIs.filter(ai => mentions.includes(ai.name.toLowerCase()))
-      : selectedAIs;
+    
+    // If mentions, only those AIs respond
+    // If no mentions, pick one random AI to start, then another to respond
+    let respondingAIs: typeof selectedAIs;
+    if (mentions.length > 0) {
+      respondingAIs = selectedAIs.filter(ai => mentions.includes(ai.name.toLowerCase()));
+    } else if (selectedAIs.length > 1) {
+      // Pick two different random AIs for a back-and-forth
+      const firstAI = selectedAIs[Math.floor(Math.random() * selectedAIs.length)];
+      const remainingAIs = selectedAIs.filter(ai => ai.id !== firstAI.id);
+      const secondAI = remainingAIs[Math.floor(Math.random() * remainingAIs.length)];
+      respondingAIs = [firstAI, secondAI];
+    } else {
+      respondingAIs = selectedAIs;
+    }
 
     // Build conversation context incrementally (round-robin style)
     let conversationContext = [...messages, userMessage];
@@ -324,9 +336,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         }
 
         // For round-robin: Each AI sees the full conversation including previous AI responses
-        // The last message in the context is what they're responding to
-        const lastMessage = conversationContext[conversationContext.length - 1];
-        const promptForAI = lastMessage.content;
+        // They always respond to the last message in the context
+        const promptForAI = conversationContext[conversationContext.length - 1].content;
         
         // Check if this is debate mode
         const isDebateMode = promptForAI.includes('[DEBATE MODE]') || 
