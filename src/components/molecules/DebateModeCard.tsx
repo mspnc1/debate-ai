@@ -2,7 +2,8 @@ import React from 'react';
 import { View, ViewStyle } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ThemedText, GradientButton, AIAvatar } from '../atoms';
+import { AIAvatar } from '../atoms';
+import { GradientButton, Typography } from '../molecules';
 import { AIConfig } from '../../types';
 import { useTheme } from '../../theme';
 import * as Haptics from 'expo-haptics';
@@ -61,10 +62,10 @@ export const DebateModeCard: React.FC<DebateModeCardProps> = ({
       >
         {/* Header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-          <ThemedText style={{ fontSize: 24, marginRight: 8 }}>⚔️</ThemedText>
-          <ThemedText variant="title" weight="bold">
+          <Typography style={{ fontSize: 24, marginRight: 8 }}>⚔️</Typography>
+          <Typography variant="title" weight="bold">
             Debate Mode
-          </ThemedText>
+          </Typography>
         </View>
         
         {/* AI Avatars Display */}
@@ -96,14 +97,14 @@ export const DebateModeCard: React.FC<DebateModeCardProps> = ({
         )}
         
         {/* Status Message */}
-        <ThemedText 
+        <Typography 
           variant="default" 
           color={canDebate ? "primary" : "secondary"}
           align="center"
           style={{ marginBottom: theme.spacing.md }}
         >
           {getMessage()}
-        </ThemedText>
+        </Typography>
         
         {/* Start Button */}
         {canDebate && (

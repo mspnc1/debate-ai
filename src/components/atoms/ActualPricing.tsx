@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { ThemedText } from '../atoms';
+import { Typography } from '../molecules';
 import { useTheme } from '../../theme';
 
 interface ActualPricingProps {
@@ -21,7 +21,7 @@ export const ActualPricing: React.FC<ActualPricingProps> = ({
   // If it's a subscription service (Nomi, Replika, etc)
   if (inputPricePerM === 0 && outputPricePerM === 0 && freeInfo) {
     return (
-      <ThemedText 
+      <Typography 
         variant={compact ? "caption" : "body"}
         style={{ 
           color: theme.colors.success[600],
@@ -29,7 +29,7 @@ export const ActualPricing: React.FC<ActualPricingProps> = ({
         }}
       >
         {freeInfo}
-      </ThemedText>
+      </Typography>
     );
   }
   
@@ -42,28 +42,28 @@ export const ActualPricing: React.FC<ActualPricingProps> = ({
     if (inputPricePerM !== undefined && outputPricePerM !== undefined) {
       return (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <ThemedText variant="caption" color="secondary">
+          <Typography variant="caption" color="secondary">
             ${inputPricePerM}/1M in
-          </ThemedText>
-          <ThemedText variant="caption" color="secondary">•</ThemedText>
-          <ThemedText variant="caption" color="secondary">
+          </Typography>
+          <Typography variant="caption" color="secondary">•</Typography>
+          <Typography variant="caption" color="secondary">
             ${outputPricePerM}/1M out
-          </ThemedText>
+          </Typography>
           {freeInfo && (
             <>
-              <ThemedText variant="caption" color="secondary">•</ThemedText>
-              <ThemedText variant="caption" color="success">
+              <Typography variant="caption" color="secondary">•</Typography>
+              <Typography variant="caption" color="success">
                 {freeInfo}
-              </ThemedText>
+              </Typography>
             </>
           )}
         </View>
       );
     } else if (freeInfo) {
       return (
-        <ThemedText variant="caption" color="success">
+        <Typography variant="caption" color="success">
           {freeInfo}
-        </ThemedText>
+        </Typography>
       );
     }
     return null;
@@ -72,26 +72,26 @@ export const ActualPricing: React.FC<ActualPricingProps> = ({
   if (inputPricePerM !== undefined && outputPricePerM !== undefined) {
     return (
       <View>
-        <ThemedText variant="caption" color="secondary" style={{ marginBottom: 2 }}>
+        <Typography variant="caption" color="secondary" style={{ marginBottom: 2 }}>
           API Pricing:
-        </ThemedText>
+        </Typography>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
-            <ThemedText variant="body" weight="semibold">
+            <Typography variant="body" weight="semibold">
               ${inputPricePerM}
-            </ThemedText>
-            <ThemedText variant="caption" color="secondary">
+            </Typography>
+            <Typography variant="caption" color="secondary">
               /1M input
-            </ThemedText>
+            </Typography>
           </View>
           <Text style={{ color: theme.colors.text.disabled }}>•</Text>
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
-            <ThemedText variant="body" weight="semibold">
+            <Typography variant="body" weight="semibold">
               ${outputPricePerM}
-            </ThemedText>
-            <ThemedText variant="caption" color="secondary">
+            </Typography>
+            <Typography variant="caption" color="secondary">
               /1M output
-            </ThemedText>
+            </Typography>
           </View>
         </View>
         {freeInfo && (
@@ -103,9 +103,9 @@ export const ActualPricing: React.FC<ActualPricingProps> = ({
             marginTop: 4,
             alignSelf: 'flex-start',
           }}>
-            <ThemedText variant="caption" color="success" weight="semibold">
+            <Typography variant="caption" color="success" weight="semibold">
               ✨ {freeInfo}
-            </ThemedText>
+            </Typography>
           </View>
         )}
       </View>
@@ -122,9 +122,9 @@ export const ActualPricing: React.FC<ActualPricingProps> = ({
         borderRadius: theme.borderRadius.sm,
         alignSelf: 'flex-start',
       }}>
-        <ThemedText variant="caption" color="success" weight="semibold">
+        <Typography variant="caption" color="success" weight="semibold">
           ✨ {freeInfo}
-        </ThemedText>
+        </Typography>
       </View>
     );
   }

@@ -11,7 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../theme';
-import { ThemedText, GradientButton } from './atoms';
+import { GradientButton, Typography } from './molecules';
 import { AIProvider } from '../config/aiProviders';
 import { AI_MODELS } from '../config/modelConfigs';
 import { MODEL_PRICING, getFreeMessageInfo } from '../config/modelPricing';
@@ -125,9 +125,9 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
             
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <ThemedText variant="subtitle" weight="semibold">
+                <Typography variant="subtitle" weight="semibold">
                   {provider.name}
-                </ThemedText>
+                </Typography>
                 {/* Connection status icon */}
                 {testStatus === 'success' && apiKey && (
                   <Text style={{ fontSize: 16 }}>✅</Text>
@@ -151,7 +151,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
                       return (
                         <>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <ThemedText 
+                            <Typography 
                               variant="body" 
                               style={{ 
                                 color: theme.colors.success[600],
@@ -160,11 +160,11 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
                               }}
                             >
                               {testStatusMessage || 'Connected'}
-                            </ThemedText>
-                            <ThemedText variant="caption" color="secondary">•</ThemedText>
-                            <ThemedText variant="caption" color="secondary">
+                            </Typography>
+                            <Typography variant="caption" color="secondary">•</Typography>
+                            <Typography variant="caption" color="secondary">
                               {currentModel.name}
-                            </ThemedText>
+                            </Typography>
                             {expertModeEnabled && (
                               <View style={{
                                 backgroundColor: theme.colors.primary[100],
@@ -192,9 +192,9 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
                               />
                             </View>
                           ) : (
-                            <ThemedText variant="caption" color="warning">
+                            <Typography variant="caption" color="warning">
                               No pricing data available
-                            </ThemedText>
+                            </Typography>
                           )}
                         </>
                       );
@@ -205,7 +205,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
                     
                     return (
                       <>
-                        <ThemedText 
+                        <Typography 
                           variant="body" 
                           style={{ 
                             color: theme.colors.success[600],
@@ -214,7 +214,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
                           }}
                         >
                           {testStatusMessage || 'Connected'}
-                        </ThemedText>
+                        </Typography>
                         {(pricing || freeInfo) && (
                           <View style={{ marginTop: 2 }}>
                             <ActualPricing
@@ -230,7 +230,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
                   })()}
                 </View>
               ) : (
-                <ThemedText 
+                <Typography 
                   variant="body" 
                   style={{ 
                     color: theme.colors.text.secondary,
@@ -239,7 +239,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
                   }}
                 >
                   Not connected
-                </ThemedText>
+                </Typography>
               )}
             </View>
           </View>
@@ -266,9 +266,9 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
           }}
         >
           {/* Provider Description */}
-          <ThemedText variant="body" color="secondary" style={{ marginBottom: 12 }}>
+          <Typography variant="body" color="secondary" style={{ marginBottom: 12 }}>
             {provider.description}
-          </ThemedText>
+          </Typography>
           
           {/* Features */}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 16 }}>
@@ -284,7 +284,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
                   marginBottom: 6,
                 }}
               >
-                <ThemedText variant="caption">{feature}</ThemedText>
+                <Typography variant="caption">{feature}</Typography>
               </View>
             ))}
           </View>
@@ -300,16 +300,16 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
               marginBottom: 16,
             }}
           >
-            <ThemedText variant="body" color="brand" weight="semibold">
+            <Typography variant="body" color="brand" weight="semibold">
               Get API Key →
-            </ThemedText>
+            </Typography>
           </TouchableOpacity>
 
           {/* API Key Input */}
           <View style={{ marginBottom: 16 }}>
-            <ThemedText variant="caption" color="secondary" style={{ marginBottom: 8 }}>
+            <Typography variant="caption" color="secondary" style={{ marginBottom: 8 }}>
               API Key
-            </ThemedText>
+            </Typography>
             <View
               style={{
                 flexDirection: 'row',
@@ -371,9 +371,9 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
             onPress={() => openURL(provider.docsUrl)}
             style={{ alignItems: 'center', marginTop: 12 }}
           >
-            <ThemedText variant="caption" color="secondary">
+            <Typography variant="caption" color="secondary">
               View Documentation →
-            </ThemedText>
+            </Typography>
           </TouchableOpacity>
         </View>
       )}

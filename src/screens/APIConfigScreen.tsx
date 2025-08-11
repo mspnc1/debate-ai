@@ -13,7 +13,8 @@ import { RootState } from '../store';
 import { updateApiKeys, updateExpertMode, addVerifiedProvider, removeVerifiedProvider, setVerifiedProviders } from '../store';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../theme';
-import { View, Text, Button } from '../components/atoms';
+import { View, Button } from '../components/atoms';
+import { Typography } from '../components/molecules';
 import { ProviderCard } from '../components/ProviderCard';
 import { ProviderExpertSettings } from '../components/organisms/ProviderExpertSettings';
 import { AI_PROVIDERS, getEnabledProviders } from '../config/aiProviders';
@@ -245,9 +246,9 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
             variant="ghost"
             style={{ borderWidth: 0, minWidth: 44 }}
           >
-            <Text size="2xl" color="primary">←</Text>
+            <Typography variant="heading" color="primary">←</Typography>
           </Button>
-          <Text size="xl" weight="bold">API Configuration</Text>
+          <Typography variant="title" weight="bold">API Configuration</Typography>
           <View style={{ width: 44 }} />
         </View>
         
@@ -264,9 +265,9 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
               entering={FadeInDown.springify()}
               style={{ marginTop: 20, marginBottom: 24 }}
             >
-              <Text size="base" color="secondary" style={{ marginBottom: 20 }}>
+              <Typography variant="body" color="secondary" style={{ marginBottom: 20 }}>
                 Connect your AI services to unlock their full potential
-              </Text>
+              </Typography>
 
               {/* Progress Bar */}
               <View style={{ marginBottom: 20 }}>
@@ -288,8 +289,8 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                     }}
                   />
                 </View>
-                <Text
-                  size="xs"
+                <Typography
+                  variant="caption"
                   color="secondary"
                   style={{ marginTop: 8, textAlign: 'center' }}
                 >
@@ -298,7 +299,7 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                     : configuredCount === enabledProviders.length
                     ? '🎉 All services connected!'
                     : `${configuredCount} of ${enabledProviders.length} services connected`}
-                </Text>
+                </Typography>
               </View>
 
               {/* Clear All Button */}
@@ -314,18 +315,18 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                     alignItems: 'center',
                   }}
                 >
-                  <Text size="base" color="secondary" weight="semibold">
+                  <Typography variant="body" color="secondary" weight="semibold">
                     🗑️ Clear All Keys
-                  </Text>
+                  </Typography>
                 </TouchableOpacity>
               )}
             </Animated.View>
 
             {/* Provider Cards */}
             <View>
-              <Text size="xl" style={{ marginBottom: 16 }}>
+              <Typography variant="title" style={{ marginBottom: 16 }}>
                 Available AI Services
-              </Text>
+              </Typography>
               
               {enabledProviders.map((provider, index) => {
                 const providerKey = provider.id as 'claude' | 'openai' | 'google';
@@ -411,9 +412,9 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                 entering={FadeInDown.delay(500).springify()}
                 style={{ marginTop: 32 }}
               >
-                <Text size="xl" style={{ marginBottom: 16 }}>
+                <Typography variant="title" style={{ marginBottom: 16 }}>
                   Coming Soon
-                </Text>
+                </Typography>
                 <View
                   style={{
                     backgroundColor: theme.colors.card,
@@ -437,9 +438,9 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                         <RNText style={{ fontSize: 20, marginRight: 8 }}>
                           {provider.icon}
                         </RNText>
-                        <Text size="base" color="secondary">
+                        <Typography variant="body" color="secondary">
                           {provider.name}
-                        </Text>
+                        </Typography>
                       </View>
                     ))}
                   </View>
@@ -459,15 +460,15 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                 borderColor: theme.colors.border,
               }}
             >
-              <Text size="lg" weight="semibold" style={{ marginBottom: 8 }}>
+              <Typography variant="subtitle" weight="semibold" style={{ marginBottom: 8 }}>
                 🔒 Your Security
-              </Text>
-              <Text size="base" color="secondary">
+              </Typography>
+              <Typography variant="body" color="secondary">
                 • Keys are encrypted and stored locally{'\n'}
                 • We never send keys to our servers{'\n'}
                 • You can modify or clear keys anytime{'\n'}
                 • Each service connection is isolated
-              </Text>
+              </Typography>
             </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>

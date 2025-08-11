@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScrollView, TouchableOpacity, View } from 'react-native';
-import { ThemedText } from '../atoms';
+import { Typography } from './Typography';
 import { ModelBadge } from '../atoms/ModelBadge';
 import { ActualPricing } from '../atoms/ActualPricing';
 import { useTheme } from '../../theme';
@@ -24,9 +24,9 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   
   return (
     <View>
-      <ThemedText variant="subtitle" weight="semibold" style={{ marginBottom: theme.spacing.sm }}>
+      <Typography variant="subtitle" weight="semibold" style={{ marginBottom: theme.spacing.sm }}>
         Model Selection
-      </ThemedText>
+      </Typography>
       
       <ScrollView 
         horizontal 
@@ -56,7 +56,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
               }}
             >
               <View style={{ alignItems: 'center' }}>
-                <ThemedText 
+                <Typography 
                   variant="caption" 
                   weight="semibold"
                   style={{ 
@@ -67,7 +67,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                   }}
                 >
                   {model.name}
-                </ThemedText>
+                </Typography>
                 
                 {model.isPremium && (
                   <ModelBadge label="Premium" type="premium" />
@@ -84,12 +84,12 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
       
       {selectedModel && (
         <View style={{ marginTop: theme.spacing.sm }}>
-          <ThemedText 
+          <Typography 
             variant="caption" 
             color="secondary"
           >
             {models.find(m => m.id === selectedModel)?.description}
-          </ThemedText>
+          </Typography>
           <View style={{ marginTop: theme.spacing.xs }}>
             {(() => {
               const pricing = MODEL_PRICING[providerId]?.[selectedModel];

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Dimensions } from 'react-native';
-import { ThemedView, GradientButton } from '../atoms';
+import { ThemedView } from '../atoms';
+import { GradientButton } from '../molecules';
 import { SectionHeader } from '../atoms/SectionHeader';
 import { AICard } from '../molecules/AICard';
 import { AIConfig } from '../../types';

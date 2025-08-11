@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../theme';
-import { ThemedText, ThemedButton } from './atoms';
+import { Button } from './molecules';
+import { Typography } from './molecules';
 import { 
   AI_MODELS, 
   ModelParameters,
@@ -70,12 +71,12 @@ export const ExpertModeSettings: React.FC<ExpertModeSettingsProps> = ({
         >
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <View style={{ flex: 1 }}>
-              <ThemedText variant="subtitle" weight="semibold">
+              <Typography variant="subtitle" weight="semibold">
                 {param.charAt(0).toUpperCase() + param.slice(1).replace(/([A-Z])/g, ' $1')}
-              </ThemedText>
-              <ThemedText variant="caption" color="secondary">
+              </Typography>
+              <Typography variant="caption" color="secondary">
                 {value}
-              </ThemedText>
+              </Typography>
             </View>
             <Text style={{ color: theme.colors.text.secondary }}>
               {isExpanded ? '▼' : '▶'}
@@ -85,9 +86,9 @@ export const ExpertModeSettings: React.FC<ExpertModeSettingsProps> = ({
         
         {isExpanded && (
           <View style={{ marginTop: theme.spacing.md }}>
-            <ThemedText variant="caption" color="secondary" style={{ marginBottom: theme.spacing.sm }}>
+            <Typography variant="caption" color="secondary" style={{ marginBottom: theme.spacing.sm }}>
               {range.description}
-            </ThemedText>
+            </Typography>
             
             {/* Value Input with Steppers */}
             <View style={{ 
@@ -164,12 +165,12 @@ export const ExpertModeSettings: React.FC<ExpertModeSettingsProps> = ({
               justifyContent: 'space-between',
               marginTop: theme.spacing.xs,
             }}>
-              <ThemedText variant="caption" color="secondary">
+              <Typography variant="caption" color="secondary">
                 Min: {range.min}
-              </ThemedText>
-              <ThemedText variant="caption" color="secondary">
+              </Typography>
+              <Typography variant="caption" color="secondary">
                 Max: {range.max}
-              </ThemedText>
+              </Typography>
             </View>
           </View>
         )}
@@ -192,9 +193,9 @@ export const ExpertModeSettings: React.FC<ExpertModeSettingsProps> = ({
       }}>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <ThemedText variant="subtitle" weight="bold">
+            <Typography variant="subtitle" weight="bold">
               Expert Mode
-            </ThemedText>
+            </Typography>
             {!isPremium && (
               <View style={{
                 backgroundColor: theme.colors.warning[500],
@@ -209,11 +210,11 @@ export const ExpertModeSettings: React.FC<ExpertModeSettingsProps> = ({
               </View>
             )}
           </View>
-          <ThemedText variant="caption" color="secondary" style={{ marginTop: 4 }}>
+          <Typography variant="caption" color="secondary" style={{ marginTop: 4 }}>
             {isPremium 
               ? 'Fine-tune model behavior and parameters'
               : 'Upgrade to unlock advanced controls'}
-          </ThemedText>
+          </Typography>
         </View>
         <Switch
           value={isEnabled && isPremium}
@@ -231,9 +232,9 @@ export const ExpertModeSettings: React.FC<ExpertModeSettingsProps> = ({
         <Animated.View entering={FadeInDown.springify()}>
           {/* Model Selection */}
           <View style={{ marginBottom: theme.spacing.lg }}>
-            <ThemedText variant="subtitle" weight="semibold" style={{ marginBottom: theme.spacing.sm }}>
+            <Typography variant="subtitle" weight="semibold" style={{ marginBottom: theme.spacing.sm }}>
               Model Selection
-            </ThemedText>
+            </Typography>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {models.map((model) => (
                 <TouchableOpacity
@@ -253,7 +254,7 @@ export const ExpertModeSettings: React.FC<ExpertModeSettingsProps> = ({
                       : theme.colors.border,
                   }}
                 >
-                  <ThemedText 
+                  <Typography 
                     variant="caption" 
                     weight="semibold"
                     style={{ 
@@ -263,9 +264,9 @@ export const ExpertModeSettings: React.FC<ExpertModeSettingsProps> = ({
                     }}
                   >
                     {model.name}
-                  </ThemedText>
+                  </Typography>
                   {model.isPremium && (
-                    <ThemedText 
+                    <Typography 
                       variant="caption"
                       style={{ 
                         color: selectedModel === model.id 
@@ -275,28 +276,28 @@ export const ExpertModeSettings: React.FC<ExpertModeSettingsProps> = ({
                       }}
                     >
                       Premium
-                    </ThemedText>
+                    </Typography>
                   )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
             {currentModel && (
-              <ThemedText variant="caption" color="secondary" style={{ marginTop: theme.spacing.sm }}>
+              <Typography variant="caption" color="secondary" style={{ marginTop: theme.spacing.sm }}>
                 {currentModel.description}
-              </ThemedText>
+              </Typography>
             )}
           </View>
           
           {/* Parameters */}
           <View>
-            <ThemedText variant="subtitle" weight="semibold" style={{ marginBottom: theme.spacing.sm }}>
+            <Typography variant="subtitle" weight="semibold" style={{ marginBottom: theme.spacing.sm }}>
               Parameters
-            </ThemedText>
+            </Typography>
             {supportedParams.map(param => renderParameterControl(param))}
           </View>
           
           {/* Reset Button */}
-          <ThemedButton
+          <Button
             title="Reset to Defaults"
             variant="secondary"
             onPress={() => {

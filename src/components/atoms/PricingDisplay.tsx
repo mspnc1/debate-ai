@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
-import { ThemedText } from '../atoms';
+import { Typography } from '../molecules';
 import { useTheme } from '../../theme';
 
 interface PricingDisplayProps {
@@ -19,15 +19,15 @@ export const PricingDisplay: React.FC<PricingDisplayProps> = ({
   if (compact) {
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-        <ThemedText variant="caption" color="secondary">
+        <Typography variant="caption" color="secondary">
           ~{costPerMessage}/msg
-        </ThemedText>
+        </Typography>
         {freeInfo && (
           <>
-            <ThemedText variant="caption" color="secondary">•</ThemedText>
-            <ThemedText variant="caption" color="success" weight="semibold">
+            <Typography variant="caption" color="secondary">•</Typography>
+            <Typography variant="caption" color="success" weight="semibold">
               {freeInfo}
-            </ThemedText>
+            </Typography>
           </>
         )}
       </View>
@@ -37,11 +37,11 @@ export const PricingDisplay: React.FC<PricingDisplayProps> = ({
   return (
     <View>
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-        <ThemedText variant="caption" color="secondary">Est. cost:</ThemedText>
-        <ThemedText variant="body" color="primary" weight="semibold">
+        <Typography variant="caption" color="secondary">Est. cost:</Typography>
+        <Typography variant="body" color="primary" weight="semibold">
           {costPerMessage}
-        </ThemedText>
-        <ThemedText variant="caption" color="secondary">per message</ThemedText>
+        </Typography>
+        <Typography variant="caption" color="secondary">per message</Typography>
       </View>
       {freeInfo && (
         <View style={{ 
@@ -52,9 +52,9 @@ export const PricingDisplay: React.FC<PricingDisplayProps> = ({
           marginTop: 4,
           alignSelf: 'flex-start',
         }}>
-          <ThemedText variant="caption" color="success" weight="semibold">
+          <Typography variant="caption" color="success" weight="semibold">
             ✨ {freeInfo}
-          </ThemedText>
+          </Typography>
         </View>
       )}
     </View>

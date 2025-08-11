@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, TouchableOpacity, Text, Dimensions } from 'react-native';
-import { ThemedView, ThemedText, GradientButton } from '../atoms';
+import { ThemedView } from '../atoms';
+import { GradientButton, Typography } from '../molecules';
 import { SectionHeader } from '../atoms/SectionHeader';
 import { AICard } from '../molecules/AICard';
 import { AIConfig } from '../../types';
@@ -127,7 +128,7 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
                       }}>
                         <Text style={{ fontSize: 24 }}>➕</Text>
                       </View>
-                      <ThemedText 
+                      <Typography 
                         variant="caption" 
                         weight="semibold"
                         color="secondary"
@@ -136,7 +137,7 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
                         }}
                       >
                         Add AI{'\n'}Friend
-                      </ThemedText>
+                      </Typography>
                     </TouchableOpacity>
                   </View>
                 );

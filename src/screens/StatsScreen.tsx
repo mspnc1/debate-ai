@@ -3,8 +3,8 @@ import { ScrollView, View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { GradientButton } from '../components/atoms';
-import { View as ThemedView, Text } from '../components/atoms';
+import { GradientButton, Typography } from '../components/molecules';
+import { View as ThemedView } from '../components/atoms';
 import { useTheme } from '../theme';
 import { AI_PROVIDERS } from '../config/aiProviders';
 import { AI_BRAND_COLORS } from '../constants/aiColors';
@@ -49,7 +49,7 @@ const StatsScreen: React.FC<StatsScreenProps> = ({ navigation }) => {
           gradient={theme.colors.gradients.primary}
           size="small"
         />
-        <Text size="xl" weight="bold">📊 AI Performance Stats</Text>
+        <Typography variant="title" weight="bold">📊 AI Performance Stats</Typography>
         <View style={{ width: 60 }} />
       </ThemedView>
       
@@ -59,18 +59,18 @@ const StatsScreen: React.FC<StatsScreenProps> = ({ navigation }) => {
       >
         {sortedAIs.length === 0 ? (
           <ThemedView style={styles.emptyState}>
-            <Text size="xl" align="center" color="secondary">
+            <Typography variant="title" align="center" color="secondary">
               No debates yet!
-            </Text>
-            <Text size="sm" align="center" color="secondary" style={{ marginTop: 8 }}>
+            </Typography>
+            <Typography variant="caption" align="center" color="secondary" style={{ marginTop: 8 }}>
               Complete some debates to see AI performance statistics
-            </Text>
+            </Typography>
           </ThemedView>
         ) : (
           <>
-            <Text size="xl" weight="semibold" style={{ marginBottom: 16 }}>
+            <Typography variant="title" weight="semibold" style={{ marginBottom: 16 }}>
               🏆 Leaderboard
-            </Text>
+            </Typography>
             
             {sortedAIs.map(([aiId, stats], index) => {
               const aiInfo = getAIInfo(aiId);
@@ -91,70 +91,70 @@ const StatsScreen: React.FC<StatsScreenProps> = ({ navigation }) => {
                 >
                   <View style={styles.cardHeader}>
                     <View style={styles.rankBadge}>
-                      <Text size="xl" weight="bold">
+                      <Typography variant="title" weight="bold">
                         #{index + 1}
-                      </Text>
+                      </Typography>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text 
-                        size="md" 
+                      <Typography 
+                        variant="body" 
                         weight="bold"
                         style={{ color: brandColor[600] }}
                       >
                         {aiInfo.name}
-                      </Text>
-                      <Text size="xs" color="secondary">
+                      </Typography>
+                      <Typography variant="caption" color="secondary">
                         Last debated: {new Date(stats.lastDebated).toLocaleDateString()}
-                      </Text>
+                      </Typography>
                     </View>
                     <View style={styles.winRateBox}>
-                      <Text 
-                        size="xl" 
+                      <Typography 
+                        variant="title" 
                         weight="bold"
                         style={{ color: brandColor[500] }}
                       >
                         {stats.winRate.toFixed(0)}%
-                      </Text>
-                      <Text size="xs" color="secondary">
+                      </Typography>
+                      <Typography variant="caption" color="secondary">
                         Overall
-                      </Text>
-                      <Text 
-                        size="sm" 
+                      </Typography>
+                      <Typography 
+                        variant="caption" 
                         weight="semibold"
                         style={{ color: brandColor[400], marginTop: 2 }}
                       >
                         {stats.roundWinRate.toFixed(0)}%
-                      </Text>
-                      <Text size="xs" color="secondary">
+                      </Typography>
+                      <Typography variant="caption" color="secondary">
                         Rounds
-                      </Text>
+                      </Typography>
                     </View>
                   </View>
                   
                   <View style={styles.statsRow}>
                     <View style={styles.statItem}>
-                      <Text size="xl" weight="semibold">
+                      <Typography variant="title" weight="semibold">
                         {stats.totalDebates}
-                      </Text>
-                      <Text size="xs" color="secondary">
+                      </Typography>
+                      <Typography variant="caption" color="secondary">
                         Debates
-                      </Text>
+                      </Typography>
                     </View>
                     <View style={styles.statItem}>
-                      <Text size="xl" weight="semibold" style={{ color: theme.colors.success[600] }}>
+                      <Typography variant="title" weight="semibold" style={{ color: theme.colors.success[600] }}>
                         {stats.overallWins}
-                      </Text>
-                      <Text size="xs" color="secondary">
+                      </Typography>
+                      <Typography variant="caption" color="secondary">
                         Wins
-                      </Text>
+                      </Typography>
                     </View>
                     <View style={styles.statItem}>
-                      <Text size="xl" weight="semibold" style={{ color: theme.colors.error[600] }}>
+                      <Typography variant="title" weight="semibold" style={{ color: theme.colors.error[600] }}>
                         {stats.overallLosses}
-                      </Text>
-                      <Text size="xs" color="secondary">
+                      </Typography>
+                      <Typography variant="caption" color="secondary">
                         Losses
-                      </Text>
+                      </Typography>
                     </View>
                   </View>
                   
@@ -162,37 +162,37 @@ const StatsScreen: React.FC<StatsScreenProps> = ({ navigation }) => {
                   
                   <View style={styles.statsRow}>
                     <View style={styles.statItem}>
-                      <Text size="md" weight="semibold">
+                      <Typography variant="body" weight="semibold">
                         {stats.roundsWon + stats.roundsLost}
-                      </Text>
-                      <Text size="xs" color="secondary">
+                      </Typography>
+                      <Typography variant="caption" color="secondary">
                         Total Rounds
-                      </Text>
+                      </Typography>
                     </View>
                     <View style={styles.statItem}>
-                      <Text size="md" weight="semibold" style={{ color: theme.colors.success[500] }}>
+                      <Typography variant="body" weight="semibold" style={{ color: theme.colors.success[500] }}>
                         {stats.roundsWon}
-                      </Text>
-                      <Text size="xs" color="secondary">
+                      </Typography>
+                      <Typography variant="caption" color="secondary">
                         Rounds Won
-                      </Text>
+                      </Typography>
                     </View>
                     <View style={styles.statItem}>
-                      <Text size="md" weight="semibold" style={{ color: theme.colors.error[500] }}>
+                      <Typography variant="body" weight="semibold" style={{ color: theme.colors.error[500] }}>
                         {stats.roundsLost}
-                      </Text>
-                      <Text size="xs" color="secondary">
+                      </Typography>
+                      <Typography variant="caption" color="secondary">
                         Rounds Lost
-                      </Text>
+                      </Typography>
                     </View>
                   </View>
                   
                   {Object.keys(stats.topics).length > 0 && (
                     <>
                       <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
-                      <Text size="xs" weight="semibold" style={{ color: theme.colors.primary[500] }}>
+                      <Typography variant="caption" weight="semibold" style={{ color: theme.colors.primary[500] }}>
                         Top Topics:
-                      </Text>
+                      </Typography>
                       <View style={styles.topicsContainer}>
                         {Object.entries(stats.topics)
                           .sort(([, a], [, b]) => b.won - a.won)
@@ -202,20 +202,20 @@ const StatsScreen: React.FC<StatsScreenProps> = ({ navigation }) => {
                               styles.topicBadge,
                               { backgroundColor: brandColor[50] }
                             ]}>
-                              <Text 
-                                size="xs" 
+                              <Typography 
+                                variant="caption" 
                                 weight="medium"
                                 style={{ color: brandColor[700] }}
                               >
                                 {topic.slice(0, 20)}...
-                              </Text>
-                              <Text 
-                                size="xs" 
+                              </Typography>
+                              <Typography 
+                                variant="caption" 
                                 weight="bold"
                                 style={{ color: brandColor[600] }}
                               >
                                 {topicStats.won}/{topicStats.participated}
-                              </Text>
+                              </Typography>
                             </View>
                           ))}
                       </View>
@@ -228,13 +228,13 @@ const StatsScreen: React.FC<StatsScreenProps> = ({ navigation }) => {
             {/* Recent Debates History */}
             {debateStats.history.length > 0 && (
               <>
-                <Text 
-                  size="xl" 
+                <Typography 
+                  variant="title" 
                   weight="semibold" 
                   style={{ marginTop: 24, marginBottom: 16 }}
                 >
                   📜 Recent Debates
-                </Text>
+                </Typography>
                 
                 {debateStats.history.slice(-5).reverse().map((debate, index) => {
                   const winner = debate.overallWinner ? getAIInfo(debate.overallWinner) : null;
@@ -251,15 +251,15 @@ const StatsScreen: React.FC<StatsScreenProps> = ({ navigation }) => {
                         }
                       ]}
                     >
-                      <Text size="xs" color="secondary">
+                      <Typography variant="caption" color="secondary">
                         {new Date(debate.timestamp).toLocaleString()}
-                      </Text>
-                      <Text size="sm" weight="medium" style={{ marginTop: 4 }}>
+                      </Typography>
+                      <Typography variant="caption" weight="medium" style={{ marginTop: 4 }}>
                         "{debate.topic}"
-                      </Text>
+                      </Typography>
                       {winner && (
-                        <Text 
-                          size="sm" 
+                        <Typography 
+                          variant="caption" 
                           weight="bold"
                           style={{ 
                             marginTop: 8,
@@ -267,7 +267,7 @@ const StatsScreen: React.FC<StatsScreenProps> = ({ navigation }) => {
                           }}
                         >
                           🏆 Winner: {winner.name}
-                        </Text>
+                        </Typography>
                       )}
                     </Animated.View>
                   );

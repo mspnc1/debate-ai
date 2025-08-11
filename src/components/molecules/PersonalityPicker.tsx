@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Text } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { ThemedText } from '../atoms';
+import { Typography } from './Typography';
 import { useTheme } from '../../theme';
 import { UNIVERSAL_PERSONALITIES } from '../../config/personalities';
 import { PersonalityBadge } from './PersonalityBadge';
@@ -73,19 +73,19 @@ export const PersonalityPicker: React.FC<PersonalityPickerProps> = ({
                 ]}
               >
                 <View style={styles.optionContent}>
-                  <ThemedText 
+                  <Typography 
                     weight={currentPersonalityId === personality.id ? 'bold' : 'medium'}
                     style={{ fontSize: 14 }}
                   >
                     {personality.name}
-                  </ThemedText>
-                  <ThemedText 
+                  </Typography>
+                  <Typography 
                     variant="caption" 
                     color="secondary"
                     style={{ fontSize: 11, marginTop: 2 }}
                   >
                     {personality.description}
-                  </ThemedText>
+                  </Typography>
                 </View>
                 {currentPersonalityId === personality.id && (
                   <Text style={[styles.checkmark, { color: theme.colors.primary[600] }]}>✓</Text>
@@ -95,12 +95,12 @@ export const PersonalityPicker: React.FC<PersonalityPickerProps> = ({
             
             {!isPremium && UNIVERSAL_PERSONALITIES.length > 1 && (
               <View style={[styles.premiumSection, { borderTopColor: theme.colors.border }]}>
-                <ThemedText variant="caption" color="secondary" align="center">
+                <Typography variant="caption" color="secondary" align="center">
                   🔒 {UNIVERSAL_PERSONALITIES.length - 1} more personalities
-                </ThemedText>
-                <ThemedText variant="caption" color="secondary" align="center" style={{ marginTop: 4 }}>
+                </Typography>
+                <Typography variant="caption" color="secondary" align="center" style={{ marginTop: 4 }}>
                   Available with Premium
-                </ThemedText>
+                </Typography>
               </View>
             )}
           </ScrollView>

@@ -6,7 +6,8 @@ import Animated, {
   withSpring,
   useSharedValue,
 } from 'react-native-reanimated';
-import { ThemedView, ThemedText } from '../atoms';
+import { ThemedView } from '../atoms';
+import { Typography } from './Typography';
 import { useTheme } from '../../theme';
 import * as Haptics from 'expo-haptics';
 
@@ -83,15 +84,15 @@ export const QuickStartTile: React.FC<QuickStartTileProps> = ({
           disabled={disabled}
         >
           <ThemedView>
-            <ThemedText style={{ fontSize: 28, marginBottom: 8 }}>
+            <Typography style={{ fontSize: 28, marginBottom: 8 }}>
               {emoji}
-            </ThemedText>
-            <ThemedText variant="subtitle" weight="semibold" numberOfLines={1}>
+            </Typography>
+            <Typography variant="subtitle" weight="semibold" numberOfLines={1}>
               {title}
-            </ThemedText>
-            <ThemedText variant="caption" color="secondary" numberOfLines={2}>
+            </Typography>
+            <Typography variant="caption" color="secondary" numberOfLines={2}>
               {subtitle}
-            </ThemedText>
+            </Typography>
           </ThemedView>
         </TouchableOpacity>
       </Animated.View>

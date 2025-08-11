@@ -9,7 +9,8 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
-import { View, Text } from '../atoms';
+import { View } from '../atoms';
+import { Typography } from './Typography';
 import { useTheme, Theme } from '../../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -252,8 +253,8 @@ export const GradientHeader: React.FC<GradientHeaderProps> = ({
           top: insets.top + timeTopOffset,
           right: contentPadding 
         }]}>
-          <Text 
-            size="md" 
+          <Typography 
+            variant="body" 
             weight="bold"
             color="inverse"
             style={styles.timeText}
@@ -263,15 +264,15 @@ export const GradientHeader: React.FC<GradientHeaderProps> = ({
               minute: '2-digit',
               hour12: true 
             })}
-          </Text>
+          </Typography>
         </View>
         
         {/* Main content area - properly centered */}
         <View style={styles.mainContent}>
           {/* Date positioned above greeting, centered */}
           <View style={[styles.dateContainer, { marginBottom: dateBottomMargin }]}>
-            <Text 
-              size="md" 
+            <Typography 
+              variant="body" 
               weight="bold"
               color="inverse"
               style={styles.dateText}
@@ -281,30 +282,30 @@ export const GradientHeader: React.FC<GradientHeaderProps> = ({
                 month: 'short',
                 day: 'numeric'
               })}
-            </Text>
+            </Typography>
           </View>
           
           <Animated.View style={titleAnimatedStyle}>
-            <Text
-              size="4xl"
-              weight="heavy"
+            <Typography
+              variant="heading"
+              weight="bold"
               color="inverse"
-              style={[styles.title, { marginBottom: titleBottomMargin }]}
+              style={{ ...styles.title, marginBottom: titleBottomMargin }}
             >
               {title || getGreeting()}
-            </Text>
+            </Typography>
           </Animated.View>
           
           {subtitle && (
             <Animated.View style={subtitleAnimatedStyle}>
-              <Text
-                size="lg"
+              <Typography
+                variant="subtitle"
                 weight="medium"
                 color="inverse"
                 style={styles.subtitle}
               >
                 {subtitle}
-              </Text>
+              </Typography>
             </Animated.View>
           )}
         </View>

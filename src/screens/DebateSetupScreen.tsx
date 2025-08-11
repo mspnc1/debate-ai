@@ -5,7 +5,9 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { GradientButton, ThemedButton, ThemedView } from '../components/atoms';
+import { ThemedView } from '../components/atoms';
+import { Button } from '../components/molecules';
+import { GradientButton } from '../components/molecules';
 import { GradientHeader } from '../components/molecules';
 import { DynamicAISelector } from '../components/organisms/DynamicAISelector';
 import { SectionHeader } from '../components/atoms/SectionHeader';
@@ -41,7 +43,7 @@ const DebateTopicCard: React.FC<DebateTopicCardProps> = ({
       entering={FadeInDown.delay(100 + index * 50).springify()}
       style={{ marginBottom: theme.spacing.sm }}
     >
-      <ThemedButton
+      <Button
         title={topic}
         onPress={onPress}
         variant={isSelected ? 'primary' : 'secondary'}
@@ -145,7 +147,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
         right: 16,
         zIndex: 10,
       }}>
-        <ThemedButton
+        <Button
           title="📊 Stats"
           onPress={() => navigation.navigate('Stats')}
           variant="secondary"
@@ -199,13 +201,13 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
               marginBottom: theme.spacing.md,
               gap: theme.spacing.sm,
             }}>
-              <ThemedButton
+              <Button
                 title="Preset Topics"
                 onPress={() => setTopicMode('preset')}
                 variant={topicMode === 'preset' ? 'primary' : 'secondary'}
                 style={{ flex: 1 }}
               />
-              <ThemedButton
+              <Button
                 title="Custom Topic"
                 onPress={() => setTopicMode('custom')}
                 variant={topicMode === 'custom' ? 'primary' : 'secondary'}

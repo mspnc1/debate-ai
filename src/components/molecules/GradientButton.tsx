@@ -1,22 +1,28 @@
 import React from 'react';
-import { TouchableOpacity, TouchableOpacityProps, StyleSheet, ViewStyle } from 'react-native';
+import { TouchableOpacity, TouchableOpacityProps, StyleSheet, ViewStyle, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Text } from '../atoms';
+import { Typography } from './Typography';
 import { useTheme } from '../../theme';
 
 interface GradientButtonProps extends Omit<TouchableOpacityProps, 'style'> {
   title: string;
   gradient?: readonly string[];
+  variant?: 'primary' | 'secondary' | 'success';
   size?: 'small' | 'medium' | 'large';
   fullWidth?: boolean;
+  hapticType?: string;
+  loading?: boolean;
   style?: ViewStyle;
 }
 
 export const GradientButton: React.FC<GradientButtonProps> = ({
   title,
   gradient,
+  variant = 'primary',
   size = 'medium',
   fullWidth = false,
+  hapticType: _hapticType,
+  loading = false,
   disabled = false,
   onPress,
   style,
@@ -24,7 +30,20 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
 }) => {
   const { theme } = useTheme();
   
-  const gradientColors = (gradient || theme.colors.gradients.primary) as readonly [string, string, ...string[]];
+  // Support both gradient prop and variant-based gradients
+  const getGradientColors = () => {
+    if (gradient) return gradient as readonly [string, string, ...string[]];
+    
+    const variantMap = {
+      primary: theme.colors.gradients.primary,
+      secondary: theme.colors.gradients.ocean,
+      success: theme.colors.gradients.forest,
+    };
+    
+    return variantMap[variant] as readonly [string, string, ...string[]];
+  };
+  
+  const gradientColors = getGradientColors();
   
   const getSizeStyles = () => {
     switch (size) {
@@ -51,15 +70,15 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
   };
   
   const sizeStyles = getSizeStyles();
-  const textSize = size === 'small' ? 'sm' : size === 'large' ? 'lg' : 'base';
+  const textVariant = size === 'small' ? 'caption' : size === 'large' ? 'title' : 'button';
   
   return (
     <TouchableOpacity
-      disabled={disabled}
+      disabled={disabled || loading}
       onPress={onPress}
       style={[
         fullWidth && styles.fullWidth,
-        disabled && styles.disabled,
+        (disabled || loading) && styles.disabled,
         style,
       ]}
       {...props}
@@ -73,14 +92,18 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
           sizeStyles,
         ]}
       >
-        <Text
-          size={textSize}
-          weight="semibold"
-          color="inverse"
-          align="center"
-        >
-          {title}
-        </Text>
+        {loading ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <Typography
+            variant={textVariant}
+            weight="semibold"
+            color="inverse"
+            align="center"
+          >
+            {title}
+          </Typography>
+        )}
       </LinearGradient>
     </TouchableOpacity>
   );

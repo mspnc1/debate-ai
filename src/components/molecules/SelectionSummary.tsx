@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity, ScrollView } from 'react-native';
-import { ThemedText } from '../atoms';
+import { Typography } from './Typography';
 import { AIConfig } from '../../types';
 import { useTheme } from '../../theme';
 import * as Haptics from 'expo-haptics';
@@ -48,13 +48,13 @@ const SelectedAIChip: React.FC<{
         justifyContent: 'center',
         marginRight: theme.spacing.xs,
       }}>
-        <ThemedText style={{ fontSize: 12 }}>
+        <Typography style={{ fontSize: 12 }}>
           {ai.avatar}
-        </ThemedText>
+        </Typography>
       </View>
-      <ThemedText variant="caption" weight="semibold" color="primary">
+      <Typography variant="caption" weight="semibold" color="primary">
         {ai.name}
-      </ThemedText>
+      </Typography>
       <View style={{
         width: 16,
         height: 16,
@@ -64,13 +64,13 @@ const SelectedAIChip: React.FC<{
         justifyContent: 'center',
         marginLeft: theme.spacing.xs,
       }}>
-        <ThemedText style={{ 
+        <Typography style={{ 
           fontSize: 10, 
           color: '#FFFFFF',
           fontWeight: 'bold',
         }}>
           ×
-        </ThemedText>
+        </Typography>
       </View>
     </TouchableOpacity>
   );
@@ -92,14 +92,14 @@ export const SelectionSummary: React.FC<SelectionSummaryProps> = ({
       padding: theme.spacing.md,
       marginBottom: theme.spacing.md,
     }}>
-      <ThemedText 
+      <Typography 
         variant="caption" 
         color="secondary" 
         weight="semibold"
         style={{ marginBottom: theme.spacing.xs }}
       >
         Selected ({selectedAIs.length}/{maxAIs})
-      </ThemedText>
+      </Typography>
       
       <ScrollView 
         horizontal

@@ -6,7 +6,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useTheme } from '../../theme';
-import { ThemedText } from '../atoms';
+import { Typography } from './Typography';
 import * as Haptics from 'expo-haptics';
 
 interface PersonalityBadgeProps {
@@ -74,14 +74,14 @@ export const PersonalityBadge: React.FC<PersonalityBadgeProps> = ({
             🔒
           </Text>
         )}
-        <ThemedText
+        <Typography
           variant="caption"
           weight="medium"
           color={showLock ? 'disabled' : 'secondary'}
           style={styles.text}
         >
           {displayName}
-        </ThemedText>
+        </Typography>
         <Text style={[styles.chevron, { color: theme.colors.text.disabled }]}>
           ›
         </Text>

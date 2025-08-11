@@ -1,19 +1,27 @@
+// Pure atoms - single element wrappers with NO business logic
 export { Text } from './Text';
+export { Box } from './Box';
+export { Touchable } from './Touchable';
+export { Input } from './Input';
+export { SafeArea } from './SafeArea';
+export { Image } from './Image';
+export { ScrollView } from './ScrollView';
+export { ActivityIndicator } from './ActivityIndicator';
+
+// Legacy components - to be migrated
 export { Button } from './Button';
 export { View } from './View';
 export { TextInput } from './TextInput';
 export { SafeAreaView } from './SafeAreaView';
 
-// Core replacement components
+// Core replacement components - temporary during migration
 export { ThemedText } from './ThemedText';
 export { ThemedView } from './ThemedView';
-export { GradientButton } from './GradientButton';
 export { ThemedButton } from './ThemedButton';
-export { GlassCard } from './GlassCard';
 export { ThemedTextInput } from './ThemedTextInput';
 export { ThemedSafeAreaView } from './ThemedSafeAreaView';
 
-// Re-export existing atomic components
+// Components to be moved to molecules/organisms
 export { AIAvatar } from './AIAvatar';
 export { ActualPricing } from './ActualPricing';
 export { ModelBadge } from './ModelBadge';

@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Switch } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ThemedText, ThemedButton } from '../atoms';
+import { Button } from '../molecules';
+import { Typography } from '../molecules';
 import { ModelSelector } from '../molecules/ModelSelector';
 import { ParameterSlider } from '../molecules/ParameterSlider';
 import { ModelBadge } from '../atoms/ModelBadge';
@@ -88,18 +89,18 @@ export const ProviderExpertSettings: React.FC<ProviderExpertSettingsProps> = ({
       }}>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <ThemedText variant="subtitle" weight="bold">
+            <Typography variant="subtitle" weight="bold">
               Expert Mode
-            </ThemedText>
+            </Typography>
             {!isPremium && (
               <ModelBadge label="Premium" type="premium" />
             )}
           </View>
-          <ThemedText variant="caption" color="secondary" style={{ marginTop: 4 }}>
+          <Typography variant="caption" color="secondary" style={{ marginTop: 4 }}>
             {isPremium 
               ? 'Fine-tune model behavior and parameters'
               : 'Upgrade to unlock advanced controls'}
-          </ThemedText>
+          </Typography>
         </View>
         <Switch
           value={isEnabled && isPremium}
@@ -127,20 +128,20 @@ export const ProviderExpertSettings: React.FC<ProviderExpertSettingsProps> = ({
           
           {/* Parameters Section */}
           <View>
-            <ThemedText 
+            <Typography 
               variant="subtitle" 
               weight="semibold" 
               style={{ marginBottom: theme.spacing.md }}
             >
               Parameters
-            </ThemedText>
+            </Typography>
             
             {/* Render each supported parameter */}
             {supportedParams.map(param => renderParameter(param))}
           </View>
           
           {/* Reset Button */}
-          <ThemedButton
+          <Button
             title="Reset to Defaults"
             variant="secondary"
             onPress={handleReset}

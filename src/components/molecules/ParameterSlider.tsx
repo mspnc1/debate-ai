@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TextInput } from 'react-native';
-import { ThemedText } from '../atoms';
+import { Typography } from './Typography';
 import { ParameterLabel } from '../atoms/ParameterLabel';
 import { StepperButton } from '../atoms/StepperButton';
 import { useTheme } from '../../theme';
@@ -94,12 +94,12 @@ export const ParameterSlider: React.FC<ParameterSliderProps> = ({
         justifyContent: 'space-between',
         marginTop: theme.spacing.xs,
       }}>
-        <ThemedText variant="caption" color="secondary">
+        <Typography variant="caption" color="secondary">
           Min: {min}
-        </ThemedText>
-        <ThemedText variant="caption" color="secondary">
+        </Typography>
+        <Typography variant="caption" color="secondary">
           Max: {max}
-        </ThemedText>
+        </Typography>
       </View>
     </View>
   );

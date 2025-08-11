@@ -30,7 +30,9 @@ import { DEBATE_TOPICS } from '../constants/debateTopics';
 import { UNIVERSAL_PERSONALITIES, getDebatePrompt } from '../config/personalities';
 import { AI_BRAND_COLORS } from '../constants/aiColors';
 import { useTheme } from '../theme';
-import { ThemedView, ThemedText, GradientButton, ThemedButton } from '../components/atoms';
+import { ThemedView } from '../components/atoms';
+import { Button } from '../components/molecules';
+import { GradientButton, Typography } from '../components/molecules';
 
 interface DebateScreenProps {
   navigation: {
@@ -473,9 +475,9 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         style={[styles.messageContainer, { marginBottom: theme.spacing.sm }]}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <ThemedText variant="body" color="brand" style={{ fontStyle: 'italic' }}>
+          <Typography variant="body" color="brand" style={{ fontStyle: 'italic' }}>
             {aiName} is thinking
-          </ThemedText>
+          </Typography>
           <TypingDots />
         </View>
       </Animated.View>
@@ -530,13 +532,13 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
       <Animated.View style={[styles.messageContainer, animatedStyle]}>
         {!isHost && (
           <ThemedView style={styles.aiHeader}>
-            <ThemedText 
+            <Typography 
               variant="subtitle" 
               weight="semibold"
               style={{ color: aiColor?.border || theme.colors.primary[500] }}
             >
               {message.sender}
-            </ThemedText>
+            </Typography>
           </ThemedView>
         )}
         <ThemedView style={[
@@ -556,15 +558,15 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
             }
           ],
         ]}>
-          <ThemedText 
+          <Typography 
             variant="body" 
-            style={[
-              styles.messageText,
-              isHost && { textAlign: 'center', fontWeight: '600', color: theme.colors.warning[600] }
-            ]}
+            style={{
+              ...styles.messageText,
+              ...(isHost && { textAlign: 'center', fontWeight: '600', color: theme.colors.warning[600] })
+            }}
           >
             {message.content}
-          </ThemedText>
+          </Typography>
         </ThemedView>
       </Animated.View>
     );
@@ -578,14 +580,14 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         borderBottomColor: theme.colors.border 
       }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <ThemedText style={[styles.backButton, { color: theme.colors.primary[500] }]}>←</ThemedText>
+          <Typography style={{ ...styles.backButton, color: theme.colors.primary[500] }}>←</Typography>
         </TouchableOpacity>
-        <ThemedText variant="title" weight="bold">🎭 AI Debate Arena</ThemedText>
+        <Typography variant="title" weight="bold">🎭 AI Debate Arena</Typography>
         <ThemedView style={styles.headerRight}>
           {debateStarted && (
-            <ThemedText variant="body" style={{ color: theme.colors.error[500], fontWeight: '600' }}>
+            <Typography variant="body" style={{ color: theme.colors.error[500], fontWeight: '600' }}>
               Round {currentRound}/{maxRounds}
-            </ThemedText>
+            </Typography>
           )}
         </ThemedView>
       </ThemedView>
@@ -596,11 +598,11 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
           backgroundColor: theme.colors.card,
           borderBottomColor: theme.colors.border
         }]}>
-          <ThemedText variant="title" weight="semibold">Choose Your Battle!</ThemedText>
+          <Typography variant="title" weight="semibold">Choose Your Battle!</Typography>
           
           {/* Topic Mode Selector */}
           <ThemedView style={styles.topicModeContainer}>
-            <ThemedButton
+            <Button
               title="📋 Select Topic"
               onPress={() => {
                 setTopicMode('preset');
@@ -612,7 +614,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
               style={{ flex: 1, marginRight: 4 }}
             />
             
-            <ThemedButton
+            <Button
               title="✏️ Custom Topic"
               onPress={() => {
                 setTopicMode('custom');
@@ -634,12 +636,12 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
                 }]}
                 onPress={() => setShowTopicDropdown(!showTopicDropdown)}
               >
-                <ThemedText style={styles.dropdownButtonText}>
+                <Typography style={styles.dropdownButtonText}>
                   {selectedTopic || 'Select a debate topic...'}
-                </ThemedText>
-                <ThemedText style={[styles.dropdownArrow, { color: theme.colors.text.secondary }]}>
+                </Typography>
+                <Typography style={{ ...styles.dropdownArrow, color: theme.colors.text.secondary }}>
                   {showTopicDropdown ? '▲' : '▼'}
-                </ThemedText>
+                </Typography>
               </TouchableOpacity>
 
               {/* Dropdown List */}
@@ -659,7 +661,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
                           setShowTopicDropdown(false);
                         }}
                       >
-                        <ThemedText style={styles.dropdownItemText}>{topic}</ThemedText>
+                        <Typography style={styles.dropdownItemText}>{topic}</Typography>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
@@ -713,23 +715,23 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
           backgroundColor: theme.colors.card,
           shadowColor: theme.colors.shadow
         }]}>
-          <ThemedText variant="caption" color="brand" weight="medium">Topic:</ThemedText>
-          <ThemedText variant="title" weight="semibold">
+          <Typography variant="caption" color="brand" weight="medium">Topic:</Typography>
+          <Typography variant="title" weight="semibold">
             "{topicMode === 'custom' ? customTopic : selectedTopic}"
-          </ThemedText>
+          </Typography>
         </ThemedView>
       )}
 
       {/* Personality Selector */}
       {!debateStarted && ((topicMode === 'preset' && selectedTopic) || (topicMode === 'custom' && customTopic)) && (
         <Animated.View entering={FadeInDown.delay(200)} style={styles.personalitySection}>
-          <ThemedText variant="title" weight="semibold">Choose Personalities</ThemedText>
+          <Typography variant="title" weight="semibold">Choose Personalities</Typography>
           {selectedAIs.map((ai) => (
             <ThemedView key={ai.id} style={styles.personalityRow}>
-              <ThemedText variant="subtitle" color="brand" weight="semibold">{ai.name}:</ThemedText>
+              <Typography variant="subtitle" color="brand" weight="semibold">{ai.name}:</Typography>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
                 {UNIVERSAL_PERSONALITIES.map((personality) => (
-                  <ThemedButton
+                  <Button
                     key={personality.id}
                     title={personality.name}
                     onPress={() => setAiPersonalities({
@@ -757,9 +759,9 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
             fullWidth
             style={{ marginHorizontal: 16, marginBottom: 16 }}
           />
-          <ThemedText variant="caption" color="secondary" align="center" style={styles.rateNote}>
+          <Typography variant="caption" color="secondary" align="center" style={styles.rateNote}>
             Note: Debates have built-in delays to respect API rate limits
-          </ThemedText>
+          </Typography>
         </>
       )}
 
@@ -795,16 +797,16 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
                 borderTopColor: theme.colors.border
               }]}
             >
-              <ThemedText variant="title" weight="bold" align="center" style={{ marginBottom: theme.spacing.md }}>
+              <Typography variant="title" weight="bold" align="center" style={{ marginBottom: theme.spacing.md }}>
                 {isOverallVote ? '🏆 Vote for Overall Winner!' : 
                  isFinalVote ? `🏅 Who won the Final Round?` : 
                  `🏅 Who won Round ${votingRound}?`}
-              </ThemedText>
+              </Typography>
               
               {/* Show current scores during overall vote */}
               {isOverallVote && (
                 <View style={[styles.currentScores, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                  <ThemedText variant="caption" weight="semibold" color="brand">Current Scores:</ThemedText>
+                  <Typography variant="caption" weight="semibold" color="brand">Current Scores:</Typography>
                   <View style={styles.scoreRow}>
                     {selectedAIs.map((ai) => {
                       const roundsWon = Object.entries(votes)
@@ -818,23 +820,23 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
                       
                       return (
                         <View key={ai.id} style={styles.scoreItem}>
-                          <ThemedText 
+                          <Typography 
                             variant="body" 
                             weight="semibold"
                             style={{ color: aiColor[600] }}
                           >
                             {ai.name}
-                          </ThemedText>
-                          <ThemedText variant="title" weight="bold">
+                          </Typography>
+                          <Typography variant="title" weight="bold">
                             {roundsWon}
-                          </ThemedText>
+                          </Typography>
                         </View>
                       );
                     })}
                   </View>
-                  <ThemedText variant="caption" color="secondary" align="center" style={{ marginTop: 8 }}>
+                  <Typography variant="caption" color="secondary" align="center" style={{ marginTop: 8 }}>
                     Despite the scores, you can crown any AI as the overall winner!
-                  </ThemedText>
+                  </Typography>
                 </View>
               )}
               <View style={styles.votingButtons}>
@@ -858,14 +860,14 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
                       ]}
                       onPress={() => handleVote(ai.id)}
                     >
-                      <ThemedText 
+                      <Typography 
                         variant="subtitle" 
                         weight="bold" 
                         align="center"
                         style={{ color: aiColor[700] }}
                       >
                         {ai.name}
-                      </ThemedText>
+                      </Typography>
                     </TouchableOpacity>
                   );
                 })}
@@ -879,7 +881,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
               backgroundColor: theme.colors.surface,
               borderTopColor: theme.colors.border
             }]}>
-              <ThemedText variant="caption" weight="semibold" color="brand">Current Scores:</ThemedText>
+              <Typography variant="caption" weight="semibold" color="brand">Current Scores:</Typography>
               <View style={styles.scoreRow}>
                 {selectedAIs.map((ai) => {
                   const roundsWon = Object.values(votes).filter(v => v === ai.id && v !== 'overall').length;
@@ -891,16 +893,16 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
                   
                   return (
                     <View key={ai.id} style={styles.scoreItem}>
-                      <ThemedText 
+                      <Typography 
                         variant="body" 
                         weight="semibold"
                         style={{ color: aiColor[600] }}
                       >
                         {ai.name}
-                      </ThemedText>
-                      <ThemedText variant="title" weight="bold">
+                      </Typography>
+                      <Typography variant="title" weight="bold">
                         {roundsWon}
-                      </ThemedText>
+                      </Typography>
                     </View>
                   );
                 })}

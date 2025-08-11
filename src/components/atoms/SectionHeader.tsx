@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ViewStyle } from 'react-native';
-import { ThemedText } from '../atoms';
+import { Typography } from '../molecules';
 import { useTheme } from '../../theme';
 
 interface SectionHeaderProps {
@@ -22,18 +22,18 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
     <View style={[{ marginBottom: theme.spacing.md }, style]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
         {icon && (
-          <ThemedText style={{ fontSize: 20, marginRight: 8 }}>
+          <Typography style={{ fontSize: 20, marginRight: 8 }}>
             {icon}
-          </ThemedText>
+          </Typography>
         )}
-        <ThemedText variant="title" weight="semibold">
+        <Typography variant="title" weight="semibold">
           {title}
-        </ThemedText>
+        </Typography>
       </View>
       {subtitle && (
-        <ThemedText variant="body" color="secondary">
+        <Typography variant="body" color="secondary">
           {subtitle}
-        </ThemedText>
+        </Typography>
       )}
     </View>
   );

@@ -7,7 +7,8 @@ import Animated, {
   withSequence,
   withSpring
 } from 'react-native-reanimated';
-import { GlassCard, ThemedView, AIAvatar, SelectionIndicator } from '../atoms';
+import { ThemedView, AIAvatar, SelectionIndicator } from '../atoms';
+import { GlassCard } from './GlassCard';
 import { PersonalityPicker } from './PersonalityPicker';
 import { AIConfig } from '../../types';
 import * as Haptics from 'expo-haptics';

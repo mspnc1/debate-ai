@@ -5,8 +5,8 @@ import {
   View,
   Dimensions,
 } from 'react-native';
-import { GradientButton } from '../components/atoms';
-import { Text, SafeAreaView } from '../components/atoms';
+import { GradientButton, Typography } from '../components/molecules';
+import { SafeAreaView } from '../components/atoms';
 import { useTheme } from '../theme';
 import Animated, {
   useSharedValue,
@@ -147,8 +147,8 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
         {/* Hero Section */}
         <Animated.View style={[styles.logoContainer, animatedLogoStyle]}>
           <AppLogo size={100} />
-          <Text 
-            size="4xl" 
+          <Typography 
+            variant="heading" 
             weight="bold" 
             align="center" 
             style={{ 
@@ -157,17 +157,17 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
             }}
           >
             My AI Friends
-          </Text>
-          <Text 
-            size="lg" 
+          </Typography>
+          <Typography 
+            variant="subtitle" 
             color="secondary" 
             align="center"
             style={{ marginBottom: 20 }}
           >
             The Ultimate AI Conversation Platform
-          </Text>
-          <Text 
-            size="sm" 
+          </Typography>
+          <Typography 
+            variant="caption" 
             align="center"
             style={{ 
               marginBottom: 8,
@@ -176,7 +176,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
             }}
           >
             Where Intelligence Meets Personality
-          </Text>
+          </Typography>
         </Animated.View>
 
         {/* Feature Cards Grid */}
@@ -203,22 +203,22 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <Text style={styles.featureEmoji}>{feature.emoji}</Text>
+                <Typography style={styles.featureEmoji}>{feature.emoji}</Typography>
               </LinearGradient>
               
-              <Text 
-                size="md" 
+              <Typography 
+                variant="body" 
                 weight="bold"
                 style={{ marginTop: 12, marginBottom: 6 }}
               >
                 {feature.title}
-              </Text>
-              <Text 
-                size="xs" 
+              </Typography>
+              <Typography 
+                variant="caption" 
                 style={{ lineHeight: 16, opacity: 0.8, color: theme.colors.text.primary }}
               >
                 {feature.description}
-              </Text>
+              </Typography>
               </View>
             </Animated.View>
           ))}
@@ -247,50 +247,50 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
           </View>
           <View style={styles.premiumContent}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', flex: 1 }}>
-              <Text style={{ fontSize: 24, marginRight: 12 }}>🚀</Text>
+              <Typography style={{ fontSize: 24, marginRight: 12 }}>🚀</Typography>
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', marginBottom: 4 }}>
-                  <Text size="md" weight="bold">
+                  <Typography variant="body" weight="bold">
                     Go Premium
-                  </Text>
-                  <Text 
-                    size="sm" 
+                  </Typography>
+                  <Typography 
+                    variant="caption" 
                     weight="bold"
                     style={{ color: theme.colors.primary[500], marginLeft: 8 }}
                   >
                     $9.99/month
-                  </Text>
+                  </Typography>
                 </View>
                 <View style={{ marginTop: 8 }}>
                   <View style={styles.bulletRow}>
-                    <Text size="xs" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Text>
-                    <Text size="xs" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
+                    <Typography variant="caption" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Typography>
+                    <Typography variant="caption" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
                       Group chat with unlimited AIs (Free: max 2)
-                    </Text>
+                    </Typography>
                   </View>
                   <View style={styles.bulletRow}>
-                    <Text size="xs" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Text>
-                    <Text size="xs" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
+                    <Typography variant="caption" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Typography>
+                    <Typography variant="caption" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
                       All 12 personalities unlocked (Free: Default only)
-                    </Text>
+                    </Typography>
                   </View>
                   <View style={styles.bulletRow}>
-                    <Text size="xs" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Text>
-                    <Text size="xs" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
+                    <Typography variant="caption" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Typography>
+                    <Typography variant="caption" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
                       Expert mode for precise model configuration
-                    </Text>
+                    </Typography>
                   </View>
                   <View style={styles.bulletRow}>
-                    <Text size="xs" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Text>
-                    <Text size="xs" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
+                    <Typography variant="caption" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Typography>
+                    <Typography variant="caption" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
                       Cross-platform sync (web + mobile) with Firebase encryption
-                    </Text>
+                    </Typography>
                   </View>
                   <View style={styles.bulletRow}>
-                    <Text size="xs" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Text>
-                    <Text size="xs" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
+                    <Typography variant="caption" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Typography>
+                    <Typography variant="caption" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
                       Unlimited history retrieval (Free: last 3 conversations only)
-                    </Text>
+                    </Typography>
                   </View>
                 </View>
               </View>
@@ -312,14 +312,14 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
             fullWidth
           />
           
-          <Text 
-            size="xs" 
+          <Typography 
+            variant="caption" 
             color="secondary" 
             align="center"
             style={{ marginTop: 8 }}
           >
             No sign-up required • Your API keys stay private • Start free
-          </Text>
+          </Typography>
         </Animated.View>
 
         {/* Footer Quote */}
@@ -327,23 +327,23 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
           entering={FadeIn.delay(1200)}
           style={styles.footer}
         >
-          <Text 
-            size="sm" 
+          <Typography 
+            variant="caption" 
             color="secondary" 
             align="center"
             style={{ fontStyle: 'italic' }}
           >
             "The future isn't about replacing human connection.{'\n'}
             It's about enhancing it."
-          </Text>
-          <Text 
-            size="xs" 
+          </Typography>
+          <Typography 
+            variant="caption" 
             color="secondary" 
             align="center"
             style={{ marginTop: 16 }}
           >
             Built with ❤️ for the AI revolution
-          </Text>
+          </Typography>
         </Animated.View>
 
       </ScrollView>

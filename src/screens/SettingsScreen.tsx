@@ -12,7 +12,8 @@ import { RootState } from '../store';
 import { logout } from '../store';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../theme';
-import { ThemedView, ThemedText } from '../components/atoms';
+import { ThemedView } from '../components/atoms';
+import { Typography } from '../components/molecules';
 
 interface SettingsScreenProps {
   navigation: {
@@ -32,7 +33,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
         >
-          <ThemedText variant="heading" style={{ marginTop: 20, marginBottom: 24 }}>Settings</ThemedText>
+          <Typography variant="heading" style={{ marginTop: 20, marginBottom: 24 }}>Settings</Typography>
 
 
         {/* Appearance */}
@@ -40,7 +41,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           entering={FadeInDown.delay(200).springify()}
           style={{ marginBottom: 32 }}
         >
-          <ThemedText variant="title" style={{ marginBottom: 16 }}>Appearance</ThemedText>
+          <Typography variant="title" style={{ marginBottom: 16 }}>Appearance</Typography>
           <ThemedView 
             style={{
               flexDirection: 'row',
@@ -52,10 +53,10 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
             }}
           >
             <View style={{ flex: 1 }}>
-              <ThemedText variant="subtitle" weight="semibold">Dark Mode</ThemedText>
-              <ThemedText variant="caption" color="secondary" style={{ marginTop: 4 }}>
+              <Typography variant="subtitle" weight="semibold">Dark Mode</Typography>
+              <Typography variant="caption" color="secondary" style={{ marginTop: 4 }}>
                 Easier on the eyes at night
-              </ThemedText>
+              </Typography>
             </View>
             <Switch
               value={isDark}
@@ -72,7 +73,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           entering={FadeInDown.delay(300).springify()}
           style={{ marginBottom: 32 }}
         >
-          <ThemedText variant="title" style={{ marginBottom: 16 }}>API Configuration</ThemedText>
+          <Typography variant="title" style={{ marginBottom: 16 }}>API Configuration</Typography>
           <TouchableOpacity 
             style={{
               backgroundColor: theme.colors.gray[100],
@@ -83,7 +84,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
             activeOpacity={0.7}
             onPress={() => navigation.navigate('APIConfig')}
           >
-            <ThemedText variant="subtitle" color="brand" weight="semibold">Manage API Keys</ThemedText>
+            <Typography variant="subtitle" color="brand" weight="semibold">Manage API Keys</Typography>
           </TouchableOpacity>
         </Animated.View>
 
@@ -92,7 +93,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           entering={FadeInDown.delay(400).springify()}
           style={{ marginBottom: 32 }}
         >
-          <ThemedText variant="title" style={{ marginBottom: 16 }}>Subscription</ThemedText>
+          <Typography variant="title" style={{ marginBottom: 16 }}>Subscription</Typography>
           <ThemedView
             style={{
               backgroundColor: theme.colors.card,
@@ -101,9 +102,9 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
               ...theme.shadows.sm,
             }}
           >
-            <ThemedText variant="subtitle" weight="semibold" style={{ marginBottom: 12 }}>
+            <Typography variant="subtitle" weight="semibold" style={{ marginBottom: 12 }}>
               {currentUser?.subscription === 'free' ? 'Free Plan' : 'Pro Plan'}
-            </ThemedText>
+            </Typography>
             {currentUser?.subscription === 'free' && (
               <TouchableOpacity 
                 style={{
@@ -126,11 +127,11 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           entering={FadeInDown.delay(500).springify()}
           style={{ marginBottom: 32 }}
         >
-          <ThemedText variant="title" style={{ marginBottom: 16 }}>About</ThemedText>
-          <ThemedText variant="body" color="secondary">
+          <Typography variant="title" style={{ marginBottom: 16 }}>About</Typography>
+          <Typography variant="body" color="secondary">
             My AI Friends v1.0.0{'\n'}
             Made with code and caffeine
-          </ThemedText>
+          </Typography>
         </Animated.View>
 
         {/* Sign Out */}

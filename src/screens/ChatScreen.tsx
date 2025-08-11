@@ -10,11 +10,11 @@ import {
 } from 'react-native';
 import { 
   View, 
-  Text, 
   Button, 
   TextInput, 
   SafeAreaView 
 } from '../components/atoms';
+import { Typography } from '../components/molecules';
 import { useTheme } from '../theme';
 import Animated, {
   FadeInDown,
@@ -100,13 +100,13 @@ const MessageBubble: React.FC<{ message: Message; isLast: boolean; searchTerm?: 
     >
       {!isUser && (
         <View style={styles.aiHeader}>
-          <Text 
-            size="xs" 
+          <Typography 
+            variant="caption" 
             weight="semibold"
             style={{ color: aiColor?.border || theme.colors.text.secondary }}
           >
             {message.sender}
-          </Text>
+          </Typography>
         </View>
       )}
       <View
@@ -123,23 +123,24 @@ const MessageBubble: React.FC<{ message: Message; isLast: boolean; searchTerm?: 
           },
         ]}
       >
-        <Text style={[
-          { fontSize: 16, lineHeight: 22 },
-          isUser && { color: theme.colors.text.inverse }
-        ]}>
+        <Typography style={{
+          fontSize: 16, 
+          lineHeight: 22,
+          ...(isUser && { color: theme.colors.text.inverse })
+        }}>
           {searchTerm ? <HighlightedText text={message.content} searchTerm={searchTerm} /> : highlightMentions(message.content)}
-        </Text>
+        </Typography>
       </View>
-      <Text 
-        size="xs" 
+      <Typography 
+        variant="caption" 
         color="secondary"
-        style={[
-          styles.timestamp,
-          isUser && styles.userTimestamp
-        ]}
+        style={{
+          ...styles.timestamp,
+          ...(isUser && styles.userTimestamp)
+        }}
       >
         {formatTime(message.timestamp)}
-      </Text>
+      </Typography>
     </Animated.View>
   );
 };
@@ -160,9 +161,9 @@ const TypingIndicator: React.FC<{ aiName: string }> = ({ aiName }) => {
           borderColor: theme.colors.border,
         }
       ]}>
-        <Text size="xs" color="secondary">
+        <Typography variant="caption" color="secondary">
           {aiName} is thinking
-        </Text>
+        </Typography>
         <View style={styles.typingDots}>
           {[0, 1, 2].map((i) => (
             <Animated.View
@@ -192,9 +193,9 @@ const HighlightedText: React.FC<{ text: string; searchTerm: string }> = ({ text,
       {parts.map((part, index) => {
         if (part.toLowerCase() === searchTerm.toLowerCase()) {
           return (
-            <Text key={index} style={{ backgroundColor: theme.colors.warning[50], fontWeight: '600' }}>
+            <Typography key={index} style={{ backgroundColor: theme.colors.warning[50], fontWeight: '600' }}>
               {part}
-            </Text>
+            </Typography>
           );
         }
         return part;
@@ -481,18 +482,18 @@ Please respond to ${lastSpeaker}'s comment above. You can agree, disagree, add n
             variant="ghost"
             style={{ borderWidth: 0, minWidth: 44 }}
           >
-            <Text size="2xl" color="primary">←</Text>
+            <Typography variant="title" color="primary">←</Typography>
           </Button>
           <View style={styles.headerCenter}>
-            <Text size="lg" weight="semibold">
+            <Typography variant="subtitle" weight="semibold">
               AI Conversation
-            </Text>
+            </Typography>
             <View style={styles.participantsRow}>
               {selectedAIs.map((ai, index) => (
-                <Text key={ai.id} size="xs" color="secondary">
+                <Typography key={ai.id} variant="caption" color="secondary">
                   {ai.name}
                   {index < selectedAIs.length - 1 && ' • '}
-                </Text>
+                </Typography>
               ))}
             </View>
           </View>
@@ -516,13 +517,13 @@ Please respond to ${lastSpeaker}'s comment above. You can agree, disagree, add n
           style={{ backgroundColor: theme.colors.background }}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateEmoji}>💭</Text>
-              <Text size="xl" align="center" style={{ marginBottom: 8 }}>
+              <Typography style={styles.emptyStateEmoji}>💭</Typography>
+              <Typography variant="title" align="center" style={{ marginBottom: 8 }}>
                 Start the conversation
-              </Text>
-              <Text size="base" color="secondary" align="center">
+              </Typography>
+              <Typography variant="body" color="secondary" align="center">
                 Type a message or @ mention specific AIs
-              </Text>
+              </Typography>
             </View>
           }
         />
@@ -555,9 +556,9 @@ Please respond to ${lastSpeaker}'s comment above. You can agree, disagree, add n
                 style={{ ...styles.mentionItem, borderWidth: 0 }}
                 onPress={() => insertMention(ai.name)}
               >
-                <Text color="primary" weight="medium">
+                <Typography color="primary" weight="medium">
                   @{ai.name.toLowerCase()}
-                </Text>
+                </Typography>
               </Button>
             ))}
           </Animated.View>

@@ -8,7 +8,9 @@ import {
   TextInput,
 } from 'react-native';
 import Animated, { FadeIn, SlideInRight } from 'react-native-reanimated';
-import { ThemedView, ThemedText, GradientButton, ThemedButton } from '../atoms';
+import { ThemedView } from '../atoms';
+import { Button } from '../molecules';
+import { GradientButton, Typography } from '../molecules';
 import { SectionHeader } from '../atoms/SectionHeader';
 import { QuickStartTopic } from './QuickStartsSection';
 import { useTheme } from '../../theme';
@@ -236,10 +238,10 @@ export const PromptWizard: React.FC<PromptWizardProps> = ({
                 borderBottomColor: theme.colors.border,
               }}
             >
-              <ThemedText variant="title" weight="bold">
+              <Typography variant="title" weight="bold">
                 {topic.emoji} {topic.title}
-              </ThemedText>
-              <ThemedButton
+              </Typography>
+              <Button
                 title="✕"
                 onPress={onClose}
                 variant="ghost"
@@ -294,7 +296,7 @@ export const PromptWizard: React.FC<PromptWizardProps> = ({
                   />
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                     {TONES.map(tone => (
-                      <ThemedButton
+                      <Button
                         key={tone.id}
                         title={`${tone.emoji} ${tone.label}`}
                         onPress={() => setSelectedTone(tone.id)}
@@ -321,7 +323,7 @@ export const PromptWizard: React.FC<PromptWizardProps> = ({
                     <View style={{ marginBottom: theme.spacing.md }}>
                       <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                         {CONTEXTS_BY_TOPIC[topic.id].map(ctx => (
-                          <ThemedButton
+                          <Button
                             key={ctx.id}
                             title={`${ctx.emoji} ${ctx.label}`}
                             onPress={() => setSelectedContext(ctx.id)}
@@ -371,7 +373,7 @@ export const PromptWizard: React.FC<PromptWizardProps> = ({
               }}
             >
               {currentStep !== 'refine' && (
-                <ThemedButton
+                <Button
                   title="Back"
                   onPress={handleBack}
                   variant="secondary"

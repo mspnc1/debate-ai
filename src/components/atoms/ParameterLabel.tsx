@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
-import { ThemedText } from '../atoms';
+import { Typography } from '../molecules';
 import { useTheme } from '../../theme';
 
 interface ParameterLabelProps {
@@ -29,17 +29,17 @@ export const ParameterLabel: React.FC<ParameterLabelProps> = ({
         alignItems: 'center',
         marginBottom: theme.spacing.xs,
       }}>
-        <ThemedText variant="subtitle" weight="semibold">
+        <Typography variant="subtitle" weight="semibold">
           {formatName(name)}
-        </ThemedText>
-        <ThemedText variant="body" color="brand" weight="bold">
+        </Typography>
+        <Typography variant="body" color="brand" weight="bold">
           {value}
-        </ThemedText>
+        </Typography>
       </View>
       {description && (
-        <ThemedText variant="caption" color="secondary">
+        <Typography variant="caption" color="secondary">
           {description}
-        </ThemedText>
+        </Typography>
       )}
     </View>
   );
