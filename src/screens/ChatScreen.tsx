@@ -6,15 +6,15 @@ import {
   Platform,
   Keyboard,
   TouchableOpacity,
-  Text,
+  Text as RNText,
 } from 'react-native';
 import { 
-  ThemedView, 
-  ThemedText, 
-  ThemedButton, 
-  ThemedTextInput, 
-  ThemedSafeAreaView 
-} from '../components/core';
+  View, 
+  Text, 
+  Button, 
+  TextInput, 
+  SafeAreaView 
+} from '../components/atoms';
 import { useTheme } from '../theme';
 import Animated, {
   FadeInDown,
@@ -99,17 +99,17 @@ const MessageBubble: React.FC<{ message: Message; isLast: boolean; searchTerm?: 
       ]}
     >
       {!isUser && (
-        <ThemedView style={styles.aiHeader}>
-          <ThemedText 
-            variant="caption" 
+        <View style={styles.aiHeader}>
+          <Text 
+            size="xs" 
             weight="semibold"
             style={{ color: aiColor?.border || theme.colors.text.secondary }}
           >
             {message.sender}
-          </ThemedText>
-        </ThemedView>
+          </Text>
+        </View>
       )}
-      <ThemedView
+      <View
         style={[
           styles.messageBubble,
           isUser ? {
@@ -123,15 +123,15 @@ const MessageBubble: React.FC<{ message: Message; isLast: boolean; searchTerm?: 
           },
         ]}
       >
-        <ThemedText style={[
+        <Text style={[
           { fontSize: 16, lineHeight: 22 },
           isUser && { color: theme.colors.text.inverse }
         ]}>
           {searchTerm ? <HighlightedText text={message.content} searchTerm={searchTerm} /> : highlightMentions(message.content)}
-        </ThemedText>
-      </ThemedView>
-      <ThemedText 
-        variant="caption" 
+        </Text>
+      </View>
+      <Text 
+        size="xs" 
         color="secondary"
         style={[
           styles.timestamp,
@@ -139,7 +139,7 @@ const MessageBubble: React.FC<{ message: Message; isLast: boolean; searchTerm?: 
         ]}
       >
         {formatTime(message.timestamp)}
-      </ThemedText>
+      </Text>
     </Animated.View>
   );
 };
@@ -153,17 +153,17 @@ const TypingIndicator: React.FC<{ aiName: string }> = ({ aiName }) => {
       entering={FadeIn}
       style={styles.typingContainer}
     >
-      <ThemedView style={[
+      <View style={[
         styles.typingBubble,
         {
           backgroundColor: theme.colors.card,
           borderColor: theme.colors.border,
         }
       ]}>
-        <ThemedText variant="caption" color="secondary">
+        <Text size="xs" color="secondary">
           {aiName} is thinking
-        </ThemedText>
-        <ThemedView style={styles.typingDots}>
+        </Text>
+        <View style={styles.typingDots}>
           {[0, 1, 2].map((i) => (
             <Animated.View
               key={i}
@@ -173,8 +173,8 @@ const TypingIndicator: React.FC<{ aiName: string }> = ({ aiName }) => {
               ]}
             />
           ))}
-        </ThemedView>
-      </ThemedView>
+        </View>
+      </View>
     </Animated.View>
   );
 };
@@ -192,9 +192,9 @@ const HighlightedText: React.FC<{ text: string; searchTerm: string }> = ({ text,
       {parts.map((part, index) => {
         if (part.toLowerCase() === searchTerm.toLowerCase()) {
           return (
-            <ThemedText key={index} style={{ backgroundColor: theme.colors.warning[50], fontWeight: '600' }}>
+            <Text key={index} style={{ backgroundColor: theme.colors.warning[50], fontWeight: '600' }}>
               {part}
-            </ThemedText>
+            </Text>
           );
         }
         return part;
@@ -462,42 +462,42 @@ Please respond to ${lastSpeaker}'s comment above. You can agree, disagree, add n
   }
 
   return (
-    <ThemedSafeAreaView>
+    <SafeAreaView>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
         {/* Header */}
-        <ThemedView style={[
+        <View style={[
           styles.header,
           { 
             backgroundColor: theme.colors.surface,
             borderBottomColor: theme.colors.border,
           }
         ]}>
-          <ThemedButton 
+          <Button 
             onPress={() => navigation.goBack()}
             variant="ghost"
             style={{ borderWidth: 0, minWidth: 44 }}
           >
-            <ThemedText size="2xl" color="brand">←</ThemedText>
-          </ThemedButton>
-          <ThemedView style={styles.headerCenter}>
-            <ThemedText variant="subtitle" weight="semibold">
+            <Text size="2xl" color="primary">←</Text>
+          </Button>
+          <View style={styles.headerCenter}>
+            <Text size="lg" weight="semibold">
               AI Conversation
-            </ThemedText>
-            <ThemedView style={styles.participantsRow}>
+            </Text>
+            <View style={styles.participantsRow}>
               {selectedAIs.map((ai, index) => (
-                <ThemedText key={ai.id} variant="caption" color="secondary">
+                <Text key={ai.id} size="xs" color="secondary">
                   {ai.name}
                   {index < selectedAIs.length - 1 && ' • '}
-                </ThemedText>
+                </Text>
               ))}
-            </ThemedView>
-          </ThemedView>
-          <ThemedView style={styles.headerRight} />
-        </ThemedView>
+            </View>
+          </View>
+          <View style={styles.headerRight} />
+        </View>
 
         {/* Messages */}
         <FlatList
@@ -515,25 +515,25 @@ Please respond to ${lastSpeaker}'s comment above. You can agree, disagree, add n
           onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
           style={{ backgroundColor: theme.colors.background }}
           ListEmptyComponent={
-            <ThemedView style={styles.emptyState}>
-              <ThemedText style={styles.emptyStateEmoji}>💭</ThemedText>
-              <ThemedText variant="title" align="center" style={{ marginBottom: 8 }}>
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateEmoji}>💭</Text>
+              <Text size="xl" align="center" style={{ marginBottom: 8 }}>
                 Start the conversation
-              </ThemedText>
-              <ThemedText variant="body" color="secondary" align="center">
+              </Text>
+              <Text size="base" color="secondary" align="center">
                 Type a message or @ mention specific AIs
-              </ThemedText>
-            </ThemedView>
+              </Text>
+            </View>
           }
         />
 
         {/* Typing indicators */}
         {typingAIs.length > 0 && (
-          <ThemedView style={styles.typingIndicators}>
+          <View style={styles.typingIndicators}>
             {typingAIs.map((ai) => (
               <TypingIndicator key={ai} aiName={ai} />
             ))}
-          </ThemedView>
+          </View>
         )}
 
         {/* Mention suggestions */}
@@ -549,39 +549,39 @@ Please respond to ${lastSpeaker}'s comment above. You can agree, disagree, add n
             ]}
           >
             {selectedAIs.map((ai) => (
-              <ThemedButton
+              <Button
                 key={ai.id}
                 variant="ghost"
                 style={{ ...styles.mentionItem, borderWidth: 0 }}
                 onPress={() => insertMention(ai.name)}
               >
-                <ThemedText color="brand" weight="medium">
+                <Text color="primary" weight="medium">
                   @{ai.name.toLowerCase()}
-                </ThemedText>
-              </ThemedButton>
+                </Text>
+              </Button>
             ))}
           </Animated.View>
         )}
 
         {/* Input bar */}
-        <ThemedView style={[
+        <View style={[
           styles.inputContainer,
           {
             backgroundColor: theme.colors.surface,
             borderTopColor: theme.colors.border,
           }
         ]}>
-          <ThemedTextInput
+          <TextInput
             style={{
               ...styles.input,
               backgroundColor: theme.colors.surface,
+              borderRadius: theme.borderRadius.xl,
             }}
             value={inputText}
             onChangeText={handleInputChange}
             placeholder="Type a message..."
             multiline
             variant="filled"
-            borderRadius="xl"
           />
           <TouchableOpacity
             style={{
@@ -592,11 +592,11 @@ Please respond to ${lastSpeaker}'s comment above. You can agree, disagree, add n
             onPress={sendMessage}
             disabled={!inputText.trim()}
           >
-            <Text style={{ color: '#FFFFFF', fontSize: 20, fontWeight: 'bold' }}>↑</Text>
+            <RNText style={{ color: '#FFFFFF', fontSize: 20, fontWeight: 'bold' }}>↑</RNText>
           </TouchableOpacity>
-        </ThemedView>
+        </View>
       </KeyboardAvoidingView>
-    </ThemedSafeAreaView>
+    </SafeAreaView>
   );
 };
 
