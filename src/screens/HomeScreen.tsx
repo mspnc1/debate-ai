@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, startSession, setAIPersonality } from '../store';
 
-import { GradientHeader } from '../components/molecules';
+import { GradientHeader } from '../components/organisms';
 import { DynamicAISelector } from '../components/organisms/DynamicAISelector';
 import { QuickStartsSection, QuickStartTopic } from '../components/organisms/QuickStartsSection';
 import { PromptWizard } from '../components/organisms/PromptWizard';

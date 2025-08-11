@@ -10,7 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { View } from '../atoms';
-import { Typography } from './Typography';
+import { Typography } from '../molecules';
 import { useTheme, Theme } from '../../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 

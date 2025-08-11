@@ -1,6 +1,7 @@
 import React from 'react';
-import { TouchableOpacity, View, ViewStyle } from 'react-native';
+import { TouchableOpacity, ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { Box } from '../atoms';
 import { useTheme } from '../../theme';
 
 interface GlassCardProps {
@@ -40,7 +41,7 @@ export const GlassCard: React.FC<GlassCardProps> = ({
   };
 
   const content = (
-    <View style={[cardStyle, style]}>
+    <Box style={[cardStyle, style]}>
       <BlurView
         intensity={isDark ? 20 : 80}
         tint={isDark ? 'dark' : 'light'}
@@ -48,7 +49,7 @@ export const GlassCard: React.FC<GlassCardProps> = ({
       >
         {children}
       </BlurView>
-    </View>
+    </Box>
   );
 
   if (onPress) {

@@ -6,9 +6,8 @@ import { RootState } from '../store';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { ThemedView } from '../components/atoms';
-import { Button } from '../components/molecules';
-import { GradientButton } from '../components/molecules';
-import { GradientHeader } from '../components/molecules';
+import { Button, GradientButton } from '../components/molecules';
+import { GradientHeader } from '../components/organisms';
 import { DynamicAISelector } from '../components/organisms/DynamicAISelector';
 import { SectionHeader } from '../components/atoms/SectionHeader';
 
