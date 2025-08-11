@@ -30,7 +30,7 @@ import { DEBATE_TOPICS } from '../constants/debateTopics';
 import { UNIVERSAL_PERSONALITIES, getDebatePrompt } from '../config/personalities';
 import { AI_BRAND_COLORS } from '../constants/aiColors';
 import { useTheme } from '../theme';
-import { ThemedView, ThemedText, GradientButton, ThemedButton } from '../components/core';
+import { ThemedView, ThemedText, GradientButton, ThemedButton } from '../components/atoms';
 
 interface DebateScreenProps {
   navigation: {

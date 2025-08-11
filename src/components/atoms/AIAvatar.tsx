@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ViewStyle } from 'react-native';
+import { View, Text, ViewStyle, Image } from 'react-native';
 import Animated, { 
   useAnimatedStyle, 
   withSpring,
@@ -9,7 +9,8 @@ import Animated, {
 import { useTheme } from '../../theme';
 
 interface AIAvatarProps {
-  emoji: string;
+  icon?: string | number; // Letter(s) or image source (require returns number)
+  iconType?: 'letter' | 'image';
   size?: 'small' | 'medium' | 'large';
   color?: string;
   isSelected?: boolean;
@@ -17,7 +18,8 @@ interface AIAvatarProps {
 }
 
 export const AIAvatar: React.FC<AIAvatarProps> = ({
-  emoji,
+  icon,
+  iconType = 'letter',
   size = 'medium',
   color,
   isSelected = false,
@@ -27,9 +29,9 @@ export const AIAvatar: React.FC<AIAvatarProps> = ({
   const scale = useSharedValue(1);
   
   const sizeMap = {
-    small: { container: 36, emoji: 18 },
-    medium: { container: 48, emoji: 24 },
-    large: { container: 64, emoji: 32 },
+    small: { container: 36, text: 14, image: 36 },
+    medium: { container: 56, text: 20, image: 56 },
+    large: { container: 80, text: 28, image: 80 },
   };
   
   const dimensions = sizeMap[size];
@@ -47,26 +49,83 @@ export const AIAvatar: React.FC<AIAvatarProps> = ({
     transform: [{ scale: scale.value }],
   }));
   
+  const renderIcon = () => {
+    if (iconType === 'letter' && typeof icon === 'string') {
+      return (
+        <Text style={{ 
+          fontSize: dimensions.text,
+          fontWeight: 'bold',
+          color: color || theme.colors.primary[500],
+          textAlign: 'center',
+        }}>
+          {icon}
+        </Text>
+      );
+    }
+    
+    if (iconType === 'image' && icon) {
+      return (
+        <Image
+          source={typeof icon === 'number' ? icon : { uri: icon }}
+          style={{ 
+            width: dimensions.image, 
+            height: dimensions.image,
+            resizeMode: 'contain'
+          }}
+        />
+      );
+    }
+    
+    // Fallback to first letter of icon if it's a string
+    if (typeof icon === 'string') {
+      return (
+        <Text style={{ 
+          fontSize: dimensions.text,
+          fontWeight: 'bold',
+          color: color || theme.colors.primary[500],
+          textAlign: 'center',
+        }}>
+          {icon.charAt(0)}
+        </Text>
+      );
+    }
+    
+    return null;
+  };
+  
   return (
     <Animated.View style={[animatedStyle, style]}>
-      <View
-        style={{
-          width: dimensions.container,
-          height: dimensions.container,
-          borderRadius: dimensions.container / 2,
-          backgroundColor: color 
-            ? `${color}20` 
-            : theme.colors.surface,
-          justifyContent: 'center',
-          alignItems: 'center',
-          borderWidth: 2,
-          borderColor: color || theme.colors.primary[500],
-        }}
-      >
-        <Text style={{ fontSize: dimensions.emoji }}>
-          {emoji}
-        </Text>
-      </View>
+      {iconType === 'image' ? (
+        // For logos: no circular container, just the image
+        <View
+          style={{
+            width: dimensions.container,
+            height: dimensions.container,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          {renderIcon()}
+        </View>
+      ) : (
+        // For letters: keep the circular design
+        <View
+          style={{
+            width: dimensions.container,
+            height: dimensions.container,
+            borderRadius: dimensions.container / 2,
+            backgroundColor: color 
+              ? `${color}20` 
+              : theme.colors.surface,
+            justifyContent: 'center',
+            alignItems: 'center',
+            borderWidth: 2,
+            borderColor: color || theme.colors.primary[500],
+          }}
+        >
+          {renderIcon()}
+        </View>
+      )}
     </Animated.View>
   );
 };

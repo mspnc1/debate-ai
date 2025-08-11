@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
-import { ThemedText } from '../core';
+import { ThemedText } from '../atoms';
 import { useTheme } from '../../theme';
 
 interface PricingDisplayProps {

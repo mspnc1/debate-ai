@@ -3,7 +3,7 @@ import { ScrollView, View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { GradientButton } from '../components/core';
+import { GradientButton } from '../components/atoms';
 import { View as ThemedView, Text } from '../components/atoms';
 import { useTheme } from '../theme';
 import { AI_PROVIDERS } from '../config/aiProviders';

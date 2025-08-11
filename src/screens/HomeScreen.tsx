@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, startSession, setAIPersonality } from '../store';
 
-import { GradientHeader } from '../components/core';
+import { GradientHeader } from '../components/molecules';
 import { DynamicAISelector } from '../components/organisms/DynamicAISelector';
 import { QuickStartsSection, QuickStartTopic } from '../components/organisms/QuickStartsSection';
 import { PromptWizard } from '../components/organisms/PromptWizard';
@@ -12,6 +12,7 @@ import { PromptWizard } from '../components/organisms/PromptWizard';
 import { useTheme } from '../theme';
 import { AIConfig } from '../types';
 import { AI_PROVIDERS } from '../config/aiProviders';
+import { getAIProviderIcon } from '../utils/aiProviderAssets';
 
 interface HomeScreenProps {
   navigation: {
@@ -48,14 +49,19 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const configuredAIs = useMemo(() => {
     return AI_PROVIDERS
       .filter(provider => provider.enabled && apiKeys[provider.id as keyof typeof apiKeys])
-      .map(provider => ({
-        id: provider.id,
-        provider: provider.id,
-        name: provider.name,
-        personality: 'balanced',
-        avatar: provider.icon,
-        color: provider.color,
-      } as AIConfig));
+      .map(provider => {
+        const iconData = getAIProviderIcon(provider.id);
+        return {
+          id: provider.id,
+          provider: provider.id,
+          name: provider.name,
+          personality: 'balanced',
+          avatar: iconData.icon, // Keep for backwards compatibility
+          icon: iconData.icon,
+          iconType: iconData.iconType,
+          color: provider.color,
+        } as AIConfig;
+      });
   }, [apiKeys]);
   
   const maxAIs = isPremium ? configuredAIs.length : Math.min(2, configuredAIs.length);
@@ -118,7 +124,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       <GradientHeader
         title={getGreeting()}
         subtitle={`Welcome back${user?.email ? `, ${user.email.split('@')[0]}` : ''}!`}
-        gradient={theme.colors.gradients.ocean}
       />
       
       <ScrollView 

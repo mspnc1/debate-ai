@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
-import { ThemedView } from '../core';
+import { ThemedView } from '../atoms';
 import { SectionHeader } from '../atoms/SectionHeader';
 import { QuickStartTile } from '../molecules/QuickStartTile';
 import { useTheme } from '../../theme';

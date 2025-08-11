@@ -21,7 +21,10 @@ interface ThemeProviderProps {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const systemColorScheme = useRNColorScheme();
-  const [themeMode, setThemeModeState] = useState<ThemeMode>('auto');
+  // Initialize with system preference to avoid flash
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(
+    systemColorScheme === 'dark' ? 'dark' : 'auto'
+  );
   
   // Determine active theme
   const isDark = themeMode === 'auto' 
@@ -84,4 +87,5 @@ export const useTheme = (): ThemeContextValue => {
 
 // Export theme objects for direct usage if needed
 export { lightTheme, darkTheme };
+export { getFontFamily } from './typography';
 export type { Theme, ThemeMode };

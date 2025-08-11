@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TextInput } from 'react-native';
-import { ThemedText } from '../core';
+import { ThemedText } from '../atoms';
 import { ParameterLabel } from '../atoms/ParameterLabel';
 import { StepperButton } from '../atoms/StepperButton';
 import { useTheme } from '../../theme';

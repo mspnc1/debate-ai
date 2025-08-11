@@ -2,9 +2,10 @@ export interface AIProvider {
   id: string;
   name: string;
   company: string;
-  icon: string;
   color: string;
   gradient: [string, string];
+  icon?: string | number;
+  iconType?: 'letter' | 'image';
   apiKeyPrefix: string;
   apiKeyPlaceholder: string;
   docsUrl: string;
@@ -20,9 +21,8 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: 'claude',
     name: 'Claude',
     company: 'Anthropic',
-    icon: '🎓',
-    color: '#FF6B6B',
-    gradient: ['#FF6B6B', '#FF8E53'],
+    color: '#CC785C',
+    gradient: ['#CC785C', '#E09572'],
     apiKeyPrefix: 'sk-ant-',
     apiKeyPlaceholder: 'sk-ant-api03-...',
     docsUrl: 'https://docs.anthropic.com',
@@ -35,7 +35,6 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: 'openai',
     name: 'ChatGPT',
     company: 'OpenAI',
-    icon: '💡',
     color: '#00D9FF',
     gradient: ['#00D9FF', '#00A8CC'],
     apiKeyPrefix: 'sk-',
@@ -50,9 +49,8 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: 'google',
     name: 'Gemini',
     company: 'Google',
-    icon: '✨',
-    color: '#7C3AED',
-    gradient: ['#7C3AED', '#A855F7'],
+    color: '#4285F4',
+    gradient: ['#4285F4', '#34A853'],
     apiKeyPrefix: 'AI',
     apiKeyPlaceholder: 'AIza...',
     docsUrl: 'https://ai.google.dev/docs',
@@ -65,9 +63,8 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: 'nomi',
     name: 'Nomi',
     company: 'Nomi.ai',
-    icon: '🤖',
-    color: '#E91E63',
-    gradient: ['#E91E63', '#F06292'],
+    color: '#8B5CF6',
+    gradient: ['#8B5CF6', '#A78BFA'],
     apiKeyPrefix: 'nomi_',
     apiKeyPlaceholder: 'nomi_...',
     docsUrl: 'https://nomi.ai/developers',
@@ -80,7 +77,6 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: 'replika',
     name: 'Replika',
     company: 'Luka Inc',
-    icon: '💭',
     color: '#6B5B95',
     gradient: ['#6B5B95', '#8E7AA3'],
     apiKeyPrefix: 'rep_',
@@ -95,7 +91,6 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: 'character',
     name: 'Character.AI',
     company: 'Character Technologies',
-    icon: '🎭',
     color: '#FF6B35',
     gradient: ['#FF6B35', '#FF9558'],
     apiKeyPrefix: 'char_',
@@ -110,7 +105,6 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: 'cohere',
     name: 'Cohere',
     company: 'Cohere',
-    icon: '🔮',
     color: '#39D0B3',
     gradient: ['#39D0B3', '#29A08C'],
     apiKeyPrefix: 'co_',
@@ -125,7 +119,6 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: 'mistral',
     name: 'Mistral',
     company: 'Mistral AI',
-    icon: '🌪️',
     color: '#FFA500',
     gradient: ['#FFA500', '#FF8C00'],
     apiKeyPrefix: 'msk_',
@@ -140,7 +133,6 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: 'perplexity',
     name: 'Perplexity',
     company: 'Perplexity AI',
-    icon: '🔍',
     color: '#20B2AA',
     gradient: ['#20B2AA', '#17968E'],
     apiKeyPrefix: 'pplx_',

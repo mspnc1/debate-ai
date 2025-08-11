@@ -11,7 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../theme';
-import { ThemedText, GradientButton } from './core';
+import { ThemedText, GradientButton } from './atoms';
 import { AIProvider } from '../config/aiProviders';
 import { AI_MODELS } from '../config/modelConfigs';
 import { MODEL_PRICING, getFreeMessageInfo } from '../config/modelPricing';

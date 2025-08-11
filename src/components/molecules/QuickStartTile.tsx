@@ -6,7 +6,7 @@ import Animated, {
   withSpring,
   useSharedValue,
 } from 'react-native-reanimated';
-import { ThemedView, ThemedText } from '../core';
+import { ThemedView, ThemedText } from '../atoms';
 import { useTheme } from '../../theme';
 import * as Haptics from 'expo-haptics';
 

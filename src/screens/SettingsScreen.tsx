@@ -12,7 +12,7 @@ import { RootState } from '../store';
 import { logout } from '../store';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../theme';
-import { ThemedView, ThemedText } from '../components/core';
+import { ThemedView, ThemedText } from '../components/atoms';
 
 interface SettingsScreenProps {
   navigation: {

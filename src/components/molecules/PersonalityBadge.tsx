@@ -6,7 +6,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useTheme } from '../../theme';
-import { ThemedText } from '../core';
+import { ThemedText } from '../atoms';
 import * as Haptics from 'expo-haptics';
 
 interface PersonalityBadgeProps {

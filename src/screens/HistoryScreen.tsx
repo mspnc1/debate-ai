@@ -10,7 +10,7 @@ import {
   ThemedButton, 
   ThemedTextInput, 
   ThemedSafeAreaView 
-} from '../components/core';
+} from '../components/atoms';
 import { useTheme } from '../theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSelector, useDispatch } from 'react-redux';
@@ -318,7 +318,6 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
             value={searchQuery}
             onChangeText={setSearchQuery}
             variant="filled"
-            borderRadius="lg"
           />
         </ThemedView>
 

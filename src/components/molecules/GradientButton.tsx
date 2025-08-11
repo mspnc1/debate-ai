@@ -6,7 +6,7 @@ import { useTheme } from '../../theme';
 
 interface GradientButtonProps extends Omit<TouchableOpacityProps, 'style'> {
   title: string;
-  gradient?: string[];
+  gradient?: readonly string[];
   size?: 'small' | 'medium' | 'large';
   fullWidth?: boolean;
   style?: ViewStyle;

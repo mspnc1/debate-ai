@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScrollView, TouchableOpacity, View } from 'react-native';
-import { ThemedText } from '../core';
+import { ThemedText } from '../atoms';
 import { ModelBadge } from '../atoms/ModelBadge';
 import { ActualPricing } from '../atoms/ActualPricing';
 import { useTheme } from '../../theme';

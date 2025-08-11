@@ -4,6 +4,15 @@ export { View } from './View';
 export { TextInput } from './TextInput';
 export { SafeAreaView } from './SafeAreaView';
 
+// Core replacement components
+export { ThemedText } from './ThemedText';
+export { ThemedView } from './ThemedView';
+export { GradientButton } from './GradientButton';
+export { ThemedButton } from './ThemedButton';
+export { GlassCard } from './GlassCard';
+export { ThemedTextInput } from './ThemedTextInput';
+export { ThemedSafeAreaView } from './ThemedSafeAreaView';
+
 // Re-export existing atomic components
 export { AIAvatar } from './AIAvatar';
 export { ActualPricing } from './ActualPricing';

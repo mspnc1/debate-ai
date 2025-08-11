@@ -25,6 +25,9 @@ export interface Theme {
       disabled: string;
       inverse: string;
     };
+    secondary: string;
+    disabled: string;
+    brand: string;
     border: string;
     shadow: string;
     overlay: string;

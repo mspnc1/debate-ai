@@ -30,6 +30,8 @@ export interface AIConfig {
   model?: string;
   personality?: string;
   avatar?: string;
+  icon?: string | number; // Logo image or letter
+  iconType?: 'image' | 'letter';
   color?: string;
 }
 

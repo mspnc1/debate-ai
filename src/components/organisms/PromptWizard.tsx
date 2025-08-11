@@ -8,7 +8,7 @@ import {
   TextInput,
 } from 'react-native';
 import Animated, { FadeIn, SlideInRight } from 'react-native-reanimated';
-import { ThemedView, ThemedText, GradientButton, ThemedButton } from '../core';
+import { ThemedView, ThemedText, GradientButton, ThemedButton } from '../atoms';
 import { SectionHeader } from '../atoms/SectionHeader';
 import { QuickStartTopic } from './QuickStartsSection';
 import { useTheme } from '../../theme';

@@ -2,8 +2,7 @@ import React from 'react';
 import { View, ViewStyle } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ThemedText, GradientButton } from '../core';
-import { AIAvatar } from '../atoms/AIAvatar';
+import { ThemedText, GradientButton, AIAvatar } from '../atoms';
 import { AIConfig } from '../../types';
 import { useTheme } from '../../theme';
 import * as Haptics from 'expo-haptics';
@@ -85,7 +84,8 @@ export const DebateModeCard: React.FC<DebateModeCardProps> = ({
                 }}
               >
                 <AIAvatar
-                  emoji={ai.avatar || '🤖'}
+                  icon={ai.icon || ai.avatar || '🤖'}
+                  iconType={ai.iconType || 'letter'}
                   size="medium"
                   color={ai.color}
                   isSelected={false}
@@ -97,7 +97,7 @@ export const DebateModeCard: React.FC<DebateModeCardProps> = ({
         
         {/* Status Message */}
         <ThemedText 
-          variant="body" 
+          variant="default" 
           color={canDebate ? "primary" : "secondary"}
           align="center"
           style={{ marginBottom: theme.spacing.md }}
@@ -110,8 +110,7 @@ export const DebateModeCard: React.FC<DebateModeCardProps> = ({
           <GradientButton
             title="Choose Debate Topic"
             onPress={handlePress}
-            gradient={theme.colors.gradients.sunset}
-            fullWidth
+            variant="primary"
           />
         )}
       </LinearGradient>

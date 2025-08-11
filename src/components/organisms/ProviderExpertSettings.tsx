@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Switch } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ThemedText, ThemedButton } from '../core';
+import { ThemedText, ThemedButton } from '../atoms';
 import { ModelSelector } from '../molecules/ModelSelector';
 import { ParameterSlider } from '../molecules/ParameterSlider';
 import { ModelBadge } from '../atoms/ModelBadge';

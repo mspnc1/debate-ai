@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../theme';
-import { ThemedText, ThemedButton } from './core';
+import { ThemedText, ThemedButton } from './atoms';
 import { 
   AI_MODELS, 
   ModelParameters,

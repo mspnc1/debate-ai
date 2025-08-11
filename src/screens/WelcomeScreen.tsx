@@ -5,7 +5,7 @@ import {
   View,
   Dimensions,
 } from 'react-native';
-import { GradientButton } from '../components/core';
+import { GradientButton } from '../components/atoms';
 import { Text, SafeAreaView } from '../components/atoms';
 import { useTheme } from '../theme';
 import Animated, {
@@ -114,42 +114,24 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
       gradient: theme.colors.gradients.ocean,
       title: 'Mix AI Giants with AI Companions',
       description: 'Claude & ChatGPT meet Nomi & Character.AI. Technical brilliance meets personality.',
-      highlight: 'NEW',
     },
     {
       emoji: '⚔️',
       gradient: theme.colors.gradients.sunset,
       title: 'AI Debate Arena',
       description: 'Watch AIs battle it out on any topic. Vote for winners. Track championship stats.',
-      highlight: 'HOT',
     },
     {
       emoji: '🎭',
       gradient: theme.colors.gradients.forest,
       title: '12 Dynamic Personalities',
       description: 'From Comedian to Philosopher. Each AI adapts to your chosen personality.',
-      highlight: null,
-    },
-    {
-      emoji: '🏆',
-      gradient: theme.colors.gradients.premium,
-      title: 'Premium Power',
-      description: 'Unlimited AIs in chat. Expert mode controls. All personalities unlocked.',
-      highlight: 'PRO',
     },
     {
       emoji: '📊',
       gradient: theme.colors.gradients.sunrise,
       title: 'Performance Analytics',
       description: 'Track which AI performs best. See win rates, topic mastery, and more.',
-      highlight: null,
-    },
-    {
-      emoji: '🎨',
-      gradient: theme.colors.gradients.primary,
-      title: 'Beautiful Dark Mode',
-      description: 'Stunning themes that respect your eyes and your battery.',
-      highlight: null,
     },
   ];
 
@@ -203,38 +185,18 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
             <Animated.View
               key={feature.title}
               entering={FadeInDown.delay(200 + index * 100).springify()}
-              style={[
-                styles.featureCard,
-                { 
-                  backgroundColor: theme.colors.card,
-                  borderColor: theme.colors.border,
-                  shadowColor: theme.colors.shadow,
-                  width: (width - 48 - 12) / 2, // Two columns with gap
-                }
-              ]}
+              style={{ width: (width - 48 - 12) / 2 }} // Only width in animated view
             >
-              {feature.highlight && (
-                <View style={[
-                  styles.highlightBadge,
+              <View
+                style={[
+                  styles.featureCard,
                   { 
-                    backgroundColor: feature.highlight === 'HOT' 
-                      ? theme.colors.error[500] 
-                      : feature.highlight === 'NEW' 
-                      ? theme.colors.success[500]
-                      : theme.colors.primary[500]
+                    backgroundColor: theme.colors.card,
+                    borderColor: theme.colors.border,
+                    shadowColor: theme.colors.shadow,
                   }
-                ]}>
-                  <Text 
-                    size="xs" 
-                    weight="bold"
-                    color="inverse"
-                    style={{ fontSize: 10 }}
-                  >
-                    {feature.highlight}
-                  </Text>
-                </View>
-              )}
-              
+                ]}
+              >
               <LinearGradient
                 colors={feature.gradient}
                 style={styles.featureIconGradient}
@@ -253,10 +215,11 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
               </Text>
               <Text 
                 size="xs" 
-                style={{ lineHeight: 16, opacity: 0.8 }}
+                style={{ lineHeight: 16, opacity: 0.8, color: theme.colors.text.primary }}
               >
                 {feature.description}
               </Text>
+              </View>
             </Animated.View>
           ))}
         </View>
@@ -264,14 +227,16 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
         {/* Premium Banner */}
         <Animated.View 
           entering={FadeInUp.delay(800).springify()}
-          style={[
-            styles.premiumBanner,
-            { 
-              backgroundColor: theme.colors.card,
-              borderColor: theme.colors.primary[500],
-            }
-          ]}
         >
+          <View
+            style={[
+              styles.premiumBanner,
+              { 
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.primary[500],
+              }
+            ]}
+          >
           <View style={[StyleSheet.absoluteFillObject, { opacity: 0.1 }]}>
             <LinearGradient
               colors={theme.colors.gradients.premium}
@@ -315,9 +280,22 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
                       Expert mode for precise model configuration
                     </Text>
                   </View>
+                  <View style={styles.bulletRow}>
+                    <Text size="xs" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Text>
+                    <Text size="xs" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
+                      Cross-platform sync (web + mobile) with Firebase encryption
+                    </Text>
+                  </View>
+                  <View style={styles.bulletRow}>
+                    <Text size="xs" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Text>
+                    <Text size="xs" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
+                      Unlimited history retrieval (Free: last 3 conversations only)
+                    </Text>
+                  </View>
                 </View>
               </View>
             </View>
+          </View>
           </View>
         </Animated.View>
 
@@ -399,15 +377,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     position: 'relative',
     overflow: 'hidden',
-  },
-  highlightBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    zIndex: 1,
+    height: 220,
+    justifyContent: 'flex-start',
   },
   featureIconGradient: {
     width: 56,
@@ -426,7 +397,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     borderWidth: 2,
     overflow: 'visible',
-    minHeight: 160,
+    minHeight: 200,
   },
   premiumContent: {
     flexDirection: 'column',

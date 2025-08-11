@@ -1,6 +1,6 @@
 import React from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { ViewStyle } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
 
 interface ThemedSafeAreaViewProps {
@@ -15,18 +15,14 @@ export const ThemedSafeAreaView: React.FC<ThemedSafeAreaViewProps> = ({
   edges = ['top', 'bottom'],
 }) => {
   const { theme } = useTheme();
-  
+
+  const safeAreaStyle: ViewStyle = {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  };
+
   return (
-    <SafeAreaView 
-      style={[
-        {
-          flex: 1,
-          backgroundColor: theme.colors.background,
-        },
-        style,
-      ]}
-      edges={edges}
-    >
+    <SafeAreaView style={[safeAreaStyle, style]} edges={edges}>
       {children}
     </SafeAreaView>
   );

@@ -5,7 +5,8 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { GradientHeader, GradientButton, ThemedButton, ThemedView } from '../components/core';
+import { GradientButton, ThemedButton, ThemedView } from '../components/atoms';
+import { GradientHeader } from '../components/molecules';
 import { DynamicAISelector } from '../components/organisms/DynamicAISelector';
 import { SectionHeader } from '../components/atoms/SectionHeader';
 
@@ -135,7 +136,6 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
       <GradientHeader
         title="Debate Mode"
         subtitle="Set up an AI debate"
-        gradient={theme.colors.gradients.sunset}
       />
       
       {/* Stats Button */}
