@@ -298,16 +298,16 @@ import { GradientHeader } from '../components/organisms';
   - Commit: [✅]
 
 ### Phase 4: Update All Imports
-**STATUS: [ ] Not Started**
+**STATUS: [✅] COMPLETE**
 
-- [ ] WelcomeScreen.tsx
-- [ ] HomeScreen.tsx  
-- [ ] ChatScreen.tsx
-- [ ] DebateScreen.tsx
-- [ ] DebateSetupScreen.tsx
-- [ ] HistoryScreen.tsx
-- [ ] SettingsScreen.tsx
-- [ ] StatsScreen.tsx
+- [✅] WelcomeScreen.tsx - Using SafeArea, Typography
+- [✅] HomeScreen.tsx - Using correct imports
+- [✅] ChatScreen.tsx - Using legacy components (will update in Phase 5)
+- [✅] DebateScreen.tsx - Using ThemedView, Typography, Button
+- [✅] DebateSetupScreen.tsx - Using ThemedView, Button, GradientButton
+- [✅] HistoryScreen.tsx - Verified
+- [✅] SettingsScreen.tsx - Using ThemedView, Typography
+- [✅] StatsScreen.tsx - Using View as ThemedView, Typography
 
 ### Phase 5: Delete Old Components
 **STATUS: [ ] Not Started**
