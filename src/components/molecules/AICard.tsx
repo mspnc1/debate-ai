@@ -10,6 +10,7 @@ import Animated, {
 import { GlassCard, ThemedText, ThemedView } from '../core';
 import { AIAvatar } from '../atoms/AIAvatar';
 import { SelectionIndicator } from '../atoms/SelectionIndicator';
+import { PersonalityPicker } from './PersonalityPicker';
 import { AIConfig } from '../../types';
 import { useTheme } from '../../theme';
 import * as Haptics from 'expo-haptics';
@@ -21,6 +22,9 @@ interface AICardProps {
   onPress: (ai: AIConfig) => void;
   index: number;
   style?: ViewStyle;
+  personalityId?: string;
+  onPersonalityChange?: (personalityId: string) => void;
+  isPremium?: boolean;
 }
 
 export const AICard: React.FC<AICardProps> = ({
@@ -30,6 +34,9 @@ export const AICard: React.FC<AICardProps> = ({
   onPress,
   index,
   style,
+  personalityId = 'default',
+  onPersonalityChange,
+  isPremium = false,
 }) => {
   const { theme } = useTheme();
   const scaleAnim = useSharedValue(1);
@@ -78,10 +85,11 @@ export const AICard: React.FC<AICardProps> = ({
             opacity: isDisabled ? 0.5 : 1,
             borderColor: isSelected ? ai.color : 'transparent',
             borderWidth: isSelected ? 2 : 0,
+            overflow: 'visible',
           }}
           padding="sm"
         >
-          <ThemedView alignItems="center" style={{ position: 'relative' }}>
+          <ThemedView alignItems="center" style={{ position: 'relative', overflow: 'visible' }}>
             <SelectionIndicator isSelected={isSelected} color={ai.color} />
             
             <AIAvatar
@@ -100,13 +108,26 @@ export const AICard: React.FC<AICardProps> = ({
               {ai.name}
             </ThemedText>
             
-            <ThemedText 
-              variant="caption" 
-              color="secondary"
-              numberOfLines={1}
-            >
-              {ai.personality}
-            </ThemedText>
+            {/* Show personality picker when selected */}
+            {isSelected && onPersonalityChange && (
+              <PersonalityPicker
+                currentPersonalityId={personalityId}
+                onSelectPersonality={onPersonalityChange}
+                isPremium={isPremium}
+                aiName={ai.name}
+              />
+            )}
+            
+            {/* Show personality text when not selected */}
+            {!isSelected && (
+              <ThemedText 
+                variant="caption" 
+                color="secondary"
+                numberOfLines={1}
+              >
+                {ai.personality}
+              </ThemedText>
+            )}
           </ThemedView>
         </GlassCard>
       </Animated.View>

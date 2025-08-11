@@ -19,6 +19,8 @@ interface DynamicAISelectorProps {
   isPremium: boolean;
   customSubtitle?: string;
   hideStartButton?: boolean;  // New prop to hide the start button
+  aiPersonalities?: { [aiId: string]: string };
+  onPersonalityChange?: (aiId: string, personalityId: string) => void;
 }
 
 export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
@@ -31,6 +33,8 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
   isPremium,
   customSubtitle,
   hideStartButton = false,
+  aiPersonalities = {},
+  onPersonalityChange,
 }) => {
   const { theme, isDark } = useTheme();
   
@@ -77,7 +81,7 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
       
       
       {/* Proper Grid Layout */}
-      <View style={{ marginBottom: theme.spacing.lg }}>
+      <View style={{ marginBottom: theme.spacing.lg, overflow: 'visible', zIndex: 1 }}>
         {/* Create rows dynamically */}
         {Array.from({ length: Math.ceil(totalItems / columns) }, (_, rowIndex) => (
           <View
@@ -86,6 +90,8 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
               flexDirection: 'row',
               justifyContent: 'flex-start',
               marginBottom: theme.spacing.md,
+              overflow: 'visible',
+              zIndex: 999 - rowIndex,
             }}
           >
             {Array.from({ length: columns }, (_, colIndex) => {
@@ -143,7 +149,7 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
                 const isDisabled = !isSelected && selectedAIs.length >= maxAIs;
                 
                 return (
-                  <View key={ai.id} style={{ width: cardWidth, marginRight: colIndex < columns - 1 ? itemGap : 0 }}>
+                  <View key={ai.id} style={{ width: cardWidth, marginRight: colIndex < columns - 1 ? itemGap : 0, overflow: 'visible', zIndex: 1 }}>
                     <AICard
                       ai={ai}
                       isSelected={isSelected}
@@ -151,6 +157,9 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
                       onPress={onToggleAI}
                       index={itemIndex}
                       style={{ width: '100%' }}
+                      personalityId={aiPersonalities[ai.id] || 'default'}
+                      onPersonalityChange={isSelected && onPersonalityChange ? (personalityId) => onPersonalityChange(ai.id, personalityId) : undefined}
+                      isPremium={isPremium}
                     />
                   </View>
                 );

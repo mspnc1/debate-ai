@@ -50,6 +50,7 @@ interface ChatState {
   sessions: ChatSession[];
   typingAIs: string[];
   isLoading: boolean;
+  aiPersonalities: { [aiId: string]: string };
 }
 
 const initialChatState: ChatState = {
@@ -57,13 +58,14 @@ const initialChatState: ChatState = {
   sessions: [],
   typingAIs: [],
   isLoading: false,
+  aiPersonalities: {},
 };
 
 const chatSlice = createSlice({
   name: 'chat',
   initialState: initialChatState,
   reducers: {
-    startSession: (state, action: PayloadAction<{ selectedAIs: AIConfig[] }>) => {
+    startSession: (state, action: PayloadAction<{ selectedAIs: AIConfig[]; aiPersonalities?: { [aiId: string]: string } }>) => {
       const newSession: ChatSession = {
         id: `session_${Date.now()}`,
         selectedAIs: action.payload.selectedAIs,
@@ -74,6 +76,7 @@ const chatSlice = createSlice({
       // console.log('Redux - Starting new session:', newSession.id);
       state.currentSession = newSession;
       state.sessions.push(newSession);
+      state.aiPersonalities = action.payload.aiPersonalities || {};
     },
     addMessage: (state, action: PayloadAction<Message>) => {
       if (state.currentSession) {
@@ -108,6 +111,12 @@ const chatSlice = createSlice({
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
+    },
+    setAIPersonality: (state, action: PayloadAction<{ aiId: string; personalityId: string }>) => {
+      state.aiPersonalities[action.payload.aiId] = action.payload.personalityId;
+    },
+    clearPersonalities: (state) => {
+      state.aiPersonalities = {};
     },
   },
 });
@@ -236,7 +245,7 @@ export type AppDispatch = typeof store.dispatch;
 
 // Export actions
 export const { setUser, updateUIMode, updateSubscription, logout } = userSlice.actions;
-export const { startSession, addMessage, setTypingAI, endSession, loadSession, setLoading } = chatSlice.actions;
+export const { startSession, addMessage, setTypingAI, endSession, loadSession, setLoading, setAIPersonality, clearPersonalities } = chatSlice.actions;
 export const { 
   updateTheme, 
   updateFontSize, 

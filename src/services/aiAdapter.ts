@@ -1,5 +1,6 @@
 // Universal AI Adapter Service for React Native
 import { AIProvider, ModelParameters, PersonalityConfig, Message } from '../types';
+import { PersonalityOption } from '../config/personalities';
 
 interface AIAdapterConfig {
   provider: AIProvider;
@@ -29,7 +30,10 @@ abstract class AIAdapter {
       return 'You are participating in a lively debate. Take strong positions, directly address and challenge the previous speaker\'s arguments, and make compelling points. Be respectful but assertive. Build on or refute what was just said. Provide substantive arguments with examples, reasoning, or evidence. Aim for responses that are engaging and thought-provoking (3-5 sentences).';
     }
     if (this.config.personality) {
-      return this.config.personality.systemPrompt;
+      // Handle both PersonalityConfig and PersonalityOption types
+      if (typeof this.config.personality === 'object' && 'systemPrompt' in this.config.personality) {
+        return this.config.personality.systemPrompt;
+      }
     }
     return 'You are a helpful AI assistant.';
   }
@@ -40,12 +44,10 @@ abstract class AIAdapter {
   }
   
   protected formatHistory(history: Message[]): Array<{ role: string; content: string }> {
-    // Include sender names for ALL messages in multi-AI conversations for clarity
+    // Just pass the messages as they are, let the system prompt handle context
     return history.slice(-10).map(msg => ({
       role: msg.senderType === 'user' ? 'user' : 'assistant',
-      content: msg.senderType === 'ai' 
-        ? `[${msg.sender}]: ${msg.content || ''}`
-        : `[User]: ${msg.content || ''}`
+      content: msg.content || ''
     })).filter(msg => msg.content); // Filter out any empty messages
   }
 }
@@ -441,6 +443,22 @@ export class AIService {
 
   constructor(apiKeys?: { claude?: string; openai?: string; google?: string; nomi?: string; replika?: string; character?: string }) {
     this.initializeAdapters(apiKeys);
+  }
+  
+  setPersonality(aiId: string, personality: PersonalityOption): void {
+    const adapter = this.adapters.get(aiId);
+    if (adapter) {
+      // Convert PersonalityOption to PersonalityConfig format
+      const personalityConfig: PersonalityConfig = {
+        id: personality.id,
+        name: personality.name,
+        description: personality.description,
+        systemPrompt: personality.systemPrompt,
+        traits: { formality: 0.5, humor: 0.5, technicality: 0.5, empathy: 0.5 },
+        isPremium: personality.id !== 'default',
+      };
+      adapter.setTemporaryPersonality(personalityConfig);
+    }
   }
 
   private initializeAdapters(apiKeys?: { claude?: string; openai?: string; google?: string; nomi?: string; replika?: string; character?: string }) {

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState, startSession } from '../store';
+import { RootState, startSession, setAIPersonality } from '../store';
 
 import { GradientHeader } from '../components/core';
 import { DynamicAISelector } from '../components/organisms/DynamicAISelector';
@@ -34,6 +34,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.user.currentUser);
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
+  const aiPersonalities = useSelector((state: RootState) => state.chat.aiPersonalities);
   
   const [selectedAIs, setSelectedAIs] = useState<AIConfig[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<QuickStartTopic | null>(null);
@@ -73,10 +74,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   
   const handleStartChat = () => {
     if (selectedAIs.length > 0) {
-      dispatch(startSession({ selectedAIs }));
+      dispatch(startSession({ selectedAIs, aiPersonalities }));
       const sessionId = `session_${Date.now()}`;
       navigation.navigate('Chat', { sessionId });
     }
+  };
+  
+  const handlePersonalityChange = (aiId: string, personalityId: string) => {
+    dispatch(setAIPersonality({ aiId, personalityId }));
   };
   
   const handleSelectTopic = (topic: QuickStartTopic) => {
@@ -90,7 +95,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const handleCompleteWizard = (prompt: string) => {
     setShowPromptWizard(false);
     if (selectedAIs.length > 0) {
-      dispatch(startSession({ selectedAIs }));
+      dispatch(startSession({ selectedAIs, aiPersonalities }));
       const sessionId = `session_${Date.now()}`;
       navigation.navigate('Chat', { 
         sessionId,
@@ -134,6 +139,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             onStartChat={handleStartChat}
             onAddAI={() => navigation.navigate('APIConfig')}
             isPremium={isPremium}
+            aiPersonalities={aiPersonalities}
+            onPersonalityChange={handlePersonalityChange}
           />
         </View>
         

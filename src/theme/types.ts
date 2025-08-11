@@ -12,11 +12,6 @@ export interface Theme {
     warning: typeof colors.warning;
     error: typeof colors.error;
     info: typeof colors.info;
-    // AI Provider Brand Colors
-    claude: typeof colors.claude;
-    chatgpt: typeof colors.chatgpt;
-    gemini: typeof colors.gemini;
-    nomi: typeof colors.nomi;
     gradients: typeof colors.gradients;
     glass: typeof colors.glass;
     neumorph: typeof colors.neumorph;

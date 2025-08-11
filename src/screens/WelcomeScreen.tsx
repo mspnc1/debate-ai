@@ -5,11 +5,8 @@ import {
   View,
   Dimensions,
 } from 'react-native';
-import { 
-  ThemedText, 
-  ThemedSafeAreaView,
-  GradientButton 
-} from '../components/core';
+import { GradientButton } from '../components/core';
+import { Text, SafeAreaView } from '../components/atoms';
 import { useTheme } from '../theme';
 import Animated, {
   useSharedValue,
@@ -71,7 +68,7 @@ const AnimatedGradientBackground: React.FC = () => {
 
 const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
   const dispatch = useDispatch();
-  const { theme, isDark } = useTheme();
+  const { theme } = useTheme();
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(50);
@@ -157,7 +154,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
   ];
 
   return (
-    <ThemedSafeAreaView>
+    <SafeAreaView>
       <AnimatedGradientBackground />
       <ScrollView 
         style={{ flex: 1, backgroundColor: 'transparent' }}
@@ -168,34 +165,36 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
         {/* Hero Section */}
         <Animated.View style={[styles.logoContainer, animatedLogoStyle]}>
           <AppLogo size={100} />
-          <ThemedText 
-            variant="heading" 
+          <Text 
+            size="4xl" 
+            weight="bold" 
             align="center" 
             style={{ 
               marginTop: 20, 
               marginBottom: 8,
-              fontSize: 36,
-              fontWeight: 'bold',
             }}
           >
             My AI Friends
-          </ThemedText>
-          <ThemedText 
-            variant="subtitle" 
+          </Text>
+          <Text 
+            size="lg" 
             color="secondary" 
             align="center"
-            style={{ marginBottom: 8 }}
+            style={{ marginBottom: 20 }}
           >
             The Ultimate AI Conversation Platform
-          </ThemedText>
-          <View style={[styles.badge, { backgroundColor: theme.colors.primary[500] }]}>
-            <ThemedText 
-              variant="caption" 
-              style={{ color: theme.colors.text.inverse, fontWeight: 'bold' }}
-            >
-              6 AI PROVIDERS • 12 PERSONALITIES • ∞ POSSIBILITIES
-            </ThemedText>
-          </View>
+          </Text>
+          <Text 
+            size="sm" 
+            align="center"
+            style={{ 
+              marginBottom: 8,
+              fontStyle: 'italic',
+              opacity: 0.8
+            }}
+          >
+            Where Intelligence Meets Personality
+          </Text>
         </Animated.View>
 
         {/* Feature Cards Grid */}
@@ -208,7 +207,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
                 styles.featureCard,
                 { 
                   backgroundColor: theme.colors.card,
-                  borderColor: isDark ? theme.colors.border : theme.colors.gray[200],
+                  borderColor: theme.colors.border,
                   shadowColor: theme.colors.shadow,
                   width: (width - 48 - 12) / 2, // Two columns with gap
                 }
@@ -225,16 +224,14 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
                       : theme.colors.primary[500]
                   }
                 ]}>
-                  <ThemedText 
-                    variant="caption" 
-                    style={{ 
-                      color: theme.colors.text.inverse, 
-                      fontWeight: 'bold',
-                      fontSize: 10,
-                    }}
+                  <Text 
+                    size="xs" 
+                    weight="bold"
+                    color="inverse"
+                    style={{ fontSize: 10 }}
                   >
                     {feature.highlight}
-                  </ThemedText>
+                  </Text>
                 </View>
               )}
               
@@ -244,23 +241,22 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <ThemedText style={styles.featureEmoji}>{feature.emoji}</ThemedText>
+                <Text style={styles.featureEmoji}>{feature.emoji}</Text>
               </LinearGradient>
               
-              <ThemedText 
-                variant="subtitle" 
+              <Text 
+                size="md" 
                 weight="bold"
                 style={{ marginTop: 12, marginBottom: 6 }}
               >
                 {feature.title}
-              </ThemedText>
-              <ThemedText 
-                variant="caption" 
-                color="secondary"
-                style={{ lineHeight: 16 }}
+              </Text>
+              <Text 
+                size="xs" 
+                style={{ lineHeight: 16, opacity: 0.8 }}
               >
                 {feature.description}
-              </ThemedText>
+              </Text>
             </Animated.View>
           ))}
         </View>
@@ -286,38 +282,38 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
           </View>
           <View style={styles.premiumContent}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', flex: 1 }}>
-              <ThemedText style={{ fontSize: 24, marginRight: 12 }}>🚀</ThemedText>
+              <Text style={{ fontSize: 24, marginRight: 12 }}>🚀</Text>
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', marginBottom: 4 }}>
-                  <ThemedText variant="subtitle" weight="bold">
+                  <Text size="md" weight="bold">
                     Go Premium
-                  </ThemedText>
-                  <ThemedText 
-                    variant="body" 
+                  </Text>
+                  <Text 
+                    size="sm" 
                     weight="bold"
                     style={{ color: theme.colors.primary[500], marginLeft: 8 }}
                   >
                     $9.99/month
-                  </ThemedText>
+                  </Text>
                 </View>
                 <View style={{ marginTop: 8 }}>
                   <View style={styles.bulletRow}>
-                    <ThemedText variant="caption" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</ThemedText>
-                    <ThemedText variant="caption" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
+                    <Text size="xs" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Text>
+                    <Text size="xs" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
                       Group chat with unlimited AIs (Free: max 2)
-                    </ThemedText>
+                    </Text>
                   </View>
                   <View style={styles.bulletRow}>
-                    <ThemedText variant="caption" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</ThemedText>
-                    <ThemedText variant="caption" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
+                    <Text size="xs" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Text>
+                    <Text size="xs" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
                       All 12 personalities unlocked (Free: Default only)
-                    </ThemedText>
+                    </Text>
                   </View>
                   <View style={styles.bulletRow}>
-                    <ThemedText variant="caption" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</ThemedText>
-                    <ThemedText variant="caption" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
+                    <Text size="xs" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Text>
+                    <Text size="xs" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
                       Expert mode for precise model configuration
-                    </ThemedText>
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -338,14 +334,14 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
             fullWidth
           />
           
-          <ThemedText 
-            variant="caption" 
+          <Text 
+            size="xs" 
             color="secondary" 
             align="center"
             style={{ marginTop: 8 }}
           >
             No sign-up required • Your API keys stay private • Start free
-          </ThemedText>
+          </Text>
         </Animated.View>
 
         {/* Footer Quote */}
@@ -353,27 +349,27 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
           entering={FadeIn.delay(1200)}
           style={styles.footer}
         >
-          <ThemedText 
-            variant="body" 
+          <Text 
+            size="sm" 
             color="secondary" 
             align="center"
             style={{ fontStyle: 'italic' }}
           >
             "The future isn't about replacing human connection.{'\n'}
             It's about enhancing it."
-          </ThemedText>
-          <ThemedText 
-            variant="caption" 
+          </Text>
+          <Text 
+            size="xs" 
             color="secondary" 
             align="center"
             style={{ marginTop: 16 }}
           >
             Built with ❤️ for the AI revolution
-          </ThemedText>
+          </Text>
         </Animated.View>
 
       </ScrollView>
-    </ThemedSafeAreaView>
+    </SafeAreaView>
   );
 };
 
@@ -386,12 +382,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 30,
     marginBottom: 30,
-  },
-  badge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginTop: 12,
   },
   featuresContainer: {
     flexDirection: 'row',

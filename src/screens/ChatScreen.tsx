@@ -30,6 +30,8 @@ import { Message, ChatSession } from '../types';
 import { useAIService } from '../providers/AIServiceProvider';
 import AIServiceLoading from '../components/AIServiceLoading';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getPersonality } from '../config/personalities';
+import { AI_BRAND_COLORS } from '../constants/aiColors';
 
 interface ChatScreenProps {
   navigation: {
@@ -49,7 +51,7 @@ interface ChatScreenProps {
 const MessageBubble: React.FC<{ message: Message; isLast: boolean; searchTerm?: string }> = ({ message, isLast, searchTerm }) => {
   const isUser = message.senderType === 'user';
   const scale = useSharedValue(isLast ? 0 : 1);
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
 
   useEffect(() => {
     if (isLast) {
@@ -64,6 +66,30 @@ const MessageBubble: React.FC<{ message: Message; isLast: boolean; searchTerm?: 
     transform: [{ scale: scale.value }],
   }));
 
+  // Get AI-specific color from the message sender
+  const getAIColor = () => {
+    if (isUser) return null;
+    
+    // Map AI names to their brand color keys
+    const aiName = message.sender.toLowerCase();
+    const aiBrandKey = aiName === 'chatgpt' ? 'chatgpt' : 
+                       aiName === 'claude' ? 'claude' :
+                       aiName === 'gemini' ? 'gemini' :
+                       aiName === 'nomi' ? 'nomi' : null;
+    
+    if (!aiBrandKey) return null;
+    
+    const brandColors = AI_BRAND_COLORS[aiBrandKey as keyof typeof AI_BRAND_COLORS];
+    return {
+      light: brandColors[50],
+      dark: theme.colors.surface,
+      border: brandColors[500],
+      text: brandColors[600],
+    };
+  };
+  
+  const aiColor = getAIColor();
+
   return (
     <Animated.View
       style={[
@@ -74,7 +100,11 @@ const MessageBubble: React.FC<{ message: Message; isLast: boolean; searchTerm?: 
     >
       {!isUser && (
         <ThemedView style={styles.aiHeader}>
-          <ThemedText variant="caption" color="secondary" weight="semibold">
+          <ThemedText 
+            variant="caption" 
+            weight="semibold"
+            style={{ color: aiColor?.border || theme.colors.text.secondary }}
+          >
             {message.sender}
           </ThemedText>
         </ThemedView>
@@ -86,10 +116,10 @@ const MessageBubble: React.FC<{ message: Message; isLast: boolean; searchTerm?: 
             backgroundColor: theme.colors.primary[500],
             borderBottomRightRadius: 4,
           } : {
-            backgroundColor: theme.colors.card,
+            backgroundColor: aiColor ? (isDark ? aiColor.dark : aiColor.light) : theme.colors.card,
             borderBottomLeftRadius: 4,
             borderWidth: 1,
-            borderColor: theme.colors.border,
+            borderColor: aiColor?.border || theme.colors.border,
           },
         ]}
       >
@@ -182,7 +212,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   const flatListRef = useRef<FlatList>(null);
 
   const { aiService, isInitialized, isLoading, error } = useAIService();
-  const { currentSession, typingAIs } = useSelector((state: RootState) => state.chat);
+  const { currentSession, typingAIs, aiPersonalities } = useSelector((state: RootState) => state.chat);
   const messages = currentSession?.messages || [];
   const selectedAIs = currentSession?.selectedAIs || [];
   const searchTerm = route.params?.searchTerm;
@@ -335,18 +365,45 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
           throw new Error('AI service not ready. Please wait for initialization to complete.');
         }
 
-        // For round-robin: Each AI sees the full conversation including previous AI responses
-        // They always respond to the last message in the context
-        const promptForAI = conversationContext[conversationContext.length - 1].content;
-        
-        // Check if this is debate mode
-        const isDebateMode = promptForAI.includes('[DEBATE MODE]') || 
-                           (conversationContext.length > 0 && conversationContext[0].content.includes('[DEBATE MODE]'));
+        // Apply personality if set
+        const personalityId = aiPersonalities[ai.id] || 'default';
+        const personality = getPersonality(personalityId);
+        if (personality) {
+          aiService.setPersonality(ai.id, personality);
+        }
 
+        // For round-robin: Each AI sees the full conversation including previous AI responses
+        const isDebateMode = conversationContext.some(msg => msg.content.includes('[DEBATE MODE]'));
+        
+        // Build the prompt based on position in conversation
+        const isFirstAI = conversationContext[conversationContext.length - 1].senderType === 'user';
+        let promptForAI: string;
+        let historyToPass: Message[];
+        
+        if (isFirstAI) {
+          // First AI responds directly to the user's message
+          promptForAI = userMessage.content;
+          historyToPass = conversationContext.slice(0, -1); // Don't include the current user message
+        } else {
+          // Subsequent AIs should engage with the previous AI's response
+          const lastSpeaker = conversationContext[conversationContext.length - 1].sender;
+          const lastMessage = conversationContext[conversationContext.length - 1].content;
+          
+          // Make it VERY clear what we want the AI to do
+          promptForAI = `You are in a multi-AI conversation. ${lastSpeaker} just responded to the user's message. 
+
+${lastSpeaker} said: "${lastMessage}"
+
+Please respond to ${lastSpeaker}'s comment above. You can agree, disagree, add new perspectives, or take the conversation in a new direction. Do NOT respond directly to the original user message - respond to what ${lastSpeaker} just said.`;
+          
+          // Include full history so they understand context
+          historyToPass = conversationContext.slice(0, -1);
+        }
+        
         const response = await aiService.sendMessage(
           ai.id,
           promptForAI,
-          conversationContext,
+          historyToPass,
           isDebateMode
         );
 

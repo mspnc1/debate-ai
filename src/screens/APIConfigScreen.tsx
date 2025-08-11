@@ -4,9 +4,8 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  View,
   TouchableOpacity,
-  Text,
+  Text as RNText,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -14,7 +13,7 @@ import { RootState } from '../store';
 import { updateApiKeys, updateExpertMode, addVerifiedProvider, removeVerifiedProvider, setVerifiedProviders } from '../store';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../theme';
-import { ThemedView, ThemedText, ThemedButton } from '../components/core';
+import { View, Text, Button } from '../components/atoms';
 import { ProviderCard } from '../components/ProviderCard';
 import { ProviderExpertSettings } from '../components/organisms/ProviderExpertSettings';
 import { AI_PROVIDERS, getEnabledProviders } from '../config/aiProviders';
@@ -228,10 +227,10 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <ThemedView flex={1} backgroundColor="background">
+    <View style={{ flex: 1 }} backgroundColor="background">
       <SafeAreaView style={{ flex: 1 }}>
         {/* Custom Header */}
-        <ThemedView style={{
+        <View style={{
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -241,16 +240,16 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
           borderBottomWidth: 1,
           borderBottomColor: theme.colors.border,
         }}>
-          <ThemedButton 
+          <Button 
             onPress={() => navigation.goBack()}
             variant="ghost"
             style={{ borderWidth: 0, minWidth: 44 }}
           >
-            <ThemedText size="2xl" color="brand">←</ThemedText>
-          </ThemedButton>
-          <ThemedText variant="title" weight="bold">API Configuration</ThemedText>
-          <ThemedView style={{ width: 44 }} />
-        </ThemedView>
+            <Text size="2xl" color="primary">←</Text>
+          </Button>
+          <Text size="xl" weight="bold">API Configuration</Text>
+          <View style={{ width: 44 }} />
+        </View>
         
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -265,9 +264,9 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
               entering={FadeInDown.springify()}
               style={{ marginTop: 20, marginBottom: 24 }}
             >
-              <ThemedText variant="body" color="secondary" style={{ marginBottom: 20 }}>
+              <Text size="base" color="secondary" style={{ marginBottom: 20 }}>
                 Connect your AI services to unlock their full potential
-              </ThemedText>
+              </Text>
 
               {/* Progress Bar */}
               <View style={{ marginBottom: 20 }}>
@@ -289,8 +288,8 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                     }}
                   />
                 </View>
-                <ThemedText
-                  variant="caption"
+                <Text
+                  size="xs"
                   color="secondary"
                   style={{ marginTop: 8, textAlign: 'center' }}
                 >
@@ -299,7 +298,7 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                     : configuredCount === enabledProviders.length
                     ? '🎉 All services connected!'
                     : `${configuredCount} of ${enabledProviders.length} services connected`}
-                </ThemedText>
+                </Text>
               </View>
 
               {/* Clear All Button */}
@@ -315,18 +314,18 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                     alignItems: 'center',
                   }}
                 >
-                  <ThemedText variant="body" color="error" weight="semibold">
+                  <Text size="base" color="secondary" weight="semibold">
                     🗑️ Clear All Keys
-                  </ThemedText>
+                  </Text>
                 </TouchableOpacity>
               )}
             </Animated.View>
 
             {/* Provider Cards */}
             <View>
-              <ThemedText variant="title" style={{ marginBottom: 16 }}>
+              <Text size="xl" style={{ marginBottom: 16 }}>
                 Available AI Services
-              </ThemedText>
+              </Text>
               
               {enabledProviders.map((provider, index) => {
                 const providerKey = provider.id as 'claude' | 'openai' | 'google';
@@ -412,9 +411,9 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                 entering={FadeInDown.delay(500).springify()}
                 style={{ marginTop: 32 }}
               >
-                <ThemedText variant="title" style={{ marginBottom: 16 }}>
+                <Text size="xl" style={{ marginBottom: 16 }}>
                   Coming Soon
-                </ThemedText>
+                </Text>
                 <View
                   style={{
                     backgroundColor: theme.colors.card,
@@ -435,12 +434,12 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                           marginBottom: 12,
                         }}
                       >
-                        <Text style={{ fontSize: 20, marginRight: 8 }}>
+                        <RNText style={{ fontSize: 20, marginRight: 8 }}>
                           {provider.icon}
-                        </Text>
-                        <ThemedText variant="body" color="secondary">
+                        </RNText>
+                        <Text size="base" color="secondary">
                           {provider.name}
-                        </ThemedText>
+                        </Text>
                       </View>
                     ))}
                   </View>
@@ -460,20 +459,20 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                 borderColor: theme.colors.border,
               }}
             >
-              <ThemedText variant="subtitle" weight="semibold" style={{ marginBottom: 8 }}>
+              <Text size="lg" weight="semibold" style={{ marginBottom: 8 }}>
                 🔒 Your Security
-              </ThemedText>
-              <ThemedText variant="body" color="secondary">
+              </Text>
+              <Text size="base" color="secondary">
                 • Keys are encrypted and stored locally{'\n'}
                 • We never send keys to our servers{'\n'}
                 • You can modify or clear keys anytime{'\n'}
                 • Each service connection is isolated
-              </ThemedText>
+              </Text>
             </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </ThemedView>
+    </View>
   );
 };
 

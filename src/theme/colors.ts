@@ -80,58 +80,6 @@ export const colors = {
     900: '#0D47A1',
   },
 
-  // AI Provider Brand Colors
-  claude: {
-    50: '#FFF5F5',
-    100: '#FFE4E4',
-    200: '#FFCCCC',
-    300: '#FFB3B3',
-    400: '#FF9999',
-    500: '#FF6B6B', // Claude's brand red
-    600: '#FF5252',
-    700: '#E63946',
-    800: '#CC2936',
-    900: '#B31E2B',
-  },
-  
-  chatgpt: {
-    50: '#E6FCFF',
-    100: '#B3F5FF',
-    200: '#80EEFF',
-    300: '#4DE7FF',
-    400: '#1AE0FF',
-    500: '#00D9FF', // ChatGPT's brand cyan
-    600: '#00B8E6',
-    700: '#0096CC',
-    800: '#0075B3',
-    900: '#005399',
-  },
-  
-  gemini: {
-    50: '#F3E5F5',
-    100: '#E1BEE7',
-    200: '#CE93D8',
-    300: '#BA68C8',
-    400: '#AB47BC',
-    500: '#8A2BE2', // Gemini's purple
-    600: '#7B1FA2',
-    700: '#6A1B9A',
-    800: '#5E1A8E',
-    900: '#4A148C',
-  },
-  
-  nomi: {
-    50: '#FFF9F0',
-    100: '#FFE4CC',
-    200: '#FFCF99',
-    300: '#FFBA66',
-    400: '#FFA533',
-    500: '#FFA500', // Nomi's orange
-    600: '#E69500',
-    700: '#CC8400',
-    800: '#B37300',
-    900: '#996300',
-  },
 
   // Gradients for premium components
   gradients: {
@@ -162,7 +110,7 @@ export const colors = {
 
 // Light theme colors
 export const lightThemeColors = {
-  background: colors.gray[50],
+  background: '#FFFFFF',
   surface: colors.gray[50],
   card: '#FFFFFF',
   text: {
@@ -176,18 +124,18 @@ export const lightThemeColors = {
   overlay: 'rgba(0, 0, 0, 0.5)',
 } as const;
 
-// Dark theme colors - MORE DRAMATIC DARK MODE
+// Dark theme colors
 export const darkThemeColors = {
-  background: '#000000',  // Pure black for maximum contrast
-  surface: '#0A0A0A',     // Near black
-  card: '#1A1A1A',        // Slightly lighter for cards
+  background: '#000000',
+  surface: '#0A0A0A',
+  card: '#1A1A1A',
   text: {
     primary: '#FFFFFF',
-    secondary: colors.gray[300],  // Brighter secondary text
+    secondary: colors.gray[400],
     disabled: colors.gray[500],
     inverse: colors.gray[900],
   },
-  border: colors.gray[700],
+  border: colors.gray[800],
   shadow: 'rgba(0, 0, 0, 0.5)',
   overlay: 'rgba(0, 0, 0, 0.7)',
 } as const;

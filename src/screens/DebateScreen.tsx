@@ -28,6 +28,7 @@ import { Message, AI } from '../types';
 import { AIService } from '../services/aiAdapter';
 import { DEBATE_TOPICS } from '../constants/debateTopics';
 import { UNIVERSAL_PERSONALITIES, getDebatePrompt } from '../config/personalities';
+import { AI_BRAND_COLORS } from '../constants/aiColors';
 import { useTheme } from '../theme';
 import { ThemedView, ThemedText, GradientButton, ThemedButton } from '../components/core';
 
@@ -500,7 +501,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
       
       if (!aiBrandKey) return null;
       
-      const brandColors = theme.colors[aiBrandKey];
+      const brandColors = AI_BRAND_COLORS[aiBrandKey as keyof typeof AI_BRAND_COLORS];
       return {
         light: brandColors[50],
         dark: theme.colors.surface, // Use surface color with tinted border in dark mode
@@ -809,10 +810,10 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
                       const roundsWon = Object.entries(votes)
                         .filter(([key, value]) => key !== 'overall' && value === ai.id)
                         .length;
-                      const aiColor = ai.id === 'chatgpt' ? theme.colors.chatgpt :
-                                      ai.id === 'claude' ? theme.colors.claude :
-                                      ai.id === 'gemini' ? theme.colors.gemini :
-                                      ai.id === 'nomi' ? theme.colors.nomi :
+                      const aiColor = ai.id === 'chatgpt' ? AI_BRAND_COLORS.chatgpt :
+                                      ai.id === 'claude' ? AI_BRAND_COLORS.claude :
+                                      ai.id === 'gemini' ? AI_BRAND_COLORS.gemini :
+                                      ai.id === 'nomi' ? AI_BRAND_COLORS.nomi :
                                       theme.colors.primary;
                       
                       return (
@@ -838,10 +839,10 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
               )}
               <View style={styles.votingButtons}>
                 {selectedAIs.map((ai) => {
-                  const aiColor = ai.id === 'chatgpt' ? theme.colors.chatgpt :
-                                  ai.id === 'claude' ? theme.colors.claude :
-                                  ai.id === 'gemini' ? theme.colors.gemini :
-                                  ai.id === 'nomi' ? theme.colors.nomi :
+                  const aiColor = ai.id === 'chatgpt' ? AI_BRAND_COLORS.chatgpt :
+                                  ai.id === 'claude' ? AI_BRAND_COLORS.claude :
+                                  ai.id === 'gemini' ? AI_BRAND_COLORS.gemini :
+                                  ai.id === 'nomi' ? AI_BRAND_COLORS.nomi :
                                   theme.colors.primary;
                   
                   return (
@@ -882,10 +883,10 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
               <View style={styles.scoreRow}>
                 {selectedAIs.map((ai) => {
                   const roundsWon = Object.values(votes).filter(v => v === ai.id && v !== 'overall').length;
-                  const aiColor = ai.id === 'chatgpt' ? theme.colors.chatgpt :
-                                  ai.id === 'claude' ? theme.colors.claude :
-                                  ai.id === 'gemini' ? theme.colors.gemini :
-                                  ai.id === 'nomi' ? theme.colors.nomi :
+                  const aiColor = ai.id === 'chatgpt' ? AI_BRAND_COLORS.chatgpt :
+                                  ai.id === 'claude' ? AI_BRAND_COLORS.claude :
+                                  ai.id === 'gemini' ? AI_BRAND_COLORS.gemini :
+                                  ai.id === 'nomi' ? AI_BRAND_COLORS.nomi :
                                   theme.colors.primary;
                   
                   return (
