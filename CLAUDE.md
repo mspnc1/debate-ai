@@ -1,7 +1,7 @@
-# MyAIFriends - Project Context for Claude
+# DebateAI - Project Context for Claude
 
 ## Project Overview
-React Native mobile app for multi-AI chat interactions. Users can chat with multiple AI providers simultaneously, have debates between AIs, and manage different AI personalities.
+React Native mobile app where AIs debate topics and users can chat with multiple AI providers simultaneously. The app's unique value proposition is the AI Debate Arena where different AIs can debate any topic in real-time, plus the BYOK (Bring Your Own Keys) approach that saves users money compared to multiple AI subscriptions.
 
 ## Tech Stack
 - **Framework**: React Native with Expo
@@ -45,11 +45,12 @@ src/
 ```
 
 ## Key Features
-1. **Multi-AI Chat** - Chat with multiple AI providers simultaneously
-2. **Debate Mode** - AIs debate topics with each other
-3. **Personality System** - Different personalities per AI (balanced, creative, etc.)
-4. **Provider Management** - Support for Claude, OpenAI, Google, Nomi, etc.
-5. **Theme System** - Light/dark mode with proper color structure
+1. **AI Debate Arena** - Watch different AIs debate any topic in real-time (Premium: custom topics)
+2. **Multi-AI Chat** - Chat with multiple AI providers simultaneously
+3. **Hallucination Shield** - Multiple AIs fact-check each other for accuracy
+4. **BYOK (Bring Your Own Keys)** - Use existing API keys, save vs multiple subscriptions
+5. **Personality System** - 12 different personalities per AI (Premium feature)
+6. **Expert Mode** - Choose specific models and control costs (Premium feature)
 
 ## Development Commands
 
@@ -95,8 +96,12 @@ refactor: [component] to atomic architecture
 
 ## Architecture Documentation
 
-### Completed Migration
-`ATOMIC_MIGRATION_PLAN.md` - ✅ Fully completed migration with all tasks checked off
+### Project Documentation
+- `docs/ATOMIC_MIGRATION_PLAN.md` - ✅ Completed atomic architecture migration
+- `docs/STORE_SUBMISSION_CHECKLIST.md` - App Store and Play Store submission guide
+- `docs/FIREBASE_SETUP.md` - Firebase authentication and backend setup
+- `docs/IAP_CONFIGURATION.md` - In-app purchase configuration guide
+- `docs/PREMIUM_IMPLEMENTATION.md` - Premium features implementation guide
 
 ### Key Components Structure
 - `atoms/Box` - Only atom, pure View wrapper with style props
@@ -132,9 +137,24 @@ refactor: [component] to atomic architecture
 - **FOLLOW** atomic design principles when creating new components
 - **COMMIT** frequently with clear, descriptive messages
 
-## Project Goals ✅ ACHIEVED
+## Project Status & Goals
+
+### ✅ ACHIEVED
 1. ✅ Proper atomic design architecture implemented
 2. ✅ 100% TypeScript type safety maintained
 3. ✅ Zero ESLint errors or warnings
 4. ✅ Clean, maintainable component structure
-5. ✅ All functionality preserved and working
+5. ✅ Rebranded from MyAIFriends to DebateAI
+
+### 🎯 NEXT STEPS
+1. 📱 Implement Firebase authentication
+2. 💳 Add in-app purchases (react-native-iap)
+3. 🎨 Create new DebateAI app icons and splash screens
+4. 📦 Submit to App Store and Google Play
+5. 🚀 Launch with focus on AI Debate Arena as unique feature
+
+## Repository Information
+- **GitHub**: https://github.com/mspnc1/debate-ai
+- **Bundle IDs**: com.braveheartinnovations.debateai
+- **App Name**: DebateAI
+- **Tagline**: Where AIs Debate. Where Truth Emerges.
