@@ -1,8 +1,6 @@
 import React from 'react';
 import { View, TextInput } from 'react-native';
-import { Typography } from './Typography';
-import { ParameterLabel } from '../atoms/ParameterLabel';
-import { StepperButton } from '../atoms/StepperButton';
+import { Typography, ParameterLabel, IconButton } from '../molecules';
 import { useTheme } from '../../theme';
 
 interface ParameterSliderProps {
@@ -56,7 +54,7 @@ export const ParameterSlider: React.FC<ParameterSliderProps> = ({
         alignItems: 'center',
         marginTop: theme.spacing.sm,
       }}>
-        <StepperButton 
+        <IconButton 
           type="decrement"
           onPress={handleDecrement}
           disabled={value <= min}
@@ -82,7 +80,7 @@ export const ParameterSlider: React.FC<ParameterSliderProps> = ({
           keyboardType="numeric"
         />
         
-        <StepperButton 
+        <IconButton 
           type="increment"
           onPress={handleIncrement}
           disabled={value >= max}

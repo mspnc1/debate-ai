@@ -2,12 +2,12 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { useTheme } from '../../theme';
 
-interface ModelBadgeProps {
+interface BadgeProps {
   label: string;
   type?: 'premium' | 'default' | 'new' | 'experimental';
 }
 
-export const ModelBadge: React.FC<ModelBadgeProps> = ({
+export const Badge: React.FC<BadgeProps> = ({
   label,
   type = 'default',
 }) => {

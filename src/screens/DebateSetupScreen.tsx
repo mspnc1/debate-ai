@@ -5,11 +5,11 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { ThemedView } from '../components/atoms';
+import { Box } from '../components/atoms';
 import { Button, GradientButton } from '../components/molecules';
 import { GradientHeader } from '../components/organisms';
 import { DynamicAISelector } from '../components/organisms/DynamicAISelector';
-import { SectionHeader } from '../components/atoms/SectionHeader';
+import { SectionHeader } from '../components/molecules';
 
 import { useTheme } from '../theme';
 import { AIConfig } from '../types';
@@ -140,7 +140,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
       />
       
       {/* Stats Button */}
-      <ThemedView style={{ 
+      <Box style={{ 
         position: 'absolute', 
         top: 60, 
         right: 16,
@@ -158,7 +158,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
             backgroundColor: theme.colors.surface,
           }}
         />
-      </ThemedView>
+      </Box>
       
       <ScrollView 
         style={{ flex: 1 }}

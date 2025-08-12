@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, TouchableOpacity, Text, Dimensions } from 'react-native';
-import { ThemedView } from '../atoms';
+import { Box } from '../atoms';
 import { GradientButton, Typography } from '../molecules';
-import { SectionHeader } from '../atoms/SectionHeader';
-import { AICard } from '../molecules/AICard';
+import { SectionHeader } from '../molecules';
+import { AICard } from './AICard';
 import { AIConfig } from '../../types';
 import { useTheme } from '../../theme';
 import * as Haptics from 'expo-haptics';
@@ -73,7 +73,7 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
   const cardWidth = (screenWidth - containerPadding - (itemGap * (columns - 1))) / columns;
   
   return (
-    <ThemedView>
+    <Box>
       <SectionHeader
         title="Your AI Friends"
         subtitle={getSubtitle()}
@@ -196,6 +196,6 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
           />
         )
       )}
-    </ThemedView>
+    </Box>
   );
 };

@@ -7,9 +7,10 @@ import Animated, {
   withSequence,
   withSpring
 } from 'react-native-reanimated';
-import { ThemedView, AIAvatar, SelectionIndicator } from '../atoms';
-import { GlassCard } from './GlassCard';
+import { Box } from '../atoms';
+import { SelectionIndicator, GlassCard } from '../molecules';
 import { PersonalityPicker } from './PersonalityPicker';
+import { AIAvatar } from './AIAvatar';
 import { AIConfig } from '../../types';
 import * as Haptics from 'expo-haptics';
 
@@ -86,7 +87,7 @@ export const AICard: React.FC<AICardProps> = ({
           }}
           padding="sm"
         >
-          <ThemedView alignItems="center" style={{ position: 'relative', overflow: 'visible' }}>
+          <Box style={{ alignItems: 'center', position: 'relative', overflow: 'visible' }}>
             <SelectionIndicator isSelected={isSelected} color={ai.color} />
             
             <AIAvatar
@@ -107,7 +108,7 @@ export const AICard: React.FC<AICardProps> = ({
                 aiName={ai.name}
               />
             )}
-          </ThemedView>
+          </Box>
         </GlassCard>
       </Animated.View>
     </Animated.View>

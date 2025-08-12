@@ -10,7 +10,7 @@ const AppLogo: React.FC<AppLogoProps> = ({ size = 120 }) => {
     <View style={[styles.container, { width: size, height: size }]}>
       <Image
         // eslint-disable-next-line @typescript-eslint/no-require-imports
-        source={require('../../assets/app-logo.png') as number}
+        source={require('../../../assets/app-logo.png') as number}
         style={{ width: size, height: size, borderRadius: size * 0.22 }}
         resizeMode="cover"
       />
@@ -33,4 +33,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AppLogo;
+export { AppLogo };

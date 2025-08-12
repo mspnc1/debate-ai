@@ -9,7 +9,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
-import { View } from '../atoms';
+import { Box } from '../atoms';
 import { Typography } from '../molecules';
 import { useTheme, Theme } from '../../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -152,7 +152,7 @@ export const GradientHeader: React.FC<GradientHeaderProps> = ({
   const styles = createStyles(theme, contentPadding);
   
   return (
-    <View style={[styles.container, { height: totalHeight + 30 }, style]}>
+    <Box style={[styles.container, { height: totalHeight + 30 }, style]}>
       {/* Wave-shaped mask for the entire header */}
       <Svg 
         width={SCREEN_WIDTH} 
@@ -184,7 +184,7 @@ export const GradientHeader: React.FC<GradientHeaderProps> = ({
       </Svg>
       
       {/* Geometric SVG Shapes with modern curved design */}
-      <View style={styles.geometryContainer}>
+      <Box style={styles.geometryContainer}>
         <Animated.View style={[styles.geometryLayer, geometryAnimatedStyle]}>
           <Svg width={SCREEN_WIDTH} height={totalHeight} style={StyleSheet.absoluteFillObject}>
             <Defs>
@@ -228,28 +228,28 @@ export const GradientHeader: React.FC<GradientHeaderProps> = ({
             />
           </Svg>
         </Animated.View>
-      </View>
+      </Box>
       
       {/* Floating accent elements */}
       <Animated.View style={[styles.floatingElements, floatingAnimatedStyle]}>
-        <View style={[styles.floatingCircle, styles.circle1, { 
+        <Box style={[styles.floatingCircle, styles.circle1, { 
           backgroundColor: theme.colors.text.inverse,
           opacity: isDark ? 0.06 : 0.08
         }]} />
-        <View style={[styles.floatingCircle, styles.circle2, { 
+        <Box style={[styles.floatingCircle, styles.circle2, { 
           backgroundColor: theme.colors.text.inverse,
           opacity: isDark ? 0.04 : 0.06
         }]} />
-        <View style={[styles.floatingCircle, styles.circle3, { 
+        <Box style={[styles.floatingCircle, styles.circle3, { 
           backgroundColor: theme.colors.text.inverse,
           opacity: isDark ? 0.08 : 0.1
         }]} />
       </Animated.View>
       
       {/* Content */}
-      <View style={[styles.content, { paddingTop: insets.top + theme.spacing.xs }]}>
+      <Box style={[styles.content, { paddingTop: insets.top + theme.spacing.xs }]}>
         {/* Time in top right */}
-        <View style={[styles.timeContainer, { 
+        <Box style={[styles.timeContainer, { 
           top: insets.top + timeTopOffset,
           right: contentPadding 
         }]}>
@@ -265,12 +265,12 @@ export const GradientHeader: React.FC<GradientHeaderProps> = ({
               hour12: true 
             })}
           </Typography>
-        </View>
+        </Box>
         
         {/* Main content area - properly centered */}
-        <View style={styles.mainContent}>
+        <Box style={styles.mainContent}>
           {/* Date positioned above greeting, centered */}
-          <View style={[styles.dateContainer, { marginBottom: dateBottomMargin }]}>
+          <Box style={[styles.dateContainer, { marginBottom: dateBottomMargin }]}>
             <Typography 
               variant="body" 
               weight="bold"
@@ -283,7 +283,7 @@ export const GradientHeader: React.FC<GradientHeaderProps> = ({
                 day: 'numeric'
               })}
             </Typography>
-          </View>
+          </Box>
           
           <Animated.View style={titleAnimatedStyle}>
             <Typography
@@ -308,11 +308,11 @@ export const GradientHeader: React.FC<GradientHeaderProps> = ({
               </Typography>
             </Animated.View>
           )}
-        </View>
+        </Box>
         
         {children}
-      </View>
-    </View>
+      </Box>
+    </Box>
   );
 };
 

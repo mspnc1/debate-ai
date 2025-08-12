@@ -7,14 +7,11 @@ import {
   Keyboard,
   TouchableOpacity,
   Text as RNText,
+  TextInput,
 } from 'react-native';
-import { 
-  View, 
-  Button, 
-  TextInput, 
-  SafeAreaView 
-} from '../components/atoms';
-import { Typography } from '../components/molecules';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Box } from '../components/atoms';
+import { Typography, Button } from '../components/molecules';
 import { useTheme } from '../theme';
 import Animated, {
   FadeInDown,
@@ -28,7 +25,7 @@ import { RootState } from '../store';
 import { addMessage, setTypingAI } from '../store';
 import { Message, ChatSession } from '../types';
 import { useAIService } from '../providers/AIServiceProvider';
-import AIServiceLoading from '../components/AIServiceLoading';
+import { AIServiceLoading } from '../components/organisms';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getPersonality } from '../config/personalities';
 import { AI_BRAND_COLORS } from '../constants/aiColors';
@@ -99,7 +96,7 @@ const MessageBubble: React.FC<{ message: Message; isLast: boolean; searchTerm?: 
       ]}
     >
       {!isUser && (
-        <View style={styles.aiHeader}>
+        <Box style={styles.aiHeader}>
           <Typography 
             variant="caption" 
             weight="semibold"
@@ -107,9 +104,9 @@ const MessageBubble: React.FC<{ message: Message; isLast: boolean; searchTerm?: 
           >
             {message.sender}
           </Typography>
-        </View>
+        </Box>
       )}
-      <View
+      <Box
         style={[
           styles.messageBubble,
           isUser ? {
@@ -130,7 +127,7 @@ const MessageBubble: React.FC<{ message: Message; isLast: boolean; searchTerm?: 
         }}>
           {searchTerm ? <HighlightedText text={message.content} searchTerm={searchTerm} /> : highlightMentions(message.content)}
         </Typography>
-      </View>
+      </Box>
       <Typography 
         variant="caption" 
         color="secondary"
@@ -154,7 +151,7 @@ const TypingIndicator: React.FC<{ aiName: string }> = ({ aiName }) => {
       entering={FadeIn}
       style={styles.typingContainer}
     >
-      <View style={[
+      <Box style={[
         styles.typingBubble,
         {
           backgroundColor: theme.colors.card,
@@ -164,7 +161,7 @@ const TypingIndicator: React.FC<{ aiName: string }> = ({ aiName }) => {
         <Typography variant="caption" color="secondary">
           {aiName} is thinking
         </Typography>
-        <View style={styles.typingDots}>
+        <Box style={styles.typingDots}>
           {[0, 1, 2].map((i) => (
             <Animated.View
               key={i}
@@ -174,8 +171,8 @@ const TypingIndicator: React.FC<{ aiName: string }> = ({ aiName }) => {
               ]}
             />
           ))}
-        </View>
-      </View>
+        </Box>
+      </Box>
     </Animated.View>
   );
 };
@@ -463,14 +460,14 @@ Please respond to ${lastSpeaker}'s comment above. You can agree, disagree, add n
   }
 
   return (
-    <SafeAreaView>
+    <SafeAreaView style={{ flex: 1 }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
         {/* Header */}
-        <View style={[
+        <Box style={[
           styles.header,
           { 
             backgroundColor: theme.colors.surface,
@@ -478,27 +475,26 @@ Please respond to ${lastSpeaker}'s comment above. You can agree, disagree, add n
           }
         ]}>
           <Button 
+            title="←"
             onPress={() => navigation.goBack()}
             variant="ghost"
             style={{ borderWidth: 0, minWidth: 44 }}
-          >
-            <Typography variant="title" color="primary">←</Typography>
-          </Button>
-          <View style={styles.headerCenter}>
+          />
+          <Box style={styles.headerCenter}>
             <Typography variant="subtitle" weight="semibold">
               AI Conversation
             </Typography>
-            <View style={styles.participantsRow}>
+            <Box style={styles.participantsRow}>
               {selectedAIs.map((ai, index) => (
                 <Typography key={ai.id} variant="caption" color="secondary">
                   {ai.name}
                   {index < selectedAIs.length - 1 && ' • '}
                 </Typography>
               ))}
-            </View>
-          </View>
-          <View style={styles.headerRight} />
-        </View>
+            </Box>
+          </Box>
+          <Box style={styles.headerRight} />
+        </Box>
 
         {/* Messages */}
         <FlatList
@@ -516,7 +512,7 @@ Please respond to ${lastSpeaker}'s comment above. You can agree, disagree, add n
           onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
           style={{ backgroundColor: theme.colors.background }}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
+            <Box style={styles.emptyState}>
               <Typography style={styles.emptyStateEmoji}>💭</Typography>
               <Typography variant="title" align="center" style={{ marginBottom: 8 }}>
                 Start the conversation
@@ -524,17 +520,17 @@ Please respond to ${lastSpeaker}'s comment above. You can agree, disagree, add n
               <Typography variant="body" color="secondary" align="center">
                 Type a message or @ mention specific AIs
               </Typography>
-            </View>
+            </Box>
           }
         />
 
         {/* Typing indicators */}
         {typingAIs.length > 0 && (
-          <View style={styles.typingIndicators}>
+          <Box style={styles.typingIndicators}>
             {typingAIs.map((ai) => (
               <TypingIndicator key={ai} aiName={ai} />
             ))}
-          </View>
+          </Box>
         )}
 
         {/* Mention suggestions */}
@@ -552,20 +548,17 @@ Please respond to ${lastSpeaker}'s comment above. You can agree, disagree, add n
             {selectedAIs.map((ai) => (
               <Button
                 key={ai.id}
+                title={`@${ai.name.toLowerCase()}`}
                 variant="ghost"
                 style={{ ...styles.mentionItem, borderWidth: 0 }}
                 onPress={() => insertMention(ai.name)}
-              >
-                <Typography color="primary" weight="medium">
-                  @{ai.name.toLowerCase()}
-                </Typography>
-              </Button>
+              />
             ))}
           </Animated.View>
         )}
 
         {/* Input bar */}
-        <View style={[
+        <Box style={[
           styles.inputContainer,
           {
             backgroundColor: theme.colors.surface,
@@ -577,12 +570,16 @@ Please respond to ${lastSpeaker}'s comment above. You can agree, disagree, add n
               ...styles.input,
               backgroundColor: theme.colors.surface,
               borderRadius: theme.borderRadius.xl,
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              fontSize: 16,
+              color: theme.colors.text.primary,
             }}
             value={inputText}
             onChangeText={handleInputChange}
             placeholder="Type a message..."
+            placeholderTextColor={theme.colors.text.secondary}
             multiline
-            variant="filled"
           />
           <TouchableOpacity
             style={{
@@ -595,7 +592,7 @@ Please respond to ${lastSpeaker}'s comment above. You can agree, disagree, add n
           >
             <RNText style={{ color: '#FFFFFF', fontSize: 20, fontWeight: 'bold' }}>↑</RNText>
           </TouchableOpacity>
-        </View>
+        </Box>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

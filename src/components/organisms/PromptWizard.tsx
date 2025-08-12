@@ -8,10 +8,10 @@ import {
   TextInput,
 } from 'react-native';
 import Animated, { FadeIn, SlideInRight } from 'react-native-reanimated';
-import { ThemedView } from '../atoms';
+import { Box } from '../atoms';
 import { Button } from '../molecules';
 import { GradientButton, Typography } from '../molecules';
-import { SectionHeader } from '../atoms/SectionHeader';
+import { SectionHeader } from '../molecules';
 import { QuickStartTopic } from './QuickStartsSection';
 import { useTheme } from '../../theme';
 import * as Haptics from 'expo-haptics';
@@ -226,7 +226,7 @@ export const PromptWizard: React.FC<PromptWizardProps> = ({
             }}
           >
             {/* Header */}
-            <ThemedView 
+            <Box 
               style={{
                 flexDirection: 'row',
                 justifyContent: 'space-between',
@@ -247,7 +247,7 @@ export const PromptWizard: React.FC<PromptWizardProps> = ({
                 variant="ghost"
                 size="small"
               />
-            </ThemedView>
+            </Box>
             
             <ScrollView 
               style={{ 
@@ -363,7 +363,7 @@ export const PromptWizard: React.FC<PromptWizardProps> = ({
             </ScrollView>
             
             {/* Navigation Buttons */}
-            <ThemedView 
+            <Box 
               style={{
                 flexDirection: 'row',
                 padding: theme.spacing.lg,
@@ -386,7 +386,7 @@ export const PromptWizard: React.FC<PromptWizardProps> = ({
                 gradient={theme.colors.gradients.ocean}
                 style={{ flex: 1 }}
               />
-            </ThemedView>
+            </Box>
           </Animated.View>
         </KeyboardAvoidingView>
       </View>

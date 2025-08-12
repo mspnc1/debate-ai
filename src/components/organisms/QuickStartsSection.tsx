@@ -1,8 +1,8 @@
 import React from 'react';
 import { View } from 'react-native';
-import { ThemedView } from '../atoms';
-import { SectionHeader } from '../atoms/SectionHeader';
-import { QuickStartTile } from '../molecules/QuickStartTile';
+import { Box } from '../atoms';
+import { SectionHeader } from '../molecules';
+import { QuickStartTile } from './QuickStartTile';
 import { useTheme } from '../../theme';
 
 export interface QuickStartTopic {
@@ -26,7 +26,7 @@ export const QuickStartsSection: React.FC<QuickStartsSectionProps> = ({
   const { theme } = useTheme();
   
   return (
-    <ThemedView style={{ opacity: disabled ? 0.5 : 1 }}>
+    <Box style={{ opacity: disabled ? 0.5 : 1 }}>
       <SectionHeader
         title="Quick Starts"
         subtitle={disabled ? "Select at least one AI to enable" : "Conversation starters with smart prompts"}
@@ -54,6 +54,6 @@ export const QuickStartsSection: React.FC<QuickStartsSectionProps> = ({
           </View>
         ))}
       </View>
-    </ThemedView>
+    </Box>
   );
 };

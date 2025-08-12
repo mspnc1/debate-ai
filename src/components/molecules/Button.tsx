@@ -1,6 +1,6 @@
 import React from 'react';
-import { StyleSheet, ViewStyle, ActivityIndicator } from 'react-native';
-import { Touchable, Box } from '../atoms';
+import { StyleSheet, ViewStyle, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { Box } from '../atoms';
 import { Typography } from './Typography';
 import { useTheme } from '../../theme';
 
@@ -82,7 +82,7 @@ export const Button: React.FC<ButtonProps> = ({
   const textVariant = size === 'small' ? 'caption' : size === 'large' ? 'subtitle' : 'button';
 
   return (
-    <Touchable
+    <TouchableOpacity
       onPress={onPress}
       disabled={disabled || loading}
       style={[
@@ -111,7 +111,7 @@ export const Button: React.FC<ButtonProps> = ({
           </Typography>
         )}
       </Box>
-    </Touchable>
+    </TouchableOpacity>
   );
 };
 

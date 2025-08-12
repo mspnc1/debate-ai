@@ -6,7 +6,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { GradientButton, Typography } from '../components/molecules';
-import { SafeArea } from '../components/atoms';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import Animated, {
   useSharedValue,
@@ -21,7 +21,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useDispatch } from 'react-redux';
 import { completeOnboarding } from '../store';
-import AppLogo from '../components/AppLogo';
+import { AppLogo } from '../components/organisms';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
@@ -136,7 +136,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
   ];
 
   return (
-    <SafeArea>
+    <SafeAreaView style={{ flex: 1 }}>
       <AnimatedGradientBackground />
       <ScrollView 
         style={{ flex: 1, backgroundColor: 'transparent' }}
@@ -347,7 +347,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
         </Animated.View>
 
       </ScrollView>
-    </SafeArea>
+    </SafeAreaView>
   );
 };
 

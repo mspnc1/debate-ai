@@ -1,11 +1,9 @@
 import React from 'react';
 import { View, Switch } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Button } from '../molecules';
-import { Typography } from '../molecules';
-import { ModelSelector } from '../molecules/ModelSelector';
-import { ParameterSlider } from '../molecules/ParameterSlider';
-import { ModelBadge } from '../atoms/ModelBadge';
+import { Button, Typography, Badge } from '../molecules';
+import { ModelSelector } from './ModelSelector';
+import { ParameterSlider } from './ParameterSlider';
 import { useTheme } from '../../theme';
 import { 
   AI_MODELS,
@@ -93,7 +91,7 @@ export const ProviderExpertSettings: React.FC<ProviderExpertSettingsProps> = ({
               Expert Mode
             </Typography>
             {!isPremium && (
-              <ModelBadge label="Premium" type="premium" />
+              <Badge label="Premium" type="premium" />
             )}
           </View>
           <Typography variant="caption" color="secondary" style={{ marginTop: 4 }}>

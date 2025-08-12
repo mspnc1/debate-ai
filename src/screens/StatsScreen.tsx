@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { GradientButton, Typography } from '../components/molecules';
-import { View as ThemedView } from '../components/atoms';
+import { Box } from '../components/atoms';
 import { useTheme } from '../theme';
 import { AI_PROVIDERS } from '../config/aiProviders';
 import { AI_BRAND_COLORS } from '../constants/aiColors';
@@ -39,7 +39,7 @@ const StatsScreen: React.FC<StatsScreenProps> = ({ navigation }) => {
   
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <ThemedView style={[styles.header, { 
+      <Box style={[styles.header, { 
         backgroundColor: theme.colors.surface,
         borderBottomColor: theme.colors.border 
       }]}>
@@ -51,21 +51,21 @@ const StatsScreen: React.FC<StatsScreenProps> = ({ navigation }) => {
         />
         <Typography variant="title" weight="bold">📊 AI Performance Stats</Typography>
         <View style={{ width: 60 }} />
-      </ThemedView>
+      </Box>
       
       <ScrollView 
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         {sortedAIs.length === 0 ? (
-          <ThemedView style={styles.emptyState}>
+          <Box style={styles.emptyState}>
             <Typography variant="title" align="center" color="secondary">
               No debates yet!
             </Typography>
             <Typography variant="caption" align="center" color="secondary" style={{ marginTop: 8 }}>
               Complete some debates to see AI performance statistics
             </Typography>
-          </ThemedView>
+          </Box>
         ) : (
           <>
             <Typography variant="title" weight="semibold" style={{ marginBottom: 16 }}>

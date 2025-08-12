@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Text } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { Typography } from './Typography';
+import { Typography } from '../molecules';
 import { useTheme } from '../../theme';
 import { UNIVERSAL_PERSONALITIES } from '../../config/personalities';
 import { PersonalityBadge } from './PersonalityBadge';

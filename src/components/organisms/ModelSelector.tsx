@@ -1,8 +1,7 @@
 import React from 'react';
 import { ScrollView, TouchableOpacity, View } from 'react-native';
-import { Typography } from './Typography';
-import { ModelBadge } from '../atoms/ModelBadge';
-import { ActualPricing } from '../atoms/ActualPricing';
+import { Typography, Badge } from '../molecules';
+import { ActualPricing } from './ActualPricing';
 import { useTheme } from '../../theme';
 import { ModelConfig } from '../../config/modelConfigs';
 import { MODEL_PRICING, getFreeMessageInfo } from '../../config/modelPricing';
@@ -70,11 +69,11 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                 </Typography>
                 
                 {model.isPremium && (
-                  <ModelBadge label="Premium" type="premium" />
+                  <Badge label="Premium" type="premium" />
                 )}
                 
                 {model.isDefault && !model.isPremium && (
-                  <ModelBadge label="Default" type="default" />
+                  <Badge label="Default" type="default" />
                 )}
               </View>
             </TouchableOpacity>

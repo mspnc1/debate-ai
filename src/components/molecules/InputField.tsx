@@ -1,6 +1,6 @@
 import React from 'react';
-import { StyleSheet, TextInputProps, ViewStyle } from 'react-native';
-import { Box, Input } from '../atoms';
+import { StyleSheet, TextInput, TextInputProps, ViewStyle } from 'react-native';
+import { Box } from '../atoms';
 import { Typography } from './Typography';
 import { useTheme } from '../../theme';
 
@@ -34,7 +34,7 @@ export const InputField: React.FC<InputFieldProps> = ({
         </Typography>
       )}
       
-      <Input
+      <TextInput
         style={[
           styles.input,
           {

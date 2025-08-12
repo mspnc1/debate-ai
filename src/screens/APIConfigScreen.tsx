@@ -13,10 +13,9 @@ import { RootState } from '../store';
 import { updateApiKeys, updateExpertMode, addVerifiedProvider, removeVerifiedProvider, setVerifiedProviders } from '../store';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../theme';
-import { View, Button } from '../components/atoms';
-import { Typography } from '../components/molecules';
-import { ProviderCard } from '../components/ProviderCard';
-import { ProviderExpertSettings } from '../components/organisms/ProviderExpertSettings';
+import { Box } from '../components/atoms';
+import { Typography, Button } from '../components/molecules';
+import { ProviderCard, ProviderExpertSettings } from '../components/organisms';
 import { AI_PROVIDERS, getEnabledProviders } from '../config/aiProviders';
 import { DEFAULT_PARAMETERS } from '../config/modelConfigs';
 import secureStorage from '../services/secureStorage';
@@ -228,10 +227,10 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <View style={{ flex: 1 }} backgroundColor="background">
+    <Box style={{ flex: 1 }} backgroundColor="background">
       <SafeAreaView style={{ flex: 1 }}>
         {/* Custom Header */}
-        <View style={{
+        <Box style={{
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -242,15 +241,14 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
           borderBottomColor: theme.colors.border,
         }}>
           <Button 
+            title="←"
             onPress={() => navigation.goBack()}
             variant="ghost"
             style={{ borderWidth: 0, minWidth: 44 }}
-          >
-            <Typography variant="heading" color="primary">←</Typography>
-          </Button>
+          />
           <Typography variant="title" weight="bold">API Configuration</Typography>
-          <View style={{ width: 44 }} />
-        </View>
+          <Box style={{ width: 44 }} />
+        </Box>
         
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -270,8 +268,8 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
               </Typography>
 
               {/* Progress Bar */}
-              <View style={{ marginBottom: 20 }}>
-                <View
+              <Box style={{ marginBottom: 20 }}>
+                <Box
                   style={{
                     height: 8,
                     backgroundColor: theme.colors.gray[200],
@@ -288,7 +286,7 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                       width: `${progressPercentage}%`,
                     }}
                   />
-                </View>
+                </Box>
                 <Typography
                   variant="caption"
                   color="secondary"
@@ -300,7 +298,7 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                     ? '🎉 All services connected!'
                     : `${configuredCount} of ${enabledProviders.length} services connected`}
                 </Typography>
-              </View>
+              </Box>
 
               {/* Clear All Button */}
               {configuredCount > 0 && (
@@ -323,7 +321,7 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
             </Animated.View>
 
             {/* Provider Cards */}
-            <View>
+            <Box>
               <Typography variant="title" style={{ marginBottom: 16 }}>
                 Available AI Services
               </Typography>
@@ -336,7 +334,7 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                 };
                 
                 return (
-                  <View key={provider.id} style={{ marginBottom: theme.spacing.lg }}>
+                  <Box key={provider.id} style={{ marginBottom: theme.spacing.lg }}>
                     <ProviderCard
                       provider={provider}
                       apiKey={apiKeys[provider.id] || ''}
@@ -364,7 +362,7 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                     
                     {/* Expert Mode Settings */}
                     {expandedProvider === provider.id && apiKeys[provider.id] && (
-                      <View style={{ marginTop: theme.spacing.md }}>
+                      <Box style={{ marginTop: theme.spacing.md }}>
                         <ProviderExpertSettings
                           providerId={provider.id}
                           isEnabled={expertConfig.enabled}
@@ -399,12 +397,12 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                             }));
                           }}
                         />
-                      </View>
+                      </Box>
                     )}
-                  </View>
+                  </Box>
                 );
               })}
-            </View>
+            </Box>
 
             {/* Coming Soon Section */}
             {AI_PROVIDERS.filter(p => !p.enabled).length > 0 && (
@@ -415,7 +413,7 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                 <Typography variant="title" style={{ marginBottom: 16 }}>
                   Coming Soon
                 </Typography>
-                <View
+                <Box
                   style={{
                     backgroundColor: theme.colors.card,
                     borderRadius: 12,
@@ -424,9 +422,9 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                     borderColor: theme.colors.border,
                   }}
                 >
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                  <Box style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                     {AI_PROVIDERS.filter(p => !p.enabled).map(provider => (
-                      <View
+                      <Box
                         key={provider.id}
                         style={{
                           flexDirection: 'row',
@@ -441,10 +439,10 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                         <Typography variant="body" color="secondary">
                           {provider.name}
                         </Typography>
-                      </View>
+                      </Box>
                     ))}
-                  </View>
-                </View>
+                  </Box>
+                </Box>
               </Animated.View>
             )}
 
@@ -473,7 +471,7 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </View>
+    </Box>
   );
 };
 

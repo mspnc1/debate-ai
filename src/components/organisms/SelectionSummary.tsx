@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity, ScrollView } from 'react-native';
-import { Typography } from './Typography';
+import { Typography } from '../molecules';
 import { AIConfig } from '../../types';
 import { useTheme } from '../../theme';
 import * as Haptics from 'expo-haptics';

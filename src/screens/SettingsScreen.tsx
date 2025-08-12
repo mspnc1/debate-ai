@@ -12,7 +12,7 @@ import { RootState } from '../store';
 import { logout } from '../store';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../theme';
-import { ThemedView } from '../components/atoms';
+import { Box } from '../components/atoms';
 import { Typography } from '../components/molecules';
 
 interface SettingsScreenProps {
@@ -27,7 +27,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const { theme, setThemeMode, isDark } = useTheme();
 
   return (
-    <ThemedView flex={1} backgroundColor="background">
+    <Box style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
         <ScrollView 
           contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 }}
@@ -42,7 +42,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           style={{ marginBottom: 32 }}
         >
           <Typography variant="title" style={{ marginBottom: 16 }}>Appearance</Typography>
-          <ThemedView 
+          <Box 
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -65,7 +65,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
               }}
               trackColor={{ false: theme.colors.gray[300], true: theme.colors.primary[500] }}
             />
-          </ThemedView>
+          </Box>
         </Animated.View>
 
         {/* API Keys */}
@@ -94,7 +94,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           style={{ marginBottom: 32 }}
         >
           <Typography variant="title" style={{ marginBottom: 16 }}>Subscription</Typography>
-          <ThemedView
+          <Box
             style={{
               backgroundColor: theme.colors.card,
               borderRadius: 12,
@@ -119,7 +119,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
                 <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '600' }}>Upgrade to Pro</Text>
               </TouchableOpacity>
             )}
-          </ThemedView>
+          </Box>
         </Animated.View>
 
         {/* About */}
@@ -154,7 +154,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         </Animated.View>
       </ScrollView>
     </SafeAreaView>
-    </ThemedView>
+    </Box>
   );
 };
 

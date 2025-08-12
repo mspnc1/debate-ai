@@ -3,16 +3,20 @@ import { TouchableOpacity, Text } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../theme';
 
-interface StepperButtonProps {
-  type: 'increment' | 'decrement';
+interface IconButtonProps {
+  icon?: string;
+  type?: 'increment' | 'decrement'; // For backward compatibility
   onPress: () => void;
   disabled?: boolean;
+  size?: number;
 }
 
-export const StepperButton: React.FC<StepperButtonProps> = ({
+export const IconButton: React.FC<IconButtonProps> = ({
+  icon,
   type,
   onPress,
   disabled = false,
+  size = 36,
 }) => {
   const { theme } = useTheme();
   
@@ -23,14 +27,17 @@ export const StepperButton: React.FC<StepperButtonProps> = ({
     }
   };
   
+  // Determine the icon to display
+  const displayIcon = icon || (type === 'increment' ? '+' : '−');
+  
   return (
     <TouchableOpacity
       onPress={handlePress}
       disabled={disabled}
       style={{
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        width: size,
+        height: size,
+        borderRadius: size / 2,
         backgroundColor: disabled 
           ? theme.colors.gray[200] 
           : theme.colors.primary[100],
@@ -42,10 +49,10 @@ export const StepperButton: React.FC<StepperButtonProps> = ({
         color: disabled 
           ? theme.colors.gray[400] 
           : theme.colors.primary[600], 
-        fontSize: 20, 
+        fontSize: size * 0.55, 
         fontWeight: 'bold',
       }}>
-        {type === 'increment' ? '+' : '−'}
+        {displayIcon}
       </Text>
     </TouchableOpacity>
   );

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ViewStyle } from 'react-native';
-import { Typography } from '../molecules';
+import { Typography } from './Typography';
 import { useTheme } from '../../theme';
 
 interface SectionHeaderProps {

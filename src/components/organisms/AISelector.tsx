@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Dimensions } from 'react-native';
-import { ThemedView } from '../atoms';
+import { Box } from '../atoms';
 import { GradientButton } from '../molecules';
-import { SectionHeader } from '../atoms/SectionHeader';
-import { AICard } from '../molecules/AICard';
+import { SectionHeader } from '../molecules';
+import { AICard } from './AICard';
 import { AIConfig } from '../../types';
 import { useTheme } from '../../theme';
 
@@ -30,7 +30,7 @@ export const AISelector: React.FC<AISelectorProps> = ({
   const cardWidth = (width - 48 - 20) / 3; // Account for padding and gaps
   
   return (
-    <ThemedView>
+    <Box>
       <SectionHeader
         title="Select your AIs"
         subtitle={isPremium 
@@ -74,6 +74,6 @@ export const AISelector: React.FC<AISelectorProps> = ({
         fullWidth
         hapticType="medium"
       />
-    </ThemedView>
+    </Box>
   );
 };

@@ -6,7 +6,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useTheme } from '../../theme';
-import { Typography } from './Typography';
+import { Typography } from '../molecules';
 import * as Haptics from 'expo-haptics';
 
 interface PersonalityBadgeProps {

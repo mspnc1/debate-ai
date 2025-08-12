@@ -10,12 +10,12 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useTheme } from '../theme';
-import { GradientButton, Typography } from './molecules';
-import { AIProvider } from '../config/aiProviders';
-import { AI_MODELS } from '../config/modelConfigs';
-import { MODEL_PRICING, getFreeMessageInfo } from '../config/modelPricing';
-import { ActualPricing } from './atoms/ActualPricing';
+import { useTheme } from '../../theme';
+import { GradientButton, Typography } from '../molecules';
+import { AIProvider } from '../../config/aiProviders';
+import { AI_MODELS } from '../../config/modelConfigs';
+import { MODEL_PRICING, getFreeMessageInfo } from '../../config/modelPricing';
+import { ActualPricing } from './ActualPricing';
 import * as Haptics from 'expo-haptics';
 
 interface ProviderCardProps {

@@ -3,14 +3,12 @@ import {
   StyleSheet,
   FlatList,
   Alert,
+  TextInput,
+  TouchableOpacity,
 } from 'react-native';
-import { 
-  ThemedView, 
-  ThemedText, 
-  ThemedButton, 
-  ThemedTextInput, 
-  ThemedSafeAreaView 
-} from '../components/atoms';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Box } from '../components/atoms';
+import { Typography, Button } from '../components/molecules';
 import { useTheme } from '../theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSelector, useDispatch } from 'react-redux';
@@ -36,23 +34,23 @@ const SessionPreview: React.FC<{
   const { theme } = useTheme();
   
   if (!searchTerm) {
-    return <ThemedText style={style} color="secondary" variant="body">{text}</ThemedText>;
+    return <Typography style={style} color="secondary" variant="body">{text}</Typography>;
   }
 
   const parts = text.split(new RegExp(`(${searchTerm})`, 'gi'));
   
   return (
-    <ThemedText style={style} color="secondary" variant="body">
+    <Typography style={style} color="secondary" variant="body">
       {parts.map((part, index) => 
         part.toLowerCase() === searchTerm.toLowerCase() ? (
-          <ThemedText key={index} style={{ backgroundColor: theme.colors.warning[50], fontWeight: '600' }}>
+          <Typography key={index} style={{ backgroundColor: theme.colors.warning[50], fontWeight: '600' }}>
             {part}
-          </ThemedText>
+          </Typography>
         ) : (
           part
         )
       )}
-    </ThemedText>
+    </Typography>
   );
 };
 
@@ -199,14 +197,14 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
 
   const renderRightActions = (sessionId: string) => {
     return (
-      <ThemedView style={[styles.deleteAction, { backgroundColor: theme.colors.error[500] }]}>
-        <ThemedButton
+      <Box style={[styles.deleteAction, { backgroundColor: theme.colors.error[500] }]}>
+        <Button
+          title="Delete"
           onPress={() => deleteSession(sessionId)}
+          variant="ghost"
           style={{ backgroundColor: 'transparent' }}
-        >
-          <ThemedText color="inverse" weight="semibold">Delete</ThemedText>
-        </ThemedButton>
-      </ThemedView>
+        />
+      </Box>
     );
   };
 
@@ -227,9 +225,8 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
           renderRightActions={() => renderRightActions(item.id)}
           overshootRight={false}
         >
-          <ThemedButton
+          <TouchableOpacity
             onPress={() => resumeSession(item)}
-            variant="ghost"
             style={{
               ...styles.sessionCard,
               backgroundColor: theme.colors.card,
@@ -238,34 +235,34 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
               shadowColor: theme.colors.shadow,
             }}
           >
-            <ThemedView style={styles.sessionContent}>
-              <ThemedView style={styles.sessionHeader}>
-                <ThemedText variant="subtitle" weight="semibold" numberOfLines={1}>
+            <Box style={styles.sessionContent}>
+              <Box style={styles.sessionHeader}>
+                <Typography variant="subtitle" weight="semibold" numberOfLines={1}>
                   {aiNames}
-                </ThemedText>
-                <ThemedText variant="caption" color="secondary">
+                </Typography>
+                <Typography variant="caption" color="secondary">
                   {formatDate(item.createdAt)}
-                </ThemedText>
-              </ThemedView>
+                </Typography>
+              </Box>
               <SessionPreview 
                 text={preview}
                 searchTerm={searchQuery}
                 style={styles.preview}
               />
-              <ThemedView style={styles.sessionFooter}>
-                <ThemedText variant="caption" color="secondary">
+              <Box style={styles.sessionFooter}>
+                <Typography variant="caption" color="secondary">
                   {item.messages.length} messages
-                </ThemedText>
+                </Typography>
                 {containsSearchTerm && (
-                  <ThemedView style={[styles.matchBadge, { backgroundColor: theme.colors.warning[50] }]}>
-                    <ThemedText variant="caption" style={{ color: theme.colors.warning[600] }}>
+                  <Box style={[styles.matchBadge, { backgroundColor: theme.colors.warning[50] }]}>
+                    <Typography variant="caption" style={{ color: theme.colors.warning[600] }}>
                       Match found
-                    </ThemedText>
-                  </ThemedView>
+                    </Typography>
+                  </Box>
                 )}
-              </ThemedView>
-            </ThemedView>
-          </ThemedButton>
+              </Box>
+            </Box>
+          </TouchableOpacity>
         </Swipeable>
       </Animated.View>
     );
@@ -273,53 +270,63 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
 
   if (isLoading) {
     return (
-      <ThemedSafeAreaView edges={['top', 'left', 'right']}>
-        <ThemedView style={styles.centered}>
-          <ThemedText variant="body" color="secondary">Loading conversations...</ThemedText>
-        </ThemedView>
-      </ThemedSafeAreaView>
+      <SafeAreaView edges={['top', 'left', 'right']}>
+        <Box style={styles.centered}>
+          <Typography variant="body" color="secondary">Loading conversations...</Typography>
+        </Box>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ThemedSafeAreaView>
-      <ThemedView flex={1}>
+    <SafeAreaView>
+      <Box style={{ flex: 1 }}>
         {/* Header */}
-        <ThemedView style={[
+        <Box style={[
           styles.header,
           { 
             backgroundColor: theme.colors.surface,
             borderBottomColor: theme.colors.border,
           }
         ]}>
-          <ThemedText variant="title" weight="bold">
+          <Typography variant="title" weight="bold">
             Chat History
-          </ThemedText>
+          </Typography>
           {subscription === 'free' && (
-            <ThemedView style={[
+            <Box style={[
               styles.limitBadge,
               { backgroundColor: theme.colors.warning[50] }
             ]}>
-              <ThemedText variant="caption" style={{ color: theme.colors.warning[600] }}>
+              <Typography variant="caption" style={{ color: theme.colors.warning[600] }}>
                 {sessions.length}/{maxSessions} chats (Free plan)
-              </ThemedText>
-            </ThemedView>
+              </Typography>
+            </Box>
           )}
-        </ThemedView>
+        </Box>
 
         {/* Search Bar */}
-        <ThemedView style={[
+        <Box style={[
           styles.searchContainer,
           { backgroundColor: theme.colors.surface }
         ]}>
-          <ThemedTextInput
-            style={styles.searchInput}
+          <TextInput
+            style={[
+              styles.searchInput,
+              {
+                backgroundColor: theme.colors.surface,
+                borderRadius: theme.borderRadius.lg,
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                fontSize: 16,
+                color: theme.colors.text.primary,
+              }
+            ]}
             placeholder="Search messages or AI names..."
+            placeholderTextColor={theme.colors.text.secondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            variant="filled"
           />
-        </ThemedView>
+        </Box>
 
         {/* Sessions List */}
         <FlatList
@@ -328,40 +335,40 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
           renderItem={renderSession}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
-            <ThemedView style={styles.emptyState}>
-              <ThemedText style={styles.emptyStateEmoji}>
+            <Box style={styles.emptyState}>
+              <Typography style={styles.emptyStateEmoji}>
                 {searchQuery ? '🔍' : '💬'}
-              </ThemedText>
-              <ThemedText variant="title" align="center" style={{ marginBottom: 8 }}>
+              </Typography>
+              <Typography variant="title" align="center" style={{ marginBottom: 8 }}>
                 {searchQuery ? 'No matches found' : 'No conversations yet'}
-              </ThemedText>
-              <ThemedText variant="body" color="secondary" align="center">
+              </Typography>
+              <Typography variant="body" color="secondary" align="center">
                 {searchQuery 
                   ? 'Try a different search term'
                   : 'Start a new chat to see it here'}
-              </ThemedText>
-            </ThemedView>
+              </Typography>
+            </Box>
           }
           showsVerticalScrollIndicator={false}
         />
 
         {/* Stats or Tips */}
         {sessions.length > 0 && !searchQuery && (
-          <ThemedView style={[
+          <Box style={[
             styles.statsBar,
             { 
               backgroundColor: theme.colors.surface,
               borderTopColor: theme.colors.border,
             }
           ]}>
-            <ThemedText variant="caption" color="secondary">
+            <Typography variant="caption" color="secondary">
               {sessions.length} conversation{sessions.length !== 1 ? 's' : ''} • 
               {' '}{sessions.reduce((acc, s) => acc + s.messages.length, 0)} total messages
-            </ThemedText>
-          </ThemedView>
+            </Typography>
+          </Box>
         )}
-      </ThemedView>
-    </ThemedSafeAreaView>
+      </Box>
+    </SafeAreaView>
   );
 };
 
