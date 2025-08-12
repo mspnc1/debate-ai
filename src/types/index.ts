@@ -35,6 +35,13 @@ export interface AIConfig {
   color?: string;
 }
 
+export interface MessageMetadata {
+  sessionId?: string;
+  conversationTurn?: number;
+  responseTime?: number;
+  wordCount?: number;
+}
+
 export interface Message {
   id: string;
   sender: string;
@@ -42,6 +49,7 @@ export interface Message {
   content: string;
   timestamp: number;
   mentions?: string[];
+  metadata?: MessageMetadata;
 }
 
 export interface ChatSession {
@@ -51,6 +59,7 @@ export interface ChatSession {
   isActive: boolean;
   createdAt: number;
   startTime?: number;
+  lastMessageAt?: number;
 }
 
 export interface PersonalityConfig {

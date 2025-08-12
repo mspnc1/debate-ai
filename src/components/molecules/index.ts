@@ -11,3 +11,4 @@ export { PricingBadge } from './PricingBadge';
 export { Badge } from './Badge';
 export { IconButton } from './IconButton';
 export { SelectionIndicator } from './SelectionIndicator';
+export { SearchHighlight } from './SearchHighlight';
