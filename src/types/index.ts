@@ -1,6 +1,6 @@
 // Core type definitions for DebateAI
 
-export type AIProvider = 'claude' | 'chatgpt' | 'gemini' | 'nomi' | 'replika' | 'character';
+export type AIProvider = 'claude' | 'openai' | 'chatgpt' | 'gemini' | 'nomi' | 'replika' | 'character';
 export type UIMode = 'simple' | 'expert';
 export type SubscriptionTier = 'free' | 'pro' | 'business';
 

@@ -320,6 +320,7 @@ export class AIFactory {
     switch (config.provider) {
       case 'claude':
         return new ClaudeAdapter(config);
+      case 'openai':
       case 'chatgpt':
         return new ChatGPTAdapter(config);
       case 'gemini':
@@ -404,6 +405,11 @@ class MockAIAdapter extends AIAdapter {
         `That's an interesting perspective. From my analysis, there are several factors to consider here.`,
         `Based on the context, I'd suggest we explore this further. What specific aspect interests you most?`,
       ],
+      openai: [
+        `Great question! "${message.slice(0, 30)}..." is definitely worth discussing.`,
+        `I'd be happy to help with that! There are a few ways we could approach this.`,
+        `That's a fascinating point! Let me share some thoughts on this.`,
+      ],
       chatgpt: [
         `Great question! "${message.slice(0, 30)}..." is definitely worth discussing.`,
         `I'd be happy to help with that! There are a few ways we could approach this.`,
@@ -431,7 +437,7 @@ class MockAIAdapter extends AIAdapter {
       ],
     };
     
-    const providerResponses = responses[provider] || responses.chatgpt;
+    const providerResponses = responses[provider] || responses.openai;
     return providerResponses[Math.floor(Math.random() * providerResponses.length)];
   }
 }
@@ -473,8 +479,8 @@ export class AIService {
         apiKey: 'mock',
         personality: PERSONALITIES.neutral,
       }));
-      this.adapters.set('chatgpt', new MockAIAdapter({
-        provider: 'chatgpt',
+      this.adapters.set('openai', new MockAIAdapter({
+        provider: 'openai',
         apiKey: 'mock',
         personality: PERSONALITIES.neutral,
       }));
@@ -500,7 +506,7 @@ export class AIService {
       if (apiKeys?.openai) {
         // Store under 'openai' to match the provider ID from aiProviders.ts
         this.adapters.set('openai', AIFactory.create({
-          provider: 'chatgpt',
+          provider: 'openai',
           apiKey: apiKeys.openai,
           personality: PERSONALITIES.neutral,
         }));

@@ -1,18 +1,21 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState, startSession, setAIPersonality } from '../store';
 
 import { GradientHeader } from '../components/organisms';
 import { DynamicAISelector } from '../components/organisms/DynamicAISelector';
-import { QuickStartsSection, QuickStartTopic } from '../components/organisms/QuickStartsSection';
+import { QuickStartsSection } from '../components/organisms/QuickStartsSection';
 import { PromptWizard } from '../components/organisms/PromptWizard';
 
 import { useTheme } from '../theme';
-import { AIConfig } from '../types';
-import { AI_PROVIDERS } from '../config/aiProviders';
-import { getAIProviderIcon } from '../utils/aiProviderAssets';
+import { HOME_CONSTANTS } from '../config/homeConstants';
+
+// Custom hooks
+import { useGreeting } from '../hooks/home/useGreeting';
+import { usePremiumFeatures } from '../hooks/home/usePremiumFeatures';
+import { useAISelection } from '../hooks/home/useAISelection';
+import { useSessionManagement } from '../hooks/home/useSessionManagement';
+import { useQuickStart } from '../hooks/home/useQuickStart';
 
 interface HomeScreenProps {
   navigation: {
@@ -21,111 +24,56 @@ interface HomeScreenProps {
 }
 
 
-const QUICK_START_TOPICS: QuickStartTopic[] = [
-  { id: 'morning', emoji: '☀️', title: 'Morning Check-in', subtitle: 'Start your day right' },
-  { id: 'brainstorm', emoji: '💡', title: 'Brainstorming', subtitle: 'Generate fresh ideas' },
-  { id: 'learn', emoji: '📚', title: 'Learn Something', subtitle: 'Explore new topics' },
-  { id: 'creative', emoji: '📝', title: 'Creative Writing', subtitle: 'Tell a story together' },
-  { id: 'problem', emoji: '🧩', title: 'Problem Solving', subtitle: 'Work through challenges' },
-  { id: 'fun', emoji: '🎮', title: 'Just for Fun', subtitle: 'Games and entertainment' },
-];
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();
-  const dispatch = useDispatch();
-  const user = useSelector((state: RootState) => state.user.currentUser);
-  const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
-  const aiPersonalities = useSelector((state: RootState) => state.chat.aiPersonalities);
   
-  const [selectedAIs, setSelectedAIs] = useState<AIConfig[]>([]);
-  const [selectedTopic, setSelectedTopic] = useState<QuickStartTopic | null>(null);
-  const [showPromptWizard, setShowPromptWizard] = useState(false);
+  // Compose hooks for clean separation of concerns
+  const greeting = useGreeting();
+  const premium = usePremiumFeatures();
+  const aiSelection = useAISelection(premium.maxAIs);
+  const session = useSessionManagement();
+  const quickStart = useQuickStart();
   
-  // TODO: Remove true || for production - defaulting to premium for development
-  // eslint-disable-next-line no-constant-binary-expression
-  const isPremium = true || user?.subscription === 'pro' || user?.subscription === 'business';
-  
-  // Get configured AIs based on which ones have API keys
-  const configuredAIs = useMemo(() => {
-    return AI_PROVIDERS
-      .filter(provider => provider.enabled && apiKeys[provider.id as keyof typeof apiKeys])
-      .map(provider => {
-        const iconData = getAIProviderIcon(provider.id);
-        return {
-          id: provider.id,
-          provider: provider.id,
-          name: provider.name,
-          personality: 'balanced',
-          avatar: iconData.icon, // Keep for backwards compatibility
-          icon: iconData.icon,
-          iconType: iconData.iconType,
-          color: provider.color,
-        } as AIConfig;
-      });
-  }, [apiKeys]);
-  
-  const maxAIs = isPremium ? configuredAIs.length : Math.min(2, configuredAIs.length);
-  
-  const handleToggleAI = (ai: AIConfig) => {
-    setSelectedAIs(prev => {
-      const isSelected = prev.some(s => s.id === ai.id);
-      if (isSelected) {
-        return prev.filter(s => s.id !== ai.id);
-      } else if (prev.length < maxAIs) {
-        return [...prev, ai];
-      }
-      return prev;
-    });
-  };
-  
+  // Event handlers using hook methods
   const handleStartChat = () => {
-    if (selectedAIs.length > 0) {
-      dispatch(startSession({ selectedAIs, aiPersonalities }));
-      const sessionId = `session_${Date.now()}`;
-      navigation.navigate('Chat', { sessionId });
+    if (aiSelection.hasSelection) {
+      const sessionId = session.createSession(aiSelection.selectedAIs);
+      navigation.navigate(HOME_CONSTANTS.SCREENS.CHAT, { sessionId });
     }
   };
   
-  const handlePersonalityChange = (aiId: string, personalityId: string) => {
-    dispatch(setAIPersonality({ aiId, personalityId }));
-  };
-  
-  const handleSelectTopic = (topic: QuickStartTopic) => {
-    if (selectedAIs.length === 0) {
-      return; // Don't open wizard if no AIs selected
+  const handleSelectTopic = (topic: typeof quickStart.topics[0]) => {
+    if (aiSelection.hasSelection && quickStart.isAvailable(aiSelection.selectionCount)) {
+      quickStart.selectTopic(topic);
     }
-    setSelectedTopic(topic);
-    setShowPromptWizard(true);
   };
   
   const handleCompleteWizard = (userPrompt: string, enrichedPrompt: string) => {
-    setShowPromptWizard(false);
-    if (selectedAIs.length > 0) {
-      dispatch(startSession({ selectedAIs, aiPersonalities }));
-      const sessionId = `session_${Date.now()}`;
-      navigation.navigate('Chat', { 
+    if (quickStart.validateCompletion(userPrompt, enrichedPrompt) && aiSelection.hasSelection) {
+      const sessionId = session.createSession(aiSelection.selectedAIs);
+      navigation.navigate(HOME_CONSTANTS.SCREENS.CHAT, {
         sessionId,
         initialPrompt: enrichedPrompt,
-        userPrompt: userPrompt,
+        userPrompt,
         autoSend: true,
       });
     }
+    quickStart.closeWizard();
   };
   
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+  const handleAddAI = () => {
+    navigation.navigate(HOME_CONSTANTS.SCREENS.API_CONFIG);
   };
+  
   
   return (
     <SafeAreaView 
       style={{ flex: 1, backgroundColor: theme.colors.background }}
       edges={['top', 'left', 'right']}>
       <GradientHeader
-        title={getGreeting()}
-        subtitle={`Welcome back${user?.email ? `, ${user.email.split('@')[0]}` : ''}!`}
+        title={greeting.timeBasedGreeting}
+        subtitle={greeting.welcomeMessage}
       />
       
       <ScrollView 
@@ -139,31 +87,31 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         {/* Primary: AI Selection & Chat */}
         <View style={{ marginBottom: theme.spacing.xl }}>
           <DynamicAISelector
-            configuredAIs={configuredAIs}
-            selectedAIs={selectedAIs}
-            maxAIs={maxAIs}
-            onToggleAI={handleToggleAI}
+            configuredAIs={aiSelection.configuredAIs}
+            selectedAIs={aiSelection.selectedAIs}
+            maxAIs={aiSelection.maxAIs}
+            onToggleAI={aiSelection.toggleAI}
             onStartChat={handleStartChat}
-            onAddAI={() => navigation.navigate('APIConfig')}
-            isPremium={isPremium}
-            aiPersonalities={aiPersonalities}
-            onPersonalityChange={handlePersonalityChange}
+            onAddAI={handleAddAI}
+            isPremium={premium.isPremium}
+            aiPersonalities={aiSelection.aiPersonalities}
+            onPersonalityChange={aiSelection.changePersonality}
           />
         </View>
         
         {/* Quick Starts - Guided Chat */}
         <QuickStartsSection
-          topics={QUICK_START_TOPICS}
+          topics={quickStart.topics}
           onSelectTopic={handleSelectTopic}
-          disabled={selectedAIs.length === 0}
+          disabled={!aiSelection.hasSelection}
         />
       </ScrollView>
       
       {/* Prompt Wizard Modal */}
       <PromptWizard
-        visible={showPromptWizard}
-        topic={selectedTopic}
-        onClose={() => setShowPromptWizard(false)}
+        visible={quickStart.showWizard}
+        topic={quickStart.selectedTopic}
+        onClose={quickStart.closeWizard}
         onComplete={handleCompleteWizard}
       />
     </SafeAreaView>

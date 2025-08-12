@@ -496,7 +496,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
       const aiName = message.sender.split(' (')[0].toLowerCase();
       
       // Map AI names to their brand color keys
-      const aiBrandKey = aiName === 'chatgpt' ? 'chatgpt' : 
+      const aiBrandKey = (aiName === 'chatgpt' || aiName === 'openai') ? 'openai' : 
                          aiName === 'claude' ? 'claude' :
                          aiName === 'gemini' ? 'gemini' :
                          aiName === 'nomi' ? 'nomi' : null;
@@ -786,7 +786,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
                       const roundsWon = Object.entries(votes)
                         .filter(([key, value]) => key !== 'overall' && value === ai.id)
                         .length;
-                      const aiColor = ai.id === 'chatgpt' ? AI_BRAND_COLORS.chatgpt :
+                      const aiColor = (ai.id === 'openai' || ai.id === 'chatgpt') ? AI_BRAND_COLORS.openai :
                                       ai.id === 'claude' ? AI_BRAND_COLORS.claude :
                                       ai.id === 'gemini' ? AI_BRAND_COLORS.gemini :
                                       ai.id === 'nomi' ? AI_BRAND_COLORS.nomi :
@@ -815,7 +815,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
               )}
               <View style={styles.votingButtons}>
                 {selectedAIs.map((ai) => {
-                  const aiColor = ai.id === 'chatgpt' ? AI_BRAND_COLORS.chatgpt :
+                  const aiColor = (ai.id === 'openai' || ai.id === 'chatgpt') ? AI_BRAND_COLORS.openai :
                                   ai.id === 'claude' ? AI_BRAND_COLORS.claude :
                                   ai.id === 'gemini' ? AI_BRAND_COLORS.gemini :
                                   ai.id === 'nomi' ? AI_BRAND_COLORS.nomi :
@@ -859,7 +859,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
               <View style={styles.scoreRow}>
                 {selectedAIs.map((ai) => {
                   const roundsWon = Object.values(votes).filter(v => v === ai.id && v !== 'overall').length;
-                  const aiColor = ai.id === 'chatgpt' ? AI_BRAND_COLORS.chatgpt :
+                  const aiColor = (ai.id === 'openai' || ai.id === 'chatgpt') ? AI_BRAND_COLORS.openai :
                                   ai.id === 'claude' ? AI_BRAND_COLORS.claude :
                                   ai.id === 'gemini' ? AI_BRAND_COLORS.gemini :
                                   ai.id === 'nomi' ? AI_BRAND_COLORS.nomi :

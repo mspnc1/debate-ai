@@ -25,7 +25,7 @@ const StatsScreen: React.FC<StatsScreenProps> = ({ navigation }) => {
     const provider = AI_PROVIDERS.find(p => p.id === aiId);
     if (!provider) return { name: aiId, color: theme.colors.primary };
     
-    const colorKey = aiId === 'openai' ? 'chatgpt' : aiId;
+    const colorKey = (aiId === 'openai' || aiId === 'chatgpt') ? 'openai' : aiId;
     const brandColors = AI_BRAND_COLORS[colorKey as keyof typeof AI_BRAND_COLORS];
     return {
       name: provider.name,

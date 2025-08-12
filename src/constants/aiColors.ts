@@ -13,6 +13,19 @@ export const AI_BRAND_COLORS = {
     900: '#994D00',
   },
   
+  openai: {
+    50: '#E6FAFF',
+    100: '#B3F0FF',
+    200: '#80EEFF',
+    300: '#4DE7FF',
+    400: '#1AE0FF',
+    500: '#00D9FF', // OpenAI/ChatGPT's brand cyan
+    600: '#00B8E6',
+    700: '#0096CC',
+    800: '#0075B3',
+    900: '#005399',
+  },
+  
   chatgpt: {
     50: '#E6FAFF',
     100: '#B3F0FF',
