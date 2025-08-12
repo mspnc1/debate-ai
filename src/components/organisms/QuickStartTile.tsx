@@ -87,7 +87,7 @@ export const QuickStartTile: React.FC<QuickStartTileProps> = ({
             <Typography style={{ fontSize: 28, marginBottom: 8 }}>
               {emoji}
             </Typography>
-            <Typography variant="subtitle" weight="semibold" numberOfLines={1}>
+            <Typography variant="subtitle" weight="semibold" numberOfLines={2}>
               {title}
             </Typography>
             <Typography variant="caption" color="secondary" numberOfLines={2}>

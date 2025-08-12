@@ -126,7 +126,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   const [customTopic, setCustomTopic] = useState('');
   const [showTopicDropdown, setShowTopicDropdown] = useState(false);
   const [topicMode, setTopicMode] = useState<'preset' | 'custom'>('preset');
-  const [aiPersonalities, setAiPersonalities] = useState<{ [key: string]: string }>(
+  const [aiPersonalities] = useState<{ [key: string]: string }>(
     initialPersonalities || {}
   );
   const [debateStarted, setDebateStarted] = useState(false);
@@ -722,32 +722,6 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         </Box>
       )}
 
-      {/* Personality Selector */}
-      {!debateStarted && ((topicMode === 'preset' && selectedTopic) || (topicMode === 'custom' && customTopic)) && (
-        <Animated.View entering={FadeInDown.delay(200)} style={styles.personalitySection}>
-          <Typography variant="title" weight="semibold">Choose Personalities</Typography>
-          {selectedAIs.map((ai) => (
-            <Box key={ai.id} style={styles.personalityRow}>
-              <Typography variant="subtitle" color="brand" weight="semibold">{ai.name}:</Typography>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-                {UNIVERSAL_PERSONALITIES.map((personality) => (
-                  <Button
-                    key={personality.id}
-                    title={personality.name}
-                    onPress={() => setAiPersonalities({
-                      ...aiPersonalities,
-                      [ai.id]: personality.id,
-                    })}
-                    variant={aiPersonalities[ai.id] === personality.id ? 'primary' : 'secondary'}
-                    size="small"
-                    style={{ marginRight: 8 }}
-                  />
-                ))}
-              </ScrollView>
-            </Box>
-          ))}
-        </Animated.View>
-      )}
 
       {/* Start Button */}
       {!debateStarted && ((topicMode === 'preset' && selectedTopic) || (topicMode === 'custom' && customTopic)) && (
@@ -999,12 +973,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
-  },
-  personalitySection: {
-    padding: 16,
-  },
-  personalityRow: {
-    marginBottom: 12,
   },
   messagesList: {
     paddingHorizontal: 16,

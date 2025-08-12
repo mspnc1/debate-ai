@@ -59,10 +59,10 @@ const MainTabs = () => {
         name="Home"
         component={HomeScreen}
         options={{
-          tabBarLabel: 'Home',
+          tabBarLabel: 'Chat',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons 
-              name={focused ? 'home' : 'home-outline'} 
+              name={focused ? 'chatbubbles' : 'chatbubbles-outline'} 
               size={24} 
               color={color} 
             />

@@ -112,11 +112,32 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
 
   const features = [
     {
+      emoji: '⚔️',
+      gradient: theme.colors.gradients.sunset,
+      title: 'AI Debate Arena',
+      description: 'Watch AIs debate preselected topics. **Premium**: Create debates on ANY topic you choose.',
+      premiumType: 'partial' as const,
+    },
+    {
+      emoji: '🎭',
+      gradient: theme.colors.gradients.forest,
+      title: '12 Personalities',
+      description: 'From Comedian to Philosopher. Each AI adapts to your chosen personality style.',
+      premiumType: 'full' as const,
+    },
+    {
       emoji: '🔑',
       gradient: theme.colors.gradients.ocean,
-      title: 'AI Debate Arena',
-      description: 'Watch different AIs debate any topic in real-time. Create custom debates on ANY topic with Premium.',
+      title: 'BYOK',
+      description: 'Bring Your Own Keys. Use your existing API keys to save vs multiple AI subscriptions.',
       premiumType: 'none' as const,
+    },
+    {
+      emoji: '👥',
+      gradient: theme.colors.gradients.ocean,
+      title: 'Group AI Chat',
+      description: 'Free-form conversations with multiple AIs. **Premium**: Unlimited AIs in one chat.',
+      premiumType: 'partial' as const,
     },
     {
       emoji: '🛡️',
@@ -126,31 +147,10 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
       premiumType: 'none' as const,
     },
     {
-      emoji: '⚔️',
-      gradient: theme.colors.gradients.sunset,
-      title: 'AI Debate Arena',
-      description: 'Watch AIs debate preselected topics. **Premium**: Create debates on ANY topic you choose.',
-      premiumType: 'partial' as const,
-    },
-    {
-      emoji: '👥',
-      gradient: theme.colors.gradients.ocean,
-      title: 'Group AI Chat',
-      description: 'Chat with 2 AIs simultaneously. **Premium**: Unlimited AIs in one conversation.',
-      premiumType: 'partial' as const,
-    },
-    {
       emoji: '⚙️',
       gradient: theme.colors.gradients.sunrise,
       title: 'Expert Mode',
       description: 'Choose your model & control costs. GPT-3.5 for simple tasks, GPT-4 for complex. Full parameter control.',
-      premiumType: 'full' as const,
-    },
-    {
-      emoji: '🎭',
-      gradient: theme.colors.gradients.forest,
-      title: '12 Personalities',
-      description: 'From Comedian to Philosopher. Each AI adapts to your chosen personality style.',
       premiumType: 'full' as const,
     },
   ];
@@ -194,7 +194,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
             <Animated.View
               key={feature.title}
               entering={FadeInDown.delay(200 + index * 100).springify()}
-              style={{ width: (width - 48 - 12) / 2 }} // Only width in animated view
+              style={{ width: (width - 48 - 12) / 2 }} // Card width calculation
             >
               <View
                 style={[
@@ -568,14 +568,14 @@ const styles = StyleSheet.create({
     elevation: 3,
     borderWidth: 1,
     position: 'relative',
-    overflow: 'visible',  // Changed to visible for badge overlap
+    overflow: 'hidden',  // Keep badge within card boundaries
     minHeight: 220,  // Reduced slightly for 6 tiles
     justifyContent: 'flex-start',
   },
   premiumBadge: {
     position: 'absolute',
-    top: -8,
-    right: -8,
+    top: 8,
+    right: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,

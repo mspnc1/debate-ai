@@ -46,9 +46,9 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
     if (configuredAIs.length === 0) {
       return 'No AIs configured yet';
     } else if (configuredAIs.length === 1) {
-      return '1 AI friend ready';
+      return '1 AI ready';
     } else if (isPremium) {
-      return `${configuredAIs.length} AI friends ready`;
+      return `${configuredAIs.length} AIs ready`;
     } else {
       return `${configuredAIs.length} configured • Select up to ${maxAIs}`;
     }
@@ -75,7 +75,7 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
   return (
     <Box>
       <SectionHeader
-        title="Your AI Friends"
+        title="Choose Your AIs"
         subtitle={getSubtitle()}
         icon="🤖"
       />
@@ -136,7 +136,7 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
                           textAlign: 'center',
                         }}
                       >
-                        Add AI{'\n'}Friend
+                        Add AI
                       </Typography>
                     </TouchableOpacity>
                   </View>
