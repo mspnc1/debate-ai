@@ -40,6 +40,8 @@ interface ChatScreenProps {
       resuming?: boolean;
       searchTerm?: string;
       initialPrompt?: string;
+      userPrompt?: string;
+      autoSend?: boolean;
     };
   };
 }
@@ -215,11 +217,121 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   const selectedAIs = currentSession?.selectedAIs || [];
   const searchTerm = route.params?.searchTerm;
   const initialPrompt = route.params?.initialPrompt;
+  const userPrompt = route.params?.userPrompt;
+  const autoSend = route.params?.autoSend;
 
+  // Define handleQuickStartMessage before useEffect so it's available
+  const handleQuickStartMessage = async (userPromptText: string, enrichedPromptText: string) => {
+    console.log('handleQuickStartMessage called with:', {
+      userPromptText,
+      enrichedPromptText,
+      hasSession: !!currentSession,
+      selectedAIsCount: selectedAIs.length
+    });
+    
+    if (!userPromptText.trim() || !currentSession) {
+      console.log('handleQuickStartMessage early return - missing prompt or session');
+      return;
+    }
+
+    // Add user message with the user-visible prompt
+    const userMessage: Message = {
+      id: `msg_${Date.now()}`,
+      sender: 'You',
+      senderType: 'user',
+      content: userPromptText.trim(),
+      timestamp: Date.now(),
+      mentions: [],
+    };
+
+    dispatch(addMessage(userMessage));
+    setInputText('');
+    Keyboard.dismiss();
+
+    // Use enriched prompt for AI responses
+    const respondingAIs = selectedAIs.slice(0, 2); // Pick up to 2 AIs for response
+    let conversationContext = [...messages, userMessage];
+    
+    for (const ai of respondingAIs) {
+      dispatch(setTypingAI({ ai: ai.name, isTyping: true }));
+
+      try {
+        await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
+
+        if (!aiService || !isInitialized) {
+          throw new Error('AI service not ready');
+        }
+
+        // Use the enriched prompt which includes personality injection
+        const isFirstAI = conversationContext[conversationContext.length - 1].senderType === 'user';
+        let promptForAI: string;
+        let historyToPass: Message[];
+        
+        if (isFirstAI) {
+          // First AI gets the enriched prompt
+          promptForAI = enrichedPromptText;
+          historyToPass = conversationContext.slice(0, -1);
+        } else {
+          // Subsequent AIs engage with the previous response
+          const lastSpeaker = conversationContext[conversationContext.length - 1].sender;
+          const lastMessage = conversationContext[conversationContext.length - 1].content;
+          promptForAI = `You are in a multi-AI conversation. ${lastSpeaker} just responded. 
+${lastSpeaker} said: "${lastMessage}"
+Please respond to ${lastSpeaker}'s comment. Add your perspective or take the conversation in a new direction.`;
+          historyToPass = conversationContext.slice(0, -1);
+        }
+        
+        const response = await aiService.sendMessage(
+          ai.id,
+          promptForAI,
+          historyToPass,
+          false
+        );
+
+        const aiMessage: Message = {
+          id: `msg_${Date.now()}_${ai.id}`,
+          sender: ai.name,
+          senderType: 'ai',
+          content: response,
+          timestamp: Date.now(),
+        };
+
+        dispatch(addMessage(aiMessage));
+        conversationContext = [...conversationContext, aiMessage];
+        
+      } catch (error) {
+        console.error(`Error getting response from ${ai.name}:`, error);
+        
+        const errorMessage: Message = {
+          id: `msg_${Date.now()}_${ai.id}_error`,
+          sender: ai.name,
+          senderType: 'ai',
+          content: error instanceof Error && error.message.includes('not configured') 
+            ? `I'm not configured yet. Please add my API key in Settings.`
+            : `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          timestamp: Date.now(),
+        };
+        dispatch(addMessage(errorMessage));
+        conversationContext = [...conversationContext, errorMessage];
+      } finally {
+        dispatch(setTypingAI({ ai: ai.name, isTyping: false }));
+      }
+    }
+  };
 
   // Send initial prompt if provided - only when service is ready and not sent before
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+    // Debug logging
+    console.log('Quick Start useEffect check:', {
+      hasInitialPrompt: !!initialPrompt,
+      hasUserPrompt: !!userPrompt,
+      autoSend,
+      hasSession: !!currentSession,
+      isInitialized,
+      hasService: !!aiService,
+      initialPromptSent,
+      messagesLength: messages.length
+    });
     
     if (
       initialPrompt && 
@@ -230,22 +342,29 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
       aiService && 
       !initialPromptSent
     ) {
-      setInputText(initialPrompt);
       setInitialPromptSent(true);
       
-      // Auto-send after a short delay to let the UI settle
-      timeoutId = setTimeout(() => {
-        if (initialPrompt.trim()) {
-          handleSendMessage(initialPrompt);
-        }
-      }, 800); // Slightly longer delay to ensure service is fully ready
+      if (autoSend && userPrompt) {
+        // For Quick Start: auto-send immediately with enriched prompt
+        console.log('Triggering Quick Start auto-send with:', { userPrompt, enrichedPrompt: initialPrompt });
+        // Call directly without timeout to avoid cleanup issues
+        handleQuickStartMessage(userPrompt, initialPrompt);
+      } else if (!autoSend) {
+        // For regular flow: just set the text in input
+        setInputText(initialPrompt);
+        
+        // Auto-send after a longer delay
+        const timeoutId = setTimeout(() => {
+          if (initialPrompt.trim()) {
+            handleSendMessage(initialPrompt);
+          }
+        }, 800);
+        
+        return () => clearTimeout(timeoutId);
+      }
     }
-    
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialPrompt, currentSession, isInitialized, aiService, initialPromptSent, messages.length]);
+  }, [initialPrompt, userPrompt, autoSend, currentSession, isInitialized, aiService]);
 
   // Save session to AsyncStorage whenever it changes
   useEffect(() => {

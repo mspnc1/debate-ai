@@ -25,7 +25,7 @@ const QUICK_START_TOPICS: QuickStartTopic[] = [
   { id: 'morning', emoji: '☀️', title: 'Morning Check-in', subtitle: 'Start your day right' },
   { id: 'brainstorm', emoji: '💡', title: 'Brainstorming', subtitle: 'Generate fresh ideas' },
   { id: 'learn', emoji: '📚', title: 'Learn Something', subtitle: 'Explore new topics' },
-  { id: 'creative', emoji: '🎨', title: 'Creative Writing', subtitle: 'Tell a story together' },
+  { id: 'creative', emoji: '📝', title: 'Creative Writing', subtitle: 'Tell a story together' },
   { id: 'problem', emoji: '🧩', title: 'Problem Solving', subtitle: 'Work through challenges' },
   { id: 'fun', emoji: '🎮', title: 'Just for Fun', subtitle: 'Games and entertainment' },
 ];
@@ -98,14 +98,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     setShowPromptWizard(true);
   };
   
-  const handleCompleteWizard = (prompt: string) => {
+  const handleCompleteWizard = (userPrompt: string, enrichedPrompt: string) => {
     setShowPromptWizard(false);
     if (selectedAIs.length > 0) {
       dispatch(startSession({ selectedAIs, aiPersonalities }));
       const sessionId = `session_${Date.now()}`;
       navigation.navigate('Chat', { 
         sessionId,
-        initialPrompt: prompt,
+        initialPrompt: enrichedPrompt,
+        userPrompt: userPrompt,
+        autoSend: true,
       });
     }
   };

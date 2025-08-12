@@ -59,7 +59,9 @@ export const Button: React.FC<ButtonProps> = ({
         };
       case 'secondary':
         return {
-          backgroundColor: theme.colors.secondary[500],
+          backgroundColor: theme.colors.surface,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
         };
       case 'ghost':
         return {
@@ -78,7 +80,7 @@ export const Button: React.FC<ButtonProps> = ({
     }
   };
 
-  const textColor = variant === 'ghost' ? 'primary' : 'inverse';
+  const textColor = variant === 'ghost' || variant === 'secondary' ? 'primary' : 'inverse';
   const textVariant = size === 'small' ? 'caption' : size === 'large' ? 'subtitle' : 'button';
 
   return (
