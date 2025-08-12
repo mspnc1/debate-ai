@@ -129,7 +129,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         >
           <Typography variant="title" style={{ marginBottom: 16 }}>About</Typography>
           <Typography variant="body" color="secondary">
-            My AI Friends v1.0.0{'\n'}
+            DebateAI v1.0.0{'\n'}
             Made with code and caffeine
           </Typography>
         </Animated.View>

@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "My AI Friends",
-    "slug": "my-ai-friends",
+    "name": "DebateAI",
+    "slug": "debate-ai",
     "version": "1.0.0",
-    "description": "Chat with multiple AI personalities in one conversation",
+    "description": "Where AIs Debate. Where Truth Emerges.",
     "primaryColor": "#0E9594",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,7 +16,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.myaifriends"
+      "bundleIdentifier": "com.braveheartinnovations.debateai"
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +24,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.myaifriends"
+      "package": "com.braveheartinnovations.debateai"
     },
     "web": {
       "favicon": "./assets/favicon.png"

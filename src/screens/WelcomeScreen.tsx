@@ -4,6 +4,8 @@ import {
   StyleSheet,
   View,
   Dimensions,
+  Text,
+  Image,
 } from 'react-native';
 import { GradientButton, Typography } from '../components/molecules';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -110,28 +112,46 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
 
   const features = [
     {
-      emoji: '🤖',
+      emoji: '🔑',
       gradient: theme.colors.gradients.ocean,
-      title: 'Mix AI Giants with AI Companions',
-      description: 'Claude & ChatGPT meet Nomi & Character.AI. Technical brilliance meets personality.',
+      title: 'AI Debate Arena',
+      description: 'Watch different AIs debate any topic in real-time. Create custom debates on ANY topic with Premium.',
+      premiumType: 'none' as const,
+    },
+    {
+      emoji: '🛡️',
+      gradient: theme.colors.gradients.forest,
+      title: 'Hallucination Shield',
+      description: 'Multiple AIs fact-check each other in real-time. When one AI makes a claim, others can challenge it.',
+      premiumType: 'none' as const,
     },
     {
       emoji: '⚔️',
       gradient: theme.colors.gradients.sunset,
       title: 'AI Debate Arena',
-      description: 'Watch AIs battle it out on any topic. Vote for winners. Track championship stats.',
+      description: 'Watch AIs debate preselected topics. **Premium**: Create debates on ANY topic you choose.',
+      premiumType: 'partial' as const,
+    },
+    {
+      emoji: '👥',
+      gradient: theme.colors.gradients.ocean,
+      title: 'Group AI Chat',
+      description: 'Chat with 2 AIs simultaneously. **Premium**: Unlimited AIs in one conversation.',
+      premiumType: 'partial' as const,
+    },
+    {
+      emoji: '⚙️',
+      gradient: theme.colors.gradients.sunrise,
+      title: 'Expert Mode',
+      description: 'Choose your model & control costs. GPT-3.5 for simple tasks, GPT-4 for complex. Full parameter control.',
+      premiumType: 'full' as const,
     },
     {
       emoji: '🎭',
       gradient: theme.colors.gradients.forest,
-      title: '12 Dynamic Personalities',
-      description: 'From Comedian to Philosopher. Each AI adapts to your chosen personality.',
-    },
-    {
-      emoji: '📊',
-      gradient: theme.colors.gradients.sunrise,
-      title: 'Performance Analytics',
-      description: 'Track which AI performs best. See win rates, topic mastery, and more.',
+      title: '12 Personalities',
+      description: 'From Comedian to Philosopher. Each AI adapts to your chosen personality style.',
+      premiumType: 'full' as const,
     },
   ];
 
@@ -156,7 +176,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
               marginBottom: 8,
             }}
           >
-            My AI Friends
+            DebateAI
           </Typography>
           <Typography 
             variant="subtitle" 
@@ -164,18 +184,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
             align="center"
             style={{ marginBottom: 20 }}
           >
-            The Ultimate AI Conversation Platform
-          </Typography>
-          <Typography 
-            variant="caption" 
-            align="center"
-            style={{ 
-              marginBottom: 8,
-              fontStyle: 'italic',
-              opacity: 0.8
-            }}
-          >
-            Where Intelligence Meets Personality
+            Where AIs Debate. Where Truth Emerges.
           </Typography>
         </Animated.View>
 
@@ -197,6 +206,25 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
                   }
                 ]}
               >
+              {/* Premium Badge - only for full premium features */}
+              {feature.premiumType === 'full' && (
+                <View style={styles.premiumBadge}>
+                  <LinearGradient
+                    colors={theme.colors.gradients.premium}
+                    style={StyleSheet.absoluteFillObject}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  />
+                  <Typography 
+                    variant="caption" 
+                    weight="bold" 
+                    style={{ color: '#fff', fontSize: 10, letterSpacing: 0.5 }}
+                  >
+                    PREMIUM
+                  </Typography>
+                </View>
+              )}
+              
               <LinearGradient
                 colors={feature.gradient}
                 style={styles.featureIconGradient}
@@ -213,16 +241,148 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
               >
                 {feature.title}
               </Typography>
-              <Typography 
-                variant="caption" 
-                style={{ lineHeight: 16, opacity: 0.8, color: theme.colors.text.primary }}
-              >
-                {feature.description}
-              </Typography>
+              {feature.premiumType === 'partial' ? (
+                <Text style={{ 
+                  fontSize: 14,  // Changed from 12 to match Typography caption
+                  lineHeight: 16, 
+                  opacity: 0.8, 
+                  color: theme.colors.text.primary,
+                }}>
+                  {feature.description.split('**Premium**:')[0]}
+                  <Text style={{ fontWeight: 'bold' }}>Premium:</Text>
+                  {feature.description.split('**Premium**:')[1]}
+                </Text>
+              ) : (
+                <Typography 
+                  variant="caption" 
+                  style={{ lineHeight: 16, opacity: 0.8, color: theme.colors.text.primary }}
+                >
+                  {feature.description}
+                </Typography>
+              )}
               </View>
             </Animated.View>
           ))}
         </View>
+
+        {/* Cost Comparison Section */}
+        <Animated.View 
+          entering={FadeInUp.delay(700).springify()}
+          style={styles.comparisonSection}
+        >
+          <Typography 
+            variant="body" 
+            weight="bold" 
+            align="center"
+            style={{ marginBottom: 12 }}
+          >
+            💰 Why Pay More?
+          </Typography>
+          
+          <View style={styles.comparisonContainer}>
+            {/* Traditional Subscriptions */}
+            <View style={[styles.comparisonCard, { 
+              backgroundColor: theme.colors.error[50], 
+              borderColor: theme.colors.error[200] 
+            }]}>
+              <Typography variant="caption" weight="bold" style={{ color: theme.colors.error[600], marginBottom: 8 }}>
+                Traditional Way
+              </Typography>
+              <View style={styles.priceRow}>
+                <Typography variant="caption" style={{ color: theme.colors.text.secondary }}>
+                  ChatGPT Plus
+                </Typography>
+                <Typography variant="caption" weight="bold">
+                  $20/mo
+                </Typography>
+              </View>
+              <View style={styles.priceRow}>
+                <Typography variant="caption" style={{ color: theme.colors.text.secondary }}>
+                  Claude Pro
+                </Typography>
+                <Typography variant="caption" weight="bold">
+                  $20/mo
+                </Typography>
+              </View>
+              <View style={styles.priceRow}>
+                <Typography variant="caption" style={{ color: theme.colors.text.secondary }}>
+                  Perplexity Pro
+                </Typography>
+                <Typography variant="caption" weight="bold">
+                  $20/mo
+                </Typography>
+              </View>
+              <View style={[styles.priceRow, { borderTopWidth: 1, borderTopColor: theme.colors.error[200], paddingTop: 8, marginTop: 8 }]}>
+                <Typography variant="caption" weight="bold" style={{ color: theme.colors.error[600] }}>
+                  Total
+                </Typography>
+                <Typography variant="body" weight="bold" style={{ color: theme.colors.error[600] }}>
+                  $60/mo
+                </Typography>
+              </View>
+              <Typography variant="caption" style={{ color: theme.colors.error[600], marginTop: 4, fontSize: 11, fontStyle: 'italic' }}>
+                Fixed cost, use it or lose it
+              </Typography>
+            </View>
+            
+            {/* Our Way */}
+            <View style={[styles.comparisonCard, { 
+              backgroundColor: theme.colors.success[50], 
+              borderColor: theme.colors.success[400] 
+            }]}>
+              <Typography variant="caption" weight="bold" style={{ color: theme.colors.success[700], marginBottom: 8 }}>
+                Smart Way (You!)
+              </Typography>
+              <View style={styles.priceRow}>
+                <Typography variant="caption" style={{ color: theme.colors.text.secondary }}>
+                  App Premium
+                </Typography>
+                <Typography variant="caption" weight="bold">
+                  $9.99/mo
+                </Typography>
+              </View>
+              <View style={styles.priceRow}>
+                <Typography variant="caption" style={{ color: theme.colors.text.secondary }}>
+                  API Usage
+                </Typography>
+                <Typography variant="caption" weight="bold">
+                  ~$5-10/mo
+                </Typography>
+              </View>
+              <View style={styles.priceRow}>
+                <Typography variant="caption" style={{ color: theme.colors.success[600] }}>
+                  All AIs included
+                </Typography>
+                <Typography variant="caption" weight="bold" style={{ color: theme.colors.success[600] }}>
+                  ✓
+                </Typography>
+              </View>
+              <View style={[styles.priceRow, { borderTopWidth: 1, borderTopColor: theme.colors.success[200], paddingTop: 8, marginTop: 8 }]}>
+                <Typography variant="caption" weight="bold" style={{ color: theme.colors.success[700] }}>
+                  Total
+                </Typography>
+                <Typography variant="body" weight="bold" style={{ color: theme.colors.success[700] }}>
+                  ~$20/mo
+                </Typography>
+              </View>
+              <Typography variant="caption" style={{ color: theme.colors.success[700], marginTop: 4, fontSize: 11, fontStyle: 'italic' }}>
+                Pay only for what you use!
+              </Typography>
+            </View>
+          </View>
+          
+          <View style={styles.savingsBadge}>
+            <LinearGradient
+              colors={theme.colors.gradients.success}
+              style={StyleSheet.absoluteFillObject}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            />
+            <Typography variant="caption" weight="bold" style={{ color: '#fff' }}>
+              Save $40+/month with smarter AI usage!
+            </Typography>
+          </View>
+        </Animated.View>
 
         {/* Premium Banner */}
         <Animated.View 
@@ -251,7 +411,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', marginBottom: 4 }}>
                   <Typography variant="body" weight="bold">
-                    Go Premium
+                    Unlock Everything
                   </Typography>
                   <Typography 
                     variant="caption" 
@@ -261,35 +421,53 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
                     $9.99/month
                   </Typography>
                 </View>
-                <View style={{ marginTop: 8 }}>
+                <Typography 
+                  variant="caption" 
+                  style={{ color: theme.colors.success[500], marginBottom: 4, fontStyle: 'italic' }}
+                >
+                  Save $30+/month vs multiple AI subscriptions!
+                </Typography>
+                <Typography 
+                  variant="caption" 
+                  style={{ color: theme.colors.text.secondary, marginBottom: 8, fontSize: 12 }}
+                >
+                  Pay only for what you use with API pricing
+                </Typography>
+                <View style={{ marginTop: 4 }}>
                   <View style={styles.bulletRow}>
                     <Typography variant="caption" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Typography>
                     <Typography variant="caption" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
-                      Group chat with unlimited AIs (Free: max 2)
+                      Unlimited AIs in group chats (Free: 2 AIs max)
                     </Typography>
                   </View>
                   <View style={styles.bulletRow}>
                     <Typography variant="caption" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Typography>
                     <Typography variant="caption" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
-                      All 12 personalities unlocked (Free: Default only)
+                      All 12 personalities unlocked
                     </Typography>
                   </View>
                   <View style={styles.bulletRow}>
                     <Typography variant="caption" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Typography>
                     <Typography variant="caption" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
-                      Expert mode for precise model configuration
+                      Create debates on ANY topic
                     </Typography>
                   </View>
                   <View style={styles.bulletRow}>
                     <Typography variant="caption" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Typography>
                     <Typography variant="caption" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
-                      Cross-platform sync (web + mobile) with Firebase encryption
+                      Expert mode with full API control
                     </Typography>
                   </View>
                   <View style={styles.bulletRow}>
                     <Typography variant="caption" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Typography>
                     <Typography variant="caption" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
-                      Unlimited history retrieval (Free: last 3 conversations only)
+                      Unlimited conversation history
+                    </Typography>
+                  </View>
+                  <View style={styles.bulletRow}>
+                    <Typography variant="caption" style={{ color: theme.colors.success[500], marginRight: 6 }}>✓</Typography>
+                    <Typography variant="caption" color="secondary" style={{ flex: 1, flexWrap: 'wrap' }}>
+                      Priority support & early access to new features
                     </Typography>
                   </View>
                 </View>
@@ -336,14 +514,28 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
             "The future isn't about replacing human connection.{'\n'}
             It's about enhancing it."
           </Typography>
-          <Typography 
-            variant="caption" 
-            color="secondary" 
-            align="center"
-            style={{ marginTop: 16 }}
-          >
-            Built with ❤️ for the AI revolution
-          </Typography>
+          <View style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+            <Typography 
+              variant="caption" 
+              color="secondary" 
+              align="center"
+            >
+              Built with
+            </Typography>
+            <Image
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
+              source={require('../../assets/BraveheartInnovationsLogoNoText.png') as number}
+              style={{ width: 32, height: 32, marginHorizontal: 8 }}
+              resizeMode="contain"
+            />
+            <Typography 
+              variant="caption" 
+              color="secondary" 
+              align="center"
+            >
+              by Braveheart Innovations LLC
+            </Typography>
+          </View>
         </Animated.View>
 
       </ScrollView>
@@ -359,7 +551,7 @@ const styles = StyleSheet.create({
   logoContainer: {
     alignItems: 'center',
     marginTop: 30,
-    marginBottom: 30,
+    marginBottom: 20,
   },
   featuresContainer: {
     flexDirection: 'row',
@@ -376,9 +568,23 @@ const styles = StyleSheet.create({
     elevation: 3,
     borderWidth: 1,
     position: 'relative',
-    overflow: 'hidden',
-    height: 220,
+    overflow: 'visible',  // Changed to visible for badge overlap
+    minHeight: 220,  // Reduced slightly for 6 tiles
     justifyContent: 'flex-start',
+  },
+  premiumBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 4,
   },
   featureIconGradient: {
     width: 56,
@@ -406,6 +612,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginBottom: 4,
+  },
+  comparisonSection: {
+    marginBottom: 24,
+  },
+  comparisonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  comparisonCard: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  savingsBadge: {
+    alignSelf: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    overflow: 'hidden',
   },
   ctaContainer: {
     marginBottom: 24,

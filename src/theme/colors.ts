@@ -89,6 +89,8 @@ export const colors = {
     forest: ['#38F9D7', '#43E97B'],
     sunset: ['#FA709A', '#FEE140'],
     premium: ['#667EEA', '#764BA2'],
+    success: ['#43E97B', '#38F9D7'],  // Green gradient for positive/savings
+    danger: ['#F5576C', '#F093FB'],   // Red gradient for warnings
   },
 
   // Glass morphism colors (for dark theme)

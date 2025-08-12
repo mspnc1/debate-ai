@@ -1,4 +1,4 @@
-// Core type definitions for My AI Friends
+// Core type definitions for DebateAI
 
 export type AIProvider = 'claude' | 'chatgpt' | 'gemini' | 'nomi' | 'replika' | 'character';
 export type UIMode = 'simple' | 'expert';
