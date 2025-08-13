@@ -8,7 +8,7 @@ const aiProviderLogos: { [key: string]: number } = {
   // Uncomment when logo files exist:
   claude: require('../../assets/ai-providers/claude/logo.png'),
   openai: require('../../assets/ai-providers/openai/logo.png'),
-  // google: require('../../assets/ai-providers/google/logo.png'),
+  gemini: require('../../assets/ai-providers/google/logo.png'),
   // nomi: require('../../assets/ai-providers/nomi/logo.png'),
   // character: require('../../assets/ai-providers/character/logo.png'),
   // replika: require('../../assets/ai-providers/replika/logo.png'),

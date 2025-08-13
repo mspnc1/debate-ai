@@ -58,32 +58,59 @@ class ClaudeAdapter extends AIAdapter {
     message: string,
     conversationHistory: Message[] = []
   ): Promise<string> {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': this.config.apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: this.config.model || 'claude-3-5-sonnet-20241022',
-        max_tokens: this.config.parameters?.maxTokens || 2048, // Balanced for complete but concise responses
-        temperature: this.config.parameters?.temperature || 0.7,
-        top_p: this.config.parameters?.topP,
-        system: this.getSystemPrompt(),
-        messages: [
-          ...this.formatHistory(conversationHistory),
-          { role: 'user', content: message }
-        ],
-      }),
-    });
+    // Retry logic for 529 (server overload) errors
+    const maxRetries = 3;
+    let lastError: Error | null = null;
     
-    if (!response.ok) {
-      throw new Error(`Claude API error: ${response.status}`);
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        // Add exponential backoff for retries
+        if (attempt > 0) {
+          const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': this.config.apiKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model: this.config.model || 'claude-3-5-sonnet-20241022',
+            max_tokens: this.config.parameters?.maxTokens || 2048, // Balanced for complete but concise responses
+            temperature: this.config.parameters?.temperature || 0.7,
+            top_p: this.config.parameters?.topP,
+            system: this.getSystemPrompt(),
+            messages: [
+              ...this.formatHistory(conversationHistory),
+              { role: 'user', content: message }
+            ],
+          }),
+        });
+        
+        if (!response.ok) {
+          // Retry on 529 (server overload) or 503 (service unavailable)
+          if (response.status === 529 || response.status === 503) {
+            lastError = new Error(`Claude API error: ${response.status} (attempt ${attempt + 1}/${maxRetries})`);
+            continue;
+          }
+          throw new Error(`Claude API error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.content[0].text;
+      } catch (error) {
+        lastError = error as Error;
+        // Only retry on network errors or specific status codes
+        if (attempt === maxRetries - 1) {
+          throw lastError;
+        }
+      }
     }
     
-    const data = await response.json();
-    return data.content[0].text;
+    throw lastError || new Error('Failed to send message to Claude');
   }
 }
 

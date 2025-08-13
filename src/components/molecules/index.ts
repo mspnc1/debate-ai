@@ -2,6 +2,8 @@
 export { Typography } from './Typography';
 export { Button } from './Button';
 export { Card } from './Card';
+export { DebateMessageBubble } from './DebateMessageBubble';
+export { DebateTypingIndicator } from './DebateTypingIndicator';
 export { InputField } from './InputField';
 export { GlassCard } from './GlassCard';
 export { GradientButton } from './GradientButton';

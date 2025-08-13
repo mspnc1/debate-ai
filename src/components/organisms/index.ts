@@ -19,3 +19,6 @@ export { AIServiceLoading } from './AIServiceLoading';
 export { AppLogo } from './AppLogo';
 export { ExpertModeSettings } from './ExpertModeSettings';
 export { ProviderCard } from './ProviderCard';
+
+// Debate organisms
+export * from './debate';
