@@ -4,19 +4,14 @@
  */
 
 import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
+import { View, TextInput, StyleSheet, ViewStyle } from 'react-native';
 import { GlassCard } from '../../molecules/GlassCard';
 import { Typography } from '../../molecules/Typography';
 import { useTheme } from '../../../theme';
 
-export interface TextFormatting {
-  bold: boolean;
-  italic: boolean;
-}
-
 export interface RichTopicInputProps {
   value: string;
-  onChange: (text: string, formatting: TextFormatting) => void;
+  onChange: (text: string) => void;
   maxLength?: number;
   placeholder?: string;
 }
@@ -28,16 +23,11 @@ export const RichTopicInput: React.FC<RichTopicInputProps> = ({
   placeholder = "Enter your custom debate topic...",
 }) => {
   const { theme } = useTheme();
-  const [isBold, setIsBold] = useState(false);
-  const [isItalic, setIsItalic] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   
   const handleTextChange = (text: string) => {
-    onChange(text, { bold: isBold, italic: isItalic });
+    onChange(text);
   };
-  
-  const toggleBold = () => setIsBold(!isBold);
-  const toggleItalic = () => setIsItalic(!isItalic);
   
   const dynamicContainerStyle: ViewStyle = {
     ...styles.container,
@@ -62,60 +52,11 @@ export const RichTopicInput: React.FC<RichTopicInputProps> = ({
             color: theme.colors.text.primary,
             backgroundColor: 'transparent',
           },
-          isBold && styles.bold,
-          isItalic && styles.italic,
         ]}
         textAlignVertical="top"
       />
       
-      <View style={[styles.toolbar, { borderTopColor: theme.colors.border }]}>
-        <View style={styles.formattingButtons}>
-          <TouchableOpacity
-            onPress={toggleBold}
-            style={[
-              styles.formatButton,
-              { 
-                backgroundColor: isBold ? theme.colors.primary[500] : theme.colors.surface,
-                borderColor: isBold ? theme.colors.primary[500] : theme.colors.border,
-              }
-            ]}
-            activeOpacity={0.7}
-          >
-            <Typography 
-              weight="bold"
-              style={{
-                color: isBold ? '#FFFFFF' : theme.colors.text.primary,
-                fontSize: 16,
-              }}
-            >
-              B
-            </Typography>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            onPress={toggleItalic}
-            style={[
-              styles.formatButton,
-              { 
-                backgroundColor: isItalic ? theme.colors.primary[500] : theme.colors.surface,
-                borderColor: isItalic ? theme.colors.primary[500] : theme.colors.border,
-              }
-            ]}
-            activeOpacity={0.7}
-          >
-            <Typography 
-              style={{ 
-                fontStyle: 'italic',
-                color: isItalic ? '#FFFFFF' : theme.colors.text.primary,
-                fontSize: 16,
-                fontWeight: '600',
-              }}
-            >
-              I
-            </Typography>
-          </TouchableOpacity>
-        </View>
-        
+      <View style={[styles.simplifiedToolbar, { borderTopColor: theme.colors.border }]}>
         <Typography 
           variant="caption" 
           color="secondary"
@@ -143,32 +84,14 @@ const styles = StyleSheet.create({
     minHeight: 100,
     maxHeight: 200,
   },
-  bold: {
-    fontWeight: 'bold',
-  },
-  italic: {
-    fontStyle: 'italic',
-  },
-  toolbar: {
+  simplifiedToolbar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
     backgroundColor: 'rgba(0,0,0,0.02)',
-  },
-  formattingButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  formatButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   counter: {
     fontSize: 12,

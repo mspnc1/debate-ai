@@ -31,7 +31,6 @@ export interface VotingInterfaceProps {
   onVote: (aiId: string) => void;
 }
 
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 export const VotingInterface: React.FC<VotingInterfaceProps> = ({
   participants,
@@ -134,90 +133,89 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
           intensity={isDark ? 80 : 40} 
           style={styles.blurContainer}
         >
-        <LinearGradient
-          colors={isDark 
-            ? ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']
-            : ['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.02)']
-          }
-          style={styles.gradientBackground}
-        >
-          <Animated.View style={animatedTitleStyle}>
-            <Typography 
-              variant="title" 
-              weight="bold" 
-              align="center" 
-              style={styles.title}
-            >
-              {votingPrompt}
-            </Typography>
-          </Animated.View>
-      
-      {renderCurrentScores()}
-      
-          <View style={styles.votingButtons}>
-            {participants.map((ai) => {
-              const { colors, providerIcon } = getAIConfig(ai.id);
-              
-              return (
-                <AnimatedTouchable
-                  key={ai.id}
-                  entering={FadeInDown.duration(300)}
-                  style={styles.voteButton}
-                  onPress={() => onVote(ai.id)}
-                  activeOpacity={0.8}
-                >
-                  <LinearGradient
-                    colors={[colors[400], colors[600]]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.buttonGradient}
+          <LinearGradient
+            colors={isDark 
+              ? ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']
+              : ['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.02)']
+            }
+            style={styles.gradientBackground}
+          >
+            <Animated.View style={animatedTitleStyle}>
+              <Typography 
+                variant="title" 
+                weight="bold" 
+                align="center" 
+                style={styles.title}
+              >
+                {votingPrompt}
+              </Typography>
+            </Animated.View>
+        
+            {renderCurrentScores()}
+        
+            <View style={styles.votingButtons}>
+              {participants.map((ai) => {
+                const { colors, providerIcon } = getAIConfig(ai.id);
+                
+                return (
+                  <TouchableOpacity
+                    key={ai.id}
+                    style={styles.voteButton}
+                    onPress={() => onVote(ai.id)}
+                    activeOpacity={0.8}
                   >
-                    <View style={styles.buttonContent}>
-                      <View style={styles.aiIcon}>
-                        {providerIcon && providerIcon.iconType === 'image' ? (
-                          <Image 
-                            source={providerIcon.icon as number} 
-                            style={styles.aiLogo} 
-                            resizeMode="contain"
-                          />
-                        ) : (
-                          <Typography variant="title" style={{ fontSize: 36, color: '#FFFFFF' }}>
-                            {providerIcon?.icon || ai.name.charAt(0)}
+                    <LinearGradient
+                      colors={[colors[400], colors[600]]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.buttonGradient}
+                    >
+                      <View style={styles.buttonContent}>
+                        <View style={styles.aiIcon}>
+                          {providerIcon && providerIcon.iconType === 'image' ? (
+                            <Image 
+                              source={providerIcon.icon as number} 
+                              style={styles.aiLogo} 
+                              resizeMode="contain"
+                            />
+                          ) : (
+                            <Typography variant="title" style={{ fontSize: 36, color: '#FFFFFF' }}>
+                              {providerIcon?.icon || ai.name.charAt(0)}
+                            </Typography>
+                          )}
+                        </View>
+                        
+                        {/* Only show name if no logo or it's just a letter */}
+                        {(!providerIcon || providerIcon.iconType !== 'image') && (
+                          <Typography 
+                            variant="subtitle" 
+                            weight="bold" 
+                            align="center"
+                            style={{ color: '#FFFFFF' }}
+                          >
+                            {ai.name}
                           </Typography>
                         )}
+                        
+                        {scores && scores[ai.id] && (
+                          <View style={styles.scoreBadge}>
+                            <Typography 
+                              variant="caption" 
+                              weight="semibold"
+                              style={{ color: 'rgba(255,255,255,0.9)' }}
+                            >
+                              {scores[ai.id].roundWins} wins
+                            </Typography>
+                          </View>
+                        )}
                       </View>
-                      
-                      {/* Only show name if no logo or it's just a letter */}
-                      {(!providerIcon || providerIcon.iconType !== 'image') && (
-                        <Typography 
-                          variant="subtitle" 
-                          weight="bold" 
-                          align="center"
-                          style={{ color: '#FFFFFF' }}
-                        >
-                          {ai.name}
-                        </Typography>
-                      )}
-                      
-                      {scores && scores[ai.id] && (
-                        <View style={styles.scoreBadge}>
-                          <Typography 
-                            variant="caption" 
-                            weight="semibold"
-                            style={{ color: 'rgba(255,255,255,0.9)' }}
-                          >
-                            {scores[ai.id].roundWins} wins
-                          </Typography>
-                        </View>
-                      )}
-                    </View>
-                  </LinearGradient>
-                </AnimatedTouchable>
-              );
-            })}
-          </View>
-        </LinearGradient>
-      </BlurView>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </LinearGradient>
+        </BlurView>
       </Animated.View>
     </Animated.View>
   );
@@ -275,7 +273,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 16,
     overflow: 'hidden',
-    minHeight: 80, // Ensure proper touch target (60pt minimum)
+    minHeight: 50, // Further reduced for more compact design
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -283,20 +281,20 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   buttonGradient: {
-    paddingVertical: 16,
-    paddingHorizontal: 12,
+    paddingVertical: 4, // Further reduced padding
+    paddingHorizontal: 4, // Further reduced padding
   },
   buttonContent: {
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 16, // More padding for better touch target
+    gap: 2, // Further reduced gap
+    paddingVertical: 4, // Minimal padding
   },
   aiIcon: {
-    marginBottom: 4,
+    marginBottom: 2,
   },
   aiLogo: {
-    width: 48,  // Increased from 32 for better visibility
-    height: 48, // Increased from 32 for better visibility
+    width: 80,  // Increased to 80x80 as requested
+    height: 80, // Increased to 80x80 as requested
   },
   scoreBadge: {
     backgroundColor: 'rgba(255,255,255,0.2)',

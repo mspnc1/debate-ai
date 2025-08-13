@@ -206,14 +206,14 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                 
                 <View style={styles.secondaryActions}>
                   <Button
-                    title="📤 Share Results"
+                    title="📤 Share"
                     onPress={onShare}
                     variant="secondary"
                     size="medium"
                     style={styles.secondaryButton}
                   />
                   <Button
-                    title="📄 View Transcript"
+                    title="📄 Transcript"
                     onPress={onViewTranscript}
                     variant="ghost"
                     size="medium"

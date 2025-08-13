@@ -20,7 +20,7 @@ import { DEBATE_TOPICS } from '../constants/debateTopics';
 import { UNIVERSAL_PERSONALITIES } from '../config/personalities';
 import { Typography } from '../components/molecules';
 import { usePreDebateValidation } from '../hooks/debate';
-import { RichTopicInput, TextFormatting } from '../components/organisms/debate/RichTopicInput';
+import { RichTopicInput } from '../components/organisms/debate/RichTopicInput';
 
 interface DebateSetupScreenProps {
   navigation: {
@@ -341,7 +341,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
                 >
                   <RichTopicInput
                     value={customTopic}
-                    onChange={(text: string, _formatting: TextFormatting) => {
+                    onChange={(text: string) => {
                       setCustomTopic(text);
                     }}
                     maxLength={200}

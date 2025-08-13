@@ -88,43 +88,45 @@ export const SystemAnnouncement: React.FC<SystemAnnouncementProps> = ({
     <Animated.View
       entering={getEnteringAnimation()}
       exiting={FadeOut.duration(200)}
-      style={[styles.container, animatedStyle]}
+      style={styles.container}
     >
-      <BlurView intensity={isDark ? 80 : 60} style={styles.blurContainer}>
-        <LinearGradient
-          colors={gradient || getDefaultGradient()}
-          style={styles.gradientOverlay}
-        >
-          {label && (
-            <Typography
-              variant="caption"
-              weight="semibold"
-              style={{
-                ...styles.label,
-                color: brandColor || theme.colors.text.secondary
-              }}
-            >
-              {label}
-            </Typography>
-          )}
-          
-          <View style={styles.contentRow}>
-            {(icon || type) && (
-              <Typography variant="title" style={styles.icon}>
-                {typeof icon === 'string' ? icon : getDefaultIcon()}
+      <Animated.View style={animatedStyle}>
+        <BlurView intensity={isDark ? 80 : 60} style={styles.blurContainer}>
+          <LinearGradient
+            colors={gradient || getDefaultGradient()}
+            style={styles.gradientOverlay}
+          >
+            {label && (
+              <Typography
+                variant="caption"
+                weight="semibold"
+                style={{
+                  ...styles.label,
+                  color: brandColor || theme.colors.text.secondary
+                }}
+              >
+                {label}
               </Typography>
             )}
-            <Typography
-              variant="body"
-              weight="bold"
-              align="center"
-              style={styles.content}
-            >
-              {content}
-            </Typography>
-          </View>
-        </LinearGradient>
-      </BlurView>
+            
+            <View style={styles.contentRow}>
+              {(icon || type) && (
+                <Typography variant="title" style={styles.icon}>
+                  {typeof icon === 'string' ? icon : getDefaultIcon()}
+                </Typography>
+              )}
+              <Typography
+                variant="body"
+                weight="bold"
+                align="center"
+                style={styles.content}
+              >
+                {content}
+              </Typography>
+            </View>
+          </LinearGradient>
+        </BlurView>
+      </Animated.View>
     </Animated.View>
   );
 };

@@ -44,6 +44,11 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
     if (message.sender !== 'Debate Host' && message.sender !== 'System') return null;
     
     const content = message.content.toLowerCase();
+    
+    // Check for round winner format: "Round X: Name" 
+    if (/round\s+\d+:\s*\w+/i.test(message.content)) return 'round-winner';
+    
+    // Check for other patterns
     if (content.includes('wins round') || content.includes('round winner')) return 'round-winner';
     if (content.includes('debate complete') || content.includes('debate has ended')) return 'debate-complete';
     if (content.includes('overall winner') || content.includes('winner is')) return 'overall-winner';
