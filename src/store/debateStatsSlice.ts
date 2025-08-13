@@ -32,11 +32,15 @@ interface DebateStatsState {
   stats: DebateStats;
   history: DebateRound[];
   currentDebate?: DebateRound;
+  preservedTopic: string | null;
+  preservedTopicMode: 'preset' | 'custom';
 }
 
 const initialState: DebateStatsState = {
   stats: {},
   history: [],
+  preservedTopic: null,
+  preservedTopicMode: 'preset',
 };
 
 const debateStatsSlice = createSlice({
@@ -146,8 +150,18 @@ const debateStatsSlice = createSlice({
       state.history = [];
       state.currentDebate = undefined;
     },
+    
+    preserveTopic: (state, action: PayloadAction<{ topic: string; mode: 'preset' | 'custom' }>) => {
+      state.preservedTopic = action.payload.topic;
+      state.preservedTopicMode = action.payload.mode;
+    },
+    
+    clearPreservedTopic: (state) => {
+      state.preservedTopic = null;
+      state.preservedTopicMode = 'preset';
+    },
   },
 });
 
-export const { startDebate, recordRoundWinner, recordOverallWinner, clearStats } = debateStatsSlice.actions;
+export const { startDebate, recordRoundWinner, recordOverallWinner, clearStats, preserveTopic, clearPreservedTopic } = debateStatsSlice.actions;
 export default debateStatsSlice.reducer;

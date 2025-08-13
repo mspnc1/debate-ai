@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { ScrollView, View, TextInput, Alert, TouchableOpacity } from 'react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { ScrollView, View, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState, setAIPersonality } from '../store';
+import { RootState, setAIPersonality, preserveTopic, clearPreservedTopic } from '../store';
 import Animated, { FadeInDown, FadeIn, FadeOut, Layout } from 'react-native-reanimated';
 
 import { Box } from '../components/atoms';
@@ -19,6 +19,8 @@ import { getAIProviderIcon } from '../utils/aiProviderAssets';
 import { DEBATE_TOPICS } from '../constants/debateTopics';
 import { UNIVERSAL_PERSONALITIES } from '../config/personalities';
 import { Typography } from '../components/molecules';
+import { usePreDebateValidation } from '../hooks/debate';
+import { RichTopicInput, TextFormatting } from '../components/organisms/debate/RichTopicInput';
 
 interface DebateSetupScreenProps {
   navigation: {
@@ -67,6 +69,11 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
   const user = useSelector((state: RootState) => state.user.currentUser);
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
   const aiPersonalities = useSelector((state: RootState) => state.chat.aiPersonalities);
+  const preservedTopic = useSelector((state: RootState) => state.debateStats.preservedTopic);
+  const preservedTopicMode = useSelector((state: RootState) => state.debateStats.preservedTopicMode);
+  
+  // Pre-debate validation
+  const validation = usePreDebateValidation(navigation);
   
   // TODO: Remove true || for production - defaulting to premium for development
   // eslint-disable-next-line no-constant-binary-expression
@@ -93,12 +100,35 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
   
   const [currentStep, setCurrentStep] = useState<'topic' | 'ai' | 'personality'>('topic');
   const [selectedAIs, setSelectedAIs] = useState<AIConfig[]>([]);
-  const [selectedTopic, setSelectedTopic] = useState<string>('');
-  const [customTopic, setCustomTopic] = useState('');
-  const [topicMode, setTopicMode] = useState<'preset' | 'custom' | 'surprise'>('preset');
+  const [selectedTopic, setSelectedTopic] = useState<string>(preservedTopic || '');
+  const [customTopic, setCustomTopic] = useState(preservedTopicMode === 'custom' ? (preservedTopic || '') : '');
+  const [topicMode, setTopicMode] = useState<'preset' | 'custom' | 'surprise'>(preservedTopicMode || 'preset');
   
   // Debate mode always requires exactly 2 AIs
   const maxAIs = 2;
+  
+  // Check validation on mount
+  useEffect(() => {
+    if (!validation.isReady) {
+      validation.checkReadiness();
+    }
+  }, [validation]);
+  
+  // Save topic when navigating away
+  useEffect(() => {
+    return () => {
+      const currentTopic = topicMode === 'custom' ? customTopic : selectedTopic;
+      const preserveMode = topicMode === 'surprise' ? 'preset' : topicMode;
+      if (currentTopic) {
+        dispatch(preserveTopic({ topic: currentTopic, mode: preserveMode }));
+      }
+    };
+  }, [selectedTopic, customTopic, topicMode, dispatch]);
+  
+  // Clear preserved topic when debate starts
+  const clearPreservedData = () => {
+    dispatch(clearPreservedTopic());
+  };
   
   const handleToggleAI = (ai: AIConfig) => {
     setSelectedAIs(prev => {
@@ -127,6 +157,9 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
       Alert.alert('Select a Topic', 'Please choose a debate topic first!');
       return;
     }
+    
+    // Clear preserved topic since we're starting the debate
+    clearPreservedData();
     
     navigation.navigate('Debate', { 
       selectedAIs,
@@ -306,24 +339,13 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
                   exiting={FadeOut.duration(200)}
                   style={{ marginBottom: theme.spacing.xl }}
                 >
-                  <TextInput
-                    style={{
-                      backgroundColor: theme.colors.surface,
-                      borderWidth: 1,
-                      borderColor: theme.colors.border,
-                      borderRadius: theme.borderRadius.md,
-                      padding: theme.spacing.md,
-                      color: theme.colors.text.primary,
-                      fontSize: 16,
-                      minHeight: 100,
-                      textAlignVertical: 'top',
-                    }}
-                    placeholder="Enter your custom debate topic..."
-                    placeholderTextColor={theme.colors.text.disabled}
+                  <RichTopicInput
                     value={customTopic}
-                    onChangeText={setCustomTopic}
-                    multiline
-                    autoFocus
+                    onChange={(text: string, _formatting: TextFormatting) => {
+                      setCustomTopic(text);
+                    }}
+                    maxLength={200}
+                    placeholder="Enter your custom debate topic..."
                   />
                 </Animated.View>
               )}

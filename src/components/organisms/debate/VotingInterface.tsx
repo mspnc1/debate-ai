@@ -181,19 +181,24 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
                             resizeMode="contain"
                           />
                         ) : (
-                          <Typography variant="title" style={{ fontSize: 28, color: '#FFFFFF' }}>
+                          <Typography variant="title" style={{ fontSize: 36, color: '#FFFFFF' }}>
                             {providerIcon?.icon || ai.name.charAt(0)}
                           </Typography>
                         )}
                       </View>
-                      <Typography 
-                        variant="subtitle" 
-                        weight="bold" 
-                        align="center"
-                        style={{ color: '#FFFFFF' }}
-                      >
-                        {ai.name}
-                      </Typography>
+                      
+                      {/* Only show name if no logo or it's just a letter */}
+                      {(!providerIcon || providerIcon.iconType !== 'image') && (
+                        <Typography 
+                          variant="subtitle" 
+                          weight="bold" 
+                          align="center"
+                          style={{ color: '#FFFFFF' }}
+                        >
+                          {ai.name}
+                        </Typography>
+                      )}
+                      
                       {scores && scores[ai.id] && (
                         <View style={styles.scoreBadge}>
                           <Typography 
@@ -270,6 +275,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 16,
     overflow: 'hidden',
+    minHeight: 80, // Ensure proper touch target (60pt minimum)
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -283,13 +289,14 @@ const styles = StyleSheet.create({
   buttonContent: {
     alignItems: 'center',
     gap: 8,
+    paddingVertical: 16, // More padding for better touch target
   },
   aiIcon: {
     marginBottom: 4,
   },
   aiLogo: {
-    width: 32,
-    height: 32,
+    width: 48,  // Increased from 32 for better visibility
+    height: 48, // Increased from 32 for better visibility
   },
   scoreBadge: {
     backgroundColor: 'rgba(255,255,255,0.2)',

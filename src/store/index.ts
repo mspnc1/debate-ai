@@ -258,4 +258,4 @@ export const {
   updateExpertMode 
 } = settingsSlice.actions;
 
-export { startDebate, recordRoundWinner, recordOverallWinner, clearStats } from './debateStatsSlice';
+export { startDebate, recordRoundWinner, recordOverallWinner, clearStats, preserveTopic, clearPreservedTopic } from './debateStatsSlice';

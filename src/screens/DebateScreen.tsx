@@ -5,9 +5,9 @@
  */
 
 import React, { useEffect } from 'react';
-import { Alert } from 'react-native';
+import { Alert, ActivityIndicator, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Box } from '../components/atoms';
+import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
 import { Typography } from '../components/molecules';
 import { useTheme } from '../theme';
 import { AI } from '../types';
@@ -25,6 +25,7 @@ import {
   VotingInterface,
   ScoreDisplay,
 } from '../components/organisms';
+import { VictoryCelebration } from '../components/organisms/debate/VictoryCelebration';
 
 interface DebateScreenProps {
   navigation: {
@@ -125,6 +126,40 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     );
   };
   
+  // Handle new debate from victory screen
+  const handleNewDebate = () => {
+    // Reset session and navigate to setup
+    session.resetSession();
+    navigation.navigate('MainTabs', { screen: 'DebateTab' });
+  };
+  
+  // Handle share results
+  const handleShare = async () => {
+    try {
+      const winner = selectedAIs[0]; // Fallback winner for now
+      const scores = voting.scores;
+      
+      const shareContent = `🏆 Debate Results! 🏆\n\n${winner?.name} wins the debate!\n\nFinal Scores:\n${Object.entries(scores || {}).map(([_, score]) => `${score.name}: ${score.roundWins} rounds`).join('\n')}\n\n#DebateAI #AIDebate`;
+      
+      await Share.share({
+        message: shareContent,
+        title: 'Debate Results',
+      });
+    } catch (error) {
+      console.error('Error sharing results:', error);
+    }
+  };
+  
+  // Handle view transcript
+  const handleViewTranscript = () => {
+    // For now, just show an alert - can be expanded later
+    Alert.alert(
+      'Transcript',
+      `Full transcript with ${messages.messages.length} messages would be displayed here.`,
+      [{ text: 'OK' }]
+    );
+  };
+  
   // Show loading state while waiting for orchestrator when topic is provided
   const isLoading = initialTopic && !session.orchestrator && !session.isInitialized;
   
@@ -135,52 +170,108 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   const renderContent = () => {
     if (isLoading) {
       return (
-        <Box style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Animated.View 
+          entering={FadeIn.duration(300)}
+          style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+        >
+          <ActivityIndicator 
+            size="large" 
+            color={theme.colors.primary[500]} 
+            style={{ marginBottom: 24 }}
+          />
           <Typography variant="title" align="center">Initializing Debate...</Typography>
           <Typography variant="body" color="secondary" align="center" style={{ marginTop: 8 }}>
             Setting up the arena for {selectedAIs[0]?.name} vs {selectedAIs[1]?.name}
           </Typography>
-        </Box>
+        </Animated.View>
       );
     }
     
     if (showTopicPicker) {
       return (
-        <TopicSelector
-          {...topicSelection}
-          onStartDebate={handleStartDebate}
-        />
+        <Animated.View 
+          entering={FadeIn.duration(400)}
+          layout={Layout.springify()}
+          style={{ flex: 1 }}
+        >
+          <TopicSelector
+            {...topicSelection}
+            onStartDebate={handleStartDebate}
+          />
+        </Animated.View>
+      );
+    }
+    
+    // Show victory celebration if debate ended and we have scores
+    if (flow.isDebateEnded && voting.scores && Object.keys(voting.scores).length > 0) {
+      // Determine winner from scores
+      const winner = Object.entries(voting.scores).reduce((prev, current) => 
+        prev[1].roundWins > current[1].roundWins ? prev : current
+      );
+      const winnerAI = selectedAIs.find(ai => ai.id === winner[0]) || selectedAIs[0];
+      
+      return (
+        <Animated.View 
+          entering={FadeIn.duration(500)}
+          style={{ flex: 1 }}
+        >
+          <VictoryCelebration
+            winner={winnerAI}
+            scores={voting.scores}
+            rounds={[
+              { round: 1, winner: winner[1].name, topic: topicSelection.finalTopic || 'Debate Topic' },
+              { round: 2, winner: winner[1].name, topic: topicSelection.finalTopic || 'Debate Topic' }
+            ]}
+            onNewDebate={handleNewDebate}
+            onShare={handleShare}
+            onViewTranscript={handleViewTranscript}
+          />
+        </Animated.View>
       );
     }
     
     if (flow.isDebateActive || flow.isDebateEnded) {
       return (
-        <>
+        <Animated.View 
+          entering={FadeIn.duration(400)}
+          layout={Layout.springify()}
+          style={{ flex: 1 }}
+        >
           <DebateMessageList
             messages={messages.messages}
             typingAIs={messages.typingAIs}
           />
           
           {voting.isVoting && (
-            <VotingInterface
-              participants={selectedAIs}
-              isOverallVote={voting.isOverallVote}
-              isFinalVote={voting.isFinalVote}
-              votingRound={voting.votingRound}
-              scores={voting.scores || undefined}
-              votingPrompt={voting.getVotingPrompt()}
-              onVote={handleVote}
-            />
+            <Animated.View 
+              entering={FadeIn.duration(300)}
+              exiting={FadeOut.duration(200)}
+            >
+              <VotingInterface
+                participants={selectedAIs}
+                isOverallVote={voting.isOverallVote}
+                isFinalVote={voting.isFinalVote}
+                votingRound={voting.votingRound}
+                scores={voting.scores || undefined}
+                votingPrompt={voting.getVotingPrompt()}
+                onVote={handleVote}
+              />
+            </Animated.View>
           )}
           
           {/* Show scoreboard persistently after first round */}
           {voting.scores && Object.keys(voting.scores).length > 0 && (
-            <ScoreDisplay
-              participants={selectedAIs}
-              scores={voting.scores}
-            />
+            <Animated.View 
+              entering={FadeIn.delay(200).duration(300)}
+              layout={Layout.springify()}
+            >
+              <ScoreDisplay
+                participants={selectedAIs}
+                scores={voting.scores}
+              />
+            </Animated.View>
           )}
-        </>
+        </Animated.View>
       );
     }
     

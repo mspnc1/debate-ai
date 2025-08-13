@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, Platform } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -30,6 +30,12 @@ const Tab = createBottomTabNavigator();
 const MainTabs = () => {
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
+  
+  // Calculate configured AI count for badge
+  const configuredCount = useMemo(() => {
+    return Object.values(apiKeys).filter(Boolean).length;
+  }, [apiKeys]);
   
   // Calculate tab bar height with safe area
   const tabBarHeight = 60;
@@ -81,6 +87,14 @@ const MainTabs = () => {
               color={color} 
             />
           ),
+          tabBarBadge: configuredCount < 2 ? '!' : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: theme.colors.error[500],
+            fontSize: 10,
+            minWidth: 16,
+            height: 16,
+            borderRadius: 8,
+          },
         }}
       />
       <Tab.Screen
