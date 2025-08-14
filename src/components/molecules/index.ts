@@ -14,3 +14,11 @@ export { Badge } from './Badge';
 export { IconButton } from './IconButton';
 export { SelectionIndicator } from './SelectionIndicator';
 export { SearchHighlight } from './SearchHighlight';
+
+// Debate Setup Molecules
+export { DebateTopicCard } from './DebateTopicCard';
+export { TopicModeSelector } from './TopicModeSelector';
+export { AIDebaterCard } from './AIDebaterCard';
+export { SurpriseTopicDisplay } from './SurpriseTopicDisplay';
+export { PersonalityChip } from './PersonalityChip';
+export { DebatePreviewCard } from './DebatePreviewCard';

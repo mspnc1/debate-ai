@@ -8,6 +8,12 @@ export { DebateRulesEngine } from './DebateRulesEngine';
 export { VotingService } from './VotingService';
 export { DebatePromptBuilder } from './DebatePromptBuilder';
 
+// Debate Setup Services
+export { TopicService } from './TopicService';
+export { DebaterSelectionService } from './DebaterSelectionService';
+export { PersonalityService } from './PersonalityService';
+export { DebateSetupService } from './DebateSetupService';
+
 export type { 
   DebateSession,
   DebateError,

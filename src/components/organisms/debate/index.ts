@@ -12,6 +12,13 @@ export { SystemAnnouncement } from './SystemAnnouncement';
 export { RichTopicInput } from './RichTopicInput';
 export { VictoryCelebration } from './VictoryCelebration';
 
+// Debate Setup Components
+export { DebateTopicSelector } from './DebateTopicSelector';
+export { DebateAISelector } from './DebateAISelector';
+export { DebatePersonalitySelector } from './DebatePersonalitySelector';
+export { DebateSetupSummary } from './DebateSetupSummary';
+export { DebateStepIndicator } from './DebateStepIndicator';
+
 export type { DebateHeaderProps } from './DebateHeader';
 export type { TopicSelectorProps } from './TopicSelector';
 export type { DebateMessageListProps } from './DebateMessageList';
