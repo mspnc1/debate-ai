@@ -123,10 +123,20 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
     opacity: titleOpacity.value,
   }));
 
+  const dynamicContainerStyles = {
+    ...styles.container,
+    ...theme.shadows.lg,
+  };
+
+  const dynamicVoteButtonStyles = {
+    ...styles.voteButton,
+    ...theme.shadows.md,
+  };
+
   return (
     <Animated.View 
       entering={FadeInDown.duration(300)}
-      style={styles.container}
+      style={dynamicContainerStyles}
     >
       <Animated.View style={animatedContainerStyle}>
         <BlurView 
@@ -135,8 +145,8 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
         >
           <LinearGradient
             colors={isDark 
-              ? ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']
-              : ['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.02)']
+              ? [theme.colors.overlays.soft, theme.colors.overlays.subtle]
+              : [theme.colors.overlays.medium, theme.colors.overlays.subtle]
             }
             style={styles.gradientBackground}
           >
@@ -160,7 +170,7 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
                 return (
                   <TouchableOpacity
                     key={ai.id}
-                    style={styles.voteButton}
+                    style={dynamicVoteButtonStyles}
                     onPress={() => onVote(ai.id)}
                     activeOpacity={0.8}
                   >
@@ -179,7 +189,7 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
                               resizeMode="contain"
                             />
                           ) : (
-                            <Typography variant="title" style={{ fontSize: 36, color: '#FFFFFF' }}>
+                            <Typography variant="title" style={{ fontSize: 36, color: theme.colors.text.white }}>
                               {providerIcon?.icon || ai.name.charAt(0)}
                             </Typography>
                           )}
@@ -191,22 +201,10 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
                             variant="subtitle" 
                             weight="bold" 
                             align="center"
-                            style={{ color: '#FFFFFF' }}
+                            style={{ color: theme.colors.text.white }}
                           >
                             {ai.name}
                           </Typography>
-                        )}
-                        
-                        {scores && scores[ai.id] && (
-                          <View style={styles.scoreBadge}>
-                            <Typography 
-                              variant="caption" 
-                              weight="semibold"
-                              style={{ color: 'rgba(255,255,255,0.9)' }}
-                            >
-                              {scores[ai.id].roundWins} wins
-                            </Typography>
-                          </View>
                         )}
                       </View>
                     </LinearGradient>
@@ -227,11 +225,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 10,
   },
   blurContainer: {
     borderRadius: 20,
@@ -244,12 +237,10 @@ const styles = StyleSheet.create({
     fontSize: 22,
   },
   currentScoresCard: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
   },
   scoresRow: {
     flexDirection: 'row',
@@ -274,11 +265,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     minHeight: 50, // Further reduced for more compact design
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 6,
   },
   buttonGradient: {
     paddingVertical: 4, // Further reduced padding
@@ -297,7 +283,6 @@ const styles = StyleSheet.create({
     height: 80, // Increased to 80x80 as requested
   },
   scoreBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,

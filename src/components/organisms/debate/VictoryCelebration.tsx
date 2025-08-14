@@ -36,7 +36,6 @@ export interface VictoryCelebrationProps {
   scores: ScoreBoard;
   rounds: RoundResult[];
   onNewDebate: () => void;
-  onShare: () => void;
   onViewTranscript: () => void;
 }
 
@@ -45,7 +44,6 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
   scores,
   rounds,
   onNewDebate,
-  onShare,
   onViewTranscript,
 }) => {
   const { theme, isDark } = useTheme();
@@ -92,17 +90,23 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
   
   const winnerColors = getWinnerColors();
   
+  const dynamicCardStyles = {
+    ...styles.card,
+    backgroundColor: theme.colors.surface,
+    ...theme.shadows.lg,
+  };
+  
   return (
     <View style={StyleSheet.absoluteFillObject}>
       <BlurView intensity={90} style={styles.backdrop}>
         <LinearGradient
           colors={isDark 
-            ? ['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.5)']
-            : ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.4)']
+            ? [theme.colors.overlays.backdrop, theme.colors.overlays.backdropDark]
+            : [theme.colors.overlays.backdrop, theme.colors.overlays.backdropDark]
           }
           style={styles.gradientBackdrop}
         >
-          <Animated.View entering={ZoomIn.springify()} style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+          <Animated.View entering={ZoomIn.springify()} style={dynamicCardStyles}>
             <Animated.View style={[styles.trophyContainer, trophyStyle]}>
               <Typography variant="title" style={styles.trophy}>
                 🏆
@@ -134,7 +138,10 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                   variant="title" 
                   weight="bold" 
                   align="center" 
-                  style={styles.winnerName}
+                  style={{
+                    ...styles.winnerName,
+                    color: theme.colors.text.white,
+                  }}
                 >
                   {winner.name}
                 </Typography>
@@ -151,48 +158,57 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                   Final Scores
                 </Typography>
                 
-                {Object.entries(scores).map(([aiId, score]) => {
-                  const aiColors = aiId === winner.id ? winnerColors : theme.colors.gray;
-                  const isWinner = aiId === winner.id;
-                  
-                  return (
-                    <View key={aiId} style={[
-                      styles.scoreItem,
-                      isWinner && styles.winnerScoreItem
-                    ]}>
-                      <View style={styles.scoreItemHeader}>
-                        <Typography 
-                          variant="body" 
-                          weight={isWinner ? "bold" : "semibold"}
-                          style={{ color: isWinner ? winnerColors[600] : theme.colors.text.primary }}
-                        >
-                          {score.name}
-                          {isWinner && " 👑"}
-                        </Typography>
-                        <Typography 
-                          variant="subtitle" 
-                          weight="bold"
-                          style={{ color: isWinner ? winnerColors[600] : theme.colors.text.primary }}
-                        >
-                          {score.roundWins} rounds
-                        </Typography>
+                <View style={styles.scoresWrapper}>
+                  {Object.entries(scores).map(([aiId, score]) => {
+                    const aiColors = aiId === winner.id ? winnerColors : theme.colors.gray;
+                    const isWinner = aiId === winner.id;
+                    
+                    return (
+                      <View key={aiId} style={[
+                        styles.scoreItem,
+                        { backgroundColor: theme.colors.overlays.soft },
+                        isWinner && styles.winnerScoreItem,
+                        isWinner && { 
+                          backgroundColor: theme.colors.semantic.winner,
+                          borderColor: theme.colors.semantic.winnerBorder,
+                        }
+                      ]}>
+                        <View style={styles.scoreItemHeader}>
+                          <Typography 
+                            variant="body" 
+                            weight={isWinner ? "bold" : "semibold"}
+                            align="center"
+                            style={{ color: isWinner ? winnerColors[600] : theme.colors.text.primary, marginBottom: 4 }}
+                          >
+                            {score.name}
+                            {isWinner && " 👑"}
+                          </Typography>
+                          <Typography 
+                            variant="subtitle" 
+                            weight="bold"
+                            align="center"
+                            style={{ color: isWinner ? winnerColors[600] : theme.colors.text.primary }}
+                          >
+                            {score.roundWins} rounds
+                          </Typography>
+                        </View>
+                        
+                        <View style={[styles.scoreBar, { backgroundColor: theme.colors.overlays.strong }]}>
+                          <Animated.View
+                            entering={FadeIn.delay(800).duration(600)}
+                            style={[
+                              styles.scoreBarFill,
+                              {
+                                width: `${Math.max((score.roundWins / Math.max(rounds.length, 1)) * 100, 5)}%`,
+                                backgroundColor: aiColors[500] || theme.colors.primary[500],
+                              },
+                            ]}
+                          />
+                        </View>
                       </View>
-                      
-                      <View style={styles.scoreBar}>
-                        <Animated.View
-                          entering={FadeIn.delay(800).duration(600)}
-                          style={[
-                            styles.scoreBarFill,
-                            {
-                              width: `${Math.max((score.roundWins / Math.max(rounds.length, 1)) * 100, 5)}%`,
-                              backgroundColor: aiColors[500] || theme.colors.primary[500],
-                            },
-                          ]}
-                        />
-                      </View>
-                    </View>
-                  );
-                })}
+                    );
+                  })}
+                </View>
               </View>
               
               <View style={styles.actions}>
@@ -204,22 +220,13 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                   style={styles.primaryAction}
                 />
                 
-                <View style={styles.secondaryActions}>
-                  <Button
-                    title="📤 Share"
-                    onPress={onShare}
-                    variant="secondary"
-                    size="medium"
-                    style={styles.secondaryButton}
-                  />
-                  <Button
-                    title="📄 Transcript"
-                    onPress={onViewTranscript}
-                    variant="ghost"
-                    size="medium"
-                    style={styles.secondaryButton}
-                  />
-                </View>
+                <Button
+                  title="📄 View Transcript"
+                  onPress={onViewTranscript}
+                  variant="secondary"
+                  size="large"
+                  fullWidth
+                />
               </View>
             </Animated.View>
           </Animated.View>
@@ -312,11 +319,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 32,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 20,
     maxWidth: width * 0.9,
     width: '100%',
   },
@@ -350,36 +352,37 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   winnerName: {
-    color: '#FFFFFF',
     fontSize: 24,
   },
   scoreContainer: {
     width: '100%',
     marginBottom: 32,
+    alignItems: 'center',
   },
   finalScoreLabel: {
     marginBottom: 16,
   },
+  scoresWrapper: {
+    width: '100%',
+    maxWidth: 280,
+    alignItems: 'stretch',
+  },
   scoreItem: {
     marginBottom: 12,
     padding: 12,
-    backgroundColor: 'rgba(0,0,0,0.03)',
     borderRadius: 12,
+    minWidth: 240,
   },
   winnerScoreItem: {
-    backgroundColor: 'rgba(255,215,0,0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(255,215,0,0.3)',
   },
   scoreItemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
     alignItems: 'center',
     marginBottom: 8,
   },
   scoreBar: {
     height: 8,
-    backgroundColor: 'rgba(0,0,0,0.1)',
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -390,15 +393,10 @@ const styles = StyleSheet.create({
   actions: {
     width: '100%',
     gap: 16,
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   primaryAction: {
     marginBottom: 8,
-  },
-  secondaryActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  secondaryButton: {
-    flex: 1,
   },
 });

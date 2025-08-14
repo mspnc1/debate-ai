@@ -15,6 +15,9 @@ export interface Theme {
     gradients: typeof colors.gradients;
     glass: typeof colors.glass;
     neumorph: typeof colors.neumorph;
+    overlays: typeof colors.overlays.light | typeof colors.overlays.dark;
+    semantic: typeof colors.semantic;
+    pdf: typeof colors.pdf;
     // Theme-specific colors
     background: string;
     surface: string;
@@ -24,12 +27,15 @@ export interface Theme {
       secondary: string;
       disabled: string;
       inverse: string;
+      white: string;
+      black: string;
     };
     secondary: string;
     disabled: string;
     brand: string;
     border: string;
     shadow: string;
+    shadowDark: string;
     overlay: string;
   };
   spacing: typeof spacing;

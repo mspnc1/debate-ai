@@ -96,8 +96,11 @@ export const colors = {
   // Glass morphism colors (for dark theme)
   glass: {
     background: 'rgba(255, 255, 255, 0.05)',
+    backgroundLight: 'rgba(255, 255, 255, 0.02)',
     border: 'rgba(255, 255, 255, 0.1)',
+    borderLight: 'rgba(255, 255, 255, 0.2)',
     shadow: 'rgba(0, 0, 0, 0.3)',
+    shadowLight: 'rgba(0, 0, 0, 0.5)',
   },
 
   // Neumorphism colors (for light theme) 
@@ -107,6 +110,53 @@ export const colors = {
     background: '#E0E5EC',
     shadow1: 'rgba(163, 177, 198, 0.6)',
     shadow2: 'rgba(255, 255, 255, 0.5)',
+  },
+  
+  // Overlay colors for both themes
+  overlays: {
+    light: {
+      subtle: 'rgba(0, 0, 0, 0.02)',
+      soft: 'rgba(0, 0, 0, 0.03)',
+      medium: 'rgba(0, 0, 0, 0.05)',
+      strong: 'rgba(0, 0, 0, 0.1)',
+      backdrop: 'rgba(0, 0, 0, 0.2)',
+      backdropDark: 'rgba(0, 0, 0, 0.4)',
+    },
+    dark: {
+      subtle: 'rgba(255, 255, 255, 0.02)',
+      soft: 'rgba(255, 255, 255, 0.05)',
+      medium: 'rgba(255, 255, 255, 0.1)',
+      strong: 'rgba(255, 255, 255, 0.2)',
+      backdrop: 'rgba(0, 0, 0, 0.3)',
+      backdropDark: 'rgba(0, 0, 0, 0.5)',
+    },
+  },
+  
+  // Semantic overlays for special states
+  semantic: {
+    winner: 'rgba(255, 215, 0, 0.1)',
+    winnerBorder: 'rgba(255, 215, 0, 0.3)',
+    primary: 'rgba(99, 102, 241, 0.1)',
+    secondary: 'rgba(168, 85, 247, 0.1)',
+    success: 'rgba(34, 197, 94, 0.1)',
+    info: 'rgba(59, 130, 246, 0.1)',
+    warning: 'rgba(249, 115, 22, 0.1)',
+    error: 'rgba(239, 68, 68, 0.1)',
+    gold: 'rgba(234, 179, 8, 0.1)',
+  },
+  
+  // PDF specific colors (always light theme for printing)
+  pdf: {
+    text: {
+      primary: '#1a1a1a',
+      secondary: '#6b7280',
+      tertiary: '#374151',
+    },
+    surface: '#f8f9fa',
+    border: '#e5e7eb',
+    background: '#ffffff',
+    gradientStart: '#f5f7fa',
+    gradientEnd: '#c3cfe2',
   },
 } as const;
 
@@ -120,13 +170,20 @@ export const lightThemeColors = {
     secondary: colors.gray[600],
     disabled: colors.gray[400],
     inverse: '#FFFFFF',
+    white: '#FFFFFF',
+    black: '#000000',
   },
   secondary: colors.gray[600],
   disabled: colors.gray[400],
   brand: colors.primary[500],
   border: colors.gray[200],
-  shadow: 'rgba(0, 0, 0, 0.1)',
+  shadow: colors.overlays.light.strong,
+  shadowDark: '#000000',
   overlay: 'rgba(0, 0, 0, 0.5)',
+  overlays: colors.overlays.light,
+  semantic: colors.semantic,
+  glass: colors.glass,
+  pdf: colors.pdf,
 } as const;
 
 // Dark theme colors
@@ -139,11 +196,18 @@ export const darkThemeColors = {
     secondary: colors.gray[400],
     disabled: colors.gray[500],
     inverse: '#FFFFFF',
+    white: '#FFFFFF',
+    black: '#000000',
   },
   secondary: colors.gray[400],
   disabled: colors.gray[500],
   brand: colors.primary[400],
   border: colors.gray[800],
-  shadow: 'rgba(0, 0, 0, 0.5)',
+  shadow: colors.overlays.dark.strong,
+  shadowDark: '#000000',
   overlay: 'rgba(0, 0, 0, 0.7)',
+  overlays: colors.overlays.dark,
+  semantic: colors.semantic,
+  glass: colors.glass,
+  pdf: colors.pdf,
 } as const;

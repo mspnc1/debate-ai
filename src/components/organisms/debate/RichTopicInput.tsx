@@ -56,7 +56,10 @@ export const RichTopicInput: React.FC<RichTopicInputProps> = ({
         textAlignVertical="top"
       />
       
-      <View style={[styles.simplifiedToolbar, { borderTopColor: theme.colors.border }]}>
+      <View style={[styles.simplifiedToolbar, { 
+        borderTopColor: theme.colors.border,
+        backgroundColor: theme.colors.overlays.subtle,
+      }]}>
         <Typography 
           variant="caption" 
           color="secondary"
@@ -91,7 +94,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
-    backgroundColor: 'rgba(0,0,0,0.02)',
   },
   counter: {
     fontSize: 12,

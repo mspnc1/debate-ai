@@ -57,22 +57,22 @@ export const SystemAnnouncement: React.FC<SystemAnnouncementProps> = ({
   const getDefaultGradient = (): [string, string] => {
     switch (type) {
       case 'topic':
-        return ['rgba(99,102,241,0.1)', 'rgba(168,85,247,0.1)'];
+        return [theme.colors.semantic.primary, theme.colors.semantic.secondary];
       case 'round-winner':
-        return ['rgba(34,197,94,0.1)', 'rgba(59,130,246,0.1)'];
+        return [theme.colors.semantic.success, theme.colors.semantic.info];
       case 'debate-complete':
-        return ['rgba(249,115,22,0.1)', 'rgba(239,68,68,0.1)'];
+        return [theme.colors.semantic.warning, theme.colors.semantic.error];
       case 'overall-winner':
-        return ['rgba(234,179,8,0.1)', 'rgba(168,85,247,0.1)'];
+        return [theme.colors.semantic.gold, theme.colors.semantic.secondary];
       default:
-        return ['rgba(99,102,241,0.1)', 'rgba(168,85,247,0.1)'];
+        return [theme.colors.semantic.primary, theme.colors.semantic.secondary];
     }
   };
   
   const getDefaultIcon = (): string => {
     switch (type) {
       case 'topic':
-        return '💭';
+        return ''; // No icon for topic - looks cleaner
       case 'round-winner':
         return '🎯';
       case 'debate-complete':
@@ -110,11 +110,14 @@ export const SystemAnnouncement: React.FC<SystemAnnouncementProps> = ({
             )}
             
             <View style={styles.contentRow}>
-              {(icon || type) && (
-                <Typography variant="title" style={styles.icon}>
-                  {typeof icon === 'string' ? icon : getDefaultIcon()}
-                </Typography>
-              )}
+              {(() => {
+                const displayIcon = typeof icon === 'string' ? icon : getDefaultIcon();
+                return displayIcon ? (
+                  <Typography variant="title" style={styles.icon}>
+                    {displayIcon}
+                  </Typography>
+                ) : null;
+              })()}
               <Typography
                 variant="body"
                 weight="bold"

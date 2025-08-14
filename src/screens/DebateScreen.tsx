@@ -4,8 +4,8 @@
  * Reduced from 1055 lines to ~200 lines following atomic design principles
  */
 
-import React, { useEffect } from 'react';
-import { Alert, ActivityIndicator, Share } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
 import { Typography } from '../components/molecules';
@@ -26,6 +26,7 @@ import {
   ScoreDisplay,
 } from '../components/organisms';
 import { VictoryCelebration } from '../components/organisms/debate/VictoryCelebration';
+import { TranscriptModal } from '../components/organisms/debate/TranscriptModal';
 
 interface DebateScreenProps {
   navigation: {
@@ -44,6 +45,7 @@ interface DebateScreenProps {
 const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   const { theme } = useTheme();
   const { selectedAIs, topic: initialTopic, personalities: initialPersonalities } = route.params;
+  const [showTranscript, setShowTranscript] = useState(false);
   
   // Initialize all hooks
   const session = useDebateSession(selectedAIs);
@@ -68,9 +70,9 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         initialPersonalities || {}
       );
       
-      // Add initial host message with cleaner formatting
+      // Add initial host message with quotes to trigger SystemAnnouncement
       messages.addHostMessage(
-        `${topicToUse}\n\n${selectedAIs[0].name} opens the debate.`
+        `"${topicToUse}"\n\n${selectedAIs[0].name} opens the debate.`
       );
       
       // Start the debate flow
@@ -133,37 +135,6 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     navigation.navigate('MainTabs', { screen: 'DebateTab' });
   };
   
-  // Handle share results
-  const handleShare = async () => {
-    try {
-      if (!voting.scores || Object.keys(voting.scores).length === 0) {
-        Alert.alert('No Results', 'No debate results to share yet.');
-        return;
-      }
-
-      // Determine actual winner from scores
-      const winner = Object.entries(voting.scores).reduce((prev, current) => 
-        prev[1].roundWins > current[1].roundWins ? prev : current
-      );
-      const winnerAI = selectedAIs.find(ai => ai.id === winner[0]);
-      
-      // Create detailed share content
-      const topic = topicSelection.finalTopic || 'AI Debate';
-      const totalMessages = messages.messages.length;
-      const participantNames = selectedAIs.map(ai => ai.name).join(' vs ');
-      
-      const shareContent = `🏆 DebateAI Results! 🏆\n\n🎯 Topic: "${topic}"\n👥 Participants: ${participantNames}\n\n🥇 Winner: ${winnerAI?.name || 'Unknown'}\n\nFinal Scores:\n${Object.entries(voting.scores).map(([_, score]) => `• ${score.name}: ${score.roundWins} round${score.roundWins !== 1 ? 's' : ''} won`).join('\n')}\n\n💬 Total exchanges: ${totalMessages} messages\n\n🤖 Join the AI debate revolution at DebateAI!\n#DebateAI #AIDebate #ArtificialIntelligence`;
-      
-      await Share.share({
-        message: shareContent,
-        title: 'DebateAI Results',
-        url: 'https://debateai.app', // Add app URL when available
-      });
-    } catch (error) {
-      console.error('Error sharing results:', error);
-      Alert.alert('Share Failed', 'Unable to share results. Please try again.');
-    }
-  };
   
   // Handle view transcript
   const handleViewTranscript = () => {
@@ -171,71 +142,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
       Alert.alert('No Transcript', 'No messages to display in transcript.');
       return;
     }
-
-    // Filter out system messages for cleaner transcript
-    const debateMessages = messages.messages.filter(msg => 
-      msg.sender !== 'Debate Host' && msg.sender !== 'System'
-    );
-
-    if (debateMessages.length === 0) {
-      Alert.alert('No Debate Messages', 'Only system messages exist. No debate content to display.');
-      return;
-    }
-
-    // Create formatted transcript with markdown and professional formatting
-    const topic = topicSelection.finalTopic || 'AI Debate';
-    const ai1Name = selectedAIs[0]?.name || 'AI1';
-    const ai2Name = selectedAIs[1]?.name || 'AI2';
-    const now = new Date();
-    const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD format
-    
-    // Generate professional filename
-    const cleanTopic = topic.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_').substring(0, 30);
-    const filename = `DebateAI_${cleanTopic}_${ai1Name}_vs_${ai2Name}_${dateStr}.txt`;
-    
-    let transcript = `# DebateAI Transcript\n\n`;
-    transcript += `**Topic:** ${topic}\n\n`;
-    transcript += `**Participants:** ${ai1Name} vs ${ai2Name}\n\n`;
-    transcript += `**Date:** ${now.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })}\n\n`;
-    transcript += `**Messages:** ${debateMessages.length}\n\n`;
-    transcript += `---\n\n`;
-    
-    debateMessages.forEach((msg) => {
-      transcript += `**${msg.sender}:**\n${msg.content}\n\n`;
-    });
-    
-    transcript += `---\n\n`;
-    transcript += `*Generated by DebateAI*`;
-
-    // Show transcript in alert with options
-    Alert.alert(
-      'Debate Transcript',
-      transcript,
-      [
-        {
-          text: 'Share Transcript',
-          onPress: async () => {
-            try {
-              await Share.share({
-                message: transcript,
-                title: filename,
-                url: undefined, // Remove URL to use filename as title
-              });
-            } catch (error) {
-              console.error('Error sharing transcript:', error);
-            }
-          },
-        },
-        { text: 'Close', style: 'cancel' },
-      ],
-      { cancelable: true }
-    );
+    setShowTranscript(true);
   };
   
   // Show loading state while waiting for orchestrator when topic is provided
@@ -243,6 +150,11 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   
   // Show topic picker only if no topic was provided and debate hasn't started
   const showTopicPicker = !initialTopic && (!session.isInitialized || (!flow.isDebateActive && !flow.isDebateEnded));
+  
+  // Check if we're showing victory screen
+  const hasScores = voting.scores && Object.keys(voting.scores).length > 0;
+  const hasOverallWinner = hasScores && voting.isOverallVote && !voting.isVoting;
+  const isShowingVictory = (flow.isDebateEnded && hasScores) || hasOverallWinner;
   
   // Determine what to show based on debate state
   const renderContent = () => {
@@ -281,10 +193,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     }
     
     // Show victory celebration if debate ended and we have scores, or if overall winner determined
-    const hasScores = voting.scores && Object.keys(voting.scores).length > 0;
-    const hasOverallWinner = hasScores && voting.isOverallVote && !voting.isVoting;
-    
-    if ((flow.isDebateEnded && hasScores) || hasOverallWinner) {
+    if (isShowingVictory) {
       // Determine winner from scores
       const winner = Object.entries(voting.scores || {}).reduce((prev, current) => 
         prev[1].roundWins > current[1].roundWins ? prev : current
@@ -304,7 +213,6 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
               { round: 2, winner: winner[1].name, topic: topicSelection.finalTopic || 'Debate Topic' }
             ]}
             onNewDebate={handleNewDebate}
-            onShare={handleShare}
             onViewTranscript={handleViewTranscript}
           />
         </Animated.View>
@@ -388,10 +296,27 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         currentRound={flow.currentRound}
         maxRounds={flow.maxRounds}
         isActive={flow.isDebateActive}
-        showStartOver={flow.isDebateActive || flow.isDebateEnded}
+        showStartOver={flow.isDebateActive || (flow.isDebateEnded && !isShowingVictory)}
       />
       
       {renderContent()}
+      
+      {/* Transcript Modal */}
+      <TranscriptModal
+        visible={showTranscript}
+        onClose={() => setShowTranscript(false)}
+        topic={topicSelection.finalTopic || 'AI Debate'}
+        participants={selectedAIs.map(ai => ({ id: ai.id, name: ai.name }))}
+        messages={messages.messages}
+        winner={voting.scores && Object.keys(voting.scores).length > 0 ? (() => {
+          const winner = Object.entries(voting.scores).reduce((prev, current) => 
+            prev[1].roundWins > current[1].roundWins ? prev : current
+          );
+          const winnerAI = selectedAIs.find(ai => ai.id === winner[0]);
+          return winnerAI ? { id: winnerAI.id, name: winnerAI.name } : undefined;
+        })() : undefined}
+        scores={voting.scores || undefined}
+      />
     </SafeAreaView>
   );
 };

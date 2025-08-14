@@ -470,8 +470,8 @@ export class DebateOrchestrator {
     const nextMessageCount = this.session.messageCount + 1;
     const nextAIIndex = this.rulesEngine.getNextAIIndex(this.session.currentAIIndex, participants.length);
     
-    // Add a small delay before continuing
-    const delay = DEBATE_CONSTANTS.DELAYS.AI_RESPONSE;
+    // Use shorter delay for faster flow after voting
+    const delay = DEBATE_CONSTANTS.DELAYS.VOTING_CONTINUATION;
     
     // Schedule the next round with the accumulated messages
     this.scheduleNextRound(nextAIIndex, nextMessageCount, this.currentMessages, delay);

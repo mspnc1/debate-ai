@@ -30,53 +30,77 @@ export const DebateHeader: React.FC<DebateHeaderProps> = ({
     <Box style={{
       backgroundColor: theme.colors.surface,
       borderBottomColor: theme.colors.border,
-      flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingTop: 16,
+      paddingBottom: 12,
       borderBottomWidth: 1,
+      shadowColor: theme.colors.shadowDark,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+      elevation: 4,
     }}>
-      {showStartOver && onStartOver ? (
+      {/* Title with gradient background */}
+      <Box style={{
+        paddingHorizontal: 24,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: theme.colors.primary[50],
+        marginBottom: 4,
+      }}>
+        <Typography variant="title" weight="bold" style={{ 
+          fontSize: 22,
+          color: theme.colors.primary[700],
+          letterSpacing: 0.5,
+        }}>
+          🎭 AI Debate Arena
+        </Typography>
+      </Box>
+      
+      {/* Round Counter */}
+      {isActive && currentRound && (
+        <Box style={{
+          paddingHorizontal: 12,
+          paddingVertical: 4,
+          borderRadius: 12,
+          backgroundColor: theme.colors.secondary[50],
+          marginBottom: 6,
+        }}>
+          <Typography 
+            variant="body" 
+            weight="semibold"
+            style={{ 
+              fontSize: 14,
+              color: theme.colors.secondary[700],
+            }}
+          >
+            Round {currentRound} of {maxRounds}
+          </Typography>
+        </Box>
+      )}
+      
+      {/* Start Over Button */}
+      {showStartOver && onStartOver && (
         <TouchableOpacity 
           onPress={onStartOver}
           style={{
-            paddingHorizontal: 12,
+            paddingHorizontal: 20,
             paddingVertical: 6,
             borderRadius: 16,
-            backgroundColor: `${theme.colors.error[500]}15`,
+            backgroundColor: theme.colors.error[50],
+            borderWidth: 1,
+            borderColor: theme.colors.error[200],
           }}
         >
           <Typography style={{ 
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: '600',
-            color: theme.colors.error[500] 
+            color: theme.colors.error[700],
           }}>
-            Start Over
+            🔄 Start Over
           </Typography>
         </TouchableOpacity>
-      ) : (
-        <Box style={{ width: 80 }} />
       )}
-      
-      <Typography variant="title" weight="bold">
-        🎭 AI Debate Arena
-      </Typography>
-      
-      <Box style={{ minWidth: 80 }}>
-        {isActive && currentRound && (
-          <Typography 
-            variant="body" 
-            style={{ 
-              color: theme.colors.error[500], 
-              fontWeight: '600',
-              textAlign: 'right'
-            }}
-          >
-            Round {currentRound}/{maxRounds}
-          </Typography>
-        )}
-      </Box>
     </Box>
   );
 };
