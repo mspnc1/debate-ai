@@ -92,12 +92,12 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     await aiResponses.sendAIResponses(userMessage);
   }, [input, session.currentSession, mentions, messages, aiResponses]);
 
-  // Auto-save session whenever it changes
+  // Auto-save session when it's created or messages change
   useEffect(() => {
     if (session.currentSession) {
       session.saveSession();
     }
-  }, [session, session.currentSession, session.currentSession?.messages.length]);
+  }, [session, session.currentSession?.id, session.currentSession?.messages.length]);
 
   // Handle Quick Start auto-send logic
   useEffect(() => {

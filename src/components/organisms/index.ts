@@ -19,6 +19,7 @@ export { AIServiceLoading } from './AIServiceLoading';
 export { AppLogo } from './AppLogo';
 export { ExpertModeSettings } from './ExpertModeSettings';
 export { ProviderCard } from './ProviderCard';
+export { ErrorBoundary } from './ErrorBoundary';
 
 // Debate organisms
 export * from './debate';

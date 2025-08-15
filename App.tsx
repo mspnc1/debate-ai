@@ -8,14 +8,21 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { AIServiceProvider } from './src/providers/AIServiceProvider';
 import { ThemeProvider } from './src/theme';
 import secureStorage from './src/services/secureStorage';
+import { StorageService } from './src/services/chat';
 
 function AppContent() {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    // Load stored API keys on app startup
-    const loadApiKeys = async () => {
+    // Initialize app on startup
+    const initializeApp = async () => {
       try {
+        // Clear old storage format and start fresh (development only)
+        console.log('Clearing old storage format...');
+        await StorageService.clearAllSessions();
+        console.log('Storage cleared - starting fresh with new architecture');
+        
+        // Load stored API keys
         const storedKeys = await secureStorage.getApiKeys();
         if (storedKeys) {
           dispatch(updateApiKeys(storedKeys));
@@ -24,11 +31,11 @@ function AppContent() {
           console.log('No stored API keys found');
         }
       } catch (error) {
-        console.error('Error loading API keys:', error);
+        console.error('Error initializing app:', error);
       }
     };
 
-    loadApiKeys();
+    initializeApp();
   }, [dispatch]);
 
   return (

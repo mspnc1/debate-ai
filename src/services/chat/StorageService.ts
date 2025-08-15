@@ -2,17 +2,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ChatSession, Message } from '../../types';
 
 export interface StorageKeys {
-  CHAT_SESSIONS: 'chatSessions';
-  SESSION_METADATA: 'sessionMetadata';
+  SESSION_INDEX: 'sessionIndex';
+  SESSION_PREFIX: 'chatSession_';
   USER_PREFERENCES: 'userPreferences';
 }
 
-export interface SessionMetadata {
+export interface SessionIndexEntry {
   id: string;
-  lastAccessed: number;
+  createdAt: number;
+  lastMessageAt: number;
   messageCount: number;
   participants: string[];
-  createdAt: number;
+}
+
+export interface SessionIndex {
+  sessions: SessionIndexEntry[];
+  lastUpdated: number;
 }
 
 export interface UserPreferences {
@@ -23,35 +28,80 @@ export interface UserPreferences {
 
 export class StorageService {
   private static readonly STORAGE_KEYS: StorageKeys = {
-    CHAT_SESSIONS: 'chatSessions',
-    SESSION_METADATA: 'sessionMetadata',
+    SESSION_INDEX: 'sessionIndex',
+    SESSION_PREFIX: 'chatSession_',
     USER_PREFERENCES: 'userPreferences'
   };
 
   /**
-   * Saves a chat session to AsyncStorage
+   * Get the storage key for a specific session
+   */
+  private static getSessionKey(sessionId: string): string {
+    return `${this.STORAGE_KEYS.SESSION_PREFIX}${sessionId}`;
+  }
+
+  /**
+   * Get or create the session index
+   */
+  private static async getSessionIndex(): Promise<SessionIndex> {
+    try {
+      const stored = await AsyncStorage.getItem(this.STORAGE_KEYS.SESSION_INDEX);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+      return { sessions: [], lastUpdated: Date.now() };
+    } catch (error) {
+      console.error('Error getting session index:', error);
+      return { sessions: [], lastUpdated: Date.now() };
+    }
+  }
+
+  /**
+   * Update the session index
+   */
+  private static async updateSessionIndex(index: SessionIndex): Promise<void> {
+    try {
+      index.lastUpdated = Date.now();
+      await AsyncStorage.setItem(
+        this.STORAGE_KEYS.SESSION_INDEX,
+        JSON.stringify(index)
+      );
+    } catch (error) {
+      console.error('Error updating session index:', error);
+    }
+  }
+
+  /**
+   * Saves a chat session to AsyncStorage (ONLY the specific session)
    */
   static async saveSession(session: ChatSession): Promise<void> {
     try {
-      // Get existing sessions
-      const sessions = await this.getAllSessions();
-      
-      // Update or add current session
-      const existingIndex = sessions.findIndex(s => s.id === session.id);
+      // Save the individual session
+      const sessionKey = this.getSessionKey(session.id);
+      await AsyncStorage.setItem(sessionKey, JSON.stringify(session));
+
+      // Update the index
+      const index = await this.getSessionIndex();
+      const indexEntry: SessionIndexEntry = {
+        id: session.id,
+        createdAt: session.createdAt,
+        lastMessageAt: session.lastMessageAt || session.createdAt,
+        messageCount: session.messages.length,
+        participants: session.selectedAIs.map(ai => ai.name)
+      };
+
+      // Update or add to index
+      const existingIndex = index.sessions.findIndex(s => s.id === session.id);
       if (existingIndex >= 0) {
-        sessions[existingIndex] = session;
+        index.sessions[existingIndex] = indexEntry;
       } else {
-        sessions.push(session);
+        index.sessions.push(indexEntry);
       }
 
-      // Save sessions
-      await AsyncStorage.setItem(
-        this.STORAGE_KEYS.CHAT_SESSIONS, 
-        JSON.stringify(sessions)
-      );
+      // Sort by most recent first
+      index.sessions.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
 
-      // Update metadata
-      await this.updateSessionMetadata(session);
+      await this.updateSessionIndex(index);
 
     } catch (error) {
       console.error('Error saving session:', error);
@@ -60,19 +110,13 @@ export class StorageService {
   }
 
   /**
-   * Loads a specific chat session from AsyncStorage
+   * Loads a specific chat session from AsyncStorage (direct access)
    */
   static async loadSession(sessionId: string): Promise<ChatSession | null> {
     try {
-      const sessions = await this.getAllSessions();
-      const session = sessions.find(s => s.id === sessionId);
-      
-      if (session) {
-        // Update last accessed time
-        await this.updateLastAccessed(sessionId);
-      }
-      
-      return session || null;
+      const sessionKey = this.getSessionKey(sessionId);
+      const stored = await AsyncStorage.getItem(sessionKey);
+      return stored ? JSON.parse(stored) : null;
     } catch (error) {
       console.error('Error loading session:', error);
       return null;
@@ -84,8 +128,17 @@ export class StorageService {
    */
   static async getAllSessions(): Promise<ChatSession[]> {
     try {
-      const stored = await AsyncStorage.getItem(this.STORAGE_KEYS.CHAT_SESSIONS);
-      return stored ? JSON.parse(stored) : [];
+      const index = await this.getSessionIndex();
+      
+      // Load all sessions in parallel
+      const sessionPromises = index.sessions.map(entry => 
+        this.loadSession(entry.id)
+      );
+      
+      const sessions = await Promise.all(sessionPromises);
+      
+      // Filter out any null values and return
+      return sessions.filter((s): s is ChatSession => s !== null);
     } catch (error) {
       console.error('Error getting all sessions:', error);
       return [];
@@ -97,16 +150,14 @@ export class StorageService {
    */
   static async deleteSession(sessionId: string): Promise<void> {
     try {
-      const sessions = await this.getAllSessions();
-      const filteredSessions = sessions.filter(s => s.id !== sessionId);
-      
-      await AsyncStorage.setItem(
-        this.STORAGE_KEYS.CHAT_SESSIONS,
-        JSON.stringify(filteredSessions)
-      );
+      // Delete the session data
+      const sessionKey = this.getSessionKey(sessionId);
+      await AsyncStorage.removeItem(sessionKey);
 
-      // Remove from metadata
-      await this.removeSessionMetadata(sessionId);
+      // Update the index
+      const index = await this.getSessionIndex();
+      index.sessions = index.sessions.filter(s => s.id !== sessionId);
+      await this.updateSessionIndex(index);
 
     } catch (error) {
       console.error('Error deleting session:', error);
@@ -170,83 +221,15 @@ export class StorageService {
   }
 
   /**
-   * Gets session metadata for quick access
+   * Gets session metadata for quick access (from index)
    */
-  static async getSessionMetadata(): Promise<SessionMetadata[]> {
+  static async getSessionMetadata(): Promise<SessionIndexEntry[]> {
     try {
-      const stored = await AsyncStorage.getItem(this.STORAGE_KEYS.SESSION_METADATA);
-      return stored ? JSON.parse(stored) : [];
+      const index = await this.getSessionIndex();
+      return index.sessions;
     } catch (error) {
       console.error('Error getting session metadata:', error);
       return [];
-    }
-  }
-
-  /**
-   * Updates metadata for a session
-   */
-  private static async updateSessionMetadata(session: ChatSession): Promise<void> {
-    try {
-      const metadata = await this.getSessionMetadata();
-      const existingIndex = metadata.findIndex(m => m.id === session.id);
-      
-      const newMetadata: SessionMetadata = {
-        id: session.id,
-        lastAccessed: Date.now(),
-        messageCount: session.messages.length,
-        participants: [...new Set(session.messages.map(m => m.sender))],
-        createdAt: session.createdAt
-      };
-
-      if (existingIndex >= 0) {
-        metadata[existingIndex] = newMetadata;
-      } else {
-        metadata.push(newMetadata);
-      }
-
-      await AsyncStorage.setItem(
-        this.STORAGE_KEYS.SESSION_METADATA,
-        JSON.stringify(metadata)
-      );
-    } catch (error) {
-      console.error('Error updating session metadata:', error);
-    }
-  }
-
-  /**
-   * Updates last accessed time for a session
-   */
-  private static async updateLastAccessed(sessionId: string): Promise<void> {
-    try {
-      const metadata = await this.getSessionMetadata();
-      const index = metadata.findIndex(m => m.id === sessionId);
-      
-      if (index >= 0) {
-        metadata[index].lastAccessed = Date.now();
-        await AsyncStorage.setItem(
-          this.STORAGE_KEYS.SESSION_METADATA,
-          JSON.stringify(metadata)
-        );
-      }
-    } catch (error) {
-      console.error('Error updating last accessed:', error);
-    }
-  }
-
-  /**
-   * Removes session metadata
-   */
-  private static async removeSessionMetadata(sessionId: string): Promise<void> {
-    try {
-      const metadata = await this.getSessionMetadata();
-      const filtered = metadata.filter(m => m.id !== sessionId);
-      
-      await AsyncStorage.setItem(
-        this.STORAGE_KEYS.SESSION_METADATA,
-        JSON.stringify(filtered)
-      );
-    } catch (error) {
-      console.error('Error removing session metadata:', error);
     }
   }
 
@@ -255,8 +238,24 @@ export class StorageService {
    */
   static async clearAllSessions(): Promise<void> {
     try {
-      await AsyncStorage.removeItem(this.STORAGE_KEYS.CHAT_SESSIONS);
-      await AsyncStorage.removeItem(this.STORAGE_KEYS.SESSION_METADATA);
+      // Get all keys
+      const allKeys = await AsyncStorage.getAllKeys();
+      
+      // Filter for session keys and index
+      const keysToRemove = allKeys.filter(key => 
+        key.startsWith(this.STORAGE_KEYS.SESSION_PREFIX) || 
+        key === this.STORAGE_KEYS.SESSION_INDEX ||
+        key === 'chatSessions' || // Remove old format
+        key === 'sessionMetadata' // Remove old metadata
+      );
+      
+      // Remove all session-related keys
+      if (keysToRemove.length > 0) {
+        await AsyncStorage.multiRemove(keysToRemove);
+      }
+      
+      // Create empty index
+      await this.updateSessionIndex({ sessions: [], lastUpdated: Date.now() });
     } catch (error) {
       console.error('Error clearing all sessions:', error);
       throw new Error('Failed to clear sessions from storage');
@@ -275,6 +274,7 @@ export class StorageService {
   }> {
     try {
       const sessions = await this.getAllSessions();
+      
       const totalMessages = sessions.reduce((sum, s) => sum + s.messages.length, 0);
       
       const timestamps = sessions.map(s => s.createdAt);
@@ -310,37 +310,51 @@ export class StorageService {
   static async cleanupOldSessions(retentionDays: number = 30): Promise<number> {
     try {
       const cutoffTime = Date.now() - (retentionDays * 24 * 60 * 60 * 1000);
-      const sessions = await this.getAllSessions();
+      const index = await this.getSessionIndex();
       
-      const activeSessions = sessions.filter(session => {
+      // Find sessions to remove
+      const sessionsToRemove = index.sessions.filter(session => {
         const lastActivity = session.lastMessageAt || session.createdAt;
-        return lastActivity > cutoffTime;
+        return lastActivity < cutoffTime;
       });
 
-      const removedCount = sessions.length - activeSessions.length;
-
-      if (removedCount > 0) {
-        await AsyncStorage.setItem(
-          this.STORAGE_KEYS.CHAT_SESSIONS,
-          JSON.stringify(activeSessions)
-        );
-
-        // Update metadata
-        const metadata = await this.getSessionMetadata();
-        const activeMetadata = metadata.filter(m => 
-          activeSessions.some(s => s.id === m.id)
-        );
-        
-        await AsyncStorage.setItem(
-          this.STORAGE_KEYS.SESSION_METADATA,
-          JSON.stringify(activeMetadata)
-        );
-
+      // Remove old sessions
+      for (const session of sessionsToRemove) {
+        await this.deleteSession(session.id);
       }
 
-      return removedCount;
+      return sessionsToRemove.length;
     } catch (error) {
       console.error('Error cleaning up old sessions:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Migrate from old storage format to new format
+   */
+  static async migrateFromOldFormat(): Promise<number> {
+    try {
+      // Check if old format exists
+      const oldSessions = await AsyncStorage.getItem('chatSessions');
+      if (!oldSessions) {
+        return 0;
+      }
+
+      const sessions: ChatSession[] = JSON.parse(oldSessions);
+      
+      // Save each session in new format
+      for (const session of sessions) {
+        await this.saveSession(session);
+      }
+
+      // Clean up old format
+      await AsyncStorage.removeItem('chatSessions');
+      await AsyncStorage.removeItem('sessionMetadata');
+
+      return sessions.length;
+    } catch (error) {
+      console.error('Error migrating from old format:', error);
       return 0;
     }
   }
@@ -351,13 +365,13 @@ export class StorageService {
   static async exportSessions(): Promise<string> {
     try {
       const sessions = await this.getAllSessions();
-      const metadata = await this.getSessionMetadata();
+      const index = await this.getSessionIndex();
       
       const exportData = {
         sessions,
-        metadata,
+        index,
         exportedAt: Date.now(),
-        version: '1.0'
+        version: '2.0'
       };
 
       return JSON.stringify(exportData, null, 2);
@@ -378,20 +392,12 @@ export class StorageService {
         throw new Error('Invalid export data format');
       }
 
-      // Merge with existing sessions (don't overwrite)
-      const existingSessions = await this.getAllSessions();
-      const newSessions = exportData.sessions.filter((importedSession: ChatSession) =>
-        !existingSessions.some(existing => existing.id === importedSession.id)
-      );
+      // Save each session
+      for (const session of exportData.sessions) {
+        await this.saveSession(session);
+      }
 
-      const allSessions = [...existingSessions, ...newSessions];
-      
-      await AsyncStorage.setItem(
-        this.STORAGE_KEYS.CHAT_SESSIONS,
-        JSON.stringify(allSessions)
-      );
-
-      return newSessions.length;
+      return exportData.sessions.length;
     } catch (error) {
       console.error('Error importing sessions:', error);
       throw new Error('Failed to import session data');

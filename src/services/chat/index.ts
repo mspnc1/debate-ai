@@ -15,7 +15,8 @@ export type {
 
 export type {
   StorageKeys,
-  SessionMetadata,
+  SessionIndexEntry,
+  SessionIndex,
   UserPreferences,
 } from './StorageService';
 

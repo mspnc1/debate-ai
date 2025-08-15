@@ -27,8 +27,9 @@ export const useSessionManagement = () => {
     // Dispatch session creation to Redux
     dispatch(startSession(sessionData));
     
-    // Generate and return session ID
-    return SessionService.generateSessionId();
+    // Return the session ID that Redux will create
+    // The ChatScreen will save it when it loads
+    return `session_${Date.now()}`;
   };
 
   /**
