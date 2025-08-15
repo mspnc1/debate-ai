@@ -1,6 +1,6 @@
 // Core type definitions for DebateAI
 
-export type AIProvider = 'claude' | 'openai' | 'chatgpt' | 'gemini' | 'nomi' | 'replika' | 'character';
+export type AIProvider = 'claude' | 'openai' | 'chatgpt' | 'google' | 'perplexity' | 'mistral' | 'cohere' | 'together' | 'deepseek';
 export type UIMode = 'simple' | 'expert';
 export type SubscriptionTier = 'free' | 'pro' | 'business';
 
@@ -13,9 +13,11 @@ export interface User {
     claude?: string;
     openai?: string;
     google?: string;
-    nomi?: string;
-    replika?: string;
-    character?: string;
+    perplexity?: string;
+    mistral?: string;
+    cohere?: string;
+    together?: string;
+    deepseek?: string;
   };
   preferences: {
     theme: 'light' | 'dark' | 'auto';

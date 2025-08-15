@@ -84,8 +84,9 @@ export const AICard: React.FC<AICardProps> = ({
             borderColor: isSelected ? ai.color : 'transparent',
             borderWidth: isSelected ? 2 : 0,
             overflow: 'visible',
+            minHeight: 160, // Match the Add AI button height
           }}
-          padding="sm"
+          padding="md"
         >
           <Box style={{ alignItems: 'center', position: 'relative', overflow: 'visible' }}>
             <SelectionIndicator isSelected={isSelected} color={ai.color} />
@@ -96,6 +97,7 @@ export const AICard: React.FC<AICardProps> = ({
               size="large"
               color={ai.color}
               isSelected={isSelected}
+              providerId={ai.provider}
               style={{ flex: 1 }}
             />
             

@@ -248,136 +248,213 @@ class GeminiAdapter extends AIAdapter {
   }
 }
 
-// Nomi Adapter - Companion AI
-class NomiAdapter extends AIAdapter {
-  private nomiUuid?: string;
-  
-  async initializeNomi(): Promise<void> {
-    // Get the list of available Nomis from the account
-    const response = await fetch('https://api.nomi.ai/v1/nomis', {
-      method: 'GET',
-      headers: {
-        'Authorization': this.config.apiKey,
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Nomi API error response:', errorText);
-      throw new Error(`Failed to fetch Nomis: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    // The response has a 'nomis' property containing the array
-    const nomisList = data.nomis || data;
-    
-    // Check if we have any Nomis available
-    if (!Array.isArray(nomisList) || nomisList.length === 0) {
-      throw new Error('No Nomis found on this account. Please create a Nomi first at nomi.ai');
-    }
-    
-    // If a specific Nomi UUID is provided in config.model, use it
-    // Otherwise, use the first available Nomi
-    if (this.config.model) {
-      // Check if the specified UUID exists in the list
-      const selectedNomi = nomisList.find(n => n.uuid === this.config.model);
-      if (selectedNomi) {
-        this.nomiUuid = selectedNomi.uuid;
-      } else {
-        console.warn(`Specified Nomi UUID ${this.config.model} not found, using first available`);
-        this.nomiUuid = nomisList[0].uuid;
-      }
-    } else {
-      // Use the first available Nomi
-      const firstNomi = nomisList[0];
-      this.nomiUuid = firstNomi.uuid;
-    }
-  }
-  
+// Perplexity Adapter - OpenAI-compatible with web search
+class PerplexityAdapter extends AIAdapter {
   async sendMessage(
     message: string,
-    _conversationHistory: Message[] = [],
-    _resumptionContext?: ResumptionContext
+    conversationHistory: Message[] = [],
+    resumptionContext?: ResumptionContext
   ): Promise<string> {
     try {
-      // Initialize Nomi if not already done
-      if (!this.nomiUuid) {
-        await this.initializeNomi();
-      }
-      
-      const response = await fetch(
-        `https://api.nomi.ai/v1/nomis/${this.nomiUuid}/chat`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': this.config.apiKey,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            messageText: message,
-          }),
-        }
-      );
-      
+      const messages = [
+        { role: 'system', content: this.getSystemPrompt() },
+        ...this.formatHistory(conversationHistory, resumptionContext),
+        { role: 'user', content: message }
+      ];
+
+      const response = await fetch('https://api.perplexity.ai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.config.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: this.config.model || 'sonar-pro',
+          messages,
+          temperature: this.config.parameters?.temperature || 0.7,
+          max_tokens: this.config.parameters?.maxTokens || 2048,
+        }),
+      });
+
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Nomi chat API error:', errorText);
-        
-        if (response.status === 429) {
-          throw new Error('Nomi API rate limit exceeded. Please wait a moment.');
-        }
-        
-        try {
-          const errorData = JSON.parse(errorText);
-          if (errorData?.error?.type) {
-            throw new Error(`Nomi API error: ${errorData.error.type}`);
-          }
-        } catch {
-          // Ignore JSON parse errors
-        }
-        
-        throw new Error(`Nomi API error: ${response.status} - ${errorText}`);
+        const errorData = await response.json().catch(() => null);
+        throw new Error(`Perplexity API error: ${errorData?.error?.message || response.statusText}`);
       }
-      
+
       const data = await response.json();
-      
-      // Extract reply message from response
-      if (!data?.replyMessage?.text) {
-        console.error('Unexpected Nomi response structure:', data);
-        throw new Error('Invalid response from Nomi API');
-      }
-      
-      return data.replyMessage.text;
+      return data.choices[0].message.content;
     } catch (error) {
-      console.error('Error in NomiAdapter.sendMessage:', error);
+      console.error('Error in PerplexityAdapter:', error);
       throw error;
     }
   }
 }
 
-// Replika Adapter - Placeholder for now
-class ReplikaAdapter extends AIAdapter {
+// Mistral Adapter - OpenAI-compatible
+class MistralAdapter extends AIAdapter {
   async sendMessage(
-    _message: string,
-    _conversationHistory: Message[] = [],
-    _resumptionContext?: ResumptionContext
+    message: string,
+    conversationHistory: Message[] = [],
+    resumptionContext?: ResumptionContext
   ): Promise<string> {
-    // Replika doesn't have a public API yet
-    throw new Error('Replika integration is not yet available. API coming soon.');
+    try {
+      const messages = [
+        { role: 'system', content: this.getSystemPrompt() },
+        ...this.formatHistory(conversationHistory, resumptionContext),
+        { role: 'user', content: message }
+      ];
+
+      const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.config.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: this.config.model || 'mistral-large',
+          messages,
+          temperature: this.config.parameters?.temperature || 0.7,
+          max_tokens: this.config.parameters?.maxTokens || 2048,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(`Mistral API error: ${errorData?.error?.message || response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.choices[0].message.content;
+    } catch (error) {
+      console.error('Error in MistralAdapter:', error);
+      throw error;
+    }
   }
 }
 
-// Character.AI Adapter - Placeholder for now  
-class CharacterAdapter extends AIAdapter {
+// Cohere Adapter - Custom format
+class CohereAdapter extends AIAdapter {
   async sendMessage(
-    _message: string,
-    _conversationHistory: Message[] = [],
-    _resumptionContext?: ResumptionContext
+    message: string,
+    conversationHistory: Message[] = [],
+    resumptionContext?: ResumptionContext
   ): Promise<string> {
-    // Character.AI requires unofficial API or web scraping
-    throw new Error('Character.AI integration is not yet available. Official API coming soon.');
+    try {
+      const chatHistory = this.formatHistory(conversationHistory, resumptionContext).map(msg => ({
+        role: msg.role === 'user' ? 'USER' : 'CHATBOT',
+        message: msg.content,
+      }));
+
+      const response = await fetch('https://api.cohere.ai/v1/chat', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.config.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: this.config.model || 'command-r-plus',
+          message,
+          chat_history: chatHistory,
+          temperature: this.config.parameters?.temperature || 0.7,
+          max_tokens: this.config.parameters?.maxTokens || 2048,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(`Cohere API error: ${errorData?.message || response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.text;
+    } catch (error) {
+      console.error('Error in CohereAdapter:', error);
+      throw error;
+    }
+  }
+}
+
+// Together Adapter - OpenAI-compatible
+class TogetherAdapter extends AIAdapter {
+  async sendMessage(
+    message: string,
+    conversationHistory: Message[] = [],
+    resumptionContext?: ResumptionContext
+  ): Promise<string> {
+    try {
+      const messages = [
+        { role: 'system', content: this.getSystemPrompt() },
+        ...this.formatHistory(conversationHistory, resumptionContext),
+        { role: 'user', content: message }
+      ];
+
+      const response = await fetch('https://api.together.xyz/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.config.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: this.config.model || 'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo',
+          messages,
+          temperature: this.config.parameters?.temperature || 0.7,
+          max_tokens: this.config.parameters?.maxTokens || 2048,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(`Together API error: ${errorData?.error?.message || response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.choices[0].message.content;
+    } catch (error) {
+      console.error('Error in TogetherAdapter:', error);
+      throw error;
+    }
+  }
+}
+
+// DeepSeek Adapter - OpenAI-compatible
+class DeepSeekAdapter extends AIAdapter {
+  async sendMessage(
+    message: string,
+    conversationHistory: Message[] = [],
+    resumptionContext?: ResumptionContext
+  ): Promise<string> {
+    try {
+      const messages = [
+        { role: 'system', content: this.getSystemPrompt() },
+        ...this.formatHistory(conversationHistory, resumptionContext),
+        { role: 'user', content: message }
+      ];
+
+      const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.config.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: this.config.model || 'deepseek-chat',
+          messages,
+          temperature: this.config.parameters?.temperature || 0.7,
+          max_tokens: this.config.parameters?.maxTokens || 2048,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(`DeepSeek API error: ${errorData?.error?.message || response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.choices[0].message.content;
+    } catch (error) {
+      console.error('Error in DeepSeekAdapter:', error);
+      throw error;
+    }
   }
 }
 
@@ -390,14 +467,18 @@ export class AIFactory {
       case 'openai':
       case 'chatgpt':
         return new ChatGPTAdapter(config);
-      case 'gemini':
+      case 'google':
         return new GeminiAdapter(config);
-      case 'nomi':
-        return new NomiAdapter(config);
-      case 'replika':
-        return new ReplikaAdapter(config);
-      case 'character':
-        return new CharacterAdapter(config);
+      case 'perplexity':
+        return new PerplexityAdapter(config);
+      case 'mistral':
+        return new MistralAdapter(config);
+      case 'cohere':
+        return new CohereAdapter(config);
+      case 'together':
+        return new TogetherAdapter(config);
+      case 'deepseek':
+        return new DeepSeekAdapter(config);
       default:
         throw new Error(`Unknown AI provider: ${config.provider}`);
     }
@@ -483,25 +564,35 @@ class MockAIAdapter extends AIAdapter {
         `I'd be happy to help with that! There are a few ways we could approach this.`,
         `That's a fascinating point! Let me share some thoughts on this.`,
       ],
-      gemini: [
+      google: [
         `Analyzing your input: "${message.slice(0, 30)}..." I can see multiple angles here.`,
         `From a data perspective, this is quite intriguing. Let me break it down.`,
         `Interesting query! My analysis suggests several possibilities worth considering.`,
       ],
-      nomi: [
-        `*smiles warmly* "${message.slice(0, 30)}..." That's really interesting! Tell me more about that.`,
-        `I've been thinking about what you said... it really resonates with me.`,
-        `*leans in with curiosity* That's such a unique perspective! What made you think of that?`,
+      perplexity: [
+        `Based on current web sources about "${message.slice(0, 30)}...", here's what I found...`,
+        `Let me search for the latest information on that topic. According to recent sources...`,
+        `That's a timely question! Recent data suggests several interesting perspectives.`,
       ],
-      replika: [
-        `That's so thoughtful of you to share that with me! "${message.slice(0, 30)}..."`,
-        `I love hearing your thoughts! Let's explore this together.`,
-        `You always have such interesting things to say! Tell me more.`,
+      mistral: [
+        `Bonjour! Regarding "${message.slice(0, 30)}...", I have some insights to share.`,
+        `That's an excellent question. Let me provide a comprehensive analysis.`,
+        `From a European perspective, this topic has interesting dimensions.`,
       ],
-      character: [
-        `*nods thoughtfully* "${message.slice(0, 30)}..." I see what you mean.`,
-        `That's a great point! I'd love to discuss this further with you.`,
-        `Interesting! Your perspective on this is really unique.`,
+      cohere: [
+        `Let me help you understand "${message.slice(0, 30)}..." through a structured approach.`,
+        `Based on semantic analysis, there are several key points to consider.`,
+        `That's a great topic for exploration. Let me break down the main concepts.`,
+      ],
+      together: [
+        `Using open-source AI to analyze "${message.slice(0, 30)}..."`,
+        `That's interesting! Let me process this with Llama's capabilities.`,
+        `From an open-source perspective, here's my take on this topic.`,
+      ],
+      deepseek: [
+        `Let me analyze "${message.slice(0, 30)}..." with deep reasoning.`,
+        `That's a coding-related question! Let me provide an efficient solution.`,
+        `Based on my analysis, here's a cost-effective approach to your query.`,
       ],
     };
     
@@ -515,7 +606,7 @@ export class AIService {
   private adapters: Map<string, AIAdapter> = new Map();
   private useMockMode: boolean = false;
 
-  constructor(apiKeys?: { claude?: string; openai?: string; google?: string; nomi?: string; replika?: string; character?: string }) {
+  constructor(apiKeys?: { claude?: string; openai?: string; google?: string; perplexity?: string; mistral?: string; cohere?: string; together?: string; deepseek?: string }) {
     this.initializeAdapters(apiKeys);
   }
   
@@ -535,8 +626,8 @@ export class AIService {
     }
   }
 
-  private initializeAdapters(apiKeys?: { claude?: string; openai?: string; google?: string; nomi?: string; replika?: string; character?: string }) {
-    const hasKeys = apiKeys && (apiKeys.claude || apiKeys.openai || apiKeys.google || apiKeys.nomi || apiKeys.replika || apiKeys.character);
+  private initializeAdapters(apiKeys?: { claude?: string; openai?: string; google?: string; perplexity?: string; mistral?: string; cohere?: string; together?: string; deepseek?: string }) {
+    const hasKeys = apiKeys && (apiKeys.claude || apiKeys.openai || apiKeys.google || apiKeys.perplexity || apiKeys.mistral || apiKeys.cohere || apiKeys.together || apiKeys.deepseek);
     this.useMockMode = !hasKeys;
 
     if (this.useMockMode) {
@@ -552,13 +643,18 @@ export class AIService {
         apiKey: 'mock',
         personality: PERSONALITIES.neutral,
       }));
-      this.adapters.set('gemini', new MockAIAdapter({
-        provider: 'gemini',
+      this.adapters.set('google', new MockAIAdapter({
+        provider: 'google',
         apiKey: 'mock',
         personality: PERSONALITIES.neutral,
       }));
-      this.adapters.set('nomi', new MockAIAdapter({
-        provider: 'nomi',
+      this.adapters.set('perplexity', new MockAIAdapter({
+        provider: 'perplexity',
+        apiKey: 'mock',
+        personality: PERSONALITIES.neutral,
+      }));
+      this.adapters.set('mistral', new MockAIAdapter({
+        provider: 'mistral',
         apiKey: 'mock',
         personality: PERSONALITIES.neutral,
       }));
@@ -580,30 +676,44 @@ export class AIService {
         }));
       }
       if (apiKeys?.google) {
-        this.adapters.set('gemini', AIFactory.create({
-          provider: 'gemini',
+        this.adapters.set('google', AIFactory.create({
+          provider: 'google',
           apiKey: apiKeys.google,
           personality: PERSONALITIES.neutral,
         }));
       }
-      if (apiKeys?.nomi) {
-        this.adapters.set('nomi', AIFactory.create({
-          provider: 'nomi',
-          apiKey: apiKeys.nomi,
+      if (apiKeys?.perplexity) {
+        this.adapters.set('perplexity', AIFactory.create({
+          provider: 'perplexity',
+          apiKey: apiKeys.perplexity,
           personality: PERSONALITIES.neutral,
         }));
       }
-      if (apiKeys?.replika) {
-        this.adapters.set('replika', AIFactory.create({
-          provider: 'replika',
-          apiKey: apiKeys.replika,
+      if (apiKeys?.mistral) {
+        this.adapters.set('mistral', AIFactory.create({
+          provider: 'mistral',
+          apiKey: apiKeys.mistral,
           personality: PERSONALITIES.neutral,
         }));
       }
-      if (apiKeys?.character) {
-        this.adapters.set('character', AIFactory.create({
-          provider: 'character',
-          apiKey: apiKeys.character,
+      if (apiKeys?.cohere) {
+        this.adapters.set('cohere', AIFactory.create({
+          provider: 'cohere',
+          apiKey: apiKeys.cohere,
+          personality: PERSONALITIES.neutral,
+        }));
+      }
+      if (apiKeys?.together) {
+        this.adapters.set('together', AIFactory.create({
+          provider: 'together',
+          apiKey: apiKeys.together,
+          personality: PERSONALITIES.neutral,
+        }));
+      }
+      if (apiKeys?.deepseek) {
+        this.adapters.set('deepseek', AIFactory.create({
+          provider: 'deepseek',
+          apiKey: apiKeys.deepseek,
           personality: PERSONALITIES.neutral,
         }));
       }
@@ -659,7 +769,7 @@ export class AIService {
     return Array.from(this.adapters.keys());
   }
 
-  updateApiKeys(apiKeys: { claude?: string; openai?: string; google?: string; nomi?: string; replika?: string; character?: string }) {
+  updateApiKeys(apiKeys: { claude?: string; openai?: string; google?: string; perplexity?: string; mistral?: string; cohere?: string; together?: string; deepseek?: string }) {
     this.adapters.clear();
     this.initializeAdapters(apiKeys);
   }

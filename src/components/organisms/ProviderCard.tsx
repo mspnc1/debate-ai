@@ -7,6 +7,7 @@ import {
   Linking,
   Alert,
   Platform,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -16,6 +17,7 @@ import { AIProvider } from '../../config/aiProviders';
 import { AI_MODELS } from '../../config/modelConfigs';
 import { MODEL_PRICING, getFreeMessageInfo } from '../../config/modelPricing';
 import { ActualPricing } from './ActualPricing';
+import { getAIProviderIcon } from '../../utils/aiProviderAssets';
 import * as Haptics from 'expo-haptics';
 
 interface ProviderCardProps {
@@ -108,20 +110,42 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-            {/* Provider Icon with gradient background */}
-            <LinearGradient
-              colors={provider.gradient}
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: 24,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginRight: 12,
-              }}
-            >
-              <Text style={{ fontSize: 24 }}>{provider.icon}</Text>
-            </LinearGradient>
+            {/* Provider Logo */}
+            {(() => {
+              const iconData = getAIProviderIcon(provider.id);
+              if (iconData.iconType === 'image') {
+                return (
+                  <Image
+                    source={iconData.icon as number}
+                    style={{
+                      width: 48,
+                      height: 48,
+                      marginRight: 12,
+                      resizeMode: 'contain',
+                    }}
+                  />
+                );
+              } else {
+                // Fallback to gradient circle with letter
+                return (
+                  <LinearGradient
+                    colors={provider.gradient}
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 24,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 12,
+                    }}
+                  >
+                    <Text style={{ fontSize: 18, color: 'white', fontWeight: 'bold' }}>
+                      {iconData.icon}
+                    </Text>
+                  </LinearGradient>
+                );
+              }
+            })()}
             
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

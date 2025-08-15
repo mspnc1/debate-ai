@@ -5,16 +5,14 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const aiProviderLogos: { [key: string]: number } = {
   // Add logos here as they become available
-  // Uncomment when logo files exist:
   claude: require('../../assets/ai-providers/claude/logo.png'),
   openai: require('../../assets/ai-providers/openai/logo.png'),
-  gemini: require('../../assets/ai-providers/google/logo.png'),
-  // nomi: require('../../assets/ai-providers/nomi/logo.png'),
-  // character: require('../../assets/ai-providers/character/logo.png'),
-  // replika: require('../../assets/ai-providers/replika/logo.png'),
+  google: require('../../assets/ai-providers/google/logo.png'),
+  perplexity: require('../../assets/ai-providers/perplexity/logo.png'),
+  mistral: require('../../assets/ai-providers/mistral/logo.png'),
   // cohere: require('../../assets/ai-providers/cohere/logo.png'),
-  // mistral: require('../../assets/ai-providers/mistral/logo.png'),
-  // perplexity: require('../../assets/ai-providers/perplexity/logo.png'),
+  // together: require('../../assets/ai-providers/together/logo.png'),
+  // deepseek: require('../../assets/ai-providers/deepseek/logo.png'),
 };
 /* eslint-enable @typescript-eslint/no-require-imports */
 
@@ -32,12 +30,11 @@ export function getAIProviderIcon(providerId: string) {
     claude: 'C',
     openai: 'GPT',
     google: 'G',
-    nomi: 'N',
-    character: 'CA',
-    replika: 'R',
-    cohere: 'Co',
-    mistral: 'M',
     perplexity: 'P',
+    mistral: 'M',
+    cohere: 'Co',
+    together: 'T',
+    deepseek: 'DS',
   };
   
   return {

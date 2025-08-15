@@ -11,36 +11,7 @@ export interface ProviderPricing {
 
 // Pricing as of August 2025
 export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
-  nomi: {
-    'default': {
-      inputPer1M: 0,
-      outputPer1M: 0,
-      freeMessages: -1, // Unlimited with subscription
-    },
-  },
-  replika: {
-    'default': {
-      inputPer1M: 0,
-      outputPer1M: 0,
-      freeMessages: -1, // Unlimited with subscription
-    },
-  },
-  character: {
-    'default': {
-      inputPer1M: 0,
-      outputPer1M: 0,
-      freeMessages: -1, // Unlimited with subscription
-    },
-  },
   claude: {
-    'claude-opus-4-1': {
-      inputPer1M: 15.00,
-      outputPer1M: 75.00,
-    },
-    'claude-sonnet-4': {
-      inputPer1M: 3.00,
-      outputPer1M: 15.00,
-    },
     'claude-3-5-sonnet-20241022': {
       inputPer1M: 3.00,
       outputPer1M: 15.00,
@@ -49,50 +20,35 @@ export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
       inputPer1M: 0.25,
       outputPer1M: 1.25,
     },
+    'claude-3-opus-20240229': {
+      inputPer1M: 15.00,
+      outputPer1M: 75.00,
+    },
   },
   openai: {
-    'gpt-5-pro': {
-      inputPer1M: 2.50,  // Premium pricing - double the standard GPT-5
-      outputPer1M: 20.00,
-    },
-    'gpt-5': {
-      inputPer1M: 1.25,
+    'gpt-4o': {
+      inputPer1M: 2.50,
       outputPer1M: 10.00,
     },
-    'gpt-5-mini': {
-      inputPer1M: 0.25,
-      outputPer1M: 2.00,
-    },
-    'gpt-5-nano': {
-      inputPer1M: 0.05,
-      outputPer1M: 0.40,
-    },
-    'gpt-4o': {
-      inputPer1M: 5.00,
-      outputPer1M: 20.00,
-    },
     'gpt-4o-mini': {
-      inputPer1M: 2.00, // 60% cheaper than GPT-4o
-      outputPer1M: 8.00,
+      inputPer1M: 0.15,
+      outputPer1M: 0.60,
+    },
+    'o1-preview': {
+      inputPer1M: 15.00,
+      outputPer1M: 60.00,
+    },
+    'o1-mini': {
+      inputPer1M: 3.00,
+      outputPer1M: 12.00,
+    },
+    'gpt-3.5-turbo': {
+      inputPer1M: 0.50,
+      outputPer1M: 1.50,
     },
   },
   google: {
-    'gemini-2-5-pro': {
-      inputPer1M: 0.00, // Pricing TBD
-      outputPer1M: 0.00,
-      freeMessages: 50, // Free tier: 50 messages/month
-    },
-    'gemini-2-5-flash': {
-      inputPer1M: 0.00, // Pricing TBD
-      outputPer1M: 0.00,
-      freeMessages: 1500, // Free tier: 1500 messages/month
-    },
-    'gemini-2-0-flash': {
-      inputPer1M: 0.075,
-      outputPer1M: 0.30,
-      freeMessages: 1500,
-    },
-    'gemini-1.5-pro-002': {
+    'gemini-1.5-pro': {
       inputPer1M: 3.50,
       outputPer1M: 10.50,
       freeMessages: 50,
@@ -101,6 +57,85 @@ export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
       inputPer1M: 0.075,
       outputPer1M: 0.30,
       freeMessages: 1500,
+    },
+    'gemini-1.0-pro': {
+      inputPer1M: 0.50,
+      outputPer1M: 1.50,
+      freeMessages: 60,
+    },
+  },
+  perplexity: {
+    'sonar-pro': {
+      inputPer1M: 3.00,
+      outputPer1M: 15.00,
+    },
+    'sonar-medium': {
+      inputPer1M: 0.60,
+      outputPer1M: 1.80,
+    },
+    'sonar-small': {
+      inputPer1M: 0.20,
+      outputPer1M: 0.20,
+    },
+  },
+  mistral: {
+    'mistral-large': {
+      inputPer1M: 4.00,
+      outputPer1M: 12.00,
+    },
+    'mistral-medium': {
+      inputPer1M: 2.70,
+      outputPer1M: 8.10,
+    },
+    'mistral-small': {
+      inputPer1M: 1.00,
+      outputPer1M: 3.00,
+    },
+    'mixtral-8x7b': {
+      inputPer1M: 0.70,
+      outputPer1M: 0.70,
+    },
+  },
+  cohere: {
+    'command-r-plus': {
+      inputPer1M: 3.00,
+      outputPer1M: 15.00,
+    },
+    'command-r': {
+      inputPer1M: 0.50,
+      outputPer1M: 1.50,
+    },
+    'command': {
+      inputPer1M: 1.00,
+      outputPer1M: 2.00,
+    },
+  },
+  together: {
+    'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo': {
+      inputPer1M: 5.00,
+      outputPer1M: 15.00,
+    },
+    'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo': {
+      inputPer1M: 0.88,
+      outputPer1M: 0.88,
+    },
+    'mistralai/Mixtral-8x7B-Instruct-v0.1': {
+      inputPer1M: 0.60,
+      outputPer1M: 0.60,
+    },
+    'Qwen/Qwen2.5-72B-Instruct-Turbo': {
+      inputPer1M: 1.20,
+      outputPer1M: 1.20,
+    },
+  },
+  deepseek: {
+    'deepseek-chat': {
+      inputPer1M: 0.14,
+      outputPer1M: 0.28,
+    },
+    'deepseek-coder': {
+      inputPer1M: 0.14,
+      outputPer1M: 0.28,
     },
   },
 };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GradientButton, Typography } from '../components/molecules';
 import { Box } from '../components/atoms';
@@ -70,24 +70,20 @@ const StatsScreen: React.FC<StatsScreenProps> = ({ navigation }) => {
             {hasActiveStats && (
               <StatsLeaderboard
                 sortBy="winRate"
-                showTopics={true}
                 enableAnimations={true}
               />
             )}
             
             {/* Recent Debates */}
             {history.length > 0 && (
-              <>
-                <Typography variant="title" weight="semibold" style={{ marginTop: 24, marginBottom: 16 }}>
-                  📜 Recent Debates
-                </Typography>
+              <View style={{ marginTop: 24 }}>
                 <RecentDebatesSection
                   maxDebates={5}
                   showElapsedTime={false}
                   enableAnimations={true}
                   showCount={false}
                 />
-              </>
+              </View>
             )}
           </>
         )}

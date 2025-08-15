@@ -23,7 +23,7 @@ interface GradientHeaderProps {
   children?: React.ReactNode;
 }
 
-export const HEADER_HEIGHT = 160;
+export const HEADER_HEIGHT = 65;
 
 export const GradientHeader: React.FC<GradientHeaderProps> = ({
   title,
@@ -135,10 +135,9 @@ export const GradientHeader: React.FC<GradientHeaderProps> = ({
   const totalHeight = HEADER_HEIGHT + insets.top;
   
   // Theme-based spacing and sizing
-  const contentPadding = theme.spacing.lg + theme.spacing.sm;
-  const timeTopOffset = theme.spacing.sm;
-  const dateBottomMargin = theme.spacing.md - theme.spacing.sm;
-  const titleBottomMargin = theme.spacing.sm;
+  const contentPadding = theme.spacing.lg;
+  const dateBottomMargin = theme.spacing.xs; // Increased spacing between date and greeting
+  const titleBottomMargin = 2; // Small spacing between greeting messages
   
   // Get theme-appropriate gradients
   const primaryGradient = isDark 
@@ -152,11 +151,11 @@ export const GradientHeader: React.FC<GradientHeaderProps> = ({
   const styles = createStyles(theme, contentPadding);
   
   return (
-    <Box style={[styles.container, { height: totalHeight + 30 }, style]}>
+    <Box style={[styles.container, { height: totalHeight }, style]}>
       {/* Wave-shaped mask for the entire header */}
       <Svg 
         width={SCREEN_WIDTH} 
-        height={totalHeight + 30} 
+        height={totalHeight} 
         style={StyleSheet.absoluteFillObject}
       >
         <Defs>
@@ -175,9 +174,9 @@ export const GradientHeader: React.FC<GradientHeaderProps> = ({
         <Path
           d={`M0,0 
               L${SCREEN_WIDTH},0
-              L${SCREEN_WIDTH},${totalHeight + 20}
-              Q${SCREEN_WIDTH * 0.75},${totalHeight - 10} ${SCREEN_WIDTH * 0.5},${totalHeight}
-              Q${SCREEN_WIDTH * 0.25},${totalHeight + 10} 0,${totalHeight - 20}
+              L${SCREEN_WIDTH},${totalHeight - 10}
+              Q${SCREEN_WIDTH * 0.75},${totalHeight - 5} ${SCREEN_WIDTH * 0.5},${totalHeight - 8}
+              Q${SCREEN_WIDTH * 0.25},${totalHeight - 3} 0,${totalHeight - 12}
               Z`}
           fill="url(#headerGradient)"
         />
@@ -247,10 +246,10 @@ export const GradientHeader: React.FC<GradientHeaderProps> = ({
       </Animated.View>
       
       {/* Content */}
-      <Box style={[styles.content, { paddingTop: insets.top + theme.spacing.xs }]}>
+      <Box style={styles.content}>
         {/* Time in top right */}
         <Box style={[styles.timeContainer, { 
-          top: insets.top + timeTopOffset,
+          top: insets.top + theme.spacing.sm, // Increased top padding to align with date
           right: contentPadding 
         }]}>
           <Typography 
@@ -267,9 +266,9 @@ export const GradientHeader: React.FC<GradientHeaderProps> = ({
           </Typography>
         </Box>
         
-        {/* Main content area - properly centered */}
+        {/* Main content area - positioned at top */}
         <Box style={styles.mainContent}>
-          {/* Date positioned above greeting, centered */}
+          {/* Date positioned above greeting */}
           <Box style={[styles.dateContainer, { marginBottom: dateBottomMargin }]}>
             <Typography 
               variant="body" 
@@ -323,9 +322,11 @@ const createStyles = (theme: Theme, contentPadding: number) => StyleSheet.create
   },
   content: {
     paddingHorizontal: contentPadding,
-    paddingBottom: theme.spacing.lg,
+    paddingBottom: theme.spacing.xs,
+    paddingTop: theme.spacing.sm, // Increased top padding for better spacing
     zIndex: 10,
     height: '100%',
+    justifyContent: 'flex-start',
   },
   geometryContainer: {
     position: 'absolute',
@@ -378,7 +379,7 @@ const createStyles = (theme: Theme, contentPadding: number) => StyleSheet.create
     zIndex: 15,
   },
   dateContainer: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     zIndex: 15,
   },
   timeText: {
@@ -395,25 +396,27 @@ const createStyles = (theme: Theme, contentPadding: number) => StyleSheet.create
     textShadowRadius: 2,
   },
   mainContent: {
-    flex: 1,
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
-    paddingTop: theme.spacing.xs,
     zIndex: 15,
+    minHeight: 45,
+    paddingTop: theme.spacing.xs, // Increased top padding for main content area
   },
   title: {
-    letterSpacing: -2,
-    lineHeight: 42,
+    letterSpacing: -1,
+    lineHeight: 32,
+    fontSize: 32,
     textShadowColor: theme.colors.shadow,
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
   },
   subtitle: {
     letterSpacing: 0.5,
-    lineHeight: 24,
+    lineHeight: 20,
     opacity: 0.95,
     textShadowColor: theme.colors.shadow,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
+    marginTop: -2,
   },
 });

@@ -14,6 +14,7 @@ interface AIAvatarProps {
   size?: 'small' | 'medium' | 'large';
   color?: string;
   isSelected?: boolean;
+  providerId?: string;
   style?: ViewStyle;
 }
 
@@ -23,15 +24,16 @@ export const AIAvatar: React.FC<AIAvatarProps> = ({
   size = 'medium',
   color,
   isSelected = false,
+  providerId: _providerId,
   style,
 }) => {
   const { theme } = useTheme();
   const scale = useSharedValue(1);
   
   const sizeMap = {
-    small: { container: 36, text: 14, image: 36 },
-    medium: { container: 56, text: 20, image: 56 },
-    large: { container: 80, text: 28, image: 80 },
+    small: { container: 36, text: 14, image: 30 },
+    medium: { container: 56, text: 20, image: 46 },
+    large: { container: 140, text: 28, image: 120 },
   };
   
   const dimensions = sizeMap[size];
@@ -64,13 +66,17 @@ export const AIAvatar: React.FC<AIAvatarProps> = ({
     }
     
     if (iconType === 'image' && icon) {
+      // Apply white tint to ALL logos for consistent appearance on colored backgrounds
+      const shouldTintWhite = true;
+      
       return (
         <Image
           source={typeof icon === 'number' ? icon : { uri: icon }}
           style={{ 
             width: dimensions.image, 
             height: dimensions.image,
-            resizeMode: 'contain'
+            resizeMode: 'contain',
+            ...(shouldTintWhite && { tintColor: '#FFFFFF' }),
           }}
         />
       );
@@ -96,13 +102,15 @@ export const AIAvatar: React.FC<AIAvatarProps> = ({
   return (
     <Animated.View style={[animatedStyle, style]}>
       {iconType === 'image' ? (
-        // For logos: no circular container, just the image
+        // Use provider's color as background like debate voting buttons - no circles
         <View
           style={{
             width: dimensions.container,
             height: dimensions.container,
             justifyContent: 'center',
             alignItems: 'center',
+            backgroundColor: color || theme.colors.primary[500],
+            borderRadius: 12, // Rounded corners, not circular
           }}
         >
           {renderIcon()}

@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, TouchableOpacity, Text, Dimensions } from 'react-native';
+import { View, Dimensions } from 'react-native';
 import { Box } from '../atoms';
-import { GradientButton, Typography } from '../molecules';
+import { GradientButton } from '../molecules';
 import { SectionHeader } from '../molecules';
 import { AICard } from './AICard';
 import { AIConfig } from '../../types';
@@ -37,7 +37,7 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
   aiPersonalities = {},
   onPersonalityChange,
 }) => {
-  const { theme, isDark } = useTheme();
+  const { theme } = useTheme();
   
   const getSubtitle = () => {
     if (customSubtitle) {
@@ -59,17 +59,16 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
     onAddAI();
   };
   
-  // Calculate optimal grid layout based on total items
-  const totalItems = configuredAIs.length + 1; // +1 for "Add AI" card
-  const getGridLayout = (itemCount: number) => {
-    if (itemCount <= 2) return 2; // 2 columns for 1-2 items
-    if (itemCount <= 4) return 2; // 2 columns for 3-4 items  
-    return 3; // 3 columns for 5+ items
+  // Calculate optimal grid layout based on number of AIs
+  const getGridLayout = (aiCount: number) => {
+    if (aiCount <= 4) return 2; // 2 columns for 1-4 AIs
+    if (aiCount <= 6) return 2; // 2 columns for 5-6 AIs (3x2 grid)
+    return 3; // 3 columns for 7+ AIs
   };
   
-  const columns = getGridLayout(totalItems);
+  const columns = getGridLayout(configuredAIs.length);
   const containerPadding = theme.spacing.lg * 2; // Left + right padding from parent
-  const itemGap = theme.spacing.md;
+  const itemGap = theme.spacing.sm; // Better visual separation (8px)
   const cardWidth = (screenWidth - containerPadding - (itemGap * (columns - 1))) / columns;
   
   return (
@@ -78,19 +77,21 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
         title="Choose Your AIs"
         subtitle={getSubtitle()}
         icon="🤖"
+        onAction={handleAddAI}
+        actionLabel="+ Add AI"
       />
       
       
-      {/* Proper Grid Layout */}
+      {/* AI Grid Layout - Only AI cards, no Add button */}
       <View style={{ marginBottom: theme.spacing.lg, overflow: 'visible', zIndex: 1 }}>
         {/* Create rows dynamically */}
-        {Array.from({ length: Math.ceil(totalItems / columns) }, (_, rowIndex) => (
+        {Array.from({ length: Math.ceil(configuredAIs.length / columns) }, (_, rowIndex) => (
           <View
             key={rowIndex}
             style={{
               flexDirection: 'row',
               justifyContent: 'flex-start',
-              marginBottom: theme.spacing.md,
+              marginBottom: theme.spacing.sm, // Better spacing between rows
               overflow: 'visible',
               zIndex: 999 - rowIndex,
             }}
@@ -98,59 +99,19 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
             {Array.from({ length: columns }, (_, colIndex) => {
               const itemIndex = rowIndex * columns + colIndex;
               
-              // Add AI Friend card (always last)
-              if (itemIndex === configuredAIs.length) {
-                return (
-                  <View key="add-ai" style={{ width: cardWidth, marginRight: colIndex < columns - 1 ? itemGap : 0 }}>
-                    <TouchableOpacity
-                      onPress={handleAddAI}
-                      style={{
-                        height: 120,
-                        backgroundColor: theme.colors.card,
-                        borderRadius: theme.borderRadius.lg,
-                        borderWidth: 1,
-                        borderColor: theme.colors.border,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: theme.spacing.md,
-                      }}
-                    >
-                      <View style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 22,
-                        backgroundColor: isDark 
-                          ? 'rgba(255, 255, 255, 0.05)' 
-                          : 'rgba(0, 0, 0, 0.03)',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: theme.spacing.xs,
-                      }}>
-                        <Text style={{ fontSize: 24 }}>➕</Text>
-                      </View>
-                      <Typography 
-                        variant="caption" 
-                        weight="semibold"
-                        color="secondary"
-                        style={{ 
-                          textAlign: 'center',
-                        }}
-                      >
-                        Add AI
-                      </Typography>
-                    </TouchableOpacity>
-                  </View>
-                );
-              }
-              
-              // AI cards
+              // AI cards only
               if (itemIndex < configuredAIs.length) {
                 const ai = configuredAIs[itemIndex];
                 const isSelected = selectedAIs.some(s => s.id === ai.id);
                 const isDisabled = !isSelected && selectedAIs.length >= maxAIs;
                 
                 return (
-                  <View key={ai.id} style={{ width: cardWidth, marginRight: colIndex < columns - 1 ? itemGap : 0, overflow: 'visible', zIndex: 1 }}>
+                  <View key={ai.id} style={{ 
+                    width: cardWidth, 
+                    marginRight: colIndex < columns - 1 ? itemGap : 0, 
+                    overflow: 'visible', 
+                    zIndex: 1,
+                  }}>
                     <AICard
                       ai={ai}
                       isSelected={isSelected}

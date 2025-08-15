@@ -239,7 +239,7 @@ export class DebaterSelectionService {
     } else if (ai.provider === 'openai' || ai.provider === 'chatgpt') {
       // GPT models are generally well-rounded
       score += 10;
-    } else if (ai.provider === 'gemini') {
+    } else if (ai.provider === 'google') {
       // Google's model might be good at technical topics
       if (topicLower.includes('technology') || topicLower.includes('science')) {
         score += 15;

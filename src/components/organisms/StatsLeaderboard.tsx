@@ -8,12 +8,10 @@ import {
   StatItem,
   WinRateDisplay,
   RankBadge,
-  TopicBadgeList,
   Typography,
 } from '../molecules';
 import { useTheme } from '../../theme';
 import { useSortedStats, useAIProviderInfo, useStatsAnimations } from '../../hooks/stats';
-import { getTopTopics } from '../../services/stats';
 import { formatDate } from '../../services/stats';
 import { AIInfo, AIStats } from '../../types/stats';
 import { BrandColor } from '../../constants/aiColors';
@@ -23,8 +21,6 @@ export interface StatsLeaderboardProps {
   sortBy?: 'winRate' | 'totalDebates' | 'roundWinRate';
   /** Maximum number of AIs to show */
   maxItems?: number;
-  /** Show topic badges on cards */
-  showTopics?: boolean;
   /** Enable animations */
   enableAnimations?: boolean;
 }
@@ -36,7 +32,6 @@ export interface StatsLeaderboardProps {
 export const StatsLeaderboard: React.FC<StatsLeaderboardProps> = ({
   sortBy = 'winRate',
   maxItems,
-  showTopics = true,
   enableAnimations = true,
 }) => {
   const { sortedStats, isEmpty } = useSortedStats(sortBy);
@@ -69,7 +64,6 @@ export const StatsLeaderboard: React.FC<StatsLeaderboardProps> = ({
             aiId={item.aiId}
             aiInfo={aiInfo}
             stats={item.stats}
-            showTopics={showTopics}
             entering={animation.entering}
           />
         );
@@ -87,8 +81,6 @@ export interface StatsLeaderboardItemProps {
   aiInfo: AIInfo;
   /** AI statistics */
   stats: AIStats;
-  /** Show topic badges */
-  showTopics?: boolean;
   /** Animation prop */
   entering?: EntryExitAnimationFunction;
 }
@@ -101,7 +93,6 @@ export const StatsLeaderboardItem: React.FC<StatsLeaderboardItemProps> = ({
   rank,
   aiInfo,
   stats,
-  showTopics = true,
   entering,
 }) => {
   const { theme } = useTheme();
@@ -112,9 +103,6 @@ export const StatsLeaderboardItem: React.FC<StatsLeaderboardItemProps> = ({
         400: '#B0B0B0', 500: aiInfo.color, 600: '#909090', 
         700: '#808080', 800: '#707070', 900: '#606060' 
       };
-
-  // Get top topics for this AI
-  const topTopics = showTopics ? getTopTopics(stats.topics, 3) : [];
 
   return (
     <StatsCard
@@ -168,7 +156,7 @@ export const StatsLeaderboardItem: React.FC<StatsLeaderboardItemProps> = ({
       {/* Rounds statistics row */}
       <StatsCardRow showDivider>
         <StatItem
-          value={stats.roundsWon + stats.roundsLost}
+          value={stats.totalDebates * 3}
           label="Rounds Played"
           valueVariant="body"
         />
@@ -186,31 +174,6 @@ export const StatsLeaderboardItem: React.FC<StatsLeaderboardItemProps> = ({
         />
       </StatsCardRow>
       
-      {/* Topic badges */}
-      {showTopics && topTopics.length > 0 && (
-        <>
-          <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
-          <View style={styles.topicsSection}>
-            <Typography 
-              variant="caption" 
-              weight="semibold" 
-              style={{ color: theme.colors.primary[500], marginBottom: 8 }}
-            >
-              Top Topics:
-            </Typography>
-            <TopicBadgeList
-              topics={topTopics.map(topic => ({
-                topic: topic.topic,
-                wins: topic.won,
-                participations: topic.participated,
-              }))}
-              color={brandColor}
-              maxTopics={3}
-              size="medium"
-            />
-          </View>
-        </>
-      )}
     </StatsCard>
   );
 };
