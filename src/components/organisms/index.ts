@@ -30,3 +30,23 @@ export { APIComingSoon } from './APIComingSoon';
 
 // Debate organisms
 export * from './debate';
+
+// Stats Organisms
+export { 
+  StatsLeaderboard, 
+  StatsLeaderboardItem, 
+  LeaderboardHeader, 
+  CompactLeaderboard 
+} from './StatsLeaderboard';
+export { 
+  RecentDebatesSection, 
+  CompactRecentDebates, 
+  DebateHistoryStats, 
+  DebateTimeline 
+} from './RecentDebatesSection';
+export { 
+  StatsEmptyState, 
+  StatsLoadingState, 
+  StatsErrorState, 
+  WelcomeToStats 
+} from './StatsEmptyState';

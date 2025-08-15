@@ -214,6 +214,9 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
             ]}
             onNewDebate={handleNewDebate}
             onViewTranscript={handleViewTranscript}
+            topic={topicSelection.finalTopic}
+            participants={selectedAIs}
+            messages={messages.messages}
           />
         </Animated.View>
       );

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
@@ -30,6 +30,7 @@ interface DebateSetupScreenProps {
 const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();
   const dispatch = useDispatch();
+  const scrollViewRef = useRef<ScrollView>(null);
   const user = useSelector((state: RootState) => state.user.currentUser);
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
   const aiPersonalities = useSelector((state: RootState) => state.chat.aiPersonalities);
@@ -138,6 +139,18 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
     setSelectedTopic(randomTopic);
     setCustomTopic('');
     setTopicMode('surprise');
+    // Auto-scroll to show the selected topic
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: 300, animated: true });
+    }, 100);
+  };
+  
+  const handleTopicModeChange = (mode: 'preset' | 'custom' | 'surprise') => {
+    setTopicMode(mode);
+    // Auto-scroll to show the content when mode changes
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: 300, animated: true });
+    }, 100);
   };
   
   const handleTopicNext = () => {
@@ -190,6 +203,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
       </Box>
       
       <ScrollView 
+        ref={scrollViewRef}
         style={{ flex: 1 }}
         contentContainerStyle={{ 
           padding: theme.spacing.lg,
@@ -212,7 +226,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
             topicMode={topicMode}
             onTopicSelect={setSelectedTopic}
             onCustomTopicChange={setCustomTopic}
-            onTopicModeChange={setTopicMode}
+            onTopicModeChange={handleTopicModeChange}
             onNext={handleTopicNext}
             onSurpriseMe={selectRandomTopic}
           />

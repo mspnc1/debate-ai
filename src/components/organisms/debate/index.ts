@@ -11,6 +11,7 @@ export { ScoreDisplay } from './ScoreDisplay';
 export { SystemAnnouncement } from './SystemAnnouncement';
 export { RichTopicInput } from './RichTopicInput';
 export { VictoryCelebration } from './VictoryCelebration';
+export { default as ShareModal } from './ShareModal';
 
 // Debate Setup Components
 export { DebateTopicSelector } from './DebateTopicSelector';
@@ -27,3 +28,4 @@ export type { ScoreDisplayProps } from './ScoreDisplay';
 export type { SystemAnnouncementProps } from './SystemAnnouncement';
 export type { RichTopicInputProps } from './RichTopicInput';
 export type { VictoryCelebrationProps } from './VictoryCelebration';
+export type { ShareModalProps } from './ShareModal';

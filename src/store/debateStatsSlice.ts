@@ -88,9 +88,12 @@ const debateStatsSlice = createSlice({
           state.stats[winnerId].roundsWon += 1;
         }
         
-        // Update loser stats
-        state.currentDebate.participants.forEach(aiId => {
-          if (aiId !== winnerId && state.stats[aiId]) {
+        // Update loser stats - only count once per round (not per participant)
+        // In a 2-player debate, there's exactly 1 loser per round
+        // This prevents double-counting rounds
+        const losers = state.currentDebate.participants.filter(aiId => aiId !== winnerId);
+        losers.forEach(aiId => {
+          if (state.stats[aiId]) {
             state.stats[aiId].roundsLost += 1;
           }
         });

@@ -7,7 +7,7 @@ import React from 'react';
 import { View, TouchableOpacity, Alert } from 'react-native';
 import Animated, { FadeInDown, FadeIn, FadeOut, Layout } from 'react-native-reanimated';
 import { useTheme } from '../../../theme';
-import { Typography, GradientButton, SectionHeader, DebateTopicCard } from '../../molecules';
+import { Typography, GradientButton, DebateTopicCard } from '../../molecules';
 import { RichTopicInput } from './RichTopicInput';
 import { DEBATE_TOPICS } from '../../../constants/debateTopics';
 
@@ -51,11 +51,20 @@ export const DebateTopicSelector: React.FC<DebateTopicSelectorProps> = ({
 
   return (
     <Animated.View entering={FadeIn}>
-      <SectionHeader
-        title="Step 1: Choose a Topic"
-        subtitle="What should the AIs debate?"
-        icon="💭"
-      />
+      {/* Topic Selection Question */}
+      <View style={{ marginBottom: theme.spacing.lg }}>
+        <Typography 
+          variant="subtitle" 
+          weight="semibold" 
+          align="center"
+          style={{ 
+            color: theme.colors.text.primary,
+            marginBottom: theme.spacing.sm,
+          }}
+        >
+          💭 What should the AIs debate?
+        </Typography>
+      </View>
       
       {/* Three Main Action Buttons */}
       <View style={{ marginBottom: theme.spacing.lg }}>

@@ -56,12 +56,16 @@ export const useDebateVoting = (
         
       case 'debate_ended':
         setIsVoting(false);
+        // Dispatch the overall winner to Redux if provided
+        if (event.data.overallWinner) {
+          dispatch(recordOverallWinner({ winnerId: event.data.overallWinner as string }));
+        }
         break;
         
       default:
         break;
     }
-  }, []);
+  }, [dispatch]);
   
   // Update scores from voting service
   const updateScores = useCallback(() => {

@@ -492,6 +492,11 @@ export class DebateOrchestrator {
     const [winnerId, winnerScore] = sortedAIs[0];
     const isTie = sortedAIs.length > 1 && sortedAIs[1][1].roundWins === winnerScore.roundWins;
     
+    // Record the overall winner in the voting service
+    if (!isTie) {
+      this.votingService.recordOverallWinner(winnerId);
+    }
+    
     // Create overall winner message (simplified)
     let winnerMessage: Message;
     if (isTie) {

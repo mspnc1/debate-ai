@@ -15,6 +15,11 @@ export { IconButton } from './IconButton';
 export { SelectionIndicator } from './SelectionIndicator';
 export { SearchHighlight } from './SearchHighlight';
 
+// Share Modal Molecules
+export { ModalHeader } from './ModalHeader';
+export { SharePreviewCard } from './SharePreviewCard';
+export { ShareActionButtons } from './ShareActionButtons';
+
 // Debate Setup Molecules
 export { DebateTopicCard } from './DebateTopicCard';
 export { TopicModeSelector } from './TopicModeSelector';
@@ -29,3 +34,20 @@ export { ConnectionStatus } from './ConnectionStatus';
 export { ProgressBar } from './ProgressBar';
 export { ClearKeysButton } from './ClearKeysButton';
 export { ProviderFeatures } from './ProviderFeatures';
+
+// Stats Molecules
+export { 
+  StatsCard, 
+  StatsCardHeader, 
+  StatsCardRow, 
+  StatItem, 
+  WinRateDisplay 
+} from './StatsCard';
+export { RankBadge, TopThreeRankBadge, SimpleRankBadge } from './RankBadge';
+export { TopicBadge, TopicBadgeList, TopicPerformance } from './TopicBadge';
+export { 
+  DebateHistoryItem, 
+  CompactDebateHistoryItem, 
+  DebateHistoryList, 
+  DebateHistoryHeader 
+} from './DebateHistoryItem';

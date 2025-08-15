@@ -3,7 +3,7 @@
  * Professional victory celebration with animations and confetti
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
 import Animated, {
   FadeIn,
@@ -20,8 +20,11 @@ import { Typography } from '../../molecules';
 import { GradientButton, Button } from '../../molecules';
 import { useTheme } from '../../../theme';
 import { AI_BRAND_COLORS } from '../../../constants/aiColors';
-import { AI } from '../../../types';
+import { AI, Message } from '../../../types';
 import { ScoreBoard } from '../../../services/debate';
+import ShareModal from './ShareModal';
+import { analytics } from '../../../services/analytics';
+import { shareIncentives } from '../../../services/shareIncentives';
 
 const { width } = Dimensions.get('window');
 
@@ -37,6 +40,9 @@ export interface VictoryCelebrationProps {
   rounds: RoundResult[];
   onNewDebate: () => void;
   onViewTranscript: () => void;
+  topic?: string;
+  participants?: AI[];
+  messages?: Message[];
 }
 
 export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
@@ -45,8 +51,12 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
   rounds,
   onNewDebate,
   onViewTranscript,
+  topic,
+  participants,
+  messages,
 }) => {
   const { theme, isDark } = useTheme();
+  const [showShareCard, setShowShareCard] = useState(false);
   const trophyScale = useSharedValue(0);
   const trophyRotation = useSharedValue(0);
   const contentOpacity = useSharedValue(0);
@@ -189,7 +199,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                             align="center"
                             style={{ color: isWinner ? winnerColors[600] : theme.colors.text.primary }}
                           >
-                            {score.roundWins} rounds
+                            {score.roundWins} {score.roundWins === 1 ? 'round' : 'rounds'}
                           </Typography>
                         </View>
                         
@@ -221,10 +231,18 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                 />
                 
                 <Button
-                  title="📄 View Transcript"
-                  onPress={onViewTranscript}
+                  title="📸 Share Results"
+                  onPress={() => setShowShareCard(true)}
                   variant="secondary"
                   size="large"
+                  fullWidth
+                />
+                
+                <Button
+                  title="📄 View Transcript"
+                  onPress={onViewTranscript}
+                  variant="ghost"
+                  size="medium"
                   fullWidth
                 />
               </View>
@@ -235,6 +253,34 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
           <ConfettiEffect colors={[winnerColors[400], winnerColors[600], winnerColors[500]]} />
         </LinearGradient>
       </BlurView>
+      
+      {/* Share Modal */}
+      <ShareModal
+        visible={showShareCard}
+        topic={topic || 'AI Debate'}
+        participants={participants?.map(p => ({ id: p.id, name: p.name })) || [{ id: winner.id, name: winner.name }]}
+        messages={messages || []}
+        winner={winner}
+        scores={scores}
+        onShare={async (platform?: string) => {
+          analytics.trackShare(
+            platform || 'unknown',
+            'debate_image_card',
+            true,
+            {
+              topic: topic || 'AI Debate',
+              winner: winner.name,
+              participant_count: participants?.length || 0,
+            }
+          );
+          
+          // Record share and check for rewards
+          await shareIncentives.recordShare();
+          
+          setShowShareCard(false);
+        }}
+        onClose={() => setShowShareCard(false)}
+      />
     </View>
   );
 };
