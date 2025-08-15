@@ -339,6 +339,8 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
                 autoCorrect={false}
                 secureTextEntry={!isEditing && !!apiKey}
                 editable={isEditing}
+                accessibilityLabel={`${provider.name} API key input`}
+                accessibilityHint={`Enter your ${provider.name} API key. Current status: ${testStatus || 'not tested'}`}
               />
               
               {apiKey && (
@@ -350,6 +352,9 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
                     }
                   }}
                   style={{ padding: 8 }}
+                  accessibilityLabel={isEditing ? 'Hide API key' : 'Edit API key'}
+                  accessibilityHint={isEditing ? 'Tap to hide the API key for security' : 'Tap to reveal and edit the API key'}
+                  accessibilityRole="button"
                 >
                   <Text>{isEditing ? '👁️' : '✏️'}</Text>
                 </TouchableOpacity>

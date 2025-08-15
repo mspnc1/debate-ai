@@ -13,6 +13,8 @@ interface ButtonProps {
   loading?: boolean;
   fullWidth?: boolean;
   style?: ViewStyle;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -24,6 +26,8 @@ export const Button: React.FC<ButtonProps> = ({
   loading = false,
   fullWidth = false,
   style,
+  accessibilityLabel,
+  accessibilityHint,
 }) => {
   const { theme } = useTheme();
 
@@ -95,6 +99,10 @@ export const Button: React.FC<ButtonProps> = ({
         (disabled || loading) && styles.disabled,
         style,
       ]}
+      accessibilityLabel={accessibilityLabel || title}
+      accessibilityHint={accessibilityHint}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: disabled || loading }}
     >
       <Box style={styles.content}>
         {loading ? (

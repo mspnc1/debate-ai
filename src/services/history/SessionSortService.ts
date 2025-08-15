@@ -118,9 +118,18 @@ export class SessionSortService {
       return [...sessions].sort(strategy.compareFn);
     }
 
-    // Fallback to field-based sorting
+    // Fallback to field-based sorting with type safety
+    const validSortFields = ['createdAt', 'lastMessageAt', 'messageCount', 'aiCount'] as const;
+    type ValidSortField = typeof validSortFields[number];
+    
+    // Validate strategy field against known sort fields to prevent runtime errors
+    // If invalid field provided, default to 'createdAt' for consistent behavior
+    const field = validSortFields.includes(strategy.field as ValidSortField) 
+      ? strategy.field as ValidSortField
+      : 'createdAt'; // Safe default ensures app doesn't crash
+      
     return this.sort(sessions, {
-      field: strategy.field as 'createdAt' | 'lastMessageAt' | 'messageCount' | 'aiCount',
+      field,
       direction: strategy.direction
     });
   }

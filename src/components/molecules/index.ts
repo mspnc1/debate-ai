@@ -22,3 +22,10 @@ export { AIDebaterCard } from './AIDebaterCard';
 export { SurpriseTopicDisplay } from './SurpriseTopicDisplay';
 export { PersonalityChip } from './PersonalityChip';
 export { DebatePreviewCard } from './DebatePreviewCard';
+
+// API Configuration Molecules
+export { APIKeyInput } from './APIKeyInput';
+export { ConnectionStatus } from './ConnectionStatus';
+export { ProgressBar } from './ProgressBar';
+export { ClearKeysButton } from './ClearKeysButton';
+export { ProviderFeatures } from './ProviderFeatures';

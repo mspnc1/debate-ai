@@ -21,5 +21,12 @@ export { ExpertModeSettings } from './ExpertModeSettings';
 export { ProviderCard } from './ProviderCard';
 export { ErrorBoundary } from './ErrorBoundary';
 
+// API Configuration Organisms
+export { APIConfigHeader } from './APIConfigHeader';
+export { APIConfigProgress } from './APIConfigProgress';
+export { APIProviderList } from './APIProviderList';
+export { APISecurityNote } from './APISecurityNote';
+export { APIComingSoon } from './APIComingSoon';
+
 // Debate organisms
 export * from './debate';

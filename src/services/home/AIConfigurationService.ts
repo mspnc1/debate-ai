@@ -1,6 +1,7 @@
-import { AIConfig } from '../../types';
+import { AIConfig, AIProvider } from '../../types';
 import { AI_PROVIDERS } from '../../config/aiProviders';
 import { getAIProviderIcon } from '../../utils/aiProviderAssets';
+// Type guards available for future validation needs
 
 /**
  * Service for managing AI configuration, provider detection, and availability checks.
@@ -30,7 +31,7 @@ export class AIConfigurationService {
     provider: typeof AI_PROVIDERS[0], 
     apiKeys: Record<string, unknown>
   ): boolean {
-    return provider.enabled && !!apiKeys[provider.id as keyof typeof apiKeys];
+    return provider.enabled && !!apiKeys[provider.id];
   }
 
   /**
@@ -44,14 +45,14 @@ export class AIConfigurationService {
     
     return {
       id: provider.id,
-      provider: provider.id,
+      provider: provider.id as AIProvider, // Provider ID maps to AIProvider type
       name: provider.name,
       personality: 'balanced', // Default personality
-      avatar: iconData.icon, // Keep for backwards compatibility
+      avatar: iconData.icon as string, // Keep for backwards compatibility
       icon: iconData.icon,
       iconType: iconData.iconType,
       color: provider.color,
-    } as AIConfig;
+    };
   }
 
   /**
@@ -62,7 +63,10 @@ export class AIConfigurationService {
    */
   static validateAIConfiguration(aiConfig: AIConfig): boolean {
     const requiredFields = ['id', 'provider', 'name', 'personality'];
-    return requiredFields.every(field => aiConfig[field as keyof AIConfig]);
+    return requiredFields.every(field => {
+      const value = aiConfig[field as keyof AIConfig];
+      return value !== undefined && value !== null && value !== '';
+    });
   }
 
   /**
@@ -73,7 +77,7 @@ export class AIConfigurationService {
    * @returns True if API key exists, false otherwise
    */
   static hasAPIKey(providerId: string, apiKeys: Record<string, unknown>): boolean {
-    return !!apiKeys[providerId as keyof typeof apiKeys];
+    return !!apiKeys[providerId];
   }
 
   /**
