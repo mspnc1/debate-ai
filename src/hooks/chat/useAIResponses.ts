@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import { addMessage, setTypingAI } from '../../store';
@@ -5,6 +6,7 @@ import { Message } from '../../types';
 import { useAIService } from '../../providers/AIServiceProvider';
 import { ChatService, PromptBuilder } from '../../services/chat';
 import { getPersonality } from '../../config/personalities';
+import type { ResumptionContext } from '../../services/aiAdapter';
 
 export interface AIResponsesHook {
   typingAIs: string[];
@@ -20,7 +22,7 @@ export interface AIResponsesHook {
   isProcessing: boolean;
 }
 
-export const useAIResponses = (): AIResponsesHook => {
+export const useAIResponses = (isResuming?: boolean): AIResponsesHook => {
   const dispatch = useDispatch();
   const { aiService, isInitialized } = useAIService();
   const { 
@@ -31,6 +33,9 @@ export const useAIResponses = (): AIResponsesHook => {
 
   const messages = currentSession?.messages || [];
   const selectedAIs = currentSession?.selectedAIs || [];
+  
+  // Track if this is the first message after resuming
+  const [hasResumed, setHasResumed] = useState(false);
 
   const sendAIResponses = async (
     userMessage: Message,
@@ -45,6 +50,16 @@ export const useAIResponses = (): AIResponsesHook => {
     const mentions = userMessage.mentions || [];
     const respondingAIs = ChatService.determineRespondingAIs(mentions, selectedAIs, 2);
 
+    // Build resumption context if this is first message after resuming
+    let resumptionContext: ResumptionContext | undefined;
+    if (isResuming && !hasResumed && messages.length > 0) {
+      resumptionContext = {
+        originalPrompt: messages[0], // First message in the conversation
+        isResuming: true
+      };
+      setHasResumed(true); // Mark that we've handled the resumption
+    }
+    
     // Build conversation context
     let conversationContext = ChatService.buildConversationContext(messages, userMessage);
     
@@ -90,7 +105,8 @@ export const useAIResponses = (): AIResponsesHook => {
           ai.id,
           promptForAI,
           conversationContext.messages.slice(0, -1), // Don't include the current user message
-          conversationContext.isDebateMode
+          conversationContext.isDebateMode,
+          resumptionContext
         );
 
         // Create AI message
@@ -102,6 +118,9 @@ export const useAIResponses = (): AIResponsesHook => {
           conversationContext.messages,
           [aiMessage]
         );
+        
+        // Clear resumption context after first AI responds
+        resumptionContext = undefined;
         
       } catch (error) {
         console.error(`Error getting response from ${ai.name}:`, error);

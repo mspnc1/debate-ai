@@ -8,7 +8,6 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { AIServiceProvider } from './src/providers/AIServiceProvider';
 import { ThemeProvider } from './src/theme';
 import secureStorage from './src/services/secureStorage';
-import { StorageService } from './src/services/chat';
 
 function AppContent() {
   const dispatch = useDispatch();
@@ -17,11 +16,6 @@ function AppContent() {
     // Initialize app on startup
     const initializeApp = async () => {
       try {
-        // Clear old storage format and start fresh (development only)
-        console.log('Clearing old storage format...');
-        await StorageService.clearAllSessions();
-        console.log('Storage cleared - starting fresh with new architecture');
-        
         // Load stored API keys
         const storedKeys = await secureStorage.getApiKeys();
         if (storedKeys) {

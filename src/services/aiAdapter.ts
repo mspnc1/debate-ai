@@ -11,6 +11,11 @@ interface AIAdapterConfig {
   isDebateMode?: boolean;
 }
 
+export interface ResumptionContext {
+  originalPrompt: Message;
+  isResuming: boolean;
+}
+
 // Base adapter class
 abstract class AIAdapter {
   public config: AIAdapterConfig;
@@ -21,7 +26,8 @@ abstract class AIAdapter {
   
   abstract sendMessage(
     message: string,
-    conversationHistory?: Message[]
+    conversationHistory?: Message[],
+    resumptionContext?: ResumptionContext
   ): Promise<string>;
   
   protected getSystemPrompt(): string {
@@ -43,12 +49,40 @@ abstract class AIAdapter {
     this.config.personality = personality;
   }
   
-  protected formatHistory(history: Message[]): Array<{ role: string; content: string }> {
-    // Just pass the messages as they are, let the system prompt handle context
-    return history.slice(-10).map(msg => ({
+  protected formatHistory(
+    history: Message[], 
+    resumptionContext?: ResumptionContext
+  ): Array<{ role: string; content: string }> {
+    let formattedMessages: Array<{ role: string; content: string }> = [];
+    
+    // If resuming, include the original prompt first
+    if (resumptionContext?.isResuming && resumptionContext.originalPrompt) {
+      // Add a system message explaining the continuation
+      const originalContent = resumptionContext.originalPrompt.content || '';
+      formattedMessages.push({
+        role: 'assistant',
+        content: `[Note: You're continuing a conversation that started with: "${originalContent.substring(0, 100)}${originalContent.length > 100 ? '...' : ''}"]`
+      });
+      
+      // Include the original prompt if it's not already in recent history
+      const recentHistory = history.slice(-10);
+      if (!recentHistory.some(msg => msg.id === resumptionContext.originalPrompt.id)) {
+        formattedMessages.push({
+          role: 'user',
+          content: originalContent
+        });
+      }
+    }
+    
+    // Add recent conversation history
+    const recentMessages = history.slice(-10).map(msg => ({
       role: msg.senderType === 'user' ? 'user' : 'assistant',
       content: msg.content || ''
-    })).filter(msg => msg.content); // Filter out any empty messages
+    })).filter(msg => msg.content);
+    
+    formattedMessages = [...formattedMessages, ...recentMessages];
+    
+    return formattedMessages;
   }
 }
 
@@ -56,7 +90,8 @@ abstract class AIAdapter {
 class ClaudeAdapter extends AIAdapter {
   async sendMessage(
     message: string,
-    conversationHistory: Message[] = []
+    conversationHistory: Message[] = [],
+    resumptionContext?: ResumptionContext
   ): Promise<string> {
     // Retry logic for 529 (server overload) errors
     const maxRetries = 3;
@@ -84,7 +119,7 @@ class ClaudeAdapter extends AIAdapter {
             top_p: this.config.parameters?.topP,
             system: this.getSystemPrompt(),
             messages: [
-              ...this.formatHistory(conversationHistory),
+              ...this.formatHistory(conversationHistory, resumptionContext),
               { role: 'user', content: message }
             ],
           }),
@@ -118,7 +153,8 @@ class ClaudeAdapter extends AIAdapter {
 class ChatGPTAdapter extends AIAdapter {
   async sendMessage(
     message: string,
-    conversationHistory: Message[] = []
+    conversationHistory: Message[] = [],
+    resumptionContext?: ResumptionContext
   ): Promise<string> {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -136,7 +172,7 @@ class ChatGPTAdapter extends AIAdapter {
         seed: this.config.parameters?.seed,
         messages: [
           { role: 'system', content: this.getSystemPrompt() },
-          ...this.formatHistory(conversationHistory),
+          ...this.formatHistory(conversationHistory, resumptionContext),
           { role: 'user', content: message }
         ],
       }),
@@ -155,9 +191,10 @@ class ChatGPTAdapter extends AIAdapter {
 class GeminiAdapter extends AIAdapter {
   async sendMessage(
     message: string,
-    conversationHistory: Message[] = []
+    conversationHistory: Message[] = [],
+    resumptionContext?: ResumptionContext
   ): Promise<string> {
-    const history = this.formatHistory(conversationHistory)
+    const history = this.formatHistory(conversationHistory, resumptionContext)
       .filter(msg => msg && msg.content) // Additional safety check
       .map(msg => ({
         role: msg.role === 'assistant' ? 'model' : msg.role,
@@ -261,7 +298,8 @@ class NomiAdapter extends AIAdapter {
   
   async sendMessage(
     message: string,
-    _conversationHistory: Message[] = []
+    _conversationHistory: Message[] = [],
+    _resumptionContext?: ResumptionContext
   ): Promise<string> {
     try {
       // Initialize Nomi if not already done
@@ -323,7 +361,8 @@ class NomiAdapter extends AIAdapter {
 class ReplikaAdapter extends AIAdapter {
   async sendMessage(
     _message: string,
-    _conversationHistory: Message[] = []
+    _conversationHistory: Message[] = [],
+    _resumptionContext?: ResumptionContext
   ): Promise<string> {
     // Replika doesn't have a public API yet
     throw new Error('Replika integration is not yet available. API coming soon.');
@@ -334,7 +373,8 @@ class ReplikaAdapter extends AIAdapter {
 class CharacterAdapter extends AIAdapter {
   async sendMessage(
     _message: string,
-    _conversationHistory: Message[] = []
+    _conversationHistory: Message[] = [],
+    _resumptionContext?: ResumptionContext
   ): Promise<string> {
     // Character.AI requires unofficial API or web scraping
     throw new Error('Character.AI integration is not yet available. Official API coming soon.');
@@ -420,7 +460,8 @@ export const PERSONALITIES: Record<string, PersonalityConfig> = {
 class MockAIAdapter extends AIAdapter {
   async sendMessage(
     message: string,
-    _conversationHistory: Message[] = []
+    _conversationHistory: Message[] = [],
+    _resumptionContext?: ResumptionContext
   ): Promise<string> {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
@@ -573,7 +614,8 @@ export class AIService {
     aiId: string,
     message: string,
     conversationHistory: Message[],
-    isDebateMode: boolean = false
+    isDebateMode: boolean = false,
+    resumptionContext?: ResumptionContext
   ): Promise<string> {
     const adapter = this.adapters.get(aiId);
     if (!adapter) {
@@ -594,7 +636,7 @@ export class AIService {
     }
 
     try {
-      return await adapter.sendMessage(message, conversationHistory);
+      return await adapter.sendMessage(message, conversationHistory, resumptionContext);
     } catch (error) {
       console.error(`Error sending message to ${aiId}:`, error);
       if (error instanceof Error && error.message.includes('API key')) {

@@ -46,7 +46,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     searchTerm, 
     initialPrompt, 
     userPrompt, 
-    autoSend 
+    autoSend,
+    resuming 
   } = route.params;
 
   // AI Service state
@@ -57,7 +58,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   const messages = useChatMessages();
   const input = useChatInput();
   const mentions = useMentions();
-  const aiResponses = useAIResponses();
+  const aiResponses = useAIResponses(resuming);
   const quickStart = useQuickStart({ initialPrompt, userPrompt, autoSend });
 
   // Handle message sending
