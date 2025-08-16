@@ -3,7 +3,7 @@ import { ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Box } from '../components/atoms';
 import { 
-  APIConfigHeader, 
+  Header,
   APIConfigProgress, 
   APIProviderList, 
   APISecurityNote, 
@@ -52,9 +52,14 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
   return (
     <Box style={{ flex: 1 }} backgroundColor="background">
       <SafeAreaView style={{ flex: 1 }}>
-        <APIConfigHeader 
-          onBack={navigation.goBack}
+        <Header
+          variant="gradient"
           title="API Configuration"
+          subtitle="Add or Modify Your AIs"
+          onBack={navigation.goBack}
+          showBackButton={true}
+          showTime={true}
+          animated={true}
         />
         
         <KeyboardAvoidingView

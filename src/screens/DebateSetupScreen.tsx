@@ -6,7 +6,7 @@ import { RootState, setAIPersonality, preserveTopic, clearPreservedTopic } from 
 
 import { Box } from '../components/atoms';
 import { Button } from '../components/molecules';
-import { GradientHeader } from '../components/organisms';
+import { Header } from '../components/organisms';
 import {
   DebateTopicSelector,
   DebateAISelector,
@@ -176,9 +176,13 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
   
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['top', 'left', 'right']}>
-      <GradientHeader
+      <Header
+        variant="gradient"
         title="Debate Arena"
-        subtitle="What should AIs debate today?"
+        subtitle="Choose Your Combatants"
+        showTime={true}
+        showDate={true}
+        animated={true}
       />
       
       {/* Stats Button */}

@@ -2,7 +2,7 @@ import React from 'react';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { GradientHeader } from '../components/organisms';
+import { Header } from '../components/organisms';
 import { DynamicAISelector } from '../components/organisms/DynamicAISelector';
 import { QuickStartsSection } from '../components/organisms/QuickStartsSection';
 import { PromptWizard } from '../components/organisms/PromptWizard';
@@ -71,9 +71,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     <SafeAreaView 
       style={{ flex: 1, backgroundColor: theme.colors.background }}
       edges={['top', 'left', 'right']}>
-      <GradientHeader
+      <Header
+        variant="gradient"
         title={greeting.timeBasedGreeting}
         subtitle={greeting.welcomeMessage}
+        showTime={true}
+        showDate={true}
+        animated={true}
       />
       
       <ScrollView 

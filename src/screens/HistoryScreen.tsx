@@ -4,14 +4,13 @@ import { Box } from '../components/atoms';
 import { useTheme } from '../theme';
 import { useFocusEffect } from '@react-navigation/native';
 import { 
-  HistoryHeader, 
   HistorySearchBar, 
   HistoryList, 
   HistoryStats, 
   EmptyHistoryState,
   HistoryListSkeleton 
 } from '../components/organisms/history';
-import { ErrorBoundary } from '../components/organisms';
+import { ErrorBoundary, Header } from '../components/organisms';
 import { 
   useSessionHistory, 
   useSessionSearch, 
@@ -33,7 +32,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
   const { searchQuery, setSearchQuery, filteredSessions, clearSearch } = useSessionSearch(sessions);
   const { deleteSession, resumeSession } = useSessionActions(navigation);
   useSessionStats(sessions); // For future analytics features
-  const { maxSessions, sessionCount, isLimited } = useSubscriptionLimits(sessions.length);
+  const { sessionCount } = useSubscriptionLimits(sessions.length);
   
   // Memoize total message count to avoid expensive recalculation on every render
   const totalMessageCount = useMemo(() => {
@@ -80,11 +79,13 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
         <ErrorBoundary>
           <Box style={{ flex: 1, backgroundColor: theme.colors.background }}>
             {/* Header with skeleton data */}
-            <HistoryHeader
+            <Header
+              variant="gradient"
               title="Chat History"
-              sessionCount={0}
-              maxSessions={maxSessions}
-              isPremium={!isLimited}
+              subtitle="Loading your conversation archive..."
+              showTime={true}
+              showDate={true}
+              animated={true}
             />
 
             {/* Don't show search bar during loading */}
@@ -131,12 +132,14 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <ErrorBoundary>
         <Box style={{ flex: 1, backgroundColor: theme.colors.background }}>
-          {/* Header with title and subscription info */}
-          <HistoryHeader
+          {/* Header with title and subtitle */}
+          <Header
+            variant="gradient"
             title="Chat History"
-            sessionCount={sessionCount}
-            maxSessions={maxSessions}
-            isPremium={!isLimited}
+            subtitle="Your conversation archive"
+            showTime={true}
+            showDate={true}
+            animated={true}
           />
 
           {/* Search bar */}

@@ -1,7 +1,7 @@
 import React, { useEffect, useCallback } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AIServiceLoading } from '../components/organisms';
+import { AIServiceLoading, Header } from '../components/organisms';
 import { useAIService } from '../providers/AIServiceProvider';
 
 // Chat-specific hooks
@@ -16,7 +16,6 @@ import {
 
 // Chat-specific components
 import {
-  ChatHeader,
   ChatMessageList,
   ChatInputBar,
   ChatTypingIndicators,
@@ -156,10 +155,29 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         keyboardVerticalOffset={0}
       >
         {/* Header */}
-        <ChatHeader
-          onBack={navigation.goBack}
+        <Header
+          variant="gradient"
           title="AI Conversation"
-          participants={session.selectedAIs}
+          subtitle={(() => {
+            const aiNames = session.selectedAIs.map(ai => ai.name);
+            const count = aiNames.length;
+            
+            if (count === 0) {
+              return "Preparing symposium";
+            } else if (count === 1) {
+              return `In dialogue with ${aiNames[0]}`;
+            } else if (count === 2) {
+              return `${aiNames[0]} meets ${aiNames[1]}`;
+            } else if (count === 3) {
+              return `${aiNames[0]}, ${aiNames[1]} & 1 more`;
+            } else {
+              return `${aiNames[0]}, ${aiNames[1]} & ${count - 2} others`;
+            }
+          })()}
+          onBack={navigation.goBack}
+          showBackButton={true}
+          showTime={true}
+          animated={true}
         />
 
         {/* Message List */}

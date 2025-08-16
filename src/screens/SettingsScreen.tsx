@@ -3,8 +3,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Box } from '../components/atoms';
 import { Typography } from '../components/molecules';
 import { SettingButton } from '../components/molecules/settings';
+import { Header } from '../components/organisms';
 import { 
-  SettingsHeader, 
   SettingsList,
   SettingSectionConfig 
 } from '../components/organisms/settings';
@@ -124,8 +124,13 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   return (
     <Box style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
-        <SettingsHeader 
+        <Header
+          variant="gradient"
           title="Settings"
+          subtitle="Customize your AI experience"
+          showTime={true}
+          showDate={true}
+          animated={true}
           testID="settings-header"
         />
         

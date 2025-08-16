@@ -1,4 +1,5 @@
 // Organisms - complex components with business logic
+export { Header } from './Header';
 export { GradientHeader } from './GradientHeader';
 export { AISelector } from './AISelector';
 export { DynamicAISelector } from './DynamicAISelector';

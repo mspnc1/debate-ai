@@ -19,7 +19,7 @@ import {
   useDebateMessages,
 } from '../hooks/debate';
 import {
-  DebateHeader,
+  Header,
   TopicSelector,
   DebateMessageList,
   VotingInterface,
@@ -294,12 +294,15 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
       flex: 1,
       backgroundColor: theme.colors.background,
     }}>
-      <DebateHeader
-        onStartOver={handleStartOver}
-        currentRound={flow.currentRound}
-        maxRounds={flow.maxRounds}
-        isActive={flow.isDebateActive}
-        showStartOver={flow.isDebateActive || (flow.isDebateEnded && !isShowingVictory)}
+      <Header
+        variant="default"
+        title={topicSelection.finalTopic || 'AI Debate'}
+        roundInfo={{ current: flow.currentRound, total: flow.maxRounds }}
+        actionButton={
+          (flow.isDebateActive || (flow.isDebateEnded && !isShowingVictory))
+            ? { label: 'Start Over', onPress: handleStartOver, variant: 'danger' }
+            : undefined
+        }
       />
       
       {renderContent()}
