@@ -258,7 +258,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
       <ShareModal
         visible={showShareCard}
         topic={topic || 'AI Debate'}
-        participants={participants?.map(p => ({ id: p.id, name: p.name })) || [{ id: winner.id, name: winner.name }]}
+        participants={participants || [winner]}
         messages={messages || []}
         winner={winner}
         scores={scores}

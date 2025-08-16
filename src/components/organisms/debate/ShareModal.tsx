@@ -25,15 +25,15 @@ import { SharePreviewCard } from '../../molecules/SharePreviewCard';
 import { ShareActionButtons } from '../../molecules/ShareActionButtons';
 import { Typography } from '../../molecules';
 import { useTheme } from '../../../theme';
-import { Message } from '../../../types';
+import { Message, AI } from '../../../types';
 
 const { height } = Dimensions.get('window');
 
 export interface ShareModalProps {
   topic: string;
-  participants: { id: string; name: string }[];
+  participants: AI[];
   messages: Message[];
-  winner?: { id: string; name: string };
+  winner?: AI;
   scores?: Record<string, { name: string; roundWins: number }>;
   onShare?: (platform?: string) => void;
   onClose?: () => void;
@@ -202,11 +202,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContainer: {
-    height: height * 0.75, // 75% height as requested for better accessibility
-    maxHeight: height * 0.80, // Max 80% to ensure modal doesn't take full screen
+    height: height * 0.85, // 85% height to show more content
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    overflow: 'hidden', // Prevent content overflow
+    overflow: 'hidden',
   },
   safeArea: {
     flex: 1,
@@ -221,9 +220,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 100, // Large bottom padding for social buttons accessibility
+    paddingBottom: 40, // Reasonable padding
     flexGrow: 1,
-    minHeight: height * 0.9, // Taller content to ensure scrolling works
+    // Remove minHeight that was breaking the layout
   },
   previewLabel: {
     marginBottom: 12,

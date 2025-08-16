@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { View, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import Animated, { 
   FadeInDown,
   useAnimatedStyle,
@@ -14,12 +14,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { Typography } from '../../molecules';
+import { Typography, AIProviderTile } from '../../molecules';
 import { useTheme } from '../../../theme';
 import { AI } from '../../../types';
-import { AI_BRAND_COLORS } from '../../../constants/aiColors';
 import { ScoreBoard } from '../../../services/debate';
-import { getAIProviderIcon } from '../../../utils/aiProviderAssets';
 
 export interface VotingInterfaceProps {
   participants: AI[];
@@ -51,17 +49,6 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const getAIConfig = (aiId: string) => {
-    const aiBrandKey = (aiId === 'openai' || aiId === 'chatgpt') ? 'openai' : 
-                       aiId === 'claude' ? 'claude' :
-                       aiId === 'gemini' ? 'gemini' :
-                       aiId === 'nomi' ? 'nomi' : null;
-    
-    const colors = aiBrandKey ? AI_BRAND_COLORS[aiBrandKey as keyof typeof AI_BRAND_COLORS] : theme.colors.primary;
-    const providerIcon = aiBrandKey ? getAIProviderIcon(aiBrandKey) : null;
-    
-    return { colors, providerIcon };
-  };
 
   const renderCurrentScores = () => {
     if (!isOverallVote || !scores) return null;
@@ -85,14 +72,13 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
         }}>
           {participants.map((ai) => {
             const aiScore = scores[ai.id];
-            const { colors } = getAIConfig(ai.id);
             
             return (
               <View key={ai.id} style={{ alignItems: 'center' }}>
                 <Typography 
                   variant="body" 
                   weight="semibold"
-                  style={{ color: colors[600] }}
+                  style={{ color: ai.color || theme.colors.primary[500] }}
                 >
                   {ai.name}
                 </Typography>
@@ -165,50 +151,16 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
         
             <View style={styles.votingButtons}>
               {participants.map((ai) => {
-                const { colors, providerIcon } = getAIConfig(ai.id);
-                
                 return (
-                  <TouchableOpacity
+                  <AIProviderTile
                     key={ai.id}
-                    style={dynamicVoteButtonStyles}
+                    ai={ai}
+                    size="large"
+                    tileStyle="gradient"
+                    showName={false}
                     onPress={() => onVote(ai.id)}
-                    activeOpacity={0.8}
-                  >
-                    <LinearGradient
-                      colors={[colors[400], colors[600]]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.buttonGradient}
-                    >
-                      <View style={styles.buttonContent}>
-                        <View style={styles.aiIcon}>
-                          {providerIcon && providerIcon.iconType === 'image' ? (
-                            <Image 
-                              source={providerIcon.icon as number} 
-                              style={styles.aiLogo} 
-                              resizeMode="contain"
-                            />
-                          ) : (
-                            <Typography variant="title" style={{ fontSize: 36, color: theme.colors.text.white }}>
-                              {providerIcon?.icon || ai.name.charAt(0)}
-                            </Typography>
-                          )}
-                        </View>
-                        
-                        {/* Only show name if no logo or it's just a letter */}
-                        {(!providerIcon || providerIcon.iconType !== 'image') && (
-                          <Typography 
-                            variant="subtitle" 
-                            weight="bold" 
-                            align="center"
-                            style={{ color: theme.colors.text.white }}
-                          >
-                            {ai.name}
-                          </Typography>
-                        )}
-                      </View>
-                    </LinearGradient>
-                  </TouchableOpacity>
+                    style={dynamicVoteButtonStyles}
+                  />
                 );
               })}
             </View>

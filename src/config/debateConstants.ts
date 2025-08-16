@@ -10,11 +10,11 @@ export const DEBATE_CONSTANTS = {
   
   // Timing configuration (in milliseconds)
   DELAYS: {
-    AI_RESPONSE: 2000,        // Normal delay between AI responses (reduced from 8s to 2s)
+    AI_RESPONSE: 12000,       // Normal delay between AI responses to allow reading time (12s for longer messages)
     RATE_LIMIT_RECOVERY: 10000, // Delay after rate limit errors
     ERROR_RECOVERY: 6000,     // Delay after other errors
-    VOTING_CONTINUATION: 500,  // Delay before continuing after voting (reduced from 1s to 0.5s)
-    OVERALL_VOTE: 800,        // Delay before showing overall vote (reduced from 1.5s to 0.8s)
+    VOTING_CONTINUATION: 500,  // Short delay after voting to keep flow going
+    OVERALL_VOTE: 800,        // Delay before showing overall vote
     AUTO_SCROLL: 100,         // Delay before auto-scrolling to new messages
   },
   

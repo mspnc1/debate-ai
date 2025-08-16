@@ -33,7 +33,7 @@ export const AIAvatar: React.FC<AIAvatarProps> = ({
   const sizeMap = {
     small: { container: 36, text: 14, image: 30 },
     medium: { container: 56, text: 20, image: 46 },
-    large: { container: 140, text: 28, image: 120 },
+    large: { container: 140, text: 28, image: 80 },  // Made logo 80px within container (was 120px which was too big)
   };
   
   const dimensions = sizeMap[size];

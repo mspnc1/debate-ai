@@ -1,28 +1,24 @@
 /**
  * SharePreviewCard Component
- * Professional visual preview of the debate result for sharing
- * COMPLETE REWRITE - Fixed logo sizing, proper layout, professional badges
+ * COMPLETE REWRITE - Clean slate, simple and functional
  */
 
 import React from 'react';
 import { View, StyleSheet, Dimensions, Image, Text } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
-import { Typography } from './Typography';
+import { AIProviderTile } from './AIProviderTile';
 import { AppLogo } from '../organisms/AppLogo';
-import { AI_BRAND_COLORS } from '../../constants/aiColors';
-import { getAIProviderIcon } from '../../utils/aiProviderAssets';
-import { useTheme } from '../../theme';
+import { AI } from '../../types';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
-const PREVIEW_WIDTH = width - 40;
-const PREVIEW_HEIGHT = PREVIEW_WIDTH * 1.6; // Reduced height to fit better in modal
+const CARD_WIDTH = width - 40;
+const CARD_HEIGHT = CARD_WIDTH * 1.4; // Taller for more space
 
 export interface SharePreviewCardProps {
   topic: string;
-  participants: { id: string; name: string }[];
-  winner?: { id: string; name: string };
+  participants: AI[];
+  winner?: AI;
   scores?: Record<string, { name: string; roundWins: number }>;
 }
 
@@ -32,442 +28,289 @@ export const SharePreviewCard: React.FC<SharePreviewCardProps> = ({
   winner,
   scores,
 }) => {
-  const { theme } = useTheme();
-  
-  const getAIConfig = (participant: { id: string; name: string }) => {
-    const normalized = participant.name.toLowerCase();
-    let aiBrandKey = '';
-    
-    if (normalized.includes('claude')) aiBrandKey = 'claude';
-    else if (normalized.includes('chatgpt') || normalized.includes('openai')) aiBrandKey = 'openai';
-    else if (normalized.includes('gemini')) aiBrandKey = 'gemini';
-    else if (normalized.includes('nomi')) aiBrandKey = 'nomi';
-    
-    const colors = aiBrandKey ? AI_BRAND_COLORS[aiBrandKey as keyof typeof AI_BRAND_COLORS] : theme.colors.primary;
-    const providerIcon = aiBrandKey ? getAIProviderIcon(aiBrandKey) : null;
-    
-    return { colors, providerIcon };
-  };
+  // Get the two participants
+  const [ai1, ai2] = participants;
+  const score1 = scores?.[ai1?.id]?.roundWins || 0;
+  const score2 = scores?.[ai2?.id]?.roundWins || 0;
 
   return (
-    <Animated.View entering={FadeIn.duration(800)} style={styles.shareCard}>
+    <View style={styles.container}>
       <LinearGradient
         colors={['#667eea', '#764ba2', '#f093fb', '#f5576c']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.gradientCard}
+        style={styles.card}
       >
-        {/* Header with Logo and Tagline */}
-        <View style={styles.headerSection}>
-          <AppLogo size={50} />
-          <Typography variant="title" weight="bold" style={styles.appTitle}>
-            DebateAI
-          </Typography>
-          <Typography variant="caption" style={styles.appTagline}>
-            Where AIs Debate. Where Truth Emerges.
-          </Typography>
-        </View>
-
-        {/* Debate Topic - AT THE TOP as requested */}
-        <View style={styles.topicSection}>
-          <Typography variant="caption" weight="semibold" style={styles.topicLabel}>
-            💬 DEBATE TOPIC
-          </Typography>
-          <Typography variant="body" weight="bold" style={styles.topicText}>
-            "{topic}"
-          </Typography>
-        </View>
-
-        {/* AI Participants with Scores */}
-        <View style={styles.battleSection}>
-          {participants.map((participant) => {
-            const { colors, providerIcon } = getAIConfig(participant);
-            const score = scores?.[participant.id];
-            
-            return (
-              <View key={participant.id} style={styles.aiColumn}>
-                {/* AI Logo */}
-                <View style={[styles.aiLogoContainer, { backgroundColor: colors[500] }]}>
-                  {providerIcon && providerIcon.iconType === 'image' ? (
-                    <Image 
-                      source={providerIcon.icon as number} 
-                      style={styles.aiLogoImage} 
-                      resizeMode="contain"
-                    />
-                  ) : (
-                    <Text style={styles.aiLogoText}>
-                      {providerIcon?.icon || participant.name.charAt(0)}
-                    </Text>
-                  )}
-                </View>
-                
-                {/* AI Name */}
-                <Typography variant="body" weight="semibold" style={styles.aiName}>
-                  {participant.name}
-                </Typography>
-                
-                {/* Score */}
-                <Typography variant="title" weight="bold" style={styles.aiScore}>
-                  {score?.roundWins || 0}
-                </Typography>
-                <Typography variant="caption" style={styles.aiScoreLabel}>
-                  {score?.roundWins === 1 ? 'round' : 'rounds'}
-                </Typography>
-              </View>
-            );
-          })}
-          
-          {/* VS in the middle */}
-          <View style={styles.vsContainer}>
-            <Typography variant="title" weight="bold" style={styles.vsText}>
-              VS
-            </Typography>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.logoRow}>
+            <AppLogo size={40} />
+            <View style={styles.brandingText}>
+              <Text style={styles.appName}>DebateAI</Text>
+              <Text style={styles.tagline}>Where Truth Emerges</Text>
+            </View>
           </View>
         </View>
 
-        {/* Winner Section */}
+        {/* Topic */}
+        <View style={styles.topicContainer}>
+          <Text style={styles.topicLabel}>DEBATE TOPIC</Text>
+          <Text style={styles.topicText} numberOfLines={2}>
+            "{topic}"
+          </Text>
+        </View>
+
+        {/* Battle Section */}
+        <View style={styles.battleContainer}>
+          {/* AI 1 */}
+          <View style={styles.aiContainer}>
+            <AIProviderTile
+              ai={ai1}
+              size="large"
+              tileStyle="flat"
+              showName={false}
+              customWidth={100}
+              customHeight={100}
+              style={{ borderRadius: 16 }}
+            />
+            <Text style={styles.aiName}>{ai1?.name}</Text>
+            <Text style={styles.score}>{score1}</Text>
+            <Text style={styles.scoreLabel}>rounds</Text>
+          </View>
+
+          {/* VS */}
+          <Text style={styles.vs}>VS</Text>
+
+          {/* AI 2 */}
+          <View style={styles.aiContainer}>
+            <AIProviderTile
+              ai={ai2}
+              size="large"
+              tileStyle="flat"
+              showName={false}
+              customWidth={100}
+              customHeight={100}
+              style={{ borderRadius: 16 }}
+            />
+            <Text style={styles.aiName}>{ai2?.name}</Text>
+            <Text style={styles.score}>{score2}</Text>
+            <Text style={styles.scoreLabel}>rounds</Text>
+          </View>
+        </View>
+
+        {/* Winner */}
         {winner && (
-          <View style={styles.winnerSection}>
-            <LinearGradient
-              colors={['#FFD700', '#FFA500']}
-              style={styles.winnerBadge}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Typography variant="caption" weight="semibold" style={styles.winnerLabel}>
-                🏆 WINNER
-              </Typography>
-              <View style={styles.winnerContent}>
-                {(() => {
-                  const { colors, providerIcon } = getAIConfig(winner);
-                  return (
-                    <View style={styles.winnerLogoContainer}>
-                      <View style={[styles.winnerAiLogo, { backgroundColor: colors[500] }]}>
-                        {providerIcon && providerIcon.iconType === 'image' ? (
-                          <Image 
-                            source={providerIcon.icon as number} 
-                            style={styles.winnerLogoImage} 
-                            resizeMode="contain"
-                          />
-                        ) : (
-                          <Text style={styles.winnerLogoText}>
-                            {providerIcon?.icon || winner.name.charAt(0)}
-                          </Text>
-                        )}
-                      </View>
-                      <Typography variant="body" weight="bold" style={styles.winnerName}>
-                        {winner.name}
-                      </Typography>
-                    </View>
-                  );
-                })()}
-              </View>
-            </LinearGradient>
+          <View style={styles.winnerContainer}>
+            <View style={styles.winnerBadge}>
+              <Text style={styles.winnerEmoji}>🏆</Text>
+              <Text style={styles.winnerText}>{winner.name} WINS!</Text>
+            </View>
           </View>
         )}
 
-        {/* Footer with App Store badges and Braveheart */}
-        <View style={styles.footerSection}>
-          {/* Professional App Store Badges */}
+        {/* Footer */}
+        <View style={styles.footer}>
+          {/* App Store Badges - Spread to corners */}
           <View style={styles.storeBadges}>
-            {/* App Store Badge */}
-            <View style={styles.appStoreBadge}>
-              <View style={styles.badgeContent}>
-                <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
-                <View style={styles.badgeTextContainer}>
-                  <Text style={styles.badgeSmallText}>Download on the</Text>
-                  <Text style={styles.badgeLargeText}>App Store</Text>
-                </View>
+            <View style={styles.badge}>
+              <Ionicons name="logo-apple" size={20} color="#FFF" />
+              <View>
+                <Text style={styles.badgeTopText}>Download on the</Text>
+                <Text style={styles.badgeMainText}>App Store</Text>
               </View>
             </View>
-            
-            {/* Google Play Badge */}
-            <View style={styles.playStoreBadge}>
-              <View style={styles.badgeContent}>
-                <Ionicons name="logo-google-playstore" size={18} color="#FFFFFF" />
-                <View style={styles.badgeTextContainer}>
-                  <Text style={styles.badgeSmallText}>GET IT ON</Text>
-                  <Text style={styles.badgeLargeText}>Google Play</Text>
-                </View>
+            <View style={styles.badge}>
+              <Ionicons name="logo-google-playstore" size={20} color="#FFF" />
+              <View>
+                <Text style={styles.badgeTopText}>GET IT ON</Text>
+                <Text style={styles.badgeMainText}>Google Play</Text>
               </View>
             </View>
           </View>
           
-          {/* Braveheart Innovations Branding */}
-          <View style={styles.brandingSection}>
-            <View style={styles.brandRow}>
-              <Image
-                // eslint-disable-next-line @typescript-eslint/no-require-imports
-                source={require('../../../assets/BraveheartInnovationsLogoNoText.png') as number}
-                style={styles.braveheartLogo}
-                resizeMode="contain"
-              />
-              <Typography variant="caption" style={styles.brandText}>
-                by Braveheart Innovations LLC
-              </Typography>
-            </View>
+          {/* Braveheart - At the very bottom */}
+          <View style={styles.braveheartContainer}>
+            <Image
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
+              source={require('../../../assets/BraveheartInnovationsLogoNoText.png') as number}
+              style={styles.braveheartLogo}
+              resizeMode="contain"
+            />
+            <Text style={styles.braveheartText}>Braveheart Innovations</Text>
           </View>
         </View>
       </LinearGradient>
-    </Animated.View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  shareCard: {
-    width: PREVIEW_WIDTH,
-    height: PREVIEW_HEIGHT,
-    marginBottom: 20,
+  container: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+    alignItems: 'center',
   },
-  gradientCard: {
-    flex: 1,
+  card: {
+    width: '100%',
+    height: '100%',
     borderRadius: 20,
-    padding: 16,
-    overflow: 'hidden',
-    justifyContent: 'space-between', // Better content distribution
+    padding: 20,
+    paddingBottom: 8,  // Much less bottom padding to push Braveheart down
+    justifyContent: 'space-between',
   },
   
   // Header
-  headerSection: {
+  header: {
     alignItems: 'center',
-    marginBottom: 12, // Reduced margin
   },
-  appTitle: {
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  brandingText: {
+    alignItems: 'flex-start',
+  },
+  appName: {
+    fontSize: 24,
+    fontWeight: 'bold',
     color: '#FFFFFF',
-    fontSize: 22, // Slightly smaller
-    marginTop: 6,
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
-  appTagline: {
-    color: 'rgba(255,255,255,0.95)',
+  tagline: {
     fontSize: 12,
-    marginTop: 4,
+    color: 'rgba(255,255,255,0.9)',
     fontStyle: 'italic',
   },
   
-  // Topic Section
-  topicSection: {
+  // Topic
+  topicContainer: {
     backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 16,
-    padding: 12, // Reduced padding
-    marginBottom: 16, // Reduced margin
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
   },
   topicLabel: {
-    color: 'rgba(255,255,255,0.9)',
     fontSize: 10,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-    textAlign: 'center',
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.8)',
+    letterSpacing: 1,
+    marginBottom: 6,
   },
   topicText: {
-    color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
     textAlign: 'center',
-    lineHeight: 22,
   },
   
-  // Battle Section
-  battleSection: {
+  // Battle
+  battleContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
     alignItems: 'center',
-    marginBottom: 16, // Reduced margin
-    position: 'relative',
+    justifyContent: 'space-around',
+    paddingHorizontal: 10,
   },
-  aiColumn: {
+  aiContainer: {
     alignItems: 'center',
     flex: 1,
   },
-  aiLogoContainer: {
-    width: 80, // Participant logos: 80x80 as requested
-    height: 80,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  aiLogoImage: {
-    width: 48, // Proportional to container
-    height: 48,
-    tintColor: '#FFFFFF',
-  },
-  aiLogoText: {
-    fontSize: 32, // Proportional fallback text
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
   aiName: {
-    color: '#FFFFFF',
     fontSize: 14,
-    marginBottom: 8,
-  },
-  aiScore: {
+    fontWeight: '600',
     color: '#FFFFFF',
-    fontSize: 28,
+    marginTop: 8,
+  },
+  score: {
+    fontSize: 32,
     fontWeight: 'bold',
-  },
-  aiScoreLabel: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 11,
-  },
-  vsContainer: {
-    position: 'absolute',
-    left: '50%',
-    transform: [{ translateX: -20 }],
-  },
-  vsText: {
     color: '#FFFFFF',
+    marginTop: 4,
+  },
+  scoreLabel: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  vs: {
     fontSize: 20,
     fontWeight: 'bold',
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    color: '#FFFFFF',
+    marginHorizontal: 10,
   },
   
-  // Winner Section
-  winnerSection: {
-    marginBottom: 16, // Reduced margin
+  // Winner
+  winnerContainer: {
+    alignItems: 'center',
   },
   winnerBadge: {
-    borderRadius: 16,
-    padding: 10, // Reduced padding
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  winnerLabel: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    letterSpacing: 2,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  winnerContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  winnerLogoContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFD700',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 25,
     alignItems: 'center',
     gap: 8,
   },
-  winnerAiLogo: {
-    width: 100, // Winner logo: 100x100 - BIGGER than participants as requested
-    height: 100,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.3)',
+  winnerEmoji: {
+    fontSize: 20,
   },
-  winnerLogoImage: {
-    width: 60, // Proportional to larger container
-    height: 60,
-    tintColor: '#FFFFFF',
-  },
-  winnerLogoText: {
-    fontSize: 40, // Larger text for winner
-    color: '#FFFFFF',
+  winnerText: {
+    fontSize: 16,
     fontWeight: 'bold',
-  },
-  winnerName: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    textAlign: 'center',
+    color: '#000',
   },
   
   // Footer
-  footerSection: {
-    marginTop: 'auto',
+  footer: {
+    flexDirection: 'column',
+    gap: 8,
+    alignItems: 'stretch',
   },
   storeBadges: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 0,
+    marginTop: 8,
+  },
+  badge: {
+    flexDirection: 'row',
+    backgroundColor: '#000000',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
     gap: 8,
-    marginBottom: 8,
-    justifyContent: 'center',
-  },
-  appStoreBadge: {
-    backgroundColor: '#000000',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
-    minWidth: 110,
   },
-  playStoreBadge: {
-    backgroundColor: '#000000',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
-    minWidth: 110,
-  },
-  badgeContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  badgeTextContainer: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-  },
-  badgeSmallText: {
-    color: 'rgba(255,255,255,0.8)',
+  badgeTopText: {
     fontSize: 8,
-    letterSpacing: 0.2,
-    fontWeight: '400',
+    color: 'rgba(255,255,255,0.9)',
+    letterSpacing: 0.3,
   },
-  badgeLargeText: {
-    color: '#FFFFFF',
+  badgeMainText: {
     fontSize: 12,
+    color: '#FFFFFF',
     fontWeight: 'bold',
-    letterSpacing: 0.1,
-    lineHeight: 14,
   },
-  brandingSection: {
-    alignItems: 'center',
-  },
-  brandRow: {
+  braveheartContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'center',
+    gap: 8,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    gap: 6,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginTop: 'auto',  // Push to absolute bottom
+    marginBottom: 0,
   },
   braveheartLogo: {
     width: 16,
     height: 16,
   },
-  brandText: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 9,
+  braveheartText: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.95)',
     fontWeight: '600',
   },
 });

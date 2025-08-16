@@ -2,6 +2,7 @@
 export { Typography } from './Typography';
 export { Button } from './Button';
 export { Card } from './Card';
+export { AIProviderTile } from './AIProviderTile';
 export { DebateMessageBubble } from './DebateMessageBubble';
 export { DebateTypingIndicator } from './DebateTypingIndicator';
 export { InputField } from './InputField';

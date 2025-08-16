@@ -10,8 +10,6 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Box } from '../atoms';
-import { GradientButton } from './GradientButton';
-import { Button } from './Button';
 import { Typography } from './Typography';
 import { useTheme } from '../../theme';
 
@@ -150,28 +148,26 @@ export const ShareActionButtons: React.FC<ShareActionButtonsProps> = ({
 
   return (
     <Box style={styles.actionsContainer}>
-      {/* Main Share Image Button */}
-      <GradientButton
-        title={isGenerating ? "🎨 Generating Image..." : "📸 Share Debate Image"}
-        onPress={onShareImage}
-        gradient={theme.colors.gradients.primary}
-        disabled={isGenerating}
-        fullWidth
-        style={styles.mainShareButton}
-      />
-      
-      {/* Social Platform Grid */}
+      {/* Social Platform Grid - Main sharing options */}
       <Box style={styles.socialGrid}>
-        <Typography 
-          variant="caption" 
-          color="secondary" 
-          align="center"
-          style={styles.sectionTitle}
-        >
-          Share on Social Media
-        </Typography>
-        
         <Box style={styles.platformsRow}>
+          {/* Copy Link */}
+          <Box style={styles.platformContainer}>
+            <TouchableOpacity
+              onPress={handleCopyLink}
+              style={[styles.platformButton, { backgroundColor: '#6B7280' }]}
+            >
+              <MaterialCommunityIcons
+                name="content-copy"
+                size={24}
+                color="white"
+              />
+            </TouchableOpacity>
+            <Typography variant="caption" style={styles.platformLabel}>
+              Copy
+            </Typography>
+          </Box>
+          
           {/* Instagram Stories */}
           <Box style={styles.platformContainer}>
             <TouchableOpacity
@@ -180,12 +176,12 @@ export const ShareActionButtons: React.FC<ShareActionButtonsProps> = ({
             >
               <MaterialCommunityIcons
                 name="instagram"
-                size={28}
+                size={24}
                 color="white"
               />
             </TouchableOpacity>
             <Typography variant="caption" style={styles.platformLabel}>
-              Stories
+              Instagram
             </Typography>
           </Box>
           
@@ -197,7 +193,7 @@ export const ShareActionButtons: React.FC<ShareActionButtonsProps> = ({
             >
               <MaterialCommunityIcons
                 name="facebook"
-                size={28}
+                size={24}
                 color="white"
               />
             </TouchableOpacity>
@@ -206,20 +202,21 @@ export const ShareActionButtons: React.FC<ShareActionButtonsProps> = ({
             </Typography>
           </Box>
           
-          {/* Twitter/X */}
+          {/* X (formerly Twitter) */}
           <Box style={styles.platformContainer}>
             <TouchableOpacity
               onPress={handleTwitterShare}
               style={[styles.platformButton, { backgroundColor: '#000000' }]}
             >
-              <MaterialCommunityIcons
-                name="twitter"
-                size={28}
-                color="white"
-              />
+              <Typography 
+                variant="title" 
+                style={{ color: 'white', fontSize: 20, fontWeight: 'bold' }}
+              >
+                X
+              </Typography>
             </TouchableOpacity>
             <Typography variant="caption" style={styles.platformLabel}>
-              Twitter
+              X
             </Typography>
           </Box>
           
@@ -231,7 +228,7 @@ export const ShareActionButtons: React.FC<ShareActionButtonsProps> = ({
             >
               <MaterialCommunityIcons
                 name="whatsapp"
-                size={28}
+                size={24}
                 color="white"
               />
             </TouchableOpacity>
@@ -239,27 +236,24 @@ export const ShareActionButtons: React.FC<ShareActionButtonsProps> = ({
               WhatsApp
             </Typography>
           </Box>
+          
+          {/* Native Share - More Options */}
+          <Box style={styles.platformContainer}>
+            <TouchableOpacity
+              onPress={onMoreOptions || onShareImage}
+              style={[styles.platformButton, { backgroundColor: theme.colors.primary[500] }]}
+            >
+              <MaterialCommunityIcons
+                name="share-variant"
+                size={24}
+                color="white"
+              />
+            </TouchableOpacity>
+            <Typography variant="caption" style={styles.platformLabel}>
+              {isGenerating ? 'Loading...' : 'Share'}
+            </Typography>
+          </Box>
         </Box>
-      </Box>
-      
-      {/* Quick Actions Row */}
-      <Box style={styles.quickActionsRow}>
-        <Button
-          title="📋 Copy Text"
-          onPress={handleCopyLink}
-          variant="secondary"
-          size="medium"
-          style={styles.quickAction}
-        />
-        {onMoreOptions && (
-          <Button
-            title="⚡ More Options"
-            onPress={onMoreOptions}
-            variant="secondary"
-            size="medium"
-            style={styles.quickAction}
-          />
-        )}
       </Box>
     </Box>
   );
@@ -267,71 +261,43 @@ export const ShareActionButtons: React.FC<ShareActionButtonsProps> = ({
 
 const styles = StyleSheet.create({
   actionsContainer: {
-    gap: 24, // Increased gap for better accessibility
-    paddingVertical: 12,
-    paddingHorizontal: 4, // Add horizontal padding for better touch targets
-  },
-  mainShareButton: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginTop: 10,  // Push buttons down
   },
   socialGrid: {
-    gap: 20, // Increased gap for better separation
-    paddingVertical: 8, // Add vertical padding
-  },
-  sectionTitle: {
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 8,
+    paddingVertical: 4,
   },
   platformsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-evenly', // Better distribution
+    justifyContent: 'center',  // Center the buttons
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12, // Add vertical padding for better touch targets
-    minHeight: 80, // Ensure minimum height for accessibility
+    gap: 10,  // Tighter gap between buttons
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    minHeight: 60,
   },
   platformContainer: {
     alignItems: 'center',
-    gap: 10, // Slightly larger gap
-    minWidth: 70, // Ensure minimum width for touch targets
-    paddingVertical: 4, // Add padding for better accessibility
+    gap: 6,
+    minWidth: 50,
   },
   platformButton: {
-    width: 58, // Slightly larger for better touch targets
-    height: 58,
-    borderRadius: 29,
+    width: 48,  // Smaller buttons
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 6,
-    // Ensure minimum touch target size (44pt for iOS)
-    padding: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   platformLabel: {
-    fontSize: 11,
+    fontSize: 10,  // Smaller labels
     fontWeight: '500',
     textAlign: 'center',
-  },
-  quickActionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 16, // Larger gap for better separation
-    paddingHorizontal: 8, // Add padding for better touch targets
-    paddingVertical: 8,
-    minHeight: 50, // Ensure minimum height for accessibility
-  },
-  quickAction: {
-    flex: 1,
-    minHeight: 44, // Ensure minimum touch target height
   },
 });
 
