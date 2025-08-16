@@ -29,8 +29,8 @@ export const ModalHeader: React.FC<ModalHeaderProps> = ({
         style={[styles.closeButton, { backgroundColor: theme.colors.surface }]}
         activeOpacity={0.7}
       >
-        <Typography variant="body" weight="bold" style={styles.closeIcon}>
-          ✕
+        <Typography variant="title" weight="bold" style={styles.closeIcon}>
+          ×
         </Typography>
       </TouchableOpacity>
     </View>
@@ -54,7 +54,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   closeIcon: {
-    fontSize: 20,
+    fontSize: 24,
+    lineHeight: 24,
   },
 });
 

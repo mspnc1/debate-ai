@@ -223,17 +223,17 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
               
               <View style={styles.actions}>
                 <GradientButton
-                  title="🎯 Start New Debate"
-                  onPress={onNewDebate}
+                  title="📸 Share Results"
+                  onPress={() => setShowShareCard(true)}
                   gradient={[winnerColors[400], winnerColors[600]]}
                   fullWidth
                   style={styles.primaryAction}
                 />
                 
                 <Button
-                  title="📸 Share Results"
-                  onPress={() => setShowShareCard(true)}
-                  variant="secondary"
+                  title="🎯 Start New Debate"
+                  onPress={onNewDebate}
+                  variant="ghost"
                   size="large"
                   fullWidth
                 />
