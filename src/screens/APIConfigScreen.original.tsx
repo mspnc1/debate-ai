@@ -133,7 +133,7 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
       
       if (success) {
         // Add to verified providers on successful test (this also updates timestamp)
-        dispatch(addVerifiedProvider(providerId));
+        dispatch(addVerifiedProvider({ providerId, model: 'Model v1.0' }));
         
         setProviderStatus(prev => ({
           ...prev,

@@ -10,6 +10,7 @@ import {
   APIComingSoon 
 } from '../components/organisms';
 import { useAPIKeys } from '../hooks/useAPIKeys';
+import { useProviderVerification } from '../hooks/useProviderVerification';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import { useAPIConfigHandlers } from '../hooks/useAPIConfigHandlers';
 import { useAPIConfigData } from '../hooks/useAPIConfigData';
@@ -23,6 +24,7 @@ interface APIConfigScreenProps {
 const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
   // Custom hooks
   const { apiKeys, clearAll } = useAPIKeys();
+  const { clearAllVerifications } = useProviderVerification();
   const { isPremium } = useSubscriptionStatus();
   const {
     enabledProviders,
@@ -73,7 +75,10 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
             <APIConfigProgress
               configuredCount={configuredCount}
               totalCount={enabledProviders.length}
-              onClearAll={clearAll}
+              onClearAll={async () => {
+                await clearAll();
+                await clearAllVerifications();
+              }}
             />
             
             <APIProviderList

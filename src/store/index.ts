@@ -151,6 +151,9 @@ interface SettingsState {
   verificationTimestamps: {
     [key: string]: number; // Unix timestamp of when each provider was verified
   };
+  verificationModels: {
+    [key: string]: string; // Model name/ID that was verified for each provider
+  };
   expertMode: {
     claude?: ExpertModeConfig;
     openai?: ExpertModeConfig;
@@ -165,6 +168,7 @@ const initialSettingsState: SettingsState = {
   apiKeys: {},
   verifiedProviders: [],
   verificationTimestamps: {},
+  verificationModels: {},
   expertMode: {},
   hasCompletedOnboarding: false,
 };
@@ -200,23 +204,40 @@ const settingsSlice = createSlice({
     },
     setVerifiedProviders: (state, action: PayloadAction<string[]>) => {
       state.verifiedProviders = action.payload;
-      // Clear all timestamps and only keep ones for verified providers
+      // Clear all timestamps and models, only keep ones for verified providers
       state.verificationTimestamps = {};
+      state.verificationModels = {};
       action.payload.forEach(provider => {
         state.verificationTimestamps[provider] = Date.now();
       });
     },
-    addVerifiedProvider: (state, action: PayloadAction<string>) => {
-      if (!state.verifiedProviders.includes(action.payload)) {
-        state.verifiedProviders.push(action.payload);
+    addVerifiedProvider: (state, action: PayloadAction<{ providerId: string; model?: string }>) => {
+      const providerId = typeof action.payload === 'string' ? action.payload : action.payload.providerId;
+      const model = typeof action.payload === 'object' ? action.payload.model : undefined;
+      
+      if (!state.verifiedProviders.includes(providerId)) {
+        state.verifiedProviders.push(providerId);
       }
-      // Store verification timestamp
-      state.verificationTimestamps[action.payload] = Date.now();
+      // Store verification timestamp and model
+      state.verificationTimestamps[providerId] = Date.now();
+      if (model) {
+        state.verificationModels[providerId] = model;
+      }
     },
     removeVerifiedProvider: (state, action: PayloadAction<string>) => {
       state.verifiedProviders = state.verifiedProviders.filter(p => p !== action.payload);
-      // Remove verification timestamp
+      // Remove verification timestamp and model
       delete state.verificationTimestamps[action.payload];
+      delete state.verificationModels[action.payload];
+    },
+    restoreVerificationData: (state, action: PayloadAction<{
+      verifiedProviders: string[];
+      verificationTimestamps: Record<string, number>;
+      verificationModels: Record<string, string>;
+    }>) => {
+      state.verifiedProviders = action.payload.verifiedProviders;
+      state.verificationTimestamps = action.payload.verificationTimestamps;
+      state.verificationModels = action.payload.verificationModels;
     },
     completeOnboarding: (state) => {
       state.hasCompletedOnboarding = true;
@@ -254,6 +275,7 @@ export const {
   setVerifiedProviders,
   addVerifiedProvider,
   removeVerifiedProvider,
+  restoreVerificationData,
   completeOnboarding, 
   updateExpertMode 
 } = settingsSlice.actions;

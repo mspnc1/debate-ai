@@ -153,13 +153,13 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
                   {provider.name}
                 </Typography>
                 {/* Connection status icon */}
-                {testStatus === 'success' && apiKey && (
+                {(testStatus === 'success' || testStatusMessage) && apiKey && (
                   <Text style={{ fontSize: 16 }}>✅</Text>
                 )}
               </View>
               
               {/* Connection status and pricing */}
-              {testStatus === 'success' && apiKey ? (
+              {(testStatus === 'success' || testStatusMessage) && apiKey ? (
                 <View style={{ marginTop: 4 }}>
                   {/* Model and pricing info */}
                   {(() => {
@@ -183,7 +183,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
                                 fontWeight: '500'
                               }}
                             >
-                              {testStatusMessage || 'Connected'}
+                              {testStatusMessage || 'Verified'}
                             </Typography>
                             <Typography variant="caption" color="secondary">•</Typography>
                             <Typography variant="caption" color="secondary">
@@ -237,7 +237,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
                             fontWeight: '500'
                           }}
                         >
-                          {testStatusMessage || 'Connected'}
+                          {testStatusMessage || 'Verified'}
                         </Typography>
                         {(pricing || freeInfo) && (
                           <View style={{ marginTop: 2 }}>

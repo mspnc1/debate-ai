@@ -14,7 +14,7 @@ export const useAPIConfigData = () => {
   const { apiKeys } = useAPIKeys();
   const { testStatuses } = useConnectionTest();
   const { getConfig } = useExpertMode();
-  const { verifiedProviders, getVerificationMessage } = useProviderVerification();
+  const { verifiedProviders, getVerificationMessage, getVerificationModel } = useProviderVerification();
 
   // Memoized provider lists to avoid unnecessary recalculations
   const enabledProviders = useMemo(() => getEnabledProviders(), []);
@@ -45,10 +45,11 @@ export const useAPIConfigData = () => {
       if (isVerified && hasKey) {
         // Provider is verified and has a key
         const message = getVerificationMessage(provider.id, hasKey);
+        const model = getVerificationModel(provider.id);
         statusMap[provider.id] = {
           status: 'success',
           message: message || 'Verified',
-          model: message // The verification message contains model info
+          model: model
         };
       }
     });
@@ -63,7 +64,7 @@ export const useAPIConfigData = () => {
     });
     
     return statusMap;
-  }, [testStatuses, verifiedProviders, enabledProviders, apiKeys, getVerificationMessage]);
+  }, [testStatuses, verifiedProviders, enabledProviders, apiKeys, getVerificationMessage, getVerificationModel]);
 
   /**
    * Convert expert mode configs for provider list, filtering only valid API key providers.

@@ -32,7 +32,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
   const { searchQuery, setSearchQuery, filteredSessions, clearSearch } = useSessionSearch(sessions);
   const { deleteSession, resumeSession } = useSessionActions(navigation);
   useSessionStats(sessions); // For future analytics features
-  const { sessionCount } = useSubscriptionLimits(sessions.length);
+  useSubscriptionLimits(sessions.length);
   
   // Memoize total message count to avoid expensive recalculation on every render
   const totalMessageCount = useMemo(() => {

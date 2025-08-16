@@ -16,12 +16,12 @@ export const useAPIConfigHandlers = () => {
   const { testConnection } = useConnectionTest();
   const { toggleExpertMode, updateModel, updateParameter } = useExpertMode();
 
-  const handleKeyChange = useCallback((providerId: string, key: string) => {
-    updateKey(providerId, key);
+  const handleKeyChange = useCallback(async (providerId: string, key: string) => {
+    await updateKey(providerId, key);
     
     // Clear verification when key is cleared
     if (!key) {
-      removeVerification(providerId);
+      await removeVerification(providerId);
     }
   }, [updateKey, removeVerification]);
 
@@ -47,7 +47,7 @@ export const useAPIConfigHandlers = () => {
       if (result.success) {
         // Atomically save key and mark as verified to maintain data consistency
         await updateKey(providerId, key);
-        verifyProvider(providerId, {
+        await verifyProvider(providerId, {
           success: true,
           message: 'Verified just now',
           model: result.model,

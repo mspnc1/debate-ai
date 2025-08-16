@@ -6,6 +6,7 @@
 import { Dispatch } from '@reduxjs/toolkit';
 import { addVerifiedProvider, removeVerifiedProvider, setVerifiedProviders } from '../store';
 import TimeFormatterService from './TimeFormatterService';
+import VerificationPersistenceService from './VerificationPersistenceService';
 
 export interface VerificationStatus {
   isVerified: boolean;
@@ -34,30 +35,38 @@ export class VerificationService {
   /**
    * Verify a provider and update Redux state
    */
-  verifyProvider(
+  async verifyProvider(
     providerId: string, 
     dispatch: Dispatch,
     result: VerificationResult
-  ): void {
+  ): Promise<void> {
     if (result.success) {
-      dispatch(addVerifiedProvider(providerId));
+      dispatch(addVerifiedProvider({ providerId, model: result.model }));
+      // Also persist to storage
+      await VerificationPersistenceService.addVerifiedProvider(providerId, result.model);
     } else {
       dispatch(removeVerifiedProvider(providerId));
+      // Also remove from storage
+      await VerificationPersistenceService.removeVerifiedProvider(providerId);
     }
   }
 
   /**
    * Remove verification for a provider
    */
-  removeVerification(providerId: string, dispatch: Dispatch): void {
+  async removeVerification(providerId: string, dispatch: Dispatch): Promise<void> {
     dispatch(removeVerifiedProvider(providerId));
+    // Also remove from storage
+    await VerificationPersistenceService.removeVerifiedProvider(providerId);
   }
 
   /**
    * Clear all verifications
    */
-  clearAllVerifications(dispatch: Dispatch): void {
+  async clearAllVerifications(dispatch: Dispatch): Promise<void> {
     dispatch(setVerifiedProviders([]));
+    // Also clear from storage
+    await VerificationPersistenceService.clearVerificationData();
   }
 
   /**
@@ -222,7 +231,7 @@ export class VerificationService {
   updateTimestamp(providerId: string, dispatch: Dispatch): void {
     // The timestamp is automatically updated when addVerifiedProvider is called
     // This method is for explicit timestamp updates if needed
-    dispatch(addVerifiedProvider(providerId));
+    dispatch(addVerifiedProvider({ providerId }));
   }
 
   /**

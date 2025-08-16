@@ -7,11 +7,13 @@ import VerificationService, { VerificationStatus, VerificationResult } from '../
 export interface UseProviderVerificationReturn {
   verifiedProviders: string[];
   verificationTimestamps: Record<string, number>;
-  verifyProvider: (providerId: string, result: VerificationResult) => void;
-  removeVerification: (providerId: string) => void;
-  clearAllVerifications: () => void;
+  verificationModels: Record<string, string>;
+  verifyProvider: (providerId: string, result: VerificationResult) => Promise<void>;
+  removeVerification: (providerId: string) => Promise<void>;
+  clearAllVerifications: () => Promise<void>;
   getVerificationStatus: (providerId: string, hasApiKey: boolean) => VerificationStatus;
   getVerificationMessage: (providerId: string, hasApiKey: boolean) => string | undefined;
+  getVerificationModel: (providerId: string) => string | undefined;
   isVerificationFresh: (providerId: string) => boolean;
   isVerificationStale: (providerId: string) => boolean;
   getVerificationAge: (providerId: string) => 'fresh' | 'recent' | 'stale' | 'none';
@@ -31,26 +33,27 @@ export const useProviderVerification = (): UseProviderVerificationReturn => {
   const dispatch = useDispatch();
   const verifiedProviders = useSelector((state: RootState) => state.settings.verifiedProviders || []);
   const verificationTimestamps = useSelector((state: RootState) => state.settings.verificationTimestamps || {});
+  const verificationModels = useSelector((state: RootState) => state.settings.verificationModels || {});
 
   /**
    * Verify a provider and update state
    */
-  const verifyProvider = useCallback((providerId: string, result: VerificationResult) => {
-    VerificationService.verifyProvider(providerId, dispatch, result);
+  const verifyProvider = useCallback(async (providerId: string, result: VerificationResult) => {
+    await VerificationService.verifyProvider(providerId, dispatch, result);
   }, [dispatch]);
 
   /**
    * Remove verification for a provider
    */
-  const removeVerification = useCallback((providerId: string) => {
-    VerificationService.removeVerification(providerId, dispatch);
+  const removeVerification = useCallback(async (providerId: string) => {
+    await VerificationService.removeVerification(providerId, dispatch);
   }, [dispatch]);
 
   /**
    * Clear all verifications
    */
-  const clearAllVerifications = useCallback(() => {
-    VerificationService.clearAllVerifications(dispatch);
+  const clearAllVerifications = useCallback(async () => {
+    await VerificationService.clearAllVerifications(dispatch);
   }, [dispatch]);
 
   /**
@@ -76,6 +79,13 @@ export const useProviderVerification = (): UseProviderVerificationReturn => {
       hasApiKey
     );
   }, [verifiedProviders, verificationTimestamps]);
+
+  /**
+   * Get verified model for a provider
+   */
+  const getVerificationModel = useCallback((providerId: string): string | undefined => {
+    return verificationModels[providerId];
+  }, [verificationModels]);
 
   /**
    * Check if verification is fresh (within last hour)
@@ -133,11 +143,13 @@ export const useProviderVerification = (): UseProviderVerificationReturn => {
   return {
     verifiedProviders,
     verificationTimestamps,
+    verificationModels,
     verifyProvider,
     removeVerification,
     clearAllVerifications,
     getVerificationStatus,
     getVerificationMessage,
+    getVerificationModel,
     isVerificationFresh,
     isVerificationStale,
     getVerificationAge,
