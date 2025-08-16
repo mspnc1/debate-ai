@@ -122,6 +122,8 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
                       height: 48,
                       marginRight: 12,
                       resizeMode: 'contain',
+                      // Apply white tint in dark mode for visibility
+                      ...(isDark && { tintColor: '#FFFFFF' }),
                     }}
                   />
                 );
