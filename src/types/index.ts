@@ -1,6 +1,6 @@
-// Core type definitions for DebateAI
+// Core type definitions for Symposium AI
 
-export type AIProvider = 'claude' | 'openai' | 'chatgpt' | 'google' | 'perplexity' | 'mistral' | 'cohere' | 'together' | 'deepseek';
+export type AIProvider = 'claude' | 'openai' | 'chatgpt' | 'google' | 'perplexity' | 'mistral' | 'cohere' | 'together' | 'deepseek' | 'grok';
 export type UIMode = 'simple' | 'expert';
 export type SubscriptionTier = 'free' | 'pro' | 'business';
 
@@ -18,6 +18,7 @@ export interface User {
     cohere?: string;
     together?: string;
     deepseek?: string;
+    grok?: string;
   };
   preferences: {
     theme: 'light' | 'dark' | 'auto';
@@ -29,8 +30,17 @@ export interface AIConfig {
   id: string;
   provider: AIProvider;
   name: string;
-  model?: string;
+  model: string;  // Made required, no longer optional
+  modelConfig?: {
+    displayName: string;
+    contextLength: number;
+    pricing?: {
+      inputPer1M: number;
+      outputPer1M: number;
+    };
+  };
   personality?: string;
+  parameters?: ModelParameters;  // For expert mode
   avatar?: string;
   icon?: string | number; // Logo image or letter
   iconType?: 'image' | 'letter';

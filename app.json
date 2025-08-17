@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "DebateAI",
-    "slug": "debate-ai",
+    "name": "Symposium AI",
+    "slug": "symposium-ai",
     "version": "1.0.0",
-    "description": "Where AIs Debate. Where Truth Emerges.",
+    "description": "Where Ideas Converge. Where Understanding Emerges.",
     "primaryColor": "#0E9594",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

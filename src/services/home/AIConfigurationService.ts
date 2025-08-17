@@ -1,5 +1,6 @@
 import { AIConfig, AIProvider } from '../../types';
 import { AI_PROVIDERS } from '../../config/aiProviders';
+import { AI_MODELS } from '../../config/modelConfigs';
 import { getAIProviderIcon } from '../../utils/aiProviderAssets';
 // Type guards available for future validation needs
 
@@ -43,10 +44,13 @@ export class AIConfigurationService {
   static transformProviderToConfig(provider: typeof AI_PROVIDERS[0]): AIConfig {
     const iconData = getAIProviderIcon(provider.id);
     
+    const defaultModel = AI_MODELS[provider.id]?.find(m => m.isDefault)?.id || AI_MODELS[provider.id]?.[0]?.id || '';
+    
     return {
       id: provider.id,
       provider: provider.id as AIProvider, // Provider ID maps to AIProvider type
       name: provider.name,
+      model: defaultModel, // Add default model
       personality: 'balanced', // Default personality
       avatar: iconData.icon as string, // Keep for backwards compatibility
       icon: iconData.icon,

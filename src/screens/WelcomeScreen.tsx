@@ -176,7 +176,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
               marginBottom: 8,
             }}
           >
-            DebateAI
+            Symposium AI
           </Typography>
           <Typography 
             variant="subtitle" 
@@ -184,7 +184,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
             align="center"
             style={{ marginBottom: 20 }}
           >
-            Where AIs Debate. Where Truth Emerges.
+            Where Ideas Converge. Where Understanding Emerges.
           </Typography>
         </Animated.View>
 

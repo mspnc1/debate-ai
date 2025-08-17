@@ -10,6 +10,7 @@ import Animated, {
 import { Box } from '../atoms';
 import { SelectionIndicator, GlassCard } from '../molecules';
 import { PersonalityPicker } from './PersonalityPicker';
+import { ModelSelectorEnhanced } from './ModelSelectorEnhanced';
 import { AIAvatar } from './AIAvatar';
 import { AIConfig } from '../../types';
 import * as Haptics from 'expo-haptics';
@@ -23,6 +24,7 @@ interface AICardProps {
   style?: ViewStyle;
   personalityId?: string;
   onPersonalityChange?: (personalityId: string) => void;
+  onModelChange?: (modelId: string) => void;
   isPremium?: boolean;
 }
 
@@ -35,6 +37,7 @@ export const AICard: React.FC<AICardProps> = ({
   style,
   personalityId = 'default',
   onPersonalityChange,
+  onModelChange,
   isPremium = false,
 }) => {
   const scaleAnim = useSharedValue(1);
@@ -101,13 +104,25 @@ export const AICard: React.FC<AICardProps> = ({
               style={{ flex: 1 }}
             />
             
-            {/* Only show personality picker when selected */}
+            {/* Only show personality picker and model selector when selected */}
             {isSelected && onPersonalityChange && (
               <PersonalityPicker
                 currentPersonalityId={personalityId}
                 onSelectPersonality={onPersonalityChange}
                 isPremium={isPremium}
                 aiName={ai.name}
+              />
+            )}
+            
+            {/* Model selector below personality picker */}
+            {isSelected && onModelChange && (
+              <ModelSelectorEnhanced
+                providerId={ai.provider}
+                selectedModel={ai.model || ''}
+                onSelectModel={onModelChange}
+                compactMode={true}
+                aiName={ai.name}
+                showPricing={true}
               />
             )}
           </Box>

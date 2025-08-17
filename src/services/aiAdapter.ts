@@ -1,6 +1,7 @@
 // Universal AI Adapter Service for React Native
 import { AIProvider, ModelParameters, PersonalityConfig, Message } from '../types';
 import { PersonalityOption } from '../config/personalities';
+import { getDefaultModel, resolveModelAlias } from '../config/providers/modelRegistry';
 
 interface AIAdapterConfig {
   provider: AIProvider;
@@ -113,7 +114,7 @@ class ClaudeAdapter extends AIAdapter {
             'anthropic-version': '2023-06-01',
           },
           body: JSON.stringify({
-            model: this.config.model || 'claude-3-5-sonnet-20241022',
+            model: resolveModelAlias(this.config.model || getDefaultModel('claude')),
             max_tokens: this.config.parameters?.maxTokens || 2048, // Balanced for complete but concise responses
             temperature: this.config.parameters?.temperature || 0.7,
             top_p: this.config.parameters?.topP,
@@ -163,7 +164,7 @@ class ChatGPTAdapter extends AIAdapter {
         'Authorization': `Bearer ${this.config.apiKey}`,
       },
       body: JSON.stringify({
-        model: this.config.model || 'gpt-4o',
+        model: resolveModelAlias(this.config.model || getDefaultModel('openai')),
         max_tokens: this.config.parameters?.maxTokens || 2048, // Balanced for complete but concise responses
         temperature: this.config.parameters?.temperature || 0.7,
         top_p: this.config.parameters?.topP,
@@ -594,6 +595,11 @@ class MockAIAdapter extends AIAdapter {
         `That's a coding-related question! Let me provide an efficient solution.`,
         `Based on my analysis, here's a cost-effective approach to your query.`,
       ],
+      grok: [
+        `Alright, "${message.slice(0, 30)}..." - let me give you the real-time scoop on this.`,
+        `Ha! That's a good one. Here's what's actually happening with that...`,
+        `Based on the latest information available, here's my take on this.`,
+      ],
     };
     
     const providerResponses = responses[provider] || responses.openai;
@@ -606,7 +612,7 @@ export class AIService {
   private adapters: Map<string, AIAdapter> = new Map();
   private useMockMode: boolean = false;
 
-  constructor(apiKeys?: { claude?: string; openai?: string; google?: string; perplexity?: string; mistral?: string; cohere?: string; together?: string; deepseek?: string }) {
+  constructor(apiKeys?: { claude?: string; openai?: string; google?: string; perplexity?: string; mistral?: string; cohere?: string; together?: string; deepseek?: string; grok?: string }) {
     this.initializeAdapters(apiKeys);
   }
   

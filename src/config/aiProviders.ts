@@ -137,6 +137,21 @@ export const AI_PROVIDERS: AIProvider[] = [
     testEndpoint: 'https://api.deepseek.com/v1/chat/completions',
     enabled: false,
   },
+  {
+    id: 'grok',
+    name: 'Grok',
+    company: 'X.AI',
+    color: '#1DA1F2',
+    gradient: ['#1DA1F2', '#0E7490'],
+    apiKeyPrefix: 'xai-',
+    apiKeyPlaceholder: 'xai-...',
+    docsUrl: 'https://docs.x.ai/api',
+    getKeyUrl: 'https://console.x.ai/api-keys',
+    description: 'Real-time knowledge, wit, and reasoning',
+    features: ['Real-time info', 'Humor', 'Deep reasoning', '256K context'],
+    testEndpoint: 'https://api.x.ai/v1/chat/completions',
+    enabled: true,
+  },
 ];
 
 export const getProviderById = (id: string): AIProvider | undefined => {

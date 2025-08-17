@@ -110,7 +110,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
               }}
             >
               <Typography variant="body" color="secondary" style={{ textAlign: 'center' }}>
-                DebateAI v1.0.0{'\n'}
+                Symposium AI v1.0.0{'\n'}
                 Made with code and caffeine
               </Typography>
             </Box>

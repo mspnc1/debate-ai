@@ -8,21 +8,24 @@ import { HOME_CONSTANTS } from '../../config/homeConstants';
  */
 export class SessionService {
   /**
-   * Creates a new session with the provided AIs and personalities.
+   * Creates a new session with the provided AIs, personalities, and models.
    * 
    * @param selectedAIs - Array of AI configurations for the session
    * @param aiPersonalities - Mapping of AI IDs to personality IDs
+   * @param selectedModels - Mapping of AI IDs to model IDs
    * @returns Session data object
    */
   static createSession(
     selectedAIs: AIConfig[], 
-    aiPersonalities: Record<string, string>
+    aiPersonalities: Record<string, string>,
+    selectedModels?: Record<string, string>
   ) {
     this.validateSessionAIs(selectedAIs);
     
     return {
       selectedAIs,
       aiPersonalities,
+      selectedModels: selectedModels || {},
       sessionId: generateSimpleSessionId(),
       createdAt: new Date().toISOString(),
     };
@@ -61,15 +64,18 @@ export class SessionService {
    * 
    * @param selectedAIs - Array of AI configurations
    * @param aiPersonalities - Mapping of AI IDs to personality IDs
+   * @param selectedModels - Mapping of AI IDs to model IDs
    * @returns Session data formatted for Redux action
    */
   static prepareSessionData(
     selectedAIs: AIConfig[], 
-    aiPersonalities: Record<string, string>
+    aiPersonalities: Record<string, string>,
+    selectedModels?: Record<string, string>
   ) {
     return {
       selectedAIs,
       aiPersonalities,
+      selectedModels: selectedModels || {},
     };
   }
 

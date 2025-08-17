@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState, setAIPersonality, preserveTopic, clearPreservedTopic } from '../store';
+import { RootState, setAIPersonality, setAIModel, preserveTopic, clearPreservedTopic } from '../store';
 
 import { Box } from '../components/atoms';
 import { Button } from '../components/molecules';
@@ -17,6 +17,7 @@ import {
 import { useTheme } from '../theme';
 import { AIConfig } from '../types';
 import { AI_PROVIDERS } from '../config/aiProviders';
+import { AI_MODELS } from '../config/modelConfigs';
 import { getAIProviderIcon } from '../utils/aiProviderAssets';
 import { DEBATE_TOPICS } from '../constants/debateTopics';
 import { usePreDebateValidation } from '../hooks/debate';
@@ -34,6 +35,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
   const user = useSelector((state: RootState) => state.user.currentUser);
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
   const aiPersonalities = useSelector((state: RootState) => state.chat.aiPersonalities);
+  const selectedModelsFromStore = useSelector((state: RootState) => state.chat.selectedModels);
   const preservedTopic = useSelector((state: RootState) => state.debateStats.preservedTopic);
   const preservedTopicMode = useSelector((state: RootState) => state.debateStats.preservedTopicMode);
   
@@ -50,10 +52,12 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
       .filter(provider => provider.enabled && apiKeys[provider.id as keyof typeof apiKeys])
       .map(provider => {
         const iconData = getAIProviderIcon(provider.id);
+        const defaultModel = AI_MODELS[provider.id]?.find(m => m.isDefault)?.id || AI_MODELS[provider.id]?.[0]?.id || '';
         return {
           id: provider.id,
           provider: provider.id,
           name: provider.name,
+          model: defaultModel,
           personality: 'balanced',
           avatar: iconData.icon, // Keep for backwards compatibility
           icon: iconData.icon,
@@ -68,6 +72,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
   const [selectedTopic, setSelectedTopic] = useState<string>(preservedTopic || '');
   const [customTopic, setCustomTopic] = useState(preservedTopicMode === 'custom' ? (preservedTopic || '') : '');
   const [topicMode, setTopicMode] = useState<'preset' | 'custom' | 'surprise'>(preservedTopicMode || 'preset');
+  const [selectedModels, setSelectedModels] = useState<Record<string, string>>(selectedModelsFromStore || {});
   
   // Debate mode always requires exactly 2 AIs
   const maxAIs = 2;
@@ -111,6 +116,14 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
     dispatch(setAIPersonality({ aiId, personalityId }));
   };
   
+  const handleModelChange = (aiId: string, modelId: string) => {
+    dispatch(setAIModel({ aiId, modelId }));
+    setSelectedModels(prev => ({
+      ...prev,
+      [aiId]: modelId
+    }));
+  };
+  
   const handleStartDebate = () => {
     if (selectedAIs.length < 2) {
       Alert.alert('Select More AIs', 'You need at least 2 AIs for a debate!');
@@ -123,11 +136,17 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
       return;
     }
     
+    // Update AIs with selected models
+    const aiConfigsWithModels = selectedAIs.map(ai => ({
+      ...ai,
+      model: selectedModels[ai.id] || ai.model,
+    }));
+    
     // Clear preserved topic since we're starting the debate
     clearPreservedData();
     
     navigation.navigate('Debate', { 
-      selectedAIs,
+      selectedAIs: aiConfigsWithModels,
       topic: finalTopic,
       personalities: aiPersonalities,
     });
@@ -247,8 +266,10 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation }) => 
             maxAIs={maxAIs}
             isPremium={isPremium}
             aiPersonalities={aiPersonalities}
+            selectedModels={selectedModels}
             onToggleAI={handleToggleAI}
             onPersonalityChange={handlePersonalityChange}
+            onModelChange={handleModelChange}
             onAddAI={() => navigation.navigate('APIConfig')}
             onNext={handleAINext}
             onBack={() => setCurrentStep('topic')}

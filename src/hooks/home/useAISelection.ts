@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState, setAIPersonality } from '../../store';
+import { RootState, setAIPersonality, setAIModel } from '../../store';
 import { AIConfigurationService } from '../../services/home/AIConfigurationService';
 import { AIConfig } from '../../types';
 
@@ -12,6 +12,7 @@ export const useAISelection = (maxAIs: number) => {
   const dispatch = useDispatch();
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
   const aiPersonalities = useSelector((state: RootState) => state.chat.aiPersonalities);
+  const selectedModels = useSelector((state: RootState) => state.chat.selectedModels);
   
   const [selectedAIs, setSelectedAIs] = useState<AIConfig[]>([]);
 
@@ -50,6 +51,16 @@ export const useAISelection = (maxAIs: number) => {
    */
   const changePersonality = (aiId: string, personalityId: string) => {
     dispatch(setAIPersonality({ aiId, personalityId }));
+  };
+
+  /**
+   * Handles model change for a specific AI.
+   * 
+   * @param aiId - ID of the AI to change model for
+   * @param modelId - New model ID
+   */
+  const changeModel = (aiId: string, modelId: string) => {
+    dispatch(setAIModel({ aiId, modelId }));
   };
 
   /**
@@ -135,6 +146,10 @@ export const useAISelection = (maxAIs: number) => {
     // Personality Management
     changePersonality,
     aiPersonalities,
+    
+    // Model Management
+    changeModel,
+    selectedModels,
     
     // Status Checks
     isAISelected,

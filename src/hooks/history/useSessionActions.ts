@@ -102,7 +102,7 @@ export const useSessionActions = (navigation: HistoryScreenNavigationProps): Use
       
       await Share.share({
         message: shareContent,
-        title: `DebateAI Conversation - ${aiNames}`
+        title: `Symposium AI Conversation - ${aiNames}`
       });
       
     } catch (error) {

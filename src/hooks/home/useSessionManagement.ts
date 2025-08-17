@@ -10,6 +10,7 @@ import { AIConfig } from '../../types';
 export const useSessionManagement = () => {
   const dispatch = useDispatch();
   const aiPersonalities = useSelector((state: RootState) => state.chat.aiPersonalities);
+  const selectedModels = useSelector((state: RootState) => state.chat.selectedModels);
 
   /**
    * Creates a new session with the provided AIs.
@@ -21,8 +22,14 @@ export const useSessionManagement = () => {
     // Validate session before creation
     SessionService.validateSessionAIs(selectedAIs);
     
+    // Update AIs with selected models
+    const aisWithModels = selectedAIs.map(ai => ({
+      ...ai,
+      model: selectedModels[ai.id] || ai.model,
+    }));
+    
     // Prepare session data for Redux
-    const sessionData = SessionService.prepareSessionData(selectedAIs, aiPersonalities);
+    const sessionData = SessionService.prepareSessionData(aisWithModels, aiPersonalities, selectedModels);
     
     // Dispatch session creation to Redux
     dispatch(startSession(sessionData));

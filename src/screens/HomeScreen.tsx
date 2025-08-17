@@ -99,7 +99,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             onAddAI={handleAddAI}
             isPremium={premium.isPremium}
             aiPersonalities={aiSelection.aiPersonalities}
+            selectedModels={aiSelection.selectedModels}
             onPersonalityChange={aiSelection.changePersonality}
+            onModelChange={aiSelection.changeModel}
           />
         </View>
         

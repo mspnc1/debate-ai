@@ -46,8 +46,8 @@ export const SharePreviewCard: React.FC<SharePreviewCardProps> = ({
           <View style={styles.logoRow}>
             <AppLogo size={40} />
             <View style={styles.brandingText}>
-              <Text style={styles.appName}>DebateAI</Text>
-              <Text style={styles.tagline}>Where Truth Emerges</Text>
+              <Text style={styles.appName}>Symposium AI</Text>
+              <Text style={styles.tagline}>Where Understanding Emerges</Text>
             </View>
           </View>
         </View>

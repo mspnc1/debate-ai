@@ -3,6 +3,8 @@
  * Extracted from APIConfigScreen for better separation of concerns
  */
 
+import { getDefaultModel } from '../config/providers/modelRegistry';
+
 export interface TestResult {
   success: boolean;
   message: string;
@@ -215,7 +217,7 @@ export class ConnectionTestService {
     // });
     
     // For now, return mock data
-    return { model: 'claude-3-sonnet-20240229' };
+    return { model: getDefaultModel('claude') };
   }
 
   /**
@@ -226,7 +228,7 @@ export class ConnectionTestService {
     // const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`);
     
     // For now, return mock data
-    return { model: 'gemini-1.5-pro' };
+    return { model: getDefaultModel('google') };
   }
 
   /**
@@ -278,15 +280,8 @@ export class ConnectionTestService {
    * Get mock model name for testing
    */
   private getMockModel(providerId: string): string {
-    // Return actual model IDs that match the config
-    const mockModels: Record<string, string> = {
-      openai: 'gpt-4-turbo',
-      claude: 'claude-3-sonnet-20240229',
-      google: 'gemini-1.5-pro',
-      default: 'default'
-    };
-
-    return mockModels[providerId] || mockModels.default;
+    // Return the actual default model for the provider
+    return getDefaultModel(providerId) || 'unknown-model';
   }
 
   /**

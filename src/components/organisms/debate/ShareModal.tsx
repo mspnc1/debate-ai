@@ -88,9 +88,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     try {
       const { Share } = await import('react-native');
       await Share.share({
-        message: `🤖 ${participants.map(p => p.name).join(' vs ')} debated "${topic}" and ${winner?.name} won! Create your own AI debate at DebateAI.app`,
+        message: `🤖 ${participants.map(p => p.name).join(' vs ')} debated "${topic}" and ${winner?.name} won! Create your own AI debate at SymposiumAI.app`,
         url: 'https://debateai.app',
-        title: 'DebateAI - AI Debate Results',
+        title: 'Symposium AI - AI Debate Results',
       });
       onShare?.('native');
     } catch (error) {

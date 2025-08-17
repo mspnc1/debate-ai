@@ -20,8 +20,10 @@ interface DebateAISelectorProps {
   maxAIs: number;
   isPremium: boolean;
   aiPersonalities: Record<string, string>;
+  selectedModels?: Record<string, string>;
   onToggleAI: (ai: AIConfig) => void;
   onPersonalityChange: (aiId: string, personalityId: string) => void;
+  onModelChange?: (aiId: string, modelId: string) => void;
   onAddAI: () => void;
   onNext: () => void;
   onBack: () => void;
@@ -36,8 +38,10 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
   maxAIs,
   isPremium,
   aiPersonalities,
+  selectedModels = {},
   onToggleAI,
   onPersonalityChange,
+  onModelChange,
   onAddAI,
   onNext,
   onBack,
@@ -90,7 +94,9 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
         customSubtitle="Select exactly 2 AIs for the debate"
         hideStartButton={true}
         aiPersonalities={aiPersonalities}
+        selectedModels={selectedModels}
         onPersonalityChange={onPersonalityChange}
+        onModelChange={onModelChange}
       />
       
       {/* Next Button */}

@@ -68,7 +68,7 @@ export const ShareActionButtons: React.FC<ShareActionButtonsProps> = ({
     const text = encodeURIComponent(
       `🤖 ${participants.join(' vs ')} debated "${topic}"\n` +
       `🏆 ${winner} wins!\n\n` +
-      `Create your own AI debate at DebateAI.app`
+      `Create your own AI debate at SymposiumAI.app`
     );
     
     try {
@@ -92,7 +92,7 @@ export const ShareActionButtons: React.FC<ShareActionButtonsProps> = ({
     const text = encodeURIComponent(
       `🤖 ${participants.join(' vs ')} just debated "${topic}"\n\n` +
       `🏆 ${winner} won the debate!\n\n` +
-      `Want to create your own AI debate? Check out DebateAI.app 🚀`
+      `Want to create your own AI debate? Check out SymposiumAI.app 🚀`
     );
     
     try {
@@ -118,7 +118,7 @@ export const ShareActionButtons: React.FC<ShareActionButtonsProps> = ({
     const text = encodeURIComponent(
       `🤖 ${participants.join(' vs ')} debate: "${topic}"\n\n` +
       `🏆 ${winner} wins!\n\n` +
-      `Create your own AI debate at DebateAI.app\n\n` +
+      `Create your own AI debate at SymposiumAI.app\n\n` +
       `#AIDebate #${participants.join(' #')} #ArtificialIntelligence`
     );
     
@@ -140,7 +140,7 @@ export const ShareActionButtons: React.FC<ShareActionButtonsProps> = ({
 
   const handleCopyLink = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const shareText = `🤖 ${participants.join(' vs ')} debated "${topic}" and ${winner} won! Create your own AI debate at DebateAI.app`;
+    const shareText = `🤖 ${participants.join(' vs ')} debated "${topic}" and ${winner} won! Create your own AI debate at SymposiumAI.app`;
     await Clipboard.setStringAsync(shareText);
     Alert.alert('Copied!', 'Debate details copied to clipboard');
     onCopyLink();

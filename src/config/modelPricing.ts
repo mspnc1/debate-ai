@@ -12,6 +12,14 @@ export interface ProviderPricing {
 // Pricing as of August 2025
 export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
   claude: {
+    'claude-4-20250801': {
+      inputPer1M: 8.00,
+      outputPer1M: 24.00,
+    },
+    'claude-4-fast-20250801': {
+      inputPer1M: 4.00,
+      outputPer1M: 12.00,
+    },
     'claude-3-5-sonnet-20241022': {
       inputPer1M: 3.00,
       outputPer1M: 15.00,
@@ -20,94 +28,95 @@ export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
       inputPer1M: 0.25,
       outputPer1M: 1.25,
     },
-    'claude-3-opus-20240229': {
-      inputPer1M: 15.00,
-      outputPer1M: 75.00,
-    },
   },
   openai: {
-    'gpt-4o': {
+    'gpt-5': {
+      inputPer1M: 20.00,
+      outputPer1M: 60.00,
+    },
+    'gpt-4o-2025': {
       inputPer1M: 2.50,
       outputPer1M: 10.00,
     },
-    'gpt-4o-mini': {
+    'gpt-4o-mini-2025': {
       inputPer1M: 0.15,
       outputPer1M: 0.60,
     },
-    'o1-preview': {
+    'o1-2025': {
       inputPer1M: 15.00,
       outputPer1M: 60.00,
     },
-    'o1-mini': {
+    'o1-mini-2025': {
       inputPer1M: 3.00,
       outputPer1M: 12.00,
     },
-    'gpt-3.5-turbo': {
-      inputPer1M: 0.50,
-      outputPer1M: 1.50,
-    },
   },
   google: {
-    'gemini-1.5-pro': {
+    'gemini-2.5-pro': {
+      inputPer1M: 5.00,
+      outputPer1M: 15.00,
+      freeMessages: 30,
+    },
+    'gemini-2.5-flash': {
+      inputPer1M: 0.10,
+      outputPer1M: 0.40,
+      freeMessages: 1000,
+    },
+    'gemini-1.5-pro-002': {
       inputPer1M: 3.50,
       outputPer1M: 10.50,
       freeMessages: 50,
     },
-    'gemini-1.5-flash': {
+    'gemini-1.5-flash-002': {
       inputPer1M: 0.075,
       outputPer1M: 0.30,
       freeMessages: 1500,
     },
-    'gemini-1.0-pro': {
-      inputPer1M: 0.50,
-      outputPer1M: 1.50,
-      freeMessages: 60,
-    },
   },
   perplexity: {
-    'sonar-pro': {
-      inputPer1M: 3.00,
-      outputPer1M: 15.00,
+    'llama-3.1-sonar-large-128k-online': {
+      inputPer1M: 1.00,
+      outputPer1M: 1.00,
     },
-    'sonar-medium': {
-      inputPer1M: 0.60,
-      outputPer1M: 1.80,
-    },
-    'sonar-small': {
+    'llama-3.1-sonar-small-128k-online': {
       inputPer1M: 0.20,
       outputPer1M: 0.20,
     },
+    'llama-3.1-sonar-huge-128k-online': {
+      inputPer1M: 5.00,
+      outputPer1M: 5.00,
+    },
   },
   mistral: {
-    'mistral-large': {
-      inputPer1M: 4.00,
-      outputPer1M: 12.00,
+    'mistral-large-2407': {
+      inputPer1M: 3.00,
+      outputPer1M: 9.00,
     },
-    'mistral-medium': {
-      inputPer1M: 2.70,
-      outputPer1M: 8.10,
-    },
-    'mistral-small': {
+    'mistral-small-2402': {
       inputPer1M: 1.00,
       outputPer1M: 3.00,
     },
-    'mixtral-8x7b': {
+    'mixtral-8x7b-32768': {
       inputPer1M: 0.70,
       outputPer1M: 0.70,
     },
+    'mixtral-8x22b-32768': {
+      inputPer1M: 1.20,
+      outputPer1M: 1.20,
+    },
   },
   cohere: {
-    'command-r-plus': {
+    'command-r-plus-08-2024': {
       inputPer1M: 3.00,
       outputPer1M: 15.00,
     },
-    'command-r': {
+    'command-r-08-2024': {
       inputPer1M: 0.50,
       outputPer1M: 1.50,
     },
-    'command': {
-      inputPer1M: 1.00,
-      outputPer1M: 2.00,
+    'command-light': {
+      inputPer1M: 0.30,
+      outputPer1M: 0.60,
     },
   },
   together: {
@@ -119,9 +128,9 @@ export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
       inputPer1M: 0.88,
       outputPer1M: 0.88,
     },
-    'mistralai/Mixtral-8x7B-Instruct-v0.1': {
-      inputPer1M: 0.60,
-      outputPer1M: 0.60,
+    'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo': {
+      inputPer1M: 0.20,
+      outputPer1M: 0.20,
     },
     'Qwen/Qwen2.5-72B-Instruct-Turbo': {
       inputPer1M: 1.20,
@@ -136,6 +145,20 @@ export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
     'deepseek-coder': {
       inputPer1M: 0.14,
       outputPer1M: 0.28,
+    },
+    'deepseek-reasoning': {
+      inputPer1M: 0.55,
+      outputPer1M: 2.19,
+    },
+  },
+  grok: {
+    'grok-beta': {
+      inputPer1M: 5.00,
+      outputPer1M: 15.00,
+    },
+    'grok-vision-beta': {
+      inputPer1M: 10.00,
+      outputPer1M: 30.00,
     },
   },
 };

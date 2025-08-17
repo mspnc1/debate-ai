@@ -21,7 +21,9 @@ interface DynamicAISelectorProps {
   customSubtitle?: string;
   hideStartButton?: boolean;  // New prop to hide the start button
   aiPersonalities?: { [aiId: string]: string };
+  selectedModels?: { [aiId: string]: string };
   onPersonalityChange?: (aiId: string, personalityId: string) => void;
+  onModelChange?: (aiId: string, modelId: string) => void;
 }
 
 export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
@@ -35,7 +37,9 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
   customSubtitle,
   hideStartButton = false,
   aiPersonalities = {},
+  selectedModels = {},
   onPersonalityChange,
+  onModelChange,
 }) => {
   const { theme } = useTheme();
   
@@ -113,7 +117,10 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
                     zIndex: 1,
                   }}>
                     <AICard
-                      ai={ai}
+                      ai={{
+                        ...ai,
+                        model: selectedModels[ai.id] || ai.model,
+                      }}
                       isSelected={isSelected}
                       isDisabled={isDisabled}
                       onPress={onToggleAI}
@@ -121,6 +128,7 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
                       style={{ width: '100%' }}
                       personalityId={aiPersonalities[ai.id] || 'default'}
                       onPersonalityChange={isSelected && onPersonalityChange ? (personalityId) => onPersonalityChange(ai.id, personalityId) : undefined}
+                      onModelChange={isSelected && onModelChange ? (modelId) => onModelChange(ai.id, modelId) : undefined}
                       isPremium={isPremium}
                     />
                   </View>

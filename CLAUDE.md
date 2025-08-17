@@ -1,4 +1,4 @@
-# DebateAI - Project Context for Claude
+# Symposium AI - Project Context for Claude
 
 ## Project Overview
 React Native mobile app where AIs debate topics and users can chat with multiple AI providers simultaneously. The app's unique value proposition is the AI Debate Arena where different AIs can debate any topic in real-time, plus the BYOK (Bring Your Own Keys) approach that saves users money compared to multiple AI subscriptions.
@@ -144,17 +144,17 @@ refactor: [component] to atomic architecture
 2. ✅ 100% TypeScript type safety maintained
 3. ✅ Zero ESLint errors or warnings
 4. ✅ Clean, maintainable component structure
-5. ✅ Rebranded from MyAIFriends to DebateAI
+5. ✅ Rebranded from MyAIFriends to Symposium AI
 
 ### 🎯 NEXT STEPS
 1. 📱 Implement Firebase authentication
 2. 💳 Add in-app purchases (react-native-iap)
-3. 🎨 Create new DebateAI app icons and splash screens
+3. 🎨 Create new Symposium AI app icons and splash screens
 4. 📦 Submit to App Store and Google Play
 5. 🚀 Launch with focus on AI Debate Arena as unique feature
 
 ## Repository Information
-- **GitHub**: https://github.com/mspnc1/debate-ai
+- **GitHub**: https://github.com/mspnc1/symposium-ai
 - **Bundle IDs**: com.braveheartinnovations.debateai
-- **App Name**: DebateAI
-- **Tagline**: Where AIs Debate. Where Truth Emerges.
+- **App Name**: Symposium AI
+- **Tagline**: Where Ideas Converge. Where Understanding Emerges.

@@ -51,6 +51,7 @@ interface ChatState {
   typingAIs: string[];
   isLoading: boolean;
   aiPersonalities: { [aiId: string]: string };
+  selectedModels: { [aiId: string]: string };
 }
 
 const initialChatState: ChatState = {
@@ -59,13 +60,18 @@ const initialChatState: ChatState = {
   typingAIs: [],
   isLoading: false,
   aiPersonalities: {},
+  selectedModels: {},
 };
 
 const chatSlice = createSlice({
   name: 'chat',
   initialState: initialChatState,
   reducers: {
-    startSession: (state, action: PayloadAction<{ selectedAIs: AIConfig[]; aiPersonalities?: { [aiId: string]: string } }>) => {
+    startSession: (state, action: PayloadAction<{ 
+      selectedAIs: AIConfig[]; 
+      aiPersonalities?: { [aiId: string]: string };
+      selectedModels?: { [aiId: string]: string };
+    }>) => {
       const newSession: ChatSession = {
         id: `session_${Date.now()}`,
         selectedAIs: action.payload.selectedAIs,
@@ -77,6 +83,7 @@ const chatSlice = createSlice({
       state.currentSession = newSession;
       state.sessions.push(newSession);
       state.aiPersonalities = action.payload.aiPersonalities || {};
+      state.selectedModels = action.payload.selectedModels || {};
     },
     addMessage: (state, action: PayloadAction<Message>) => {
       if (state.currentSession) {
@@ -115,8 +122,14 @@ const chatSlice = createSlice({
     setAIPersonality: (state, action: PayloadAction<{ aiId: string; personalityId: string }>) => {
       state.aiPersonalities[action.payload.aiId] = action.payload.personalityId;
     },
+    setAIModel: (state, action: PayloadAction<{ aiId: string; modelId: string }>) => {
+      state.selectedModels[action.payload.aiId] = action.payload.modelId;
+    },
     clearPersonalities: (state) => {
       state.aiPersonalities = {};
+    },
+    clearModels: (state) => {
+      state.selectedModels = {};
     },
   },
 });
@@ -266,7 +279,7 @@ export type AppDispatch = typeof store.dispatch;
 
 // Export actions
 export const { setUser, updateUIMode, updateSubscription, logout } = userSlice.actions;
-export const { startSession, addMessage, setTypingAI, endSession, loadSession, setLoading, setAIPersonality, clearPersonalities } = chatSlice.actions;
+export const { startSession, addMessage, setTypingAI, endSession, loadSession, setLoading, setAIPersonality, setAIModel, clearPersonalities, clearModels } = chatSlice.actions;
 export const { 
   updateTheme, 
   updateFontSize, 
