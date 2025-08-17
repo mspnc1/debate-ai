@@ -10,37 +10,42 @@ export interface ProviderPricing {
 }
 
 // Pricing as of August 2025
+// Source: Web search results and official API documentation
 export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
   claude: {
-    'claude-4-20250801': {
-      inputPer1M: 8.00,
-      outputPer1M: 24.00,
+    'claude-4-1-opus-20250805': {
+      inputPer1M: 15.00,  // Actual Claude 4.1 Opus pricing
+      outputPer1M: 75.00,
     },
-    'claude-4-fast-20250801': {
-      inputPer1M: 4.00,
-      outputPer1M: 12.00,
-    },
-    'claude-3-5-sonnet-20241022': {
-      inputPer1M: 3.00,
+    'claude-4-sonnet-20250522': {
+      inputPer1M: 3.00,   // Actual Claude 4 Sonnet pricing
       outputPer1M: 15.00,
     },
     'claude-3-5-haiku-20241022': {
-      inputPer1M: 0.25,
+      inputPer1M: 0.80,   // Actual Claude 3.5 Haiku pricing
+      outputPer1M: 4.00,
+    },
+    'claude-3-haiku-20240307': {
+      inputPer1M: 0.25,   // Legacy Claude 3 Haiku pricing
       outputPer1M: 1.25,
     },
   },
   openai: {
     'gpt-5': {
-      inputPer1M: 20.00,
-      outputPer1M: 60.00,
+      inputPer1M: 1.25,   // Actual GPT-5 pricing from web search
+      outputPer1M: 10.00,  // Plus $0.125 per 1M for cached input
     },
-    'gpt-4o-2025': {
-      inputPer1M: 2.50,
-      outputPer1M: 10.00,
+    'gpt-5-mini': {
+      inputPer1M: 0.30,   // Estimated based on typical mini model pricing
+      outputPer1M: 1.20,
     },
-    'gpt-4o-mini-2025': {
-      inputPer1M: 0.15,
+    'gpt-5-nano': {
+      inputPer1M: 0.15,   // Estimated based on typical nano model pricing
       outputPer1M: 0.60,
+    },
+    'gpt-4o': {
+      inputPer1M: 2.50,   // Previous generation pricing
+      outputPer1M: 10.00,
     },
     'o1-2025': {
       inputPer1M: 15.00,

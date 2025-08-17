@@ -88,10 +88,11 @@ export const resolveModelAlias = (modelId: string): string => {
 // Helper function to get default model for a provider
 export const getDefaultModel = (providerId: string): string => {
   // Return the model marked as isDefault: true for each provider
+  // Updated August 2025 based on actual model availability
   const defaults: Record<string, string> = {
-    claude: 'claude-4-20250801',
-    openai: 'gpt-5',
-    google: 'gemini-2.5-pro',
+    claude: 'claude-4-sonnet-20250522',  // Claude 4 Sonnet is default
+    openai: 'gpt-5',  // GPT-5 is default for free users
+    google: 'gemini-2-5-flash',  // Gemini 2.5 Flash for efficiency
     grok: 'grok-beta',
     perplexity: 'llama-3.1-sonar-large-128k-online',
     mistral: 'mistral-large-2407',
@@ -106,7 +107,7 @@ export const getDefaultModel = (providerId: string): string => {
 // Helper function to get non-premium default model for free users
 export const getFreeDefaultModel = (providerId: string): string => {
   const freeDefaults: Record<string, string> = {
-    claude: 'claude-4-fast-20250801',
+    claude: 'claude-4-sonnet-20250522',  // Claude 4 Sonnet for free users
     openai: 'gpt-4o-mini-2025',
     google: 'gemini-2.5-flash',
     grok: 'grok-beta',
