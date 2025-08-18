@@ -222,17 +222,22 @@ export class DebateOrchestrator {
         currentAI.id,
         contextualPrompt,
         debateMessages,
-        true // isDebateMode
+        true, // isDebateMode
+        undefined, // no resumption context
+        undefined, // no attachments in debate
+        currentAI.model // Pass the specific model for this AI
       );
       
       // Create AI message
       const personalityName = UNIVERSAL_PERSONALITIES.find(p => p.id === personalityId)?.name || 'Default';
+      const { response: responseText, modelUsed } = response;
       const aiMessage: Message = {
         id: `msg_${Date.now()}_${currentAI.id}`,
         sender: `${currentAI.name} (${personalityName})`,
         senderType: 'ai',
-        content: response,
+        content: responseText,
         timestamp: Date.now(),
+        metadata: modelUsed ? { modelUsed } : undefined,
       };
       
       // Add message to our tracked messages

@@ -30,24 +30,28 @@ export interface ProviderDefinition {
 
 // Model aliases for version management
 export const MODEL_ALIASES: Record<string, string> = {
-  // Claude aliases
-  'claude-latest': 'claude-4-20250801',
-  'claude-fast-latest': 'claude-4-fast-20250801',
-  'claude-sonnet-latest': 'claude-3-5-sonnet-20241022',
+  // Claude aliases - Updated August 2025 with correct model IDs
+  'claude-latest': 'claude-3-7-sonnet-20250219',
+  'claude-opus-latest': 'claude-opus-4-1-20250805',
+  'claude-sonnet-latest': 'claude-3-7-sonnet-20250219',
   'claude-haiku-latest': 'claude-3-5-haiku-20241022',
   
   // OpenAI aliases
   'gpt-latest': 'gpt-5',
-  'gpt-4o-latest': 'gpt-4o-2025',
-  'gpt-4o-mini-latest': 'gpt-4o-mini-2025',
+  'gpt-5-latest': 'gpt-5',
+  'gpt-5-mini-latest': 'gpt-5-mini',
+  'gpt-5-nano-latest': 'gpt-5-nano',
+  'gpt-4o-latest': 'gpt-4o',
   'o1-latest': 'o1-2025',
   'o1-mini-latest': 'o1-mini-2025',
   
-  // Google aliases
-  'gemini-pro-latest': 'gemini-2.5-pro',
-  'gemini-flash-latest': 'gemini-2.5-flash',
+  // Google aliases - Updated with actual available models
+  'gemini-latest': 'gemini-2.0-flash-exp',
+  'gemini-pro-latest': 'gemini-1.5-pro-002',
+  'gemini-flash-latest': 'gemini-2.0-flash-exp',
   'gemini-1.5-pro-latest': 'gemini-1.5-pro-002',
   'gemini-1.5-flash-latest': 'gemini-1.5-flash-002',
+  'gemini-thinking': 'gemini-2.0-flash-thinking-exp-1219',
   
   // Grok aliases
   'grok-latest': 'grok-beta',
@@ -90,9 +94,9 @@ export const getDefaultModel = (providerId: string): string => {
   // Return the model marked as isDefault: true for each provider
   // Updated August 2025 based on actual model availability
   const defaults: Record<string, string> = {
-    claude: 'claude-4-sonnet-20250522',  // Claude 4 Sonnet is default
+    claude: 'claude-3-7-sonnet-20250219',  // Claude 3.7 Sonnet is default for free users
     openai: 'gpt-5',  // GPT-5 is default for free users
-    google: 'gemini-2-5-flash',  // Gemini 2.5 Flash for efficiency
+    google: 'gemini-2.5-flash',  // Gemini 2.5 Flash for efficiency
     grok: 'grok-beta',
     perplexity: 'llama-3.1-sonar-large-128k-online',
     mistral: 'mistral-large-2407',
@@ -108,7 +112,7 @@ export const getDefaultModel = (providerId: string): string => {
 export const getFreeDefaultModel = (providerId: string): string => {
   const freeDefaults: Record<string, string> = {
     claude: 'claude-4-sonnet-20250522',  // Claude 4 Sonnet for free users
-    openai: 'gpt-4o-mini-2025',
+    openai: 'gpt-5',  // GPT-5 is default for free users per web search
     google: 'gemini-2.5-flash',
     grok: 'grok-beta',
     perplexity: 'llama-3.1-sonar-small-128k-online',

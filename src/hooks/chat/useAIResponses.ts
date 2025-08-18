@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import { addMessage, setTypingAI } from '../../store';
-import { Message } from '../../types';
+import { Message, MessageAttachment } from '../../types';
 import { useAIService } from '../../providers/AIServiceProvider';
 import { ChatService, PromptBuilder } from '../../services/chat';
 import { getPersonality } from '../../config/personalities';
@@ -13,7 +13,8 @@ export interface AIResponsesHook {
   isAnyAITyping: boolean;
   sendAIResponses: (
     userMessage: Message, 
-    enrichedPrompt?: string
+    enrichedPrompt?: string,
+    attachments?: MessageAttachment[]
   ) => Promise<void>;
   sendQuickStartResponses: (
     userPrompt: string,
@@ -39,7 +40,8 @@ export const useAIResponses = (isResuming?: boolean): AIResponsesHook => {
 
   const sendAIResponses = async (
     userMessage: Message,
-    enrichedPrompt?: string
+    enrichedPrompt?: string,
+    attachments?: MessageAttachment[]
   ): Promise<void> => {
     if (!aiService || !isInitialized || !currentSession) {
       console.error('AI service not ready or no active session');
@@ -100,17 +102,24 @@ export const useAIResponses = (isResuming?: boolean): AIResponsesHook => {
               personality
             );
 
-        // Get AI response
-        const response = await aiService.sendMessage(
+        // Get AI response (only pass attachments to first AI in the conversation)
+        const responseStart = Date.now();
+        const { response, modelUsed } = await aiService.sendMessage(
           ai.id,
           promptForAI,
           conversationContext.messages.slice(0, -1), // Don't include the current user message
           conversationContext.isDebateMode,
-          resumptionContext
+          resumptionContext,
+          isFirstAI ? attachments : undefined,  // Only pass attachments to first AI
+          ai.model  // Pass the specific model for this AI
         );
+        const responseTime = Date.now() - responseStart;
 
-        // Create AI message
-        const aiMessage = ChatService.createAIMessage(ai, response);
+        // Create AI message with metadata
+        const aiMessage = ChatService.createAIMessage(ai, response, {
+          modelUsed,
+          responseTime
+        });
         dispatch(addMessage(aiMessage));
 
         // Update context for next AI
@@ -186,14 +195,22 @@ export const useAIResponses = (isResuming?: boolean): AIResponsesHook => {
           historyToPass = conversationContext.messages.slice(0, -1);
         }
         
-        const response = await aiService.sendMessage(
+        const responseStart = Date.now();
+        const { response, modelUsed } = await aiService.sendMessage(
           ai.id,
           promptForAI,
           historyToPass,
-          false
+          false,
+          undefined,  // No resumption context
+          undefined,  // No attachments for quick start
+          ai.model    // Pass the specific model for this AI
         );
+        const responseTime = Date.now() - responseStart;
 
-        const aiMessage = ChatService.createAIMessage(ai, response);
+        const aiMessage = ChatService.createAIMessage(ai, response, {
+          modelUsed,
+          responseTime
+        });
         dispatch(addMessage(aiMessage));
         
         // Update context for next AI

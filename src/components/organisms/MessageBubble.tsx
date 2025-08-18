@@ -148,16 +148,24 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLast, s
           {searchTerm ? <HighlightedText text={message.content} searchTerm={searchTerm} /> : highlightMentions(message.content)}
         </Typography>
       </Box>
-      <Typography 
-        variant="caption" 
-        color="secondary"
-        style={{
-          ...styles.timestamp,
-          ...(isUser && styles.userTimestamp)
-        }}
-      >
-        {formatTime(message.timestamp)}
-      </Typography>
+      <Box style={[styles.metadataContainer, isUser && styles.userMetadata]}>
+        <Typography 
+          variant="caption" 
+          color="secondary"
+          style={styles.timestamp}
+        >
+          {formatTime(message.timestamp)}
+        </Typography>
+        {!isUser && message.metadata?.modelUsed && (
+          <Typography
+            variant="caption"
+            color="secondary"
+            style={styles.modelInfo}
+          >
+            • {message.metadata.modelUsed}
+          </Typography>
+        )}
+      </Box>
     </Animated.View>
   );
 };
@@ -180,10 +188,22 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   timestamp: {
-    marginTop: 4,
     fontSize: 11,
   },
   userTimestamp: {
     textAlign: 'right',
+  },
+  metadataContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 4,
+  },
+  userMetadata: {
+    justifyContent: 'flex-end',
+  },
+  modelInfo: {
+    fontSize: 11,
+    fontStyle: 'italic',
   },
 });

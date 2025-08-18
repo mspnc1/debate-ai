@@ -13,20 +13,32 @@ export interface ProviderPricing {
 // Source: Web search results and official API documentation
 export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
   claude: {
-    'claude-4-1-opus-20250805': {
-      inputPer1M: 15.00,  // Actual Claude 4.1 Opus pricing
+    'claude-opus-4-1-20250805': {
+      inputPer1M: 15.00,  // Claude 4.1 Opus pricing
       outputPer1M: 75.00,
     },
-    'claude-4-sonnet-20250522': {
-      inputPer1M: 3.00,   // Actual Claude 4 Sonnet pricing
+    'claude-sonnet-4-20250514': {
+      inputPer1M: 3.00,   // Claude 4 Sonnet pricing
+      outputPer1M: 15.00,
+    },
+    'claude-3-7-sonnet-20250219': {
+      inputPer1M: 3.00,   // Claude 3.7 Sonnet pricing
+      outputPer1M: 15.00,
+    },
+    'claude-3-5-sonnet-20241022': {
+      inputPer1M: 3.00,   // Claude 3.5 Sonnet pricing
       outputPer1M: 15.00,
     },
     'claude-3-5-haiku-20241022': {
-      inputPer1M: 0.80,   // Actual Claude 3.5 Haiku pricing
+      inputPer1M: 0.80,   // Claude 3.5 Haiku pricing
       outputPer1M: 4.00,
     },
+    'claude-3-opus-20240229': {
+      inputPer1M: 15.00,  // Claude 3 Opus pricing
+      outputPer1M: 75.00,
+    },
     'claude-3-haiku-20240307': {
-      inputPer1M: 0.25,   // Legacy Claude 3 Haiku pricing
+      inputPer1M: 0.25,   // Claude 3 Haiku pricing
       outputPer1M: 1.25,
     },
   },
@@ -58,24 +70,39 @@ export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
   },
   google: {
     'gemini-2.5-pro': {
-      inputPer1M: 5.00,
-      outputPer1M: 15.00,
+      inputPer1M: 1.25,  // $2.50 for >200K context
+      outputPer1M: 10.00,  // $15.00 for >200K context
       freeMessages: 30,
     },
     'gemini-2.5-flash': {
+      inputPer1M: 0.15,
+      outputPer1M: 0.60,
+      freeMessages: 100,
+    },
+    'gemini-2.5-flash-lite': {
       inputPer1M: 0.10,
       outputPer1M: 0.40,
-      freeMessages: 1000,
+      freeMessages: 200,
     },
-    'gemini-1.5-pro-002': {
+    'gemini-2.0-flash': {
+      inputPer1M: 0.075,
+      outputPer1M: 0.30,
+      freeMessages: 150,
+    },
+    'gemini-1.5-pro': {
       inputPer1M: 3.50,
       outputPer1M: 10.50,
       freeMessages: 50,
     },
-    'gemini-1.5-flash-002': {
+    'gemini-1.5-flash': {
       inputPer1M: 0.075,
       outputPer1M: 0.30,
       freeMessages: 1500,
+    },
+    'gemini-1.5-flash-8b': {
+      inputPer1M: 0.0375,
+      outputPer1M: 0.15,
+      freeMessages: 2000,
     },
   },
   perplexity: {

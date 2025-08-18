@@ -38,7 +38,8 @@ export class ChatService {
    */
   static createAIMessage(
     ai: AI,
-    content: string
+    content: string,
+    metadata?: { modelUsed?: string; responseTime?: number }
   ): Message {
     return {
       id: `msg_${Date.now()}_${ai.id}`,
@@ -46,6 +47,10 @@ export class ChatService {
       senderType: 'ai',
       content,
       timestamp: Date.now(),
+      metadata: metadata ? {
+        modelUsed: metadata.modelUsed,
+        responseTime: metadata.responseTime,
+      } : undefined,
     };
   }
 

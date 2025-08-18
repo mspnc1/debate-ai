@@ -35,3 +35,12 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# API keys and sensitive data
+.env.local
+*.key
+*-api-key*
+
+# API discovery scripts with sensitive data
+/scripts/api-discovery/*.js
+/scripts/api-discovery/*.ts

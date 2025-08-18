@@ -3,6 +3,8 @@ import { KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AIServiceLoading, Header } from '../components/organisms';
 import { useAIService } from '../providers/AIServiceProvider';
+import { MessageAttachment } from '../types';
+import { getAttachmentSupport } from '../utils/attachmentUtils';
 
 // Chat-specific hooks
 import {
@@ -61,18 +63,22 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   const quickStart = useQuickStart({ initialPrompt, userPrompt, autoSend });
 
   // Handle message sending
-  const handleSendMessage = useCallback(async (messageText?: string): Promise<void> => {
+  const handleSendMessage = useCallback(async (messageText?: string, attachments?: MessageAttachment[]): Promise<void> => {
     const textToSend = messageText || input.inputText;
     
-    if (!textToSend.trim() || !session.currentSession) {
+    if (!textToSend.trim() && (!attachments || attachments.length === 0)) {
+      return;
+    }
+    
+    if (!session.currentSession) {
       return;
     }
 
     // Parse mentions from the message
     const messageMentions = mentions.parseMentions(textToSend);
     
-    // Send user message
-    messages.sendMessage(textToSend, messageMentions);
+    // Send user message with attachments
+    messages.sendMessage(textToSend, messageMentions, attachments);
     
     // Clear input and dismiss keyboard
     input.clearInput();
@@ -86,10 +92,11 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
       content: textToSend.trim(),
       timestamp: Date.now(),
       mentions: messageMentions,
+      attachments,
     };
 
-    // Trigger AI responses
-    await aiResponses.sendAIResponses(userMessage);
+    // Trigger AI responses with attachments
+    await aiResponses.sendAIResponses(userMessage, undefined, attachments);
   }, [input, session.currentSession, mentions, messages, aiResponses]);
 
   // Auto-save session when it's created or messages change
@@ -206,6 +213,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
           onSend={handleSendMessage}
           placeholder="Type a message..."
           disabled={aiResponses.isProcessing}
+          supportsAttachments={getAttachmentSupport(session.selectedAIs)}
+          maxAttachments={20}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>

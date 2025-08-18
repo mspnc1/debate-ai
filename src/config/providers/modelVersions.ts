@@ -29,31 +29,54 @@ export interface ProviderVersions {
  */
 export const MODEL_VERSIONS: ProviderVersions = {
   claude: {
-    flagship: [
+    premium: [
       {
-        id: 'claude-4-20250801',
-        version: '4.0',
-        releaseDate: '2025-08-01',
+        id: 'claude-opus-4-1-20250805',
+        version: '4.1-opus',
+        releaseDate: '2025-08-05',
+        isLatest: true,
+      },
+      {
+        id: 'claude-sonnet-4-20250514',
+        version: '4.0-sonnet',
+        releaseDate: '2025-05-14',
+        isLatest: false,
+      },
+      {
+        id: 'claude-3-opus-20240229',
+        version: '3.0-opus',
+        releaseDate: '2024-02-29',
+        isLatest: false,
+        isDeprecated: true,
+        deprecationDate: '2025-06-30',
+        replacedBy: 'claude-opus-4-1-20250805',
+      },
+    ],
+    balanced: [
+      {
+        id: 'claude-3-7-sonnet-20250219',
+        version: '3.7-sonnet',
+        releaseDate: '2025-02-19',
         isLatest: true,
       },
       {
         id: 'claude-3-5-sonnet-20241022',
-        version: '3.5',
+        version: '3.5-sonnet',
         releaseDate: '2024-10-22',
         isLatest: false,
       },
     ],
-    fast: [
-      {
-        id: 'claude-4-fast-20250801',
-        version: '4.0-fast',
-        releaseDate: '2025-08-01',
-        isLatest: true,
-      },
+    economy: [
       {
         id: 'claude-3-5-haiku-20241022',
         version: '3.5-haiku',
         releaseDate: '2024-10-22',
+        isLatest: true,
+      },
+      {
+        id: 'claude-3-haiku-20240307',
+        version: '3.0-haiku',
+        releaseDate: '2024-03-07',
         isLatest: false,
       },
     ],
@@ -100,28 +123,46 @@ export const MODEL_VERSIONS: ProviderVersions = {
     flagship: [
       {
         id: 'gemini-2.5-pro',
-        version: '2.5-pro',
-        releaseDate: '2025-07-01',
+        version: '2.5',
+        releaseDate: '2025-06-17',
         isLatest: true,
       },
       {
-        id: 'gemini-1.5-pro-002',
-        version: '1.5-pro-002',
-        releaseDate: '2024-11-01',
+        id: 'gemini-1.5-pro',
+        version: '001',
+        releaseDate: '2024-05-01',
         isLatest: false,
       },
     ],
     fast: [
       {
         id: 'gemini-2.5-flash',
-        version: '2.5-flash',
-        releaseDate: '2025-07-01',
+        version: '001',
+        releaseDate: '2025-06-01',
         isLatest: true,
       },
       {
-        id: 'gemini-1.5-flash-002',
-        version: '1.5-flash-002',
-        releaseDate: '2024-11-01',
+        id: 'gemini-2.5-flash-lite',
+        version: '001',
+        releaseDate: '2025-07-01',
+        isLatest: false,
+      },
+      {
+        id: 'gemini-2.0-flash',
+        version: '2.0',
+        releaseDate: '2025-01-01',
+        isLatest: false,
+      },
+      {
+        id: 'gemini-1.5-flash',
+        version: '001',
+        releaseDate: '2024-05-01',
+        isLatest: false,
+      },
+      {
+        id: 'gemini-1.5-flash-8b',
+        version: '001',
+        releaseDate: '2024-10-01',
         isLatest: false,
       },
     ],

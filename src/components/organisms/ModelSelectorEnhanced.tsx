@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, TouchableOpacity, ScrollView, Modal, Dimensions } from 'react-native';
-import { useSelector } from 'react-redux';
-import { RootState } from '../../store';
+// import { useSelector } from 'react-redux';
+// import { RootState } from '../../store';
 import { Typography, Badge } from '../molecules';
 import { useTheme } from '../../theme';
 import { AI_MODELS } from '../../config/modelConfigs';
@@ -29,8 +29,9 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
   aiName = '',
 }) => {
   const { theme } = useTheme();
-  const user = useSelector((state: RootState) => state.user.currentUser);
-  const isPremium = user?.subscription === 'pro' || user?.subscription === 'business';
+  // const user = useSelector((state: RootState) => state.user.currentUser);
+  // const isPremium = user?.subscription === 'pro' || user?.subscription === 'business';
+  // TESTING: Premium checks disabled
   
   const [isModalVisible, setIsModalVisible] = useState(false);
   
@@ -42,9 +43,9 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
     return models.find(m => m.id === selectedModel);
   }, [models, selectedModel]);
   
-  const canSelectModel = (model: typeof models[0]) => {
-    // Free users can only use default models
-    if (!isPremium && model.isPremium) return false;
+  const canSelectModel = (_model: typeof models[0]) => {
+    // TESTING: Premium checks disabled - all models available
+    // if (!isPremium && model.isPremium) return false;
     return true;
   };
   
@@ -102,7 +103,7 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
             )}
           </View>
           <Typography variant="body" color="secondary">
-            {isPremium ? '▼' : '🔒'}
+            ▼
           </Typography>
         </TouchableOpacity>
         
@@ -193,7 +194,7 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
                               <Badge label="Default" type="default" />
                             )}
                             {model.isPremium && (
-                              <Badge label={isLocked ? "Locked" : "Premium"} type="premium" />
+                              <Badge label="Premium" type="premium" />
                             )}
                           </View>
                           
@@ -237,6 +238,7 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
                   );
                 })}
                 
+                {/* TESTING: Premium upgrade message disabled
                 {!isPremium && (
                   <View style={{
                     backgroundColor: theme.colors.primary[50],
@@ -249,6 +251,7 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
                     </Typography>
                   </View>
                 )}
+                */}
               </ScrollView>
             </Animated.View>
           </View>
@@ -307,7 +310,7 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
               
               {model.isPremium && (
                 <Badge 
-                  label={isLocked ? "Locked" : "Premium"} 
+                  label="Premium" 
                   type="premium" 
                 />
               )}

@@ -3,13 +3,13 @@ import { FlatList } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import { addMessage } from '../../store';
-import { Message } from '../../types';
+import { Message, MessageAttachment } from '../../types';
 import { ChatService, MessageService } from '../../services/chat';
 
 export interface ChatMessagesHook {
   messages: Message[];
   flatListRef: React.RefObject<FlatList | null>;
-  sendMessage: (content: string, mentions?: string[]) => void;
+  sendMessage: (content: string, mentions?: string[], attachments?: MessageAttachment[]) => void;
   scrollToBottom: () => void;
   scrollToMessage: (messageIndex: number) => void;
   hasMessages: boolean;
@@ -24,16 +24,21 @@ export const useChatMessages = (): ChatMessagesHook => {
   
   const messages = currentSession?.messages || [];
 
-  const sendMessage = (content: string, mentions: string[] = []): void => {
-    // Validate message content
-    const validation = ChatService.validateMessageContent(content);
-    if (!validation.isValid) {
-      console.error('Invalid message:', validation.error);
-      return;
+  const sendMessage = (content: string, mentions: string[] = [], attachments?: MessageAttachment[]): void => {
+    // Validate message content (allow empty content if attachments exist)
+    if (!attachments || attachments.length === 0) {
+      const validation = ChatService.validateMessageContent(content);
+      if (!validation.isValid) {
+        console.error('Invalid message:', validation.error);
+        return;
+      }
     }
 
-    // Create user message
-    const userMessage = ChatService.createUserMessage(content, mentions);
+    // Create user message with attachments
+    const userMessage = {
+      ...ChatService.createUserMessage(content, mentions),
+      attachments,
+    };
     
     // Dispatch to Redux
     dispatch(addMessage(userMessage));

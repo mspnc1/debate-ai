@@ -52,6 +52,16 @@ export interface MessageMetadata {
   conversationTurn?: number;
   responseTime?: number;
   wordCount?: number;
+  modelUsed?: string; // Track which AI model actually responded
+}
+
+export interface MessageAttachment {
+  type: 'image' | 'document';
+  uri: string;
+  mimeType: string;
+  base64?: string;
+  fileName?: string;
+  fileSize?: number; // in bytes
 }
 
 export interface Message {
@@ -62,6 +72,7 @@ export interface Message {
   timestamp: number;
   mentions?: string[];
   metadata?: MessageMetadata;
+  attachments?: MessageAttachment[];
 }
 
 export interface ChatSession {
@@ -93,10 +104,13 @@ export interface ModelParameters {
   temperature: number;
   maxTokens: number;
   topP?: number;
+  topK?: number; // Claude-specific parameter
   frequencyPenalty?: number;
   presencePenalty?: number;
   stopSequences?: string[];
   seed?: number;
+  useExtendedContext?: boolean; // Enable 1M context for supported Claude models
+  useExtendedOutput?: boolean; // Enable 128K output for supported Claude models
 }
 
 export interface ExpertConfig {
