@@ -100,7 +100,7 @@ export const getDefaultModel = (providerId: string): string => {
     google: 'gemini-2.5-flash',  // Gemini 2.5 Flash for efficiency
     grok: 'grok-2-1212',
     perplexity: 'sonar',
-    mistral: 'mistral-large-2407',
+    mistral: 'mistral-medium-latest',
     cohere: 'command-r-plus-08-2024',
     together: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
     deepseek: 'deepseek-chat',

@@ -5,14 +5,14 @@ export class MistralAdapter extends OpenAICompatibleAdapter {
   protected getProviderConfig(): ProviderConfig {
     return {
       baseUrl: 'https://api.mistral.ai/v1',
-      defaultModel: 'mistral-large',
+      defaultModel: 'mistral-medium-latest',
       headers: (apiKey: string) => ({
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       }),
       capabilities: {
         streaming: true,
-        attachments: false,
+        attachments: true,  // Many models now support vision
         functionCalling: true,
         systemPrompt: true,
         maxTokens: 32768,
