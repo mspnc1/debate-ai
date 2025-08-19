@@ -12,7 +12,9 @@ export class DeepSeekAdapter extends OpenAICompatibleAdapter {
       }),
       capabilities: {
         streaming: true,
-        attachments: false,
+        attachments: true,  // Enabled for testing
+        supportsImages: true,  // Enabled for testing
+        supportsDocuments: true,  // Enabled for testing
         functionCalling: true,
         systemPrompt: true,
         maxTokens: 4096,

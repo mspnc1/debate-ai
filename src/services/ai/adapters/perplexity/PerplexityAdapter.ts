@@ -17,6 +17,8 @@ export class PerplexityAdapter extends OpenAICompatibleAdapter {
       capabilities: {
         streaming: true,
         attachments: true,  // Supports images via OpenAI format
+        supportsImages: true,  // Enabled for testing
+        supportsDocuments: true,  // Enabled for testing
         functionCalling: false,
         systemPrompt: true,
         maxTokens: 4096,

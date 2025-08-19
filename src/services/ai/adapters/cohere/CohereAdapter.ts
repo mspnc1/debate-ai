@@ -10,7 +10,9 @@ export class CohereAdapter extends BaseAdapter {
   getCapabilities(): AdapterCapabilities {
     return {
       streaming: true,
-      attachments: false,
+      attachments: true,  // Enabled for testing
+      supportsImages: true,  // Enabled for testing
+      supportsDocuments: true,  // Enabled for testing
       functionCalling: false,
       systemPrompt: true,
       maxTokens: 4096,

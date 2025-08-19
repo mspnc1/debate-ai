@@ -16,6 +16,8 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
       capabilities: {
         streaming: true,
         attachments: true,
+        supportsImages: true,  // Enabled for testing
+        supportsDocuments: true,  // Enabled for testing
         functionCalling: true,
         systemPrompt: true,
         maxTokens: 4096,
