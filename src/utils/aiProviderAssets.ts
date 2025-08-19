@@ -10,6 +10,7 @@ const aiProviderLogos: { [key: string]: number } = {
   google: require('../../assets/ai-providers/google/logo.png'),
   perplexity: require('../../assets/ai-providers/perplexity/logo.png'),
   mistral: require('../../assets/ai-providers/mistral/logo.png'),
+  grok: require('../../assets/ai-providers/grok/logo.png'),
   // cohere: require('../../assets/ai-providers/cohere/logo.png'),
   // together: require('../../assets/ai-providers/together/logo.png'),
   // deepseek: require('../../assets/ai-providers/deepseek/logo.png'),

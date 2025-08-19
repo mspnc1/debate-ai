@@ -12,11 +12,11 @@ export class GrokAdapter extends OpenAICompatibleAdapter {
       }),
       capabilities: {
         streaming: true,
-        attachments: false,
+        attachments: true,  // Supports vision models
         functionCalling: false,
         systemPrompt: true,
         maxTokens: 4096,
-        contextWindow: 256000,
+        contextWindow: 131072,  // Most models use 131K
       },
     };
   }

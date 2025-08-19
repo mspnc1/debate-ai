@@ -54,8 +54,9 @@ export const MODEL_ALIASES: Record<string, string> = {
   'gemini-thinking': 'gemini-2.0-flash-thinking-exp-1219',
   
   // Grok aliases
-  'grok-latest': 'grok-beta',
-  'grok-vision-latest': 'grok-vision-beta',
+  'grok-latest': 'grok-3',
+  'grok-2-latest': 'grok-2-1212',
+  'grok-vision-latest': 'grok-2-vision-1212',
   
   // Perplexity aliases
   'sonar-large-latest': 'llama-3.1-sonar-large-128k-online',
@@ -97,7 +98,7 @@ export const getDefaultModel = (providerId: string): string => {
     claude: 'claude-3-7-sonnet-20250219',  // Claude 3.7 Sonnet is default for free users
     openai: 'gpt-5',  // GPT-5 is default for free users
     google: 'gemini-2.5-flash',  // Gemini 2.5 Flash for efficiency
-    grok: 'grok-beta',
+    grok: 'grok-2-1212',
     perplexity: 'sonar',
     mistral: 'mistral-large-2407',
     cohere: 'command-r-plus-08-2024',
@@ -114,7 +115,7 @@ export const getFreeDefaultModel = (providerId: string): string => {
     claude: 'claude-4-sonnet-20250522',  // Claude 4 Sonnet for free users
     openai: 'gpt-5',  // GPT-5 is default for free users per web search
     google: 'gemini-2.5-flash',
-    grok: 'grok-beta',
+    grok: 'grok-2-1212',
     perplexity: 'sonar',
     mistral: 'mistral-small-2402',
     cohere: 'command-r-08-2024',
