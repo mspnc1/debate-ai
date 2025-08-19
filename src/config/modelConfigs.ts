@@ -96,6 +96,7 @@ export const AI_MODELS: ProviderModels = {
       contextLength: 272000,
       isDefault: true,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
       requiresTemperature1: true, // GPT-5 models require temperature=1
       useMaxCompletionTokens: true, // Uses max_completion_tokens instead of max_tokens
@@ -106,6 +107,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Efficient GPT-5 for faster responses',
       contextLength: 272000,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
       requiresTemperature1: true,
       useMaxCompletionTokens: true,
@@ -116,6 +118,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Ultra-fast GPT-5 for simple tasks',
       contextLength: 272000,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
       requiresTemperature1: true,
       useMaxCompletionTokens: true,
@@ -126,6 +129,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Enhanced GPT-4 with improvements (April 2025)',
       contextLength: 128000,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
     {
@@ -134,6 +138,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Efficient GPT-4.1 variant',
       contextLength: 128000,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
     {
@@ -142,6 +147,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Omni-modal model with vision and audio',
       contextLength: 128000,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
     {
@@ -150,6 +156,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Cost-effective multimodal model',
       contextLength: 128000,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
     {
@@ -158,6 +165,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Fast GPT-4 with latest knowledge',
       contextLength: 128000,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
     {
@@ -168,7 +176,8 @@ export const AI_MODELS: ProviderModels = {
       isPremium: true,
       requiresTemperature1: true,
       useMaxCompletionTokens: true,
-      supportsVision: false,
+      supportsVision: true,
+      supportsDocuments: true,
     },
     {
       id: 'o1-mini',
@@ -177,7 +186,8 @@ export const AI_MODELS: ProviderModels = {
       contextLength: 128000,
       requiresTemperature1: true,
       useMaxCompletionTokens: true,
-      supportsVision: false,
+      supportsVision: true,
+      supportsDocuments: true,
     },
     {
       id: 'o1-pro',
@@ -187,14 +197,16 @@ export const AI_MODELS: ProviderModels = {
       isPremium: true,
       requiresTemperature1: true,
       useMaxCompletionTokens: true,
-      supportsVision: false,
+      supportsVision: true,
+      supportsDocuments: true,
     },
     {
       id: 'gpt-3.5-turbo',
       name: 'GPT-3.5 Turbo',
       description: 'Legacy model, very cost-effective',
       contextLength: 16385,
-      supportsVision: false,
+      supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
   ],
@@ -205,6 +217,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Most cost-effective 2.5 model (July 2025)',
       contextLength: 1048576,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
     {
@@ -215,6 +228,7 @@ export const AI_MODELS: ProviderModels = {
       isDefault: false,
       isPremium: true,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
     {
@@ -224,6 +238,7 @@ export const AI_MODELS: ProviderModels = {
       contextLength: 1048576,
       isDefault: true,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
     {
@@ -232,6 +247,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Fast and versatile (January 2025)',
       contextLength: 1048576,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
     {
@@ -240,6 +256,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Stable with 2M context window (May 2024)',
       contextLength: 2000000,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
     {
@@ -248,6 +265,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Fast with 1M context',
       contextLength: 1000000,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
     {
@@ -256,6 +274,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Smallest and most cost-effective (Oct 2024)',
       contextLength: 1000000,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
   ],
@@ -268,6 +287,7 @@ export const AI_MODELS: ProviderModels = {
       isDefault: true,
       supportsWebSearch: true,
       supportsVision: true,  // Supports image analysis
+      supportsDocuments: true,
     },
     {
       id: 'sonar-pro',
@@ -277,6 +297,7 @@ export const AI_MODELS: ProviderModels = {
       isPremium: true,
       supportsWebSearch: true,
       supportsVision: true,  // Supports image analysis
+      supportsDocuments: true,
     },
   ],
   mistral: [
@@ -288,6 +309,7 @@ export const AI_MODELS: ProviderModels = {
       isDefault: true,
       isPremium: true,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
     {
@@ -297,6 +319,7 @@ export const AI_MODELS: ProviderModels = {
       contextLength: 128000,
       isPremium: true,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
     {
@@ -305,6 +328,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Efficient reasoning model (July 2025)',
       contextLength: 128000,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
     {
@@ -313,7 +337,8 @@ export const AI_MODELS: ProviderModels = {
       description: 'Cutting-edge coding model (August 2025)',
       contextLength: 128000,
       supportsFunctions: true,
-      supportsVision: false,
+      supportsVision: true,
+      supportsDocuments: true,
     },
     {
       id: 'mistral-small-latest',
@@ -321,6 +346,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Enterprise-grade with vision (June 2025)',
       contextLength: 32768,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
     {
@@ -329,6 +355,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Advanced vision model (November 2024)',
       contextLength: 128000,
       supportsVision: true,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
     {
@@ -337,7 +364,8 @@ export const AI_MODELS: ProviderModels = {
       description: 'High-complexity tasks (November 2024)',
       contextLength: 128000,
       supportsFunctions: true,
-      supportsVision: false,
+      supportsVision: true,
+      supportsDocuments: true,
     },
   ],
   cohere: [
@@ -349,6 +377,8 @@ export const AI_MODELS: ProviderModels = {
       isDefault: true,
       isPremium: true,
       supportsFunctions: true,
+      supportsVision: true,
+      supportsDocuments: true,
     },
     {
       id: 'command-r-08-2024',
@@ -356,6 +386,8 @@ export const AI_MODELS: ProviderModels = {
       description: 'Optimized for retrieval tasks',
       contextLength: 128000,
       supportsFunctions: true,
+      supportsVision: true,
+      supportsDocuments: true,
     },
     {
       id: 'command-light',
@@ -363,6 +395,8 @@ export const AI_MODELS: ProviderModels = {
       description: 'Fast and cost-effective',
       contextLength: 4096,
       supportsFunctions: true,
+      supportsVision: true,
+      supportsDocuments: true,
     },
   ],
   together: [
@@ -371,6 +405,8 @@ export const AI_MODELS: ProviderModels = {
       name: 'Qwen 2.5 72B',
       description: 'Strong multilingual capabilities',
       contextLength: 32768,
+      supportsVision: true,
+      supportsDocuments: true,
     },
     {
       id: 'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo',
@@ -378,6 +414,8 @@ export const AI_MODELS: ProviderModels = {
       description: 'Most capable open-source model',
       contextLength: 130000,
       isPremium: true,
+      supportsVision: true,
+      supportsDocuments: true,
     },
     {
       id: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
@@ -385,12 +423,16 @@ export const AI_MODELS: ProviderModels = {
       description: 'Powerful and efficient',
       contextLength: 130000,
       isDefault: true,
+      supportsVision: true,
+      supportsDocuments: true,
     },
     {
       id: 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
       name: 'Llama 3.1 8B',
       description: 'Fast and lightweight',
       contextLength: 130000,
+      supportsVision: true,
+      supportsDocuments: true,
     },
   ],
   deepseek: [
@@ -400,6 +442,8 @@ export const AI_MODELS: ProviderModels = {
       description: 'Advanced reasoning capabilities',
       contextLength: 128000,
       isPremium: true,
+      supportsVision: true,
+      supportsDocuments: true,
     },
     {
       id: 'deepseek-coder',
@@ -407,6 +451,8 @@ export const AI_MODELS: ProviderModels = {
       description: 'Optimized for code generation',
       contextLength: 128000,
       isPremium: true,
+      supportsVision: true,
+      supportsDocuments: true,
     },
     {
       id: 'deepseek-chat',
@@ -414,6 +460,8 @@ export const AI_MODELS: ProviderModels = {
       description: 'General purpose conversation',
       contextLength: 128000,
       isDefault: true,
+      supportsVision: true,
+      supportsDocuments: true,
     },
   ],
   grok: [
@@ -423,6 +471,8 @@ export const AI_MODELS: ProviderModels = {
       description: 'Most advanced reasoning model',
       contextLength: 256000,
       isPremium: true,
+      supportsVision: true,
+      supportsDocuments: true,
     },
     {
       id: 'grok-3',
@@ -430,24 +480,32 @@ export const AI_MODELS: ProviderModels = {
       description: 'Latest generation with enhanced capabilities',
       contextLength: 131072,
       isPremium: true,
+      supportsVision: true,
+      supportsDocuments: true,
     },
     {
       id: 'grok-3-fast',
       name: 'Grok 3 Fast',
       description: 'Optimized for speed with Grok 3 capabilities',
       contextLength: 131072,
+      supportsVision: true,
+      supportsDocuments: true,
     },
     {
       id: 'grok-3-mini',
       name: 'Grok 3 Mini',
       description: 'Lightweight and cost-effective',
       contextLength: 131072,
+      supportsVision: true,
+      supportsDocuments: true,
     },
     {
       id: 'grok-3-mini-fast',
       name: 'Grok 3 Mini Fast',
       description: 'Fastest lightweight model',
       contextLength: 131072,
+      supportsVision: true,
+      supportsDocuments: true,
     },
     {
       id: 'grok-2-1212',
@@ -455,7 +513,8 @@ export const AI_MODELS: ProviderModels = {
       description: 'Advanced reasoning with real-time X data',
       contextLength: 131072,
       isDefault: true,
-      supportsVision: false,
+      supportsVision: true,
+      supportsDocuments: true,
     },
     {
       id: 'grok-2-vision-1212',
@@ -463,6 +522,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Multimodal model with image understanding',
       contextLength: 131072,
       supportsVision: true,
+      supportsDocuments: true,
       isPremium: true,
     },
     {
@@ -471,6 +531,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Specialized for image generation/analysis',
       contextLength: 131072,
       supportsVision: true,
+      supportsDocuments: true,
     },
   ],
 };
