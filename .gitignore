@@ -44,3 +44,14 @@ yarn-error.*
 # API discovery scripts with sensitive data
 /scripts/api-discovery/*.js
 /scripts/api-discovery/*.ts
+
+# Test files that might contain API keys
+test-*.js
+test-*.mjs
+test-*.ts
+*-test.js
+*-test.mjs
+*-test.ts
+
+# Keep the template that shows how to properly load env vars
+!test-api-template.js

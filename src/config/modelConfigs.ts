@@ -7,6 +7,8 @@ export interface ModelConfig {
   isDefault?: boolean;
   supportsVision?: boolean;
   supportsFunctions?: boolean;
+  requiresTemperature1?: boolean;  // For GPT-5 and O1 models
+  useMaxCompletionTokens?: boolean;  // For GPT-5 models that use max_completion_tokens
 }
 
 export interface ProviderModels {
@@ -81,48 +83,110 @@ export const AI_MODELS: ProviderModels = {
     {
       id: 'gpt-5',
       name: 'GPT-5',
-      description: 'Unified AI model with reasoning abilities',
-      contextLength: 272000, // Input limit: 272K tokens
-      isDefault: true, // Default for free users
+      description: 'Latest flagship model with advanced reasoning (August 2025)',
+      contextLength: 272000,
+      isDefault: true,
       supportsVision: true,
       supportsFunctions: true,
+      requiresTemperature1: true, // GPT-5 models require temperature=1
+      useMaxCompletionTokens: true, // Uses max_completion_tokens instead of max_tokens
     },
     {
       id: 'gpt-5-mini',
       name: 'GPT-5 Mini',
-      description: 'Smaller, faster version of GPT-5',
+      description: 'Efficient GPT-5 for faster responses',
       contextLength: 272000,
       supportsVision: true,
       supportsFunctions: true,
+      requiresTemperature1: true,
+      useMaxCompletionTokens: true,
     },
     {
       id: 'gpt-5-nano',
       name: 'GPT-5 Nano',
-      description: 'Most efficient GPT-5 variant',
+      description: 'Ultra-fast GPT-5 for simple tasks',
       contextLength: 272000,
+      supportsVision: true,
+      supportsFunctions: true,
+      requiresTemperature1: true,
+      useMaxCompletionTokens: true,
+    },
+    {
+      id: 'gpt-4.1',
+      name: 'GPT-4.1',
+      description: 'Enhanced GPT-4 with improvements (April 2025)',
+      contextLength: 128000,
+      supportsVision: true,
+      supportsFunctions: true,
+    },
+    {
+      id: 'gpt-4.1-mini',
+      name: 'GPT-4.1 Mini',
+      description: 'Efficient GPT-4.1 variant',
+      contextLength: 128000,
       supportsVision: true,
       supportsFunctions: true,
     },
     {
       id: 'gpt-4o',
       name: 'GPT-4o',
-      description: 'Previous generation multimodal model',
+      description: 'Omni-modal model with vision and audio',
       contextLength: 128000,
       supportsVision: true,
       supportsFunctions: true,
     },
     {
-      id: 'o1-2025',
-      name: 'o1 (2025)',
-      description: 'Advanced reasoning model',
-      contextLength: 200000,
-      isPremium: true,
+      id: 'gpt-4o-mini',
+      name: 'GPT-4o Mini',
+      description: 'Cost-effective multimodal model',
+      contextLength: 128000,
+      supportsVision: true,
+      supportsFunctions: true,
     },
     {
-      id: 'o1-mini-2025',
-      name: 'o1 Mini (2025)',
-      description: 'Fast reasoning model',
+      id: 'gpt-4-turbo',
+      name: 'GPT-4 Turbo',
+      description: 'Fast GPT-4 with latest knowledge',
       contextLength: 128000,
+      supportsVision: true,
+      supportsFunctions: true,
+    },
+    {
+      id: 'o1',
+      name: 'O1',
+      description: 'Advanced reasoning model (December 2024)',
+      contextLength: 200000,
+      isPremium: true,
+      requiresTemperature1: true,
+      useMaxCompletionTokens: true,
+      supportsVision: false,
+    },
+    {
+      id: 'o1-mini',
+      name: 'O1 Mini',
+      description: 'Fast reasoning for coding and math',
+      contextLength: 128000,
+      requiresTemperature1: true,
+      useMaxCompletionTokens: true,
+      supportsVision: false,
+    },
+    {
+      id: 'o1-pro',
+      name: 'O1 Pro',
+      description: 'Most capable reasoning model (March 2025)',
+      contextLength: 200000,
+      isPremium: true,
+      requiresTemperature1: true,
+      useMaxCompletionTokens: true,
+      supportsVision: false,
+    },
+    {
+      id: 'gpt-3.5-turbo',
+      name: 'GPT-3.5 Turbo',
+      description: 'Legacy model, very cost-effective',
+      contextLength: 16385,
+      supportsVision: false,
+      supportsFunctions: true,
     },
   ],
   google: [
