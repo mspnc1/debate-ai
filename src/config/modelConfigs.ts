@@ -7,6 +7,7 @@ export interface ModelConfig {
   isDefault?: boolean;
   supportsVision?: boolean;
   supportsFunctions?: boolean;
+  supportsWebSearch?: boolean;  // For Perplexity models with web search
   requiresTemperature1?: boolean;  // For GPT-5 and O1 models
   useMaxCompletionTokens?: boolean;  // For GPT-5 models that use max_completion_tokens
 }
@@ -252,25 +253,22 @@ export const AI_MODELS: ProviderModels = {
   ],
   perplexity: [
     {
-      id: 'llama-3.1-sonar-large-128k-online',
-      name: 'Sonar Large Online',
-      description: 'Most capable with real-time web search',
+      id: 'sonar',
+      name: 'Sonar',
+      description: 'Fast, cost-efficient with real-time web search and vision',
       contextLength: 127000,
       isDefault: true,
-      isPremium: true,
+      supportsWebSearch: true,
+      supportsVision: true,  // Supports image analysis
     },
     {
-      id: 'llama-3.1-sonar-small-128k-online',
-      name: 'Sonar Small Online',
-      description: 'Fast and efficient with web search',
-      contextLength: 127000,
-    },
-    {
-      id: 'llama-3.1-sonar-huge-128k-online',
-      name: 'Sonar Huge Online',
-      description: 'Maximum capability with web search',
-      contextLength: 127000,
+      id: 'sonar-pro',
+      name: 'Sonar Pro',
+      description: 'Advanced model for complex queries with 2x citations and vision',
+      contextLength: 200000,
       isPremium: true,
+      supportsWebSearch: true,
+      supportsVision: true,  // Supports image analysis
     },
   ],
   mistral: [

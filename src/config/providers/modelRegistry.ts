@@ -98,7 +98,7 @@ export const getDefaultModel = (providerId: string): string => {
     openai: 'gpt-5',  // GPT-5 is default for free users
     google: 'gemini-2.5-flash',  // Gemini 2.5 Flash for efficiency
     grok: 'grok-beta',
-    perplexity: 'llama-3.1-sonar-large-128k-online',
+    perplexity: 'sonar',
     mistral: 'mistral-large-2407',
     cohere: 'command-r-plus-08-2024',
     together: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
@@ -115,7 +115,7 @@ export const getFreeDefaultModel = (providerId: string): string => {
     openai: 'gpt-5',  // GPT-5 is default for free users per web search
     google: 'gemini-2.5-flash',
     grok: 'grok-beta',
-    perplexity: 'llama-3.1-sonar-small-128k-online',
+    perplexity: 'sonar',
     mistral: 'mistral-small-2402',
     cohere: 'command-r-08-2024',
     together: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',

@@ -1,13 +1,14 @@
 import { AIConfig } from '../types';
 import { getModelById } from '../config/modelConfigs';
+import { AdapterFactory } from '../services/ai';
 
 /**
  * Determines if attachments (images/documents) should be enabled based on selected AIs
  * 
  * Rules:
  * 1. Only support attachments when exactly 1 AI is selected (avoid complexity with multiple AIs)
- * 2. The selected AI's provider must have attachment support implemented
- * 3. The selected model must support vision capabilities
+ * 2. The selected model must support vision capabilities (from modelConfigs)
+ * 3. The adapter must have attachment support implemented (from adapter capabilities)
  * 
  * @param selectedAIs Array of selected AI configurations
  * @returns true if attachments should be enabled, false otherwise
@@ -21,31 +22,32 @@ export const getAttachmentSupport = (selectedAIs: AIConfig[]): boolean => {
   
   const ai = selectedAIs[0];
   
-  // Check if the provider has attachment support implemented in the adapter
-  // These providers have full attachment handling in their adapters
-  const providersWithAttachmentSupport = [
-    'claude',    // ClaudeAdapter supports images and documents
-    'openai',    // ChatGPTAdapter supports images and documents
-    'chatgpt',   // Same as openai
-    'google',    // GeminiAdapter supports images and documents
-  ];
+  // First check if the specific model supports vision
+  // This is our source of truth for model capabilities
+  const model = ai.model ? getModelById(ai.provider, ai.model) : null;
   
-  if (!providersWithAttachmentSupport.includes(ai.provider)) {
+  // If we have a model, check its vision support
+  // If no model specified, we can't determine support
+  if (!model || !model.supportsVision) {
     return false;
   }
   
-  // Check if the specific model supports vision
-  // If no model is specified, check the provider default
-  if (!ai.model) {
-    // For providers without model selection, default to true if provider supports it
-    return true;
+  // Now check if the adapter has attachment support implemented
+  try {
+    // Create a minimal config just to check capabilities
+    const adapter = AdapterFactory.create({
+      provider: ai.provider,
+      apiKey: 'dummy', // Not used for capability check
+      model: ai.model,
+    });
+    
+    const capabilities = adapter.getCapabilities();
+    return capabilities.attachments === true;
+  } catch (error) {
+    // If adapter creation fails, assume no attachment support
+    console.warn(`Could not check attachment support for ${ai.provider}:`, error);
+    return false;
   }
-  
-  // Get the model configuration to check vision support
-  const model = getModelById(ai.provider, ai.model);
-  
-  // Return true if the model explicitly supports vision
-  return model?.supportsVision === true;
 };
 
 /**
@@ -66,13 +68,28 @@ export const getAttachmentSupportMessage = (selectedAIs: AIConfig[]): string => 
   const ai = selectedAIs[0];
   const model = ai.model ? getModelById(ai.provider, ai.model) : null;
   
-  if (!model?.supportsVision) {
-    return `The selected model doesn't support image/document attachments`;
+  if (!model) {
+    return 'No model selected';
   }
   
-  const providersWithAttachmentSupport = ['claude', 'openai', 'chatgpt', 'google'];
-  if (!providersWithAttachmentSupport.includes(ai.provider)) {
-    return `${ai.provider} doesn't support attachments yet`;
+  if (!model.supportsVision) {
+    return `${model.name} doesn't support image attachments`;
+  }
+  
+  // Check adapter capabilities
+  try {
+    const adapter = AdapterFactory.create({
+      provider: ai.provider,
+      apiKey: 'dummy',
+      model: ai.model,
+    });
+    
+    const capabilities = adapter.getCapabilities();
+    if (!capabilities.attachments) {
+      return `${ai.provider} adapter doesn't support attachments yet`;
+    }
+  } catch {
+    return `Could not verify attachment support for ${ai.provider}`;
   }
   
   return 'You can attach images or documents';
