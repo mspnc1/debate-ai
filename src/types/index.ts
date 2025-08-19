@@ -47,12 +47,23 @@ export interface AIConfig {
   color?: string;
 }
 
+export interface Citation {
+  index: number;
+  url: string;
+  title?: string;
+  snippet?: string;
+}
+
 export interface MessageMetadata {
   sessionId?: string;
   conversationTurn?: number;
   responseTime?: number;
   wordCount?: number;
   modelUsed?: string; // Track which AI model actually responded
+  
+  // Rich content support
+  citations?: Citation[];  // For Perplexity and other providers with sources
+  providerMetadata?: Record<string, unknown>; // Flexible field for provider-specific data
 }
 
 export interface MessageAttachment {

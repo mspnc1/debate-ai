@@ -2,6 +2,7 @@ import { Message, MessageAttachment } from '../../../../types';
 import { OpenAICompatibleAdapter } from '../../base/OpenAICompatibleAdapter';
 import { ProviderConfig, ResumptionContext, SendMessageResponse } from '../../types/adapter.types';
 import { getDefaultModel, resolveModelAlias } from '../../../../config/providers/modelRegistry';
+import { processPerplexityResponse } from '../../../../utils/responseProcessor';
 
 export class PerplexityAdapter extends OpenAICompatibleAdapter {
   protected getProviderConfig(): ProviderConfig {
@@ -99,34 +100,25 @@ export class PerplexityAdapter extends OpenAICompatibleAdapter {
       
       const data = await response.json();
       
-      // Format response with citations if available
-      let responseText = data.choices[0].message.content || '';
-      
-      // Check if we have citations or search_results
-      interface SearchResult {
-        url: string;
-        title?: string;
-        snippet?: string;
-      }
-      const sources = data.citations || (data.search_results?.map((r: SearchResult) => r.url));
-      
-      // Perplexity already includes [1], [2], etc. in the response text
-      // We should append the actual source URLs if they're not already included
-      if (sources && sources.length > 0 && !responseText.includes('\nSources:')) {
-        responseText += '\n\nSources:';
-        sources.slice(0, 5).forEach((url: string, index: number) => {
-          responseText += `\n[${index + 1}] ${url}`;
-        });
-      }
+      // Process response to extract citations
+      const rawContent = data.choices[0].message.content || '';
+      const processed = processPerplexityResponse(
+        rawContent,
+        data.citations,
+        data.search_results
+      );
       
       return {
-        response: responseText,
+        response: processed.content,
         modelUsed: data.model,
         usage: data.usage ? {
           promptTokens: data.usage.prompt_tokens,
           completionTokens: data.usage.completion_tokens,
           totalTokens: data.usage.total_tokens,
         } : undefined,
+        metadata: {
+          citations: processed.citations,
+        },
       };
     } catch (error) {
       console.error('Error in Perplexity adapter:', error);

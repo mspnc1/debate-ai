@@ -39,7 +39,17 @@ export class ChatService {
   static createAIMessage(
     ai: AI,
     content: string,
-    metadata?: { modelUsed?: string; responseTime?: number }
+    metadata?: { 
+      modelUsed?: string; 
+      responseTime?: number;
+      citations?: Array<{
+        index: number;
+        url: string;
+        title?: string;
+        snippet?: string;
+      }>;
+      providerMetadata?: Record<string, unknown>;
+    }
   ): Message {
     return {
       id: `msg_${Date.now()}_${ai.id}`,
@@ -50,6 +60,8 @@ export class ChatService {
       metadata: metadata ? {
         modelUsed: metadata.modelUsed,
         responseTime: metadata.responseTime,
+        citations: metadata.citations,
+        providerMetadata: metadata.providerMetadata,
       } : undefined,
     };
   }

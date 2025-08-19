@@ -104,7 +104,7 @@ export const useAIResponses = (isResuming?: boolean): AIResponsesHook => {
 
         // Get AI response (only pass attachments to first AI in the conversation)
         const responseStart = Date.now();
-        const { response, modelUsed } = await aiService.sendMessage(
+        const result = await aiService.sendMessage(
           ai.id,
           promptForAI,
           conversationContext.messages.slice(0, -1), // Don't include the current user message
@@ -115,10 +115,18 @@ export const useAIResponses = (isResuming?: boolean): AIResponsesHook => {
         );
         const responseTime = Date.now() - responseStart;
 
+        // Extract response and metadata
+        const response = typeof result === 'string' ? result : result.response;
+        const modelUsed = typeof result === 'string' ? undefined : result.modelUsed;
+        const resultObj = typeof result === 'object' ? result as Record<string, unknown> : null;
+        const metadata = resultObj?.metadata as { citations?: unknown } | undefined;
+        const citations = metadata?.citations as Array<{ index: number; url: string; title?: string; snippet?: string }> | undefined;
+
         // Create AI message with metadata
         const aiMessage = ChatService.createAIMessage(ai, response, {
           modelUsed,
-          responseTime
+          responseTime,
+          citations
         });
         dispatch(addMessage(aiMessage));
 
@@ -196,7 +204,7 @@ export const useAIResponses = (isResuming?: boolean): AIResponsesHook => {
         }
         
         const responseStart = Date.now();
-        const { response, modelUsed } = await aiService.sendMessage(
+        const result = await aiService.sendMessage(
           ai.id,
           promptForAI,
           historyToPass,
@@ -207,9 +215,17 @@ export const useAIResponses = (isResuming?: boolean): AIResponsesHook => {
         );
         const responseTime = Date.now() - responseStart;
 
+        // Extract response and metadata
+        const response = typeof result === 'string' ? result : result.response;
+        const modelUsed = typeof result === 'string' ? undefined : result.modelUsed;
+        const resultObj = typeof result === 'object' ? result as Record<string, unknown> : null;
+        const metadata = resultObj?.metadata as { citations?: unknown } | undefined;
+        const citations = metadata?.citations as Array<{ index: number; url: string; title?: string; snippet?: string }> | undefined;
+
         const aiMessage = ChatService.createAIMessage(ai, response, {
           modelUsed,
-          responseTime
+          responseTime,
+          citations
         });
         dispatch(addMessage(aiMessage));
         

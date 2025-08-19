@@ -31,6 +31,15 @@ export interface AdapterResponse {
     completionTokens?: number;
     totalTokens?: number;
   };
+  metadata?: {
+    citations?: Array<{
+      index: number;
+      url: string;
+      title?: string;
+      snippet?: string;
+    }>;
+    providerMetadata?: Record<string, unknown>;
+  };
 }
 
 export type SendMessageResponse = string | AdapterResponse;

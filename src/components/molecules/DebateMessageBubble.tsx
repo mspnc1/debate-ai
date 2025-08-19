@@ -11,12 +11,13 @@ import Animated, {
   useSharedValue,
   Easing,
 } from 'react-native-reanimated';
+import { StyleSheet, Linking } from 'react-native';
+import Markdown from 'react-native-markdown-display';
 import { Box } from '../atoms';
 import { Typography } from './Typography';
 import { useTheme } from '../../theme';
 import { Message } from '../../types';
 import { AI_BRAND_COLORS } from '../../constants/aiColors';
-import { StyleSheet } from 'react-native';
 
 export interface DebateMessageBubbleProps {
   message: Message;
@@ -93,17 +94,22 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
             opacity: 0.3,
           }} />
           
-          <Typography
-            variant="caption"
-            weight="medium"
+          <Markdown
             style={{
-              color: theme.colors.text.secondary,
-              textAlign: 'center',
-              paddingHorizontal: 16,
+              body: {
+                fontSize: 12,
+                lineHeight: 16,
+                color: theme.colors.text.secondary,
+                textAlign: 'center',
+                paddingHorizontal: 16,
+                fontWeight: '500',
+              },
+              strong: { fontWeight: 'bold', color: theme.colors.text.secondary },
+              em: { fontStyle: 'italic', color: theme.colors.text.secondary },
             }}
           >
             {message.content}
-          </Typography>
+          </Markdown>
           
           <Box style={{
             height: 1,
@@ -136,12 +142,47 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
           borderWidth: 1,
         }
       ]}>
-        <Typography 
-          variant="body" 
-          style={styles.messageText}
+        <Markdown
+          style={{
+            body: { 
+              fontSize: 16, 
+              lineHeight: 22,
+              color: theme.colors.text.primary
+            },
+            strong: { fontWeight: 'bold', color: theme.colors.text.primary },
+            em: { fontStyle: 'italic', color: theme.colors.text.primary },
+            link: { color: theme.colors.primary[500], textDecorationLine: 'underline' },
+            code_inline: { 
+              backgroundColor: isDark ? theme.colors.gray[800] : theme.colors.gray[100], 
+              paddingHorizontal: 4,
+              paddingVertical: 2,
+              borderRadius: 4,
+              fontFamily: 'monospace',
+              fontSize: 14,
+              color: theme.colors.text.primary
+            },
+            code_block: {
+              backgroundColor: isDark ? theme.colors.gray[800] : theme.colors.gray[100],
+              padding: 12,
+              borderRadius: 8,
+              marginVertical: 8,
+              fontFamily: 'monospace',
+              fontSize: 14,
+              color: theme.colors.text.primary
+            },
+            list_item: { marginBottom: 4, color: theme.colors.text.primary },
+            bullet_list: { marginVertical: 4 },
+            ordered_list: { marginVertical: 4 },
+          }}
+          onLinkPress={(url: string) => {
+            Linking.openURL(url).catch(err => 
+              console.error('Failed to open URL:', err)
+            );
+            return false;
+          }}
         >
           {message.content}
-        </Typography>
+        </Markdown>
       </Box>
     </Animated.View>
   );

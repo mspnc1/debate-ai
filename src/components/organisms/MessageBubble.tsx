@@ -1,10 +1,11 @@
 import React, { useEffect } from 'react';
-import { Text, StyleSheet } from 'react-native';
+import { Text, StyleSheet, Linking, TouchableOpacity } from 'react-native';
 import Animated, { 
   useAnimatedStyle,
   withSpring,
   useSharedValue,
 } from 'react-native-reanimated';
+import Markdown from 'react-native-markdown-display';
 import { Box } from '../atoms';
 import { Typography } from '../molecules';
 import { useTheme } from '../../theme';
@@ -63,6 +64,27 @@ const formatTime = (timestamp: number) => {
     minute: '2-digit',
     hour12: true 
   });
+};
+
+// Process message content to add citation links
+const processMessageContent = (message: Message): string => {
+  let content = message.content;
+  
+  // If we have citations, convert [1] references to clickable links
+  if (message.metadata?.citations && message.metadata.citations.length > 0) {
+    const citations = message.metadata.citations;
+    
+    // Replace [n] with markdown links keeping the bracket format
+    citations.forEach(citation => {
+      const pattern = new RegExp(`\\[${citation.index}\\]`, 'g');
+      // Keep the [n] format but make it a link
+      content = content.replace(pattern, `[[${citation.index}]](${citation.url})`);
+    });
+    
+    // Don't add sources section here - we show it separately in the UI
+  }
+  
+  return content;
 };
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLast, searchTerm }) => {
@@ -140,14 +162,122 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLast, s
           },
         ]}
       >
-        <Typography style={{
-          fontSize: 16, 
-          lineHeight: 22,
-          ...(isUser && { color: theme.colors.text.inverse })
-        }}>
-          {searchTerm ? <HighlightedText text={message.content} searchTerm={searchTerm} /> : highlightMentions(message.content)}
-        </Typography>
+        {isUser ? (
+          // User messages - simple text with mentions
+          <Typography style={{
+            fontSize: 16, 
+            lineHeight: 22,
+            color: theme.colors.text.inverse
+          }}>
+            {searchTerm ? <HighlightedText text={message.content} searchTerm={searchTerm} /> : highlightMentions(message.content)}
+          </Typography>
+        ) : (
+          // AI messages - render markdown
+          <Markdown
+            style={{
+              body: { 
+                fontSize: 16, 
+                lineHeight: 22,
+                color: theme.colors.text.primary
+              },
+              heading1: { 
+                fontSize: 20, 
+                fontWeight: 'bold', 
+                marginBottom: 8,
+                color: theme.colors.text.primary
+              },
+              heading2: { 
+                fontSize: 18, 
+                fontWeight: 'bold', 
+                marginBottom: 6,
+                color: theme.colors.text.primary
+              },
+              heading3: { 
+                fontSize: 16, 
+                fontWeight: 'bold', 
+                marginBottom: 4,
+                color: theme.colors.text.primary
+              },
+              strong: { 
+                fontWeight: 'bold',
+                color: theme.colors.text.primary
+              },
+              em: { 
+                fontStyle: 'italic',
+                color: theme.colors.text.primary
+              },
+              link: { 
+                color: theme.colors.primary[600], 
+                textDecorationLine: 'none',  // No underline for cleaner appearance
+                fontSize: 15,  // Almost same as body for better readability
+                fontWeight: '600',  // Semi-bold for visibility
+                paddingHorizontal: 2,  // Small padding for better touch targets
+              },
+              code_inline: { 
+                backgroundColor: isDark ? theme.colors.gray[800] : theme.colors.gray[100], 
+                paddingHorizontal: 4,
+                paddingVertical: 2,
+                borderRadius: 4,
+                fontFamily: 'monospace',
+                fontSize: 14,
+                color: theme.colors.text.primary
+              },
+              code_block: {
+                backgroundColor: isDark ? theme.colors.gray[800] : theme.colors.gray[100],
+                padding: 12,
+                borderRadius: 8,
+                marginVertical: 8,
+                fontFamily: 'monospace',
+                fontSize: 14,
+                color: theme.colors.text.primary
+              },
+              list_item: { 
+                marginBottom: 4,
+                color: theme.colors.text.primary
+              },
+              bullet_list: { marginVertical: 4 },
+              ordered_list: { marginVertical: 4 },
+              blockquote: {
+                backgroundColor: isDark ? theme.colors.gray[800] : theme.colors.gray[50],
+                borderLeftWidth: 4,
+                borderLeftColor: theme.colors.primary[500],
+                paddingLeft: 12,
+                paddingVertical: 8,
+                marginVertical: 8,
+              }
+            }}
+            onLinkPress={(url: string) => {
+              Linking.openURL(url).catch(err => 
+                console.error('Failed to open URL:', err)
+              );
+              return false;
+            }}
+          >
+            {processMessageContent(message)}
+          </Markdown>
+        )}
       </Box>
+      
+      {/* Citations section for messages with sources */}
+      {!isUser && message.metadata?.citations && message.metadata.citations.length > 0 && (
+        <Box style={[styles.citationsContainer, { borderTopColor: theme.colors.border }]}>
+          <Typography variant="caption" weight="semibold" style={{ marginBottom: 4 }}>
+            Sources:
+          </Typography>
+          {message.metadata.citations.slice(0, 3).map((citation, index) => (
+            <TouchableOpacity
+              key={index}
+              onPress={() => Linking.openURL(citation.url)}
+              style={styles.citationItem}
+            >
+              <Typography variant="caption" style={{ color: theme.colors.primary[500] }}>
+                [{citation.index}] {citation.title || citation.url}
+              </Typography>
+            </TouchableOpacity>
+          ))}
+        </Box>
+      )}
+      
       <Box style={[styles.metadataContainer, isUser && styles.userMetadata]}>
         <Typography 
           variant="caption" 
@@ -205,5 +335,13 @@ const styles = StyleSheet.create({
   modelInfo: {
     fontSize: 11,
     fontStyle: 'italic',
+  },
+  citationsContainer: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  citationItem: {
+    paddingVertical: 2,
   },
 });
