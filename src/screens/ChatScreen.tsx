@@ -213,7 +213,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
           onSend={handleSendMessage}
           placeholder="Type a message..."
           disabled={aiResponses.isProcessing}
-          supportsAttachments={getAttachmentSupport(session.selectedAIs)}
+          attachmentSupport={getAttachmentSupport(session.selectedAIs)}
           maxAttachments={20}
         />
       </KeyboardAvoidingView>

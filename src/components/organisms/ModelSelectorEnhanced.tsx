@@ -93,9 +93,25 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
             <Typography variant="caption" color="secondary" style={{ marginBottom: 2 }}>
               Model
             </Typography>
-            <Typography variant="body" weight="medium">
-              {selectedModelInfo?.name || 'Select Model'}
-            </Typography>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Typography variant="body" weight="medium">
+                {selectedModelInfo?.name || 'Select Model'}
+              </Typography>
+              {selectedModelInfo && (
+                <View style={{ flexDirection: 'row', marginLeft: theme.spacing.sm }}>
+                  {selectedModelInfo.supportsVision && (
+                    <Typography variant="caption" color="secondary" style={{ marginRight: 4 }}>
+                      👁
+                    </Typography>
+                  )}
+                  {selectedModelInfo.supportsDocuments && (
+                    <Typography variant="caption" color="secondary">
+                      📄
+                    </Typography>
+                  )}
+                </View>
+              )}
+            </View>
             {showPricing && MODEL_PRICING[providerId]?.[selectedModel] && (
               <Typography variant="caption" color="secondary">
                 ~{getEstimatedCost(selectedModel)} per message
@@ -213,11 +229,60 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
                               </Typography>
                             )}
                             
-                            {model.supportsVision && (
-                              <Typography variant="caption" color="secondary" style={{ marginLeft: theme.spacing.md }}>
-                                👁 Vision
-                              </Typography>
-                            )}
+                            {/* Capability Icons */}
+                            <View style={{ flexDirection: 'row', marginLeft: theme.spacing.md }}>
+                              {/* Vision/Image capability */}
+                              <View style={{ position: 'relative', marginRight: theme.spacing.xs }}>
+                                <Typography 
+                                  variant="caption" 
+                                  style={{ 
+                                    color: model.supportsVision ? theme.colors.text.secondary : theme.colors.gray[400]
+                                  }}
+                                >
+                                  👁
+                                </Typography>
+                                {!model.supportsVision && (
+                                  <Typography 
+                                    variant="caption" 
+                                    style={{
+                                      position: 'absolute',
+                                      top: -2,
+                                      left: 0,
+                                      color: theme.colors.error[400],
+                                      fontSize: 16,
+                                    }}
+                                  >
+                                    ✕
+                                  </Typography>
+                                )}
+                              </View>
+                              
+                              {/* Document capability */}
+                              <View style={{ position: 'relative' }}>
+                                <Typography 
+                                  variant="caption" 
+                                  style={{ 
+                                    color: model.supportsDocuments ? theme.colors.text.secondary : theme.colors.gray[400]
+                                  }}
+                                >
+                                  📄
+                                </Typography>
+                                {!model.supportsDocuments && (
+                                  <Typography 
+                                    variant="caption" 
+                                    style={{
+                                      position: 'absolute',
+                                      top: -2,
+                                      left: 0,
+                                      color: theme.colors.error[400],
+                                      fontSize: 16,
+                                    }}
+                                  >
+                                    ✕
+                                  </Typography>
+                                )}
+                              </View>
+                            </View>
                           </View>
                         </View>
                         
@@ -339,6 +404,31 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
               >
                 {(model.contextLength / 1000).toFixed(0)}K context
               </Typography>
+              
+              {/* Capability icons */}
+              <View style={{ flexDirection: 'row', marginTop: 4 }}>
+                {model.supportsVision && (
+                  <Typography 
+                    variant="caption" 
+                    style={{ 
+                      color: isSelected ? '#FFFFFF' : theme.colors.text.secondary,
+                      marginRight: 4 
+                    }}
+                  >
+                    👁
+                  </Typography>
+                )}
+                {model.supportsDocuments && (
+                  <Typography 
+                    variant="caption" 
+                    style={{ 
+                      color: isSelected ? '#FFFFFF' : theme.colors.text.secondary 
+                    }}
+                  >
+                    📄
+                  </Typography>
+                )}
+              </View>
             </TouchableOpacity>
           );
         })}

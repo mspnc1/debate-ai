@@ -3,38 +3,34 @@ import { getModelById } from '../config/modelConfigs';
 import { AdapterFactory } from '../services/ai';
 
 /**
- * Determines if attachments (images/documents) should be enabled based on selected AIs
+ * Determines what types of attachments are supported based on selected AIs
  * 
  * Rules:
  * 1. Only support attachments when exactly 1 AI is selected (avoid complexity with multiple AIs)
- * 2. The selected model must support vision capabilities (from modelConfigs)
- * 3. The adapter must have attachment support implemented (from adapter capabilities)
+ * 2. Check model capabilities from modelConfigs
+ * 3. Check adapter capabilities
  * 
  * @param selectedAIs Array of selected AI configurations
- * @returns true if attachments should be enabled, false otherwise
+ * @returns Object with support flags for images and documents
  */
-export const getAttachmentSupport = (selectedAIs: AIConfig[]): boolean => {
+export const getAttachmentSupport = (selectedAIs: AIConfig[]): { images: boolean; documents: boolean } => {
   // Only support attachments when exactly 1 AI is selected
   // This avoids complexity of sending attachments to multiple AIs
   if (selectedAIs.length !== 1) {
-    return false;
+    return { images: false, documents: false };
   }
   
   const ai = selectedAIs[0];
   
-  // First check if the specific model supports vision
-  // This is our source of truth for model capabilities
+  // Check model capabilities
   const model = ai.model ? getModelById(ai.provider, ai.model) : null;
   
-  // If we have a model, check its vision support
-  // If no model specified, we can't determine support
-  if (!model || !model.supportsVision) {
-    return false;
+  if (!model) {
+    return { images: false, documents: false };
   }
   
-  // Now check if the adapter has attachment support implemented
+  // Check adapter capabilities
   try {
-    // Create a minimal config just to check capabilities
     const adapter = AdapterFactory.create({
       provider: ai.provider,
       apiKey: 'dummy', // Not used for capability check
@@ -42,11 +38,14 @@ export const getAttachmentSupport = (selectedAIs: AIConfig[]): boolean => {
     });
     
     const capabilities = adapter.getCapabilities();
-    return capabilities.attachments === true;
+    
+    return {
+      images: Boolean(model.supportsVision && (capabilities.supportsImages ?? capabilities.attachments)),
+      documents: Boolean(model.supportsDocuments && (capabilities.supportsDocuments ?? false))
+    };
   } catch (error) {
-    // If adapter creation fails, assume no attachment support
     console.warn(`Could not check attachment support for ${ai.provider}:`, error);
-    return false;
+    return { images: false, documents: false };
   }
 };
 

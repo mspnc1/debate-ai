@@ -12,7 +12,7 @@ export class MistralAdapter extends OpenAICompatibleAdapter {
       }),
       capabilities: {
         streaming: true,
-        attachments: true,  // Many models now support vision
+        attachments: true,  // Supports images only (not documents) for vision models
         functionCalling: true,
         systemPrompt: true,
         maxTokens: 32768,

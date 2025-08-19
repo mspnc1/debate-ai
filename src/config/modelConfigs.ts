@@ -6,6 +6,7 @@ export interface ModelConfig {
   isPremium?: boolean;
   isDefault?: boolean;
   supportsVision?: boolean;
+  supportsDocuments?: boolean;  // Specifically for PDF/document support
   supportsFunctions?: boolean;
   supportsWebSearch?: boolean;  // For Perplexity models with web search
   requiresTemperature1?: boolean;  // For GPT-5 and O1 models
@@ -27,6 +28,7 @@ export const AI_MODELS: ProviderModels = {
       isDefault: false,
       isPremium: true,
       supportsVision: true,
+      supportsDocuments: true,  // Supports PDF files
       supportsFunctions: true,
     },
     {
@@ -37,6 +39,7 @@ export const AI_MODELS: ProviderModels = {
       isDefault: false,
       isPremium: true,
       supportsVision: true,
+      supportsDocuments: true,  // Supports PDF files
       supportsFunctions: true,
     },
     {
@@ -46,6 +49,7 @@ export const AI_MODELS: ProviderModels = {
       contextLength: 200000,
       isDefault: true, // Free tier default
       supportsVision: true,
+      supportsDocuments: true,  // Supports PDF files
       supportsFunctions: true,
     },
     {
@@ -54,6 +58,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Previous generation, excellent general performance',
       contextLength: 200000,
       supportsVision: true,
+      supportsDocuments: true,  // Supports PDF files
       supportsFunctions: true,
     },
     {
@@ -62,6 +67,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Fastest and most cost-effective option',
       contextLength: 200000,
       supportsVision: true,
+      supportsDocuments: true,  // Supports PDF files
       supportsFunctions: true,
     },
     {
@@ -70,6 +76,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Previous generation flagship, powerful but older',
       contextLength: 200000,
       supportsVision: true,
+      supportsDocuments: false,  // Does NOT support PDFs
       supportsFunctions: true,
     },
     {
@@ -78,6 +85,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Legacy model, very economical',
       contextLength: 200000,
       supportsVision: true,
+      supportsDocuments: false,  // Does NOT support PDFs
     },
   ],
   openai: [
@@ -305,6 +313,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'Cutting-edge coding model (August 2025)',
       contextLength: 128000,
       supportsFunctions: true,
+      supportsVision: false,
     },
     {
       id: 'mistral-small-latest',
@@ -328,6 +337,7 @@ export const AI_MODELS: ProviderModels = {
       description: 'High-complexity tasks (November 2024)',
       contextLength: 128000,
       supportsFunctions: true,
+      supportsVision: false,
     },
   ],
   cohere: [

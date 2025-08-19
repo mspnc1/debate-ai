@@ -16,7 +16,9 @@ export interface ResumptionContext {
 
 export interface AdapterCapabilities {
   streaming: boolean;
-  attachments: boolean;
+  attachments: boolean;  // Backward compatibility - true if either images or documents supported
+  supportsImages?: boolean;  // Specifically for image support
+  supportsDocuments?: boolean;  // Specifically for document/PDF support
   functionCalling: boolean;
   systemPrompt: boolean;
   maxTokens: number;

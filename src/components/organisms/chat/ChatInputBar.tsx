@@ -21,7 +21,7 @@ export interface ChatInputBarProps {
   placeholder?: string;
   disabled?: boolean;
   multiline?: boolean;
-  supportsAttachments?: boolean;
+  attachmentSupport?: { images: boolean; documents: boolean };
   maxAttachments?: number;
 }
 
@@ -32,7 +32,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   placeholder = "Type a message...",
   disabled = false,
   multiline = true,
-  supportsAttachments = false,
+  attachmentSupport = { images: false, documents: false },
   maxAttachments = 20, // Claude's limit
 }) => {
   const { theme } = useTheme();
@@ -52,24 +52,29 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       return;
     }
     
-    // Show action sheet to choose between document and image
+    // Show action sheet based on what's supported
+    const options = [];
+    if (attachmentSupport.documents) {
+      options.push({
+        text: 'Document',
+        onPress: pickDocument,
+      });
+    }
+    if (attachmentSupport.images) {
+      options.push({
+        text: 'Image', 
+        onPress: pickImage,
+      });
+    }
+    options.push({
+      text: 'Cancel',
+      style: 'cancel' as const,
+    });
+    
     Alert.alert(
       'Add Attachment',
       'What would you like to attach?',
-      [
-        {
-          text: 'Document',
-          onPress: pickDocument,
-        },
-        {
-          text: 'Image',
-          onPress: pickImage,
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ],
+      options,
       { cancelable: true }
     );
   };
@@ -252,7 +257,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           borderTopColor: theme.colors.border,
         }
       ]}>
-        {supportsAttachments && (
+        {(attachmentSupport.images || attachmentSupport.documents) && (
           <TouchableOpacity
             style={[
               styles.attachButton,

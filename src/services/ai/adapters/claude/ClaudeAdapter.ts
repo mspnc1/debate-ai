@@ -11,9 +11,18 @@ export class ClaudeAdapter extends BaseAdapter {
   private lastModelUsed?: string;
   
   getCapabilities(): AdapterCapabilities {
+    // Check if the current model supports documents (PDFs)
+    const model = this.config.model || 'claude-3-7-sonnet-20250219';
+    const supportsDocuments = ![
+      'claude-3-opus-20240229',
+      'claude-3-haiku-20240307'
+    ].includes(model);
+    
     return {
       streaming: true,
-      attachments: true,
+      attachments: true,  // All Claude models support at least images
+      supportsImages: true,  // All Claude models support images
+      supportsDocuments,  // Most models support PDFs, except older ones
       functionCalling: true,
       systemPrompt: true,
       maxTokens: 8192,
@@ -32,6 +41,9 @@ export class ClaudeAdapter extends BaseAdapter {
     
     const content: Array<{ type: string; text?: string; source?: { type: string; media_type: string; data: string } }> = [{ type: 'text', text: message }];
     
+    // Check if current model supports documents
+    const capabilities = this.getCapabilities();
+    
     for (const attachment of attachments) {
       if (attachment.type === 'image') {
         content.push({
@@ -42,7 +54,8 @@ export class ClaudeAdapter extends BaseAdapter {
             data: attachment.base64 || this.extractBase64FromUri(attachment.uri),
           },
         });
-      } else if (attachment.type === 'document') {
+      } else if (attachment.type === 'document' && capabilities.supportsDocuments) {
+        // Only add document if model supports it
         content.push({
           type: 'document',
           source: {
