@@ -63,16 +63,14 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
     onAddAI();
   };
   
-  // Calculate optimal grid layout based on number of AIs
-  const getGridLayout = (aiCount: number) => {
-    if (aiCount <= 4) return 2; // 2 columns for 1-4 AIs
-    if (aiCount <= 6) return 2; // 2 columns for 5-6 AIs (3x2 grid)
-    return 3; // 3 columns for 7+ AIs
+  // Always use 2 columns for clean, consistent layout
+  const getGridLayout = () => {
+    return 2; // Always 2 columns for optimal spacing and readability
   };
   
-  const columns = getGridLayout(configuredAIs.length);
+  const columns = getGridLayout();
   const containerPadding = theme.spacing.lg * 2; // Left + right padding from parent
-  const itemGap = theme.spacing.sm; // Better visual separation (8px)
+  const itemGap = theme.spacing.md; // Improved visual separation (12px)
   const cardWidth = (screenWidth - containerPadding - (itemGap * (columns - 1))) / columns;
   
   return (
@@ -95,7 +93,7 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
             style={{
               flexDirection: 'row',
               justifyContent: 'flex-start',
-              marginBottom: theme.spacing.sm, // Better spacing between rows
+              marginBottom: theme.spacing.md, // Increased spacing to prevent dropdown overlap
               overflow: 'visible',
               zIndex: 999 - rowIndex,
             }}
