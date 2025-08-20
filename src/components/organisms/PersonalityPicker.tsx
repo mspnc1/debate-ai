@@ -36,6 +36,11 @@ export const PersonalityPicker: React.FC<PersonalityPickerProps> = ({
   
   return (
     <View style={styles.container}>
+      {/* Label */}
+      <Typography variant="caption" color="secondary" style={{ marginBottom: 4 }}>
+        Personality
+      </Typography>
+      
       <PersonalityBadge
         personalityName={currentPersonality.name}
         onPress={() => setIsOpen(!isOpen)}
@@ -67,28 +72,40 @@ export const PersonalityPicker: React.FC<PersonalityPickerProps> = ({
                 onPress={() => handleSelect(personality.id)}
                 style={[
                   styles.option,
-                  currentPersonalityId === personality.id && {
-                    backgroundColor: theme.colors.primary[100],
+                  {
+                    backgroundColor: currentPersonalityId === personality.id 
+                      ? theme.colors.primary[100] 
+                      : 'transparent',
                   }
                 ]}
               >
                 <View style={styles.optionContent}>
                   <Typography 
                     weight={currentPersonalityId === personality.id ? 'bold' : 'medium'}
-                    style={{ fontSize: 14 }}
+                    style={{ 
+                      fontSize: 14,
+                      color: currentPersonalityId === personality.id 
+                        ? '#000000' 
+                        : theme.colors.text.primary
+                    }}
                   >
                     {personality.name}
                   </Typography>
                   <Typography 
                     variant="caption" 
-                    color="secondary"
-                    style={{ fontSize: 11, marginTop: 2 }}
+                    style={{ 
+                      fontSize: 11, 
+                      marginTop: 2,
+                      color: currentPersonalityId === personality.id 
+                        ? 'rgba(0,0,0,0.7)' 
+                        : theme.colors.text.secondary
+                    }}
                   >
                     {personality.description}
                   </Typography>
                 </View>
                 {currentPersonalityId === personality.id && (
-                  <Text style={[styles.checkmark, { color: theme.colors.primary[600] }]}>✓</Text>
+                  <Text style={[styles.checkmark, { color: '#000000' }]}>✓</Text>
                 )}
               </TouchableOpacity>
             ))}
@@ -117,7 +134,7 @@ const styles = StyleSheet.create({
   },
   dropdown: {
     position: 'absolute',
-    top: 30,
+    top: 50, // Adjusted for badge + label height
     left: -20,
     width: 250,
     maxHeight: 400,

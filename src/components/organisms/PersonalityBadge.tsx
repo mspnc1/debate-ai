@@ -14,6 +14,7 @@ interface PersonalityBadgeProps {
   onPress: () => void;
   isPremium: boolean;
   isLocked?: boolean;
+  style?: object;
 }
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
@@ -23,6 +24,7 @@ export const PersonalityBadge: React.FC<PersonalityBadgeProps> = ({
   onPress,
   isPremium,
   isLocked = false,
+  style,
 }) => {
   const { theme } = useTheme();
   const scale = useSharedValue(1);
@@ -66,6 +68,7 @@ export const PersonalityBadge: React.FC<PersonalityBadgeProps> = ({
           backgroundColor: theme.colors.surface,
           borderColor: showLock ? theme.colors.warning[400] : theme.colors.border,
         },
+        style,
       ]}
     >
       <View style={styles.content}>

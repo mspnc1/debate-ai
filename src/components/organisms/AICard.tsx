@@ -91,39 +91,47 @@ export const AICard: React.FC<AICardProps> = ({
           }}
           padding="md"
         >
-          <Box style={{ alignItems: 'center', position: 'relative', overflow: 'visible' }}>
+          <Box style={{ position: 'relative', overflow: 'visible' }}>
             <SelectionIndicator isSelected={isSelected} color={ai.color} />
             
-            <AIAvatar
-              icon={ai.icon || ai.name.charAt(0)}
-              iconType={ai.iconType || 'letter'}
-              size="large"
-              color={ai.color}
-              isSelected={isSelected}
-              providerId={ai.provider}
-              style={{ flex: 1 }}
-            />
-            
-            {/* Only show personality picker and model selector when selected */}
-            {isSelected && onPersonalityChange && (
-              <PersonalityPicker
-                currentPersonalityId={personalityId}
-                onSelectPersonality={onPersonalityChange}
-                isPremium={isPremium}
-                aiName={ai.name}
-              />
-            )}
-            
-            {/* Model selector below personality picker */}
-            {isSelected && onModelChange && (
-              <ModelSelectorEnhanced
+            {/* Avatar centered */}
+            <Box style={{ alignItems: 'center' }}>
+              <AIAvatar
+                icon={ai.icon || ai.name.charAt(0)}
+                iconType={ai.iconType || 'letter'}
+                size="large"
+                color={ai.color}
+                isSelected={isSelected}
                 providerId={ai.provider}
-                selectedModel={ai.model || ''}
-                onSelectModel={onModelChange}
-                compactMode={true}
-                aiName={ai.name}
-                showPricing={true}
+                style={{ flex: 1 }}
               />
+            </Box>
+            
+            {/* Dropdowns with full width */}
+            {isSelected && (
+              <Box style={{ width: '100%', marginTop: 8 }}>
+                {onPersonalityChange && (
+                  <Box style={{ marginBottom: 8 }}>
+                    <PersonalityPicker
+                      currentPersonalityId={personalityId}
+                      onSelectPersonality={onPersonalityChange}
+                      isPremium={isPremium}
+                      aiName={ai.name}
+                    />
+                  </Box>
+                )}
+                
+                {onModelChange && (
+                  <ModelSelectorEnhanced
+                    providerId={ai.provider}
+                    selectedModel={ai.model || ''}
+                    onSelectModel={onModelChange}
+                    compactMode={true}
+                    aiName={ai.name}
+                    showPricing={true}
+                  />
+                )}
+              </Box>
             )}
           </Box>
         </GlassCard>

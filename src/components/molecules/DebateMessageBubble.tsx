@@ -46,9 +46,17 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
     const aiBrandKey = (aiName === 'chatgpt' || aiName === 'openai') ? 'openai' : 
                        aiName === 'claude' ? 'claude' :
                        aiName === 'gemini' ? 'gemini' :
-                       aiName === 'nomi' ? 'nomi' : null;
+                       aiName === 'perplexity' ? 'perplexity' :
+                       aiName === 'mistral' ? 'mistral' :
+                       aiName === 'cohere' ? 'cohere' :
+                       aiName === 'together' ? 'together' :
+                       aiName === 'deepseek' ? 'deepseek' :
+                       aiName === 'grok' ? 'grok' :
+                       aiName === 'nomi' ? 'nomi' :
+                       aiName === 'replika' ? 'replika' :
+                       aiName.includes('character') ? 'characterai' : null;
     
-    if (!aiBrandKey) return null;
+    if (!aiBrandKey || !(aiBrandKey in AI_BRAND_COLORS)) return null;
     
     const brandColors = AI_BRAND_COLORS[aiBrandKey as keyof typeof AI_BRAND_COLORS];
     return {

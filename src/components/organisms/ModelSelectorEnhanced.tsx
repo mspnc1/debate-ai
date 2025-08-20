@@ -5,7 +5,7 @@ import { View, TouchableOpacity, ScrollView, Modal, Dimensions } from 'react-nat
 import { Typography, Badge } from '../molecules';
 import { useTheme } from '../../theme';
 import { AI_MODELS } from '../../config/modelConfigs';
-import { MODEL_PRICING, formatCost } from '../../config/modelPricing';
+import { MODEL_PRICING } from '../../config/modelPricing';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
@@ -58,71 +58,58 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
     }
   };
   
-  const openModelSelector = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setIsModalVisible(true);
-  };
-  
-  // Estimate cost per average message (200 input + 800 output tokens)
-  const getEstimatedCost = (modelId: string) => {
+  // Get token pricing for display
+  const getTokenPricing = (modelId: string) => {
     const pricing = MODEL_PRICING[providerId]?.[modelId];
     if (!pricing) return null;
     
-    const estimatedCost = (200 * pricing.inputPer1M + 800 * pricing.outputPer1M) / 1_000_000;
-    return formatCost(estimatedCost);
+    return `$${pricing.inputPer1M}/$${pricing.outputPer1M} per 1M`;
   };
   
   if (compactMode) {
     return (
       <>
-        <TouchableOpacity
-          onPress={openModelSelector}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: theme.spacing.sm,
-            backgroundColor: theme.colors.surface,
-            borderRadius: theme.borderRadius.sm,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            marginTop: theme.spacing.xs,
-          }}
-        >
-          <View style={{ flex: 1 }}>
-            <Typography variant="caption" color="secondary" style={{ marginBottom: 2 }}>
-              Model
-            </Typography>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ width: '100%' }}>
+          {/* Label */}
+          <Typography variant="caption" color="secondary" style={{ marginBottom: 4 }}>
+            Model
+          </Typography>
+          
+          {/* Compact model selector button */}
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setIsModalVisible(true);
+            }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: theme.spacing.sm,
+              backgroundColor: theme.colors.surface,
+              borderRadius: theme.borderRadius.sm,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+              width: '100%',
+              minHeight: 44,
+            }}
+          >
+            <View style={{ flex: 1 }}>
               <Typography variant="body" weight="medium">
                 {selectedModelInfo?.name || 'Select Model'}
               </Typography>
-              {selectedModelInfo && (
-                <View style={{ flexDirection: 'row', marginLeft: theme.spacing.sm }}>
-                  {selectedModelInfo.supportsVision && (
-                    <Typography variant="caption" color="secondary" style={{ marginRight: 4 }}>
-                      👁
-                    </Typography>
-                  )}
-                  {selectedModelInfo.supportsDocuments && (
-                    <Typography variant="caption" color="secondary">
-                      📄
-                    </Typography>
-                  )}
-                </View>
+              {showPricing && MODEL_PRICING[providerId]?.[selectedModel] && (
+                <Typography variant="caption" color="secondary" style={{ marginTop: 2 }}>
+                  {getTokenPricing(selectedModel)}
+                </Typography>
               )}
             </View>
-            {showPricing && MODEL_PRICING[providerId]?.[selectedModel] && (
-              <Typography variant="caption" color="secondary">
-                ~{getEstimatedCost(selectedModel)} per message
-              </Typography>
-            )}
-          </View>
-          <Typography variant="body" color="secondary">
-            ▼
-          </Typography>
-        </TouchableOpacity>
-        
+            <Typography variant="body" color="secondary">
+              ▶
+            </Typography>
+          </TouchableOpacity>
+        </View>
+
         {/* Modal for model selection */}
         <Modal
           visible={isModalVisible}
@@ -184,8 +171,8 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
                       disabled={isLocked}
                       style={{
                         backgroundColor: isSelected 
-                          ? theme.colors.primary[50]
-                          : theme.colors.surface,
+                          ? theme.colors.primary[100]
+                          : theme.colors.card,
                         borderRadius: theme.borderRadius.md,
                         padding: theme.spacing.md,
                         marginBottom: theme.spacing.sm,
@@ -202,7 +189,10 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
                             <Typography 
                               variant="subtitle" 
                               weight="semibold"
-                              style={{ marginRight: theme.spacing.xs }}
+                              style={{ 
+                                marginRight: theme.spacing.xs,
+                                color: isSelected ? '#000000' : theme.colors.text.primary
+                              }}
                             >
                               {model.name}
                             </Typography>
@@ -214,75 +204,37 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
                             )}
                           </View>
                           
-                          <Typography variant="caption" color="secondary" style={{ marginBottom: 4 }}>
+                          <Typography 
+                            variant="caption" 
+                            style={{ 
+                              marginBottom: 4,
+                              color: isSelected ? 'rgba(0,0,0,0.7)' : theme.colors.text.secondary
+                            }}
+                          >
                             {model.description}
                           </Typography>
                           
                           <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-                            <Typography variant="caption" color="secondary" style={{ marginRight: theme.spacing.md }}>
+                            <Typography 
+                              variant="caption" 
+                              style={{ 
+                                marginRight: theme.spacing.md,
+                                color: isSelected ? 'rgba(0,0,0,0.6)' : theme.colors.text.secondary
+                              }}
+                            >
                               {(model.contextLength / 1000).toFixed(0)}K context
                             </Typography>
                             
                             {showPricing && pricing && (
-                              <Typography variant="caption" color="secondary">
-                                ~{getEstimatedCost(model.id)} per message
+                              <Typography 
+                                variant="caption"
+                                style={{
+                                  color: isSelected ? 'rgba(0,0,0,0.6)' : theme.colors.text.secondary
+                                }}
+                              >
+                                {getTokenPricing(model.id)}
                               </Typography>
                             )}
-                            
-                            {/* Capability Icons */}
-                            <View style={{ flexDirection: 'row', marginLeft: theme.spacing.md }}>
-                              {/* Vision/Image capability */}
-                              <View style={{ position: 'relative', marginRight: theme.spacing.xs }}>
-                                <Typography 
-                                  variant="caption" 
-                                  style={{ 
-                                    color: model.supportsVision ? theme.colors.text.secondary : theme.colors.gray[400]
-                                  }}
-                                >
-                                  👁
-                                </Typography>
-                                {!model.supportsVision && (
-                                  <Typography 
-                                    variant="caption" 
-                                    style={{
-                                      position: 'absolute',
-                                      top: -2,
-                                      left: 0,
-                                      color: theme.colors.error[400],
-                                      fontSize: 16,
-                                    }}
-                                  >
-                                    ✕
-                                  </Typography>
-                                )}
-                              </View>
-                              
-                              {/* Document capability */}
-                              <View style={{ position: 'relative' }}>
-                                <Typography 
-                                  variant="caption" 
-                                  style={{ 
-                                    color: model.supportsDocuments ? theme.colors.text.secondary : theme.colors.gray[400]
-                                  }}
-                                >
-                                  📄
-                                </Typography>
-                                {!model.supportsDocuments && (
-                                  <Typography 
-                                    variant="caption" 
-                                    style={{
-                                      position: 'absolute',
-                                      top: -2,
-                                      left: 0,
-                                      color: theme.colors.error[400],
-                                      fontSize: 16,
-                                    }}
-                                  >
-                                    ✕
-                                  </Typography>
-                                )}
-                              </View>
-                            </View>
                           </View>
                         </View>
                         
@@ -291,7 +243,7 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
                             width: 24,
                             height: 24,
                             borderRadius: 12,
-                            backgroundColor: theme.colors.primary[500],
+                            backgroundColor: '#000000',
                             justifyContent: 'center',
                             alignItems: 'center',
                           }}>
@@ -302,21 +254,6 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
                     </TouchableOpacity>
                   );
                 })}
-                
-                {/* TESTING: Premium upgrade message disabled
-                {!isPremium && (
-                  <View style={{
-                    backgroundColor: theme.colors.primary[50],
-                    borderRadius: theme.borderRadius.md,
-                    padding: theme.spacing.md,
-                    marginTop: theme.spacing.md,
-                  }}>
-                    <Typography variant="caption" color="secondary">
-                      🔒 Premium models are locked. Upgrade to access all models and save on API costs.
-                    </Typography>
-                  </View>
-                )}
-                */}
               </ScrollView>
             </Animated.View>
           </View>
@@ -392,7 +329,7 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
                     marginTop: 4,
                   }}
                 >
-                  ~{getEstimatedCost(model.id)}/msg
+                  {getTokenPricing(model.id)}
                 </Typography>
               )}
               
@@ -404,31 +341,6 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
               >
                 {(model.contextLength / 1000).toFixed(0)}K context
               </Typography>
-              
-              {/* Capability icons */}
-              <View style={{ flexDirection: 'row', marginTop: 4 }}>
-                {model.supportsVision && (
-                  <Typography 
-                    variant="caption" 
-                    style={{ 
-                      color: isSelected ? '#FFFFFF' : theme.colors.text.secondary,
-                      marginRight: 4 
-                    }}
-                  >
-                    👁
-                  </Typography>
-                )}
-                {model.supportsDocuments && (
-                  <Typography 
-                    variant="caption" 
-                    style={{ 
-                      color: isSelected ? '#FFFFFF' : theme.colors.text.secondary 
-                    }}
-                  >
-                    📄
-                  </Typography>
-                )}
-              </View>
             </TouchableOpacity>
           );
         })}

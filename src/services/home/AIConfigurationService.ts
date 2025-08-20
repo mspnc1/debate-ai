@@ -44,7 +44,9 @@ export class AIConfigurationService {
   static transformProviderToConfig(provider: typeof AI_PROVIDERS[0]): AIConfig {
     const iconData = getAIProviderIcon(provider.id);
     
-    const defaultModel = AI_MODELS[provider.id]?.find(m => m.isDefault)?.id || AI_MODELS[provider.id]?.[0]?.id || '';
+    // Find the default model for this provider
+    const providerModels = AI_MODELS[provider.id];
+    const defaultModel = providerModels?.find(m => m.isDefault)?.id || providerModels?.[0]?.id || '';
     
     return {
       id: provider.id,
