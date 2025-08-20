@@ -105,7 +105,7 @@ export const AI_PROVIDERS: AIProvider[] = [
     description: 'Excellent for RAG and search',
     features: ['Semantic search', 'RAG optimization', 'Generation'],
     testEndpoint: 'https://api.cohere.ai/v1/chat',
-    enabled: false,
+    enabled: true,
   },
   {
     id: 'together',
@@ -120,7 +120,7 @@ export const AI_PROVIDERS: AIProvider[] = [
     description: 'Access to open-source models',
     features: ['Llama models', 'Mixtral', 'Many open models'],
     testEndpoint: 'https://api.together.xyz/v1/chat/completions',
-    enabled: false,
+    enabled: true,
   },
   {
     id: 'deepseek',
@@ -135,7 +135,7 @@ export const AI_PROVIDERS: AIProvider[] = [
     description: 'Excellent for code, very cost-effective',
     features: ['Code generation', 'Low cost', 'Fast responses'],
     testEndpoint: 'https://api.deepseek.com/v1/chat/completions',
-    enabled: false,
+    enabled: true,
   },
   {
     id: 'grok',
