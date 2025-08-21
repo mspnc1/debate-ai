@@ -23,7 +23,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useDispatch } from 'react-redux';
 import { completeOnboarding } from '../store';
-import { AppLogo } from '../components/organisms';
+import { AppIconGenerator } from '../components/organisms';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
@@ -166,7 +166,9 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
       >
         {/* Hero Section */}
         <Animated.View style={[styles.logoContainer, animatedLogoStyle]}>
-          <AppLogo size={100} />
+          <View style={styles.iconWrapper}>
+            <AppIconGenerator size={120} />
+          </View>
           <Typography 
             variant="heading" 
             weight="bold" 
@@ -552,6 +554,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 30,
     marginBottom: 20,
+  },
+  iconWrapper: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
   featuresContainer: {
     flexDirection: 'row',
