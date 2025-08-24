@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyCN7PEooTYmDZ9WP1el_AmLwLtVRc3gFjQ</string>
+	<key>GCM_SENDER_ID</key>
+	<string>248794683640</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.braveheartinnovations.debateai</string>
+	<key>PROJECT_ID</key>
+	<string>symposium-ai</string>
+	<key>STORAGE_BUCKET</key>
+	<string>symposium-ai.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:248794683640:ios:7a539d3db78eb7d528430d</string>
+</dict>
+</plist>

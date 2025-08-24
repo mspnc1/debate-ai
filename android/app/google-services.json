@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "248794683640",
+    "project_id": "symposium-ai",
+    "storage_bucket": "symposium-ai.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:248794683640:android:49f9b2d659241b0f28430d",
+        "android_client_info": {
+          "package_name": "com.braveheartinnovations.debateai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFRBGRDSfCxF028XTv9QQqwmT15iM9iik"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
