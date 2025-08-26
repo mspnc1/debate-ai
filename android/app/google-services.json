@@ -12,7 +12,20 @@
           "package_name": "com.braveheartinnovations.debateai"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "248794683640-2d160ia9r0un6kflche37je7ncuuj01k.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.braveheartinnovations.debateai",
+            "certificate_hash": "ef9a25a4a120574caad10f3a6622203e1a42b650"
+          }
+        },
+        {
+          "client_id": "248794683640-45l77l2un600prqlqnqslv54fqhnpclq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBFRBGRDSfCxF028XTv9QQqwmT15iM9iik"
@@ -20,7 +33,20 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "248794683640-45l77l2un600prqlqnqslv54fqhnpclq.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "248794683640-7su8cmoma5rvtg1hbmtsohmbec4qrc4p.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.braveheartinnovations.debateai",
+                "app_store_id": "6751146458"
+              }
+            }
+          ]
         }
       }
     }
