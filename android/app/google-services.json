@@ -14,14 +14,6 @@
       },
       "oauth_client": [
         {
-          "client_id": "248794683640-2d160ia9r0un6kflche37je7ncuuj01k.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.braveheartinnovations.debateai",
-            "certificate_hash": "ef9a25a4a120574caad10f3a6622203e1a42b650"
-          }
-        },
-        {
           "client_id": "248794683640-45l77l2un600prqlqnqslv54fqhnpclq.apps.googleusercontent.com",
           "client_type": 3
         }
