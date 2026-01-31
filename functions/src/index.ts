@@ -6,11 +6,20 @@ export { deleteAccount } from './deleteAccount';
 // API Key Management
 export { saveApiKey, deleteApiKey, getConfiguredProviders } from './apiKeys';
 
+// Data Connector Key Management
+export { saveDataServiceKey, deleteDataServiceKey, getConfiguredDataServices } from './dataConnectors';
+
 // AI Proxy
 export { proxyAIRequest } from './aiProxy';
+export { proxyAIRequestStream } from './aiProxyStream';
+export { proxyAIRequestStreamV2 } from './aiProxyStreamV2';
 
 // Image Generation Proxy
 export { proxyImageGeneration } from './imageProxy';
+
+// Tool Execution
+export { executeTool } from './tools';
+export { web_search } from './web_search';
 
 // Stripe (Web Subscriptions)
 export {
