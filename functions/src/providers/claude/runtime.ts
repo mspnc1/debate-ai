@@ -310,11 +310,12 @@ export class ClaudeRuntime implements ProviderRuntime {
         continue;
       }
 
-      // Handle user message with attachments
-      if (isLastUserMessage && attachments && attachments.length > 0) {
+      // Handle user message with attachments (per-message or global fallback)
+      const msgAttachments = msg.attachments || (isLastUserMessage ? attachments : undefined);
+      if (msg.role === 'user' && msgAttachments && msgAttachments.length > 0) {
         const contentParts: ClaudeContentBlock[] = [];
 
-        for (const att of attachments) {
+        for (const att of msgAttachments) {
           const base64 = getBase64Data(att);
           if (!base64) continue;
 

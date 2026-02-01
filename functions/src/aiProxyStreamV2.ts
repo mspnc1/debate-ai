@@ -149,6 +149,8 @@ interface ClientMessage {
     type: 'function';
     function: { name: string; arguments: string };
   }>;
+  // Per-message attachments for persisting file context across conversation history
+  attachments?: import('./types/canonical').CanonicalAttachment[];
 }
 
 function normalizeMessages(messages: ClientMessage[]): import('./types/canonical').CanonicalMessage[] {
@@ -158,6 +160,8 @@ function normalizeMessages(messages: ClientMessage[]): import('./types/canonical
     // Accept both camelCase and snake_case
     tool_call_id: msg.tool_call_id || msg.toolCallId,
     tool_calls: msg.tool_calls || msg.toolCalls,
+    // Pass through per-message attachments
+    attachments: msg.attachments,
   }));
 }
 

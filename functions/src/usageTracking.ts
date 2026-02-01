@@ -25,7 +25,7 @@ interface UsageRecord {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
-  sessionType: 'chat' | 'debate' | 'comparison';
+  sessionType: 'chat' | 'debate' | 'comparison' | 'analyze';
   timestamp: number;
 }
 

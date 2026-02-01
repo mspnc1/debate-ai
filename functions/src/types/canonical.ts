@@ -46,6 +46,8 @@ export interface CanonicalMessage {
   tool_calls?: CanonicalToolCall[];
   /** ID of the tool call this message is responding to (only for tool messages) */
   tool_call_id?: string;
+  /** Per-message attachments for persisting file context across conversation history */
+  attachments?: CanonicalAttachment[];
 }
 
 /**

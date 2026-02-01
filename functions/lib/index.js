@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.appleAuthCallback = exports.symposiumFeedback = exports.contactForm = exports.exportUserData = exports.recordImageGeneration = exports.getUsageStats = exports.getProviderBalances = exports.stripeWebhook = exports.cancelStripeSubscription = exports.createStripeBillingPortal = exports.createStripeCheckoutSession = exports.proxyImageGeneration = exports.proxyAIRequest = exports.getConfiguredProviders = exports.deleteApiKey = exports.saveApiKey = exports.deleteAccount = exports.handleAppStoreNotification = exports.handlePlayStoreNotification = exports.validatePurchase = void 0;
+exports.appleAuthCallback = exports.symposiumFeedback = exports.contactForm = exports.exportUserData = exports.recordImageGeneration = exports.getUsageStats = exports.getProviderBalances = exports.stripeWebhook = exports.cancelStripeSubscription = exports.createStripeBillingPortal = exports.createStripeCheckoutSession = exports.web_search = exports.executeTool = exports.proxyImageGeneration = exports.proxyAIRequestStreamV2 = exports.proxyAIRequestStream = exports.proxyAIRequest = exports.getConfiguredDataServices = exports.deleteDataServiceKey = exports.saveDataServiceKey = exports.getConfiguredProviders = exports.deleteApiKey = exports.saveApiKey = exports.deleteAccount = exports.handleAppStoreNotification = exports.handlePlayStoreNotification = exports.validatePurchase = void 0;
 var validatePurchase_1 = require("./validatePurchase");
 Object.defineProperty(exports, "validatePurchase", { enumerable: true, get: function () { return validatePurchase_1.validatePurchase; } });
 var playStore_1 = require("./notifications/playStore");
@@ -14,12 +14,26 @@ var apiKeys_1 = require("./apiKeys");
 Object.defineProperty(exports, "saveApiKey", { enumerable: true, get: function () { return apiKeys_1.saveApiKey; } });
 Object.defineProperty(exports, "deleteApiKey", { enumerable: true, get: function () { return apiKeys_1.deleteApiKey; } });
 Object.defineProperty(exports, "getConfiguredProviders", { enumerable: true, get: function () { return apiKeys_1.getConfiguredProviders; } });
+// Data Connector Key Management
+var dataConnectors_1 = require("./dataConnectors");
+Object.defineProperty(exports, "saveDataServiceKey", { enumerable: true, get: function () { return dataConnectors_1.saveDataServiceKey; } });
+Object.defineProperty(exports, "deleteDataServiceKey", { enumerable: true, get: function () { return dataConnectors_1.deleteDataServiceKey; } });
+Object.defineProperty(exports, "getConfiguredDataServices", { enumerable: true, get: function () { return dataConnectors_1.getConfiguredDataServices; } });
 // AI Proxy
 var aiProxy_1 = require("./aiProxy");
 Object.defineProperty(exports, "proxyAIRequest", { enumerable: true, get: function () { return aiProxy_1.proxyAIRequest; } });
+var aiProxyStream_1 = require("./aiProxyStream");
+Object.defineProperty(exports, "proxyAIRequestStream", { enumerable: true, get: function () { return aiProxyStream_1.proxyAIRequestStream; } });
+var aiProxyStreamV2_1 = require("./aiProxyStreamV2");
+Object.defineProperty(exports, "proxyAIRequestStreamV2", { enumerable: true, get: function () { return aiProxyStreamV2_1.proxyAIRequestStreamV2; } });
 // Image Generation Proxy
 var imageProxy_1 = require("./imageProxy");
 Object.defineProperty(exports, "proxyImageGeneration", { enumerable: true, get: function () { return imageProxy_1.proxyImageGeneration; } });
+// Tool Execution
+var tools_1 = require("./tools");
+Object.defineProperty(exports, "executeTool", { enumerable: true, get: function () { return tools_1.executeTool; } });
+var web_search_1 = require("./web_search");
+Object.defineProperty(exports, "web_search", { enumerable: true, get: function () { return web_search_1.web_search; } });
 // Stripe (Web Subscriptions)
 var stripe_1 = require("./stripe");
 Object.defineProperty(exports, "createStripeCheckoutSession", { enumerable: true, get: function () { return stripe_1.createStripeCheckoutSession; } });

@@ -336,11 +336,12 @@ export class OpenAIRuntime implements ProviderRuntime {
         continue;
       }
 
-      // Handle user message with attachments (for vision models)
-      if (isLastUserMessage && attachments && attachments.length > 0) {
+      // Handle user message with attachments (per-message or global fallback)
+      const msgAttachments = msg.attachments || (isLastUserMessage ? attachments : undefined);
+      if (msg.role === 'user' && msgAttachments && msgAttachments.length > 0) {
         const contentParts: OpenAIContentPart[] = [];
-        const imageAttachments = attachments.filter(att => att.type === 'image');
-        const documentAttachments = attachments.filter(att => att.type === 'document');
+        const imageAttachments = msgAttachments.filter(att => att.type === 'image');
+        const documentAttachments = msgAttachments.filter(att => att.type === 'document');
 
         for (const att of imageAttachments) {
           const base64 = getBase64Data(att);

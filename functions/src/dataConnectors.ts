@@ -13,8 +13,12 @@
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { defineSecret } from 'firebase-functions/params';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { encrypt, getDecryptedDataServiceKey, encryptionKey } from './dataConnectorCrypto';
+
+// Managed API keys for Symposium-provided connectors
+const fredApiKey = defineSecret('FRED_API_KEY');
 
 // Valid data connector IDs (must match client-side data-connectors.ts)
 const VALID_CONNECTOR_IDS = [
@@ -35,11 +39,13 @@ const VALID_CONNECTOR_IDS = [
 export interface ConnectorAuthConfig {
   authType: 'query_param' | 'header' | 'bearer' | 'none';
   authKeyName?: string;
+  /** For Symposium-managed connectors: function returning the platform key */
+  getManagedKey?: () => string | undefined;
 }
 
 export const CONNECTOR_AUTH_CONFIG: Record<string, ConnectorAuthConfig> = {
   weather_gov: { authType: 'none' },
-  fred: { authType: 'query_param', authKeyName: 'api_key' },
+  fred: { authType: 'query_param', authKeyName: 'api_key', getManagedKey: () => fredApiKey.value() || undefined },
   usgs_earthquake: { authType: 'none' },
   arxiv: { authType: 'none' },
   sec_edgar: { authType: 'header', authKeyName: 'User-Agent' },
@@ -160,4 +166,4 @@ export const getConfiguredDataServices = onCall(async (request) => {
 });
 
 // Re-export for use by tools.ts
-export { getDecryptedDataServiceKey, VALID_CONNECTOR_IDS };
+export { getDecryptedDataServiceKey, VALID_CONNECTOR_IDS, fredApiKey };

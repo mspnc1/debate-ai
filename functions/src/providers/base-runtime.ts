@@ -258,3 +258,22 @@ export function mapOpenAIFinishReason(finishReason: string): CanonicalFinishReas
       return 'stop';
   }
 }
+
+/**
+ * Map Gemini finish reasons to canonical
+ */
+export function mapGeminiFinishReason(finishReason: string): CanonicalFinishReason {
+  switch (finishReason) {
+    case 'STOP':
+      return 'stop';
+    case 'MAX_TOKENS':
+      return 'length';
+    case 'SAFETY':
+    case 'RECITATION':
+      return 'content_filter';
+    case 'TOOL_CALLS':
+      return 'tool_calls';
+    default:
+      return 'stop';
+  }
+}

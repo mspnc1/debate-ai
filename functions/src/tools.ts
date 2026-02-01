@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDecryptedApiKey, encryptionKey } from './apiKeys';
 import { executeWebSearch } from './web_search';
-import { getDecryptedDataServiceKey, CONNECTOR_AUTH_CONFIG, VALID_CONNECTOR_IDS } from './dataConnectors';
+import { getDecryptedDataServiceKey, CONNECTOR_AUTH_CONFIG, VALID_CONNECTOR_IDS, fredApiKey } from './dataConnectors';
 
 // ============================================================================
 // Types
@@ -687,8 +687,6 @@ interface FetchApiArgs {
   timeout?: number;
 }
 
-const MAX_RESPONSE_SIZE = 200 * 1024; // 200KB
-
 async function handleFetchApi(
   args: FetchApiArgs,
   uid: string,
@@ -763,7 +761,10 @@ async function handleFetchApi(
 
     // Only resolve key if connector requires authentication
     if (authConfig.authType !== 'none' && authConfig.authKeyName) {
-      const apiKey = await getDecryptedDataServiceKey(uid, api_key_ref, encryptionKeyValue);
+      // Try user's stored key first, then fall back to Symposium-managed key
+      const apiKey = await getDecryptedDataServiceKey(uid, api_key_ref, encryptionKeyValue)
+        || authConfig.getManagedKey?.()
+        || null;
       if (!apiKey) {
         return {
           toolCallId: '',
@@ -869,19 +870,12 @@ async function handleFetchApi(
       content = await response.text();
     }
 
-    // Truncate if needed
-    const truncated = content.length > MAX_RESPONSE_SIZE;
-    if (truncated) {
-      content = content.slice(0, MAX_RESPONSE_SIZE) + '\n... [truncated]';
-    }
-
     return {
       toolCallId: '',
       success: true,
       content,
       metadata: {
         executionTime: Date.now() - startTime,
-        truncated,
         originalLength: originalLength || content.length,
       },
     };
@@ -923,7 +917,7 @@ export const executeTool = onCall(
   {
     timeoutSeconds: 60,
     memory: '512MiB',
-    secrets: [encryptionKey],
+    secrets: [encryptionKey, fredApiKey],
   },
   async (request): Promise<ToolResult> => {
     // Verify authentication

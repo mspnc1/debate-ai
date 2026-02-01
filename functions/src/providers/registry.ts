@@ -8,6 +8,8 @@
 import type { ProviderRuntime } from './types';
 import { getClaudeRuntime } from './claude/runtime';
 import { getOpenAIRuntime } from './openai/runtime';
+import { getGoogleRuntime } from './google/runtime';
+import { getCohereRuntime } from './cohere/runtime';
 
 /**
  * Providers supported by the V2 endpoint
@@ -15,10 +17,12 @@ import { getOpenAIRuntime } from './openai/runtime';
 export type SupportedProvider =
   | 'claude'
   | 'openai'
+  | 'google'
   | 'mistral'
   | 'together'
   | 'deepseek'
-  | 'grok';
+  | 'grok'
+  | 'cohere';
 
 /**
  * Check if a provider is supported by the V2 endpoint
@@ -27,10 +31,12 @@ export function isV2Supported(providerId: string): providerId is SupportedProvid
   return [
     'claude',
     'openai',
+    'google',
     'mistral',
     'together',
     'deepseek',
     'grok',
+    'cohere',
   ].includes(providerId);
 }
 
@@ -51,6 +57,12 @@ export class ProviderRegistry {
     switch (providerId) {
       case 'claude':
         return getClaudeRuntime();
+
+      case 'google':
+        return getGoogleRuntime();
+
+      case 'cohere':
+        return getCohereRuntime();
 
       case 'openai':
         return getOpenAIRuntime('openai');
@@ -88,6 +100,6 @@ export class ProviderRegistry {
    * Get all supported provider IDs
    */
   static getSupportedProviders(): SupportedProvider[] {
-    return ['claude', 'openai', 'mistral', 'together', 'deepseek', 'grok'];
+    return ['claude', 'openai', 'google', 'mistral', 'together', 'deepseek', 'grok', 'cohere'];
   }
 }

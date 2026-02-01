@@ -45,10 +45,12 @@ function decrypt(encrypted: string, iv: string, tag: string, keyValue: string): 
   return decrypted;
 }
 
-// Valid provider IDs
+// Valid provider IDs (AI providers + tool providers like Brave Search)
 const VALID_PROVIDERS = [
   'claude', 'openai', 'google', 'perplexity', 'mistral',
-  'cohere', 'together', 'deepseek', 'grok'
+  'cohere', 'together', 'deepseek', 'grok',
+  // Tool providers (for Analyze mode features)
+  'brave'
 ];
 
 /**
