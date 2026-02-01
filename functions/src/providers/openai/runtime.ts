@@ -126,8 +126,8 @@ export class OpenAIRuntime implements ProviderRuntime {
     this.providerId = providerId;
     this.config = OPENAI_COMPATIBLE_CONFIGS[providerId] || OPENAI_COMPATIBLE_CONFIGS.openai;
 
-    // Only OpenAI, Mistral fully support tools
-    this.supportsTools = ['openai', 'mistral'].includes(providerId);
+    // OpenAI, Mistral, and Grok (x.ai) support tools via OpenAI-compatible format
+    this.supportsTools = ['openai', 'mistral', 'grok'].includes(providerId);
   }
 
   /**
