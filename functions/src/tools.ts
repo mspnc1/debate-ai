@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDecryptedApiKey, encryptionKey } from './apiKeys';
 import { executeWebSearch } from './web_search';
-import { getDecryptedDataServiceKey, CONNECTOR_AUTH_CONFIG, VALID_CONNECTOR_IDS, fredApiKey } from './dataConnectors';
+import { getDecryptedDataServiceKey, CONNECTOR_AUTH_CONFIG, VALID_CONNECTOR_IDS, fredApiKey, socrataAppToken } from './dataConnectors';
 
 // ============================================================================
 // Types
@@ -917,7 +917,7 @@ export const executeTool = onCall(
   {
     timeoutSeconds: 60,
     memory: '512MiB',
-    secrets: [encryptionKey, fredApiKey],
+    secrets: [encryptionKey, fredApiKey, socrataAppToken],
   },
   async (request): Promise<ToolResult> => {
     // Verify authentication

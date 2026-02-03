@@ -19,6 +19,7 @@ import { encrypt, getDecryptedDataServiceKey, encryptionKey } from './dataConnec
 
 // Managed API keys for Symposium-provided connectors
 const fredApiKey = defineSecret('FRED_API_KEY');
+const socrataAppToken = defineSecret('SOCRATA_APP_TOKEN');
 
 // Valid data connector IDs (must match client-side data-connectors.ts)
 const VALID_CONNECTOR_IDS = [
@@ -28,11 +29,17 @@ const VALID_CONNECTOR_IDS = [
   'usgs_earthquake',
   'arxiv',
   'sec_edgar',
+  'world_bank',
+  'socrata',
+  'pubmed',
+  'overpass_osm',
   // BYOK (user provides key)
   'alpha_vantage',
   'openweathermap',
   'newsapi',
   'semantic_scholar',
+  'github',
+  'google_sheets_csv',
 ];
 
 // Connector auth configuration (server-side source of truth for key injection)
@@ -53,6 +60,12 @@ export const CONNECTOR_AUTH_CONFIG: Record<string, ConnectorAuthConfig> = {
   openweathermap: { authType: 'query_param', authKeyName: 'appid' },
   newsapi: { authType: 'header', authKeyName: 'X-Api-Key' },
   semantic_scholar: { authType: 'header', authKeyName: 'x-api-key' },
+  world_bank: { authType: 'none' },
+  socrata: { authType: 'query_param', authKeyName: '$$app_token', getManagedKey: () => socrataAppToken.value() || undefined },
+  pubmed: { authType: 'none' },
+  overpass_osm: { authType: 'none' },
+  github: { authType: 'bearer' },
+  google_sheets_csv: { authType: 'none' },
 };
 
 /**
@@ -166,4 +179,4 @@ export const getConfiguredDataServices = onCall(async (request) => {
 });
 
 // Re-export for use by tools.ts
-export { getDecryptedDataServiceKey, VALID_CONNECTOR_IDS, fredApiKey };
+export { getDecryptedDataServiceKey, VALID_CONNECTOR_IDS, fredApiKey, socrataAppToken };
