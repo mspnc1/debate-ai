@@ -29,7 +29,7 @@
     "eas-build-post-install": "bash scripts/eas-prebuild.sh"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.63.0",
+    "@anthropic-ai/sdk": "^0.72.1",
     "@expo/metro-runtime": "~5.0.5",
     "@google/generative-ai": "^0.24.1",
     "@react-native-async-storage/async-storage": "2.1.2",
