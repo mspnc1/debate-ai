@@ -132,6 +132,7 @@ exports.handleAppStoreNotification = functions.https.onRequest(async (req, res) 
         await admin.firestore().collection('users').doc(userId).set({
             membershipStatus: newStatus,
             isPremium: isActive,
+            subscriptionSource: 'apple_iap',
             subscriptionExpiryDate: admin.firestore.Timestamp.fromDate(expiresAt),
             productId: productId && productId.includes('annual') ? 'annual' : 'monthly',
             lastValidated: admin.firestore.FieldValue.serverTimestamp(),

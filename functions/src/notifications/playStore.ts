@@ -31,6 +31,7 @@ export const handlePlayStoreNotification = onMessagePublished(
       await admin.firestore().collection('users').doc(userId).set({
         membershipStatus: isActive ? 'premium' : 'demo',
         isPremium: isActive,
+        subscriptionSource: 'google_play',
         subscriptionExpiryDate: expiresAt ? admin.firestore.Timestamp.fromDate(expiresAt) : null,
         autoRenewing,
         productId: subscriptionId.includes('annual') ? 'annual' : 'monthly',

@@ -241,6 +241,7 @@ exports.validatePurchase = (0, https_1.onCall)({ secrets: [appleSharedSecret] },
         const updateData = {
             membershipStatus: inTrial ? 'trial' : 'premium',
             isPremium: true, // Both trial and premium users have premium access
+            subscriptionSource: platform === 'ios' ? 'apple_iap' : 'google_play',
             subscriptionExpiryDate: expiresAt ? admin.firestore.Timestamp.fromDate(expiresAt) : null,
             trialStartDate: trialStart ? admin.firestore.Timestamp.fromDate(trialStart) : null,
             trialEndDate: trialEnd ? admin.firestore.Timestamp.fromDate(trialEnd) : null,
