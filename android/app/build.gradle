@@ -92,15 +92,9 @@ android {
         applicationId 'com.braveheartinnovations.debateai'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 25
-        versionName "1.5.4"
-        // Required for react-native-iap to resolve store flavor ambiguity
+        versionCode 26
+        versionName "1.5.5"
         missingDimensionStrategy 'store', 'play'
-
-        // Explicit ABI filters to ensure native libraries are packaged correctly
-        ndk {
-            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
-        }
     }
     signingConfigs {
         debug {
@@ -128,8 +122,6 @@ android {
         jniLibs {
             useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
         }
-        // Prevent duplicate native library conflicts
-        jniLibs.pickFirsts.add('**/libc++_shared.so')
     }
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'

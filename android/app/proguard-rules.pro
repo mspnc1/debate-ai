@@ -11,8 +11,4 @@
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
 
-# SoLoader - prevent stripping of native library loading classes
--keep class com.facebook.soloader.** { *; }
--keep class com.facebook.react.** { *; }
-
 # Add any project specific keep options here:
