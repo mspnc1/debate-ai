@@ -43,3 +43,7 @@ export { symposiumFeedback } from './symposiumFeedback';
 
 // Apple Sign In Callback (handles form_post from Apple)
 export { appleAuthCallback } from './appleAuthCallback';
+
+// Export Pipeline (M4)
+export { runExportJob } from './exports/runExportJob';
+export { createExportJob } from './exports/createExportJob';

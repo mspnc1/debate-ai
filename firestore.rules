@@ -66,6 +66,12 @@ service cloud.firestore {
       allow write: if false; // Only cloud functions (admin SDK) can write
     }
 
+    // Export Jobs - creator can read status, only cloud functions write
+    match /exportJobs/{jobId} {
+      allow read: if request.auth != null && resource.data.createdBy == request.auth.uid;
+      allow write: if false;
+    }
+
     // Purchase errors - for debugging Play Store review failures
     // Allow any authenticated user to write (create only), no reads from client
     match /purchase_errors/{docId} {
