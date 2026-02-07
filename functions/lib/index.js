@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.appleAuthCallback = exports.symposiumFeedback = exports.contactForm = exports.exportUserData = exports.recordImageGeneration = exports.getUsageStats = exports.getProviderBalances = exports.stripeWebhook = exports.cancelStripeSubscription = exports.createStripeBillingPortal = exports.createStripeCheckoutSession = exports.web_search = exports.executeTool = exports.proxyImageGeneration = exports.proxyAIRequestStreamV2 = exports.proxyAIRequestStream = exports.proxyAIRequest = exports.getConfiguredDataServices = exports.deleteDataServiceKey = exports.saveDataServiceKey = exports.getConfiguredProviders = exports.deleteApiKey = exports.saveApiKey = exports.deleteAccount = exports.handleAppStoreNotification = exports.handlePlayStoreNotification = exports.validatePurchase = void 0;
+exports.createExportJob = exports.runExportJob = exports.appleAuthCallback = exports.symposiumFeedback = exports.contactForm = exports.exportUserData = exports.recordImageGeneration = exports.getUsageStats = exports.getProviderBalances = exports.stripeWebhook = exports.cancelStripeSubscription = exports.createStripeBillingPortal = exports.createStripeCheckoutSession = exports.web_search = exports.executeTool = exports.proxyImageGeneration = exports.proxyAIRequestStreamV2 = exports.proxyAIRequestStream = exports.proxyAIRequest = exports.getConfiguredDataServices = exports.deleteDataServiceKey = exports.saveDataServiceKey = exports.getConfiguredProviders = exports.deleteApiKey = exports.saveApiKey = exports.deleteAccount = exports.handleAppStoreNotification = exports.handlePlayStoreNotification = exports.validatePurchase = void 0;
 var validatePurchase_1 = require("./validatePurchase");
 Object.defineProperty(exports, "validatePurchase", { enumerable: true, get: function () { return validatePurchase_1.validatePurchase; } });
 var playStore_1 = require("./notifications/playStore");
@@ -57,3 +57,8 @@ Object.defineProperty(exports, "symposiumFeedback", { enumerable: true, get: fun
 // Apple Sign In Callback (handles form_post from Apple)
 var appleAuthCallback_1 = require("./appleAuthCallback");
 Object.defineProperty(exports, "appleAuthCallback", { enumerable: true, get: function () { return appleAuthCallback_1.appleAuthCallback; } });
+// Export Pipeline (M4)
+var runExportJob_1 = require("./exports/runExportJob");
+Object.defineProperty(exports, "runExportJob", { enumerable: true, get: function () { return runExportJob_1.runExportJob; } });
+var createExportJob_1 = require("./exports/createExportJob");
+Object.defineProperty(exports, "createExportJob", { enumerable: true, get: function () { return createExportJob_1.createExportJob; } });

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="script-src 'none'">
+  <title>{{title}}</title>
+  <style>
+    @page {
+      size: {{pageSize}};
+      margin: {{margins.top}}pt {{margins.right}}pt {{margins.bottom}}pt {{margins.left}}pt;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: {{fonts.body}}, -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 11pt;
+      line-height: 1.6;
+      color: {{colors.text}};
+      background: {{colors.background}};
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Title page */
+    .title-page {
+      text-align: center;
+      padding-top: 120pt;
+      page-break-after: always;
+    }
+
+    .title-page h1 {
+      font-family: {{fonts.heading}}, -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 28pt;
+      font-weight: 700;
+      color: {{colors.primary}};
+      margin-bottom: 16pt;
+      line-height: 1.2;
+    }
+
+    .title-page .authors {
+      font-size: 13pt;
+      color: {{colors.secondary}};
+      margin-bottom: 24pt;
+    }
+
+    .title-page .abstract {
+      text-align: left;
+      max-width: 480pt;
+      margin: 32pt auto 0;
+      font-size: 10pt;
+      color: #4b5563;
+      line-height: 1.7;
+    }
+
+    .title-page .abstract-label {
+      font-weight: 700;
+      font-size: 11pt;
+      color: {{colors.text}};
+      margin-bottom: 8pt;
+    }
+
+    /* Headings */
+    h1, h2, h3 {
+      font-family: {{fonts.heading}}, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: {{colors.text}};
+      margin-top: 18pt;
+      margin-bottom: 8pt;
+      page-break-after: avoid;
+    }
+
+    h1 { font-size: 22pt; font-weight: 700; color: {{colors.primary}}; border-bottom: 1px solid #e5e7eb; padding-bottom: 6pt; }
+    h2 { font-size: 16pt; font-weight: 600; }
+    h3 { font-size: 13pt; font-weight: 600; }
+
+    /* Paragraphs (rendered markdown) */
+    .paragraph p { margin: 0 0 8pt; }
+    .paragraph ul, .paragraph ol { margin: 4pt 0 8pt 18pt; }
+    .paragraph code {
+      font-family: {{fonts.mono}}, 'Courier New', monospace;
+      background: #f3f4f6;
+      padding: 1pt 3pt;
+      border-radius: 2pt;
+      font-size: 9.5pt;
+    }
+    .paragraph pre {
+      background: #f3f4f6;
+      padding: 8pt;
+      border-radius: 4pt;
+      overflow-x: auto;
+      font-size: 9pt;
+      line-height: 1.5;
+    }
+    .paragraph pre code {
+      background: none;
+      padding: 0;
+    }
+    .paragraph blockquote {
+      border-left: 3pt solid {{colors.accent}};
+      margin: 8pt 0;
+      padding: 4pt 12pt;
+      color: #6b7280;
+    }
+
+    /* Artifact visuals */
+    .artifact-block {
+      margin: 12pt 0;
+      text-align: center;
+      page-break-inside: avoid;
+    }
+
+    .artifact-block svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .artifact-block img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .artifact-caption {
+      font-size: 9pt;
+      color: #6b7280;
+      margin-top: 4pt;
+      font-style: italic;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8pt 0;
+      font-size: 9.5pt;
+      page-break-inside: avoid;
+    }
+
+    table caption {
+      font-size: 9pt;
+      color: #6b7280;
+      margin-bottom: 4pt;
+      font-style: italic;
+      text-align: left;
+    }
+
+    th {
+      background: #f9fafb;
+      font-weight: 600;
+      text-align: left;
+      padding: 5pt 8pt;
+      border: 0.5pt solid #d1d5db;
+    }
+
+    td {
+      padding: 4pt 8pt;
+      border: 0.5pt solid #e5e7eb;
+    }
+
+    tr:nth-child(even) td {
+      background: #f9fafb;
+    }
+
+    /* Page breaks */
+    .page-break {
+      page-break-after: always;
+    }
+
+    /* Print overrides */
+    @media print {
+      body { background: white; }
+      .page-break { page-break-after: always; }
+      .artifact-block { page-break-inside: avoid; }
+      table { page-break-inside: avoid; }
+      h1, h2, h3 { page-break-after: avoid; }
+    }
+  </style>
+</head>
+<body>
+  {{#if showTitlePage}}
+  <div class="title-page">
+    <h1>{{title}}</h1>
+    {{#if authors.length}}
+    <div class="authors">{{joinAuthors authors}}</div>
+    {{/if}}
+    {{#if abstractHtml}}
+    <div class="abstract">
+      <div class="abstract-label">Abstract</div>
+      {{{abstractHtml}}}
+    </div>
+    {{/if}}
+  </div>
+  {{/if}}
+
+  {{#each pages}}
+  <div class="report-page">
+    {{#each blocks}}
+    {{{this}}}
+    {{/each}}
+  </div>
+  {{#unless @last}}
+  <div class="page-break"></div>
+  {{/unless}}
+  {{/each}}
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Vega Renderer</title>
+  <style>
+    body { margin: 0; padding: 0; background: #fff; }
+    #vis { width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="vis"></div>
+
+  <!-- Vendored Vega stack (loaded from local filesystem) -->
+  <script src="vega.min.js"></script>
+  <script src="vega-lite.min.js"></script>
+  <script src="vega-embed.min.js"></script>
+
+  <script>
+    /**
+     * Render a Vega or Vega-Lite spec to SVG or PNG.
+     *
+     * @param {object} spec - Vega or Vega-Lite specification
+     * @param {object} opts - { format: 'svg'|'png', width?: number, height?: number }
+     * @returns {Promise<{svg?: string, pngDataUrl?: string}>}
+     */
+    window.__renderVega = async function(spec, opts) {
+      const format = (opts && opts.format) || 'svg';
+      const container = document.getElementById('vis');
+      container.innerHTML = '';
+
+      // Determine if this is Vega-Lite (has $schema with vega-lite or has mark/encoding)
+      const isVegaLite = spec.$schema && spec.$schema.includes('vega-lite') ||
+                         spec.mark || spec.encoding || spec.layer;
+
+      // Apply size overrides
+      if (opts && opts.width) spec.width = opts.width;
+      if (opts && opts.height) spec.height = opts.height;
+
+      const embedOpts = {
+        actions: false,
+        renderer: format === 'png' ? 'canvas' : 'svg',
+      };
+
+      const result = await vegaEmbed(container, spec, embedOpts);
+      const view = result.view;
+
+      if (format === 'svg') {
+        const svg = await view.toSVG();
+        return { svg: svg };
+      } else {
+        const canvas = await view.toCanvas();
+        const dataUrl = canvas.toDataURL('image/png');
+        return { pngDataUrl: dataUrl };
+      }
+    };
+  </script>
+</body>
+</html>
