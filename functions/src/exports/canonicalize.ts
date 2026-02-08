@@ -14,6 +14,7 @@
  */
 import { z } from 'zod';
 import type { ReportSpecV1, ReportTheme } from './types';
+import { EXPLANATION_CHAR_LIMITS } from './types';
 import { sha256Hex, stableSerialize } from './utils';
 
 // ============================================================================
@@ -98,6 +99,22 @@ const spacerBlockSchema = z.object({
   height: z.number().positive(),
 });
 
+const explanationSizeSchema = z.enum(['s', 'm', 'l']);
+
+const artifactExplanationBlockSchema = z.object({
+  kind: z.literal('artifact_explanation'),
+  artifactId: z.string().min(1),
+  size: explanationSizeSchema,
+  text: z.string(),
+}).refine(
+  (data: { size: 's' | 'm' | 'l'; text: string }) =>
+    data.text.length <= EXPLANATION_CHAR_LIMITS[data.size],
+  {
+    message: 'Explanation text exceeds character limit for selected size',
+    path: ['text'],
+  },
+);
+
 const reportBlockSchema = z.discriminatedUnion('kind', [
   headingBlockSchema,
   paragraphBlockSchema,
@@ -105,6 +122,7 @@ const reportBlockSchema = z.discriminatedUnion('kind', [
   tableBlockSchema,
   pageBreakBlockSchema,
   spacerBlockSchema,
+  artifactExplanationBlockSchema,
 ]);
 
 const reportThemeSchema = z.object({

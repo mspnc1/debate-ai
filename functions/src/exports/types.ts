@@ -100,13 +100,29 @@ export interface SpacerBlock {
   height: number; // in pt
 }
 
+export type ExplanationSize = 's' | 'm' | 'l';
+
+export const EXPLANATION_CHAR_LIMITS: Record<ExplanationSize, number> = {
+  s: 240,
+  m: 480,
+  l: 900,
+};
+
+export interface ArtifactExplanationBlock {
+  kind: 'artifact_explanation';
+  artifactId: string;
+  size: ExplanationSize;
+  text: string;
+}
+
 export type ReportBlock =
   | HeadingBlock
   | ParagraphBlock
   | ArtifactBlock
   | TableBlock
   | PageBreakBlock
-  | SpacerBlock;
+  | SpacerBlock
+  | ArtifactExplanationBlock;
 
 // ============================================================================
 // Report Page & Spec

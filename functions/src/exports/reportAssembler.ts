@@ -16,6 +16,7 @@ import type {
   ParagraphBlock,
   TableBlock,
   SpacerBlock,
+  ArtifactExplanationBlock,
 } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -82,6 +83,14 @@ function renderArtifact(
   }
   html += '</div>';
   return html;
+}
+
+/**
+ * Render an artifact explanation block to HTML.
+ */
+function renderArtifactExplanation(block: ArtifactExplanationBlock): string {
+  const sizeClass = `explanation-${block.size}`;
+  return `<div class="artifact-explanation ${sizeClass}"><p>${escapeHtml(block.text)}</p></div>`;
 }
 
 /**
@@ -308,6 +317,16 @@ export function renderJsonDocument(data: string): string {
           break;
         }
 
+        case 'artifact_explanation': {
+          const explText = typeof rawBlock.text === 'string' ? rawBlock.text : '';
+          if (explText) {
+            const sizeVal = rawBlock.size === 's' || rawBlock.size === 'm' || rawBlock.size === 'l'
+              ? rawBlock.size : 'm';
+            parts.push(`<div class="artifact-explanation explanation-${sizeVal}"><p>${escapeHtml(explText)}</p></div>`);
+          }
+          break;
+        }
+
         case 'vega_lite_spec':
         case 'map_spec':
         case 'image':
@@ -492,6 +511,9 @@ export function assembleReportHtml(
 
         case 'table':
           return renderTable(block);
+
+        case 'artifact_explanation':
+          return renderArtifactExplanation(block);
 
         case 'page_break':
           return '<div class="page-break"></div>';
