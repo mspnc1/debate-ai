@@ -6,7 +6,8 @@
 import * as crypto from 'crypto';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
-import type { ExportJobPhase } from './types';
+import { PAYLOAD_SENTINEL } from './types';
+import type { ArtifactDoc, ExportJobPhase } from './types';
 
 const STORAGE_BUCKET = 'symposium-ai.firebasestorage.app';
 
@@ -72,4 +73,31 @@ export async function updateJobPhase(
       updatedAt: new Date().toISOString(),
       ...extra,
     });
+}
+
+/**
+ * Resolve an artifact's data, downloading from Storage if it was offloaded.
+ * Backward compatible — returns inline data as-is if no payloadRefs.
+ */
+export async function resolveArtifactData(artifact: ArtifactDoc): Promise<string> {
+  if (!artifact.payloadRefs?.data) {
+    return artifact.data;
+  }
+
+  // Data was offloaded to Firebase Storage — download it
+  const ref = artifact.payloadRefs.data;
+  const bucket = getExportBucket();
+  const [buffer] = await bucket.file(ref.path).download();
+  const text = buffer.toString('utf-8');
+
+  // Verify integrity
+  const computedHash = sha256Hex(text);
+  if (computedHash !== ref.sha256) {
+    throw new Error(
+      `PAYLOAD_INTEGRITY_MISMATCH: artifact ${artifact.id} data ` +
+      `(expected ${ref.sha256}, got ${computedHash})`,
+    );
+  }
+
+  return text;
 }

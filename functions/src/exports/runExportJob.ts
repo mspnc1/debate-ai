@@ -27,7 +27,7 @@ import type {
   ArtifactBlock,
   ProvenanceInputArtifact,
 } from './types';
-import { sha256Hex, updateJobPhase } from './utils';
+import { sha256Hex, updateJobPhase, resolveArtifactData } from './utils';
 import { validateExportArtifacts } from './policyGate';
 import { canonicalizeReportSpecV1, contentAddressReportSpec } from './canonicalize';
 import {
@@ -197,7 +197,8 @@ export const runExportJob = onRequest(
       // ================================================================
       let reportSpec: ReportSpecV1;
       try {
-        const rawSpec = JSON.parse(specArtifact.data);
+        const resolvedSpecData = await resolveArtifactData(specArtifact);
+        const rawSpec = JSON.parse(resolvedSpecData);
         reportSpec = canonicalizeReportSpecV1(rawSpec);
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Invalid report spec';
@@ -243,7 +244,10 @@ export const runExportJob = onRequest(
           .get();
 
         if (artDoc.exists) {
-          artifacts.set(block.artifactId, artDoc.data() as ArtifactDoc);
+          const artData = artDoc.data() as ArtifactDoc;
+          // Resolve offloaded data from Storage if needed
+          artData.data = await resolveArtifactData(artData);
+          artifacts.set(block.artifactId, artData);
         }
       }
 

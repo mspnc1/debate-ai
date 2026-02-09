@@ -13,7 +13,8 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
 import { enqueueExportJob } from './enqueueExportJob';
-import type { ReportSpecV1, ArtifactBlock } from './types';
+import { resolveArtifactData } from './utils';
+import type { ArtifactDoc, ReportSpecV1, ArtifactBlock } from './types';
 
 export const createExportJob = onCall(
   { timeoutSeconds: 30 },
@@ -60,7 +61,8 @@ export const createExportJob = onCall(
 
     if (specData?.data) {
       try {
-        const reportSpec: ReportSpecV1 = JSON.parse(specData.data);
+        const resolvedData = await resolveArtifactData(specData as ArtifactDoc);
+        const reportSpec: ReportSpecV1 = JSON.parse(resolvedData);
 
         // Collect all referenced artifact IDs
         const referencedIds = new Set<string>();

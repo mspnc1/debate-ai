@@ -234,6 +234,28 @@ export interface ProvenanceManifest {
 }
 
 // ============================================================================
+// Cloud Payload Offloading (mirrors web repo CloudPayloadStorageService)
+// ============================================================================
+
+export type CloudPayloadRef = {
+  version: 1;
+  provider: 'firebase_storage';
+  path: string;
+  bytes: number;
+  sha256: string;
+  contentType: string;
+  offloadedAt: number;
+};
+
+export type CloudPayloadRefs = {
+  data?: CloudPayloadRef;
+  content?: CloudPayloadRef;
+  metadata?: CloudPayloadRef;
+};
+
+export const PAYLOAD_SENTINEL = '__PAYLOAD_OFFLOADED__';
+
+// ============================================================================
 // Artifact Document (Firestore shape, subset of web Artifact)
 // ============================================================================
 
@@ -250,6 +272,7 @@ export interface ArtifactDoc {
   profile?: string;
   provenance?: Record<string, unknown>;
   dependencies?: Array<{ artifactId: string; relationship: string }>;
+  payloadRefs?: CloudPayloadRefs;
 }
 
 // ============================================================================
