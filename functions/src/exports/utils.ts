@@ -78,9 +78,12 @@ export async function updateJobPhase(
 /**
  * Resolve an artifact's data, downloading from Storage if it was offloaded.
  * Backward compatible — returns inline data as-is if no payloadRefs.
+ *
+ * Only resolves when the data field holds the sentinel value, preventing
+ * stale payloadRefs from overwriting fresh inline data after a merge write.
  */
 export async function resolveArtifactData(artifact: ArtifactDoc): Promise<string> {
-  if (!artifact.payloadRefs?.data) {
+  if (!artifact.payloadRefs?.data || artifact.data !== PAYLOAD_SENTINEL) {
     return artifact.data;
   }
 
