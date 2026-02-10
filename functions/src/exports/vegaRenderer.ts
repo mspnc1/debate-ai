@@ -6,6 +6,7 @@
  */
 import type { Page } from 'puppeteer-core';
 import * as path from 'path';
+import * as fs from 'fs';
 
 function getVendorDir(): string {
   // functions/static/vendor/ — two levels up from lib/exports/
@@ -14,48 +15,78 @@ function getVendorDir(): string {
 
 /**
  * Ensure the page is loaded with the Vega renderer.
- * Navigates to a data URL that loads the vendored Vega stack.
+ * Loads the vendored Vega stack directly into the page.
  */
 async function ensureRendererLoaded(page: Page): Promise<void> {
   const vendorDir = getVendorDir();
+  const vegaPath = path.join(vendorDir, 'vega.min.js');
+  const vegaLitePath = path.join(vendorDir, 'vega-lite.min.js');
+  const vegaEmbedPath = path.join(vendorDir, 'vega-embed.min.js');
 
-  // Build a minimal HTML page that loads the vendored scripts from file://
+  for (const scriptPath of [vegaPath, vegaLitePath, vegaEmbedPath]) {
+    if (!fs.existsSync(scriptPath)) {
+      throw new Error(`[vegaRenderer] Missing vendored script: ${scriptPath}`);
+    }
+  }
+
+  // Build a minimal HTML page shell, then inject scripts via Puppeteer.
+  // This avoids file:// loading restrictions in some Chromium/serverless runtimes.
   const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
 <body>
 <div id="vis"></div>
-<script src="file://${vendorDir}/vega.min.js"></script>
-<script src="file://${vendorDir}/vega-lite.min.js"></script>
-<script src="file://${vendorDir}/vega-embed.min.js"></script>
-<script>
+</body></html>`;
+
+  await page.setContent(html, { waitUntil: 'domcontentloaded' });
+
+  try {
+    await page.addScriptTag({ path: vegaPath });
+    await page.addScriptTag({ path: vegaLitePath });
+    await page.addScriptTag({ path: vegaEmbedPath });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `[vegaRenderer] Failed to load vendored Vega stack from ${vendorDir}: ${msg}`,
+    );
+  }
+
+  await page.addScriptTag({
+    content: `
 window.__renderVega = async function(spec, opts) {
+  if (typeof vegaEmbed !== 'function') {
+    throw new Error('vegaEmbed runtime not loaded');
+  }
+
   var format = (opts && opts.format) || 'svg';
   var container = document.getElementById('vis');
   container.innerHTML = '';
-  if (opts && opts.width) spec.width = opts.width;
-  if (opts && opts.height) spec.height = opts.height;
+
+  var specCopy = JSON.parse(JSON.stringify(spec || {}));
+  if (opts && opts.width) specCopy.width = opts.width;
+  if (opts && opts.height) specCopy.height = opts.height;
+
   var embedOpts = { actions: false, renderer: format === 'png' ? 'canvas' : 'svg' };
-  var result = await vegaEmbed(container, spec, embedOpts);
+  var result = await vegaEmbed(container, specCopy, embedOpts);
   var view = result.view;
+
   if (format === 'svg') {
     var svg = await view.toSVG();
     return { svg: svg };
-  } else {
-    var canvas = await view.toCanvas();
-    var dataUrl = canvas.toDataURL('image/png');
-    return { pngDataUrl: dataUrl };
   }
-};
-window.__rendererReady = true;
-</script>
-</body></html>`;
 
-  await page.setContent(html, { waitUntil: 'load' });
-
-  // Wait for renderer to be ready
-  await page.waitForFunction('window.__rendererReady === true', {
-    timeout: 15_000,
+  var canvas = await view.toCanvas();
+  var dataUrl = canvas.toDataURL('image/png');
+  return { pngDataUrl: dataUrl };
+};`,
   });
+
+  // Wait for renderer globals to be present
+  await page.waitForFunction(
+    'typeof window.__renderVega === "function" && typeof window.vegaEmbed === "function"',
+    {
+      timeout: 15_000,
+    },
+  );
 }
 
 /**
