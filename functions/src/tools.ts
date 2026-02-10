@@ -697,6 +697,28 @@ interface FetchApiArgs {
   timeout?: number;
 }
 
+/**
+ * Normalize FBI CDE month-year query params.
+ * API expects MM-YYYY for from/to; accept YYYY as shorthand.
+ */
+function normalizeFbiDateParam(value: unknown, fallbackMonth: '01' | '12'): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  if (/^\d{4}$/.test(trimmed)) {
+    return `${fallbackMonth}-${trimmed}`;
+  }
+
+  const monthYearMatch = trimmed.match(/^(\d{1,2})-(\d{4})$/);
+  if (monthYearMatch) {
+    const month = monthYearMatch[1].padStart(2, '0');
+    return `${month}-${monthYearMatch[2]}`;
+  }
+
+  return null;
+}
+
 async function handleFetchApi(
   args: FetchApiArgs,
   uid: string,
@@ -772,9 +794,10 @@ async function handleFetchApi(
     // Only resolve key if connector requires authentication
     if (authConfig.authType !== 'none' && authConfig.authKeyName) {
       // Try user's stored key first, then fall back to Symposium-managed key
-      const apiKey = await getDecryptedDataServiceKey(uid, api_key_ref, encryptionKeyValue)
+      const rawApiKey = await getDecryptedDataServiceKey(uid, api_key_ref, encryptionKeyValue)
         || authConfig.getManagedKey?.()
         || null;
+      const apiKey = typeof rawApiKey === 'string' ? rawApiKey.trim() : '';
       if (!apiKey) {
         return {
           toolCallId: '',
@@ -797,6 +820,14 @@ async function handleFetchApi(
           break;
       }
     }
+  }
+
+  // Connector-specific param normalization
+  if (api_key_ref === 'fbi_crime') {
+    const normalizedFrom = normalizeFbiDateParam(query_params.from, '01');
+    const normalizedTo = normalizeFbiDateParam(query_params.to, '12');
+    if (normalizedFrom) query_params.from = normalizedFrom;
+    if (normalizedTo) query_params.to = normalizedTo;
   }
 
   // Build URL with query params
