@@ -11,6 +11,8 @@ import {
   usCensusApiKey,
   blsRegistrationKey,
   fbiCrimeApiKey,
+  stackExchangeApiKey,
+  librariesIoApiKey,
 } from './dataConnectors';
 
 // ============================================================================
@@ -966,6 +968,8 @@ export const executeTool = onCall(
       usCensusApiKey,
       blsRegistrationKey,
       fbiCrimeApiKey,
+      stackExchangeApiKey,
+      librariesIoApiKey,
     ],
   },
   async (request): Promise<ToolResult> => {

@@ -24,6 +24,8 @@ const nasaApiKey = defineSecret('NASA_API_KEY');
 const usCensusApiKey = defineSecret('US_CENSUS_API_KEY');
 const blsRegistrationKey = defineSecret('BLS_REGISTRATION_KEY');
 const fbiCrimeApiKey = defineSecret('FBI_CRIME_API_KEY');
+const stackExchangeApiKey = defineSecret('STACK_EXCHANGE_API_KEY');
+const librariesIoApiKey = defineSecret('LIBRARIES_IO_API_KEY');
 
 // Valid data connector IDs (must match client-side data-connectors.ts)
 const VALID_CONNECTOR_IDS = [
@@ -49,6 +51,12 @@ const VALID_CONNECTOR_IDS = [
   'un_population',
   'npm_registry',
   'hacker_news',
+  'pypi',
+  'stack_exchange',
+  'libraries_io',
+  'open_library',
+  'dictionary_api',
+  'who_gho',
   'sec_edgar',
   'yahoo_finance',
   'semantic_scholar',
@@ -93,6 +101,12 @@ export const CONNECTOR_AUTH_CONFIG: Record<string, ConnectorAuthConfig> = {
   un_population: { authType: 'none' },
   npm_registry: { authType: 'none' },
   hacker_news: { authType: 'none' },
+  pypi: { authType: 'none' },
+  stack_exchange: { authType: 'query_param', authKeyName: 'key', getManagedKey: () => stackExchangeApiKey.value() || undefined },
+  libraries_io: { authType: 'query_param', authKeyName: 'api_key', getManagedKey: () => librariesIoApiKey.value() || undefined },
+  open_library: { authType: 'none' },
+  dictionary_api: { authType: 'none' },
+  who_gho: { authType: 'none' },
   sec_edgar: { authType: 'none' },
   yahoo_finance: { authType: 'none' },
   openweathermap: { authType: 'query_param', authKeyName: 'appid' },
@@ -226,4 +240,6 @@ export {
   usCensusApiKey,
   blsRegistrationKey,
   fbiCrimeApiKey,
+  stackExchangeApiKey,
+  librariesIoApiKey,
 };
