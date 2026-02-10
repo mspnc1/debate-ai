@@ -20,26 +20,47 @@ import { encrypt, getDecryptedDataServiceKey, encryptionKey } from './dataConnec
 // Managed API keys for Symposium-provided connectors
 const fredApiKey = defineSecret('FRED_API_KEY');
 const socrataAppToken = defineSecret('SOCRATA_APP_TOKEN');
+const nasaApiKey = defineSecret('NASA_API_KEY');
+const usCensusApiKey = defineSecret('US_CENSUS_API_KEY');
+const blsRegistrationKey = defineSecret('BLS_REGISTRATION_KEY');
+const fbiCrimeApiKey = defineSecret('FBI_CRIME_API_KEY');
 
 // Valid data connector IDs (must match client-side data-connectors.ts)
 const VALID_CONNECTOR_IDS = [
-  // Symposium-managed (no user key needed, but FRED uses a managed key)
+  // Symposium-managed
   'weather_gov',
   'fred',
   'usgs_earthquake',
   'arxiv',
+  'wikipedia',
+  'wikidata',
+  'crossref',
+  'openalex',
+  'clinicaltrials_gov',
+  'openfda',
+  'us_census',
+  'bls',
+  'nasa',
+  'epa_envirofacts',
+  'fbi_crime',
+  'oecd',
+  'imf',
+  'eurostat',
+  'un_population',
+  'npm_registry',
+  'hacker_news',
   'sec_edgar',
+  'yahoo_finance',
+  'semantic_scholar',
   'world_bank',
   'socrata',
   'pubmed',
   'overpass_osm',
-  // BYOK (user provides key)
-  'alpha_vantage',
+  'google_sheets_csv',
+  // BYOK
   'openweathermap',
   'newsapi',
-  'semantic_scholar',
   'github',
-  'google_sheets_csv',
 ];
 
 // Connector auth configuration (server-side source of truth for key injection)
@@ -55,11 +76,28 @@ export const CONNECTOR_AUTH_CONFIG: Record<string, ConnectorAuthConfig> = {
   fred: { authType: 'query_param', authKeyName: 'api_key', getManagedKey: () => fredApiKey.value() || undefined },
   usgs_earthquake: { authType: 'none' },
   arxiv: { authType: 'none' },
-  sec_edgar: { authType: 'header', authKeyName: 'User-Agent' },
-  alpha_vantage: { authType: 'query_param', authKeyName: 'apikey' },
+  wikipedia: { authType: 'none' },
+  wikidata: { authType: 'none' },
+  crossref: { authType: 'none' },
+  openalex: { authType: 'none' },
+  clinicaltrials_gov: { authType: 'none' },
+  openfda: { authType: 'none' },
+  us_census: { authType: 'query_param', authKeyName: 'key', getManagedKey: () => usCensusApiKey.value() || undefined },
+  bls: { authType: 'query_param', authKeyName: 'registrationkey', getManagedKey: () => blsRegistrationKey.value() || undefined },
+  nasa: { authType: 'query_param', authKeyName: 'api_key', getManagedKey: () => nasaApiKey.value() || undefined },
+  epa_envirofacts: { authType: 'none' },
+  fbi_crime: { authType: 'query_param', authKeyName: 'API_KEY', getManagedKey: () => fbiCrimeApiKey.value() || undefined },
+  oecd: { authType: 'none' },
+  imf: { authType: 'none' },
+  eurostat: { authType: 'none' },
+  un_population: { authType: 'none' },
+  npm_registry: { authType: 'none' },
+  hacker_news: { authType: 'none' },
+  sec_edgar: { authType: 'none' },
+  yahoo_finance: { authType: 'none' },
   openweathermap: { authType: 'query_param', authKeyName: 'appid' },
   newsapi: { authType: 'header', authKeyName: 'X-Api-Key' },
-  semantic_scholar: { authType: 'header', authKeyName: 'x-api-key' },
+  semantic_scholar: { authType: 'none' },
   world_bank: { authType: 'none' },
   socrata: { authType: 'query_param', authKeyName: '$$app_token', getManagedKey: () => socrataAppToken.value() || undefined },
   pubmed: { authType: 'none' },
@@ -179,4 +217,13 @@ export const getConfiguredDataServices = onCall(async (request) => {
 });
 
 // Re-export for use by tools.ts
-export { getDecryptedDataServiceKey, VALID_CONNECTOR_IDS, fredApiKey, socrataAppToken };
+export {
+  getDecryptedDataServiceKey,
+  VALID_CONNECTOR_IDS,
+  fredApiKey,
+  socrataAppToken,
+  nasaApiKey,
+  usCensusApiKey,
+  blsRegistrationKey,
+  fbiCrimeApiKey,
+};
