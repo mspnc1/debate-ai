@@ -73,12 +73,12 @@ function renderHeading(block: HeadingBlock): string {
 function renderParagraph(
   block: ParagraphBlock,
   citationStyle: 'none' | 'numeric_endnotes',
-  citationNumberByArtifactId: Map<string, number>,
+  citationNumbersByArtifactId: Map<string, number[]>,
 ): string {
   const markdown = applyInlineCitationTokens(
     block.markdown,
     citationStyle === 'numeric_endnotes' ? 'numeric_endnotes' : 'none',
-    citationNumberByArtifactId,
+    citationNumbersByArtifactId,
   );
   return `<div class="paragraph">${renderMarkdown(markdown)}</div>`;
 }
@@ -89,15 +89,11 @@ function renderParagraph(
 function renderArtifact(
   block: ArtifactBlock,
   renderedContent: string,
-  citationNumber?: number,
 ): string {
   let html = `<div class="artifact-block">${renderedContent}`;
-  if (block.caption || citationNumber) {
-    const refHtml = citationNumber
-      ? `<sup class="artifact-citation-ref"><a href="#endnote-${citationNumber}">[${citationNumber}]</a></sup>`
-      : '';
+  if (block.caption) {
     const caption = block.caption ? escapeHtml(block.caption) : '';
-    html += `<div class="artifact-caption">${caption}${caption && refHtml ? ' ' : ''}${refHtml}</div>`;
+    html += `<div class="artifact-caption">${caption}</div>`;
   }
   html += '</div>';
   return html;
@@ -183,14 +179,20 @@ function collectInlineCitationIds(markdown: string): string[] {
 function applyInlineCitationTokens(
   markdown: string,
   citationStyle: 'none' | 'numeric_endnotes',
-  citationNumberByArtifactId: Map<string, number>,
+  citationNumbersByArtifactId: Map<string, number[]>,
 ): string {
+  const renderCitationRefsHtml = (indices: number[]): string => {
+    if (indices.length === 0) return '[?]';
+    const refs = indices
+      .map((index) => `<a href="#endnote-${index}">[${index}]</a>`)
+      .join('');
+    return `<sup class="artifact-citation-ref">${refs}</sup>`;
+  };
+
   return markdown.replace(INLINE_CITATION_TOKEN_REGEX, (_full, artifactId: string) => {
     if (citationStyle !== 'numeric_endnotes') return '';
-    const citationNumber = citationNumberByArtifactId.get(artifactId);
-    return citationNumber
-      ? `<sup class="artifact-citation-ref"><a href="#endnote-${citationNumber}">[${citationNumber}]</a></sup>`
-      : '[?]';
+    const citationNumbers = citationNumbersByArtifactId.get(artifactId) ?? [];
+    return renderCitationRefsHtml(citationNumbers);
   });
 }
 
@@ -542,6 +544,21 @@ interface ArtifactDependencyEntry {
   artifactName: string;
 }
 
+interface SourceCitationEntry {
+  index: number;
+  key: string;
+  label: string;
+  endpoint?: string;
+  tool?: string;
+  connectorId?: string;
+  fetchedAt?: string;
+  responseHash?: string;
+  parameterHash?: string;
+  cacheStatus?: string;
+  artifactIds: string[];
+  artifactDisplayNames: string[];
+}
+
 const SENSITIVE_QUERY_PARAM_RE = /(api[_-]?key|access[_-]?token|token|secret|auth|password|signature|sig|key)$/i;
 
 function optionalString(value: unknown): string | undefined {
@@ -652,6 +669,94 @@ function parseArtifactDependencies(
   }
 
   return dependencies;
+}
+
+function getSourceCitationKey(origin: ArtifactOriginEntry): string {
+  if (origin.responseHash) return `response:${origin.responseHash}`;
+  return [
+    'origin',
+    origin.tool,
+    origin.connectorId ?? '',
+    origin.endpoint,
+    origin.parameterHash ?? '',
+    origin.method ?? '',
+  ].join('|');
+}
+
+function formatSourceLabel(origin: ArtifactOriginEntry): string {
+  try {
+    const url = new URL(origin.endpoint);
+    const path = `${url.hostname}${url.pathname}`.replace(/\/+$/, '');
+    return path || url.hostname;
+  } catch {
+    return origin.endpoint;
+  }
+}
+
+function buildSourceCitationEntries(
+  artifactEntries: ArtifactReferenceEntry[],
+): {
+  sourceEntries: SourceCitationEntry[];
+  citationNumbersByArtifactId: Map<string, number[]>;
+} {
+  const sourceEntries: SourceCitationEntry[] = [];
+  const sourceIndexByKey = new Map<string, number>();
+  const citationNumbersByArtifactId = new Map<string, number[]>();
+
+  const addSourceEntry = (entry: Omit<SourceCitationEntry, 'index'>): SourceCitationEntry => {
+    const existingIndex = sourceIndexByKey.get(entry.key);
+    if (existingIndex != null) {
+      return sourceEntries[existingIndex];
+    }
+    const next: SourceCitationEntry = { ...entry, index: sourceEntries.length + 1 };
+    sourceIndexByKey.set(entry.key, sourceEntries.length);
+    sourceEntries.push(next);
+    return next;
+  };
+
+  for (const artifactEntry of artifactEntries) {
+    const seenForArtifact = new Set<number>();
+
+    if (artifactEntry.origins.length > 0) {
+      for (const origin of artifactEntry.origins) {
+        const source = addSourceEntry({
+          key: getSourceCitationKey(origin),
+          label: formatSourceLabel(origin),
+          endpoint: origin.endpoint,
+          tool: origin.tool,
+          connectorId: origin.connectorId,
+          fetchedAt: origin.fetchedAt,
+          responseHash: origin.responseHash,
+          parameterHash: origin.parameterHash,
+          cacheStatus: origin.cacheStatus,
+          artifactIds: [],
+          artifactDisplayNames: [],
+        });
+        if (!source.artifactIds.includes(artifactEntry.artifactId)) {
+          source.artifactIds.push(artifactEntry.artifactId);
+        }
+        if (!source.artifactDisplayNames.includes(artifactEntry.displayName)) {
+          source.artifactDisplayNames.push(artifactEntry.displayName);
+        }
+        seenForArtifact.add(source.index);
+      }
+    } else {
+      const source = addSourceEntry({
+        key: `artifact:${artifactEntry.artifactId}`,
+        label: `${artifactEntry.displayName} (no external source metadata)`,
+        artifactIds: [artifactEntry.artifactId],
+        artifactDisplayNames: [artifactEntry.displayName],
+      });
+      seenForArtifact.add(source.index);
+    }
+
+    citationNumbersByArtifactId.set(
+      artifactEntry.artifactId,
+      Array.from(seenForArtifact).sort((a, b) => a - b),
+    );
+  }
+
+  return { sourceEntries, citationNumbersByArtifactId };
 }
 
 function renderOriginListHtml(
@@ -797,17 +902,29 @@ function buildArtifactReferenceEntries(
 }
 
 function renderEndnotesHtml(
-  entries: ArtifactReferenceEntry[],
+  entries: SourceCitationEntry[],
   detailLevel: 'brief' | 'full',
 ): string {
   if (entries.length === 0) return '';
 
   const items = entries.map((entry) => {
-    const summary = `<strong>${escapeHtml(entry.displayName)}</strong> (${escapeHtml(entry.type)})`;
+    const summary = `<strong>${escapeHtml(entry.label)}</strong>`;
     const details = detailLevel === 'full'
-      ? `<div class="endnote-details">Artifact ID: <code>${escapeHtml(entry.artifactId)}</code> · MIME: <code>${escapeHtml(entry.mimeType)}</code> · SHA-256: <code>${escapeHtml(entry.hash)}</code> · Sources: ${entry.origins.length} · Dependencies: ${entry.dependencies.length}</div>`
+      ? [
+        entry.endpoint ? `endpoint: <code>${escapeHtml(entry.endpoint)}</code>` : '',
+        entry.tool ? `tool: <code>${escapeHtml(entry.tool)}</code>` : '',
+        entry.connectorId ? `connector: <code>${escapeHtml(entry.connectorId)}</code>` : '',
+        entry.fetchedAt ? `fetched: <code>${escapeHtml(formatTimestamp(entry.fetchedAt))}</code>` : '',
+        entry.cacheStatus ? `cache: <code>${escapeHtml(entry.cacheStatus)}</code>` : '',
+        entry.responseHash ? `response-hash: <code>${escapeHtml(entry.responseHash)}</code>` : '',
+        entry.parameterHash ? `params-hash: <code>${escapeHtml(entry.parameterHash)}</code>` : '',
+        entry.artifactDisplayNames.length > 0
+          ? `used-by: <code>${escapeHtml(entry.artifactDisplayNames.join(', '))}</code>`
+          : '',
+      ].filter(Boolean).join(' · ')
       : '';
-    return `<li id="endnote-${entry.index}" value="${entry.index}">${summary}${details}</li>`;
+    const detailHtml = details ? `<div class="endnote-details">${details}</div>` : '';
+    return `<li id="endnote-${entry.index}" value="${entry.index}">${summary}${detailHtml}</li>`;
   });
 
   return `<ol class="endnotes-list">${items.join('')}</ol>`;
@@ -890,16 +1007,14 @@ export function assembleReportHtml(
   const includeProvenanceAppendix = reportSpec.options?.includeProvenanceAppendix ?? false;
   const provenanceDetailLevel = reportSpec.options?.provenanceDetailLevel ?? 'brief';
   const artifactEntries = buildArtifactReferenceEntries(reportSpec, artifacts);
-  const citationNumberByArtifactId = new Map<string, number>(
-    artifactEntries.map((entry) => [entry.artifactId, entry.index]),
-  );
+  const { sourceEntries, citationNumbersByArtifactId } = buildSourceCitationEntries(artifactEntries);
   const abstractHtml = reportSpec.abstract
     ? renderMarkdown(
-      applyInlineCitationTokens(reportSpec.abstract, citationStyle, citationNumberByArtifactId),
+      applyInlineCitationTokens(reportSpec.abstract, citationStyle, citationNumbersByArtifactId),
     )
     : '';
   const endnotesHtml = citationStyle === 'numeric_endnotes'
-    ? renderEndnotesHtml(artifactEntries, provenanceDetailLevel)
+    ? renderEndnotesHtml(sourceEntries, provenanceDetailLevel)
     : '';
   const provenanceAppendixHtml = includeProvenanceAppendix
     ? renderProvenanceAppendixHtml(artifactEntries, provenanceDetailLevel)
@@ -913,14 +1028,11 @@ export function assembleReportHtml(
           return renderHeading(block);
 
         case 'paragraph':
-          return renderParagraph(block, citationStyle, citationNumberByArtifactId);
+          return renderParagraph(block, citationStyle, citationNumbersByArtifactId);
 
         case 'artifact': {
           const content = blockRenderings.get(`${pageIdx}:${blockIdx}`) || '<p><em>Artifact not rendered</em></p>';
-          const citationNumber = citationStyle === 'numeric_endnotes'
-            ? citationNumberByArtifactId.get(block.artifactId)
-            : undefined;
-          return renderArtifact(block, content, citationNumber);
+          return renderArtifact(block, content);
         }
 
         case 'table':
