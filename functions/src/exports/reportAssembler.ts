@@ -517,9 +517,154 @@ interface ArtifactReferenceEntry {
   index: number;
   artifactId: string;
   name: string;
+  displayName: string;
   type: string;
   mimeType: string;
   hash: string;
+  origins: ArtifactOriginEntry[];
+}
+
+interface ArtifactOriginEntry {
+  tool: string;
+  connectorId?: string;
+  endpoint: string;
+  method?: string;
+  fetchedAt?: string;
+  responseHash?: string;
+  parameterHash?: string;
+  cacheStatus?: string;
+}
+
+const SENSITIVE_QUERY_PARAM_RE = /(api[_-]?key|access[_-]?token|token|secret|auth|password|signature|sig|key)$/i;
+
+function optionalString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function redactEndpoint(rawEndpoint: string): string {
+  try {
+    const parsed = new URL(rawEndpoint);
+    for (const key of parsed.searchParams.keys()) {
+      if (SENSITIVE_QUERY_PARAM_RE.test(key)) {
+        parsed.searchParams.set(key, '[redacted]');
+      }
+    }
+    return parsed.toString();
+  } catch {
+    return rawEndpoint.replace(
+      /([?&](?:api[_-]?key|access[_-]?token|token|secret|auth|password|signature|sig)=)[^&\s]*/gi,
+      '$1[redacted]',
+    );
+  }
+}
+
+function formatTimestamp(iso: string | undefined): string {
+  if (!iso) return '';
+  const parsed = Date.parse(iso);
+  if (Number.isNaN(parsed)) return iso;
+  return new Date(parsed).toISOString();
+}
+
+function parseArtifactOrigins(artifact: ArtifactDoc | undefined): ArtifactOriginEntry[] {
+  if (!artifact || !isRecord(artifact.provenance)) return [];
+
+  const provenance = artifact.provenance as Record<string, unknown>;
+  const origins: ArtifactOriginEntry[] = [];
+  const seen = new Set<string>();
+  const pushOrigin = (origin: ArtifactOriginEntry): void => {
+    const key = [
+      origin.tool,
+      origin.connectorId ?? '',
+      origin.endpoint,
+      origin.method ?? '',
+      origin.fetchedAt ?? '',
+      origin.responseHash ?? '',
+      origin.parameterHash ?? '',
+      origin.cacheStatus ?? '',
+    ].join('|');
+    if (seen.has(key)) return;
+    seen.add(key);
+    origins.push(origin);
+  };
+
+  const sources = provenance.sources;
+  if (Array.isArray(sources)) {
+    for (const source of sources) {
+      if (!isRecord(source)) continue;
+      const endpoint = optionalString(source.endpoint);
+      if (!endpoint) continue;
+      pushOrigin({
+        tool: optionalString(source.tool) ?? 'unknown',
+        connectorId: optionalString(source.connectorId),
+        endpoint: redactEndpoint(endpoint),
+        method: optionalString(source.method),
+        fetchedAt: optionalString(source.fetchedAt),
+        responseHash: optionalString(source.responseHash),
+        parameterHash: optionalString(source.parameterHash),
+        cacheStatus: optionalString(source.cacheStatus),
+      });
+    }
+  }
+
+  if (origins.length === 0 && Array.isArray(provenance.inputs)) {
+    for (const input of provenance.inputs) {
+      if (typeof input !== 'string' || input.trim().length === 0) continue;
+      pushOrigin({
+        tool: 'input',
+        endpoint: redactEndpoint(input.trim()),
+      });
+    }
+  }
+
+  return origins;
+}
+
+function renderOriginListHtml(
+  origins: ArtifactOriginEntry[],
+  detailLevel: 'brief' | 'full',
+): string {
+  if (origins.length === 0) {
+    return '<span class="provenance-empty">No external source lineage captured.</span>';
+  }
+
+  const maxItems = detailLevel === 'full' ? origins.length : Math.min(origins.length, 3);
+  const items = origins.slice(0, maxItems).map((origin) => {
+    const endpointHtml = `<code class="provenance-endpoint">${escapeHtml(origin.endpoint)}</code>`;
+    if (detailLevel !== 'full') {
+      return `<li>${endpointHtml}</li>`;
+    }
+
+    const detailSegments: string[] = [];
+    detailSegments.push(`tool: <code>${escapeHtml(origin.tool)}</code>`);
+    if (origin.connectorId) {
+      detailSegments.push(`connector: <code>${escapeHtml(origin.connectorId)}</code>`);
+    }
+    if (origin.method) {
+      detailSegments.push(`method: <code>${escapeHtml(origin.method)}</code>`);
+    }
+    if (origin.cacheStatus) {
+      detailSegments.push(`cache: <code>${escapeHtml(origin.cacheStatus)}</code>`);
+    }
+    if (origin.fetchedAt) {
+      detailSegments.push(`fetched: <code>${escapeHtml(formatTimestamp(origin.fetchedAt))}</code>`);
+    }
+    if (origin.responseHash) {
+      detailSegments.push(`response-hash: <code>${escapeHtml(origin.responseHash)}</code>`);
+    }
+    if (origin.parameterHash) {
+      detailSegments.push(`params-hash: <code>${escapeHtml(origin.parameterHash)}</code>`);
+    }
+
+    return `<li>${endpointHtml}<div class="provenance-origin-meta">${detailSegments.join(' · ')}</div></li>`;
+  });
+
+  const overflowNote = origins.length > maxItems
+    ? `<li class="provenance-origin-more">…${origins.length - maxItems} more source(s)</li>`
+    : '';
+
+  return `<ul class="provenance-origin-list">${items.join('')}${overflowNote}</ul>`;
 }
 
 function getArtifactHash(artifact: ArtifactDoc): string {
@@ -558,15 +703,29 @@ function buildArtifactReferenceEntries(
     }
   }
 
+  const duplicateNameCounts = new Map<string, number>();
+  for (const artifactId of orderedIds) {
+    const artifact = artifacts.get(artifactId);
+    const rawName = artifact?.name ?? `Missing artifact (${artifactId})`;
+    duplicateNameCounts.set(rawName, (duplicateNameCounts.get(rawName) ?? 0) + 1);
+  }
+
   return orderedIds.map((artifactId, idx) => {
     const artifact = artifacts.get(artifactId);
+    const rawName = artifact?.name ?? `Missing artifact (${artifactId})`;
+    const hasDuplicateName = (duplicateNameCounts.get(rawName) ?? 0) > 1;
+    const displayName = hasDuplicateName
+      ? `${rawName} [${artifactId.slice(0, 8)}]`
+      : rawName;
     return {
       index: idx + 1,
       artifactId,
-      name: artifact?.name ?? `Missing artifact (${artifactId})`,
+      name: rawName,
+      displayName,
       type: artifact?.type ?? 'missing',
       mimeType: artifact?.mimeType ?? 'unknown',
       hash: artifact ? getArtifactHash(artifact) : 'unavailable',
+      origins: parseArtifactOrigins(artifact),
     };
   });
 }
@@ -578,9 +737,9 @@ function renderEndnotesHtml(
   if (entries.length === 0) return '';
 
   const items = entries.map((entry) => {
-    const summary = `<strong>${escapeHtml(entry.name)}</strong> (${escapeHtml(entry.type)})`;
+    const summary = `<strong>${escapeHtml(entry.displayName)}</strong> (${escapeHtml(entry.type)})`;
     const details = detailLevel === 'full'
-      ? `<div class="endnote-details">Artifact ID: <code>${escapeHtml(entry.artifactId)}</code> · MIME: <code>${escapeHtml(entry.mimeType)}</code> · SHA-256: <code>${escapeHtml(entry.hash)}</code></div>`
+      ? `<div class="endnote-details">Artifact ID: <code>${escapeHtml(entry.artifactId)}</code> · MIME: <code>${escapeHtml(entry.mimeType)}</code> · SHA-256: <code>${escapeHtml(entry.hash)}</code> · Sources: ${entry.origins.length}</div>`
       : '';
     return `<li id="endnote-${entry.index}" value="${entry.index}">${summary}${details}</li>`;
   });
@@ -604,14 +763,16 @@ function renderProvenanceAppendixHtml(
     const mimeCell = detailLevel === 'full'
       ? `<td><code>${escapeHtml(entry.mimeType)}</code></td>`
       : '';
+    const originCell = `<td>${renderOriginListHtml(entry.origins, detailLevel)}</td>`;
 
     return (
       `<tr>` +
       `<td>${entry.index}</td>` +
-      `<td>${escapeHtml(entry.name)}</td>` +
+      `<td>${escapeHtml(entry.displayName)}</td>` +
       `<td>${escapeHtml(entry.type)}</td>` +
       `${idCell}` +
       `${mimeCell}` +
+      `${originCell}` +
       `<td><code>${hashCell}</code></td>` +
       `</tr>`
     );
@@ -624,7 +785,7 @@ function renderProvenanceAppendixHtml(
 
   return (
     `<table class="provenance-table">` +
-    `<thead><tr><th>#</th><th>Source</th><th>Type</th>${fullColumns}<th>${hashLabel}</th></tr></thead>` +
+    `<thead><tr><th>#</th><th>Source Artifact</th><th>Type</th>${fullColumns}<th>Origins</th><th>${hashLabel}</th></tr></thead>` +
     `<tbody>${rows.join('')}</tbody>` +
     `</table>`
   );
