@@ -184,9 +184,9 @@ function applyInlineCitationTokens(
   const renderCitationRefsHtml = (indices: number[]): string => {
     if (indices.length === 0) return '[?]';
     const refs = indices
-      .map((index) => `<a href="#endnote-${index}">[${index}]</a>`)
-      .join('');
-    return `<sup class="artifact-citation-ref">${refs}</sup>`;
+      .map((index) => `<a href="#endnote-${index}">${index}</a>`)
+      .join(', ');
+    return `<sup class="artifact-citation-ref">[${refs}]</sup>`;
   };
 
   return markdown.replace(INLINE_CITATION_TOKEN_REGEX, (_full, artifactId: string) => {
@@ -693,6 +693,15 @@ function formatSourceLabel(origin: ArtifactOriginEntry): string {
   }
 }
 
+function isHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 function buildSourceCitationEntries(
   artifactEntries: ArtifactReferenceEntry[],
 ): {
@@ -901,30 +910,23 @@ function buildArtifactReferenceEntries(
   });
 }
 
-function renderEndnotesHtml(
-  entries: SourceCitationEntry[],
-  detailLevel: 'brief' | 'full',
-): string {
+function renderEndnotesHtml(entries: SourceCitationEntry[]): string {
   if (entries.length === 0) return '';
 
   const items = entries.map((entry) => {
-    const summary = `<strong>${escapeHtml(entry.label)}</strong>`;
-    const details = detailLevel === 'full'
-      ? [
-        entry.endpoint ? `endpoint: <code>${escapeHtml(entry.endpoint)}</code>` : '',
-        entry.tool ? `tool: <code>${escapeHtml(entry.tool)}</code>` : '',
-        entry.connectorId ? `connector: <code>${escapeHtml(entry.connectorId)}</code>` : '',
-        entry.fetchedAt ? `fetched: <code>${escapeHtml(formatTimestamp(entry.fetchedAt))}</code>` : '',
-        entry.cacheStatus ? `cache: <code>${escapeHtml(entry.cacheStatus)}</code>` : '',
-        entry.responseHash ? `response-hash: <code>${escapeHtml(entry.responseHash)}</code>` : '',
-        entry.parameterHash ? `params-hash: <code>${escapeHtml(entry.parameterHash)}</code>` : '',
-        entry.artifactDisplayNames.length > 0
-          ? `used-by: <code>${escapeHtml(entry.artifactDisplayNames.join(', '))}</code>`
-          : '',
-      ].filter(Boolean).join(' · ')
-      : '';
-    const detailHtml = details ? `<div class="endnote-details">${details}</div>` : '';
-    return `<li id="endnote-${entry.index}" value="${entry.index}">${summary}${detailHtml}</li>`;
+    if (entry.endpoint && isHttpUrl(entry.endpoint)) {
+      return (
+        `<li id="endnote-${entry.index}" value="${entry.index}">` +
+        `<a class="endnote-source-link" href="${escapeHtml(entry.endpoint)}">${escapeHtml(entry.label)}</a>` +
+        `</li>`
+      );
+    }
+
+    return (
+      `<li id="endnote-${entry.index}" value="${entry.index}">` +
+      `<span class="endnote-source-text">${escapeHtml(entry.label)}</span>` +
+      `</li>`
+    );
   });
 
   return `<ol class="endnotes-list">${items.join('')}</ol>`;
@@ -1014,7 +1016,7 @@ export function assembleReportHtml(
     )
     : '';
   const endnotesHtml = citationStyle === 'numeric_endnotes'
-    ? renderEndnotesHtml(sourceEntries, provenanceDetailLevel)
+    ? renderEndnotesHtml(sourceEntries)
     : '';
   const provenanceAppendixHtml = includeProvenanceAppendix
     ? renderProvenanceAppendixHtml(artifactEntries, provenanceDetailLevel)
