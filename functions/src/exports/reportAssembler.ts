@@ -522,6 +522,7 @@ interface ArtifactReferenceEntry {
   mimeType: string;
   hash: string;
   origins: ArtifactOriginEntry[];
+  dependencies: ArtifactDependencyEntry[];
 }
 
 interface ArtifactOriginEntry {
@@ -533,6 +534,12 @@ interface ArtifactOriginEntry {
   responseHash?: string;
   parameterHash?: string;
   cacheStatus?: string;
+}
+
+interface ArtifactDependencyEntry {
+  artifactId: string;
+  relationship: string;
+  artifactName: string;
 }
 
 const SENSITIVE_QUERY_PARAM_RE = /(api[_-]?key|access[_-]?token|token|secret|auth|password|signature|sig|key)$/i;
@@ -621,6 +628,32 @@ function parseArtifactOrigins(artifact: ArtifactDoc | undefined): ArtifactOrigin
   return origins;
 }
 
+function parseArtifactDependencies(
+  artifact: ArtifactDoc | undefined,
+  allArtifacts: Map<string, ArtifactDoc>,
+): ArtifactDependencyEntry[] {
+  if (!artifact || !Array.isArray(artifact.dependencies)) return [];
+
+  const dependencies: ArtifactDependencyEntry[] = [];
+  const seen = new Set<string>();
+  for (const dep of artifact.dependencies) {
+    if (!isRecord(dep)) continue;
+    const artifactId = optionalString(dep.artifactId);
+    if (!artifactId) continue;
+    const relationship = optionalString(dep.relationship) ?? 'dependency';
+    const key = `${artifactId}|${relationship}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    dependencies.push({
+      artifactId,
+      relationship,
+      artifactName: allArtifacts.get(artifactId)?.name ?? artifactId,
+    });
+  }
+
+  return dependencies;
+}
+
 function renderOriginListHtml(
   origins: ArtifactOriginEntry[],
   detailLevel: 'brief' | 'full',
@@ -662,6 +695,38 @@ function renderOriginListHtml(
 
   const overflowNote = origins.length > maxItems
     ? `<li class="provenance-origin-more">…${origins.length - maxItems} more source(s)</li>`
+    : '';
+
+  return `<ul class="provenance-origin-list">${items.join('')}${overflowNote}</ul>`;
+}
+
+function renderDependencyListHtml(
+  dependencies: ArtifactDependencyEntry[],
+  detailLevel: 'brief' | 'full',
+): string {
+  if (dependencies.length === 0) {
+    return '<span class="provenance-empty">No artifact dependency lineage captured.</span>';
+  }
+
+  const maxItems = detailLevel === 'full' ? dependencies.length : Math.min(dependencies.length, 3);
+  const items = dependencies.slice(0, maxItems).map((dep) => {
+    const label = `<code>${escapeHtml(dep.artifactName)}</code>`;
+    if (detailLevel !== 'full') {
+      return `<li>${label}</li>`;
+    }
+
+    return (
+      `<li>` +
+      `${label}` +
+      `<div class="provenance-origin-meta">` +
+      `artifact-id: <code>${escapeHtml(dep.artifactId)}</code> · relation: <code>${escapeHtml(dep.relationship)}</code>` +
+      `</div>` +
+      `</li>`
+    );
+  });
+
+  const overflowNote = dependencies.length > maxItems
+    ? `<li class="provenance-origin-more">…${dependencies.length - maxItems} more dependency(ies)</li>`
     : '';
 
   return `<ul class="provenance-origin-list">${items.join('')}${overflowNote}</ul>`;
@@ -726,6 +791,7 @@ function buildArtifactReferenceEntries(
       mimeType: artifact?.mimeType ?? 'unknown',
       hash: artifact ? getArtifactHash(artifact) : 'unavailable',
       origins: parseArtifactOrigins(artifact),
+      dependencies: parseArtifactDependencies(artifact, artifacts),
     };
   });
 }
@@ -739,7 +805,7 @@ function renderEndnotesHtml(
   const items = entries.map((entry) => {
     const summary = `<strong>${escapeHtml(entry.displayName)}</strong> (${escapeHtml(entry.type)})`;
     const details = detailLevel === 'full'
-      ? `<div class="endnote-details">Artifact ID: <code>${escapeHtml(entry.artifactId)}</code> · MIME: <code>${escapeHtml(entry.mimeType)}</code> · SHA-256: <code>${escapeHtml(entry.hash)}</code> · Sources: ${entry.origins.length}</div>`
+      ? `<div class="endnote-details">Artifact ID: <code>${escapeHtml(entry.artifactId)}</code> · MIME: <code>${escapeHtml(entry.mimeType)}</code> · SHA-256: <code>${escapeHtml(entry.hash)}</code> · Sources: ${entry.origins.length} · Dependencies: ${entry.dependencies.length}</div>`
       : '';
     return `<li id="endnote-${entry.index}" value="${entry.index}">${summary}${details}</li>`;
   });
@@ -764,6 +830,7 @@ function renderProvenanceAppendixHtml(
       ? `<td><code>${escapeHtml(entry.mimeType)}</code></td>`
       : '';
     const originCell = `<td>${renderOriginListHtml(entry.origins, detailLevel)}</td>`;
+    const dependencyCell = `<td>${renderDependencyListHtml(entry.dependencies, detailLevel)}</td>`;
 
     return (
       `<tr>` +
@@ -773,6 +840,7 @@ function renderProvenanceAppendixHtml(
       `${idCell}` +
       `${mimeCell}` +
       `${originCell}` +
+      `${dependencyCell}` +
       `<td><code>${hashCell}</code></td>` +
       `</tr>`
     );
@@ -785,7 +853,7 @@ function renderProvenanceAppendixHtml(
 
   return (
     `<table class="provenance-table">` +
-    `<thead><tr><th>#</th><th>Source Artifact</th><th>Type</th>${fullColumns}<th>Origins</th><th>${hashLabel}</th></tr></thead>` +
+    `<thead><tr><th>#</th><th>Source Artifact</th><th>Type</th>${fullColumns}<th>Origins</th><th>Derived From</th><th>${hashLabel}</th></tr></thead>` +
     `<tbody>${rows.join('')}</tbody>` +
     `</table>`
   );
