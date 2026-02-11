@@ -273,6 +273,11 @@ interface ExtractedLink {
   url: string;
 }
 
+interface ConnectorInferenceRule {
+  connectorId: string;
+  matches: (url: URL) => boolean;
+}
+
 // URL validation - block private IPs and internal networks
 const BLOCKED_HOSTS = [
   'localhost',
@@ -300,6 +305,270 @@ const BLOCKED_HOSTS = [
   'metadata.google.internal',
   '169.254.',
 ];
+
+const MAX_FETCH_API_RESPONSE_BYTES = 750_000;
+const SOCRATA_DOWNLOAD_BLOCK_MESSAGE = 'Blocked bulk download endpoint rows.json?accessType=DOWNLOAD because it is too large for interactive analysis. Query the dataset /resource/{dataset_id}.json endpoint with SoQL filters and a modest $limit (for example: 100-1000 rows), then paginate with $offset.';
+
+const KNOWN_API_HOSTS = new Set([
+  'api.weather.gov',
+  'api.stlouisfed.org',
+  'earthquake.usgs.gov',
+  'clinicaltrials.gov',
+  'api.fda.gov',
+  'api.census.gov',
+  'api.bls.gov',
+  'api.nasa.gov',
+  'api.usa.gov',
+  'sdmx.oecd.org',
+  'imf.org',
+  'ec.europa.eu',
+  'unstats.un.org',
+  'registry.npmjs.org',
+  'api.npmjs.org',
+  'hacker-news.firebaseio.com',
+  'pypi.org',
+  'api.stackexchange.com',
+  'libraries.io',
+  'api.dictionaryapi.dev',
+  'ghoapi.azureedge.net',
+  'data.sec.gov',
+  'query1.finance.yahoo.com',
+  'api.openweathermap.org',
+  'newsapi.org',
+  'api.semanticscholar.org',
+  'api.worldbank.org',
+  'api.us.socrata.com',
+  'eutils.ncbi.nlm.nih.gov',
+  'overpass-api.de',
+  'api.github.com',
+]);
+
+const CONNECTOR_INFERENCE_RULES: ConnectorInferenceRule[] = [
+  { connectorId: 'fred', matches: (url) => normalizeHost(url.hostname) === 'api.stlouisfed.org' },
+  { connectorId: 'us_census', matches: (url) => normalizeHost(url.hostname) === 'api.census.gov' },
+  { connectorId: 'bls', matches: (url) => normalizeHost(url.hostname) === 'api.bls.gov' },
+  { connectorId: 'nasa', matches: (url) => normalizeHost(url.hostname) === 'api.nasa.gov' },
+  {
+    connectorId: 'fbi_crime',
+    matches: (url) => normalizeHost(url.hostname) === 'api.usa.gov' && url.pathname.includes('/crime/fbi/cde'),
+  },
+  { connectorId: 'stack_exchange', matches: (url) => normalizeHost(url.hostname) === 'api.stackexchange.com' },
+  { connectorId: 'libraries_io', matches: (url) => normalizeHost(url.hostname).endsWith('libraries.io') },
+  { connectorId: 'openweathermap', matches: (url) => normalizeHost(url.hostname) === 'api.openweathermap.org' },
+  { connectorId: 'newsapi', matches: (url) => normalizeHost(url.hostname) === 'newsapi.org' },
+  { connectorId: 'github', matches: (url) => normalizeHost(url.hostname) === 'api.github.com' },
+  { connectorId: 'socrata', matches: (url) => isSocrataHost(url) },
+];
+
+function normalizeHost(hostname: string): string {
+  return hostname.trim().toLowerCase().replace(/^www\./, '');
+}
+
+function isSocrataHost(url: URL): boolean {
+  const host = normalizeHost(url.hostname);
+  if (host === 'api.us.socrata.com') return true;
+  if (host === 'data.cms.gov') return true;
+  if (host.endsWith('.socrata.com')) return true;
+  return host.startsWith('data.') && (host.endsWith('.gov') || host.endsWith('.us'));
+}
+
+function isLikelyApiUrl(url: URL): boolean {
+  const host = normalizeHost(url.hostname);
+  if (KNOWN_API_HOSTS.has(host)) return true;
+  if (isSocrataHost(url)) return true;
+  if (host.startsWith('api.')) return true;
+
+  const path = url.pathname.toLowerCase();
+  if (path.endsWith('.json') || path.endsWith('.csv')) return true;
+  if (path.includes('/api/') || path.includes('/resource/')) return true;
+
+  return false;
+}
+
+function getSocrataBulkDownloadError(url: URL): string | null {
+  const path = url.pathname.toLowerCase();
+  const accessType = (url.searchParams.get('accessType') || url.searchParams.get('accesstype') || '').toLowerCase();
+
+  if (path.endsWith('/rows.json') && accessType === 'download') {
+    return SOCRATA_DOWNLOAD_BLOCK_MESSAGE;
+  }
+
+  return null;
+}
+
+function inferConnectorIdFromUrl(url: URL): string | undefined {
+  for (const rule of CONNECTOR_INFERENCE_RULES) {
+    if (rule.matches(url)) {
+      return rule.connectorId;
+    }
+  }
+  return undefined;
+}
+
+function hasExplicitConnectorAuth(
+  connectorId: string,
+  queryParams: Record<string, string>,
+  requestHeaders: Record<string, string>,
+): boolean {
+  const authConfig = CONNECTOR_AUTH_CONFIG[connectorId];
+  if (!authConfig || authConfig.authType === 'none') return false;
+
+  if (authConfig.authType === 'query_param' && authConfig.authKeyName) {
+    return queryParams[authConfig.authKeyName] !== undefined;
+  }
+
+  if (authConfig.authType === 'header' && authConfig.authKeyName) {
+    return Object.keys(requestHeaders).some((headerName) => headerName.toLowerCase() === authConfig.authKeyName!.toLowerCase());
+  }
+
+  if (authConfig.authType === 'bearer') {
+    return Object.keys(requestHeaders).some((headerName) => headerName.toLowerCase() === 'authorization');
+  }
+
+  return false;
+}
+
+function clampTimeoutMs(timeout: unknown): number {
+  if (typeof timeout !== 'number' || Number.isNaN(timeout)) {
+    return 30000;
+  }
+  return Math.min(Math.max(timeout, 1000), 55000);
+}
+
+function toSafeHeaderMap(headers: unknown): Record<string, string> {
+  const safeHeaders: Record<string, string> = {};
+  if (!headers || typeof headers !== 'object') return safeHeaders;
+
+  for (const [key, value] of Object.entries(headers as Record<string, unknown>)) {
+    if (typeof value === 'string') {
+      safeHeaders[key] = value;
+    }
+  }
+
+  return safeHeaders;
+}
+
+function toSafeQueryParamMap(queryParams: unknown): Record<string, string> {
+  const safeParams: Record<string, string> = {};
+  if (!queryParams || typeof queryParams !== 'object') return safeParams;
+
+  for (const [key, value] of Object.entries(queryParams as Record<string, unknown>)) {
+    if (value === null || value === undefined) continue;
+    safeParams[key] = String(value);
+  }
+
+  return safeParams;
+}
+
+function decodeChunks(chunks: Uint8Array[], totalBytes: number): string {
+  const merged = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(merged);
+}
+
+async function readResponseTextWithLimit(
+  response: Response,
+  maxBytes: number,
+): Promise<{ text: string; bytesRead: number; exceeded: boolean }> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    const fallbackText = await response.text();
+    const fallbackBytes = new TextEncoder().encode(fallbackText).length;
+    return {
+      text: fallbackText,
+      bytesRead: fallbackBytes,
+      exceeded: fallbackBytes > maxBytes,
+    };
+  }
+
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+
+    const remaining = maxBytes - totalBytes;
+    if (remaining <= 0) {
+      await reader.cancel('Response exceeded configured byte limit');
+      return {
+        text: decodeChunks(chunks, totalBytes),
+        bytesRead: totalBytes + value.byteLength,
+        exceeded: true,
+      };
+    }
+
+    if (value.byteLength > remaining) {
+      chunks.push(value.subarray(0, remaining));
+      totalBytes += remaining;
+      await reader.cancel('Response exceeded configured byte limit');
+      return {
+        text: decodeChunks(chunks, totalBytes),
+        bytesRead: totalBytes + (value.byteLength - remaining),
+        exceeded: true,
+      };
+    }
+
+    chunks.push(value);
+    totalBytes += value.byteLength;
+  }
+
+  return {
+    text: decodeChunks(chunks, totalBytes),
+    bytesRead: totalBytes,
+    exceeded: false,
+  };
+}
+
+function inferApiResponseFormat(url: URL): 'json' | 'text' | 'csv' {
+  const path = url.pathname.toLowerCase();
+  const explicitFormat = (url.searchParams.get('format') || '').toLowerCase();
+
+  if (path.endsWith('.csv') || explicitFormat === 'csv') return 'csv';
+  if (path.endsWith('.json') || explicitFormat === 'json') return 'json';
+  return 'json';
+}
+
+function tryParseUrl(value: string): URL | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const normalized = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    return new URL(normalized);
+  } catch {
+    return null;
+  }
+}
+
+function shouldRouteFetchUrlToApi(fetchUrl: string): boolean {
+  const parsedUrl = tryParseUrl(fetchUrl);
+  return parsedUrl ? isLikelyApiUrl(parsedUrl) : false;
+}
+
+function convertFetchUrlArgsToFetchApiArgs(args: FetchUrlArgs): FetchApiArgs {
+  let normalizedUrl = args.url || '';
+  if (normalizedUrl && !normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+    normalizedUrl = `https://${normalizedUrl}`;
+  }
+
+  let responseFormat: 'json' | 'text' | 'csv' = 'json';
+  try {
+    responseFormat = inferApiResponseFormat(new URL(normalizedUrl));
+  } catch {
+    responseFormat = 'json';
+  }
+
+  return {
+    url: normalizedUrl,
+    method: 'GET',
+    response_format: responseFormat,
+  };
+}
 
 function isBlockedUrl(urlString: string): boolean {
   try {
@@ -691,8 +960,8 @@ function stripHtmlTags(html: string): string {
 interface FetchApiArgs {
   url: string;
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
-  headers?: Record<string, string>;
-  query_params?: Record<string, string>;
+  headers?: Record<string, unknown>;
+  query_params?: Record<string, unknown>;
   body?: string | Record<string, unknown>;
   response_format?: 'json' | 'text' | 'csv';
   api_key_ref?: string;
@@ -730,13 +999,14 @@ async function handleFetchApi(
   let { url } = args;
   const {
     method = 'GET',
-    headers: customHeaders = {},
-    query_params = {},
+    headers: customHeaders,
+    query_params: rawQueryParams,
     body,
     response_format = 'json',
     api_key_ref,
-    timeout = 30000,
+    timeout,
   } = args;
+  const clampedTimeout = clampTimeoutMs(timeout);
 
   // Validate URL
   if (!url || typeof url !== 'string') {
@@ -753,6 +1023,18 @@ async function handleFetchApi(
     url = 'https://' + url;
   }
 
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    return {
+      toolCallId: '',
+      success: false,
+      error: `Invalid URL: ${url}`,
+      metadata: { executionTime: Date.now() - startTime },
+    };
+  }
+
   // Block private/internal URLs
   if (isBlockedUrl(url)) {
     return {
@@ -763,32 +1045,51 @@ async function handleFetchApi(
     };
   }
 
-  console.log('[handleFetchApi] Request:', { url, method, api_key_ref, uid });
+  const socrataDownloadError = getSocrataBulkDownloadError(parsedUrl);
+  if (socrataDownloadError) {
+    return {
+      toolCallId: '',
+      success: false,
+      error: socrataDownloadError,
+      metadata: { executionTime: Date.now() - startTime },
+    };
+  }
 
-  // Build request headers
   const requestHeaders: Record<string, string> = {
     'User-Agent': 'SymposiumAI/1.0 (Analyze Tool)',
     'Accept': 'application/json, text/plain, */*',
-    ...customHeaders,
+    ...toSafeHeaderMap(customHeaders),
   };
+  const queryParams = toSafeQueryParamMap(rawQueryParams);
+
+  let connectorRef = api_key_ref;
+  if (!connectorRef) {
+    const inferred = inferConnectorIdFromUrl(parsedUrl);
+    if (inferred && !hasExplicitConnectorAuth(inferred, queryParams, requestHeaders)) {
+      connectorRef = inferred;
+      console.log('[handleFetchApi] Inferred api_key_ref from URL', { url: parsedUrl.toString(), connectorRef });
+    }
+  }
+
+  console.log('[handleFetchApi] Request:', { url: parsedUrl.toString(), method, api_key_ref: connectorRef, uid });
 
   // Resolve api_key_ref if provided
-  if (api_key_ref) {
-    if (!VALID_CONNECTOR_IDS.includes(api_key_ref)) {
+  if (connectorRef) {
+    if (!VALID_CONNECTOR_IDS.includes(connectorRef)) {
       return {
         toolCallId: '',
         success: false,
-        error: `Unknown data connector: ${api_key_ref}`,
+        error: `Unknown data connector: ${connectorRef}`,
         metadata: { executionTime: Date.now() - startTime },
       };
     }
 
-    const authConfig = CONNECTOR_AUTH_CONFIG[api_key_ref];
+    const authConfig = CONNECTOR_AUTH_CONFIG[connectorRef];
     if (!authConfig) {
       return {
         toolCallId: '',
         success: false,
-        error: `No auth configuration for connector: ${api_key_ref}`,
+        error: `No auth configuration for connector: ${connectorRef}`,
         metadata: { executionTime: Date.now() - startTime },
       };
     }
@@ -796,7 +1097,7 @@ async function handleFetchApi(
     // Only resolve key if connector requires authentication
     if (authConfig.authType !== 'none' && authConfig.authKeyName) {
       // Try user's stored key first, then fall back to Symposium-managed key
-      const rawApiKey = await getDecryptedDataServiceKey(uid, api_key_ref, encryptionKeyValue)
+      const rawApiKey = await getDecryptedDataServiceKey(uid, connectorRef, encryptionKeyValue)
         || authConfig.getManagedKey?.()
         || null;
       const apiKey = typeof rawApiKey === 'string' ? rawApiKey.trim() : '';
@@ -804,7 +1105,7 @@ async function handleFetchApi(
         return {
           toolCallId: '',
           success: false,
-          error: `API key not configured for ${api_key_ref}. Add your key in Settings > Data Sources.`,
+          error: `API key not configured for ${connectorRef}. Add your key in Settings > Data Sources.`,
           metadata: { executionTime: Date.now() - startTime },
         };
       }
@@ -812,7 +1113,7 @@ async function handleFetchApi(
       // Inject auth based on connector type
       switch (authConfig.authType) {
         case 'query_param':
-          query_params[authConfig.authKeyName] = apiKey;
+          queryParams[authConfig.authKeyName] = apiKey;
           break;
         case 'header':
           requestHeaders[authConfig.authKeyName] = apiKey;
@@ -825,28 +1126,18 @@ async function handleFetchApi(
   }
 
   // Connector-specific param normalization
-  if (api_key_ref === 'fbi_crime') {
-    const normalizedFrom = normalizeFbiDateParam(query_params.from, '01');
-    const normalizedTo = normalizeFbiDateParam(query_params.to, '12');
-    if (normalizedFrom) query_params.from = normalizedFrom;
-    if (normalizedTo) query_params.to = normalizedTo;
+  if (connectorRef === 'fbi_crime') {
+    const normalizedFrom = normalizeFbiDateParam(queryParams.from, '01');
+    const normalizedTo = normalizeFbiDateParam(queryParams.to, '12');
+    if (normalizedFrom) queryParams.from = normalizedFrom;
+    if (normalizedTo) queryParams.to = normalizedTo;
   }
 
   // Build URL with query params
-  try {
-    const urlObj = new URL(url);
-    for (const [key, value] of Object.entries(query_params)) {
-      urlObj.searchParams.set(key, String(value));
-    }
-    url = urlObj.toString();
-  } catch {
-    return {
-      toolCallId: '',
-      success: false,
-      error: `Invalid URL: ${url}`,
-      metadata: { executionTime: Date.now() - startTime },
-    };
+  for (const [key, value] of Object.entries(queryParams)) {
+    parsedUrl.searchParams.set(key, String(value));
   }
+  url = parsedUrl.toString();
 
   // Build request options
   const fetchOptions: RequestInit = {
@@ -867,7 +1158,6 @@ async function handleFetchApi(
   // Execute request with timeout
   try {
     const controller = new AbortController();
-    const clampedTimeout = Math.min(Math.max(timeout, 1000), 55000);
     const timeoutId = setTimeout(() => controller.abort(), clampedTimeout);
     fetchOptions.signal = controller.signal;
 
@@ -897,20 +1187,54 @@ async function handleFetchApi(
       };
     }
 
-    // Parse response based on format
-    let content: string;
-    const originalLength = parseInt(response.headers.get('content-length') || '0', 10);
+    const contentLengthHeader = parseInt(response.headers.get('content-length') || '', 10);
+    if (Number.isFinite(contentLengthHeader) && contentLengthHeader > MAX_FETCH_API_RESPONSE_BYTES) {
+      return {
+        toolCallId: '',
+        success: false,
+        error: `Response too large (${contentLengthHeader} bytes). Reduce payload size with API-side filters/pagination (for example: $limit, per_page, page, date range).`,
+        metadata: {
+          executionTime: Date.now() - startTime,
+          originalLength: contentLengthHeader,
+          truncated: true,
+        },
+      };
+    }
 
-    if (response_format === 'json') {
+    const { text: rawBody, bytesRead, exceeded } = await readResponseTextWithLimit(response, MAX_FETCH_API_RESPONSE_BYTES);
+    if (exceeded) {
+      return {
+        toolCallId: '',
+        success: false,
+        error: `Response exceeded ${MAX_FETCH_API_RESPONSE_BYTES} bytes (${bytesRead} bytes read). Narrow the query and paginate to keep each response small.`,
+        metadata: {
+          executionTime: Date.now() - startTime,
+          originalLength: bytesRead,
+          truncated: true,
+        },
+      };
+    }
+
+    // Parse response based on format
+    let content = rawBody;
+    const contentType = (response.headers.get('content-type') || '').toLowerCase();
+    const shouldTreatAsJson = response_format === 'json' || contentType.includes('application/json') || contentType.includes('+json');
+
+    if (shouldTreatAsJson) {
       try {
-        const data = await response.json();
-        content = JSON.stringify(data, null, 2);
-      } catch {
-        // Fall back to text if JSON parse fails
-        content = await response.text();
+        const data = JSON.parse(rawBody);
+        content = JSON.stringify(data);
+      } catch (jsonError: any) {
+        return {
+          toolCallId: '',
+          success: false,
+          error: `Failed to parse JSON response. ${jsonError?.message || 'Malformed JSON received from API.'}`,
+          metadata: {
+            executionTime: Date.now() - startTime,
+            originalLength: contentLengthHeader || bytesRead,
+          },
+        };
       }
-    } else {
-      content = await response.text();
     }
 
     return {
@@ -919,7 +1243,7 @@ async function handleFetchApi(
       content,
       metadata: {
         executionTime: Date.now() - startTime,
-        originalLength: originalLength || content.length,
+        originalLength: contentLengthHeader || bytesRead,
       },
     };
   } catch (error: any) {
@@ -930,7 +1254,7 @@ async function handleFetchApi(
     });
 
     const errorMessage = error.name === 'AbortError'
-      ? `Request timed out after ${Math.round(timeout / 1000)}s`
+      ? `Request timed out after ${Math.round(clampedTimeout / 1000)}s`
       : error.message || 'Failed to fetch API';
 
     return {
@@ -959,7 +1283,8 @@ interface ExecuteToolRequest {
 export const executeTool = onCall(
   {
     timeoutSeconds: 60,
-    memory: '512MiB',
+    memory: '1GiB',
+    concurrency: 20,
     secrets: [
       encryptionKey,
       fredApiKey,
@@ -988,9 +1313,28 @@ export const executeTool = onCall(
       let result: ToolResult;
 
       switch (toolName) {
-        case 'fetch_url':
-          result = await handleFetchUrl(args as unknown as FetchUrlArgs);
+        case 'fetch_url': {
+          const fetchUrlArgs = args as unknown as FetchUrlArgs;
+          const rerouteToApi = typeof fetchUrlArgs.url === 'string' && shouldRouteFetchUrlToApi(fetchUrlArgs.url);
+
+          if (rerouteToApi) {
+            const keyValue = encryptionKey.value();
+            if (!keyValue) {
+              throw new Error('Encryption not configured');
+            }
+
+            const convertedArgs = convertFetchUrlArgsToFetchApiArgs(fetchUrlArgs);
+            console.log('[executeTool] Routing fetch_url call to fetch_api for API endpoint', {
+              originalUrl: fetchUrlArgs.url,
+              responseFormat: convertedArgs.response_format,
+            });
+            result = await handleFetchApi(convertedArgs, request.auth!.uid, keyValue);
+          } else {
+            result = await handleFetchUrl(fetchUrlArgs);
+          }
+
           break;
+        }
 
         case 'fetch_api': {
           const keyValue = encryptionKey.value();
