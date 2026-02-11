@@ -132,8 +132,23 @@ export interface ReportPage {
   blocks: ReportBlock[];
 }
 
+export type CitationStyle = 'none' | 'numeric_endnotes';
+export type ProvenanceDetailLevel = 'brief' | 'full';
+
+export interface ReportChromeSlot {
+  enabled?: boolean;
+  left?: string;
+  center?: string;
+  right?: string;
+}
+
 export interface ReportSpecOptions {
   includeProvenanceAttachment?: boolean;
+  citationStyle?: CitationStyle;
+  includeProvenanceAppendix?: boolean;
+  provenanceDetailLevel?: ProvenanceDetailLevel;
+  header?: ReportChromeSlot;
+  footer?: ReportChromeSlot;
 }
 
 export interface ReportSpecV1 {

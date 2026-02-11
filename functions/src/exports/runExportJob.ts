@@ -23,6 +23,7 @@ import type { Browser } from 'puppeteer-core';
 import type {
   ExportJobDoc,
   ReportSpecV1,
+  ReportChromeSlot,
   ArtifactDoc,
   ArtifactBlock,
   ProvenanceInputArtifact,
@@ -61,6 +62,62 @@ try {
  */
 function getRendererVersionString(): string {
   return `pptr:${puppeteerVersion}`;
+}
+
+const EMPTY_CHROME_TEMPLATE = '<span></span>';
+const DEFAULT_HEADER: Required<ReportChromeSlot> = {
+  enabled: false,
+  left: '',
+  center: '',
+  right: '',
+};
+const DEFAULT_FOOTER: Required<ReportChromeSlot> = {
+  enabled: true,
+  left: '',
+  center: '{{pageNumber}} / {{totalPages}}',
+  right: '',
+};
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function tokenToPuppeteerSpan(text: string): string {
+  return escapeHtml(text)
+    .replace(/\{\{pageNumber\}\}/g, '<span class="pageNumber"></span>')
+    .replace(/\{\{totalPages\}\}/g, '<span class="totalPages"></span>')
+    .replace(/\{\{title\}\}/g, '<span class="title"></span>')
+    .replace(/\{\{date\}\}/g, '<span class="date"></span>');
+}
+
+function buildChromeTemplate(
+  slot: ReportChromeSlot | undefined,
+  defaults: Required<ReportChromeSlot>,
+): string {
+  const merged: Required<ReportChromeSlot> = {
+    ...defaults,
+    ...(slot ?? {}),
+  };
+  if (!merged.enabled) return EMPTY_CHROME_TEMPLATE;
+
+  const left = merged.left.trim();
+  const center = merged.center.trim();
+  const right = merged.right.trim();
+  if (!left && !center && !right) return EMPTY_CHROME_TEMPLATE;
+
+  return [
+    '<div style="width:100%;font-size:9px;color:#6b7280;padding:0 8px;">',
+    '<div style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:6px;">',
+    `<span style="flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${tokenToPuppeteerSpan(left)}</span>`,
+    `<span style="flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${tokenToPuppeteerSpan(center)}</span>`,
+    `<span style="flex:1;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${tokenToPuppeteerSpan(right)}</span>`,
+    '</div>',
+    '</div>',
+  ].join('');
 }
 
 /**
@@ -433,6 +490,7 @@ export const runExportJob = onRequest(
         reportSpec,
         blockRenderings,
         reportSpec.theme,
+        artifacts,
       );
 
       // ================================================================
@@ -445,6 +503,9 @@ export const runExportJob = onRequest(
       const margins = reportSpec.theme.margins;
       // Convert points to inches (1pt = 1/72in) — Puppeteer only supports px/in/cm/mm
       const ptToIn = (pt: number) => `${(pt / 72).toFixed(4)}in`;
+      const headerTemplate = buildChromeTemplate(reportSpec.options?.header, DEFAULT_HEADER);
+      const footerTemplate = buildChromeTemplate(reportSpec.options?.footer, DEFAULT_FOOTER);
+      const displayHeaderFooter = headerTemplate !== EMPTY_CHROME_TEMPLATE || footerTemplate !== EMPTY_CHROME_TEMPLATE;
       const pdfBuffer = Buffer.from(await pdfPage.pdf({
         format: reportSpec.theme.pageSize === 'LETTER' ? 'Letter' : 'A4',
         margin: {
@@ -453,12 +514,9 @@ export const runExportJob = onRequest(
           bottom: ptToIn(margins.bottom),
           left: ptToIn(margins.left),
         },
-        displayHeaderFooter: true,
-        headerTemplate: '<span></span>',
-        footerTemplate:
-          '<div style="font-size:9px;text-align:center;width:100%">' +
-          '<span class="pageNumber"></span> / <span class="totalPages"></span>' +
-          '</div>',
+        displayHeaderFooter,
+        headerTemplate,
+        footerTemplate,
         printBackground: true,
       }));
 

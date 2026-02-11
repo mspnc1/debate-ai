@@ -45,6 +45,7 @@ export const LIMITS = {
   MAX_MARKDOWN_LENGTH: 50_000,
   MAX_HEADING_LENGTH: 500,
   MAX_CAPTION_LENGTH: 1000,
+  MAX_CHROME_TEXT_LENGTH: 250,
 } as const;
 
 // ============================================================================
@@ -153,6 +154,21 @@ const reportPageSchema = z.object({
 
 const reportSpecOptionsSchema = z.object({
   includeProvenanceAttachment: z.boolean().optional(),
+  citationStyle: z.enum(['none', 'numeric_endnotes']).optional(),
+  includeProvenanceAppendix: z.boolean().optional(),
+  provenanceDetailLevel: z.enum(['brief', 'full']).optional(),
+  header: z.object({
+    enabled: z.boolean().optional(),
+    left: z.string().max(LIMITS.MAX_CHROME_TEXT_LENGTH).optional(),
+    center: z.string().max(LIMITS.MAX_CHROME_TEXT_LENGTH).optional(),
+    right: z.string().max(LIMITS.MAX_CHROME_TEXT_LENGTH).optional(),
+  }).optional(),
+  footer: z.object({
+    enabled: z.boolean().optional(),
+    left: z.string().max(LIMITS.MAX_CHROME_TEXT_LENGTH).optional(),
+    center: z.string().max(LIMITS.MAX_CHROME_TEXT_LENGTH).optional(),
+    right: z.string().max(LIMITS.MAX_CHROME_TEXT_LENGTH).optional(),
+  }).optional(),
 });
 
 export const reportSpecV1Schema = z.object({
@@ -257,9 +273,36 @@ function applyDefaults(input: unknown): unknown {
   );
 
   const existingOptions = (data.options as Record<string, unknown>) ?? {};
+  const existingHeader = (
+    existingOptions.header && typeof existingOptions.header === 'object'
+      ? existingOptions.header
+      : {}
+  ) as Record<string, unknown>;
+  const existingFooter = (
+    existingOptions.footer && typeof existingOptions.footer === 'object'
+      ? existingOptions.footer
+      : {}
+  ) as Record<string, unknown>;
   data.options = {
     includeProvenanceAttachment: false,
+    citationStyle: 'none',
+    includeProvenanceAppendix: false,
+    provenanceDetailLevel: 'brief',
     ...existingOptions,
+    header: {
+      enabled: false,
+      left: '',
+      center: '',
+      right: '',
+      ...existingHeader,
+    },
+    footer: {
+      enabled: true,
+      left: '',
+      center: '{{pageNumber}} / {{totalPages}}',
+      right: '',
+      ...existingFooter,
+    },
   };
 
   return data;

@@ -128,6 +128,17 @@
       font-style: italic;
     }
 
+    .artifact-citation-ref {
+      font-style: normal;
+      font-size: 8pt;
+      vertical-align: super;
+    }
+
+    .artifact-citation-ref a {
+      color: inherit;
+      text-decoration: none;
+    }
+
     /* Tables */
     table {
       width: 100%;
@@ -187,6 +198,38 @@
       line-height: 1.7;
     }
 
+    /* Backmatter */
+    .backmatter-section {
+      margin-top: 6pt;
+    }
+
+    .endnotes-list {
+      margin: 6pt 0 0 18pt;
+      padding: 0;
+      font-size: 9.5pt;
+      line-height: 1.5;
+    }
+
+    .endnotes-list li {
+      margin-bottom: 6pt;
+    }
+
+    .endnote-details {
+      margin-top: 2pt;
+      font-size: 8.5pt;
+      color: #4b5563;
+    }
+
+    .provenance-table {
+      font-size: 8.5pt;
+    }
+
+    .provenance-table code,
+    .endnote-details code {
+      font-family: {{fonts.mono}}, 'Courier New', monospace;
+      font-size: 8pt;
+    }
+
     /* Page breaks */
     .page-break {
       page-break-after: always;
@@ -228,5 +271,21 @@
   <div class="page-break"></div>
   {{/unless}}
   {{/each}}
+
+  {{#if endnotesHtml}}
+  <div class="page-break"></div>
+  <section class="backmatter-section">
+    <h2>Endnotes</h2>
+    {{{endnotesHtml}}}
+  </section>
+  {{/if}}
+
+  {{#if provenanceAppendixHtml}}
+  <div class="page-break"></div>
+  <section class="backmatter-section">
+    <h2>Provenance Appendix</h2>
+    {{{provenanceAppendixHtml}}}
+  </section>
+  {{/if}}
 </body>
 </html>
