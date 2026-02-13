@@ -2,7 +2,7 @@
 {
       id: 'sonar',
       name: 'Sonar',
-      description: 'Discovered via API on 2025-08-31',
+      description: 'Discovered via API on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
@@ -11,7 +11,7 @@
 {
       id: 'sonar-pro',
       name: 'Sonar Pro',
-      description: 'Discovered via API on 2025-08-31',
+      description: 'Discovered via API on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,

@@ -9,9 +9,9 @@ This bundle consolidates curated entries to update:
 ```ts
 // Curated ModelConfig entries for AI_MODELS['openai'] (default + recommended)
 {
-      id: 'gpt-5-nano',
-      name: 'gpt-5-nano',
-      description: 'Curated via discovery on 2025-08-31',
+      id: 'gpt-5.2-codex',
+      name: 'gpt-5.2-codex',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsImageInput: true,
@@ -20,7 +20,7 @@ This bundle consolidates curated entries to update:
 {
       id: 'gpt-4.1-2025-04-14',
       name: 'gpt-4.1-2025-04-14',
-      description: 'Curated via discovery on 2025-08-31',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsImageInput: true,
@@ -28,7 +28,7 @@ This bundle consolidates curated entries to update:
 {
       id: 'gpt-4o',
       name: 'gpt-4o',
-      description: 'Curated via discovery on 2025-08-31',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsImageInput: true,
@@ -36,7 +36,7 @@ This bundle consolidates curated entries to update:
 {
       id: 'gpt-4o-mini-2024-07-18',
       name: 'gpt-4o-mini-2024-07-18',
-      description: 'Curated via discovery on 2025-08-31',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsImageInput: true,
@@ -44,19 +44,19 @@ This bundle consolidates curated entries to update:
 {
       id: 'o3-mini',
       name: 'o3-mini',
-      description: 'Curated via discovery on 2025-08-31',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
     },
 {
-      id: 'o1-mini-2024-09-12',
-      name: 'o1-mini-2024-09-12',
-      description: 'Curated via discovery on 2025-08-31',
+      id: 'o1-pro-2025-03-19',
+      name: 'o1-pro-2025-03-19',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
     },
 {
       id: 'dall-e-3',
       name: 'dall-e-3',
-      description: 'Curated via discovery on 2025-08-31',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsImageGeneration: true,
     },
@@ -67,7 +67,7 @@ This bundle consolidates curated entries to update:
 {
       id: 'claude-4.1-opus-20250805',
       name: 'Claude 4.1 Opus',
-      description: 'Curated via discovery on 2025-08-31',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
@@ -77,7 +77,7 @@ This bundle consolidates curated entries to update:
 {
       id: 'claude-4-sonnet-20250514',
       name: 'Claude 4 Sonnet',
-      description: 'Curated via discovery on 2025-08-31',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
@@ -88,9 +88,9 @@ This bundle consolidates curated entries to update:
 ```ts
 // Curated ModelConfig entries for AI_MODELS['google'] (default + recommended)
 {
-      id: 'gemini-2.5-pro-preview-03-25',
-      name: 'Gemini 2.5 Pro Preview 03-25',
-      description: 'Curated via discovery on 2025-08-31',
+      id: 'gemini-2.5-pro',
+      name: 'Gemini 2.5 Pro',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
@@ -98,18 +98,18 @@ This bundle consolidates curated entries to update:
       isDefault: true,
     },
 {
-      id: 'gemini-2.5-flash-preview-05-20',
-      name: 'Gemini 2.5 Flash Preview 05-20',
-      description: 'Curated via discovery on 2025-08-31',
+      id: 'gemini-2.5-flash',
+      name: 'Gemini 2.5 Flash',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
     },
 {
-      id: 'gemini-2.5-flash-lite-preview-06-17',
-      name: 'Gemini 2.5 Flash-Lite Preview 06-17',
-      description: 'Curated via discovery on 2025-08-31',
+      id: 'gemini-2.5-flash-lite',
+      name: 'Gemini 2.5 Flash-Lite',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
@@ -118,7 +118,7 @@ This bundle consolidates curated entries to update:
 {
       id: 'gemini-2.0-flash-exp-image-generation',
       name: 'Gemini 2.0 Flash (Image Generation) Experimental',
-      description: 'Curated via discovery on 2025-08-31',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
@@ -132,7 +132,7 @@ This bundle consolidates curated entries to update:
 {
       id: 'sonar-pro',
       name: 'Sonar Pro',
-      description: 'Curated via discovery on 2025-08-31',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
@@ -142,7 +142,7 @@ This bundle consolidates curated entries to update:
 {
       id: 'sonar',
       name: 'Sonar',
-      description: 'Curated via discovery on 2025-08-31',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
@@ -155,24 +155,26 @@ This bundle consolidates curated entries to update:
 {
       id: 'mistral-large-latest',
       name: 'mistral-large-latest',
-      description: 'Curated via discovery on 2025-08-31',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
+      supportsImageInput: true,
       isDefault: true,
     },
 {
       id: 'mistral-medium-latest',
       name: 'mistral-medium-latest',
-      description: 'Curated via discovery on 2025-08-31',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
+      supportsImageInput: true,
     },
 {
       id: 'pixtral-large-latest',
       name: 'pixtral-large-latest',
-      description: 'Curated via discovery on 2025-08-31',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
@@ -183,26 +185,12 @@ This bundle consolidates curated entries to update:
 ```ts
 // Curated ModelConfig entries for AI_MODELS['cohere'] (default + recommended)
 {
-      id: 'command-r-plus-08-2024',
-      name: 'command-r-plus-08-2024',
-      description: 'Curated via discovery on 2025-08-31',
+      id: 'command-r-08-2024',
+      name: 'command-r-08-2024',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsDocuments: true,
       isDefault: true,
-    },
-{
-      id: 'command-r7b-12-2024',
-      name: 'command-r7b-12-2024',
-      description: 'Curated via discovery on 2025-08-31',
-      contextLength: 128000,
-      supportsDocuments: true,
-    },
-{
-      id: 'command-light',
-      name: 'command-light',
-      description: 'Curated via discovery on 2025-08-31',
-      contextLength: 128000,
-      supportsDocuments: true,
     },
 ```
 ### Provider: together
@@ -214,8 +202,8 @@ This bundle consolidates curated entries to update:
 // Curated ModelConfig entries for AI_MODELS['deepseek'] (default + recommended)
 {
       id: 'deepseek-reasoner',
-      name: 'deepseek-reasoner',
-      description: 'Curated via discovery on 2025-08-31',
+      name: 'DeepSeek Reasoner',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
@@ -224,8 +212,8 @@ This bundle consolidates curated entries to update:
     },
 {
       id: 'deepseek-chat',
-      name: 'deepseek-chat',
-      description: 'Curated via discovery on 2025-08-31',
+      name: 'DeepSeek Chat',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
@@ -238,7 +226,7 @@ This bundle consolidates curated entries to update:
 {
       id: 'grok-4-0709',
       name: 'grok-4-0709',
-      description: 'Curated via discovery on 2025-08-31',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
@@ -248,16 +236,7 @@ This bundle consolidates curated entries to update:
 {
       id: 'grok-3',
       name: 'grok-3',
-      description: 'Curated via discovery on 2025-08-31',
-      contextLength: 128000,
-      supportsVision: true,
-      supportsDocuments: true,
-      supportsImageInput: true,
-    },
-{
-      id: 'grok-3-fast',
-      name: 'grok-3-fast',
-      description: 'Curated via discovery on 2025-08-31',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
@@ -269,7 +248,7 @@ This bundle consolidates curated entries to update:
 ### Provider: openai
 ```ts
 // Insert into getProviderCapabilities('openai') imageGeneration models/sizes
-imageGeneration: { supported: true, models: ["dall-e-3","dall-e-2","gpt-image-1"], sizes: ["auto","1024x1024","1024x1536","1536x1024"], maxPromptLength: 4000 },
+imageGeneration: { supported: true, models: ["dall-e-3","dall-e-2","gpt-image-1","gpt-image-1-mini","gpt-image-1.5"], sizes: ["auto","1024x1024","1024x1536","1536x1024"], maxPromptLength: 4000 },
 ```
 ### Provider: together
 ```ts
@@ -278,17 +257,19 @@ imageGeneration: { supported: true, models: ["dall-e-3","dall-e-2","gpt-image-1"
 ### Provider: grok
 ```ts
 // Insert into getProviderCapabilities('grok') imageGeneration models/sizes
-imageGeneration: { supported: true, models: ["grok-2-image-1212"], sizes: ["1024x1024"], maxPromptLength: 4000 },
+imageGeneration: { supported: true, models: ["grok-2-image-1212","grok-imagine-image","grok-imagine-image-pro"], sizes: ["1024x1024"], maxPromptLength: 4000 },
 ```
 
 ## ProviderCapabilities additions (videoGeneration - future)
 ### Provider: openai
 ```ts
-// openai: no video generation models discovered
+// Insert into getProviderCapabilities('openai') videoGeneration block (if/when added)
+videoGeneration: { supported: true, models: ["sora-2","sora-2-pro"], resolutions: ["720p","1080p"], maxPromptLength: 4000 },
 ```
 ### Provider: google
 ```ts
-// google: no video generation models discovered
+// Insert into getProviderCapabilities('google') videoGeneration block (if/when added)
+videoGeneration: { supported: true, models: ["veo-2.0-generate-001","veo-3.0-generate-001","veo-3.0-fast-generate-001","veo-3.1-generate-preview","veo-3.1-fast-generate-preview"], resolutions: ["480p","720p","1080p"], maxPromptLength: 4000 },
 ```
 ### Provider: together
 ```ts
@@ -296,5 +277,6 @@ imageGeneration: { supported: true, models: ["grok-2-image-1212"], sizes: ["1024
 ```
 ### Provider: grok
 ```ts
-// grok: no video generation models discovered
+// Insert into getProviderCapabilities('grok') videoGeneration block (if/when added)
+videoGeneration: { supported: true, models: ["grok-imagine-video"], resolutions: ["720p","1080p"], maxPromptLength: 4000 },
 ```

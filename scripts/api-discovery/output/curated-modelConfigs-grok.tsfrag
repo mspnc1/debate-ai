@@ -2,7 +2,7 @@
 {
       id: 'grok-4-0709',
       name: 'grok-4-0709',
-      description: 'Curated via discovery on 2025-08-31',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
@@ -12,16 +12,7 @@
 {
       id: 'grok-3',
       name: 'grok-3',
-      description: 'Curated via discovery on 2025-08-31',
-      contextLength: 128000,
-      supportsVision: true,
-      supportsDocuments: true,
-      supportsImageInput: true,
-    },
-{
-      id: 'grok-3-fast',
-      name: 'grok-3-fast',
-      description: 'Curated via discovery on 2025-08-31',
+      description: 'Curated via discovery on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,

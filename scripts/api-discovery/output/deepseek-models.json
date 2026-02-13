@@ -2,8 +2,8 @@
   "provider": "deepseek",
   "models": [
     {
-      "id": "deepseek-chat",
-      "name": "deepseek-chat",
+      "id": "deepseek-reasoner",
+      "name": "DeepSeek Reasoner",
       "supportsVision": true,
       "supportsDocuments": true,
       "supportsImageGeneration": false,
@@ -14,8 +14,20 @@
       "supportsImageInput": true
     },
     {
-      "id": "deepseek-reasoner",
-      "name": "deepseek-reasoner",
+      "id": "deepseek-chat",
+      "name": "DeepSeek Chat",
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true
+    },
+    {
+      "id": "deepseek-coder",
+      "name": "DeepSeek Coder",
       "supportsVision": true,
       "supportsDocuments": true,
       "supportsImageGeneration": false,
@@ -27,6 +39,6 @@
     }
   ],
   "meta": {
-    "discoveredAt": "2025-08-31T17:55:26.001Z"
+    "discoveredAt": "2026-02-12T07:33:58.990Z"
   }
 }

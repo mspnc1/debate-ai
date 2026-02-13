@@ -1,2 +1,2 @@
 // Insert into getProviderCapabilities('grok') imageGeneration models/sizes
-imageGeneration: { supported: true, models: ["grok-2-image-1212"], sizes: ["1024x1024"], maxPromptLength: 4000 },
+imageGeneration: { supported: true, models: ["grok-2-image-1212","grok-imagine-image","grok-imagine-image-pro"], sizes: ["1024x1024"], maxPromptLength: 4000 },

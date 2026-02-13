@@ -1,1 +1,2 @@
-// openai: no video generation models discovered
+// Insert into getProviderCapabilities('openai') videoGeneration block (if/when added)
+videoGeneration: { supported: true, models: ["sora-2","sora-2-pro"], resolutions: ["720p","1080p"], maxPromptLength: 4000 },

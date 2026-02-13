@@ -7,18 +7,46 @@
       "_raw": {
         "name": "embed-english-light-v3.0",
         "endpoints": [
-          "embed",
-          "classify"
+          "embed"
         ],
         "finetuned": false,
         "context_length": 512,
         "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/embed-english-light-v3.0.json",
-        "supports_vision": false,
         "features": null,
         "default_endpoints": []
       },
-      "supportsVision": true,
+      "supportsVision": false,
       "supportsDocuments": false,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false
+    },
+    {
+      "id": "command-a-vision-07-2025",
+      "name": "command-a-vision-07-2025",
+      "_raw": {
+        "name": "command-a-vision-07-2025",
+        "endpoints": [
+          "chat"
+        ],
+        "finetuned": false,
+        "context_length": 128000,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-a-vision-07-2025.json",
+        "features": [
+          "vision",
+          "logprobs",
+          "json_mode",
+          "json_schema",
+          "strict_tools",
+          "safety_modes"
+        ],
+        "default_endpoints": []
+      },
+      "supportsVision": true,
+      "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
       "supportsVoiceInput": false,
@@ -32,50 +60,45 @@
       "_raw": {
         "name": "embed-multilingual-v2.0",
         "endpoints": [
-          "embed",
-          "classify"
+          "embed"
         ],
         "finetuned": false,
         "context_length": 256,
         "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-v2.0.json",
-        "supports_vision": false,
         "features": null,
         "default_endpoints": []
       },
-      "supportsVision": true,
+      "supportsVision": false,
       "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": false
     },
     {
-      "id": "command-light-nightly",
-      "name": "command-light-nightly",
+      "id": "rerank-v4.0-fast",
+      "name": "rerank-v4.0-fast",
       "_raw": {
-        "name": "command-light-nightly",
+        "name": "rerank-v4.0-fast",
         "endpoints": [
-          "generate",
-          "summarize",
-          "chat"
+          "rerank"
         ],
         "finetuned": false,
-        "context_length": 4096,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-light-nightly.json",
-        "supports_vision": false,
+        "context_length": 32768,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/rerank-v4.0-fast.json",
         "features": null,
         "default_endpoints": []
       },
-      "supportsVision": true,
-      "supportsDocuments": true,
+      "supportsVision": false,
+      "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": false
     },
     {
       "id": "rerank-multilingual-v3.0",
@@ -88,138 +111,17 @@
         "finetuned": false,
         "context_length": 4096,
         "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/rerank-multilingual-v3.0.json",
-        "supports_vision": false,
         "features": null,
         "default_endpoints": []
       },
-      "supportsVision": true,
+      "supportsVision": false,
       "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
-    },
-    {
-      "id": "command-r7b-12-2024",
-      "name": "command-r7b-12-2024",
-      "_raw": {
-        "name": "command-r7b-12-2024",
-        "endpoints": [
-          "generate",
-          "chat"
-        ],
-        "finetuned": false,
-        "context_length": 132000,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-r7b-12-2024.json",
-        "supports_vision": false,
-        "features": [
-          "logprobs",
-          "json_mode",
-          "json_schema",
-          "strict_tools",
-          "safety_modes",
-          "tools"
-        ],
-        "default_endpoints": []
-      },
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
-    },
-    {
-      "id": "command-nightly",
-      "name": "command-nightly",
-      "_raw": {
-        "name": "command-nightly",
-        "endpoints": [
-          "chat"
-        ],
-        "finetuned": false,
-        "context_length": 288000,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-nightly.json",
-        "supports_vision": false,
-        "features": [
-          "logprobs",
-          "json_mode",
-          "json_schema",
-          "strict_tools",
-          "safety_modes",
-          "tools"
-        ],
-        "default_endpoints": []
-      },
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
-    },
-    {
-      "id": "command-r-plus-08-2024",
-      "name": "command-r-plus-08-2024",
-      "_raw": {
-        "name": "command-r-plus-08-2024",
-        "endpoints": [
-          "generate",
-          "chat",
-          "summarize"
-        ],
-        "finetuned": false,
-        "context_length": 132096,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-r-plus-08-2024.json",
-        "supports_vision": false,
-        "features": [
-          "logprobs",
-          "json_mode",
-          "json_schema",
-          "strict_tools",
-          "safety_modes",
-          "tools"
-        ],
-        "default_endpoints": []
-      },
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
-    },
-    {
-      "id": "embed-multilingual-light-v3.0-image",
-      "name": "embed-multilingual-light-v3.0-image",
-      "_raw": {
-        "name": "embed-multilingual-light-v3.0-image",
-        "endpoints": [
-          "embed_image"
-        ],
-        "finetuned": false,
-        "context_length": 0,
-        "tokenizer_url": null,
-        "supports_vision": false,
-        "features": null,
-        "default_endpoints": []
-      },
-      "supportsVision": true,
-      "supportsDocuments": false,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": false
     },
     {
       "id": "c4ai-aya-vision-8b",
@@ -232,122 +134,9 @@
         "finetuned": false,
         "context_length": 16384,
         "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/c4ai-aya-vision-8b.json",
-        "supports_vision": true,
         "features": [
           "logprobs",
           "vision"
-        ],
-        "default_endpoints": []
-      },
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
-    },
-    {
-      "id": "command-r",
-      "name": "command-r",
-      "_raw": {
-        "name": "command-r",
-        "endpoints": [
-          "generate",
-          "chat",
-          "summarize"
-        ],
-        "finetuned": false,
-        "context_length": 132096,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-r.json",
-        "supports_vision": false,
-        "features": [
-          "logprobs",
-          "json_mode",
-          "json_schema",
-          "strict_tools",
-          "tools"
-        ],
-        "default_endpoints": [],
-        "is_deprecated": true
-      },
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
-    },
-    {
-      "id": "embed-english-light-v3.0-image",
-      "name": "embed-english-light-v3.0-image",
-      "_raw": {
-        "name": "embed-english-light-v3.0-image",
-        "endpoints": [
-          "embed_image"
-        ],
-        "finetuned": false,
-        "context_length": 0,
-        "tokenizer_url": null,
-        "supports_vision": false,
-        "features": null,
-        "default_endpoints": []
-      },
-      "supportsVision": true,
-      "supportsDocuments": false,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
-    },
-    {
-      "id": "embed-english-v3.0-image",
-      "name": "embed-english-v3.0-image",
-      "_raw": {
-        "name": "embed-english-v3.0-image",
-        "endpoints": [
-          "embed_image"
-        ],
-        "finetuned": false,
-        "context_length": 0,
-        "tokenizer_url": null,
-        "supports_vision": false,
-        "features": null,
-        "default_endpoints": []
-      },
-      "supportsVision": true,
-      "supportsDocuments": false,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
-    },
-    {
-      "id": "command-a-vision-07-2025",
-      "name": "command-a-vision-07-2025",
-      "_raw": {
-        "name": "command-a-vision-07-2025",
-        "endpoints": [
-          "chat"
-        ],
-        "finetuned": false,
-        "context_length": 128000,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-a-vision-07-2025.json",
-        "supports_vision": true,
-        "features": [
-          "vision",
-          "logprobs",
-          "json_mode",
-          "json_schema",
-          "strict_tools",
-          "safety_modes"
         ],
         "default_endpoints": []
       },
@@ -371,9 +160,7 @@
         "finetuned": false,
         "context_length": 288768,
         "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-a-reasoning-08-2025.json",
-        "supports_vision": false,
         "features": [
-          "logprobs",
           "json_mode",
           "json_schema",
           "strict_tools",
@@ -383,14 +170,139 @@
         ],
         "default_endpoints": []
       },
-      "supportsVision": true,
+      "supportsVision": false,
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": false
+    },
+    {
+      "id": "embed-multilingual-light-v3.0-image",
+      "name": "embed-multilingual-light-v3.0-image",
+      "_raw": {
+        "name": "embed-multilingual-light-v3.0-image",
+        "endpoints": [
+          "embed_image"
+        ],
+        "finetuned": false,
+        "context_length": 0,
+        "tokenizer_url": null,
+        "features": null,
+        "default_endpoints": []
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false
+    },
+    {
+      "id": "embed-english-light-v3.0-image",
+      "name": "embed-english-light-v3.0-image",
+      "_raw": {
+        "name": "embed-english-light-v3.0-image",
+        "endpoints": [
+          "embed_image"
+        ],
+        "finetuned": false,
+        "context_length": 0,
+        "tokenizer_url": null,
+        "features": null,
+        "default_endpoints": []
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false
+    },
+    {
+      "id": "embed-english-v3.0-image",
+      "name": "embed-english-v3.0-image",
+      "_raw": {
+        "name": "embed-english-v3.0-image",
+        "endpoints": [
+          "embed_image"
+        ],
+        "finetuned": false,
+        "context_length": 0,
+        "tokenizer_url": null,
+        "features": null,
+        "default_endpoints": []
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false
+    },
+    {
+      "id": "c4ai-aya-expanse-8b",
+      "name": "c4ai-aya-expanse-8b",
+      "_raw": {
+        "name": "c4ai-aya-expanse-8b",
+        "endpoints": [
+          "generate",
+          "chat"
+        ],
+        "finetuned": false,
+        "context_length": 8192,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/c4ai-aya-expanse-8b.json",
+        "features": null,
+        "default_endpoints": []
+      },
+      "supportsVision": false,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false
+    },
+    {
+      "id": "command-r-08-2024",
+      "name": "command-r-08-2024",
+      "_raw": {
+        "name": "command-r-08-2024",
+        "endpoints": [
+          "generate",
+          "chat",
+          "summarize"
+        ],
+        "finetuned": false,
+        "context_length": 132096,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-r-08-2024.json",
+        "features": [
+          "logprobs",
+          "json_mode",
+          "json_schema",
+          "strict_tools",
+          "safety_modes",
+          "tools"
+        ],
+        "default_endpoints": []
+      },
+      "supportsVision": false,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false
     },
     {
       "id": "command-r7b-arabic-02-2025",
@@ -404,7 +316,6 @@
         "finetuned": false,
         "context_length": 128000,
         "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-r7b-arabic-02-2025.json",
-        "supports_vision": false,
         "features": [
           "logprobs",
           "json_mode",
@@ -415,74 +326,161 @@
         ],
         "default_endpoints": []
       },
-      "supportsVision": true,
+      "supportsVision": false,
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": false
     },
     {
-      "id": "command-light",
-      "name": "command-light",
+      "id": "rerank-v4.0-pro",
+      "name": "rerank-v4.0-pro",
       "_raw": {
-        "name": "command-light",
+        "name": "rerank-v4.0-pro",
+        "endpoints": [
+          "rerank"
+        ],
+        "finetuned": false,
+        "context_length": 32768,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/rerank-v4.0-pro.json",
+        "features": null,
+        "default_endpoints": []
+      },
+      "supportsVision": false,
+      "supportsDocuments": false,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false
+    },
+    {
+      "id": "embed-english-v3.0",
+      "name": "embed-english-v3.0",
+      "_raw": {
+        "name": "embed-english-v3.0",
+        "endpoints": [
+          "embed"
+        ],
+        "finetuned": false,
+        "context_length": 512,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/embed-english-v3.0.json",
+        "features": null,
+        "default_endpoints": []
+      },
+      "supportsVision": false,
+      "supportsDocuments": false,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false
+    },
+    {
+      "id": "c4ai-aya-expanse-32b",
+      "name": "c4ai-aya-expanse-32b",
+      "_raw": {
+        "name": "c4ai-aya-expanse-32b",
         "endpoints": [
           "generate",
-          "summarize",
           "chat"
         ],
         "finetuned": false,
-        "context_length": 4096,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-light.json",
-        "supports_vision": false,
+        "context_length": 128000,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/c4ai-aya-expanse-32b.json",
         "features": null,
-        "default_endpoints": [],
-        "is_deprecated": true
+        "default_endpoints": []
       },
-      "supportsVision": true,
+      "supportsVision": false,
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": false
     },
     {
-      "id": "command-r-plus",
-      "name": "command-r-plus",
+      "id": "command-r7b-12-2024",
+      "name": "command-r7b-12-2024",
       "_raw": {
-        "name": "command-r-plus",
+        "name": "command-r7b-12-2024",
         "endpoints": [
           "generate",
-          "chat",
-          "summarize"
+          "chat"
         ],
         "finetuned": false,
-        "context_length": 132096,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-r-plus.json",
-        "supports_vision": false,
+        "context_length": 132000,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-r7b-12-2024.json",
         "features": [
           "logprobs",
           "json_mode",
           "json_schema",
           "strict_tools",
+          "safety_modes",
           "tools"
         ],
-        "default_endpoints": [],
-        "is_deprecated": true
+        "default_endpoints": []
       },
-      "supportsVision": true,
+      "supportsVision": false,
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": false
+    },
+    {
+      "id": "embed-v4.0",
+      "name": "embed-v4.0",
+      "_raw": {
+        "name": "embed-v4.0",
+        "endpoints": [
+          "embed"
+        ],
+        "finetuned": false,
+        "context_length": 8192,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/embed-v4.0.json",
+        "features": null,
+        "default_endpoints": []
+      },
+      "supportsVision": false,
+      "supportsDocuments": false,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false
+    },
+    {
+      "id": "embed-multilingual-v3.0-image",
+      "name": "embed-multilingual-v3.0-image",
+      "_raw": {
+        "name": "embed-multilingual-v3.0-image",
+        "endpoints": [
+          "embed_image"
+        ],
+        "finetuned": false,
+        "context_length": 0,
+        "tokenizer_url": null,
+        "features": null,
+        "default_endpoints": []
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false
     },
     {
       "id": "c4ai-aya-vision-32b",
@@ -495,7 +493,6 @@
         "finetuned": false,
         "context_length": 16384,
         "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/c4ai-aya-vision-32b.json",
-        "supports_vision": true,
         "features": [
           "logprobs",
           "vision"
@@ -510,58 +507,9 @@
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
       "supportsImageInput": true
-    },
-    {
-      "id": "embed-english-v3.0",
-      "name": "embed-english-v3.0",
-      "_raw": {
-        "name": "embed-english-v3.0",
-        "endpoints": [
-          "embed",
-          "classify"
-        ],
-        "finetuned": false,
-        "context_length": 512,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/embed-english-v3.0.json",
-        "supports_vision": false,
-        "features": null,
-        "default_endpoints": []
-      },
-      "supportsVision": true,
-      "supportsDocuments": false,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
-    },
-    {
-      "id": "embed-multilingual-v3.0-image",
-      "name": "embed-multilingual-v3.0-image",
-      "_raw": {
-        "name": "embed-multilingual-v3.0-image",
-        "endpoints": [
-          "embed_image"
-        ],
-        "finetuned": false,
-        "context_length": 0,
-        "tokenizer_url": null,
-        "supports_vision": false,
-        "features": null,
-        "default_endpoints": []
-      },
-      "supportsVision": true,
-      "supportsDocuments": false,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
     }
   ],
   "meta": {
-    "discoveredAt": "2025-08-31T17:55:25.088Z"
+    "discoveredAt": "2026-02-12T07:33:51.692Z"
   }
 }

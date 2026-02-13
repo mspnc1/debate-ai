@@ -1,1 +1,2 @@
-// grok: no video generation models discovered
+// Insert into getProviderCapabilities('grok') videoGeneration block (if/when added)
+videoGeneration: { supported: true, models: ["grok-imagine-video"], resolutions: ["720p","1080p"], maxPromptLength: 4000 },

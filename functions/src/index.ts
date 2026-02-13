@@ -17,9 +17,8 @@ export { proxyAIRequestStreamV2 } from './aiProxyStreamV2';
 // Image Generation Proxy
 export { proxyImageGeneration } from './imageProxy';
 
-// Tool Execution
+// Tool Execution (all server tools route through executeTool)
 export { executeTool } from './tools';
-export { web_search } from './web_search';
 
 // Stripe (Web Subscriptions)
 export {

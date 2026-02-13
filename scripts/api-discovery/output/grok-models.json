@@ -2,24 +2,6 @@
   "provider": "grok",
   "models": [
     {
-      "id": "grok-2-1212",
-      "name": "grok-2-1212",
-      "_raw": {
-        "id": "grok-2-1212",
-        "created": 1737331200,
-        "object": "model",
-        "owned_by": "xai"
-      },
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
-    },
-    {
       "id": "grok-2-vision-1212",
       "name": "grok-2-vision-1212",
       "_raw": {
@@ -56,46 +38,10 @@
       "supportsImageInput": true
     },
     {
-      "id": "grok-3-fast",
-      "name": "grok-3-fast",
-      "_raw": {
-        "id": "grok-3-fast",
-        "created": 1743724800,
-        "object": "model",
-        "owned_by": "xai"
-      },
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
-    },
-    {
       "id": "grok-3-mini",
       "name": "grok-3-mini",
       "_raw": {
         "id": "grok-3-mini",
-        "created": 1743724800,
-        "object": "model",
-        "owned_by": "xai"
-      },
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
-    },
-    {
-      "id": "grok-3-mini-fast",
-      "name": "grok-3-mini-fast",
-      "_raw": {
-        "id": "grok-3-mini-fast",
         "created": 1743724800,
         "object": "model",
         "owned_by": "xai"
@@ -128,11 +74,65 @@
       "supportsImageInput": true
     },
     {
-      "id": "grok-4-0709-eu",
-      "name": "grok-4-0709-eu",
+      "id": "grok-4-1-fast-non-reasoning",
+      "name": "grok-4-1-fast-non-reasoning",
       "_raw": {
-        "id": "grok-4-0709-eu",
-        "created": 1752019200,
+        "id": "grok-4-1-fast-non-reasoning",
+        "created": 1763510400,
+        "object": "model",
+        "owned_by": "xai"
+      },
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true
+    },
+    {
+      "id": "grok-4-1-fast-reasoning",
+      "name": "grok-4-1-fast-reasoning",
+      "_raw": {
+        "id": "grok-4-1-fast-reasoning",
+        "created": 1763510400,
+        "object": "model",
+        "owned_by": "xai"
+      },
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true
+    },
+    {
+      "id": "grok-4-fast-non-reasoning",
+      "name": "grok-4-fast-non-reasoning",
+      "_raw": {
+        "id": "grok-4-fast-non-reasoning",
+        "created": 1756944000,
+        "object": "model",
+        "owned_by": "xai"
+      },
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true
+    },
+    {
+      "id": "grok-4-fast-reasoning",
+      "name": "grok-4-fast-reasoning",
+      "_raw": {
+        "id": "grok-4-fast-reasoning",
+        "created": 1756944000,
         "object": "model",
         "owned_by": "xai"
       },
@@ -180,9 +180,63 @@
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
       "supportsImageInput": true
+    },
+    {
+      "id": "grok-imagine-image",
+      "name": "grok-imagine-image",
+      "_raw": {
+        "id": "grok-imagine-image",
+        "created": 1769558400,
+        "object": "model",
+        "owned_by": "xai"
+      },
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageGeneration": true,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true
+    },
+    {
+      "id": "grok-imagine-image-pro",
+      "name": "grok-imagine-image-pro",
+      "_raw": {
+        "id": "grok-imagine-image-pro",
+        "created": 1769558400,
+        "object": "model",
+        "owned_by": "xai"
+      },
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageGeneration": true,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true
+    },
+    {
+      "id": "grok-imagine-video",
+      "name": "grok-imagine-video",
+      "_raw": {
+        "id": "grok-imagine-video",
+        "created": 1769558400,
+        "object": "model",
+        "owned_by": "xai"
+      },
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": true,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true
     }
   ],
   "meta": {
-    "discoveredAt": "2025-08-31T17:55:26.187Z"
+    "discoveredAt": "2026-02-12T07:33:59.111Z"
   }
 }

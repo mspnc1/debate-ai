@@ -1282,9 +1282,9 @@ interface ExecuteToolRequest {
  */
 export const executeTool = onCall(
   {
-    timeoutSeconds: 60,
-    memory: '1GiB',
-    concurrency: 20,
+    timeoutSeconds: 120,
+    memory: '2GiB',
+    concurrency: 40,
     secrets: [
       encryptionKey,
       fredApiKey,

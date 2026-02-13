@@ -2,7 +2,7 @@
 {
       id: 'claude-3-7-sonnet-20250219',
       name: 'Claude 3.7 Sonnet',
-      description: 'Discovered via API on 2025-08-31',
+      description: 'Discovered via API on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
@@ -11,7 +11,7 @@
 {
       id: 'claude-4-sonnet-20250514',
       name: 'Claude 4 Sonnet',
-      description: 'Discovered via API on 2025-08-31',
+      description: 'Discovered via API on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
@@ -20,7 +20,7 @@
 {
       id: 'claude-4.1-opus-20250805',
       name: 'Claude 4.1 Opus',
-      description: 'Discovered via API on 2025-08-31',
+      description: 'Discovered via API on 2026-02-12',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,

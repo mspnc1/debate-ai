@@ -1,8 +1,7 @@
 /**
- * Web Search Firebase Callable Function
+ * Web Search — Brave Search API integration
  *
- * Uses Brave Search API to search the web and return structured results.
- * Function name matches tool name (snake_case convention).
+ * Core search logic used by the executeTool callable (tools.ts).
  *
  * BYOK (Bring Your Own Key):
  * - Users provide their own Brave Search API key via Settings
@@ -10,8 +9,8 @@
  * - Get a free API key at https://brave.com/search/api/ (2000 queries/month)
  */
 
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { getDecryptedApiKey, encryptionKey } from './apiKeys';
+import { HttpsError } from 'firebase-functions/v2/https';
+import { getDecryptedApiKey } from './apiKeys';
 
 // ============================================================================
 // Types
@@ -59,7 +58,7 @@ interface BraveSearchResponse {
 
 /**
  * Execute a web search via Brave Search API.
- * Extracted so it can be called from both the standalone callable and executeTool.
+ * Called from the executeTool callable in tools.ts.
  */
 export async function executeWebSearch(
   userId: string,
@@ -167,30 +166,3 @@ export async function executeWebSearch(
   };
 }
 
-// ============================================================================
-// Firebase Callable Function
-// ============================================================================
-
-export const web_search = onCall(
-  {
-    timeoutSeconds: 30,
-    memory: '256MiB',
-    secrets: [encryptionKey],
-  },
-  async (request): Promise<WebSearchResponse> => {
-    if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Authentication required');
-    }
-
-    const keyValue = encryptionKey.value();
-    if (!keyValue) {
-      throw new HttpsError('internal', 'Encryption not configured');
-    }
-
-    return executeWebSearch(
-      request.auth.uid,
-      request.data as WebSearchRequest,
-      keyValue
-    );
-  }
-);
