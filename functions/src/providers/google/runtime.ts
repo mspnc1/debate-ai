@@ -32,6 +32,12 @@ interface GeminiPart {
   inlineData?: { mimeType: string; data: string };
   functionCall?: { name: string; args: Record<string, unknown> };
   functionResponse?: { name: string; response: { content: string } };
+  /**
+   * Thinking models can emit signatures that must be preserved across tool turns.
+   * REST payloads may use either camelCase or snake_case.
+   */
+  thoughtSignature?: string;
+  thought_signature?: string;
 }
 
 interface GeminiContent {
@@ -179,6 +185,10 @@ export class GoogleRuntime implements ProviderRuntime {
                 const callId = `call_${traceId}_${toolCallIndex}`;
                 const name = part.functionCall.name;
                 const args = JSON.stringify(part.functionCall.args || {});
+                const thoughtSignature =
+                  typeof part.thoughtSignature === 'string'
+                    ? part.thoughtSignature
+                    : (typeof part.thought_signature === 'string' ? part.thought_signature : undefined);
 
                 yield {
                   type: 'tool_call_start',
@@ -201,6 +211,9 @@ export class GoogleRuntime implements ProviderRuntime {
                     name,
                     arguments: args,
                   },
+                  extra_content: thoughtSignature
+                    ? { google: { thought_signature: thoughtSignature } }
+                    : undefined,
                 };
                 completedToolCalls.push(completed);
 
@@ -220,49 +233,6 @@ export class GoogleRuntime implements ProviderRuntime {
             finishReason = candidate.finishReason;
           }
 
-          // Handle MALFORMED_FUNCTION_CALL: Gemini sometimes fails to format
-          // a function call properly and puts raw code in finishMessage instead.
-          // Recover by synthesizing a proper execute_python tool call.
-          if (candidate.finishReason === 'MALFORMED_FUNCTION_CALL' && candidate.finishMessage) {
-            const callId = `call_${traceId}_${toolCallIndex}`;
-            // Gemini prefixes finishMessage with "Malformed function call: " — strip it
-            const code = candidate.finishMessage.replace(/^Malformed function call:\s*/i, '');
-            const args = JSON.stringify({ code });
-
-            yield {
-              type: 'tool_call_start',
-              index: toolCallIndex,
-              id: callId,
-              name: 'execute_python',
-            };
-
-            yield {
-              type: 'tool_call_delta',
-              index: toolCallIndex,
-              id: callId,
-              arguments_delta: args,
-            };
-
-            const completed: CanonicalToolCall = {
-              id: callId,
-              type: 'function',
-              function: {
-                name: 'execute_python',
-                arguments: args,
-              },
-            };
-            completedToolCalls.push(completed);
-
-            yield {
-              type: 'tool_call_complete',
-              index: toolCallIndex,
-              tool_call: completed,
-            };
-
-            toolCallIndex++;
-            // Override finish reason so the client knows to execute the tool
-            finishReason = 'TOOL_CALLS';
-          }
         }
 
         // Extract usage metadata
@@ -351,12 +321,19 @@ export class GoogleRuntime implements ProviderRuntime {
           } catch {
             // Keep empty args
           }
-          parts.push({
+          const functionCallPart: GeminiPart = {
             functionCall: {
               name: tc.function.name,
               args,
             },
-          });
+          };
+
+          const thoughtSignature = tc.extra_content?.google?.thought_signature;
+          if (thoughtSignature) {
+            functionCallPart.thoughtSignature = thoughtSignature;
+          }
+
+          parts.push(functionCallPart);
         }
 
         geminiContents.push({
@@ -423,7 +400,9 @@ export class GoogleRuntime implements ProviderRuntime {
       const current = contents[i];
       const last = merged[merged.length - 1];
 
-      if (current.role === last.role) {
+      // Preserve tool/thinking parts exactly; only merge plain text-like messages.
+      const hasSensitiveParts = this.hasToolOrThinkingParts(current) || this.hasToolOrThinkingParts(last);
+      if (current.role === last.role && !hasSensitiveParts) {
         last.parts = [...last.parts, ...current.parts];
       } else {
         merged.push(current);
@@ -431,6 +410,15 @@ export class GoogleRuntime implements ProviderRuntime {
     }
 
     return merged;
+  }
+
+  private hasToolOrThinkingParts(content: GeminiContent): boolean {
+    return content.parts.some((part) =>
+      !!part.functionCall ||
+      !!part.functionResponse ||
+      typeof part.thoughtSignature === 'string' ||
+      typeof part.thought_signature === 'string'
+    );
   }
 
   /**

@@ -74,10 +74,52 @@ export async function createPage(browser: Browser): Promise<Page> {
 }
 
 /**
+ * Allowlisted hostnames for external requests.
+ *
+ * HTML artifacts (Leaflet/Folium maps, Plotly charts, etc.) may reference
+ * external resources like map tile servers or CDN-hosted libraries.
+ * These are safe to fetch during PDF rendering.
+ */
+const ALLOWED_HOSTS = new Set([
+  // OpenStreetMap tile servers
+  'tile.openstreetmap.org',
+  'a.tile.openstreetmap.org',
+  'b.tile.openstreetmap.org',
+  'c.tile.openstreetmap.org',
+  // Stamen / Stadia tiles
+  'tiles.stadiamaps.com',
+  'stamen-tiles.a.ssl.fastly.net',
+  // CartoDB / CARTO tiles
+  'basemaps.cartocdn.com',
+  'a.basemaps.cartocdn.com',
+  'b.basemaps.cartocdn.com',
+  'c.basemaps.cartocdn.com',
+  // Mapbox tiles (free tier)
+  'api.mapbox.com',
+  'a.tiles.mapbox.com',
+  'b.tiles.mapbox.com',
+  // ESRI basemaps
+  'server.arcgisonline.com',
+  'services.arcgisonline.com',
+  // CDNs commonly used by Leaflet, Plotly, D3
+  'unpkg.com',
+  'cdn.jsdelivr.net',
+  'cdnjs.cloudflare.com',
+  'd3js.org',
+  'cdn.plot.ly',
+  // Leaflet assets
+  'leafletjs.com',
+  // Google Fonts (for styled HTML)
+  'fonts.googleapis.com',
+  'fonts.gstatic.com',
+]);
+
+/**
  * Set up network blocking on a page.
  *
- * Uses protocol-based checks: allows data:, blob:, about:, file: schemes.
- * Blocks all other requests (http:, https:, ws:, etc.).
+ * Allows data:, blob:, about:, file: schemes unconditionally.
+ * Allows https: requests to allowlisted tile servers and CDNs.
+ * Blocks all other external requests.
  *
  * IMPORTANT: Call before any setContent/navigation on the page.
  */
@@ -87,10 +129,10 @@ export async function setupNetworkBlocking(page: Page): Promise<void> {
   page.on('request', (request) => {
     const url = request.url();
 
-    // Extract protocol — URL constructor handles most schemes
-    let protocol: string;
+    // Extract protocol and hostname
+    let parsed: URL;
     try {
-      protocol = new URL(url).protocol;
+      parsed = new URL(url);
     } catch {
       // Malformed URL — block it
       const warning = `Blocked malformed request: ${request.method()} ${url} [${request.resourceType()}]`;
@@ -102,16 +144,22 @@ export async function setupNetworkBlocking(page: Page): Promise<void> {
 
     // Allow safe local protocols
     if (
-      protocol === 'data:' ||
-      protocol === 'blob:' ||
-      protocol === 'about:' ||
-      protocol === 'file:'
+      parsed.protocol === 'data:' ||
+      parsed.protocol === 'blob:' ||
+      parsed.protocol === 'about:' ||
+      parsed.protocol === 'file:'
     ) {
       request.continue();
       return;
     }
 
-    // Block everything else (http:, https:, ws:, wss:, ftp:, etc.)
+    // Allow https requests to allowlisted hosts (tile servers, CDNs)
+    if (parsed.protocol === 'https:' && ALLOWED_HOSTS.has(parsed.hostname)) {
+      request.continue();
+      return;
+    }
+
+    // Block everything else (http:, unknown https hosts, ws:, wss:, ftp:, etc.)
     const warning = `Blocked external request: ${request.method()} ${url} [${request.resourceType()}]`;
     console.warn(`[browserService] ${warning}`);
     networkWarnings.push(warning);

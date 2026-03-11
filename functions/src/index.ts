@@ -46,3 +46,4 @@ export { appleAuthCallback } from './appleAuthCallback';
 // Export Pipeline (M4)
 export { runExportJob } from './exports/runExportJob';
 export { createExportJob } from './exports/createExportJob';
+export { createHtmlPdfExport } from './exports/createHtmlPdfExport';

@@ -29,6 +29,7 @@ export type ArtifactType =
 
 export interface ReportTheme {
   pageSize: 'A4' | 'LETTER';
+  landscape?: boolean;
   margins: {
     top: number;
     right: number;
@@ -199,6 +200,15 @@ export type ExportJobPhase =
   | 'completed'
   | 'failed';
 
+export type ExportJobMode = 'report_spec' | 'html_direct';
+
+export interface HtmlDirectOptions {
+  pageSize?: 'A4' | 'LETTER';
+  margins?: { top: number; right: number; bottom: number; left: number };
+  landscape?: boolean;
+  printBackground?: boolean;
+}
+
 export interface ExportJobDoc {
   id: string;
   createdAt: string;
@@ -212,6 +222,12 @@ export interface ExportJobDoc {
   updatedAt: string;
   pdfHash?: string;
   provenanceHash?: string;
+  /** Defaults to 'report_spec' for backward compatibility */
+  mode?: ExportJobMode;
+  /** For html_direct mode: the artifact to convert directly to PDF */
+  artifactId?: string;
+  /** For html_direct mode: PDF generation options */
+  options?: HtmlDirectOptions;
 }
 
 // ============================================================================

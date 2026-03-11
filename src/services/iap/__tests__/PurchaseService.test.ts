@@ -537,7 +537,7 @@ describe('PurchaseService', () => {
         await PurchaseService.purchaseLifetime();
 
         expect(mockGetProducts).toHaveBeenCalledWith({ skus: [SUBSCRIPTION_PRODUCTS.lifetime] });
-        expect(mockRequestPurchase).toHaveBeenCalledWith({ sku: SUBSCRIPTION_PRODUCTS.lifetime });
+        expect(mockRequestPurchase).toHaveBeenCalledWith({ skus: [SUBSCRIPTION_PRODUCTS.lifetime] });
       });
 
       it('should use requestPurchase instead of requestSubscription on Android', async () => {

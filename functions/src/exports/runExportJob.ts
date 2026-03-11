@@ -44,6 +44,7 @@ import { renderHtmlToPng } from './htmlRenderer';
 import { assembleReportHtml, renderDatasetPreview, renderJsonDocument } from './reportAssembler';
 import { generateManifest, signManifest, storeProvenance } from './provenance';
 import { getOrRenderVisual, resetCacheStats, getCacheStats } from './renderCache';
+import { runHtmlDirectPipeline } from './htmlDirectPipeline';
 
 const provenanceHmacKey = defineSecret('PROVENANCE_HMAC_KEY');
 
@@ -214,13 +215,131 @@ export const runExportJob = onRequest(
       }
 
       const job = jobDoc.data() as ExportJobDoc;
-      const { reportSpecArtifactId, sessionId, createdBy } = job;
+      const { sessionId, createdBy } = job;
 
       if (!sessionId || !createdBy) {
         await updateJobPhase(jobId, 'failed', { error: 'Missing sessionId or createdBy on job doc' });
         res.status(400).json({ error: 'Invalid job document' });
         return;
       }
+
+      // ================================================================
+      // MODE DISPATCH: html_direct bypasses the report_spec pipeline
+      // ================================================================
+      if (job.mode === 'html_direct') {
+        await updateJobPhase(jobId, 'processing', { progress: 10 });
+
+        const artifactId = job.artifactId;
+        if (!artifactId) {
+          await updateJobPhase(jobId, 'failed', { error: 'Missing artifactId for html_direct mode' });
+          res.status(400).json({ error: 'Missing artifactId' });
+          return;
+        }
+
+        // Load artifact
+        const artDoc = await db
+          .collection('users')
+          .doc(createdBy)
+          .collection('conversations')
+          .doc(sessionId)
+          .collection('artifacts')
+          .doc(artifactId)
+          .get();
+
+        if (!artDoc.exists) {
+          await updateJobPhase(jobId, 'failed', { error: 'Artifact not found' });
+          res.status(404).json({ error: 'Artifact not found' });
+          return;
+        }
+
+        const artifact = artDoc.data() as ArtifactDoc;
+        artifact.data = await resolveArtifactData(artifact);
+
+        await updateJobPhase(jobId, 'rendering', { progress: 30 });
+
+        // Launch browser + render PDF
+        browser = await launchBrowser();
+        const page = await createPage(browser);
+        await setupNetworkBlocking(page);
+
+        const { pdfBuffer, sourceHash, artifactName } = await runHtmlDirectPipeline(
+          artifact,
+          page,
+          job.options,
+        );
+        await page.close();
+
+        await updateJobPhase(jobId, 'rendering', { progress: 85 });
+
+        // Content-address + store PDF (same pattern as report_spec)
+        const pdfHash = sha256Hex(pdfBuffer);
+        const bucket = getExportBucket();
+        const pdfPath = `exports/pdf/${pdfHash}.pdf`;
+        const pdfFile = bucket.file(pdfPath);
+
+        const [exists] = await pdfFile.exists();
+        if (!exists) {
+          await pdfFile.save(pdfBuffer, {
+            contentType: 'application/pdf',
+            metadata: { cacheControl: 'public, max-age=31536000, immutable' },
+          });
+          console.log(`[runExportJob] html_direct: Stored PDF at ${pdfPath}`);
+        }
+
+        // Signed URL (7-day expiry)
+        const [downloadUrl] = await pdfFile.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
+        });
+
+        // Create document_pdf artifact in Firestore
+        const pdfArtifactId = `document_pdf_${pdfHash.slice(0, 12)}`;
+        await db
+          .collection('users')
+          .doc(createdBy)
+          .collection('conversations')
+          .doc(sessionId)
+          .collection('artifacts')
+          .doc(pdfArtifactId)
+          .set({
+            id: pdfArtifactId,
+            cellId: 'export',
+            sessionId,
+            name: `${artifactName.replace(/\.[^.]+$/, '')}.pdf`,
+            type: 'document_pdf',
+            mimeType: 'application/pdf',
+            data: '',
+            createdAt: Date.now(),
+            metadata: {
+              pdfHash,
+              storagePath: pdfPath,
+              downloadUrl,
+              sourceArtifactId: artifactId,
+              exportJobId: jobId,
+            },
+            profile: 'ARCHIVE_PORTABLE',
+            provenance: {
+              generator: 'html-direct-pipeline',
+              generatorVersion: '1.0.0',
+              inputs: [artifactId],
+            },
+          });
+
+        await updateJobPhase(jobId, 'completed', {
+          progress: 100,
+          downloadUrl,
+          pdfHash,
+        });
+
+        console.log(`[runExportJob] html_direct job ${jobId} completed. PDF: ${pdfHash}`);
+        res.status(200).json({ status: 'completed', jobId, pdfHash, downloadUrl });
+        return;
+      }
+
+      // ================================================================
+      // REPORT_SPEC MODE (existing pipeline)
+      // ================================================================
+      const { reportSpecArtifactId } = job;
 
       // ================================================================
       // 2. Update phase → processing
@@ -508,6 +627,7 @@ export const runExportJob = onRequest(
       const displayHeaderFooter = headerTemplate !== EMPTY_CHROME_TEMPLATE || footerTemplate !== EMPTY_CHROME_TEMPLATE;
       const pdfBuffer = Buffer.from(await pdfPage.pdf({
         format: reportSpec.theme.pageSize === 'LETTER' ? 'Letter' : 'A4',
+        landscape: reportSpec.theme.landscape === true,
         margin: {
           top: ptToIn(margins.top),
           right: ptToIn(margins.right),

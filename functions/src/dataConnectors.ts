@@ -26,6 +26,7 @@ const blsRegistrationKey = defineSecret('BLS_REGISTRATION_KEY');
 const fbiCrimeApiKey = defineSecret('FBI_CRIME_API_KEY');
 const stackExchangeApiKey = defineSecret('STACK_EXCHANGE_API_KEY');
 const librariesIoApiKey = defineSecret('LIBRARIES_IO_API_KEY');
+const semanticScholarApiKey = defineSecret('SEMANTIC_SCHOLAR_API_KEY');
 
 // Valid data connector IDs (must match client-side data-connectors.ts)
 const VALID_CONNECTOR_IDS = [
@@ -111,7 +112,7 @@ export const CONNECTOR_AUTH_CONFIG: Record<string, ConnectorAuthConfig> = {
   yahoo_finance: { authType: 'none' },
   openweathermap: { authType: 'query_param', authKeyName: 'appid' },
   newsapi: { authType: 'header', authKeyName: 'X-Api-Key' },
-  semantic_scholar: { authType: 'none' },
+  semantic_scholar: { authType: 'header', authKeyName: 'x-api-key', getManagedKey: () => semanticScholarApiKey.value() || undefined },
   world_bank: { authType: 'none' },
   socrata: { authType: 'query_param', authKeyName: '$$app_token', getManagedKey: () => socrataAppToken.value() || undefined },
   pubmed: { authType: 'none' },
@@ -242,4 +243,5 @@ export {
   fbiCrimeApiKey,
   stackExchangeApiKey,
   librariesIoApiKey,
+  semanticScholarApiKey,
 };

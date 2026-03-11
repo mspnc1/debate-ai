@@ -31,6 +31,15 @@ export interface CanonicalToolCall {
     /** JSON string of arguments */
     arguments: string;
   };
+  /**
+   * Provider-specific payload required for lossless tool-call replay.
+   * Gemini thinking models may include thought signatures that must be echoed back.
+   */
+  extra_content?: {
+    google?: {
+      thought_signature?: string;
+    };
+  };
 }
 
 /**
