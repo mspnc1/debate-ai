@@ -29,7 +29,7 @@ function readFileSafe(p) {
 }
 
 function parseExistingIdsForProvider(source, provider) {
-  const re = new RegExp(`\n\s*${provider}:\s*\[(.*?)\n\s*\],`, 's');
+  const re = new RegExp(`\\n\\s*${provider}:\\s*\\[(.*?)\\n\\s*\\],`, 's');
   const m = source.match(re);
   if (!m) return new Set();
   const block = m[1];
@@ -76,10 +76,11 @@ function genTsEntry(m) {
     extra += ` // Pricing: $${m.pricing.inputPer1M}/1M in, $${m.pricing.outputPer1M}/1M out [${source}]`;
   }
 
+  const esc = (s) => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   return `{
-      id: '${m.id}',
-      name: '${name.replace(/'/g, "\\'")}',
-      description: '${desc.replace(/'/g, "\\'")}',
+      id: '${esc(m.id)}',
+      name: '${esc(name)}',
+      description: '${esc(desc)}',
       contextLength: ${ctx},${extra}${capsStr}    },`;
 }
 
