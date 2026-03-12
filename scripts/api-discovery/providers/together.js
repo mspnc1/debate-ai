@@ -1,8 +1,8 @@
-const { safeGet, deriveCapsFromMetadata } = require('./common');
+const { safeGet, deriveCapsFromMetadata, mergeWithRegistry } = require('./common');
 
 // Env var: TOGETHER_API_KEY
 
-async function discoverTogether(env) {
+async function discoverTogether(env, registry) {
   const apiKey = env.TOGETHER_API_KEY;
   const headers = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
   let models = [];
@@ -28,7 +28,13 @@ async function discoverTogether(env) {
       ...Object.fromEntries(Object.entries(meta).filter(([,v])=>v===true)),
     });
   };
-  return { provider: 'together', models: models.map(mapCaps) };
+
+  const mapped = models.map(mapCaps);
+  const merged = registry
+    ? mapped.map(m => mergeWithRegistry('together', m, registry))
+    : mapped;
+
+  return { provider: 'together', models: merged };
 }
 
 module.exports = { discoverTogether };

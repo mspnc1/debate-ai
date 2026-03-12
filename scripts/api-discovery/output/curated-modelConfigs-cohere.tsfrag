@@ -1,9 +1,20 @@
 // Curated ModelConfig entries for AI_MODELS['cohere'] (default + recommended)
 {
+      id: 'command-a-vision-07-2025',
+      name: 'command-a-vision-07-2025',
+      description: 'No description available',
+      contextLength: 128000, // Pricing: $2.5/1M in, $10/1M out [merged]
+      supportsVision: true,
+      supportsDocuments: true,
+      supportsImageInput: true,
+      supportsFunctions: true,
+      isDefault: true,
+    },
+{
       id: 'command-r-08-2024',
       name: 'command-r-08-2024',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
+      description: 'No description available',
+      contextLength: 132096,
       supportsDocuments: true,
-      isDefault: true,
+      supportsFunctions: true,
     },

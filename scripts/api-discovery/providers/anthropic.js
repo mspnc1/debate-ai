@@ -1,8 +1,8 @@
-const { safeGet, deriveCapsFromMetadata } = require('./common');
+const { safeGet, deriveCapsFromMetadata, mergeWithRegistry } = require('./common');
 
 // Env var: ANTHROPIC_API_KEY
 
-async function discoverAnthropic(env) {
+async function discoverAnthropic(env, registry) {
   const apiKey = env.ANTHROPIC_API_KEY;
   const headers = apiKey
     ? { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' }
@@ -13,7 +13,7 @@ async function discoverAnthropic(env) {
     // Some Anthropic deployments expose /v1/models; if not, this will 404 and we fall back.
     const data = await safeGet('https://api.anthropic.com/v1/models', { headers });
     if (Array.isArray(data.data)) {
-      models = data.data.map(m => ({ id: m.id, name: m.display_name || m.id }));
+      models = data.data.map(m => ({ id: m.id, name: m.display_name || m.id, _raw: m }));
     }
   } catch (_) {
     // Fallback to a minimal known set; update as needed during releases.
@@ -40,7 +40,12 @@ async function discoverAnthropic(env) {
     };
   };
 
-  return { provider: 'claude', models: models.map(mapCaps) };
+  const mapped = models.map(mapCaps);
+  const merged = registry
+    ? mapped.map(m => mergeWithRegistry('claude', m, registry))
+    : mapped;
+
+  return { provider: 'claude', models: merged };
 }
 
 module.exports = { discoverAnthropic };

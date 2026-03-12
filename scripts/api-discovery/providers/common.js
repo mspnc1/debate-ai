@@ -63,12 +63,47 @@ async function safeGet(url, config = {}) {
   return res.data;
 }
 
+function loadRegistry() {
+  const regPath = path.join(__dirname, '..', 'known-models-registry.json');
+  if (!fs.existsSync(regPath)) return {};
+  return JSON.parse(fs.readFileSync(regPath, 'utf8'));
+}
+
+function mergeWithRegistry(provider, discoveredModel, registry) {
+  const entry = registry?.providers?.[provider]?.models?.[discoveredModel.id];
+  if (!entry) return { ...discoveredModel, _source: 'api' };
+
+  return {
+    ...discoveredModel,
+    // API data wins for non-null fields; registry fills gaps
+    name: (discoveredModel.name && discoveredModel.name !== discoveredModel.id)
+      ? discoveredModel.name
+      : (entry.name || discoveredModel.name),
+    description: discoveredModel.description || entry.description || null,
+    contextLength: discoveredModel.contextLength || entry.contextLength || null,
+    maxOutputTokens: discoveredModel.maxOutputTokens || entry.maxOutputTokens || null,
+    pricing: entry.pricing || null,  // Always from registry
+    // Capability merging: API-detected caps + registry overrides
+    supportsFunctions: discoveredModel.supportsFunctions || entry.capabilities?.functions || false,
+    supportsWebSearch: discoveredModel.supportsWebSearch || entry.capabilities?.webSearch || false,
+    supportsThinking: discoveredModel.supportsThinking || entry.capabilities?.thinking || false,
+    supportsJsonMode: discoveredModel.supportsJsonMode || entry.capabilities?.jsonMode || false,
+    // Flags
+    requiresTemperature1: entry.flags?.requiresTemperature1 || false,
+    useMaxCompletionTokens: entry.flags?.useMaxCompletionTokens || false,
+    isDeprecated: discoveredModel.isDeprecated || entry.isDeprecated || false,
+    _source: 'merged',
+  };
+}
+
 module.exports = {
   readEnvLocal,
   ensureDir,
   writeJson,
   writeModelsMd,
   safeGet,
+  loadRegistry,
+  mergeWithRegistry,
   OUTPUT_DIR,
 };
 

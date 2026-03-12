@@ -4,29 +4,59 @@
     {
       "id": "sonar",
       "name": "Sonar",
-      "supportsVision": true,
-      "supportsDocuments": true,
+      "supportsVision": false,
+      "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": false,
+      "supportsWebSearch": true,
+      "description": "Fast search model with real-time web access and citations",
+      "contextLength": 128000,
+      "maxOutputTokens": 8000,
+      "pricing": {
+        "inputPer1M": 1,
+        "outputPer1M": 1
+      },
+      "supportsFunctions": false,
+      "supportsThinking": false,
+      "supportsJsonMode": false,
+      "requiresTemperature1": false,
+      "useMaxCompletionTokens": false,
+      "isDeprecated": false,
+      "_source": "merged"
     },
     {
       "id": "sonar-pro",
       "name": "Sonar Pro",
-      "supportsVision": true,
-      "supportsDocuments": true,
+      "supportsVision": false,
+      "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": false,
+      "supportsWebSearch": true,
+      "description": "Advanced search model with comprehensive answers and citations",
+      "contextLength": 200000,
+      "maxOutputTokens": 8000,
+      "pricing": {
+        "inputPer1M": 3,
+        "outputPer1M": 15
+      },
+      "supportsFunctions": false,
+      "supportsThinking": false,
+      "supportsJsonMode": false,
+      "requiresTemperature1": false,
+      "useMaxCompletionTokens": false,
+      "isDeprecated": false,
+      "_source": "merged"
     }
   ],
   "meta": {
-    "discoveredAt": "2026-02-12T07:33:51.063Z"
+    "discoveredAt": "2026-03-12T15:55:24.399Z"
   }
 }

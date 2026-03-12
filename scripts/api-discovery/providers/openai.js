@@ -1,8 +1,8 @@
-const { safeGet, deriveCapsFromMetadata } = require('./common');
+const { safeGet, deriveCapsFromMetadata, mergeWithRegistry } = require('./common');
 
 // Env var: OPENAI_API_KEY
 
-async function discoverOpenAI(env) {
+async function discoverOpenAI(env, registry) {
   const apiKey = env.OPENAI_API_KEY;
   const headers = apiKey
     ? { Authorization: `Bearer ${apiKey}` }
@@ -43,7 +43,13 @@ async function discoverOpenAI(env) {
 
   const dedup = new Map();
   [...models, ...knownExtras].forEach(m => dedup.set(m.id, mapCaps(m)));
-  return { provider: 'openai', models: [...dedup.values()] };
+
+  const mapped = [...dedup.values()];
+  const merged = registry
+    ? mapped.map(m => mergeWithRegistry('openai', m, registry))
+    : mapped;
+
+  return { provider: 'openai', models: merged };
 }
 
 module.exports = { discoverOpenAI };

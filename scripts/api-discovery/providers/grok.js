@@ -1,8 +1,8 @@
-const { safeGet, deriveCapsFromMetadata } = require('./common');
+const { safeGet, deriveCapsFromMetadata, mergeWithRegistry } = require('./common');
 
 // Env var: GROK_API_KEY (xAI)
 
-async function discoverGrok(env) {
+async function discoverGrok(env, registry) {
   const apiKey = env.GROK_API_KEY;
   const headers = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
   let models = [];
@@ -35,7 +35,12 @@ async function discoverGrok(env) {
     });
   };
 
-  return { provider: 'grok', models: models.map(mapCaps) };
+  const mapped = models.map(mapCaps);
+  const merged = registry
+    ? mapped.map(m => mergeWithRegistry('grok', m, registry))
+    : mapped;
+
+  return { provider: 'grok', models: merged };
 }
 
 module.exports = { discoverGrok };

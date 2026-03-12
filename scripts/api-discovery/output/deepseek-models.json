@@ -11,7 +11,22 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "description": "Advanced reasoning model with chain-of-thought",
+      "contextLength": 64000,
+      "maxOutputTokens": 8192,
+      "pricing": {
+        "inputPer1M": 0.55,
+        "outputPer1M": 2.19
+      },
+      "supportsFunctions": false,
+      "supportsWebSearch": false,
+      "supportsThinking": true,
+      "supportsJsonMode": false,
+      "requiresTemperature1": false,
+      "useMaxCompletionTokens": false,
+      "isDeprecated": false,
+      "_source": "merged"
     },
     {
       "id": "deepseek-chat",
@@ -23,7 +38,22 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "description": "General-purpose chat model with strong reasoning",
+      "contextLength": 64000,
+      "maxOutputTokens": 8192,
+      "pricing": {
+        "inputPer1M": 0.27,
+        "outputPer1M": 1.1
+      },
+      "supportsFunctions": true,
+      "supportsWebSearch": false,
+      "supportsThinking": false,
+      "supportsJsonMode": true,
+      "requiresTemperature1": false,
+      "useMaxCompletionTokens": false,
+      "isDeprecated": false,
+      "_source": "merged"
     },
     {
       "id": "deepseek-coder",
@@ -35,10 +65,11 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     }
   ],
   "meta": {
-    "discoveredAt": "2026-02-12T07:33:58.990Z"
+    "discoveredAt": "2026-03-12T15:55:29.296Z"
   }
 }

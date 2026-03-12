@@ -1,8 +1,8 @@
-const { safeGet, deriveCapsFromMetadata } = require('./common');
+const { safeGet, deriveCapsFromMetadata, mergeWithRegistry } = require('./common');
 
 // Env var: PERPLEXITY_API_KEY
 
-async function discoverPerplexity(env) {
+async function discoverPerplexity(env, registry) {
   const apiKey = env.PERPLEXITY_API_KEY;
   const headers = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
   let models = [];
@@ -22,19 +22,25 @@ async function discoverPerplexity(env) {
     const meta = deriveCapsFromMetadata(m._raw);
     return ({
       ...m,
-      supportsVision: true,
-      supportsDocuments: true,
+      supportsVision: false,
+      supportsDocuments: false,
       supportsImageGeneration: false,
       supportsVideoGeneration: false,
       supportsVoiceInput: false,
       supportsVoiceOutput: false,
       supportsRealtime: false,
-      supportsImageInput: true,
+      supportsImageInput: false,
+      supportsWebSearch: true,  // All Perplexity models have web search
       ...Object.fromEntries(Object.entries(meta).filter(([,v])=>v===true)),
     });
   };
 
-  return { provider: 'perplexity', models: models.map(mapCaps) };
+  const mapped = models.map(mapCaps);
+  const merged = registry
+    ? mapped.map(m => mergeWithRegistry('perplexity', m, registry))
+    : mapped;
+
+  return { provider: 'perplexity', models: merged };
 }
 
 module.exports = { discoverPerplexity };

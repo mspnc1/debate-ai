@@ -3,13 +3,16 @@ export interface ModelConfig {
   name: string;
   description: string;
   contextLength: number;
+  maxOutputTokens?: number; // Maximum output tokens the model supports
   isDefault?: boolean;
   supportsVision?: boolean;
   supportsDocuments?: boolean; // Specifically for PDF/document support
   supportsFunctions?: boolean;
   supportsWebSearch?: boolean; // For Perplexity models with web search
+  supportsThinking?: boolean; // For reasoning models (O1/O3, DeepSeek-R1, etc.)
   requiresTemperature1?: boolean; // For GPT-5 and O1/O3 models
   useMaxCompletionTokens?: boolean; // For GPT-5 and reasoning models that use max_completion_tokens
+  isDeprecated?: boolean; // Model is deprecated by provider
   // Extended capability flags:
   supportsImageInput?: boolean; // Alias of supportsVision (explicit)
   supportsImageGeneration?: boolean; // Can generate images (e.g., gpt-image-1, dall-e-3)

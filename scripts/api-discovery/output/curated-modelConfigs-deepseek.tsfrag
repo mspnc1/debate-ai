@@ -2,19 +2,23 @@
 {
       id: 'deepseek-reasoner',
       name: 'DeepSeek Reasoner',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
+      description: 'Advanced reasoning model with chain-of-thought',
+      contextLength: 64000,
+      maxOutputTokens: 8192, // Pricing: $0.55/1M in, $2.19/1M out [merged]
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
+      supportsThinking: true,
       isDefault: true,
     },
 {
       id: 'deepseek-chat',
       name: 'DeepSeek Chat',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
+      description: 'General-purpose chat model with strong reasoning',
+      contextLength: 64000,
+      maxOutputTokens: 8192, // Pricing: $0.27/1M in, $1.1/1M out [merged]
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
+      supportsFunctions: true,
     },

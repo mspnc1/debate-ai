@@ -2,7 +2,7 @@
 {
       id: 'grok-4-0709',
       name: 'grok-4-0709',
-      description: 'Curated via discovery on 2026-02-12',
+      description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
@@ -11,10 +11,24 @@
     },
 {
       id: 'grok-3',
-      name: 'grok-3',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
+      name: 'Grok 3',
+      description: 'Previous flagship xAI model',
+      contextLength: 131072,
+      maxOutputTokens: 131072, // Pricing: $3/1M in, $15/1M out [merged]
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
+      supportsFunctions: true,
+    },
+{
+      id: 'grok-3-mini',
+      name: 'Grok 3 Mini',
+      description: 'Lightweight reasoning model from xAI',
+      contextLength: 131072,
+      maxOutputTokens: 131072, // Pricing: $0.3/1M in, $0.5/1M out [merged]
+      supportsVision: true,
+      supportsDocuments: true,
+      supportsImageInput: true,
+      supportsFunctions: true,
+      supportsThinking: true,
     },

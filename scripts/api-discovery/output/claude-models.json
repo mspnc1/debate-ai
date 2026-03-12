@@ -11,7 +11,22 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "description": "Legacy balanced model",
+      "contextLength": 200000,
+      "maxOutputTokens": 64000,
+      "pricing": {
+        "inputPer1M": 3,
+        "outputPer1M": 15
+      },
+      "supportsFunctions": true,
+      "supportsWebSearch": false,
+      "supportsThinking": true,
+      "supportsJsonMode": false,
+      "requiresTemperature1": false,
+      "useMaxCompletionTokens": false,
+      "isDeprecated": false,
+      "_source": "merged"
     },
     {
       "id": "claude-4-sonnet-20250514",
@@ -23,7 +38,22 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "description": "Balanced performance and speed",
+      "contextLength": 200000,
+      "maxOutputTokens": 64000,
+      "pricing": {
+        "inputPer1M": 3,
+        "outputPer1M": 15
+      },
+      "supportsFunctions": true,
+      "supportsWebSearch": false,
+      "supportsThinking": true,
+      "supportsJsonMode": false,
+      "requiresTemperature1": false,
+      "useMaxCompletionTokens": false,
+      "isDeprecated": false,
+      "_source": "merged"
     },
     {
       "id": "claude-4.1-opus-20250805",
@@ -35,10 +65,11 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     }
   ],
   "meta": {
-    "discoveredAt": "2026-02-12T07:33:50.658Z"
+    "discoveredAt": "2026-03-12T15:55:23.971Z"
   }
 }

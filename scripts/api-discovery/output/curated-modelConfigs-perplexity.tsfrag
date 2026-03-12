@@ -2,19 +2,17 @@
 {
       id: 'sonar-pro',
       name: 'Sonar Pro',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
-      supportsVision: true,
-      supportsDocuments: true,
-      supportsImageInput: true,
+      description: 'Advanced search model with comprehensive answers and citations',
+      contextLength: 200000,
+      maxOutputTokens: 8000, // Pricing: $3/1M in, $15/1M out [merged]
+      supportsWebSearch: true,
       isDefault: true,
     },
 {
       id: 'sonar',
       name: 'Sonar',
-      description: 'Curated via discovery on 2026-02-12',
+      description: 'Fast search model with real-time web access and citations',
       contextLength: 128000,
-      supportsVision: true,
-      supportsDocuments: true,
-      supportsImageInput: true,
+      maxOutputTokens: 8000, // Pricing: $1/1M in, $1/1M out [merged]
+      supportsWebSearch: true,
     },

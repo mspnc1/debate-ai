@@ -4,6 +4,12 @@
     {
       "id": "embed-english-light-v3.0",
       "name": "embed-english-light-v3.0",
+      "contextLength": 512,
+      "features": [],
+      "endpoints": [
+        "embed"
+      ],
+      "isDeprecated": false,
       "_raw": {
         "name": "embed-english-light-v3.0",
         "endpoints": [
@@ -22,11 +28,27 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
+      "_source": "api"
     },
     {
       "id": "command-a-vision-07-2025",
       "name": "command-a-vision-07-2025",
+      "contextLength": 128000,
+      "features": [
+        "vision",
+        "logprobs",
+        "json_mode",
+        "json_schema",
+        "strict_tools",
+        "safety_modes"
+      ],
+      "endpoints": [
+        "chat"
+      ],
+      "isDeprecated": false,
       "_raw": {
         "name": "command-a-vision-07-2025",
         "endpoints": [
@@ -52,11 +74,30 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "supportsFunctions": true,
+      "supportsJsonMode": true,
+      "description": null,
+      "maxOutputTokens": null,
+      "pricing": {
+        "inputPer1M": 2.5,
+        "outputPer1M": 10
+      },
+      "supportsWebSearch": false,
+      "supportsThinking": false,
+      "requiresTemperature1": false,
+      "useMaxCompletionTokens": false,
+      "_source": "merged"
     },
     {
       "id": "embed-multilingual-v2.0",
       "name": "embed-multilingual-v2.0",
+      "contextLength": 256,
+      "features": [],
+      "endpoints": [
+        "embed"
+      ],
+      "isDeprecated": true,
       "_raw": {
         "name": "embed-multilingual-v2.0",
         "endpoints": [
@@ -66,7 +107,8 @@
         "context_length": 256,
         "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-v2.0.json",
         "features": null,
-        "default_endpoints": []
+        "default_endpoints": [],
+        "is_deprecated": true
       },
       "supportsVision": false,
       "supportsDocuments": false,
@@ -75,11 +117,20 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
+      "_source": "api"
     },
     {
       "id": "rerank-v4.0-fast",
       "name": "rerank-v4.0-fast",
+      "contextLength": 32768,
+      "features": [],
+      "endpoints": [
+        "rerank"
+      ],
+      "isDeprecated": false,
       "_raw": {
         "name": "rerank-v4.0-fast",
         "endpoints": [
@@ -98,11 +149,20 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
+      "_source": "api"
     },
     {
       "id": "rerank-multilingual-v3.0",
       "name": "rerank-multilingual-v3.0",
+      "contextLength": 4096,
+      "features": [],
+      "endpoints": [
+        "rerank"
+      ],
+      "isDeprecated": false,
       "_raw": {
         "name": "rerank-multilingual-v3.0",
         "endpoints": [
@@ -121,11 +181,23 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
+      "_source": "api"
     },
     {
       "id": "c4ai-aya-vision-8b",
       "name": "c4ai-aya-vision-8b",
+      "contextLength": 16384,
+      "features": [
+        "logprobs",
+        "vision"
+      ],
+      "endpoints": [
+        "chat"
+      ],
+      "isDeprecated": true,
       "_raw": {
         "name": "c4ai-aya-vision-8b",
         "endpoints": [
@@ -138,7 +210,8 @@
           "logprobs",
           "vision"
         ],
-        "default_endpoints": []
+        "default_endpoints": [],
+        "is_deprecated": true
       },
       "supportsVision": true,
       "supportsDocuments": true,
@@ -147,11 +220,69 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
+      "_source": "api"
+    },
+    {
+      "id": "tiny-aya-fire",
+      "name": "tiny-aya-fire",
+      "contextLength": 8192,
+      "features": [
+        "logprobs",
+        "json_mode",
+        "json_schema"
+      ],
+      "endpoints": [
+        "generate",
+        "chat"
+      ],
+      "isDeprecated": false,
+      "_raw": {
+        "name": "tiny-aya-fire",
+        "endpoints": [
+          "generate",
+          "chat"
+        ],
+        "finetuned": false,
+        "context_length": 8192,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/tiny-aya-fire.json",
+        "features": [
+          "logprobs",
+          "json_mode",
+          "json_schema"
+        ],
+        "default_endpoints": []
+      },
+      "supportsVision": false,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": true,
+      "_source": "api"
     },
     {
       "id": "command-a-reasoning-08-2025",
       "name": "command-a-reasoning-08-2025",
+      "contextLength": 288768,
+      "features": [
+        "json_mode",
+        "json_schema",
+        "strict_tools",
+        "safety_modes",
+        "tools",
+        "reasoning"
+      ],
+      "endpoints": [
+        "chat"
+      ],
+      "isDeprecated": false,
       "_raw": {
         "name": "command-a-reasoning-08-2025",
         "endpoints": [
@@ -177,11 +308,20 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "supportsFunctions": true,
+      "supportsJsonMode": true,
+      "_source": "api"
     },
     {
       "id": "embed-multilingual-light-v3.0-image",
       "name": "embed-multilingual-light-v3.0-image",
+      "contextLength": null,
+      "features": [],
+      "endpoints": [
+        "embed_image"
+      ],
+      "isDeprecated": false,
       "_raw": {
         "name": "embed-multilingual-light-v3.0-image",
         "endpoints": [
@@ -193,18 +333,27 @@
         "features": null,
         "default_endpoints": []
       },
-      "supportsVision": true,
+      "supportsVision": false,
       "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
+      "_source": "api"
     },
     {
       "id": "embed-english-light-v3.0-image",
       "name": "embed-english-light-v3.0-image",
+      "contextLength": null,
+      "features": [],
+      "endpoints": [
+        "embed_image"
+      ],
+      "isDeprecated": false,
       "_raw": {
         "name": "embed-english-light-v3.0-image",
         "endpoints": [
@@ -216,18 +365,27 @@
         "features": null,
         "default_endpoints": []
       },
-      "supportsVision": true,
+      "supportsVision": false,
       "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
+      "_source": "api"
     },
     {
       "id": "embed-english-v3.0-image",
       "name": "embed-english-v3.0-image",
+      "contextLength": null,
+      "features": [],
+      "endpoints": [
+        "embed_image"
+      ],
+      "isDeprecated": false,
       "_raw": {
         "name": "embed-english-v3.0-image",
         "endpoints": [
@@ -239,18 +397,28 @@
         "features": null,
         "default_endpoints": []
       },
-      "supportsVision": true,
+      "supportsVision": false,
       "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
+      "_source": "api"
     },
     {
       "id": "c4ai-aya-expanse-8b",
       "name": "c4ai-aya-expanse-8b",
+      "contextLength": 8192,
+      "features": [],
+      "endpoints": [
+        "generate",
+        "chat"
+      ],
+      "isDeprecated": true,
       "_raw": {
         "name": "c4ai-aya-expanse-8b",
         "endpoints": [
@@ -261,7 +429,8 @@
         "context_length": 8192,
         "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/c4ai-aya-expanse-8b.json",
         "features": null,
-        "default_endpoints": []
+        "default_endpoints": [],
+        "is_deprecated": true
       },
       "supportsVision": false,
       "supportsDocuments": true,
@@ -270,11 +439,29 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
+      "_source": "api"
     },
     {
       "id": "command-r-08-2024",
       "name": "command-r-08-2024",
+      "contextLength": 132096,
+      "features": [
+        "logprobs",
+        "json_mode",
+        "json_schema",
+        "strict_tools",
+        "safety_modes",
+        "tools"
+      ],
+      "endpoints": [
+        "generate",
+        "chat",
+        "summarize"
+      ],
+      "isDeprecated": false,
       "_raw": {
         "name": "command-r-08-2024",
         "endpoints": [
@@ -302,11 +489,70 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "supportsFunctions": true,
+      "supportsJsonMode": true,
+      "_source": "api"
+    },
+    {
+      "id": "tiny-aya-water",
+      "name": "tiny-aya-water",
+      "contextLength": 8192,
+      "features": [
+        "logprobs",
+        "json_mode",
+        "json_schema"
+      ],
+      "endpoints": [
+        "generate",
+        "chat"
+      ],
+      "isDeprecated": false,
+      "_raw": {
+        "name": "tiny-aya-water",
+        "endpoints": [
+          "generate",
+          "chat"
+        ],
+        "finetuned": false,
+        "context_length": 8192,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/tiny-aya-water.json",
+        "features": [
+          "logprobs",
+          "json_mode",
+          "json_schema"
+        ],
+        "default_endpoints": []
+      },
+      "supportsVision": false,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": true,
+      "_source": "api"
     },
     {
       "id": "command-r7b-arabic-02-2025",
       "name": "command-r7b-arabic-02-2025",
+      "contextLength": 128000,
+      "features": [
+        "logprobs",
+        "json_mode",
+        "json_schema",
+        "strict_tools",
+        "safety_modes",
+        "tools"
+      ],
+      "endpoints": [
+        "generate",
+        "chat"
+      ],
+      "isDeprecated": false,
       "_raw": {
         "name": "command-r7b-arabic-02-2025",
         "endpoints": [
@@ -333,11 +579,20 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "supportsFunctions": true,
+      "supportsJsonMode": true,
+      "_source": "api"
     },
     {
       "id": "rerank-v4.0-pro",
       "name": "rerank-v4.0-pro",
+      "contextLength": 32768,
+      "features": [],
+      "endpoints": [
+        "rerank"
+      ],
+      "isDeprecated": false,
       "_raw": {
         "name": "rerank-v4.0-pro",
         "endpoints": [
@@ -356,11 +611,20 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
+      "_source": "api"
     },
     {
       "id": "embed-english-v3.0",
       "name": "embed-english-v3.0",
+      "contextLength": 512,
+      "features": [],
+      "endpoints": [
+        "embed"
+      ],
+      "isDeprecated": false,
       "_raw": {
         "name": "embed-english-v3.0",
         "endpoints": [
@@ -379,11 +643,21 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
+      "_source": "api"
     },
     {
       "id": "c4ai-aya-expanse-32b",
       "name": "c4ai-aya-expanse-32b",
+      "contextLength": 128000,
+      "features": [],
+      "endpoints": [
+        "generate",
+        "chat"
+      ],
+      "isDeprecated": false,
       "_raw": {
         "name": "c4ai-aya-expanse-32b",
         "endpoints": [
@@ -403,11 +677,28 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
+      "_source": "api"
     },
     {
       "id": "command-r7b-12-2024",
       "name": "command-r7b-12-2024",
+      "contextLength": 132000,
+      "features": [
+        "logprobs",
+        "json_mode",
+        "json_schema",
+        "strict_tools",
+        "safety_modes",
+        "tools"
+      ],
+      "endpoints": [
+        "generate",
+        "chat"
+      ],
+      "isDeprecated": false,
       "_raw": {
         "name": "command-r7b-12-2024",
         "endpoints": [
@@ -434,11 +725,20 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "supportsFunctions": true,
+      "supportsJsonMode": true,
+      "_source": "api"
     },
     {
       "id": "embed-v4.0",
       "name": "embed-v4.0",
+      "contextLength": 8192,
+      "features": [],
+      "endpoints": [
+        "embed"
+      ],
+      "isDeprecated": false,
       "_raw": {
         "name": "embed-v4.0",
         "endpoints": [
@@ -457,59 +757,13 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
-    },
-    {
-      "id": "embed-multilingual-v3.0-image",
-      "name": "embed-multilingual-v3.0-image",
-      "_raw": {
-        "name": "embed-multilingual-v3.0-image",
-        "endpoints": [
-          "embed_image"
-        ],
-        "finetuned": false,
-        "context_length": 0,
-        "tokenizer_url": null,
-        "features": null,
-        "default_endpoints": []
-      },
-      "supportsVision": true,
-      "supportsDocuments": false,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": false
-    },
-    {
-      "id": "c4ai-aya-vision-32b",
-      "name": "c4ai-aya-vision-32b",
-      "_raw": {
-        "name": "c4ai-aya-vision-32b",
-        "endpoints": [
-          "chat"
-        ],
-        "finetuned": false,
-        "context_length": 16384,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/c4ai-aya-vision-32b.json",
-        "features": [
-          "logprobs",
-          "vision"
-        ],
-        "default_endpoints": []
-      },
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
+      "_source": "api"
     }
   ],
   "meta": {
-    "discoveredAt": "2026-02-12T07:33:51.692Z"
+    "discoveredAt": "2026-03-12T15:55:25.170Z"
   }
 }

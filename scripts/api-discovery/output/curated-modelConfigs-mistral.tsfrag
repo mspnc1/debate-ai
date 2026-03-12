@@ -1,29 +1,22 @@
 // Curated ModelConfig entries for AI_MODELS['mistral'] (default + recommended)
 {
       id: 'mistral-large-latest',
-      name: 'mistral-large-latest',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
+      name: 'mistral-large-2512',
+      description: 'Official mistral-large-2512 Mistral AI model',
+      contextLength: 262144, // Pricing: $2/1M in, $6/1M out [merged]
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
+      supportsFunctions: true,
       isDefault: true,
     },
 {
       id: 'mistral-medium-latest',
-      name: 'mistral-medium-latest',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
+      name: 'mistral-medium-2508',
+      description: 'Update on Mistral Medium 3 with improved capabilities.',
+      contextLength: 131072, // Pricing: $0.4/1M in, $2/1M out [merged]
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
-    },
-{
-      id: 'pixtral-large-latest',
-      name: 'pixtral-large-latest',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
-      supportsVision: true,
-      supportsDocuments: true,
-      supportsImageInput: true,
+      supportsFunctions: true,
     },

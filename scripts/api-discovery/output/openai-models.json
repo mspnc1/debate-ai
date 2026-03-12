@@ -16,7 +16,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-4",
@@ -33,7 +34,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-3.5-turbo",
@@ -50,15 +52,16 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
-      "id": "gpt-5.2-codex",
-      "name": "gpt-5.2-codex",
+      "id": "gpt-5.4",
+      "name": "gpt-5.4",
       "_raw": {
-        "id": "gpt-5.2-codex",
+        "id": "gpt-5.4",
         "object": "model",
-        "created": 1766164985,
+        "created": 1772691852,
         "owned_by": "system"
       },
       "supportsVision": true,
@@ -67,75 +70,80 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
-      "id": "gpt-4o-mini-tts-2025-12-15",
-      "name": "gpt-4o-mini-tts-2025-12-15",
+      "id": "gpt-5.3-chat-latest",
+      "name": "gpt-5.3-chat-latest",
       "_raw": {
-        "id": "gpt-4o-mini-tts-2025-12-15",
+        "id": "gpt-5.3-chat-latest",
         "object": "model",
-        "created": 1765610837,
+        "created": 1772236571,
         "owned_by": "system"
       },
       "supportsVision": true,
       "supportsDocuments": false,
       "supportsVoiceInput": false,
-      "supportsVoiceOutput": true,
-      "supportsVideoGeneration": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
-    },
-    {
-      "id": "gpt-realtime-mini-2025-12-15",
-      "name": "gpt-realtime-mini-2025-12-15",
-      "_raw": {
-        "id": "gpt-realtime-mini-2025-12-15",
-        "object": "model",
-        "created": 1765612007,
-        "owned_by": "system"
-      },
-      "supportsVision": false,
-      "supportsDocuments": false,
-      "supportsVoiceInput": true,
-      "supportsVoiceOutput": false,
-      "supportsVideoGeneration": false,
-      "supportsRealtime": true,
-      "supportsImageInput": false
-    },
-    {
-      "id": "gpt-audio-mini-2025-12-15",
-      "name": "gpt-audio-mini-2025-12-15",
-      "_raw": {
-        "id": "gpt-audio-mini-2025-12-15",
-        "object": "model",
-        "created": 1765760008,
-        "owned_by": "system"
-      },
-      "supportsVision": false,
-      "supportsDocuments": false,
-      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
-      "id": "chatgpt-image-latest",
-      "name": "chatgpt-image-latest",
+      "id": "gpt-5.4-2026-03-05",
+      "name": "gpt-5.4-2026-03-05",
       "_raw": {
-        "id": "chatgpt-image-latest",
+        "id": "gpt-5.4-2026-03-05",
         "object": "model",
-        "created": 1765925279,
+        "created": 1772654062,
         "owned_by": "system"
       },
-      "supportsVision": false,
+      "supportsVision": true,
       "supportsDocuments": false,
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-5.4-pro",
+      "name": "gpt-5.4-pro",
+      "_raw": {
+        "id": "gpt-5.4-pro",
+        "object": "model",
+        "created": 1772659601,
+        "owned_by": "system"
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-5.4-pro-2026-03-05",
+      "name": "gpt-5.4-pro-2026-03-05",
+      "_raw": {
+        "id": "gpt-5.4-pro-2026-03-05",
+        "object": "model",
+        "created": 1772659657,
+        "owned_by": "system"
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "davinci-002",
@@ -152,7 +160,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "babbage-002",
@@ -169,7 +178,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-3.5-turbo-instruct",
@@ -186,7 +196,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-3.5-turbo-instruct-0914",
@@ -203,11 +214,12 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "dall-e-3",
-      "name": "dall-e-3",
+      "name": "DALL-E 3",
       "_raw": {
         "id": "dall-e-3",
         "object": "model",
@@ -221,7 +233,22 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "description": "Image generation model",
+      "contextLength": null,
+      "maxOutputTokens": null,
+      "pricing": {
+        "inputPer1M": null,
+        "outputPer1M": null
+      },
+      "supportsFunctions": false,
+      "supportsWebSearch": false,
+      "supportsThinking": false,
+      "supportsJsonMode": false,
+      "requiresTemperature1": false,
+      "useMaxCompletionTokens": false,
+      "isDeprecated": false,
+      "_source": "merged"
     },
     {
       "id": "dall-e-2",
@@ -239,7 +266,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-4-1106-preview",
@@ -256,7 +284,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-3.5-turbo-1106",
@@ -273,7 +302,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "tts-1-hd",
@@ -290,7 +320,8 @@
       "supportsVoiceOutput": true,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "tts-1-1106",
@@ -307,7 +338,8 @@
       "supportsVoiceOutput": true,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "tts-1-hd-1106",
@@ -324,7 +356,8 @@
       "supportsVoiceOutput": true,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "text-embedding-3-small",
@@ -341,7 +374,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "text-embedding-3-large",
@@ -358,7 +392,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-4-0125-preview",
@@ -375,7 +410,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-4-turbo-preview",
@@ -392,7 +428,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-3.5-turbo-0125",
@@ -409,7 +446,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-4-turbo",
@@ -426,7 +464,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-4-turbo-2024-04-09",
@@ -443,11 +482,12 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-4o",
-      "name": "gpt-4o",
+      "name": "GPT-4o",
       "_raw": {
         "id": "gpt-4o",
         "object": "model",
@@ -460,7 +500,22 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "description": "Previous flagship multimodal model",
+      "contextLength": 128000,
+      "maxOutputTokens": 16384,
+      "pricing": {
+        "inputPer1M": 2.5,
+        "outputPer1M": 10
+      },
+      "supportsFunctions": true,
+      "supportsWebSearch": false,
+      "supportsThinking": false,
+      "supportsJsonMode": true,
+      "requiresTemperature1": false,
+      "useMaxCompletionTokens": false,
+      "isDeprecated": false,
+      "_source": "merged"
     },
     {
       "id": "gpt-4o-2024-05-13",
@@ -477,7 +532,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-mini-2024-07-18",
@@ -494,11 +550,12 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-mini",
-      "name": "gpt-4o-mini",
+      "name": "GPT-4o Mini",
       "_raw": {
         "id": "gpt-4o-mini",
         "object": "model",
@@ -511,7 +568,22 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "description": "Small, fast, affordable model from GPT-4o family",
+      "contextLength": 128000,
+      "maxOutputTokens": 16384,
+      "pricing": {
+        "inputPer1M": 0.15,
+        "outputPer1M": 0.6
+      },
+      "supportsFunctions": true,
+      "supportsWebSearch": false,
+      "supportsThinking": false,
+      "supportsJsonMode": true,
+      "requiresTemperature1": false,
+      "useMaxCompletionTokens": false,
+      "isDeprecated": false,
+      "_source": "merged"
     },
     {
       "id": "gpt-4o-2024-08-06",
@@ -528,24 +600,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
-    },
-    {
-      "id": "chatgpt-4o-latest",
-      "name": "chatgpt-4o-latest",
-      "_raw": {
-        "id": "chatgpt-4o-latest",
-        "object": "model",
-        "created": 1723515131,
-        "owned_by": "system"
-      },
-      "supportsVision": true,
-      "supportsDocuments": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsVideoGeneration": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-audio-preview",
@@ -562,7 +618,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-realtime-preview",
@@ -579,7 +636,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": true,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "omni-moderation-latest",
@@ -596,7 +654,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "omni-moderation-2024-09-26",
@@ -613,7 +672,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-realtime-preview-2024-12-17",
@@ -630,7 +690,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": true,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-audio-preview-2024-12-17",
@@ -647,7 +708,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-mini-realtime-preview-2024-12-17",
@@ -664,7 +726,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": true,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-mini-audio-preview-2024-12-17",
@@ -681,7 +744,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "o1-2024-12-17",
@@ -698,11 +762,12 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "o1",
-      "name": "o1",
+      "name": "O1",
       "_raw": {
         "id": "o1",
         "object": "model",
@@ -715,7 +780,22 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "description": "First-generation reasoning model",
+      "contextLength": 200000,
+      "maxOutputTokens": 100000,
+      "pricing": {
+        "inputPer1M": 15,
+        "outputPer1M": 60
+      },
+      "supportsFunctions": false,
+      "supportsWebSearch": false,
+      "supportsThinking": true,
+      "supportsJsonMode": false,
+      "requiresTemperature1": true,
+      "useMaxCompletionTokens": true,
+      "isDeprecated": false,
+      "_source": "merged"
     },
     {
       "id": "gpt-4o-mini-realtime-preview",
@@ -732,7 +812,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": true,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-mini-audio-preview",
@@ -749,11 +830,12 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "o3-mini",
-      "name": "o3-mini",
+      "name": "O3 Mini",
       "_raw": {
         "id": "o3-mini",
         "object": "model",
@@ -766,7 +848,22 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "description": "Smaller reasoning model, faster and more affordable",
+      "contextLength": 200000,
+      "maxOutputTokens": 100000,
+      "pricing": {
+        "inputPer1M": 1.1,
+        "outputPer1M": 4.4
+      },
+      "supportsFunctions": true,
+      "supportsWebSearch": false,
+      "supportsThinking": true,
+      "supportsJsonMode": true,
+      "requiresTemperature1": true,
+      "useMaxCompletionTokens": true,
+      "isDeprecated": false,
+      "_source": "merged"
     },
     {
       "id": "o3-mini-2025-01-31",
@@ -783,7 +880,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-2024-11-20",
@@ -800,41 +898,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
-    },
-    {
-      "id": "gpt-4o-search-preview-2025-03-11",
-      "name": "gpt-4o-search-preview-2025-03-11",
-      "_raw": {
-        "id": "gpt-4o-search-preview-2025-03-11",
-        "object": "model",
-        "created": 1741388170,
-        "owned_by": "system"
-      },
-      "supportsVision": true,
-      "supportsDocuments": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsVideoGeneration": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
-    },
-    {
-      "id": "gpt-4o-search-preview",
-      "name": "gpt-4o-search-preview",
-      "_raw": {
-        "id": "gpt-4o-search-preview",
-        "object": "model",
-        "created": 1741388720,
-        "owned_by": "system"
-      },
-      "supportsVision": true,
-      "supportsDocuments": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsVideoGeneration": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-mini-search-preview-2025-03-11",
@@ -851,7 +916,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-mini-search-preview",
@@ -868,7 +934,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-transcribe",
@@ -885,7 +952,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-mini-transcribe",
@@ -902,7 +970,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "o1-pro-2025-03-19",
@@ -919,7 +988,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "o1-pro",
@@ -936,7 +1006,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-mini-tts",
@@ -953,7 +1024,8 @@
       "supportsVoiceOutput": true,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "o3-2025-04-16",
@@ -970,7 +1042,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "o4-mini-2025-04-16",
@@ -987,11 +1060,12 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "o3",
-      "name": "o3",
+      "name": "O3",
       "_raw": {
         "id": "o3",
         "object": "model",
@@ -1004,7 +1078,22 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "description": "Advanced reasoning model for complex problem-solving",
+      "contextLength": 200000,
+      "maxOutputTokens": 100000,
+      "pricing": {
+        "inputPer1M": 2,
+        "outputPer1M": 8
+      },
+      "supportsFunctions": true,
+      "supportsWebSearch": false,
+      "supportsThinking": true,
+      "supportsJsonMode": true,
+      "requiresTemperature1": true,
+      "useMaxCompletionTokens": true,
+      "isDeprecated": false,
+      "_source": "merged"
     },
     {
       "id": "o4-mini",
@@ -1021,7 +1110,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-4.1-2025-04-14",
@@ -1038,11 +1128,12 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-4.1",
-      "name": "gpt-4.1",
+      "name": "GPT-4.1",
       "_raw": {
         "id": "gpt-4.1",
         "object": "model",
@@ -1055,7 +1146,22 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "description": "Flagship GPT-4 model with improved coding and instruction following",
+      "contextLength": 1047576,
+      "maxOutputTokens": 32768,
+      "pricing": {
+        "inputPer1M": 2,
+        "outputPer1M": 8
+      },
+      "supportsFunctions": true,
+      "supportsWebSearch": false,
+      "supportsThinking": false,
+      "supportsJsonMode": true,
+      "requiresTemperature1": false,
+      "useMaxCompletionTokens": true,
+      "isDeprecated": false,
+      "_source": "merged"
     },
     {
       "id": "gpt-4.1-mini-2025-04-14",
@@ -1072,11 +1178,12 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-4.1-mini",
-      "name": "gpt-4.1-mini",
+      "name": "GPT-4.1 Mini",
       "_raw": {
         "id": "gpt-4.1-mini",
         "object": "model",
@@ -1089,7 +1196,22 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "description": "Fast, affordable small model for focused tasks",
+      "contextLength": 1047576,
+      "maxOutputTokens": 32768,
+      "pricing": {
+        "inputPer1M": 0.4,
+        "outputPer1M": 1.6
+      },
+      "supportsFunctions": true,
+      "supportsWebSearch": false,
+      "supportsThinking": false,
+      "supportsJsonMode": true,
+      "requiresTemperature1": false,
+      "useMaxCompletionTokens": true,
+      "isDeprecated": false,
+      "_source": "merged"
     },
     {
       "id": "gpt-4.1-nano-2025-04-14",
@@ -1106,11 +1228,12 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-4.1-nano",
-      "name": "gpt-4.1-nano",
+      "name": "GPT-4.1 Nano",
       "_raw": {
         "id": "gpt-4.1-nano",
         "object": "model",
@@ -1123,7 +1246,22 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "description": "Fastest, most affordable model for simple tasks",
+      "contextLength": 1047576,
+      "maxOutputTokens": 32768,
+      "pricing": {
+        "inputPer1M": 0.1,
+        "outputPer1M": 0.4
+      },
+      "supportsFunctions": true,
+      "supportsWebSearch": false,
+      "supportsThinking": false,
+      "supportsJsonMode": true,
+      "requiresTemperature1": false,
+      "useMaxCompletionTokens": true,
+      "isDeprecated": false,
+      "_source": "merged"
     },
     {
       "id": "gpt-image-1",
@@ -1135,24 +1273,22 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
-    },
-    {
-      "id": "codex-mini-latest",
-      "name": "codex-mini-latest",
-      "_raw": {
-        "id": "codex-mini-latest",
-        "object": "model",
-        "created": 1746673257,
-        "owned_by": "system"
+      "supportsImageInput": false,
+      "description": "OpenAI's image generation model",
+      "contextLength": null,
+      "maxOutputTokens": null,
+      "pricing": {
+        "inputPer1M": null,
+        "outputPer1M": null
       },
-      "supportsVision": false,
-      "supportsDocuments": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsVideoGeneration": false,
-      "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsFunctions": false,
+      "supportsWebSearch": false,
+      "supportsThinking": false,
+      "supportsJsonMode": false,
+      "requiresTemperature1": false,
+      "useMaxCompletionTokens": false,
+      "isDeprecated": false,
+      "_source": "merged"
     },
     {
       "id": "o3-pro",
@@ -1169,7 +1305,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-realtime-preview-2025-06-03",
@@ -1186,7 +1323,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": true,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-audio-preview-2025-06-03",
@@ -1203,7 +1341,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "o3-pro-2025-06-10",
@@ -1220,7 +1359,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "o4-mini-deep-research",
@@ -1237,7 +1377,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "o3-deep-research",
@@ -1254,7 +1395,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-transcribe-diarize",
@@ -1271,7 +1413,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "o3-deep-research-2025-06-26",
@@ -1288,7 +1431,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "o4-mini-deep-research-2025-06-26",
@@ -1305,7 +1449,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-5-chat-latest",
@@ -1322,7 +1467,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-5-2025-08-07",
@@ -1339,7 +1485,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-5",
@@ -1356,7 +1503,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-5-mini-2025-08-07",
@@ -1373,7 +1521,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-5-mini",
@@ -1390,7 +1539,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-5-nano-2025-08-07",
@@ -1407,7 +1557,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-5-nano",
@@ -1424,7 +1575,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-audio-2025-08-28",
@@ -1441,7 +1593,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-realtime",
@@ -1458,7 +1611,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": true,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-realtime-2025-08-28",
@@ -1475,7 +1629,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": true,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-audio",
@@ -1492,7 +1647,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-5-codex",
@@ -1509,7 +1665,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-image-1-mini",
@@ -1527,7 +1684,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-5-pro-2025-10-06",
@@ -1544,7 +1702,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-5-pro",
@@ -1561,7 +1720,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-audio-mini",
@@ -1578,7 +1738,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-audio-mini-2025-10-06",
@@ -1595,7 +1756,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-5-search-api",
@@ -1612,7 +1774,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-realtime-mini",
@@ -1629,7 +1792,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": true,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-realtime-mini-2025-10-06",
@@ -1646,7 +1810,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": true,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "sora-2",
@@ -1663,7 +1828,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": true,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "sora-2-pro",
@@ -1680,7 +1846,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": true,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-5-search-api-2025-10-14",
@@ -1697,7 +1864,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-5.1-chat-latest",
@@ -1714,7 +1882,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-5.1-2025-11-13",
@@ -1731,7 +1900,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-5.1",
@@ -1748,7 +1918,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-5.1-codex",
@@ -1765,7 +1936,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-5.1-codex-mini",
@@ -1782,7 +1954,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-5.1-codex-max",
@@ -1799,7 +1972,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-image-1.5",
@@ -1817,7 +1991,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "gpt-5.2-2025-12-11",
@@ -1834,11 +2009,12 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-5.2",
-      "name": "gpt-5.2",
+      "name": "GPT-5.2",
       "_raw": {
         "id": "gpt-5.2",
         "object": "model",
@@ -1851,7 +2027,22 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "description": "Most capable GPT model with enhanced reasoning and multimodal understanding",
+      "contextLength": 272000,
+      "maxOutputTokens": 100000,
+      "pricing": {
+        "inputPer1M": 1.75,
+        "outputPer1M": 14
+      },
+      "supportsFunctions": true,
+      "supportsWebSearch": false,
+      "supportsThinking": false,
+      "supportsJsonMode": true,
+      "requiresTemperature1": false,
+      "useMaxCompletionTokens": true,
+      "isDeprecated": false,
+      "_source": "merged"
     },
     {
       "id": "gpt-5.2-pro-2025-12-11",
@@ -1868,7 +2059,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-5.2-pro",
@@ -1885,7 +2077,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-5.2-chat-latest",
@@ -1902,7 +2095,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-mini-transcribe-2025-12-15",
@@ -1919,7 +2113,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-mini-transcribe-2025-03-20",
@@ -1936,7 +2131,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-4o-mini-tts-2025-03-20",
@@ -1953,7 +2149,188 @@
       "supportsVoiceOutput": true,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-4o-mini-tts-2025-12-15",
+      "name": "gpt-4o-mini-tts-2025-12-15",
+      "_raw": {
+        "id": "gpt-4o-mini-tts-2025-12-15",
+        "object": "model",
+        "created": 1765610837,
+        "owned_by": "system"
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": true,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-realtime-mini-2025-12-15",
+      "name": "gpt-realtime-mini-2025-12-15",
+      "_raw": {
+        "id": "gpt-realtime-mini-2025-12-15",
+        "object": "model",
+        "created": 1765612007,
+        "owned_by": "system"
+      },
+      "supportsVision": false,
+      "supportsDocuments": false,
+      "supportsVoiceInput": true,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": true,
+      "supportsImageInput": false,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-audio-mini-2025-12-15",
+      "name": "gpt-audio-mini-2025-12-15",
+      "_raw": {
+        "id": "gpt-audio-mini-2025-12-15",
+        "object": "model",
+        "created": 1765760008,
+        "owned_by": "system"
+      },
+      "supportsVision": false,
+      "supportsDocuments": false,
+      "supportsVoiceInput": true,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false,
+      "_source": "api"
+    },
+    {
+      "id": "chatgpt-image-latest",
+      "name": "chatgpt-image-latest",
+      "_raw": {
+        "id": "chatgpt-image-latest",
+        "object": "model",
+        "created": 1765925279,
+        "owned_by": "system"
+      },
+      "supportsVision": false,
+      "supportsDocuments": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-5.2-codex",
+      "name": "gpt-5.2-codex",
+      "_raw": {
+        "id": "gpt-5.2-codex",
+        "object": "model",
+        "created": 1766164985,
+        "owned_by": "system"
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-5.3-codex",
+      "name": "gpt-5.3-codex",
+      "_raw": {
+        "id": "gpt-5.3-codex",
+        "object": "model",
+        "created": 1770537915,
+        "owned_by": "system"
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-realtime-1.5",
+      "name": "gpt-realtime-1.5",
+      "_raw": {
+        "id": "gpt-realtime-1.5",
+        "object": "model",
+        "created": 1771461469,
+        "owned_by": "system"
+      },
+      "supportsVision": false,
+      "supportsDocuments": false,
+      "supportsVoiceInput": true,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": true,
+      "supportsImageInput": false,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-audio-1.5",
+      "name": "gpt-audio-1.5",
+      "_raw": {
+        "id": "gpt-audio-1.5",
+        "object": "model",
+        "created": 1771550885,
+        "owned_by": "system"
+      },
+      "supportsVision": false,
+      "supportsDocuments": false,
+      "supportsVoiceInput": true,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-4o-search-preview",
+      "name": "gpt-4o-search-preview",
+      "_raw": {
+        "id": "gpt-4o-search-preview",
+        "object": "model",
+        "created": 1771905534,
+        "owned_by": "system"
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-4o-search-preview-2025-03-11",
+      "name": "gpt-4o-search-preview-2025-03-11",
+      "_raw": {
+        "id": "gpt-4o-search-preview-2025-03-11",
+        "object": "model",
+        "created": 1771905621,
+        "owned_by": "system"
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "gpt-3.5-turbo-16k",
@@ -1970,7 +2347,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "tts-1",
@@ -1987,7 +2365,8 @@
       "supportsVoiceOutput": true,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "whisper-1",
@@ -2004,7 +2383,8 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     },
     {
       "id": "text-embedding-ada-002",
@@ -2021,10 +2401,11 @@
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
-      "supportsImageInput": false
+      "supportsImageInput": false,
+      "_source": "api"
     }
   ],
   "meta": {
-    "discoveredAt": "2026-02-12T07:33:50.545Z"
+    "discoveredAt": "2026-03-12T15:55:23.737Z"
   }
 }

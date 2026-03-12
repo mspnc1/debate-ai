@@ -2,26 +2,8 @@
   "provider": "grok",
   "models": [
     {
-      "id": "grok-2-vision-1212",
-      "name": "grok-2-vision-1212",
-      "_raw": {
-        "id": "grok-2-vision-1212",
-        "created": 1733961600,
-        "object": "model",
-        "owned_by": "xai"
-      },
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
-    },
-    {
       "id": "grok-3",
-      "name": "grok-3",
+      "name": "Grok 3",
       "_raw": {
         "id": "grok-3",
         "created": 1743724800,
@@ -35,11 +17,26 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "description": "Previous flagship xAI model",
+      "contextLength": 131072,
+      "maxOutputTokens": 131072,
+      "pricing": {
+        "inputPer1M": 3,
+        "outputPer1M": 15
+      },
+      "supportsFunctions": true,
+      "supportsWebSearch": false,
+      "supportsThinking": false,
+      "supportsJsonMode": true,
+      "requiresTemperature1": false,
+      "useMaxCompletionTokens": false,
+      "isDeprecated": false,
+      "_source": "merged"
     },
     {
       "id": "grok-3-mini",
-      "name": "grok-3-mini",
+      "name": "Grok 3 Mini",
       "_raw": {
         "id": "grok-3-mini",
         "created": 1743724800,
@@ -53,7 +50,22 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "description": "Lightweight reasoning model from xAI",
+      "contextLength": 131072,
+      "maxOutputTokens": 131072,
+      "pricing": {
+        "inputPer1M": 0.3,
+        "outputPer1M": 0.5
+      },
+      "supportsFunctions": true,
+      "supportsWebSearch": false,
+      "supportsThinking": true,
+      "supportsJsonMode": true,
+      "requiresTemperature1": false,
+      "useMaxCompletionTokens": false,
+      "isDeprecated": false,
+      "_source": "merged"
     },
     {
       "id": "grok-4-0709",
@@ -71,7 +83,8 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "grok-4-1-fast-non-reasoning",
@@ -89,7 +102,8 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "grok-4-1-fast-reasoning",
@@ -107,7 +121,8 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "grok-4-fast-non-reasoning",
@@ -125,7 +140,8 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "grok-4-fast-reasoning",
@@ -143,7 +159,65 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "grok-4.20-beta-0309-non-reasoning",
+      "name": "grok-4.20-beta-0309-non-reasoning",
+      "_raw": {
+        "id": "grok-4.20-beta-0309-non-reasoning",
+        "created": 1773014400,
+        "object": "model",
+        "owned_by": "xai"
+      },
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "grok-4.20-beta-0309-reasoning",
+      "name": "grok-4.20-beta-0309-reasoning",
+      "_raw": {
+        "id": "grok-4.20-beta-0309-reasoning",
+        "created": 1773014400,
+        "object": "model",
+        "owned_by": "xai"
+      },
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "grok-4.20-multi-agent-beta-0309",
+      "name": "grok-4.20-multi-agent-beta-0309",
+      "_raw": {
+        "id": "grok-4.20-multi-agent-beta-0309",
+        "created": 1773014400,
+        "object": "model",
+        "owned_by": "xai"
+      },
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "grok-code-fast-1",
@@ -161,25 +235,8 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
-    },
-    {
-      "id": "grok-2-image-1212",
-      "name": "grok-2-image-1212",
-      "_raw": {
-        "id": "grok-2-image-1212",
-        "created": 1736726400,
-        "object": "model",
-        "owned_by": "xai"
-      },
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": true,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "grok-imagine-image",
@@ -197,7 +254,8 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "grok-imagine-image-pro",
@@ -215,7 +273,8 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     },
     {
       "id": "grok-imagine-video",
@@ -233,10 +292,11 @@
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
-      "supportsImageInput": true
+      "supportsImageInput": true,
+      "_source": "api"
     }
   ],
   "meta": {
-    "discoveredAt": "2026-02-12T07:33:59.111Z"
+    "discoveredAt": "2026-03-12T15:55:29.493Z"
   }
 }

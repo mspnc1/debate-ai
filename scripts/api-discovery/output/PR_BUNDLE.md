@@ -9,9 +9,9 @@ This bundle consolidates curated entries to update:
 ```ts
 // Curated ModelConfig entries for AI_MODELS['openai'] (default + recommended)
 {
-      id: 'gpt-5.2-codex',
-      name: 'gpt-5.2-codex',
-      description: 'Curated via discovery on 2026-02-12',
+      id: 'gpt-5.4',
+      name: 'gpt-5.4',
+      description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
       supportsImageInput: true,
@@ -20,43 +20,50 @@ This bundle consolidates curated entries to update:
 {
       id: 'gpt-4.1-2025-04-14',
       name: 'gpt-4.1-2025-04-14',
-      description: 'Curated via discovery on 2026-02-12',
+      description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
       supportsImageInput: true,
     },
 {
       id: 'gpt-4o',
-      name: 'gpt-4o',
-      description: 'Curated via discovery on 2026-02-12',
+      name: 'GPT-4o',
+      description: 'Previous flagship multimodal model',
       contextLength: 128000,
+      maxOutputTokens: 16384, // Pricing: $2.5/1M in, $10/1M out [merged]
       supportsVision: true,
       supportsImageInput: true,
+      supportsFunctions: true,
     },
 {
       id: 'gpt-4o-mini-2024-07-18',
       name: 'gpt-4o-mini-2024-07-18',
-      description: 'Curated via discovery on 2026-02-12',
+      description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
       supportsImageInput: true,
     },
 {
       id: 'o3-mini',
-      name: 'o3-mini',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
+      name: 'O3 Mini',
+      description: 'Smaller reasoning model, faster and more affordable',
+      contextLength: 200000,
+      maxOutputTokens: 100000, // Pricing: $1.1/1M in, $4.4/1M out [merged]
+      supportsFunctions: true,
+      supportsThinking: true,
+      requiresTemperature1: true,
+      useMaxCompletionTokens: true,
     },
 {
       id: 'o1-pro-2025-03-19',
       name: 'o1-pro-2025-03-19',
-      description: 'Curated via discovery on 2026-02-12',
+      description: 'No description available',
       contextLength: 128000,
     },
 {
       id: 'dall-e-3',
-      name: 'dall-e-3',
-      description: 'Curated via discovery on 2026-02-12',
+      name: 'DALL-E 3',
+      description: 'Image generation model',
       contextLength: 128000,
       supportsImageGeneration: true,
     },
@@ -67,7 +74,7 @@ This bundle consolidates curated entries to update:
 {
       id: 'claude-4.1-opus-20250805',
       name: 'Claude 4.1 Opus',
-      description: 'Curated via discovery on 2026-02-12',
+      description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
@@ -77,11 +84,14 @@ This bundle consolidates curated entries to update:
 {
       id: 'claude-4-sonnet-20250514',
       name: 'Claude 4 Sonnet',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
+      description: 'Balanced performance and speed',
+      contextLength: 200000,
+      maxOutputTokens: 64000, // Pricing: $3/1M in, $15/1M out [merged]
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
+      supportsFunctions: true,
+      supportsThinking: true,
     },
 ```
 ### Provider: google
@@ -90,39 +100,46 @@ This bundle consolidates curated entries to update:
 {
       id: 'gemini-2.5-pro',
       name: 'Gemini 2.5 Pro',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
+      description: 'Stable release (June 17th, 2025) of Gemini 2.5 Pro',
+      contextLength: 1048576,
+      maxOutputTokens: 65536, // Pricing: $1.25/1M in, $10/1M out [merged]
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
+      supportsFunctions: true,
+      supportsThinking: true,
       isDefault: true,
     },
 {
       id: 'gemini-2.5-flash',
       name: 'Gemini 2.5 Flash',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
+      description: 'Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.',
+      contextLength: 1048576,
+      maxOutputTokens: 65536, // Pricing: $0.15/1M in, $0.6/1M out [merged]
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
+      supportsFunctions: true,
+      supportsThinking: true,
     },
 {
       id: 'gemini-2.5-flash-lite',
       name: 'Gemini 2.5 Flash-Lite',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
+      description: 'Stable version of Gemini 2.5 Flash-Lite, released in July of 2025',
+      contextLength: 1048576,
+      maxOutputTokens: 65536, // Pricing: $0.075/1M in, $0.3/1M out [merged]
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
+      supportsFunctions: true,
+      supportsThinking: true,
     },
 {
-      id: 'gemini-2.0-flash-exp-image-generation',
-      name: 'Gemini 2.0 Flash (Image Generation) Experimental',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
-      supportsVision: true,
-      supportsDocuments: true,
-      supportsImageInput: true,
+      id: 'imagen-4.0-generate-001',
+      name: 'Imagen 4',
+      description: 'Vertex served Imagen 4.0 model',
+      contextLength: 480,
+      maxOutputTokens: 8192,
       supportsImageGeneration: true,
     },
 ```
@@ -132,21 +149,19 @@ This bundle consolidates curated entries to update:
 {
       id: 'sonar-pro',
       name: 'Sonar Pro',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
-      supportsVision: true,
-      supportsDocuments: true,
-      supportsImageInput: true,
+      description: 'Advanced search model with comprehensive answers and citations',
+      contextLength: 200000,
+      maxOutputTokens: 8000, // Pricing: $3/1M in, $15/1M out [merged]
+      supportsWebSearch: true,
       isDefault: true,
     },
 {
       id: 'sonar',
       name: 'Sonar',
-      description: 'Curated via discovery on 2026-02-12',
+      description: 'Fast search model with real-time web access and citations',
       contextLength: 128000,
-      supportsVision: true,
-      supportsDocuments: true,
-      supportsImageInput: true,
+      maxOutputTokens: 8000, // Pricing: $1/1M in, $1/1M out [merged]
+      supportsWebSearch: true,
     },
 ```
 ### Provider: mistral
@@ -154,43 +169,47 @@ This bundle consolidates curated entries to update:
 // Curated ModelConfig entries for AI_MODELS['mistral'] (default + recommended)
 {
       id: 'mistral-large-latest',
-      name: 'mistral-large-latest',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
+      name: 'mistral-large-2512',
+      description: 'Official mistral-large-2512 Mistral AI model',
+      contextLength: 262144, // Pricing: $2/1M in, $6/1M out [merged]
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
+      supportsFunctions: true,
       isDefault: true,
     },
 {
       id: 'mistral-medium-latest',
-      name: 'mistral-medium-latest',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
+      name: 'mistral-medium-2508',
+      description: 'Update on Mistral Medium 3 with improved capabilities.',
+      contextLength: 131072, // Pricing: $0.4/1M in, $2/1M out [merged]
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
-    },
-{
-      id: 'pixtral-large-latest',
-      name: 'pixtral-large-latest',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
-      supportsVision: true,
-      supportsDocuments: true,
-      supportsImageInput: true,
+      supportsFunctions: true,
     },
 ```
 ### Provider: cohere
 ```ts
 // Curated ModelConfig entries for AI_MODELS['cohere'] (default + recommended)
 {
+      id: 'command-a-vision-07-2025',
+      name: 'command-a-vision-07-2025',
+      description: 'No description available',
+      contextLength: 128000, // Pricing: $2.5/1M in, $10/1M out [merged]
+      supportsVision: true,
+      supportsDocuments: true,
+      supportsImageInput: true,
+      supportsFunctions: true,
+      isDefault: true,
+    },
+{
       id: 'command-r-08-2024',
       name: 'command-r-08-2024',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
+      description: 'No description available',
+      contextLength: 132096,
       supportsDocuments: true,
-      isDefault: true,
+      supportsFunctions: true,
     },
 ```
 ### Provider: together
@@ -203,21 +222,25 @@ This bundle consolidates curated entries to update:
 {
       id: 'deepseek-reasoner',
       name: 'DeepSeek Reasoner',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
+      description: 'Advanced reasoning model with chain-of-thought',
+      contextLength: 64000,
+      maxOutputTokens: 8192, // Pricing: $0.55/1M in, $2.19/1M out [merged]
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
+      supportsThinking: true,
       isDefault: true,
     },
 {
       id: 'deepseek-chat',
       name: 'DeepSeek Chat',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
+      description: 'General-purpose chat model with strong reasoning',
+      contextLength: 64000,
+      maxOutputTokens: 8192, // Pricing: $0.27/1M in, $1.1/1M out [merged]
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
+      supportsFunctions: true,
     },
 ```
 ### Provider: grok
@@ -226,7 +249,7 @@ This bundle consolidates curated entries to update:
 {
       id: 'grok-4-0709',
       name: 'grok-4-0709',
-      description: 'Curated via discovery on 2026-02-12',
+      description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
@@ -235,12 +258,26 @@ This bundle consolidates curated entries to update:
     },
 {
       id: 'grok-3',
-      name: 'grok-3',
-      description: 'Curated via discovery on 2026-02-12',
-      contextLength: 128000,
+      name: 'Grok 3',
+      description: 'Previous flagship xAI model',
+      contextLength: 131072,
+      maxOutputTokens: 131072, // Pricing: $3/1M in, $15/1M out [merged]
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
+      supportsFunctions: true,
+    },
+{
+      id: 'grok-3-mini',
+      name: 'Grok 3 Mini',
+      description: 'Lightweight reasoning model from xAI',
+      contextLength: 131072,
+      maxOutputTokens: 131072, // Pricing: $0.3/1M in, $0.5/1M out [merged]
+      supportsVision: true,
+      supportsDocuments: true,
+      supportsImageInput: true,
+      supportsFunctions: true,
+      supportsThinking: true,
     },
 ```
 
@@ -257,7 +294,7 @@ imageGeneration: { supported: true, models: ["dall-e-3","dall-e-2","gpt-image-1"
 ### Provider: grok
 ```ts
 // Insert into getProviderCapabilities('grok') imageGeneration models/sizes
-imageGeneration: { supported: true, models: ["grok-2-image-1212","grok-imagine-image","grok-imagine-image-pro"], sizes: ["1024x1024"], maxPromptLength: 4000 },
+imageGeneration: { supported: true, models: ["grok-imagine-image","grok-imagine-image-pro"], sizes: ["1024x1024"], maxPromptLength: 4000 },
 ```
 
 ## ProviderCapabilities additions (videoGeneration - future)

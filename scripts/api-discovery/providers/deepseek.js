@@ -1,15 +1,15 @@
-const { safeGet } = require('./common');
+const { safeGet, mergeWithRegistry } = require('./common');
 
 // Env var: DEEPSEEK_API_KEY
 
-async function discoverDeepseek(env) {
+async function discoverDeepseek(env, registry) {
   const apiKey = env.DEEPSEEK_API_KEY;
   const headers = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
   let models = [];
   try {
     const data = await safeGet('https://api.deepseek.com/v1/models', { headers });
     if (Array.isArray(data.data)) {
-      models = data.data.map(m => ({ id: m.id, name: m.id }));
+      models = data.data.map(m => ({ id: m.id, name: m.id, _raw: m }));
     }
   } catch (_) {
     models = [
@@ -30,7 +30,13 @@ async function discoverDeepseek(env) {
     supportsRealtime: false,
     supportsImageInput: true,
   });
-  return { provider: 'deepseek', models: models.map(mapCaps) };
+
+  const mapped = models.map(mapCaps);
+  const merged = registry
+    ? mapped.map(m => mergeWithRegistry('deepseek', m, registry))
+    : mapped;
+
+  return { provider: 'deepseek', models: merged };
 }
 
 module.exports = { discoverDeepseek };
