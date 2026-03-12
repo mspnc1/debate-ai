@@ -1,11 +1,10 @@
 import { Platform } from 'react-native';
-import type { SubscriptionAndroid, SubscriptionIOS, SubscriptionOfferAndroid } from 'react-native-iap';
+import type { ProductSubscriptionAndroid, ProductSubscriptionIOS, ProductSubscriptionAndroidOfferDetails } from 'react-native-iap';
 
 // Mock implementations
 const mockGetItem = jest.fn();
 const mockSetItem = jest.fn();
-const mockGetSubscriptions = jest.fn();
-const mockGetProducts = jest.fn();
+const mockFetchProducts = jest.fn();
 
 // Mock modules
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -14,8 +13,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 }));
 
 jest.mock('react-native-iap', () => ({
-  getSubscriptions: (...args: unknown[]) => mockGetSubscriptions(...args),
-  getProducts: (...args: unknown[]) => mockGetProducts(...args),
+  fetchProducts: (...args: unknown[]) => mockFetchProducts(...args),
 }));
 
 jest.mock('@/services/iap/products', () => ({
@@ -44,14 +42,14 @@ function createOffer(
     recurrenceMode: number;
     billingCycleCount: number;
   }>
-): SubscriptionOfferAndroid {
+): ProductSubscriptionAndroidOfferDetails {
   return {
     offerToken,
     basePlanId: 'base-plan',
     offerId: 'offer-id',
     offerTags: [],
     pricingPhases: { pricingPhaseList },
-  } as SubscriptionOfferAndroid;
+  } as ProductSubscriptionAndroidOfferDetails;
 }
 
 describe('PricesPersistenceService', () => {
@@ -59,8 +57,7 @@ describe('PricesPersistenceService', () => {
     jest.clearAllMocks();
     mockGetItem.mockResolvedValue(null);
     mockSetItem.mockResolvedValue(undefined);
-    mockGetSubscriptions.mockResolvedValue([]);
-    mockGetProducts.mockResolvedValue([]);
+    mockFetchProducts.mockResolvedValue([]);
   });
 
   describe('FALLBACK_PRICES', () => {
@@ -136,9 +133,9 @@ describe('PricesPersistenceService', () => {
       });
 
       it('should extract 1-week trial from Android subscription', async () => {
-        const mockSubscription: Partial<SubscriptionAndroid> = {
-          productId: 'symposiumai_monthly',
-          subscriptionOfferDetails: [
+        const mockSubscription: Partial<ProductSubscriptionAndroid> = {
+          id: 'symposiumai_monthly',
+          subscriptionOfferDetailsAndroid: [
             createOffer('trial-offer', [
               {
                 priceAmountMicros: '0',
@@ -160,8 +157,10 @@ describe('PricesPersistenceService', () => {
           ],
         };
 
-        mockGetSubscriptions.mockResolvedValue([mockSubscription]);
-        mockGetProducts.mockResolvedValue([]);
+        mockFetchProducts.mockImplementation(({ type }: { skus: string[]; type: string }) => {
+          if (type === 'subs') return Promise.resolve([mockSubscription]);
+          return Promise.resolve([]);
+        });
 
         const result = await fetchAndPersistPrices();
 
@@ -172,9 +171,9 @@ describe('PricesPersistenceService', () => {
       });
 
       it('should extract 3-day trial from Android subscription', async () => {
-        const mockSubscription: Partial<SubscriptionAndroid> = {
-          productId: 'symposiumai_monthly',
-          subscriptionOfferDetails: [
+        const mockSubscription: Partial<ProductSubscriptionAndroid> = {
+          id: 'symposiumai_monthly',
+          subscriptionOfferDetailsAndroid: [
             createOffer('trial-offer', [
               {
                 priceAmountMicros: '0',
@@ -196,8 +195,10 @@ describe('PricesPersistenceService', () => {
           ],
         };
 
-        mockGetSubscriptions.mockResolvedValue([mockSubscription]);
-        mockGetProducts.mockResolvedValue([]);
+        mockFetchProducts.mockImplementation(({ type }: { skus: string[]; type: string }) => {
+          if (type === 'subs') return Promise.resolve([mockSubscription]);
+          return Promise.resolve([]);
+        });
 
         const result = await fetchAndPersistPrices();
 
@@ -206,9 +207,9 @@ describe('PricesPersistenceService', () => {
       });
 
       it('should extract 7-day trial from Android subscription', async () => {
-        const mockSubscription: Partial<SubscriptionAndroid> = {
-          productId: 'symposiumai_monthly',
-          subscriptionOfferDetails: [
+        const mockSubscription: Partial<ProductSubscriptionAndroid> = {
+          id: 'symposiumai_monthly',
+          subscriptionOfferDetailsAndroid: [
             createOffer('trial-offer', [
               {
                 priceAmountMicros: '0',
@@ -230,8 +231,10 @@ describe('PricesPersistenceService', () => {
           ],
         };
 
-        mockGetSubscriptions.mockResolvedValue([mockSubscription]);
-        mockGetProducts.mockResolvedValue([]);
+        mockFetchProducts.mockImplementation(({ type }: { skus: string[]; type: string }) => {
+          if (type === 'subs') return Promise.resolve([mockSubscription]);
+          return Promise.resolve([]);
+        });
 
         const result = await fetchAndPersistPrices();
 
@@ -240,9 +243,9 @@ describe('PricesPersistenceService', () => {
       });
 
       it('should extract 1-month trial from Android subscription', async () => {
-        const mockSubscription: Partial<SubscriptionAndroid> = {
-          productId: 'symposiumai_annual',
-          subscriptionOfferDetails: [
+        const mockSubscription: Partial<ProductSubscriptionAndroid> = {
+          id: 'symposiumai_annual',
+          subscriptionOfferDetailsAndroid: [
             createOffer('trial-offer', [
               {
                 priceAmountMicros: '0',
@@ -264,8 +267,10 @@ describe('PricesPersistenceService', () => {
           ],
         };
 
-        mockGetSubscriptions.mockResolvedValue([mockSubscription]);
-        mockGetProducts.mockResolvedValue([]);
+        mockFetchProducts.mockImplementation(({ type }: { skus: string[]; type: string }) => {
+          if (type === 'subs') return Promise.resolve([mockSubscription]);
+          return Promise.resolve([]);
+        });
 
         const result = await fetchAndPersistPrices();
 
@@ -274,9 +279,9 @@ describe('PricesPersistenceService', () => {
       });
 
       it('should prefer offer with free trial over regular offer', async () => {
-        const mockSubscription: Partial<SubscriptionAndroid> = {
-          productId: 'symposiumai_monthly',
-          subscriptionOfferDetails: [
+        const mockSubscription: Partial<ProductSubscriptionAndroid> = {
+          id: 'symposiumai_monthly',
+          subscriptionOfferDetailsAndroid: [
             createOffer('regular-offer', [
               {
                 priceAmountMicros: '5990000',
@@ -308,8 +313,10 @@ describe('PricesPersistenceService', () => {
           ],
         };
 
-        mockGetSubscriptions.mockResolvedValue([mockSubscription]);
-        mockGetProducts.mockResolvedValue([]);
+        mockFetchProducts.mockImplementation(({ type }: { skus: string[]; type: string }) => {
+          if (type === 'subs') return Promise.resolve([mockSubscription]);
+          return Promise.resolve([]);
+        });
 
         const result = await fetchAndPersistPrices();
 
@@ -318,9 +325,9 @@ describe('PricesPersistenceService', () => {
       });
 
       it('should not set trial when subscription has no free trial', async () => {
-        const mockSubscription: Partial<SubscriptionAndroid> = {
-          productId: 'symposiumai_monthly',
-          subscriptionOfferDetails: [
+        const mockSubscription: Partial<ProductSubscriptionAndroid> = {
+          id: 'symposiumai_monthly',
+          subscriptionOfferDetailsAndroid: [
             createOffer('regular-offer', [
               {
                 priceAmountMicros: '5990000',
@@ -334,8 +341,10 @@ describe('PricesPersistenceService', () => {
           ],
         };
 
-        mockGetSubscriptions.mockResolvedValue([mockSubscription]);
-        mockGetProducts.mockResolvedValue([]);
+        mockFetchProducts.mockImplementation(({ type }: { skus: string[]; type: string }) => {
+          if (type === 'subs') return Promise.resolve([mockSubscription]);
+          return Promise.resolve([]);
+        });
 
         const result = await fetchAndPersistPrices();
 
@@ -348,23 +357,29 @@ describe('PricesPersistenceService', () => {
         Platform.OS = 'ios';
       });
 
-      it('should extract trial from iOS subscription with introductory price', async () => {
-        const mockSubscription = {
-          productId: 'symposiumai_monthly',
-          localizedPrice: '$5.99',
-          price: '5.99',
+      it('should extract trial from iOS subscription with subscriptionOffers', async () => {
+        const mockSubscription: Partial<ProductSubscriptionIOS> = {
+          id: 'symposiumai_monthly',
+          displayPrice: '$5.99',
+          price: 5.99,
           currency: 'USD',
-          introductoryPrice: '0',
-          introductoryPriceSubscriptionPeriodIOS: 'WEEK',
-          introductoryPriceNumberOfPeriodsIOS: '1',
-        } as SubscriptionIOS & {
-          introductoryPrice?: string;
-          introductoryPriceSubscriptionPeriodIOS?: string;
-          introductoryPriceNumberOfPeriodsIOS?: string;
+          subscriptionOffers: [
+            {
+              id: 'intro-offer',
+              type: 'introductory',
+              price: 0,
+              displayPrice: 'Free',
+              paymentMode: 'free-trial',
+              period: { unit: 'week', value: 1 },
+              periodCount: 1,
+            },
+          ],
         };
 
-        mockGetSubscriptions.mockResolvedValue([mockSubscription]);
-        mockGetProducts.mockResolvedValue([]);
+        mockFetchProducts.mockImplementation(({ type }: { skus: string[]; type: string }) => {
+          if (type === 'subs') return Promise.resolve([mockSubscription]);
+          return Promise.resolve([]);
+        });
 
         const result = await fetchAndPersistPrices();
 
@@ -375,22 +390,28 @@ describe('PricesPersistenceService', () => {
       });
 
       it('should extract day-based trial from iOS subscription', async () => {
-        const mockSubscription = {
-          productId: 'symposiumai_monthly',
-          localizedPrice: '$5.99',
-          price: '5.99',
+        const mockSubscription: Partial<ProductSubscriptionIOS> = {
+          id: 'symposiumai_monthly',
+          displayPrice: '$5.99',
+          price: 5.99,
           currency: 'USD',
-          introductoryPrice: '0',
-          introductoryPriceSubscriptionPeriodIOS: 'DAY',
-          introductoryPriceNumberOfPeriodsIOS: '3',
-        } as SubscriptionIOS & {
-          introductoryPrice?: string;
-          introductoryPriceSubscriptionPeriodIOS?: string;
-          introductoryPriceNumberOfPeriodsIOS?: string;
+          subscriptionOffers: [
+            {
+              id: 'intro-offer',
+              type: 'introductory',
+              price: 0,
+              displayPrice: 'Free',
+              paymentMode: 'free-trial',
+              period: { unit: 'day', value: 3 },
+              periodCount: 1,
+            },
+          ],
         };
 
-        mockGetSubscriptions.mockResolvedValue([mockSubscription]);
-        mockGetProducts.mockResolvedValue([]);
+        mockFetchProducts.mockImplementation(({ type }: { skus: string[]; type: string }) => {
+          if (type === 'subs') return Promise.resolve([mockSubscription]);
+          return Promise.resolve([]);
+        });
 
         const result = await fetchAndPersistPrices();
 
@@ -398,23 +419,29 @@ describe('PricesPersistenceService', () => {
         expect(result.monthly.trial?.durationDays).toBe(3);
       });
 
-      it('should not set trial when iOS introductory price is not free', async () => {
-        const mockSubscription = {
-          productId: 'symposiumai_monthly',
-          localizedPrice: '$5.99',
-          price: '5.99',
+      it('should not set trial when iOS subscription has no free trial offer', async () => {
+        const mockSubscription: Partial<ProductSubscriptionIOS> = {
+          id: 'symposiumai_monthly',
+          displayPrice: '$5.99',
+          price: 5.99,
           currency: 'USD',
-          introductoryPrice: '2.99', // Paid introductory offer, not free trial
-          introductoryPriceSubscriptionPeriodIOS: 'WEEK',
-          introductoryPriceNumberOfPeriodsIOS: '1',
-        } as SubscriptionIOS & {
-          introductoryPrice?: string;
-          introductoryPriceSubscriptionPeriodIOS?: string;
-          introductoryPriceNumberOfPeriodsIOS?: string;
+          subscriptionOffers: [
+            {
+              id: 'promo-offer',
+              type: 'introductory',
+              price: 2.99,
+              displayPrice: '$2.99',
+              paymentMode: 'pay-as-you-go',
+              period: { unit: 'week', value: 1 },
+              periodCount: 1,
+            },
+          ],
         };
 
-        mockGetSubscriptions.mockResolvedValue([mockSubscription]);
-        mockGetProducts.mockResolvedValue([]);
+        mockFetchProducts.mockImplementation(({ type }: { skus: string[]; type: string }) => {
+          if (type === 'subs') return Promise.resolve([mockSubscription]);
+          return Promise.resolve([]);
+        });
 
         const result = await fetchAndPersistPrices();
 
@@ -424,9 +451,9 @@ describe('PricesPersistenceService', () => {
 
     it('should persist prices to AsyncStorage', async () => {
       Platform.OS = 'android';
-      const mockSubscription: Partial<SubscriptionAndroid> = {
-        productId: 'symposiumai_monthly',
-        subscriptionOfferDetails: [
+      const mockSubscription: Partial<ProductSubscriptionAndroid> = {
+        id: 'symposiumai_monthly',
+        subscriptionOfferDetailsAndroid: [
           createOffer('offer', [
             {
               priceAmountMicros: '5990000',
@@ -440,8 +467,10 @@ describe('PricesPersistenceService', () => {
         ],
       };
 
-      mockGetSubscriptions.mockResolvedValue([mockSubscription]);
-      mockGetProducts.mockResolvedValue([]);
+      mockFetchProducts.mockImplementation(({ type }: { skus: string[]; type: string }) => {
+        if (type === 'subs') return Promise.resolve([mockSubscription]);
+        return Promise.resolve([]);
+      });
 
       await fetchAndPersistPrices();
 
@@ -457,7 +486,7 @@ describe('PricesPersistenceService', () => {
     });
 
     it('should return fallback prices on error', async () => {
-      mockGetSubscriptions.mockRejectedValue(new Error('Network error'));
+      mockFetchProducts.mockRejectedValue(new Error('Network error'));
 
       const result = await fetchAndPersistPrices();
 

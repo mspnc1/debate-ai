@@ -13,12 +13,11 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
-  SafeAreaView,
   StatusBar,
   Linking,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, WebViewNavigation } from 'react-native-webview';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
 import { Typography } from '@/components/molecules';
 import { Box } from '@/components/atoms';

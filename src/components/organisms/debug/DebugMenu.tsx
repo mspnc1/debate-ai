@@ -3,9 +3,9 @@ import {
   Modal,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Box } from '@/components/atoms';
 import { Typography } from '@/components/molecules';
 import { useTheme } from '@/theme';

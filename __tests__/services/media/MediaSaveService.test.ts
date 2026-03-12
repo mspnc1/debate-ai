@@ -8,7 +8,7 @@ jest.mock('expo-media-library', () => ({
   createAlbumAsync: jest.fn(),
 }));
 
-jest.mock('expo-file-system', () => ({
+jest.mock('expo-file-system/legacy', () => ({
   __esModule: true,
   cacheDirectory: '/cache/',
   writeAsStringAsync: jest.fn(),
@@ -29,7 +29,7 @@ const MediaLibrary = jest.requireMock('expo-media-library') as {
   createAlbumAsync: jest.Mock;
 };
 
-const FileSystem = jest.requireMock('expo-file-system') as {
+const FileSystem = jest.requireMock('expo-file-system/legacy') as {
   cacheDirectory: string;
   writeAsStringAsync: jest.Mock;
   downloadAsync: jest.Mock;

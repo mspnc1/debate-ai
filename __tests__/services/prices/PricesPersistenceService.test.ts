@@ -4,7 +4,7 @@ import {
   fetchAndPersistPrices,
   FALLBACK_PRICES,
 } from '@/services/prices/PricesPersistenceService';
-import { getSubscriptions, getProducts } from 'react-native-iap';
+import { fetchProducts } from 'react-native-iap';
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(),
@@ -12,8 +12,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 }));
 
 jest.mock('react-native-iap', () => ({
-  getSubscriptions: jest.fn(),
-  getProducts: jest.fn(),
+  fetchProducts: jest.fn(),
 }));
 
 jest.mock('@/services/iap/products', () => ({
@@ -25,8 +24,7 @@ jest.mock('@/services/iap/products', () => ({
 }));
 
 const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
-const mockGetSubscriptions = getSubscriptions as jest.MockedFunction<typeof getSubscriptions>;
-const mockGetProducts = getProducts as jest.MockedFunction<typeof getProducts>;
+const mockFetchProducts = fetchProducts as jest.MockedFunction<typeof fetchProducts>;
 
 describe('PricesPersistenceService', () => {
   beforeEach(() => {
@@ -73,13 +71,17 @@ describe('PricesPersistenceService', () => {
 
   describe('fetchAndPersistPrices', () => {
     it('fetches prices and persists to AsyncStorage', async () => {
-      mockGetSubscriptions.mockResolvedValue([
-        { productId: 'com.test.monthly', localizedPrice: '$5.99', price: '5.99', currency: 'USD' },
-        { productId: 'com.test.annual', localizedPrice: '$49.99', price: '49.99', currency: 'USD' },
-      ] as never);
-      mockGetProducts.mockResolvedValue([
-        { productId: 'com.test.lifetime', localizedPrice: '$129.99', price: '129.99', currency: 'USD' },
-      ] as never);
+      mockFetchProducts.mockImplementation((args: { type?: string | null }) => {
+        if (args.type === 'subs') {
+          return Promise.resolve([
+            { id: 'com.test.monthly', displayPrice: '$5.99', price: 5.99, currency: 'USD' },
+            { id: 'com.test.annual', displayPrice: '$49.99', price: 49.99, currency: 'USD' },
+          ]) as never;
+        }
+        return Promise.resolve([
+          { id: 'com.test.lifetime', displayPrice: '$129.99', price: 129.99, currency: 'USD' },
+        ]) as never;
+      });
 
       const result = await fetchAndPersistPrices();
 
@@ -90,7 +92,7 @@ describe('PricesPersistenceService', () => {
     });
 
     it('returns fallback prices on error', async () => {
-      mockGetSubscriptions.mockRejectedValue(new Error('Network error'));
+      mockFetchProducts.mockRejectedValue(new Error('Network error'));
 
       const result = await fetchAndPersistPrices();
 

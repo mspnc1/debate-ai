@@ -1,14 +1,12 @@
 import { Platform } from 'react-native';
-import type { Purchase, SubscriptionAndroid } from 'react-native-iap';
+import type { Purchase, ProductSubscriptionAndroid } from 'react-native-iap';
 
 // Mock implementations
 const mockInitConnection = jest.fn();
 const mockEndConnection = jest.fn();
 const mockPurchaseUpdatedListener = jest.fn();
 const mockPurchaseErrorListener = jest.fn();
-const mockGetSubscriptions = jest.fn();
-const mockGetProducts = jest.fn();
-const mockRequestSubscription = jest.fn();
+const mockFetchProducts = jest.fn();
 const mockRequestPurchase = jest.fn();
 const mockGetAvailablePurchases = jest.fn();
 const mockFinishTransaction = jest.fn();
@@ -33,9 +31,7 @@ jest.mock('react-native-iap', () => ({
   endConnection: (...args: unknown[]) => mockEndConnection(...args),
   purchaseUpdatedListener: (...args: unknown[]) => mockPurchaseUpdatedListener(...args),
   purchaseErrorListener: (...args: unknown[]) => mockPurchaseErrorListener(...args),
-  getSubscriptions: (...args: unknown[]) => mockGetSubscriptions(...args),
-  getProducts: (...args: unknown[]) => mockGetProducts(...args),
-  requestSubscription: (...args: unknown[]) => mockRequestSubscription(...args),
+  fetchProducts: (...args: unknown[]) => mockFetchProducts(...args),
   requestPurchase: (...args: unknown[]) => mockRequestPurchase(...args),
   getAvailablePurchases: (...args: unknown[]) => mockGetAvailablePurchases(...args),
   finishTransaction: (...args: unknown[]) => mockFinishTransaction(...args),
@@ -79,9 +75,7 @@ describe('PurchaseService', () => {
     mockEndConnection.mockResolvedValue(undefined);
     mockPurchaseUpdatedListener.mockReturnValue({ remove: jest.fn() });
     mockPurchaseErrorListener.mockReturnValue({ remove: jest.fn() });
-    mockGetSubscriptions.mockResolvedValue([]);
-    mockGetProducts.mockResolvedValue([]);
-    mockRequestSubscription.mockResolvedValue(undefined);
+    mockFetchProducts.mockResolvedValue([]);
     mockRequestPurchase.mockResolvedValue(undefined);
     mockGetAvailablePurchases.mockResolvedValue([]);
     mockFinishTransaction.mockResolvedValue(undefined);
@@ -183,13 +177,15 @@ describe('PurchaseService', () => {
 
   describe('checkProductsAvailable()', () => {
     it('should return all products as available when found', async () => {
-      mockGetSubscriptions.mockResolvedValue([
-        { productId: SUBSCRIPTION_PRODUCTS.monthly },
-        { productId: SUBSCRIPTION_PRODUCTS.annual },
-      ]);
-      mockGetProducts.mockResolvedValue([
-        { productId: SUBSCRIPTION_PRODUCTS.lifetime },
-      ]);
+      mockFetchProducts.mockImplementation(({ type }: { skus: string[]; type: string }) => {
+        if (type === 'subs') return Promise.resolve([
+          { id: SUBSCRIPTION_PRODUCTS.monthly },
+          { id: SUBSCRIPTION_PRODUCTS.annual },
+        ]);
+        return Promise.resolve([
+          { id: SUBSCRIPTION_PRODUCTS.lifetime },
+        ]);
+      });
 
       const result = await PurchaseService.checkProductsAvailable();
 
@@ -201,10 +197,12 @@ describe('PurchaseService', () => {
     });
 
     it('should identify unavailable products', async () => {
-      mockGetSubscriptions.mockResolvedValue([
-        { productId: SUBSCRIPTION_PRODUCTS.monthly },
-      ]);
-      mockGetProducts.mockResolvedValue([]);
+      mockFetchProducts.mockImplementation(({ type }: { skus: string[]; type: string }) => {
+        if (type === 'subs') return Promise.resolve([
+          { id: SUBSCRIPTION_PRODUCTS.monthly },
+        ]);
+        return Promise.resolve([]);
+      });
 
       const result = await PurchaseService.checkProductsAvailable();
 
@@ -214,24 +212,26 @@ describe('PurchaseService', () => {
       expect(result.unavailable).toContain(SUBSCRIPTION_PRODUCTS.lifetime);
     });
 
-    it('should call getSubscriptions with subscription SKUs only', async () => {
+    it('should call fetchProducts with subscription type for subscription SKUs', async () => {
       await PurchaseService.checkProductsAvailable();
 
-      expect(mockGetSubscriptions).toHaveBeenCalledWith({
+      expect(mockFetchProducts).toHaveBeenCalledWith({
         skus: [SUBSCRIPTION_PRODUCTS.monthly, SUBSCRIPTION_PRODUCTS.annual],
+        type: 'subs',
       });
     });
 
-    it('should call getProducts with lifetime SKU only', async () => {
+    it('should call fetchProducts with in-app type for lifetime SKU', async () => {
       await PurchaseService.checkProductsAvailable();
 
-      expect(mockGetProducts).toHaveBeenCalledWith({
+      expect(mockFetchProducts).toHaveBeenCalledWith({
         skus: [SUBSCRIPTION_PRODUCTS.lifetime],
+        type: 'in-app',
       });
     });
 
     it('should handle errors and return all products as unavailable', async () => {
-      mockGetSubscriptions.mockRejectedValue(new Error('Store connection failed'));
+      mockFetchProducts.mockRejectedValue(new Error('Store connection failed'));
 
       const result = await PurchaseService.checkProductsAvailable();
 
@@ -246,13 +246,15 @@ describe('PurchaseService', () => {
   describe('diagnoseIAPSetup()', () => {
     it('should return diagnosis with all products available', async () => {
       mockInitConnection.mockResolvedValue(true);
-      mockGetSubscriptions.mockResolvedValue([
-        { productId: SUBSCRIPTION_PRODUCTS.monthly },
-        { productId: SUBSCRIPTION_PRODUCTS.annual },
-      ]);
-      mockGetProducts.mockResolvedValue([
-        { productId: SUBSCRIPTION_PRODUCTS.lifetime },
-      ]);
+      mockFetchProducts.mockImplementation(({ type }: { skus: string[]; type: string }) => {
+        if (type === 'subs') return Promise.resolve([
+          { id: SUBSCRIPTION_PRODUCTS.monthly },
+          { id: SUBSCRIPTION_PRODUCTS.annual },
+        ]);
+        return Promise.resolve([
+          { id: SUBSCRIPTION_PRODUCTS.lifetime },
+        ]);
+      });
 
       const result = await PurchaseService.diagnoseIAPSetup();
 
@@ -273,12 +275,11 @@ describe('PurchaseService', () => {
 
   describe('purchaseSubscription()', () => {
     it('should route lifetime plan to purchaseLifetime', async () => {
-      mockGetProducts.mockResolvedValue([{ productId: SUBSCRIPTION_PRODUCTS.lifetime }]);
+      mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.lifetime }]);
 
       const result = await PurchaseService.purchaseSubscription('lifetime');
 
       expect(mockRequestPurchase).toHaveBeenCalled();
-      expect(mockRequestSubscription).not.toHaveBeenCalled();
       expect(result.success).toBe(true);
     });
 
@@ -296,27 +297,27 @@ describe('PurchaseService', () => {
         Platform.OS = 'ios';
       });
 
-      it('should fetch subscriptions and request subscription on iOS', async () => {
-        mockGetSubscriptions.mockResolvedValue([{ productId: SUBSCRIPTION_PRODUCTS.monthly }]);
+      it('should fetch subscriptions and request purchase on iOS', async () => {
+        mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.monthly }]);
 
         await PurchaseService.purchaseSubscription('monthly');
 
-        expect(mockGetSubscriptions).toHaveBeenCalledWith({ skus: [SUBSCRIPTION_PRODUCTS.monthly] });
-        expect(mockRequestSubscription).toHaveBeenCalledWith({
-          sku: SUBSCRIPTION_PRODUCTS.monthly,
-          appAccountToken: 'hashed-token-123',
+        expect(mockFetchProducts).toHaveBeenCalledWith({ skus: [SUBSCRIPTION_PRODUCTS.monthly], type: 'subs' });
+        expect(mockRequestPurchase).toHaveBeenCalledWith({
+          type: 'subs',
+          request: { apple: { sku: SUBSCRIPTION_PRODUCTS.monthly, appAccountToken: 'hashed-token-123' } },
         });
       });
 
       it('should fetch subscriptions before requesting', async () => {
-        mockGetSubscriptions.mockResolvedValue([{ productId: SUBSCRIPTION_PRODUCTS.annual }]);
+        mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.annual }]);
 
         await PurchaseService.purchaseSubscription('annual');
 
-        expect(mockGetSubscriptions).toHaveBeenCalledWith({ skus: [SUBSCRIPTION_PRODUCTS.annual] });
-        expect(mockRequestSubscription).toHaveBeenCalledWith({
-          sku: SUBSCRIPTION_PRODUCTS.annual,
-          appAccountToken: 'hashed-token-123',
+        expect(mockFetchProducts).toHaveBeenCalledWith({ skus: [SUBSCRIPTION_PRODUCTS.annual], type: 'subs' });
+        expect(mockRequestPurchase).toHaveBeenCalledWith({
+          type: 'subs',
+          request: { apple: { sku: SUBSCRIPTION_PRODUCTS.annual, appAccountToken: 'hashed-token-123' } },
         });
       });
     });
@@ -328,10 +329,14 @@ describe('PurchaseService', () => {
 
       it('should request subscription with trial offer on Android if available', async () => {
         const mockProduct = {
+          id: SUBSCRIPTION_PRODUCTS.monthly,
           productId: SUBSCRIPTION_PRODUCTS.monthly,
-          subscriptionOfferDetails: [
+          subscriptionOfferDetailsAndroid: [
             {
               offerToken: 'trial-offer-token',
+              basePlanId: 'base-plan',
+              offerId: 'offer-id',
+              offerTags: [],
               pricingPhases: {
                 pricingPhaseList: [
                   {
@@ -347,6 +352,9 @@ describe('PurchaseService', () => {
             },
             {
               offerToken: 'regular-offer-token',
+              basePlanId: 'base-plan',
+              offerId: 'offer-id-2',
+              offerTags: [],
               pricingPhases: {
                 pricingPhaseList: [
                   {
@@ -361,23 +369,28 @@ describe('PurchaseService', () => {
               },
             },
           ],
-        } as Partial<SubscriptionAndroid>;
+        } as Partial<ProductSubscriptionAndroid>;
 
-        mockGetSubscriptions.mockResolvedValue([mockProduct]);
+        mockFetchProducts.mockResolvedValue([mockProduct]);
 
         await PurchaseService.purchaseSubscription('monthly');
 
-        expect(mockRequestSubscription).toHaveBeenCalledWith({
-          subscriptionOffers: [{ sku: SUBSCRIPTION_PRODUCTS.monthly, offerToken: 'trial-offer-token' }],
+        expect(mockRequestPurchase).toHaveBeenCalledWith({
+          type: 'subs',
+          request: { google: { skus: [SUBSCRIPTION_PRODUCTS.monthly], subscriptionOffers: [{ sku: SUBSCRIPTION_PRODUCTS.monthly, offerToken: 'trial-offer-token' }] } },
         });
       });
 
       it('should fallback to first offer if no trial available', async () => {
         const mockProduct = {
+          id: SUBSCRIPTION_PRODUCTS.annual,
           productId: SUBSCRIPTION_PRODUCTS.annual,
-          subscriptionOfferDetails: [
+          subscriptionOfferDetailsAndroid: [
             {
               offerToken: 'regular-offer-token',
+              basePlanId: 'base-plan',
+              offerId: 'offer-id',
+              offerTags: [],
               pricingPhases: {
                 pricingPhaseList: [
                   {
@@ -392,21 +405,23 @@ describe('PurchaseService', () => {
               },
             },
           ],
-        } as Partial<SubscriptionAndroid>;
+        } as Partial<ProductSubscriptionAndroid>;
 
-        mockGetSubscriptions.mockResolvedValue([mockProduct]);
+        mockFetchProducts.mockResolvedValue([mockProduct]);
 
         await PurchaseService.purchaseSubscription('annual');
 
-        expect(mockRequestSubscription).toHaveBeenCalledWith({
-          subscriptionOffers: [{ sku: SUBSCRIPTION_PRODUCTS.annual, offerToken: 'regular-offer-token' }],
+        expect(mockRequestPurchase).toHaveBeenCalledWith({
+          type: 'subs',
+          request: { google: { skus: [SUBSCRIPTION_PRODUCTS.annual], subscriptionOffers: [{ sku: SUBSCRIPTION_PRODUCTS.annual, offerToken: 'regular-offer-token' }] } },
         });
       });
 
       it('should return E_DEVELOPER_ERROR when no offer token available', async () => {
-        mockGetSubscriptions.mockResolvedValue([{
+        mockFetchProducts.mockResolvedValue([{
+          id: SUBSCRIPTION_PRODUCTS.monthly,
           productId: SUBSCRIPTION_PRODUCTS.monthly,
-          subscriptionOfferDetails: [], // No offers
+          subscriptionOfferDetailsAndroid: [], // No offers
         }]);
 
         const result = await PurchaseService.purchaseSubscription('monthly');
@@ -418,7 +433,7 @@ describe('PurchaseService', () => {
       });
 
       it('should return E_ITEM_UNAVAILABLE when subscription not found', async () => {
-        mockGetSubscriptions.mockResolvedValue([]);
+        mockFetchProducts.mockResolvedValue([]);
 
         const result = await PurchaseService.purchaseSubscription('monthly');
 
@@ -429,7 +444,7 @@ describe('PurchaseService', () => {
 
     it('should return success when purchase completes (iOS)', async () => {
       Platform.OS = 'ios';
-      mockGetSubscriptions.mockResolvedValue([{ productId: SUBSCRIPTION_PRODUCTS.monthly }]);
+      mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.monthly }]);
 
       const result = await PurchaseService.purchaseSubscription('monthly');
 
@@ -438,9 +453,9 @@ describe('PurchaseService', () => {
 
     it('should handle user cancellation gracefully (iOS)', async () => {
       Platform.OS = 'ios';
-      mockGetSubscriptions.mockResolvedValue([{ productId: SUBSCRIPTION_PRODUCTS.monthly }]);
+      mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.monthly }]);
       const error = { code: 'E_USER_CANCELLED' };
-      mockRequestSubscription.mockRejectedValue(error);
+      mockRequestPurchase.mockRejectedValue(error);
 
       const result = await PurchaseService.purchaseSubscription('monthly');
 
@@ -454,9 +469,9 @@ describe('PurchaseService', () => {
 
     it('should map known error codes to user-friendly messages (iOS)', async () => {
       Platform.OS = 'ios';
-      mockGetSubscriptions.mockResolvedValue([{ productId: SUBSCRIPTION_PRODUCTS.annual }]);
+      mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.annual }]);
       const error = { code: 'E_NETWORK_ERROR' };
-      mockRequestSubscription.mockRejectedValue(error);
+      mockRequestPurchase.mockRejectedValue(error);
 
       const result = await PurchaseService.purchaseSubscription('annual');
 
@@ -470,10 +485,10 @@ describe('PurchaseService', () => {
 
     it('should provide generic message for unknown errors (iOS)', async () => {
       Platform.OS = 'ios';
-      mockGetSubscriptions.mockResolvedValue([{ productId: SUBSCRIPTION_PRODUCTS.monthly }]);
+      mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.monthly }]);
       // Error with no message and unknown code
       const error = { code: 'E_UNKNOWN_FAILURE' };
-      mockRequestSubscription.mockRejectedValue(error);
+      mockRequestPurchase.mockRejectedValue(error);
 
       const result = await PurchaseService.purchaseSubscription('monthly');
 
@@ -500,27 +515,25 @@ describe('PurchaseService', () => {
 
       it('should fetch products and use requestPurchase on iOS', async () => {
         mockGetDoc.mockResolvedValue({ data: () => ({ appAccountToken: 'existing-token' }) });
-        mockGetProducts.mockResolvedValue([{ productId: SUBSCRIPTION_PRODUCTS.lifetime }]);
+        mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.lifetime }]);
 
         await PurchaseService.purchaseLifetime();
 
-        expect(mockGetProducts).toHaveBeenCalledWith({ skus: [SUBSCRIPTION_PRODUCTS.lifetime] });
+        expect(mockFetchProducts).toHaveBeenCalledWith({ skus: [SUBSCRIPTION_PRODUCTS.lifetime], type: 'in-app' });
         expect(mockRequestPurchase).toHaveBeenCalledWith({
-          sku: SUBSCRIPTION_PRODUCTS.lifetime,
-          andDangerouslyFinishTransactionAutomaticallyIOS: false,
-          appAccountToken: 'existing-token',
+          type: 'in-app',
+          request: { apple: { sku: SUBSCRIPTION_PRODUCTS.lifetime, andDangerouslyFinishTransactionAutomatically: false, appAccountToken: 'existing-token' } },
         });
-        expect(mockRequestSubscription).not.toHaveBeenCalled();
       });
 
       it('should create app account token if needed', async () => {
         mockGetDoc.mockResolvedValue({ data: () => ({}) });
         mockDigestStringAsync.mockResolvedValue('new-token-hash');
-        mockGetProducts.mockResolvedValue([{ productId: SUBSCRIPTION_PRODUCTS.lifetime }]);
+        mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.lifetime }]);
 
         await PurchaseService.purchaseLifetime();
 
-        expect(mockGetProducts).toHaveBeenCalledWith({ skus: [SUBSCRIPTION_PRODUCTS.lifetime] });
+        expect(mockFetchProducts).toHaveBeenCalledWith({ skus: [SUBSCRIPTION_PRODUCTS.lifetime], type: 'in-app' });
         expect(mockDigestStringAsync).toHaveBeenCalled();
         expect(mockSetDoc).toHaveBeenCalled();
       });
@@ -532,19 +545,18 @@ describe('PurchaseService', () => {
       });
 
       it('should verify product exists before purchase on Android', async () => {
-        mockGetProducts.mockResolvedValue([{ productId: SUBSCRIPTION_PRODUCTS.lifetime }]);
+        mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.lifetime }]);
 
         await PurchaseService.purchaseLifetime();
 
-        expect(mockGetProducts).toHaveBeenCalledWith({ skus: [SUBSCRIPTION_PRODUCTS.lifetime] });
-        expect(mockRequestPurchase).toHaveBeenCalledWith({ skus: [SUBSCRIPTION_PRODUCTS.lifetime] });
+        expect(mockFetchProducts).toHaveBeenCalledWith({ skus: [SUBSCRIPTION_PRODUCTS.lifetime], type: 'in-app' });
+        expect(mockRequestPurchase).toHaveBeenCalledWith({ type: 'in-app', request: { google: { skus: [SUBSCRIPTION_PRODUCTS.lifetime] } } });
       });
 
-      it('should use requestPurchase instead of requestSubscription on Android', async () => {
+      it('should use requestPurchase on Android', async () => {
         await PurchaseService.purchaseLifetime();
 
         expect(mockRequestPurchase).toHaveBeenCalled();
-        expect(mockRequestSubscription).not.toHaveBeenCalled();
       });
     });
 
@@ -581,12 +593,12 @@ describe('PurchaseService', () => {
     it('should prioritize lifetime purchases', async () => {
       const lifetimePurchase: Partial<Purchase> = {
         productId: SUBSCRIPTION_PRODUCTS.lifetime,
-        transactionReceipt: 'lifetime-receipt',
+        purchaseToken: 'lifetime-receipt',
         transactionId: 'lifetime-tx-123',
       };
       const monthlyPurchase: Partial<Purchase> = {
         productId: SUBSCRIPTION_PRODUCTS.monthly,
-        transactionReceipt: 'monthly-receipt',
+        purchaseToken: 'monthly-receipt',
         transactionId: 'monthly-tx-456',
       };
 
@@ -603,7 +615,7 @@ describe('PurchaseService', () => {
     it('should restore active subscription if no lifetime purchase', async () => {
       const monthlyPurchase: Partial<Purchase> = {
         productId: SUBSCRIPTION_PRODUCTS.monthly,
-        transactionReceipt: 'monthly-receipt',
+        purchaseToken: 'monthly-receipt',
         transactionId: 'monthly-tx-456',
       };
 
@@ -630,7 +642,7 @@ describe('PurchaseService', () => {
     it('should attempt to validate restored purchases', async () => {
       const purchase: Partial<Purchase> = {
         productId: SUBSCRIPTION_PRODUCTS.annual,
-        transactionReceipt: 'annual-receipt',
+        purchaseToken: 'annual-receipt',
         transactionId: 'annual-tx-789',
       };
 
@@ -649,7 +661,7 @@ describe('PurchaseService', () => {
     it('should handle validation errors gracefully', async () => {
       const purchase: Partial<Purchase> = {
         productId: SUBSCRIPTION_PRODUCTS.monthly,
-        transactionReceipt: 'invalid-receipt',
+        purchaseToken: 'invalid-receipt',
         transactionId: 'invalid-tx',
       };
 
@@ -699,7 +711,7 @@ describe('PurchaseService', () => {
       const purchaseUpdateHandler = mockPurchaseUpdatedListener.mock.calls[0][0];
       const purchase: Partial<Purchase> = {
         productId: SUBSCRIPTION_PRODUCTS.monthly,
-        transactionReceipt: 'test-receipt',
+        purchaseToken: 'test-receipt',
         transactionId: 'test-tx-123',
       };
 
@@ -719,7 +731,7 @@ describe('PurchaseService', () => {
       const purchaseUpdateHandler = mockPurchaseUpdatedListener.mock.calls[0][0];
       const purchase: Partial<Purchase> = {
         productId: SUBSCRIPTION_PRODUCTS.monthly,
-        transactionReceipt: undefined,
+        purchaseToken: undefined,
       };
 
       await purchaseUpdateHandler(purchase);
@@ -733,7 +745,7 @@ describe('PurchaseService', () => {
       const purchaseUpdateHandler = mockPurchaseUpdatedListener.mock.calls[0][0];
       const purchase: Partial<Purchase> = {
         productId: SUBSCRIPTION_PRODUCTS.monthly,
-        transactionReceipt: 'invalid-receipt',
+        purchaseToken: 'invalid-receipt',
         transactionId: 'invalid-tx',
       };
 
@@ -754,7 +766,7 @@ describe('PurchaseService', () => {
       const purchaseUpdateHandler = mockPurchaseUpdatedListener.mock.calls[0][0];
       const purchase: Partial<Purchase> = {
         productId: SUBSCRIPTION_PRODUCTS.monthly,
-        transactionReceipt: 'test-receipt',
+        purchaseToken: 'test-receipt',
         transactionId: 'test-tx',
       };
 
@@ -779,14 +791,19 @@ describe('PurchaseService', () => {
       mockGetDoc.mockResolvedValue({
         data: () => ({ appAccountToken: 'existing-token-xyz' })
       });
-      mockGetProducts.mockResolvedValue([{ productId: SUBSCRIPTION_PRODUCTS.lifetime }]);
+      mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.lifetime }]);
 
       await PurchaseService.purchaseLifetime();
 
       expect(mockDigestStringAsync).not.toHaveBeenCalled();
       expect(mockRequestPurchase).toHaveBeenCalledWith(
         expect.objectContaining({
-          appAccountToken: 'existing-token-xyz',
+          type: 'in-app',
+          request: expect.objectContaining({
+            apple: expect.objectContaining({
+              appAccountToken: 'existing-token-xyz',
+            }),
+          }),
         })
       );
     });
@@ -794,7 +811,7 @@ describe('PurchaseService', () => {
     it('should create and save new token if not exists for lifetime', async () => {
       mockGetDoc.mockResolvedValue({ data: () => ({}) });
       mockDigestStringAsync.mockResolvedValue('new-hashed-token-abc');
-      mockGetProducts.mockResolvedValue([{ productId: SUBSCRIPTION_PRODUCTS.lifetime }]);
+      mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.lifetime }]);
 
       await PurchaseService.purchaseLifetime();
 
@@ -806,14 +823,19 @@ describe('PurchaseService', () => {
       );
       expect(mockRequestPurchase).toHaveBeenCalledWith(
         expect.objectContaining({
-          appAccountToken: 'new-hashed-token-abc',
+          type: 'in-app',
+          request: expect.objectContaining({
+            apple: expect.objectContaining({
+              appAccountToken: 'new-hashed-token-abc',
+            }),
+          }),
         })
       );
     });
 
     it('should use SHA256 algorithm for token generation', async () => {
       mockGetDoc.mockResolvedValue({ data: () => ({}) });
-      mockGetProducts.mockResolvedValue([{ productId: SUBSCRIPTION_PRODUCTS.lifetime }]);
+      mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.lifetime }]);
 
       await PurchaseService.purchaseLifetime();
 
@@ -832,7 +854,7 @@ describe('PurchaseService', () => {
       const purchaseUpdateHandler = mockPurchaseUpdatedListener.mock.calls[0][0];
       const purchase = {
         productId: SUBSCRIPTION_PRODUCTS.monthly,
-        transactionReceipt: 'test-receipt',
+        purchaseToken: 'test-receipt',
         transactionId: 'test-tx',
       };
 
@@ -860,7 +882,7 @@ describe('PurchaseService', () => {
       const purchaseUpdateHandler = mockPurchaseUpdatedListener.mock.calls[0][0];
       const purchase = {
         productId: SUBSCRIPTION_PRODUCTS.monthly,
-        transactionReceipt: 'test-receipt',
+        purchaseToken: 'test-receipt',
         transactionId: 'test-tx',
       };
 
@@ -882,13 +904,13 @@ describe('PurchaseService', () => {
 
       // Must initiate a purchase first to set pendingPurchaseSku
       // (otherwise the handler ignores updates to prevent cross-account issues)
-      mockGetSubscriptions.mockResolvedValue([{ productId: SUBSCRIPTION_PRODUCTS.monthly }]);
+      mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.monthly }]);
       await PurchaseService.purchaseSubscription('monthly');
 
       const purchaseUpdateHandler = mockPurchaseUpdatedListener.mock.calls[0][0];
       const purchase = {
         productId: SUBSCRIPTION_PRODUCTS.monthly,
-        transactionReceipt: 'test-receipt',
+        purchaseToken: 'test-receipt',
         transactionId: 'test-tx',
       };
 
@@ -912,13 +934,13 @@ describe('PurchaseService', () => {
       await PurchaseService.initialize();
 
       // Must initiate a purchase first to set pendingPurchaseSku
-      mockGetSubscriptions.mockResolvedValue([{ productId: SUBSCRIPTION_PRODUCTS.monthly }]);
+      mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.monthly }]);
       await PurchaseService.purchaseSubscription('monthly');
 
       const purchaseUpdateHandler = mockPurchaseUpdatedListener.mock.calls[0][0];
       const purchase = {
         productId: SUBSCRIPTION_PRODUCTS.monthly,
-        transactionReceipt: 'test-receipt',
+        purchaseToken: 'test-receipt',
         transactionId: 'test-tx',
       };
 
@@ -937,8 +959,8 @@ describe('PurchaseService', () => {
     });
 
     it('should map E_DEVELOPER_ERROR to user-friendly message', async () => {
-      mockGetSubscriptions.mockResolvedValue([{ productId: SUBSCRIPTION_PRODUCTS.monthly }]);
-      mockRequestSubscription.mockRejectedValue({ code: 'E_DEVELOPER_ERROR' });
+      mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.monthly }]);
+      mockRequestPurchase.mockRejectedValue({ code: 'E_DEVELOPER_ERROR' });
 
       const result = await PurchaseService.purchaseSubscription('monthly');
 
@@ -946,7 +968,7 @@ describe('PurchaseService', () => {
     });
 
     it('should map E_ALREADY_OWNED to user-friendly message with restore suggestion', async () => {
-      mockGetProducts.mockResolvedValue([{ productId: SUBSCRIPTION_PRODUCTS.lifetime }]);
+      mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.lifetime }]);
       mockRequestPurchase.mockRejectedValue({ code: 'E_ALREADY_OWNED' });
 
       const result = await PurchaseService.purchaseLifetime();
@@ -955,8 +977,8 @@ describe('PurchaseService', () => {
     });
 
     it('should map E_BILLING_UNAVAILABLE to user-friendly message', async () => {
-      mockGetSubscriptions.mockResolvedValue([{ productId: SUBSCRIPTION_PRODUCTS.annual }]);
-      mockRequestSubscription.mockRejectedValue({ code: 'E_BILLING_UNAVAILABLE' });
+      mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.annual }]);
+      mockRequestPurchase.mockRejectedValue({ code: 'E_BILLING_UNAVAILABLE' });
 
       const result = await PurchaseService.purchaseSubscription('annual');
 
@@ -964,8 +986,8 @@ describe('PurchaseService', () => {
     });
 
     it('should map E_SERVICE_ERROR to user-friendly message', async () => {
-      mockGetSubscriptions.mockResolvedValue([{ productId: SUBSCRIPTION_PRODUCTS.monthly }]);
-      mockRequestSubscription.mockRejectedValue({ code: 'E_SERVICE_ERROR' });
+      mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.monthly }]);
+      mockRequestPurchase.mockRejectedValue({ code: 'E_SERVICE_ERROR' });
 
       const result = await PurchaseService.purchaseSubscription('monthly');
 

@@ -41,7 +41,7 @@ import { useDispatch } from 'react-redux';
 import { showSheet } from '@/store';
 import { RecordController } from '@/services/demo/RecordController';
 import * as Clipboard from 'expo-clipboard';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import AppendToPackService from '@/services/demo/AppendToPackService';
 import { useSelector } from 'react-redux';

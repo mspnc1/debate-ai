@@ -12,25 +12,6 @@ jest.mock('react-native-svg', () => {
   };
 });
 
-jest.mock('react-native-reanimated', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-  const Reanimated = require('react-native-reanimated/mock');
-  return {
-    ...Reanimated,
-    default: {
-      ...Reanimated.default,
-      View: ({ children, ...props }: any) => React.createElement(View, props, children),
-      createAnimatedComponent: (Component: any) => Component,
-    },
-    FadeInDown: { delay: () => ({ duration: () => ({}) }) },
-    useSharedValue: (initial: any) => ({ value: initial }),
-    useAnimatedProps: (callback: any) => callback(),
-    withSpring: (value: any) => value,
-    withDelay: (_: number, value: any) => value,
-  };
-});
-
 jest.mock('@/hooks/stats/useChartData', () => ({
   useChartData: () => ({
     getBarData: (metric: string) => ({

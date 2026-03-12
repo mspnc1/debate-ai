@@ -3,12 +3,6 @@ import { renderWithProviders } from '../../../../test-utils/renderWithProviders'
 import { CompareImageGeneratingPane } from '@/components/organisms/compare/CompareImageGeneratingPane';
 import { AIConfig } from '@/types';
 
-jest.mock('react-native-reanimated', () => {
-  const Reanimated = require('react-native-reanimated/mock');
-  Reanimated.default.call = () => {};
-  return Reanimated;
-});
-
 jest.mock('expo-linear-gradient', () => ({
   LinearGradient: 'LinearGradient',
 }));

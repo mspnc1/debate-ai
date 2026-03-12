@@ -10,12 +10,6 @@ jest.mock('expo-haptics', () => ({
   ImpactFeedbackStyle: { Light: 'light' },
 }));
 
-jest.mock('react-native-reanimated', () => {
-  const Reanimated = require('react-native-reanimated/mock');
-  Reanimated.default.call = () => {};
-  return Reanimated;
-});
-
 const mockTopics: QuickStartTopic[] = [
   { id: 'morning', emoji: '☀️', title: 'Morning Check-in', subtitle: 'Start your day right' },
   { id: 'brainstorm', emoji: '💡', title: 'Brainstorming', subtitle: 'Generate fresh ideas' },

@@ -2,12 +2,6 @@ import React from 'react';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { CompareTypingIndicator } from '@/components/organisms/compare/CompareTypingIndicator';
 
-jest.mock('react-native-reanimated', () => {
-  const Reanimated = require('react-native-reanimated/mock');
-  Reanimated.default.call = () => {};
-  return Reanimated;
-});
-
 describe('CompareTypingIndicator', () => {
   it('returns null when not visible', () => {
     const { toJSON } = renderWithProviders(

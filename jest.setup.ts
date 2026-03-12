@@ -3,12 +3,66 @@ import mockSafeAreaContext from 'react-native-safe-area-context/jest/mock';
 
 jest.mock('react-native-safe-area-context', () => mockSafeAreaContext);
 jest.mock('react-native-reanimated', () => {
-  const Reanimated = require('react-native-reanimated/mock');
-  // Add createAnimatedComponent if not present
-  if (!Reanimated.default.createAnimatedComponent) {
-    Reanimated.default.createAnimatedComponent = (component: unknown) => component;
-  }
-  return Reanimated;
+  const View = require('react-native').View;
+  // Create a chainable animation mock where any method returns `this`
+  const createAnimMock = (): Record<string, jest.Mock> => {
+    const mock: Record<string, jest.Mock> = {};
+    const handler: ProxyHandler<Record<string, jest.Mock>> = {
+      get: (_target, prop) => {
+        if (typeof prop === 'string') {
+          if (!mock[prop]) {
+            mock[prop] = jest.fn().mockReturnValue(new Proxy({}, handler));
+          }
+          return mock[prop];
+        }
+        return undefined;
+      },
+    };
+    return new Proxy(mock, handler);
+  };
+  return {
+    __esModule: true,
+    default: {
+      View,
+      Text: require('react-native').Text,
+      Image: require('react-native').Image,
+      ScrollView: require('react-native').ScrollView,
+      FlatList: require('react-native').FlatList,
+      createAnimatedComponent: (component: unknown) => component,
+    },
+    useSharedValue: jest.fn((init: unknown) => ({ value: init })),
+    useAnimatedStyle: jest.fn((fn: () => unknown) => fn()),
+    useDerivedValue: jest.fn((fn: () => unknown) => ({ value: fn() })),
+    useAnimatedScrollHandler: jest.fn(() => jest.fn()),
+    withTiming: jest.fn((val: unknown) => val),
+    withSpring: jest.fn((val: unknown) => val),
+    withDelay: jest.fn((_: unknown, val: unknown) => val),
+    withSequence: jest.fn((...vals: unknown[]) => vals[vals.length - 1]),
+    withRepeat: jest.fn((val: unknown) => val),
+    interpolate: jest.fn(),
+    Extrapolation: { CLAMP: 'clamp', EXTEND: 'extend', IDENTITY: 'identity' },
+    Extrapolate: { CLAMP: 'clamp', EXTEND: 'extend', IDENTITY: 'identity' },
+    Easing: { linear: jest.fn(), ease: jest.fn(), bezier: jest.fn(() => jest.fn()), inOut: jest.fn((v: unknown) => v), in: jest.fn((v: unknown) => v), out: jest.fn((v: unknown) => v) },
+    FadeIn: createAnimMock(),
+    FadeOut: createAnimMock(),
+    FadeInDown: createAnimMock(),
+    FadeInUp: createAnimMock(),
+    FadeOutUp: createAnimMock(),
+    FadeOutDown: createAnimMock(),
+    SlideInDown: createAnimMock(),
+    SlideInUp: createAnimMock(),
+    SlideOutDown: createAnimMock(),
+    ZoomIn: createAnimMock(),
+    ZoomOut: createAnimMock(),
+    Layout: createAnimMock(),
+    LinearTransition: createAnimMock(),
+    runOnJS: jest.fn((fn: unknown) => fn),
+    runOnUI: jest.fn((fn: unknown) => fn),
+    cancelAnimation: jest.fn(),
+    measure: jest.fn(),
+    useAnimatedRef: jest.fn(() => ({ current: null })),
+    useAnimatedProps: jest.fn((fn: () => unknown) => fn()),
+  };
 });
 jest.mock('react-native-gesture-handler', () => require('react-native-gesture-handler/jestSetup'));
 jest.mock('react-native/Libraries/Modal/Modal', () => {
@@ -45,7 +99,7 @@ jest.mock('expo-clipboard', () => ({
   getStringAsync: jest.fn(),
 }));
 
-jest.mock('expo-file-system', () => ({
+jest.mock('expo-file-system/legacy', () => ({
   writeAsStringAsync: jest.fn(),
   readAsStringAsync: jest.fn(),
   documentDirectory: '/tmp',
@@ -121,8 +175,8 @@ jest.mock('react-native-iap', () => ({
   endConnection: jest.fn().mockResolvedValue(undefined),
   purchaseUpdatedListener: jest.fn().mockReturnValue({ remove: jest.fn() }),
   purchaseErrorListener: jest.fn().mockReturnValue({ remove: jest.fn() }),
-  getSubscriptions: jest.fn(),
-  requestSubscription: jest.fn(),
+  fetchProducts: jest.fn(),
+  requestPurchase: jest.fn(),
   getAvailablePurchases: jest.fn(),
   finishTransaction: jest.fn(),
 }));
@@ -138,6 +192,12 @@ jest.mock('expo-media-library', () => ({
   saveToLibraryAsync: jest.fn().mockResolvedValue(undefined),
   createAssetAsync: jest.fn().mockResolvedValue({ id: 'mock-asset-id' }),
   PermissionStatus: { GRANTED: 'granted', DENIED: 'denied', UNDETERMINED: 'undetermined' },
+}));
+
+jest.mock('react-native-worklets', () => ({
+  createWorklet: jest.fn(),
+  useWorklet: jest.fn(),
+  createSerializable: jest.fn((val: unknown) => val),
 }));
 
 (globalThis as unknown as { __reanimatedWorkletInit?: () => void }).__reanimatedWorkletInit =

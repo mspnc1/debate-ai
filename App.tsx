@@ -1,5 +1,9 @@
 import React, { useEffect } from 'react';
+import { LogBox } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+
+// Suppress Reanimated v4 dev-mode worklet warnings
+LogBox.ignoreLogs(['[Worklets] Tried to synchronously call a non-worklet function']);
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';

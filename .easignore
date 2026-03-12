@@ -1,0 +1,9 @@
+android/
+ios/
+.expo/
+__tests__/
+test-utils/
+docs/
+scripts/
+*.test.ts
+*.test.tsx

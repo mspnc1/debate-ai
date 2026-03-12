@@ -3,7 +3,7 @@ module.exports = {
   watchman: false,
   testEnvironment: 'node',
   setupFiles: ['<rootDir>/jest.setup.ts'],
-  setupFilesAfterEnv: ['@testing-library/jest-native/extend-expect'],
+  setupFilesAfterEnv: ['@testing-library/react-native/extend-expect'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '\\.(jpg|jpeg|png|gif|mp4|mp3|svg)$': '<rootDir>/__mocks__/fileMock.js',

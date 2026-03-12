@@ -1,21 +1,6 @@
 import React from 'react';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 
-jest.mock('react-native-reanimated', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-  const Reanimated = require('react-native-reanimated/mock');
-  return {
-    ...Reanimated,
-    default: {
-      ...Reanimated.default,
-      View: ({ children, ...props }: any) => React.createElement(View, props, children),
-    },
-    FadeIn: { duration: () => ({ duration: () => {} }) },
-    FadeOut: { duration: () => ({}) },
-  };
-});
-
 jest.mock('@/components/molecules/common/Typography', () => {
   const React = require('react');
   const { Text } = require('react-native');

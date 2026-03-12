@@ -9,26 +9,6 @@ import { renderWithProviders } from '../../../../test-utils/renderWithProviders'
 import { VotingInterface } from '@/components/organisms/debate/VotingInterface';
 import { AI } from '@/types';
 
-// Mock dependencies
-jest.mock('react-native-reanimated', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-  return {
-    ...require('react-native-reanimated/mock'),
-    default: {
-      View: ({ children, ...props }: any) => React.createElement(View, props, children),
-    },
-    FadeInDown: {
-      springify: () => ({ damping: () => ({}) }),
-      duration: () => ({}),
-    },
-    useSharedValue: () => ({ value: 1 }),
-    useAnimatedStyle: (fn: any) => fn(),
-    withSpring: (value: any) => value,
-    withTiming: (value: any) => value,
-  };
-});
-
 jest.mock('expo-blur', () => ({
   BlurView: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));

@@ -1,4 +1,4 @@
-jest.mock('expo-file-system', () => ({
+jest.mock('expo-file-system/legacy', () => ({
   cacheDirectory: '/cache/',
   getInfoAsync: jest.fn(),
   makeDirectoryAsync: jest.fn(),
@@ -7,7 +7,7 @@ jest.mock('expo-file-system', () => ({
   EncodingType: { Base64: 'base64' },
 }));
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { saveBase64Image, loadBase64FromFileUri } from '@/services/images/fileCache';
 
 const mockGetInfoAsync = FileSystem.getInfoAsync as jest.Mock;

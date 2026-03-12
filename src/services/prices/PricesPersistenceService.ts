@@ -5,10 +5,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import {
-  getSubscriptions,
-  getProducts,
-  type SubscriptionAndroid,
-  type SubscriptionIOS,
+  fetchProducts,
+  type ProductSubscriptionAndroid,
+  type ProductSubscriptionIOS,
 } from 'react-native-iap';
 import { SUBSCRIPTION_PRODUCTS } from '@/services/iap/products';
 
@@ -93,8 +92,8 @@ export async function fetchAndPersistPrices(): Promise<{
     const productSkus = [SUBSCRIPTION_PRODUCTS.lifetime];
 
     // Fetch sequentially - react-native-iap can't handle concurrent calls
-    const subscriptions = await getSubscriptions({ skus: subscriptionSkus });
-    const products = await getProducts({ skus: productSkus });
+    const subscriptions = await fetchProducts({ skus: subscriptionSkus, type: 'subs' });
+    const products = await fetchProducts({ skus: productSkus, type: 'in-app' });
 
     const prices = {
       monthly: FALLBACK_PRICES.monthly,
@@ -103,30 +102,30 @@ export async function fetchAndPersistPrices(): Promise<{
     };
 
     // Extract subscription prices
-    for (const sub of subscriptions) {
+    for (const sub of (subscriptions ?? [])) {
       let priceInfo: PriceInfo | null = null;
 
       if (Platform.OS === 'android') {
-        priceInfo = extractAndroidPrice(sub as SubscriptionAndroid);
+        priceInfo = extractAndroidPrice(sub as ProductSubscriptionAndroid);
       } else {
-        priceInfo = extractIOSPrice(sub as SubscriptionIOS);
+        priceInfo = extractIOSPrice(sub as ProductSubscriptionIOS);
       }
 
       if (priceInfo) {
-        if (sub.productId === SUBSCRIPTION_PRODUCTS.monthly) {
+        if (sub.id === SUBSCRIPTION_PRODUCTS.monthly) {
           prices.monthly = priceInfo;
-        } else if (sub.productId === SUBSCRIPTION_PRODUCTS.annual) {
+        } else if (sub.id === SUBSCRIPTION_PRODUCTS.annual) {
           prices.annual = priceInfo;
         }
       }
     }
 
     // Extract lifetime price
-    for (const prod of products) {
-      if (prod.productId === SUBSCRIPTION_PRODUCTS.lifetime && prod.localizedPrice) {
+    for (const prod of (products ?? [])) {
+      if (prod.id === SUBSCRIPTION_PRODUCTS.lifetime && prod.displayPrice) {
         prices.lifetime = {
-          localizedPrice: prod.localizedPrice,
-          price: prod.price,
+          localizedPrice: prod.displayPrice,
+          price: String(prod.price ?? 0),
           currency: prod.currency,
         };
       }
@@ -180,12 +179,12 @@ function parseTrialDuration(billingPeriod: string): { durationText: string; dura
   return { durationText: '1 week', durationDays: 7 };
 }
 
-function extractAndroidPrice(sub: SubscriptionAndroid): PriceInfo | null {
+function extractAndroidPrice(sub: ProductSubscriptionAndroid): PriceInfo | null {
   // Find the offer with a free trial first, or fall back to first offer
-  const offerWithTrial = sub.subscriptionOfferDetails?.find((o) =>
+  const offerWithTrial = sub.subscriptionOfferDetailsAndroid?.find((o) =>
     o.pricingPhases.pricingPhaseList.some((p) => p.priceAmountMicros === '0')
   );
-  const offer = offerWithTrial || sub.subscriptionOfferDetails?.[0];
+  const offer = offerWithTrial || sub.subscriptionOfferDetailsAndroid?.[0];
   if (!offer) return null;
 
   const phases = offer.pricingPhases.pricingPhaseList;
@@ -212,46 +211,37 @@ function extractAndroidPrice(sub: SubscriptionAndroid): PriceInfo | null {
   };
 }
 
-function extractIOSPrice(sub: SubscriptionIOS): PriceInfo | null {
-  if (!sub.localizedPrice) return null;
+function extractIOSPrice(sub: ProductSubscriptionIOS): PriceInfo | null {
+  if (!sub.displayPrice) return null;
 
-  // Extract trial info from introductoryPrice if available
+  // Extract trial info from subscription offers
   let trial: TrialInfo | undefined;
-  const introPrice = sub as SubscriptionIOS & {
-    introductoryPrice?: string;
-    introductoryPriceNumberOfPeriodsIOS?: string;
-    introductoryPriceSubscriptionPeriodIOS?: string;
-  };
 
-  // iOS free trial has introductoryPrice of "0" or empty and a subscription period
-  if (introPrice.introductoryPriceSubscriptionPeriodIOS) {
-    const period = introPrice.introductoryPriceSubscriptionPeriodIOS;
-    // iOS periods: DAY, WEEK, MONTH, YEAR
+  // In v14, trial info comes from subscriptionOffers
+  const offers = sub.subscriptionOffers ?? [];
+  const trialOffer = offers.find(o => o.paymentMode === 'free-trial');
+  if (trialOffer?.period) {
+    const period = trialOffer.period;
     let durationText = '1 week';
     let durationDays = 7;
 
-    if (period === 'WEEK') {
-      durationText = '1 week';
-      durationDays = 7;
-    } else if (period === 'DAY') {
-      const numPeriods = parseInt(introPrice.introductoryPriceNumberOfPeriodsIOS || '7', 10);
-      durationText = numPeriods === 1 ? '1 day' : `${numPeriods} days`;
-      durationDays = numPeriods;
-    } else if (period === 'MONTH') {
-      durationText = '1 month';
-      durationDays = 30;
+    if (period.unit === 'week') {
+      durationText = period.value === 1 ? '1 week' : `${period.value} weeks`;
+      durationDays = period.value * 7;
+    } else if (period.unit === 'day') {
+      durationText = period.value === 1 ? '1 day' : `${period.value} days`;
+      durationDays = period.value;
+    } else if (period.unit === 'month') {
+      durationText = period.value === 1 ? '1 month' : `${period.value} months`;
+      durationDays = period.value * 30;
     }
 
-    // Only set trial if it's actually free (price is 0 or empty)
-    const introAmount = parseFloat(introPrice.introductoryPrice || '0');
-    if (introAmount === 0) {
-      trial = { durationText, durationDays, hasTrial: true };
-    }
+    trial = { durationText, durationDays, hasTrial: true };
   }
 
   return {
-    localizedPrice: sub.localizedPrice,
-    price: sub.price,
+    localizedPrice: sub.displayPrice,
+    price: String(sub.price ?? 0),
     currency: sub.currency,
     trial,
   };

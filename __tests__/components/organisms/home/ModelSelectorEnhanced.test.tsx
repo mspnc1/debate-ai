@@ -50,14 +50,6 @@ jest.mock('@testing-library/react-native/build/helpers/host-component-names', ()
   };
 });
 
-jest.mock('react-native-reanimated', () => {
-  const Reanimated = require('react-native-reanimated/mock');
-  Reanimated.default.call = () => {};
-  const { View } = require('react-native');
-  Reanimated.View = View;
-  return Reanimated;
-});
-
 jest.mock('react-native/Libraries/Modal/Modal', () => {
   const React = require('react');
   const { View } = require('react-native');

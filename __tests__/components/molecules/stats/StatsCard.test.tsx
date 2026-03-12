@@ -5,17 +5,6 @@ import { renderWithProviders } from '../../../../test-utils/renderWithProviders'
 jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null, MaterialIcons: () => null }));
 jest.mock('expo-linear-gradient', () => ({ LinearGradient: ({ children }: any) => children }));
 
-jest.mock('react-native-reanimated', () => {
-  const View = require('react-native').View;
-  return {
-    ...jest.requireActual('react-native-reanimated/mock'),
-    default: {
-      View,
-      createAnimatedComponent: (component: unknown) => component,
-    },
-  };
-});
-
 const {
   StatsCard,
   StatsCardHeader,

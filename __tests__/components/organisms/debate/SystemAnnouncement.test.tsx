@@ -2,27 +2,6 @@ import React from 'react';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { SystemAnnouncement } from '@/components/organisms/debate/SystemAnnouncement';
 
-jest.mock('react-native-reanimated', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-  return {
-    ...require('react-native-reanimated/mock'),
-    default: {
-      View: ({ children, ...props }: any) => React.createElement(View, props, children),
-    },
-    FadeInDown: {
-      springify: () => ({ damping: () => ({}) }),
-      duration: () => ({}),
-    },
-    FadeOut: {
-      duration: () => ({}),
-    },
-    useSharedValue: () => ({ value: 1 }),
-    useAnimatedStyle: (fn: any) => fn(),
-    withSpring: (value: any) => value,
-  };
-});
-
 jest.mock('expo-blur', () => ({
   BlurView: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));

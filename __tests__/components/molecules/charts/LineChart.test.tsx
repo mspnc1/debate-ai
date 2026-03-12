@@ -19,19 +19,6 @@ jest.mock('react-native-svg', () => {
   };
 });
 
-jest.mock('react-native-reanimated', () => {
-  const React = require('react');
-  const Reanimated = require('react-native-reanimated/mock');
-  Reanimated.default.createAnimatedComponent = (Component: any) => Component;
-  return {
-    ...Reanimated,
-    useSharedValue: (initial: any) => ({ value: initial }),
-    useAnimatedProps: (callback: any) => callback(),
-    withTiming: (value: any) => value,
-    Easing: { out: () => () => {}, cubic: () => {} },
-  };
-});
-
 jest.mock('@/components/molecules/common/Typography', () => {
   const React = require('react');
   const { Text } = require('react-native');

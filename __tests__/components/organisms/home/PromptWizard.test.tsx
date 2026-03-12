@@ -5,12 +5,6 @@ import { PromptWizard } from '@/components/organisms/home/PromptWizard';
 import type { QuickStartTopic } from '@/components/organisms/home/QuickStartsSection';
 import type { AIConfig } from '@/types';
 
-jest.mock('react-native-reanimated', () => {
-  const Reanimated = require('react-native-reanimated/mock');
-  Reanimated.default.call = () => {};
-  return Reanimated;
-});
-
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),
   ImpactFeedbackStyle: { Light: 'light', Medium: 'medium' },

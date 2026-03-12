@@ -1,23 +1,6 @@
 import { renderHook } from '@testing-library/react-native';
 import { useMessageBubbleAnimation } from '@/hooks/useMessageBubbleAnimation';
 
-// Mock react-native-reanimated
-jest.mock('react-native-reanimated', () => {
-  const Reanimated = require('react-native-reanimated/mock');
-  Reanimated.default.call = () => {};
-  return {
-    ...Reanimated,
-    useSharedValue: (value: number) => ({ value }),
-    useAnimatedStyle: (fn: () => object) => fn(),
-    withSpring: (value: number) => value,
-    withTiming: (value: number) => value,
-    Easing: {
-      out: jest.fn(() => jest.fn()),
-      ease: jest.fn(),
-    },
-  };
-});
-
 describe('useMessageBubbleAnimation', () => {
   describe('initialization', () => {
     it('returns animatedStyle object', () => {

@@ -1,27 +1,6 @@
 import React from 'react';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 
-// Mock react-native-reanimated
-jest.mock('react-native-reanimated', () => {
-  const Reanimated = require('react-native-reanimated/mock');
-  Reanimated.default.call = () => {};
-  return {
-    ...Reanimated,
-    useAnimatedStyle: () => ({}),
-    useSharedValue: jest.fn(() => ({ value: 0 })),
-    withRepeat: jest.fn((animation) => animation),
-    withSequence: jest.fn((...animations) => animations[0]),
-    withTiming: jest.fn((toValue) => toValue),
-    Easing: {
-      inOut: jest.fn(() => jest.fn()),
-      ease: {},
-    },
-    FadeIn: {
-      duration: () => ({ duration: jest.fn() }),
-    },
-  };
-});
-
 const { DemoEmptyState } = require('@/components/organisms/demo/DemoEmptyState');
 
 describe('DemoEmptyState', () => {

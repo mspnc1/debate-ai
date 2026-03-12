@@ -6,15 +6,13 @@ import {
   endConnection,
   purchaseUpdatedListener,
   purchaseErrorListener,
-  getSubscriptions,
-  getProducts,
-  requestSubscription,
+  fetchProducts,
   requestPurchase,
   getAvailablePurchases,
   finishTransaction,
   type Purchase,
-  type SubscriptionAndroid,
-  type SubscriptionOfferAndroid,
+  type ProductSubscriptionAndroid,
+  type ProductSubscriptionAndroidOfferDetails,
   type PricingPhaseAndroid,
 } from 'react-native-iap';
 import { SUBSCRIPTION_PRODUCTS, type PlanType } from '@/services/iap/products';
@@ -263,10 +261,10 @@ export class PurchaseService {
       const productSkus = [SUBSCRIPTION_PRODUCTS.lifetime];
 
       // Serialize IAP calls - react-native-iap can't handle concurrent requests
-      const subs = await getSubscriptions({ skus: subscriptionSkus });
-      const prods = await getProducts({ skus: productSkus });
+      const subs = await fetchProducts({ skus: subscriptionSkus, type: 'subs' });
+      const prods = await fetchProducts({ skus: productSkus, type: 'in-app' });
 
-      const foundIds = [...subs, ...prods].map((p) => p.productId);
+      const foundIds = [...(subs ?? []), ...(prods ?? [])].map((p) => p.id);
       const unavailable = allSkus.filter((sku) => !foundIds.includes(sku));
 
       return {
@@ -327,7 +325,7 @@ export class PurchaseService {
         // Fetch subscription info (with timeout)
         console.warn('[IAP] Fetching subscriptions...');
         const subs = await withTimeout(
-          getSubscriptions({ skus: [sku] }),
+          fetchProducts({ skus: [sku], type: 'subs' }),
           10000,
           'Store connection timed out. Please try again.'
         );
@@ -339,13 +337,13 @@ export class PurchaseService {
         const appAccountToken = await this.getOrCreateAppAccountToken(user.uid);
         console.warn('[IAP] Requesting subscription with appAccountToken...');
         this.pendingPurchaseSku = sku; // Mark that we're expecting this purchase
-        await requestSubscription({ sku, appAccountToken });
+        await requestPurchase({ type: 'subs', request: { apple: { sku, appAccountToken } } });
         console.warn('[IAP] requestSubscription returned');
       } else {
         // Android: Fetch and validate subscription exists
         console.warn('[IAP] Android: Fetching subscriptions for SKU:', sku);
         const subs = await withTimeout(
-          getSubscriptions({ skus: [sku] }),
+          fetchProducts({ skus: [sku], type: 'subs' }),
           10000,
           'Store connection timed out. Please try again.'
         );
@@ -363,33 +361,33 @@ export class PurchaseService {
 
         // CRITICAL: Find the product that matches our requested SKU
         // getSubscriptions may return cached/wrong data, so we must verify
-        const product = subs.find(s => s.productId === sku) as SubscriptionAndroid | undefined;
+        const product = subs?.find(s => s.id === sku) as ProductSubscriptionAndroid | undefined;
 
         if (!product) {
-          console.warn('[IAP] Android: Product mismatch! Requested:', sku, 'Got:', subs.map(s => s.productId));
+          console.warn('[IAP] Android: Product mismatch! Requested:', sku, 'Got:', subs?.map(s => s.id));
           await logPurchaseError('productMismatch', 'E_ITEM_UNAVAILABLE', `Product ${sku} not found in response`, {
             plan,
             sku,
-            returnedProducts: subs.map(s => s.productId),
+            returnedProducts: subs?.map(s => s.id) ?? [],
           });
           throw { code: 'E_ITEM_UNAVAILABLE', message: 'Subscription not found. Please try again.' };
         }
 
-        const offerCount = product?.subscriptionOfferDetails?.length || 0;
+        const offerCount = product?.subscriptionOfferDetailsAndroid?.length || 0;
         console.warn('[IAP] Android: Product', sku, 'matched, has', offerCount, 'offers');
 
         // Log all offers for debugging
-        product?.subscriptionOfferDetails?.forEach((offer: SubscriptionOfferAndroid, idx: number) => {
+        product?.subscriptionOfferDetailsAndroid?.forEach((offer: ProductSubscriptionAndroidOfferDetails, idx: number) => {
           const phases = offer.pricingPhases.pricingPhaseList;
           const hasFreeTrial = phases.some((p: PricingPhaseAndroid) => p.priceAmountMicros === '0');
           console.warn(`[IAP] Android: Offer ${idx}: hasFreeTrial=${hasFreeTrial}, phases=${phases.length}`);
         });
 
         // Find offer with free trial first, fall back to first offer
-        const trialOffer = product?.subscriptionOfferDetails?.find((o: SubscriptionOfferAndroid) =>
+        const trialOffer = product?.subscriptionOfferDetailsAndroid?.find((o: ProductSubscriptionAndroidOfferDetails) =>
           o.pricingPhases.pricingPhaseList.some((p: PricingPhaseAndroid) => p.priceAmountMicros === '0')
         );
-        const offerToken = trialOffer?.offerToken || product?.subscriptionOfferDetails?.[0]?.offerToken;
+        const offerToken = trialOffer?.offerToken || product?.subscriptionOfferDetailsAndroid?.[0]?.offerToken;
 
         console.warn('[IAP] Android: Selected offer for', sku, '- hasTrialOffer:', !!trialOffer, 'offerToken:', offerToken ? 'present' : 'MISSING');
 
@@ -407,7 +405,7 @@ export class PurchaseService {
         console.warn('[IAP] Android: Calling requestSubscription for', sku);
         this.pendingPurchaseSku = sku; // Mark that we're expecting this purchase
         // For Android, subscriptionOffers contains the sku and offerToken
-        await requestSubscription({ subscriptionOffers: [{ sku, offerToken }] });
+        await requestPurchase({ type: 'subs', request: { google: { skus: [sku], subscriptionOffers: [{ sku, offerToken }] } } });
         console.warn('[IAP] Android: requestSubscription returned successfully for', sku);
       }
 
@@ -465,7 +463,7 @@ export class PurchaseService {
       if (Platform.OS === 'ios') {
         // Must fetch product first before purchasing (with timeout)
         const prods = await withTimeout(
-          getProducts({ skus: [sku] }),
+          fetchProducts({ skus: [sku], type: 'in-app' }),
           10000,
           'Store connection timed out. Please try again.'
         );
@@ -474,12 +472,12 @@ export class PurchaseService {
         }
         const appAccountToken = await this.getOrCreateAppAccountToken(user.uid);
         this.pendingPurchaseSku = sku; // Mark that we're expecting this purchase
-        await requestPurchase({ sku, andDangerouslyFinishTransactionAutomaticallyIOS: false, appAccountToken });
+        await requestPurchase({ type: 'in-app', request: { apple: { sku, andDangerouslyFinishTransactionAutomatically: false, appAccountToken } } });
       } else {
         // For Android, verify the product exists before requesting purchase
-        await getProducts({ skus: [sku] });
+        await fetchProducts({ skus: [sku], type: 'in-app' });
         this.pendingPurchaseSku = sku; // Mark that we're expecting this purchase
-        await requestPurchase({ skus: [sku] });
+        await requestPurchase({ type: 'in-app', request: { google: { skus: [sku] } } });
       }
 
       return { success: true } as const;
@@ -524,7 +522,7 @@ export class PurchaseService {
   }
 
   private static async handlePurchaseUpdate(purchase: Purchase) {
-    if (!purchase.transactionReceipt) return;
+    if (!purchase.purchaseToken) return;
 
     // CRITICAL: Only process purchases that we initiated
     // This prevents assigning purchases from a different Google Play account
@@ -603,7 +601,7 @@ export class PurchaseService {
       const validatePurchase = functionsModule.httpsCallable(functions, 'validatePurchase');
 
       const result = await validatePurchase({
-        receipt: purchase.transactionReceipt,
+        receipt: purchase.purchaseToken,
         platform: Platform.OS,
         productId: purchase.productId,
         purchaseToken: (purchase as Purchase & { purchaseToken?: string }).purchaseToken,
@@ -630,7 +628,7 @@ export class PurchaseService {
           trialStartDate: data.trialStartDate ?? null,
           trialEndDate: data.trialEndDate ?? null,
           autoRenewing: !!data.autoRenewing,
-          lastReceiptData: purchase.transactionReceipt,
+          lastReceiptData: purchase.purchaseToken,
           paymentPlatform: Platform.OS,
           productId: data.productId,
           hasUsedTrial: data.hasUsedTrial ?? true,

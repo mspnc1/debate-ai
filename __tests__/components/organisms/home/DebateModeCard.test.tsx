@@ -5,12 +5,6 @@ import { renderWithProviders } from '../../../../test-utils/renderWithProviders'
 import { DebateModeCard } from '@/components/organisms/home/DebateModeCard';
 import type { AIConfig } from '@/types';
 
-jest.mock('react-native-reanimated', () => {
-  const Reanimated = require('react-native-reanimated/mock');
-  Reanimated.default.call = () => {};
-  return Reanimated;
-});
-
 jest.mock('expo-linear-gradient', () => ({
   LinearGradient: ({ children }: any) => {
     const React = require('react');

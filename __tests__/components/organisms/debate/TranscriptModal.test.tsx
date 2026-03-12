@@ -35,7 +35,7 @@ jest.mock('expo-print', () => ({
   printToFileAsync: jest.fn().mockResolvedValue({ uri: 'mock-file-uri' }),
 }));
 
-jest.mock('expo-file-system', () => ({
+jest.mock('expo-file-system/legacy', () => ({
   documentDirectory: '/mock/documents/',
   moveAsync: jest.fn().mockResolvedValue(undefined),
 }));
@@ -203,7 +203,7 @@ describe('TranscriptModal', () => {
 
     it('saves PDF when save button is pressed', async () => {
       const Print = require('expo-print');
-      const FileSystem = require('expo-file-system');
+      const FileSystem = require('expo-file-system/legacy');
 
       const { getByTestId } = renderWithProviders(<TranscriptModal {...defaultProps} />);
 
@@ -245,7 +245,7 @@ describe('TranscriptModal', () => {
     });
 
     it('generates proper filename when saving', async () => {
-      const FileSystem = require('expo-file-system');
+      const FileSystem = require('expo-file-system/legacy');
 
       const { getByTestId } = renderWithProviders(<TranscriptModal {...defaultProps} />);
 

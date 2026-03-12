@@ -4,22 +4,6 @@ import { renderWithProviders } from '../../../../test-utils/renderWithProviders'
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null, MaterialIcons: () => null }));
 
-jest.mock('react-native-reanimated', () => {
-  const View = require('react-native').View;
-  const mockAnimation = {
-    delay: jest.fn().mockReturnThis(),
-    springify: jest.fn().mockReturnThis(),
-  };
-  return {
-    ...jest.requireActual('react-native-reanimated/mock'),
-    FadeInDown: mockAnimation,
-    default: {
-      View,
-      createAnimatedComponent: (component: unknown) => component,
-    },
-  };
-});
-
 jest.mock('@/services/history', () => ({
   dateFormatterService: {
     formatRelativeDate: jest.fn(() => '2 hours ago'),

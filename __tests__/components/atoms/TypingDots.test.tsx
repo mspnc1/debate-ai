@@ -2,23 +2,6 @@ import React from 'react';
 import { render } from '@testing-library/react-native';
 import { TypingDots } from '@/components/atoms/feedback/TypingDots';
 
-// Mock react-native-reanimated
-jest.mock('react-native-reanimated', () => {
-  const View = require('react-native').View;
-  return {
-    ...jest.requireActual('react-native-reanimated/mock'),
-    useSharedValue: jest.fn((initial) => ({ value: initial })),
-    useAnimatedStyle: jest.fn((cb) => cb()),
-    withRepeat: jest.fn((anim) => anim),
-    withSequence: jest.fn((...anims) => anims[0]),
-    withTiming: jest.fn((value) => value),
-    withDelay: jest.fn((delay, anim) => anim),
-    default: {
-      View,
-    },
-  };
-});
-
 // Mock theme
 const mockTheme = {
   colors: {

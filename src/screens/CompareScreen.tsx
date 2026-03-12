@@ -32,7 +32,7 @@ import { getStreamingService } from '@/services/streaming/StreamingService';
 import { CompareStreamSynchronizer } from '@/services/streaming/CompareStreamSynchronizer';
 import { RecordController } from '@/services/demo/RecordController';
 import * as Clipboard from 'expo-clipboard';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { CompareRecordPickerModal } from '@/components/organisms/demo/CompareRecordPickerModal';
 import AppendToPackService from '@/services/demo/AppendToPackService';

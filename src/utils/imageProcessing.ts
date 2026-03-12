@@ -1,6 +1,6 @@
 import { MessageAttachment } from '../types';
 import * as ImageManipulator from 'expo-image-manipulator';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 // Maximum dimensions for Claude API (will be auto-resized if larger)
 const MAX_IMAGE_DIMENSION = 1568;
@@ -50,7 +50,7 @@ export const fileUriToBase64 = async (uri: string): Promise<string> => {
  */
 export const getFileInfo = async (uri: string): Promise<{ size: number; exists: true; uri: string }> => {
   try {
-    const fileInfo = await FileSystem.getInfoAsync(uri, { size: true });
+    const fileInfo = await FileSystem.getInfoAsync(uri);
     if (!fileInfo.exists) {
       throw new Error('File does not exist');
     }

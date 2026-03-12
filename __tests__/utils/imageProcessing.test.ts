@@ -7,7 +7,7 @@ jest.mock('expo-image-manipulator', () => ({
   },
 }));
 
-jest.mock('expo-file-system', () => ({
+jest.mock('expo-file-system/legacy', () => ({
   __esModule: true,
   readAsStringAsync: jest.fn(),
   getInfoAsync: jest.fn(),
@@ -33,7 +33,7 @@ const ImageManipulator = jest.requireMock('expo-image-manipulator') as {
   SaveFormat: { PNG: string; JPEG: string };
 };
 
-const FileSystem = jest.requireMock('expo-file-system') as {
+const FileSystem = jest.requireMock('expo-file-system/legacy') as {
   readAsStringAsync: jest.Mock;
   getInfoAsync: jest.Mock;
   EncodingType: { Base64: string };
@@ -82,7 +82,7 @@ describe('imageProcessing utilities', () => {
 
     const result = await getFileInfo('file://photo.jpg');
 
-    expect(FileSystem.getInfoAsync).toHaveBeenCalledWith('file://photo.jpg', { size: true });
+    expect(FileSystem.getInfoAsync).toHaveBeenCalledWith('file://photo.jpg');
     expect(result).toEqual(info);
   });
 
@@ -171,7 +171,7 @@ describe('imageProcessing utilities', () => {
     const result = await imageProcessing.processImageForClaude('file://source.jpg', 'image/jpeg', 'source.jpg');
 
     expect(ImageManipulator.manipulateAsync).toHaveBeenCalledTimes(2);
-    expect(FileSystem.getInfoAsync).toHaveBeenCalledWith('file://processed.jpg', { size: true });
+    expect(FileSystem.getInfoAsync).toHaveBeenCalledWith('file://processed.jpg', );
     expect(FileSystem.readAsStringAsync).toHaveBeenCalledWith('file://processed.jpg', {
       encoding: FileSystem.EncodingType.Base64,
     });

@@ -2,18 +2,6 @@ import React from 'react';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { ChatTypingIndicators, TypingIndicator } from '@/components/organisms/chat/ChatTypingIndicators';
 
-jest.mock('react-native-reanimated', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-  return {
-    ...require('react-native-reanimated/mock'),
-    default: {
-      View: ({ children, ...props }: any) => React.createElement(View, props, children),
-    },
-    FadeIn: {},
-  };
-});
-
 jest.mock('@/components/molecules', () => {
   const React = require('react');
   const { Text } = require('react-native');

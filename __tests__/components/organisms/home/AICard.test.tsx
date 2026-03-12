@@ -5,12 +5,6 @@ import { renderWithProviders } from '../../../../test-utils/renderWithProviders'
 import { AICard } from '@/components/organisms/home/AICard';
 import type { AIConfig } from '@/types';
 
-jest.mock('react-native-reanimated', () => {
-  const Reanimated = require('react-native-reanimated/mock');
-  Reanimated.default.call = () => {};
-  return Reanimated;
-});
-
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),
   ImpactFeedbackStyle: { Light: 'light' },

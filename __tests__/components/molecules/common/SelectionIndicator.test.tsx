@@ -1,24 +1,6 @@
 import React from 'react';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 
-jest.mock('react-native-reanimated', () => {
-  const View = require('react-native').View;
-  const springify = () => ({ springify: () => ({}) });
-  return {
-    ...jest.requireActual('react-native-reanimated/mock'),
-    useSharedValue: jest.fn((initial) => ({ value: initial })),
-    useAnimatedStyle: jest.fn((cb) => cb()),
-    withSpring: jest.fn((value) => value),
-    withTiming: jest.fn((value) => value),
-    ZoomIn: { springify },
-    FadeOut: {},
-    default: {
-      View,
-      createAnimatedComponent: (component: unknown) => component,
-    },
-  };
-});
-
 const { SelectionIndicator } = require('@/components/molecules/common/SelectionIndicator');
 
 describe('SelectionIndicator', () => {

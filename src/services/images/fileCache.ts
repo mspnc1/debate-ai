@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 export async function saveBase64Image(b64: string, mimeType: string): Promise<string> {
   const dir = FileSystem.cacheDirectory + 'images/';

@@ -165,7 +165,7 @@ jest.mock('expo-clipboard', () => ({
   setStringAsync: jest.fn(),
 }));
 
-jest.mock('expo-file-system', () => ({
+jest.mock('expo-file-system/legacy', () => ({
   cacheDirectory: 'file://cache/',
   writeAsStringAsync: jest.fn(),
   EncodingType: { UTF8: 'utf8' },
@@ -177,7 +177,7 @@ jest.mock('expo-sharing', () => ({
 }));
 
 const Clipboard = require('expo-clipboard');
-const FileSystem = require('expo-file-system');
+const FileSystem = require('expo-file-system/legacy');
 const Sharing = require('expo-sharing');
 
 const mockStreamingCancel = jest.fn();

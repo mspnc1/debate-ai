@@ -59,17 +59,6 @@ jest.mock('react-native/Libraries/Modal/Modal', () => {
     React.createElement(View, { testID: 'modal-wrapper' }, children);
 });
 
-jest.mock('react-native-reanimated', () => {
-  const View = require('react-native').View;
-  return {
-    ...jest.requireActual('react-native-reanimated/mock'),
-    default: {
-      View,
-      createAnimatedComponent: (component: unknown) => component,
-    },
-  };
-});
-
 jest.mock('@/components/molecules', () => {
   const React = require('react');
   const { Text, View, TextInput, TouchableOpacity } = require('react-native');

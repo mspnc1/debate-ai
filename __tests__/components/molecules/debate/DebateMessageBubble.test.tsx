@@ -43,18 +43,6 @@ jest.mock('@/hooks/streaming/useStreamingMessage', () => ({
   useStreamingMessage: jest.fn(() => mockStreamingState),
 }));
 
-jest.mock('react-native-reanimated', () => {
-  const View = require('react-native').View;
-  return {
-    ...jest.requireActual('react-native-reanimated/mock'),
-    useSharedValue: jest.fn((initial) => ({ value: initial })),
-    useAnimatedStyle: jest.fn((cb) => cb()),
-    withTiming: jest.fn((value) => value),
-    Easing: { out: jest.fn() },
-    default: { View },
-  };
-});
-
 jest.mock('@/hooks/useMessageBubbleAnimation', () => ({
   useMessageBubbleAnimation: jest.fn(() => ({
     animatedStyle: {},

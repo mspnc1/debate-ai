@@ -4,20 +4,6 @@ import { renderWithProviders } from '../../../../test-utils/renderWithProviders'
 import { ChatMentionSuggestions } from '@/components/organisms/chat/ChatMentionSuggestions';
 import type { AI } from '@/types';
 
-jest.mock('react-native-reanimated', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-  return {
-    ...require('react-native-reanimated/mock'),
-    default: {
-      View: ({ children, ...props }: any) => React.createElement(View, props, children),
-    },
-    FadeInDown: {
-      springify: () => ({}),
-    },
-  };
-});
-
 jest.mock('@/components/molecules', () => {
   const React = require('react');
   const { TouchableOpacity, Text } = require('react-native');

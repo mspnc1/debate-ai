@@ -36,8 +36,6 @@ jest.mock('@/components/molecules', () => {
   };
 });
 
-jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'));
-
 const WelcomeScreen = require('@/screens/WelcomeScreen').default;
 
 describe('WelcomeScreen', () => {
