@@ -83,8 +83,8 @@ describe('ExpertModeSettings', () => {
     fireEvent(toggle, 'valueChange', false);
     expect(onToggle).toHaveBeenCalledWith(false);
 
-    fireEvent.press(getByText('GPT-5 Mini'));
-    expect(onModelChange).toHaveBeenCalledWith('gpt-5-mini');
+    fireEvent.press(getByText('GPT-4.1 Mini'));
+    expect(onModelChange).toHaveBeenCalledWith('gpt-4.1-mini');
 
     fireEvent.press(getByText('Temperature'));
     fireEvent.press(getByText('+'));
