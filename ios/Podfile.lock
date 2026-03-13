@@ -1206,7 +1206,7 @@ PODS:
   - BoringSSL-GRPC/Interface (0.0.37)
   - EASClient (55.0.2):
     - ExpoModulesCore
-  - EXApplication (55.0.8):
+  - EXApplication (55.0.9):
     - ExpoModulesCore
   - EXConstants (55.0.7):
     - ExpoModulesCore
@@ -1238,155 +1238,6 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - expo-dev-client (55.0.13):
-    - EXManifests
-    - expo-dev-launcher
-    - expo-dev-menu
-    - expo-dev-menu-interface
-    - EXUpdatesInterface
-  - expo-dev-launcher (55.0.14):
-    - EXManifests
-    - expo-dev-launcher/Main (= 55.0.14)
-    - expo-dev-menu
-    - expo-dev-menu-interface
-    - ExpoModulesCore
-    - EXUpdatesInterface
-    - hermes-engine
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-Core-prebuilt
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-jsi
-    - React-jsinspector
-    - React-NativeModulesApple
-    - React-RCTAppDelegate
-    - React-RCTFabric
-    - React-renderercss
-    - React-rendererdebug
-    - React-utils
-    - ReactAppDependencyProvider
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - ReactNativeDependencies
-    - Yoga
-  - expo-dev-launcher/Main (55.0.14):
-    - EXManifests
-    - expo-dev-launcher/Unsafe
-    - expo-dev-menu
-    - expo-dev-menu-interface
-    - ExpoModulesCore
-    - EXUpdatesInterface
-    - hermes-engine
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-Core-prebuilt
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-jsi
-    - React-jsinspector
-    - React-NativeModulesApple
-    - React-RCTAppDelegate
-    - React-RCTFabric
-    - React-renderercss
-    - React-rendererdebug
-    - React-utils
-    - ReactAppDependencyProvider
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - ReactNativeDependencies
-    - Yoga
-  - expo-dev-launcher/Unsafe (55.0.14):
-    - EXManifests
-    - expo-dev-menu
-    - expo-dev-menu-interface
-    - ExpoModulesCore
-    - EXUpdatesInterface
-    - hermes-engine
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-Core-prebuilt
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-jsi
-    - React-jsinspector
-    - React-NativeModulesApple
-    - React-RCTAppDelegate
-    - React-RCTFabric
-    - React-renderercss
-    - React-rendererdebug
-    - React-utils
-    - ReactAppDependencyProvider
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - ReactNativeDependencies
-    - Yoga
-  - expo-dev-menu (55.0.12):
-    - expo-dev-menu/Main (= 55.0.12)
-    - hermes-engine
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-Core-prebuilt
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-jsi
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-renderercss
-    - React-rendererdebug
-    - React-utils
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - ReactNativeDependencies
-    - Yoga
-  - expo-dev-menu-interface (55.0.1)
-  - expo-dev-menu/Main (55.0.12):
-    - EXManifests
-    - expo-dev-menu-interface
-    - ExpoModulesCore
-    - hermes-engine
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-Core-prebuilt
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-jsi
-    - React-jsinspector
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-rendererconsistency
-    - React-renderercss
-    - React-rendererdebug
-    - React-utils
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - ReactNativeDependencies
-    - Yoga
   - ExpoAdapterGoogleSignIn (16.1.2):
     - ExpoModulesCore
     - GoogleSignIn (~> 9.0)
@@ -1395,7 +1246,7 @@ PODS:
     - ExpoModulesCore
   - ExpoAsset (55.0.8):
     - ExpoModulesCore
-  - ExpoBlur (55.0.8):
+  - ExpoBlur (55.0.9):
     - ExpoModulesCore
   - ExpoClipboard (55.0.8):
     - ExpoModulesCore
@@ -1413,10 +1264,10 @@ PODS:
     - ExpoModulesCore
   - ExpoHaptics (55.0.8):
     - ExpoModulesCore
-  - ExpoImageManipulator (55.0.9):
+  - ExpoImageManipulator (55.0.10):
     - ExpoModulesCore
     - SDWebImageWebPCoder
-  - ExpoImagePicker (55.0.11):
+  - ExpoImagePicker (55.0.12):
     - ExpoModulesCore
   - ExpoKeepAwake (55.0.4):
     - ExpoModulesCore
@@ -1468,7 +1319,7 @@ PODS:
   - ExpoWebBrowser (55.0.9):
     - ExpoModulesCore
   - EXStructuredHeaders (55.0.0)
-  - EXUpdates (55.0.12):
+  - EXUpdates (55.0.13):
     - EASClient
     - EXManifests
     - ExpoModulesCore
@@ -4162,10 +4013,6 @@ DEPENDENCIES:
   - EXJSONUtils (from `../node_modules/expo-json-utils/ios`)
   - EXManifests (from `../node_modules/expo-manifests/ios`)
   - Expo (from `../node_modules/expo`)
-  - expo-dev-client (from `../node_modules/expo-dev-client/ios`)
-  - expo-dev-launcher (from `../node_modules/expo-dev-launcher`)
-  - expo-dev-menu (from `../node_modules/expo-dev-menu`)
-  - expo-dev-menu-interface (from `../node_modules/expo-dev-menu-interface/ios`)
   - "ExpoAdapterGoogleSignIn (from `../node_modules/@react-native-google-signin/google-signin/expo/ios`)"
   - ExpoAppleAuthentication (from `../node_modules/expo-apple-authentication/ios`)
   - ExpoAsset (from `../node_modules/expo-asset/ios`)
@@ -4340,14 +4187,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-manifests/ios"
   Expo:
     :path: "../node_modules/expo"
-  expo-dev-client:
-    :path: "../node_modules/expo-dev-client/ios"
-  expo-dev-launcher:
-    :path: "../node_modules/expo-dev-launcher"
-  expo-dev-menu:
-    :path: "../node_modules/expo-dev-menu"
-  expo-dev-menu-interface:
-    :path: "../node_modules/expo-dev-menu-interface/ios"
   ExpoAdapterGoogleSignIn:
     :path: "../node_modules/@react-native-google-signin/google-signin/expo/ios"
   ExpoAppleAuthentication:
@@ -4594,19 +4433,15 @@ SPEC CHECKSUMS:
   AppCheckCore: cc8fd0a3a230ddd401f326489c99990b013f0c4f
   BoringSSL-GRPC: dded2a44897e45f28f08ae87a55ee4bcd19bc508
   EASClient: a4b8ae18e8de52019ec94d14795faac4800905f0
-  EXApplication: 516af7c59786689fb652d45979494655fcf46534
+  EXApplication: 838dd0a6dc467b7a4267cdf5c997d9ee91a562a7
   EXConstants: a16ad8db13865e97aaecf64bb92e8ad8e8ce1ae8
   EXJSONUtils: 0080c14b673cfa9a6be5e3fe429768ffe3d42dfb
   EXManifests: 22ec6b0abf4e9b54ea22624aa955cf68d6c90590
   Expo: 6a707e5b6bf8b5e5a5404149a4bf1619a4254b2e
-  expo-dev-client: 183a437e0b776b598690c9a56e0b4040270c6241
-  expo-dev-launcher: d17c129b358ddbef09c2405567537400bab5fe32
-  expo-dev-menu: 9833fbb01078428b305b33d3f6da3b3ab174ee91
-  expo-dev-menu-interface: bf6f816d29b45bec038080790963c635e8d588c2
   ExpoAdapterGoogleSignIn: 3332ac2d96d803350f53f84047244b35e2efc994
   ExpoAppleAuthentication: b1ca252ee1d79888720df7af6bbb559b3ca57a77
   ExpoAsset: 4fc5f72f8a74135c522fa61df0bfb869e5b3c3e6
-  ExpoBlur: 7a5722ca5c8d9e8a2fe2d3be7cb61071b585ca11
+  ExpoBlur: 3982ec03e89c0d9a2f2b8f35b48fe12e3155c6ed
   ExpoClipboard: ea1c19f29543c3f84abcbc500c6f1a62d954fd5c
   ExpoCrypto: 5aec33091f8b9cd1d0b2ef6824de03097b022f0a
   ExpoDevice: a39e12fa0c62816a81d3c1c2c8d7da0cc951069c
@@ -4615,8 +4450,8 @@ SPEC CHECKSUMS:
   ExpoFileSystem: 0d267067930a744555ff6ab842fd79d3eeb2c33b
   ExpoFont: 4d2a6dedce012c4793532cb38d561d3da95eaafd
   ExpoHaptics: 8bce973169ae09427d0a10886d222601ada8c128
-  ExpoImageManipulator: 7ad35088d14852801fda5b37f8455c5e4008c338
-  ExpoImagePicker: aeef346668021fce61e3434956e901aaa508f882
+  ExpoImageManipulator: ce17241a51e0941e1bda6ebf933ce27569f30fca
+  ExpoImagePicker: 9005f90c3a2959b77655093488ab56650f69f93a
   ExpoKeepAwake: 55711a70fe88a41e793bbe28543c93cb47ff265d
   ExpoLinearGradient: 311546b2af6dadb591035cbe41b59884ea492377
   ExpoLinking: 31827b9e0d27d058026a87a0e852f238c5834804
@@ -4629,7 +4464,7 @@ SPEC CHECKSUMS:
   ExpoSharing: 63e3943919557deeef9bf4df6f1e4277b838960f
   ExpoWebBrowser: 19c5d250e0c101027677970a5f2fc635d9df2e73
   EXStructuredHeaders: aa49a5557fa24aa61dda4ac665f3987bf3e9e35d
-  EXUpdates: 5f8438c9e3b68201409689e327fb3a3bf499b21d
+  EXUpdates: cff456af58056bf254ed4e2bc46a8da53ab8a28b
   EXUpdatesInterface: 26412751a0f7a7130614655929e316f684552aab
   FBLazyVector: 32e9ed0301d0fcbc1b2b341dd7fcbf291f51eb83
   Firebase: 9a58fdbc9d8655ed7b79a19cf9690bb007d3d46d

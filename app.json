@@ -73,7 +73,6 @@
           }
         }
       ],
-      "expo-dev-client",
       "@react-native-firebase/crashlytics",
       "./plugins/withPlayStoreIAP",
       "./plugins/withFirebaseClang"
