@@ -4,6 +4,7 @@ ios/
 __tests__/
 test-utils/
 docs/
-scripts/
+scripts/*
+!scripts/eas-prebuild.sh
 *.test.ts
 *.test.tsx
