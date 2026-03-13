@@ -1,22 +1,32 @@
 jest.mock('expo-file-system/legacy', () => ({
   cacheDirectory: '/cache/',
+  documentDirectory: '/documents/',
   getInfoAsync: jest.fn(),
   makeDirectoryAsync: jest.fn(),
   writeAsStringAsync: jest.fn(),
   readAsStringAsync: jest.fn(),
+  copyAsync: jest.fn(),
+  downloadAsync: jest.fn(),
   EncodingType: { Base64: 'base64' },
 }));
 
 import * as FileSystem from 'expo-file-system/legacy';
-import { saveBase64Image, loadBase64FromFileUri } from '@/services/images/fileCache';
+import {
+  loadBase64FromFileUri,
+  persistImageUri,
+  saveBase64Image,
+} from '@/services/images/fileCache';
 
 const mockGetInfoAsync = FileSystem.getInfoAsync as jest.Mock;
 const mockMakeDirectoryAsync = FileSystem.makeDirectoryAsync as jest.Mock;
 const mockWriteAsStringAsync = FileSystem.writeAsStringAsync as jest.Mock;
 const mockReadAsStringAsync = FileSystem.readAsStringAsync as jest.Mock;
+const mockCopyAsync = FileSystem.copyAsync as jest.Mock;
+const mockDownloadAsync = FileSystem.downloadAsync as jest.Mock;
 
 describe('fileCache.saveBase64Image', () => {
   beforeEach(() => {
+    jest.clearAllMocks();
     jest.spyOn(Date, 'now').mockReturnValue(1700000000000);
     jest.spyOn(Math, 'random').mockReturnValue(0.123456789);
     mockGetInfoAsync.mockResolvedValue({ exists: true });
@@ -29,18 +39,15 @@ describe('fileCache.saveBase64Image', () => {
   });
 
   it('creates directory when missing and returns png path by default', async () => {
-    mockGetInfoAsync.mockResolvedValueOnce({ exists: false });
-
     const path = await saveBase64Image('YmFzZTY0', 'image/png');
 
-    expect(mockGetInfoAsync).toHaveBeenCalledWith('/cache/images/');
-    expect(mockMakeDirectoryAsync).toHaveBeenCalledWith('/cache/images/', { intermediates: true });
+    expect(mockMakeDirectoryAsync).toHaveBeenCalledWith('/documents/images/', { intermediates: true });
     expect(mockWriteAsStringAsync).toHaveBeenCalledWith(
-      '/cache/images/1700000000000_4fzzzxjylrx.png',
+      '/documents/images/image_1700000000000_4fzzzxjylrx.png',
       'YmFzZTY0',
       { encoding: FileSystem.EncodingType.Base64 }
     );
-    expect(path).toBe('/cache/images/1700000000000_4fzzzxjylrx.png');
+    expect(path).toBe('/documents/images/image_1700000000000_4fzzzxjylrx.png');
   });
 
   it('uses jpg extension when mime suggests jpeg', async () => {
@@ -54,20 +61,93 @@ describe('fileCache.saveBase64Image', () => {
   });
 
   it('ignores directory errors but still writes file', async () => {
-    mockGetInfoAsync.mockRejectedValueOnce(new Error('fs error'));
+    mockMakeDirectoryAsync.mockRejectedValueOnce(new Error('fs error'));
 
     const path = await saveBase64Image('YmFzZTY0', 'image/png');
 
     expect(mockWriteAsStringAsync).toHaveBeenCalled();
-    expect(path).toContain('/cache/images/');
+    expect(path).toContain('/documents/images/');
+  });
+
+  it('supports cache storage for temporary files', async () => {
+    const path = await saveBase64Image('YmFzZTY0', 'image/png', { location: 'cache', prefix: 'tmp' });
+    expect(path).toContain('/cache/images/tmp_');
+  });
+});
+
+describe('fileCache.persistImageUri', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(Date, 'now').mockReturnValue(1700000000000);
+    jest.spyOn(Math, 'random').mockReturnValue(0.123456789);
+    mockGetInfoAsync.mockResolvedValue({ exists: true });
+    mockMakeDirectoryAsync.mockResolvedValue(undefined);
+    mockWriteAsStringAsync.mockResolvedValue(undefined);
+    mockCopyAsync.mockResolvedValue(undefined);
+    mockDownloadAsync.mockResolvedValue({ uri: '/documents/images/image_1700000000000_4fzzzxjylrx.png' });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('downloads remote images into durable storage', async () => {
+    const result = await persistImageUri('https://example.com/test.png');
+
+    expect(mockDownloadAsync).toHaveBeenCalledWith(
+      'https://example.com/test.png',
+      '/documents/images/image_1700000000000_4fzzzxjylrx.png'
+    );
+    expect(result).toBe('/documents/images/image_1700000000000_4fzzzxjylrx.png');
+  });
+
+  it('copies local cache files into document storage', async () => {
+    const result = await persistImageUri('/cache/images/test.png');
+
+    expect(mockCopyAsync).toHaveBeenCalledWith({
+      from: '/cache/images/test.png',
+      to: '/documents/images/image_1700000000000_4fzzzxjylrx.png',
+    });
+    expect(result).toBe('/documents/images/image_1700000000000_4fzzzxjylrx.png');
+  });
+
+  it('returns existing document URIs unchanged', async () => {
+    const result = await persistImageUri('/documents/images/existing.png');
+    expect(mockCopyAsync).not.toHaveBeenCalled();
+    expect(result).toBe('/documents/images/existing.png');
+  });
+
+  it('persists data URIs into document storage', async () => {
+    const result = await persistImageUri('data:image/png;base64,YWJjZA==');
+
+    expect(mockWriteAsStringAsync).toHaveBeenCalledWith(
+      '/documents/images/image_1700000000000_4fzzzxjylrx.png',
+      'YWJjZA==',
+      { encoding: FileSystem.EncodingType.Base64 }
+    );
+    expect(result).toBe('/documents/images/image_1700000000000_4fzzzxjylrx.png');
+  });
+
+  it('returns null when the local file no longer exists', async () => {
+    mockGetInfoAsync.mockResolvedValueOnce({ exists: false });
+    const result = await persistImageUri('/cache/images/missing.png');
+    expect(result).toBeNull();
   });
 });
 
 describe('fileCache.loadBase64FromFileUri', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(Date, 'now').mockReturnValue(1700000000000);
+    jest.spyOn(Math, 'random').mockReturnValue(0.123456789);
     mockGetInfoAsync.mockResolvedValue({ exists: true });
+    mockMakeDirectoryAsync.mockResolvedValue(undefined);
+    mockDownloadAsync.mockResolvedValue({ uri: '/documents/images/refine-source_1700000000000_4fzzzxjylrx.png' });
     mockReadAsStringAsync.mockResolvedValue('aGVsbG8gd29ybGQ=');
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('extracts base64 from data URI directly', async () => {
@@ -100,6 +180,36 @@ describe('fileCache.loadBase64FromFileUri', () => {
       encoding: FileSystem.EncodingType.Base64,
     });
     expect(result).toBe('YmFzZTY0ZGF0YQ==');
+  });
+
+  it('downloads remote images before reading base64 for refinement', async () => {
+    mockGetInfoAsync.mockResolvedValueOnce({ exists: true });
+    mockReadAsStringAsync.mockResolvedValueOnce('cmVtb3RlLWJhc2U2NA==');
+
+    const result = await loadBase64FromFileUri('https://example.com/test.png');
+
+    expect(mockDownloadAsync).toHaveBeenCalledWith(
+      'https://example.com/test.png',
+      '/documents/images/refine-source_1700000000000_4fzzzxjylrx.png'
+    );
+    expect(mockReadAsStringAsync).toHaveBeenCalledWith(
+      '/documents/images/refine-source_1700000000000_4fzzzxjylrx.png',
+      { encoding: FileSystem.EncodingType.Base64 }
+    );
+    expect(result).toBe('cmVtb3RlLWJhc2U2NA==');
+  });
+
+  it('normalizes Optional-wrapped remote URIs before reading base64', async () => {
+    mockGetInfoAsync.mockResolvedValueOnce({ exists: true });
+    mockReadAsStringAsync.mockResolvedValueOnce('b3B0aW9uYWw=');
+
+    const result = await loadBase64FromFileUri('Optional("https://example.com/test.png")');
+
+    expect(mockDownloadAsync).toHaveBeenCalledWith(
+      'https://example.com/test.png',
+      '/documents/images/refine-source_1700000000000_4fzzzxjylrx.png'
+    );
+    expect(result).toBe('b3B0aW9uYWw=');
   });
 
   it('returns null when file does not exist', async () => {

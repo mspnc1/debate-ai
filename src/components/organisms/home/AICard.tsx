@@ -31,6 +31,7 @@ interface AICardProps {
   personalityId?: string;
   onPersonalityChange?: (personalityId: string) => void;
   onModelChange?: (modelId: string) => void;
+  modelSelector?: React.ReactNode;
   /** Optional badge to display on the card (e.g., "img2img") */
   badge?: AICardBadge;
 }
@@ -45,6 +46,7 @@ export const AICard: React.FC<AICardProps> = ({
   personalityId = 'default',
   onPersonalityChange,
   onModelChange,
+  modelSelector,
   badge,
 }) => {
   const { theme } = useTheme();
@@ -142,15 +144,17 @@ export const AICard: React.FC<AICardProps> = ({
                   </Box>
                 )}
                 
-                {onModelChange && (
-                  <ModelSelectorEnhanced
-                    providerId={ai.provider}
-                    selectedModel={ai.model || ''}
-                    onSelectModel={onModelChange}
-                    compactMode={true}
-                    aiName={ai.name}
-                    showPricing={true}
-                  />
+                {modelSelector !== undefined ? modelSelector : (
+                  onModelChange ? (
+                    <ModelSelectorEnhanced
+                      providerId={ai.provider}
+                      selectedModel={ai.model || ''}
+                      onSelectModel={onModelChange}
+                      compactMode={true}
+                      aiName={ai.name}
+                      showPricing={true}
+                    />
+                  ) : null
                 )}
               </Box>
             )}

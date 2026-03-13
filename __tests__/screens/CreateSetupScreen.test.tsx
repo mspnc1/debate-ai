@@ -101,6 +101,8 @@ jest.mock('@/components/molecules', () => {
   return {
     Typography: ({ children, testID }: { children: React.ReactNode; testID?: string }) =>
       React.createElement(Text, { testID }, children),
+    Badge: ({ label }: { label: string }) =>
+      React.createElement(Text, { testID: `badge-${label}` }, label),
     GradientButton: (props: any) => {
       mockGradientButtonProps = props;
       return React.createElement(
@@ -155,6 +157,23 @@ jest.mock('@/config/create/sizeOptions', () => ({
 }));
 
 jest.mock('@/config/imageGenerationModels', () => ({
+  getImageInputModels: (provider: string) => {
+    const modelsByProvider: Record<string, Array<{ id: string }>> = {
+      openai: [{ id: 'gpt-image-1.5' }, { id: 'gpt-image-1-mini' }],
+      google: [{ id: 'gemini-2.5-flash-image' }, { id: 'gemini-3-pro-image-preview' }],
+      grok: [{ id: 'grok-imagine-image' }],
+    };
+    return modelsByProvider[provider] || [];
+  },
+  resolveImageModelId: (provider: string, modelId?: string) => {
+    if (modelId) return modelId;
+    const defaults: Record<string, string> = {
+      openai: 'gpt-image-1.5',
+      google: 'gemini-2.5-flash-image',
+      grok: 'grok-imagine-image',
+    };
+    return defaults[provider];
+  },
   supportsImageGeneration: (provider: string) => ['openai', 'google', 'grok'].includes(provider),
   supportsImageInput: (provider: string) => ['openai', 'google'].includes(provider),
   getImageProviderDisplayName: (provider: string) => {
@@ -261,6 +280,13 @@ describe('CreateSetupScreen', () => {
       renderWithProviders(<CreateSetupScreen />);
       expect(mockDynamicAISelectorProps).toBeDefined();
       expect(mockDynamicAISelectorProps.maxAIs).toBe(3);
+      expect(mockDynamicAISelectorProps.getBadge).toBeUndefined();
+    });
+
+    it('keeps the image refinement explainer text visible', () => {
+      const { getByText, getByTestId } = renderWithProviders(<CreateSetupScreen />);
+      expect(getByTestId('badge-img2img')).toBeTruthy();
+      expect(getByText('Supports image refinement')).toBeTruthy();
     });
   });
 
@@ -375,6 +401,10 @@ describe('CreateSetupScreen', () => {
 
       expect(mockNavigate).toHaveBeenCalledWith('CreateSession', {
         providers: ['openai', 'google'],
+        selectedModels: {
+          openai: 'gpt-image-1.5',
+          google: 'gemini-2.5-flash-image',
+        },
         initialPrompt: 'A beautiful sunset',
       });
     });

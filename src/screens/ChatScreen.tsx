@@ -11,8 +11,7 @@ import { RootState, addMessage, updateMessage, setWebSearchPreferred } from '../
 import { ImageService } from '../services/images/ImageService';
 import { useMergedModalityAvailability } from '../hooks/multimodal/useModalityAvailability';
 import { ImageRefinementModal, RefinementProvider } from '../components/organisms/chat/ImageRefinementModal';
-import { getProviderCapabilities } from '../config/providerCapabilities';
-import { getImageProviderDisplayName } from '../config/imageGenerationModels';
+import { getImageInputModels, getImageProviderDisplayName } from '../config/imageGenerationModels';
 import { loadBase64FromFileUri } from '../services/images/fileCache';
 // import APIKeyService from '../services/APIKeyService';
 // import VideoService from '../services/videos/VideoService';
@@ -162,12 +161,11 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   const refinementProviders = React.useMemo((): RefinementProvider[] => {
     const allProviders: AIProvider[] = ['openai', 'google', 'grok', 'claude'];
     return allProviders.map(provider => {
-      const caps = getProviderCapabilities(provider);
       const hasApiKey = Boolean(apiKeys[provider as keyof typeof apiKeys]);
       return {
         provider,
-        name: getImageProviderDisplayName(provider, { includeModel: true }),
-        supportsImg2Img: caps.imageGeneration?.supportsImageInput || false,
+        name: getImageProviderDisplayName(provider),
+        supportsImg2Img: getImageInputModels(provider).length > 0,
         hasApiKey,
       };
     });
@@ -188,7 +186,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   }, []);
 
   // Handler for executing refinement
-  const handleRefineImage = React.useCallback(async (opts: { instructions: string; provider: AIProvider }) => {
+  const handleRefineImage = React.useCallback(async (opts: { instructions: string; provider: AIProvider; modelId: string }) => {
     if (isDemo) {
       ErrorService.showInfo('Image refinement requires a subscription. Start a free trial to unlock this feature.', 'chat');
       return;
@@ -201,7 +199,10 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
       return;
     }
 
-    const providerName = getImageProviderDisplayName(opts.provider);
+    const providerName = getImageProviderDisplayName(opts.provider, {
+      includeModel: true,
+      modelId: opts.modelId,
+    });
     const messageId = `msg_${Date.now()}_refine`;
 
     dispatch(addMessage({
@@ -212,7 +213,14 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
       timestamp: Date.now(),
       metadata: {
         providerMetadata: { imageGenerating: true, imagePhase: 'rendering', imageStartTime: Date.now() },
-        generatedImage: { url: '', prompt: opts.instructions, providerId: opts.provider, model: '', isRefinement: true, refinementOf: refinementMessageId },
+        generatedImage: {
+          url: '',
+          prompt: opts.instructions,
+          providerId: opts.provider,
+          model: opts.modelId,
+          isRefinement: true,
+          refinementOf: refinementMessageId,
+        },
       },
     }));
 
@@ -231,6 +239,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
 
       const images = await ImageService.generateImage({
         provider: opts.provider,
+        model: opts.modelId,
         apiKey,
         prompt: refinementPrompt,
         n: 1,
@@ -252,7 +261,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
               url: uri,
               prompt: opts.instructions,
               providerId: opts.provider,
-              model: '',
+              model: opts.modelId,
               isRefinement: true,
               refinementOf: refinementMessageId,
             },

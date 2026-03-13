@@ -4,6 +4,24 @@
 
 import { SizeOption } from '../../store/createSlice';
 import { AIProvider } from '../../types';
+import {
+  getResolvedImageModel,
+  resolveImageModelId,
+} from '../imageGenerationModels';
+
+function mapToAspectRatio(size: SizeOption): string {
+  switch (size) {
+    case 'square':
+    case 'auto':
+      return '1:1';
+    case 'portrait':
+      return '9:16';
+    case 'landscape':
+      return '16:9';
+    default:
+      return '1:1';
+  }
+}
 
 export interface SizeOptionConfig {
   id: SizeOption;
@@ -52,39 +70,40 @@ export const SIZE_OPTIONS: SizeOptionConfig[] = [
 /**
  * Map UI size option to provider-specific size parameter
  */
-export function mapSizeToProvider(size: SizeOption, provider: AIProvider): string {
+export function mapSizeToProvider(
+  size: SizeOption,
+  provider: AIProvider,
+  modelId?: string
+): string {
+  const resolvedModel = getResolvedImageModel(provider, modelId);
+
   switch (provider) {
-    case 'openai':
+    case 'openai': {
+      const resolvedModelId = resolvedModel?.id || resolveImageModelId(provider, modelId);
       // OpenAI supports specific pixel dimensions
       switch (size) {
         case 'square':
         case 'auto':
           return '1024x1024';
         case 'portrait':
-          return '1024x1536';
+          return resolvedModelId === 'dall-e-3' ? '1024x1792' : '1024x1536';
         case 'landscape':
-          return '1536x1024';
+          return resolvedModelId === 'dall-e-3' ? '1792x1024' : '1536x1024';
         default:
           return '1024x1024';
       }
+    }
 
     case 'google':
-      // Gemini uses aspect ratio strings
-      switch (size) {
-        case 'square':
-        case 'auto':
-          return '1:1';
-        case 'portrait':
-          return '9:16';
-        case 'landscape':
-          return '16:9';
-        default:
-          return '1:1';
-      }
-
     case 'grok':
-      // Grok doesn't support size parameter, return empty
-      return '';
+      if (
+        resolvedModel?.apiFamily === 'google-gemini-image' ||
+        resolvedModel?.apiFamily === 'google-imagen' ||
+        resolvedModel?.apiFamily === 'xai-images'
+      ) {
+        return mapToAspectRatio(size);
+      }
+      return mapToAspectRatio(size);
 
     default:
       return '1024x1024';

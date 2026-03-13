@@ -1,116 +1,183 @@
 import { AIProvider } from '../../types';
-import { saveBase64Image } from './fileCache';
+import {
+  getImageModelDisplayName,
+  getResolvedImageModel,
+  ImageModelConfig,
+} from '../../config/imageGenerationModels';
+import { persistImageUri, saveBase64Image } from './fileCache';
+
+const PIXEL_SIZE_TO_ASPECT_RATIO: Record<string, string> = {
+  auto: '1:1',
+  '1024x1024': '1:1',
+  '1024x1536': '9:16',
+  '1536x1024': '16:9',
+  '1024x1792': '9:16',
+  '1792x1024': '16:9',
+};
 
 export interface GenerateImageOptions {
   provider: AIProvider;
+  model?: string;
   apiKey: string;
   prompt: string;
-  // Canonical UI values are mapped upstream; this accepts provider-ready values for OpenAI
-  size?: 'auto' | '1024x1024' | '1024x1536' | '1536x1024';
-  n?: number; // number of images
+  size?: string;
+  resolution?: string;
+  n?: number;
   signal?: AbortSignal;
-  // Base64-encoded source image for img2img operations (round-robin)
   sourceImage?: string;
 }
 
 export interface GeneratedImage {
   url?: string;
-  b64?: string;  // Base64 data for img2img chaining
+  b64?: string;
   mimeType: string;
+}
+
+interface OpenAICompatibleImageResponse {
+  data?: Array<{
+    url?: string;
+    b64_json?: string;
+    mime_type?: string;
+  }>;
+}
+
+interface GoogleGeminiResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+        inlineData?: { data: string; mimeType: string };
+      }>;
+    };
+  }>;
+}
+
+interface GoogleImagenResponse {
+  generatedImages?: Array<{
+    image?: {
+      imageBytes?: string;
+      mimeType?: string;
+    };
+  }>;
+  predictions?: Array<{
+    bytesBase64Encoded?: string;
+    mimeType?: string;
+    image?: {
+      imageBytes?: string;
+      mimeType?: string;
+    };
+  }>;
+}
+
+function normalizeAspectRatio(size?: string): string | undefined {
+  if (!size) return undefined;
+  return PIXEL_SIZE_TO_ASPECT_RATIO[size] || size;
+}
+
+function toDataUri(sourceImage: string, mimeType = 'image/png'): string {
+  if (sourceImage.startsWith('data:')) {
+    return sourceImage;
+  }
+
+  const base64Data = sourceImage.includes(',') ? sourceImage.split(',')[1] : sourceImage;
+  return `data:${mimeType};base64,${base64Data}`;
+}
+
+function getPreferredResolution(model: ImageModelConfig, requestedResolution?: string): string | undefined {
+  if (!model.resolutions?.length) {
+    return undefined;
+  }
+
+  if (requestedResolution && model.resolutions.includes(requestedResolution)) {
+    return requestedResolution;
+  }
+
+  if (model.resolutions.includes('1K')) {
+    return '1K';
+  }
+
+  return model.resolutions[0];
 }
 
 export class ImageService {
   static async generateImage(opts: GenerateImageOptions): Promise<GeneratedImage[]> {
-    const { provider } = opts;
-    switch (provider) {
-      case 'openai':
-        return await this.generateOpenAI(opts);
-      case 'grok':
-        return await this.generateGrok(opts);
-      case 'google':
-        return await this.generateGoogle(opts);
+    const model = getResolvedImageModel(opts.provider, opts.model);
+    if (!model) {
+      throw new Error(`Image generation not implemented for provider: ${opts.provider}`);
+    }
+
+    if (opts.sourceImage && !model.supportsImageInput) {
+      throw new Error(`${getImageModelDisplayName(opts.provider, model.id)} does not support image refinement.`);
+    }
+
+    switch (model.apiFamily) {
+      case 'openai-images':
+        return this.generateOpenAI(model, opts);
+      case 'google-gemini-image':
+        return this.generateGoogleGemini(model, opts);
+      case 'google-imagen':
+        return this.generateGoogleImagen(model, opts);
+      case 'xai-images':
+        return this.generateXai(model, opts);
       default:
-        throw new Error(`Image generation not implemented for provider: ${provider}`);
+        throw new Error(`Image generation not implemented for model: ${model.id}`);
     }
   }
 
-  private static async generateOpenAI(opts: GenerateImageOptions): Promise<GeneratedImage[]> {
-    const { apiKey, prompt, size = '1024x1024', n = 1, signal, sourceImage } = opts;
-
-    // If sourceImage is provided, use the edits endpoint for img2img
-    if (sourceImage) {
-      return this.generateOpenAIEdit(opts);
+  private static async generateOpenAI(
+    model: ImageModelConfig,
+    opts: GenerateImageOptions
+  ): Promise<GeneratedImage[]> {
+    if (opts.sourceImage) {
+      return this.generateOpenAIEdit(model, opts);
     }
 
     const body: Record<string, unknown> = {
-      model: 'gpt-image-1',
-      prompt,
-      size,
+      model: model.id,
+      prompt: opts.prompt,
+      size: opts.size || '1024x1024',
     };
-    if (n && n > 1) {
-      body.n = n;
+
+    if (opts.n && opts.n > 1) {
+      body.n = opts.n;
     }
-    if (process.env.NODE_ENV === 'development') {
-      try { console.warn('[ImageService] OpenAI images body keys', Object.keys(body)); } catch (e) { void e; }
-    }
+
     const res = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        Authorization: `Bearer ${opts.apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
-      signal,
+      signal: opts.signal,
     });
+
     const text = await res.text();
     if (!res.ok) {
       throw new Error(`OpenAI Images error ${res.status}: ${text}`);
     }
-    const data = JSON.parse(text) as { data: Array<{ url?: string; b64_json?: string }>; };
-    if (process.env.NODE_ENV === 'development') {
-      try {
-        console.warn('[ImageService] images status', res.status, 'count', data?.data?.length);
-        if (data?.data && data.data[0]) {
-          const first = data.data[0] as { url?: string; b64_json?: string };
-          console.warn('[ImageService] first image url?', Boolean(first.url), 'b64?', Boolean(first.b64_json));
-        }
-      } catch (e) { void e; }
-    }
-    const results: GeneratedImage[] = [];
-    for (const item of (data.data || [])) {
-      if (item.b64_json) {
-        // Always save and include b64 for potential img2img chaining
-        const fileUri = await saveBase64Image(item.b64_json, 'image/png');
-        results.push({ url: fileUri, b64: item.b64_json, mimeType: 'image/png' });
-      } else if (item.url) {
-        results.push({ url: item.url, mimeType: 'image/png' });
-      }
-    }
-    return results;
+
+    return this.parseOpenAICompatibleImages(JSON.parse(text) as OpenAICompatibleImageResponse);
   }
 
-  /**
-   * OpenAI image editing using /v1/images/edits endpoint
-   * This endpoint supports gpt-image-1 for img2img transformations
-   */
-  private static async generateOpenAIEdit(opts: GenerateImageOptions): Promise<GeneratedImage[]> {
-    const { apiKey, prompt, n = 1, signal, sourceImage } = opts;
-
-    if (!sourceImage) {
+  private static async generateOpenAIEdit(
+    model: ImageModelConfig,
+    opts: GenerateImageOptions
+  ): Promise<GeneratedImage[]> {
+    if (!opts.sourceImage) {
       throw new Error('sourceImage is required for img2img');
     }
 
-    // Save base64 to a file, then use file URI in FormData (React Native approach)
-    const base64Data = sourceImage.includes(',') ? sourceImage.split(',')[1] : sourceImage;
-    const fileUri = await saveBase64Image(base64Data, 'image/png');
+    const base64Data = opts.sourceImage.includes(',') ? opts.sourceImage.split(',')[1] : opts.sourceImage;
+    const fileUri = await saveBase64Image(base64Data, 'image/png', {
+      location: 'cache',
+      prefix: 'edit-source',
+    });
 
-    console.warn('[ImageService] OpenAI img2img via /v1/images/edits, file:', fileUri);
-
-    // React Native FormData accepts file URIs with this object format
     const formData = new FormData();
-    formData.append('model', 'gpt-image-1');
-    formData.append('prompt', prompt);
-    formData.append('n', String(n));
+    formData.append('model', model.id);
+    formData.append('prompt', opts.prompt);
+    formData.append('n', String(opts.n || 1));
     formData.append('image', {
       uri: fileUri,
       type: 'image/png',
@@ -120,150 +187,143 @@ export class ImageService {
     const res = await fetch('https://api.openai.com/v1/images/edits', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        Authorization: `Bearer ${opts.apiKey}`,
       },
       body: formData,
-      signal,
+      signal: opts.signal,
     });
 
     const text = await res.text();
-    console.warn('[ImageService] OpenAI img2img response status:', res.status);
-
     if (!res.ok) {
-      console.error('[ImageService] OpenAI img2img error:', text);
       throw new Error(`OpenAI Images Edit error ${res.status}: ${text}`);
     }
 
-    const data = JSON.parse(text) as { data: Array<{ url?: string; b64_json?: string; revised_prompt?: string }>; };
-    console.warn('[ImageService] OpenAI img2img result count:', data.data?.length);
-
-    const results: GeneratedImage[] = [];
-    for (const item of (data.data || [])) {
-      if (item.b64_json) {
-        const resultFileUri = await saveBase64Image(item.b64_json, 'image/png');
-        results.push({ url: resultFileUri, b64: item.b64_json, mimeType: 'image/png' });
-      } else if (item.url) {
-        results.push({ url: item.url, mimeType: 'image/png' });
-      }
-    }
-    return results;
+    return this.parseOpenAICompatibleImages(JSON.parse(text) as OpenAICompatibleImageResponse);
   }
 
-  /**
-   * Generate images using Grok (xAI) - OpenAI-compatible API
-   * Note: Grok's API does not support size, quality, or style parameters
-   */
-  private static async generateGrok(opts: GenerateImageOptions): Promise<GeneratedImage[]> {
-    const { apiKey, prompt, n = 1, signal } = opts;
+  private static async generateXai(
+    model: ImageModelConfig,
+    opts: GenerateImageOptions
+  ): Promise<GeneratedImage[]> {
+    if (opts.sourceImage) {
+      return this.generateXaiEdit(model, opts);
+    }
+
     const body: Record<string, unknown> = {
-      model: 'grok-imagine-image',
-      prompt,
+      model: model.id,
+      prompt: opts.prompt,
     };
-    if (n && n > 1) {
-      body.n = n;
+
+    const aspectRatio = normalizeAspectRatio(opts.size);
+    if (aspectRatio) {
+      body.aspect_ratio = aspectRatio;
     }
-    if (process.env.NODE_ENV === 'development') {
-      try { console.warn('[ImageService] Grok images body keys', Object.keys(body)); } catch (e) { void e; }
+    if (opts.n && opts.n > 1) {
+      body.n = opts.n;
     }
+
     const res = await fetch('https://api.x.ai/v1/images/generations', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        Authorization: `Bearer ${opts.apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
-      signal,
+      signal: opts.signal,
     });
+
     const text = await res.text();
     if (!res.ok) {
       throw new Error(`Grok Images error ${res.status}: ${text}`);
     }
-    const data = JSON.parse(text) as { data: Array<{ url?: string; b64_json?: string }>; };
-    if (process.env.NODE_ENV === 'development') {
-      try {
-        console.warn('[ImageService] Grok images status', res.status, 'count', data?.data?.length);
-      } catch (e) { void e; }
-    }
-    const results: GeneratedImage[] = [];
-    for (const item of (data.data || [])) {
-      if (item.url) {
-        results.push({ url: item.url, mimeType: 'image/png' });
-      } else if (item.b64_json) {
-        const fileUri = await saveBase64Image(item.b64_json, 'image/png');
-        results.push({ url: fileUri, mimeType: 'image/png' });
-      }
-    }
-    return results;
+
+    return this.parseOpenAICompatibleImages(JSON.parse(text) as OpenAICompatibleImageResponse);
   }
 
-  /**
-   * Generate images using Google Gemini
-   * Uses gemini-2.5-flash-image model with aspect_ratio support
-   * Supports img2img when sourceImage is provided
-   */
-  private static async generateGoogle(opts: GenerateImageOptions): Promise<GeneratedImage[]> {
-    const { apiKey, prompt, size, signal, sourceImage } = opts;
-    const model = 'gemini-2.5-flash-image';
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  private static async generateXaiEdit(
+    model: ImageModelConfig,
+    opts: GenerateImageOptions
+  ): Promise<GeneratedImage[]> {
+    if (!opts.sourceImage) {
+      throw new Error('sourceImage is required for img2img');
+    }
 
-    console.warn('[ImageService] Google request - model:', model, 'img2img:', Boolean(sourceImage), 'sourceImage length:', sourceImage?.length || 0);
-
-    // Map size to aspect_ratio for Gemini
-    const aspectRatioMap: Record<string, string> = {
-      '1024x1024': '1:1',
-      '1024x1536': '9:16',
-      '1536x1024': '16:9',
-      'auto': '1:1',
+    const body: Record<string, unknown> = {
+      model: model.id,
+      prompt: opts.prompt,
+      image: {
+        url: toDataUri(opts.sourceImage),
+      },
     };
-    const aspectRatio = size ? aspectRatioMap[size] || '1:1' : '1:1';
 
-    // Build content parts - include source image for img2img
+    if (opts.n && opts.n > 1) {
+      body.n = opts.n;
+    }
+
+    const res = await fetch('https://api.x.ai/v1/images/edits', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${opts.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: opts.signal,
+    });
+
+    const text = await res.text();
+    if (!res.ok) {
+      throw new Error(`Grok Images Edit error ${res.status}: ${text}`);
+    }
+
+    return this.parseOpenAICompatibleImages(JSON.parse(text) as OpenAICompatibleImageResponse);
+  }
+
+  private static async generateGoogleGemini(
+    model: ImageModelConfig,
+    opts: GenerateImageOptions
+  ): Promise<GeneratedImage[]> {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${opts.apiKey}`;
+    const aspectRatio = normalizeAspectRatio(opts.size) || '1:1';
+
     const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [];
 
-    if (sourceImage) {
-      // Add source image for img2img
-      const base64Data = sourceImage.includes(',') ? sourceImage.split(',')[1] : sourceImage;
+    if (opts.sourceImage) {
+      const base64Data = opts.sourceImage.includes(',') ? opts.sourceImage.split(',')[1] : opts.sourceImage;
       parts.push({
         inlineData: {
           mimeType: 'image/png',
           data: base64Data,
         },
       });
-      // Explicit instruction to GENERATE a new improved image, not just describe or copy
       parts.push({
-        text: `GENERATE A NEW IMAGE: Take the provided image and create an improved, enhanced version of it. Do NOT just describe or copy the image - you must generate a new, better version.
-
-${prompt}
-
-Requirements:
-- Generate a completely new image file
-- Improve visual quality, details, and artistic refinement
-- Maintain the core subject matter and composition
-- Make noticeable improvements that distinguish it from the original`,
+        text: `GENERATE A NEW IMAGE: Take the provided image and create an improved, enhanced version of it. Do NOT just describe or copy the image - you must generate a new image.\n\n${opts.prompt}`,
       });
     } else {
-      parts.push({ text: prompt });
+      parts.push({ text: opts.prompt });
+    }
+
+    const imageConfig: Record<string, string> = {
+      aspectRatio,
+    };
+
+    const preferredResolution = getPreferredResolution(model, opts.resolution);
+    if (preferredResolution) {
+      imageConfig.imageSize = preferredResolution;
     }
 
     const body = {
       contents: [{ parts }],
       generationConfig: {
         responseModalities: ['IMAGE', 'TEXT'],
-        imageConfig: {
-          aspectRatio: aspectRatio,
-        },
+        imageConfig,
       },
     };
-
-    if (process.env.NODE_ENV === 'development') {
-      try { console.warn('[ImageService] Google images model', model, 'img2img:', Boolean(sourceImage)); } catch (e) { void e; }
-    }
 
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal,
+      signal: opts.signal,
     });
 
     const text = await res.text();
@@ -271,53 +331,133 @@ Requirements:
       throw new Error(`Google Images error ${res.status}: ${text}`);
     }
 
-    const data = JSON.parse(text) as {
-      candidates?: Array<{
-        content?: {
-          parts?: Array<{
-            text?: string;
-            inlineData?: { data: string; mimeType: string };
-          }>;
-        };
-      }>;
+    const data = JSON.parse(text) as GoogleGeminiResponse;
+    return this.parseGoogleGeminiImages(data);
+  }
+
+  private static async generateGoogleImagen(
+    model: ImageModelConfig,
+    opts: GenerateImageOptions
+  ): Promise<GeneratedImage[]> {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model.id}:predict?key=${opts.apiKey}`;
+    const aspectRatio = normalizeAspectRatio(opts.size) || '1:1';
+
+    const parameters: Record<string, unknown> = {
+      sampleCount: Math.max(1, Math.min(opts.n || 1, 4)),
+      aspectRatio,
     };
 
-    console.warn('[ImageService] Google response status:', res.status, 'candidates:', data?.candidates?.length);
-
-    // Debug: log parts info
-    if (data?.candidates?.[0]?.content?.parts) {
-      const partsInfo = data.candidates[0].content.parts.map((p: { text?: string; inlineData?: { data: string; mimeType: string } }) => ({
-        hasText: Boolean(p.text),
-        hasInlineData: Boolean(p.inlineData?.data),
-        dataLength: p.inlineData?.data?.length || 0,
-      }));
-      console.warn('[ImageService] Google response parts:', JSON.stringify(partsInfo));
+    const preferredResolution = getPreferredResolution(model, opts.resolution);
+    if (preferredResolution && model.id !== 'imagen-4.0-fast-generate-001') {
+      parameters.imageSize = preferredResolution;
     }
 
+    const body = {
+      instances: [{ prompt: opts.prompt }],
+      parameters,
+    };
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: opts.signal,
+    });
+
+    const text = await res.text();
+    if (!res.ok) {
+      throw new Error(`Google Images error ${res.status}: ${text}`);
+    }
+
+    const data = JSON.parse(text) as GoogleImagenResponse;
+    return this.parseGoogleImagenImages(data);
+  }
+
+  private static async parseOpenAICompatibleImages(
+    data: OpenAICompatibleImageResponse
+  ): Promise<GeneratedImage[]> {
     const results: GeneratedImage[] = [];
-    for (const candidate of (data.candidates || [])) {
-      for (const part of (candidate.content?.parts || [])) {
-        if (part.inlineData?.data) {
-          console.warn('[ImageService] Google found image, b64 length:', part.inlineData.data.length);
-          const fileUri = await saveBase64Image(part.inlineData.data, part.inlineData.mimeType || 'image/png');
-          // Include b64 data for potential img2img chaining
-          results.push({
-            url: fileUri,
-            b64: part.inlineData.data,
-            mimeType: part.inlineData.mimeType || 'image/png',
-          });
-        }
+
+    for (const item of data.data || []) {
+      const mimeType = item.mime_type || 'image/png';
+
+      if (item.b64_json) {
+        const fileUri = await saveBase64Image(item.b64_json, mimeType);
+        results.push({ url: fileUri, b64: item.b64_json, mimeType });
+        continue;
+      }
+
+      if (item.url) {
+        const persistedUri = await persistImageUri(item.url, { mimeType, prefix: 'generated' });
+        results.push({ url: persistedUri || item.url, mimeType });
       }
     }
 
-    console.warn('[ImageService] Google result count:', results.length);
     return results;
   }
 
-  /**
-   * Generate images from multiple providers in parallel
-   * Used for Create mode comparison feature
-   */
+  private static async parseGoogleGeminiImages(
+    data: GoogleGeminiResponse
+  ): Promise<GeneratedImage[]> {
+    const results: GeneratedImage[] = [];
+
+    for (const candidate of data.candidates || []) {
+      for (const part of candidate.content?.parts || []) {
+        if (!part.inlineData?.data) {
+          continue;
+        }
+
+        const mimeType = part.inlineData.mimeType || 'image/png';
+        const fileUri = await saveBase64Image(part.inlineData.data, mimeType);
+        results.push({
+          url: fileUri,
+          b64: part.inlineData.data,
+          mimeType,
+        });
+      }
+    }
+
+    return results;
+  }
+
+  private static async parseGoogleImagenImages(
+    data: GoogleImagenResponse
+  ): Promise<GeneratedImage[]> {
+    const results: GeneratedImage[] = [];
+
+    for (const item of data.generatedImages || []) {
+      const base64 = item.image?.imageBytes;
+      if (!base64) {
+        continue;
+      }
+
+      const mimeType = item.image?.mimeType || 'image/png';
+      const fileUri = await saveBase64Image(base64, mimeType);
+      results.push({
+        url: fileUri,
+        b64: base64,
+        mimeType,
+      });
+    }
+
+    for (const item of data.predictions || []) {
+      const base64 = item.bytesBase64Encoded || item.image?.imageBytes;
+      if (!base64) {
+        continue;
+      }
+
+      const mimeType = item.mimeType || item.image?.mimeType || 'image/png';
+      const fileUri = await saveBase64Image(base64, mimeType);
+      results.push({
+        url: fileUri,
+        b64: base64,
+        mimeType,
+      });
+    }
+
+    return results;
+  }
+
   static async generateMultiple(
     providers: Array<{ provider: AIProvider; apiKey: string }>,
     opts: Omit<GenerateImageOptions, 'provider' | 'apiKey'>
