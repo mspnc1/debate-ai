@@ -27,6 +27,7 @@ describe('initializeFirebase', () => {
   const originalFetch = global.fetch;
   const consoleWarn = jest.spyOn(console, 'warn').mockImplementation(() => {});
   const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+  const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
 
   const loadInitialize = () => {
     let init: typeof import('@/services/firebase/config').initializeFirebase;
@@ -52,6 +53,7 @@ describe('initializeFirebase', () => {
     global.fetch = originalFetch;
     consoleWarn.mockRestore();
     consoleError.mockRestore();
+    consoleLog.mockRestore();
   });
 
   afterEach(() => {
@@ -63,7 +65,7 @@ describe('initializeFirebase', () => {
     await initializeFirebase();
     expect(mockConnectAuthEmulator).not.toHaveBeenCalled();
     expect(mockConnectFirestoreEmulator).not.toHaveBeenCalled();
-    expect(consoleWarn).toHaveBeenCalledWith('Firebase initialized successfully (Auth & Firestore only)');
+    expect(consoleLog).toHaveBeenCalledWith('Firebase initialized successfully (Auth & Firestore only)');
   });
 
   it('connects to emulators when available', async () => {
