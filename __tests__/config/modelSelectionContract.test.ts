@@ -1,5 +1,7 @@
 import {
   AI_MODELS,
+  getModelById,
+  getModelContextLabel,
   getProviderDefaultModel,
   getProviderModels,
   resolveProviderModelId,
@@ -33,6 +35,21 @@ describe('Model selection contract', () => {
     expect(resolveProviderModelId('claude', 'claude-3-7-sonnet-20250219')).toBe('claude-sonnet-4-6');
     expect(resolveProviderModelId('claude', 'gpt-5')).toBe('claude-sonnet-4-6');
     expect(resolveProviderModelId('openai', 'not-a-real-model')).toBe('gpt-5.4');
+  });
+
+  it('removes deprecated Gemini 2.0 Flash from the visible Google picker', () => {
+    expect(getProviderModels('google').map((model) => model.id)).not.toContain('gemini-2.0-flash');
+  });
+
+  it('formats audited context labels for provider picker display', () => {
+    expect(getModelContextLabel(getModelById('openai', 'gpt-5.4')!)).toBe('1.05M context');
+    expect(getModelContextLabel(getModelById('google', 'gemini-2.5-pro')!)).toBe('1M context');
+    expect(
+      getModelContextLabel(
+        getModelById('together', 'meta-llama/Llama-3.3-70B-Instruct-Turbo')!
+      )
+    ).toBe('128K context');
+    expect(getModelContextLabel(getModelById('perplexity', 'sonar-pro')!)).toBe('Context unpublished');
   });
 
   it('rejects image-generation models in text-mode resolution', () => {

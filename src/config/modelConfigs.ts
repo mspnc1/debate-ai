@@ -5,6 +5,7 @@ export interface ModelConfig {
   name: string;
   description: string;
   contextLength: number;
+  contextLabel?: string | null; // Optional UI label when the provider publishes a friendly label or no numeric window
   maxOutputTokens?: number; // Maximum output tokens the model supports
   isDefault?: boolean;
   supportsVision?: boolean;
@@ -134,7 +135,7 @@ export const AI_MODELS: ProviderModels = {
       id: "gpt-5.4",
       name: "GPT-5.4",
       description: "Latest GPT-5 family API model currently listed by OpenAI",
-      contextLength: 400000,
+      contextLength: 1050000,
       maxOutputTokens: 128000,
       isDefault: true,
       supportsVision: true,
@@ -367,13 +368,14 @@ export const AI_MODELS: ProviderModels = {
     {
       id: "gemini-2.0-flash",
       name: "Gemini 2.0 Flash",
-      description: "Fast multimodal model",
+      description: "Deprecated Gemini 2.0 model scheduled for shutdown by Google",
       contextLength: 1048576,
       maxOutputTokens: 8192,
       supportsVision: true,
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      isDeprecated: true,
     },
   ],
   perplexity: [
@@ -382,6 +384,7 @@ export const AI_MODELS: ProviderModels = {
       name: "Sonar Pro",
       description: "High-accuracy Perplexity search model with citations",
       contextLength: 200000,
+      contextLabel: "Context unpublished",
       maxOutputTokens: 8000,
       isDefault: true,
       supportsWebSearch: true,
@@ -391,6 +394,7 @@ export const AI_MODELS: ProviderModels = {
       name: "Sonar",
       description: "Fast search model with real-time web access and citations",
       contextLength: 128000,
+      contextLabel: "Context unpublished",
       maxOutputTokens: 8000,
       supportsWebSearch: true,
     },
@@ -399,6 +403,7 @@ export const AI_MODELS: ProviderModels = {
       name: "Sonar Reasoning Pro",
       description: "Advanced reasoning with web search and citations",
       contextLength: 128000,
+      contextLabel: "Context unpublished",
       maxOutputTokens: 8000,
       supportsWebSearch: true,
       supportsThinking: true,
@@ -409,7 +414,7 @@ export const AI_MODELS: ProviderModels = {
       id: "mistral-medium-latest",
       name: "Mistral Medium",
       description: "Balanced current Mistral model for general-purpose chat",
-      contextLength: 131072,
+      contextLength: 128000,
       isDefault: true,
       supportsVision: true,
       supportsImageInput: true,
@@ -419,7 +424,7 @@ export const AI_MODELS: ProviderModels = {
       id: "mistral-small-latest",
       name: "Mistral Small",
       description: "Enterprise-grade small model with vision",
-      contextLength: 131072,
+      contextLength: 128000,
       supportsVision: true,
       supportsImageInput: true,
       supportsFunctions: true,
@@ -435,7 +440,7 @@ export const AI_MODELS: ProviderModels = {
       id: "pixtral-large-latest",
       name: "Pixtral Large",
       description: "Vision-focused Mistral model",
-      contextLength: 131072,
+      contextLength: 128000,
       supportsVision: true,
       supportsImageInput: true,
       supportsFunctions: true,
@@ -446,7 +451,7 @@ export const AI_MODELS: ProviderModels = {
       id: "command-a-reasoning-08-2025",
       name: "Command A Reasoning",
       description: "Current Cohere reasoning model with extended context",
-      contextLength: 288768,
+      contextLength: 256000,
       isDefault: true,
       supportsVision: true,
       supportsImageInput: true,
@@ -470,14 +475,14 @@ export const AI_MODELS: ProviderModels = {
       id: "command-r-08-2024",
       name: "Command R",
       description: "Stable retrieval-oriented Cohere chat model",
-      contextLength: 132096,
+      contextLength: 128000,
       supportsFunctions: true,
     },
     {
       id: "command-r7b-12-2024",
       name: "Command R7B",
       description: "Lower-cost Cohere chat model",
-      contextLength: 132000,
+      contextLength: 128000,
       supportsFunctions: true,
     },
   ],
@@ -581,7 +586,6 @@ export const CURATED_MODEL_IDS: { [providerId: string]: string[] } = {
     "gemini-2.5-flash",
     "gemini-2.5-pro",
     "gemini-2.5-flash-lite",
-    "gemini-2.0-flash",
   ],
   perplexity: ["sonar-pro", "sonar", "sonar-reasoning-pro"],
   mistral: [
@@ -704,6 +708,39 @@ export const PROVIDER_SUPPORTED_PARAMS: {
     "stopSequences",
   ],
   grok: ["temperature", "maxTokens", "topP", "stopSequences", "seed"],
+};
+
+const trimDecimal = (value: string): string =>
+  value.replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1');
+
+export const formatContextLength = (contextLength: number): string => {
+  if (contextLength >= 1_000_000) {
+    if (contextLength % (1024 * 1024) === 0) {
+      return `${contextLength / (1024 * 1024)}M`;
+    }
+    return `${trimDecimal((contextLength / 1_000_000).toFixed(2))}M`;
+  }
+
+  if (contextLength >= 1_000) {
+    if (contextLength % 1024 === 0) {
+      return `${contextLength / 1024}K`;
+    }
+    return `${trimDecimal((contextLength / 1_000).toFixed(contextLength >= 100_000 ? 0 : 1))}K`;
+  }
+
+  return `${contextLength}`;
+};
+
+export const getModelContextLabel = (model: ModelConfig): string | null => {
+  if (model.contextLabel !== undefined) {
+    return model.contextLabel;
+  }
+
+  if (!model.contextLength) {
+    return null;
+  }
+
+  return `${formatContextLength(model.contextLength)} context`;
 };
 
 // Helper function to get models for a specific provider

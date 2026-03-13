@@ -3,7 +3,7 @@ import { View, TouchableOpacity, ScrollView, Modal, Dimensions } from 'react-nat
 // Upsell removed; no dispatch required
 import { Typography, Badge, SheetHeader } from '@/components/molecules';
 import { useTheme } from '@/theme';
-import { getProviderModels } from '@/config/modelConfigs';
+import { getModelContextLabel, getProviderModels } from '@/config/modelConfigs';
 import { MODEL_PRICING } from '@/config/modelPricing';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -147,6 +147,7 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
                 {models.map((model) => {
                   const isSelected = effectiveSelectedModel === model.id;
                   const isLocked = !canSelectModel(model);
+                  const contextLabel = getModelContextLabel(model);
                   const pricing = MODEL_PRICING[providerId]?.[model.id];
                   
                   return (
@@ -197,15 +198,17 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
                           </Typography>
                           
                           <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-                            <Typography 
-                              variant="caption" 
-                              style={{ 
-                                marginRight: theme.spacing.md,
-                                color: isSelected ? 'rgba(0,0,0,0.6)' : theme.colors.text.secondary
-                              }}
-                            >
-                              {(model.contextLength / 1000).toFixed(0)}K context
-                            </Typography>
+                            {contextLabel && (
+                              <Typography 
+                                variant="caption" 
+                                style={{ 
+                                  marginRight: theme.spacing.md,
+                                  color: isSelected ? 'rgba(0,0,0,0.6)' : theme.colors.text.secondary
+                                }}
+                              >
+                                {contextLabel}
+                              </Typography>
+                            )}
                             
                             {showPricing && pricing && (
                               <Typography 
@@ -262,6 +265,7 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
         {models.map((model) => {
           const isSelected = effectiveSelectedModel === model.id;
           const isLocked = !canSelectModel(model);
+          const contextLabel = getModelContextLabel(model);
           const pricing = MODEL_PRICING[providerId]?.[model.id];
           
           return (
@@ -311,14 +315,16 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
                 </Typography>
               )}
               
-              <Typography 
-                variant="caption" 
-                style={{ 
-                  color: isSelected ? '#FFFFFF' : theme.colors.text.secondary 
-                }}
-              >
-                {(model.contextLength / 1000).toFixed(0)}K context
-              </Typography>
+              {contextLabel && (
+                <Typography 
+                  variant="caption" 
+                  style={{ 
+                    color: isSelected ? '#FFFFFF' : theme.colors.text.secondary 
+                  }}
+                >
+                  {contextLabel}
+                </Typography>
+              )}
             </TouchableOpacity>
           );
         })}
