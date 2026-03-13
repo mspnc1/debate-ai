@@ -84,7 +84,8 @@ jest.mock('@/components/molecules', () => {
 jest.mock('@/config/modelConfigs', () => ({
   getProviderModels: jest.fn(() => ([
     { id: 'modelA', name: 'Model A', description: 'Primary', contextLength: 8000, isDefault: true },
-    { id: 'modelB', name: 'Model B', description: 'Secondary', contextLength: 16000 },
+    { id: 'modelB', name: 'Model B', description: 'Secondary', contextLength: 16000, isDeprecated: true },
+    { id: 'modelC', name: 'Model C', description: 'Tertiary', contextLength: 32000 },
   ])),
 }));
 
@@ -93,6 +94,7 @@ jest.mock('@/config/modelPricing', () => ({
     provider: {
       modelA: { inputPer1M: 1, outputPer1M: 2 },
       modelB: { inputPer1M: 3, outputPer1M: 4 },
+      modelC: { inputPer1M: 5, outputPer1M: 6 },
     },
   },
 }));
@@ -121,8 +123,8 @@ describe('ModelSelectorEnhanced', () => {
     expect(require('expo-haptics').impactAsync).toHaveBeenCalled();
     expect(getByText('Select Model')).toBeTruthy();
 
-    fireEvent.press(getByText('Model B'));
-    expect(onSelectModel).toHaveBeenCalledWith('modelB');
+    fireEvent.press(getByText('Model C'));
+    expect(onSelectModel).toHaveBeenCalledWith('modelC');
   });
 
   it('selects model directly in full mode', () => {
@@ -141,5 +143,17 @@ describe('ModelSelectorEnhanced', () => {
 
     fireEvent.press(getByText('Model A'));
     expect(onSelectModel).toHaveBeenCalledWith('modelA');
+  });
+
+  it('hides deprecated models from the picker', () => {
+    const { queryByText } = render(
+      <ModelSelectorEnhanced
+        providerId="provider"
+        selectedModel="modelB"
+        onSelectModel={jest.fn()}
+      />
+    );
+
+    expect(queryByText('Model B')).toBeNull();
   });
 });

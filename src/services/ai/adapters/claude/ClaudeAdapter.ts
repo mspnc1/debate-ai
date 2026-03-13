@@ -17,7 +17,7 @@ export class ClaudeAdapter extends BaseAdapter {
   
   getCapabilities(): AdapterCapabilities {
     // Check if the current model supports documents (PDFs)
-    const model = this.config.model || 'claude-3-7-sonnet-20250219';
+    const model = this.config.model || 'claude-sonnet-4-6';
     const supportsDocuments = ![
       'claude-3-opus-20240229',
       'claude-3-haiku-20240307'

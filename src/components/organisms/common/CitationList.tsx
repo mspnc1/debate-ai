@@ -12,8 +12,16 @@ import { useTheme } from '@/theme';
 import { normalizeCitations } from '@/utils/citationUtils';
 import type { Citation } from '@/types';
 
-// Enable LayoutAnimation on Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+const isNewArchitecture = Boolean(
+  (globalThis as typeof globalThis & { nativeFabricUIManager?: unknown }).nativeFabricUIManager
+);
+
+// Enable LayoutAnimation on legacy Android only.
+if (
+  Platform.OS === 'android' &&
+  !isNewArchitecture &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 

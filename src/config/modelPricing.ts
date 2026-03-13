@@ -9,227 +9,147 @@ export interface ProviderPricing {
   [modelId: string]: ModelPricing;
 }
 
-// Pricing as of December 2025
-// Source: Official API documentation and web research
+// Pricing verified from current official provider pricing docs where the
+// provider exposes token-based rates compatible with this structure.
 export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
   claude: {
-    // Claude 4.5 series (latest)
+    'claude-opus-4-6': {
+      inputPer1M: 5.0,
+      outputPer1M: 25.0,
+    },
+    'claude-sonnet-4-6': {
+      inputPer1M: 3.0,
+      outputPer1M: 15.0,
+    },
     'claude-opus-4-5-20251101': {
-      inputPer1M: 5.00,
-      outputPer1M: 25.00,
+      inputPer1M: 5.0,
+      outputPer1M: 25.0,
     },
     'claude-sonnet-4-5-20250929': {
-      inputPer1M: 3.00,
-      outputPer1M: 15.00,
+      inputPer1M: 3.0,
+      outputPer1M: 15.0,
     },
     'claude-haiku-4-5-20251001': {
-      inputPer1M: 1.00,
-      outputPer1M: 5.00,
+      inputPer1M: 1.0,
+      outputPer1M: 5.0,
     },
-    // Legacy models
     'claude-opus-4-1-20250805': {
-      inputPer1M: 15.00,
-      outputPer1M: 75.00,
+      inputPer1M: 15.0,
+      outputPer1M: 75.0,
     },
     'claude-sonnet-4-20250514': {
-      inputPer1M: 3.00,
-      outputPer1M: 15.00,
+      inputPer1M: 3.0,
+      outputPer1M: 15.0,
     },
     'claude-3-7-sonnet-20250219': {
-      inputPer1M: 3.00,
-      outputPer1M: 15.00,
+      inputPer1M: 3.0,
+      outputPer1M: 15.0,
     },
     'claude-3-5-haiku-20241022': {
-      inputPer1M: 0.80,
-      outputPer1M: 4.00,
+      inputPer1M: 0.8,
+      outputPer1M: 4.0,
     },
   },
   openai: {
-    // GPT-5.2 (latest)
-    'gpt-5.2': {
-      inputPer1M: 1.50,
-      outputPer1M: 12.00,
-    },
-    // GPT-5 series
     'gpt-5': {
       inputPer1M: 1.25,
-      outputPer1M: 10.00,
+      outputPer1M: 10.0,
     },
     'gpt-5-mini': {
-      inputPer1M: 0.30,
-      outputPer1M: 1.20,
+      inputPer1M: 0.25,
+      outputPer1M: 2.0,
     },
     'gpt-5-nano': {
-      inputPer1M: 0.15,
-      outputPer1M: 0.60,
+      inputPer1M: 0.05,
+      outputPer1M: 0.4,
     },
-    // GPT-4 series
     'gpt-4.1': {
-      inputPer1M: 2.00,
-      outputPer1M: 8.00,
+      inputPer1M: 2.0,
+      outputPer1M: 8.0,
+    },
+    'gpt-4.1-mini': {
+      inputPer1M: 0.4,
+      outputPer1M: 1.6,
+    },
+    'gpt-4.1-nano': {
+      inputPer1M: 0.1,
+      outputPer1M: 0.4,
     },
     'gpt-4o': {
-      inputPer1M: 2.50,
-      outputPer1M: 10.00,
+      inputPer1M: 2.5,
+      outputPer1M: 10.0,
     },
-    // Reasoning models
+    'gpt-4o-mini': {
+      inputPer1M: 0.15,
+      outputPer1M: 0.6,
+    },
+    'o3': {
+      inputPer1M: 2.0,
+      outputPer1M: 8.0,
+    },
+    'o4-mini': {
+      inputPer1M: 1.1,
+      outputPer1M: 4.4,
+    },
     'o3-mini': {
-      inputPer1M: 3.00,
-      outputPer1M: 12.00,
+      inputPer1M: 1.1,
+      outputPer1M: 4.4,
     },
     'o1': {
-      inputPer1M: 15.00,
-      outputPer1M: 60.00,
-    },
-    // Image generation
-    'dall-e-3': {
-      inputPer1M: 0,
-      outputPer1M: 0,
-    },
-    'gpt-image-1': {
-      inputPer1M: 0,
-      outputPer1M: 0,
+      inputPer1M: 15.0,
+      outputPer1M: 60.0,
     },
   },
   google: {
-    // Gemini 3 (GA)
-    'gemini-3-pro-preview': {
-      inputPer1M: 2.00,
-      outputPer1M: 10.00,
-    },
-    'gemini-3-pro-image': {
-      inputPer1M: 2.00,
-      outputPer1M: 10.00,
-    },
-    // Gemini 2.5 (GA)
     'gemini-2.5-flash': {
-      inputPer1M: 0.15,
-      outputPer1M: 0.60,
+      inputPer1M: 0.3,
+      outputPer1M: 2.5,
     },
     'gemini-2.5-pro': {
       inputPer1M: 1.25,
-      outputPer1M: 10.00,
+      outputPer1M: 10.0,
     },
     'gemini-2.5-flash-lite': {
-      inputPer1M: 0.10,
-      outputPer1M: 0.40,
+      inputPer1M: 0.1,
+      outputPer1M: 0.4,
     },
-    // Gemini 2.0
     'gemini-2.0-flash': {
-      inputPer1M: 0.075,
-      outputPer1M: 0.30,
-    },
-  },
-  perplexity: {
-    'sonar-pro': {
-      inputPer1M: 3.00,
-      outputPer1M: 15.00,
-    },
-    'sonar': {
-      inputPer1M: 1.00,
-      outputPer1M: 1.00,
+      inputPer1M: 0.1,
+      outputPer1M: 0.4,
     },
   },
   mistral: {
-    'mistral-large-latest': {
-      inputPer1M: 3.00,
-      outputPer1M: 9.00,
-    },
     'mistral-medium-latest': {
-      inputPer1M: 2.00,
-      outputPer1M: 6.00,
+      inputPer1M: 0.4,
+      outputPer1M: 2.0,
     },
     'mistral-small-latest': {
-      inputPer1M: 1.00,
-      outputPer1M: 3.00,
+      inputPer1M: 0.1,
+      outputPer1M: 0.3,
     },
     'pixtral-large-latest': {
-      inputPer1M: 3.00,
-      outputPer1M: 9.00,
+      inputPer1M: 2.0,
+      outputPer1M: 6.0,
     },
     'codestral-latest': {
-      inputPer1M: 1.00,
-      outputPer1M: 3.00,
+      inputPer1M: 0.3,
+      outputPer1M: 0.9,
     },
   },
   cohere: {
-    'command-r-plus-08-2024': {
-      inputPer1M: 3.00,
-      outputPer1M: 15.00,
+    'command-r-08-2024': {
+      inputPer1M: 0.15,
+      outputPer1M: 0.6,
     },
     'command-r7b-12-2024': {
-      inputPer1M: 0.30,
-      outputPer1M: 0.90,
-    },
-    'command-r-08-2024': {
-      inputPer1M: 0.50,
-      outputPer1M: 1.50,
-    },
-    'command-light': {
-      inputPer1M: 0.30,
-      outputPer1M: 0.60,
-    },
-  },
-  together: {
-    'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo': {
-      inputPer1M: 5.00,
-      outputPer1M: 15.00,
-    },
-    'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo': {
-      inputPer1M: 0.88,
-      outputPer1M: 0.88,
-    },
-    'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo': {
-      inputPer1M: 0.20,
-      outputPer1M: 0.20,
-    },
-    'Qwen/Qwen2.5-72B-Instruct-Turbo': {
-      inputPer1M: 1.20,
-      outputPer1M: 1.20,
-    },
-  },
-  deepseek: {
-    'deepseek-reasoner': {
-      inputPer1M: 0.55,
-      outputPer1M: 2.19,
-    },
-    'deepseek-chat': {
-      inputPer1M: 0.14,
-      outputPer1M: 0.28,
+      inputPer1M: 0.0375,
+      outputPer1M: 0.15,
     },
   },
   grok: {
-    'grok-4-0709': {
-      inputPer1M: 10.00,
-      outputPer1M: 30.00,
-    },
-    'grok-4-1-fast-reasoning': {
-      inputPer1M: 8.00,
-      outputPer1M: 24.00,
-    },
-    'grok-4-fast-reasoning': {
-      inputPer1M: 8.00,
-      outputPer1M: 24.00,
-    },
     'grok-3': {
-      inputPer1M: 5.00,
-      outputPer1M: 15.00,
-    },
-    'grok-3-mini': {
-      inputPer1M: 2.00,
-      outputPer1M: 6.00,
-    },
-    'grok-code-fast-1': {
-      inputPer1M: 3.00,
-      outputPer1M: 9.00,
-    },
-    'grok-2-vision-1212': {
-      inputPer1M: 5.00,
-      outputPer1M: 15.00,
-    },
-    'grok-2-image-1212': {
-      inputPer1M: 0,
-      outputPer1M: 0,
+      inputPer1M: 3.0,
+      outputPer1M: 15.0,
     },
   },
 };
@@ -266,8 +186,7 @@ export function getEstimatedCostPerMessage(
   // Check for specific model or default pricing
   const pricing = MODEL_PRICING[provider]?.[modelId] || MODEL_PRICING[provider]?.['default'];
   if (!pricing) {
-    const cost = calculateMessageCost(provider, modelId, avgInputTokens, avgOutputTokens);
-    return formatCost(cost);
+    return 'Pricing unavailable';
   }
   
   // Calculate cost for this specific pricing

@@ -10,6 +10,7 @@ jest.mock('react-native-webview', () => ({
 
 // Mock react-native-safe-area-context
 jest.mock('react-native-safe-area-context', () => ({
+  SafeAreaView: 'SafeAreaView',
   useSafeAreaInsets: () => ({ top: 44, bottom: 34, left: 0, right: 0 }),
 }));
 

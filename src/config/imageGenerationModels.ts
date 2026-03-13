@@ -49,9 +49,9 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
   ],
   grok: [
     {
-      id: 'grok-2-image-1212',
-      displayName: 'Grok 2 Image',
-      providerDisplayName: 'Grok (grok-2-image-1212)',
+      id: 'grok-imagine-image',
+      displayName: 'Grok Imagine',
+      providerDisplayName: 'Grok (grok-imagine-image)',
       shortProviderName: 'Grok',
       supportsImageInput: false,
       sizes: [],

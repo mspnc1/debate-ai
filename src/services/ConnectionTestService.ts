@@ -191,10 +191,12 @@ export class ConnectionTestService {
     }
 
     const data = await response.json();
-    // Find a good model to report (prefer gpt-4 variants)
+    // Prefer current documented production models when present.
     const models = data.data || [];
-    const preferredModel = models.find((m: { id: string }) => m.id.includes('gpt-4'))
-      || models.find((m: { id: string }) => m.id.includes('gpt-3.5'))
+    const preferredIds = ['gpt-5.4', 'gpt-5.2', 'gpt-5', 'gpt-4.1', 'gpt-4o'];
+    const preferredModel = preferredIds
+      .map((id) => models.find((m: { id: string }) => m.id === id))
+      .find(Boolean)
       || models[0];
 
     return { model: preferredModel?.id || getDefaultModel('openai') };
@@ -202,7 +204,7 @@ export class ConnectionTestService {
 
   /**
    * Test Claude API - uses /v1/messages with minimal request
-   * Current models (2025): claude-haiku-4-5, claude-sonnet-4-5, claude-opus-4-5
+   * Uses the lowest-cost currently verified Claude model for a cheap real request.
    */
   private async testClaude(apiKey: string, signal: AbortSignal): Promise<{ model: string }> {
     console.warn('[ConnectionTestService] Testing Claude API...');
@@ -248,8 +250,15 @@ export class ConnectionTestService {
 
     const data = await response.json();
     const models = data.models || [];
-    // Find a Gemini model to report
-    const geminiModel = models.find((m: { name: string }) => m.name.includes('gemini'));
+    const preferredGeminiIds = [
+      'models/gemini-2.5-flash',
+      'models/gemini-2.5-pro',
+      'models/gemini-2.0-flash',
+    ];
+    const geminiModel = preferredGeminiIds
+      .map((name) => models.find((m: { name: string }) => m.name === name))
+      .find(Boolean)
+      || models.find((m: { name: string }) => m.name.includes('gemini'));
     const modelName = geminiModel?.name?.replace('models/', '') || getDefaultModel('google');
 
     return { model: modelName };
@@ -277,7 +286,8 @@ export class ConnectionTestService {
     const data = await response.json();
     const models = data.data || [];
     // Find a grok model to report
-    const grokModel = models.find((m: { id: string }) => m.id.includes('grok-4'))
+    const grokModel = models.find((m: { id: string }) => m.id === 'grok-4-0709')
+      || models.find((m: { id: string }) => m.id.includes('grok-4'))
       || models.find((m: { id: string }) => m.id.includes('grok'))
       || models[0];
 
@@ -286,7 +296,7 @@ export class ConnectionTestService {
 
   /**
    * Test Perplexity API - uses /chat/completions with minimal request
-   * Current models (2025): sonar, sonar-pro, sonar-reasoning, sonar-reasoning-pro
+   * sonar-reasoning is deprecated, so tests use sonar-pro.
    */
   private async testPerplexity(apiKey: string, signal: AbortSignal): Promise<{ model: string }> {
     console.warn('[ConnectionTestService] Testing Perplexity API...');
@@ -386,7 +396,16 @@ export class ConnectionTestService {
     // Together returns array directly
     const models = Array.isArray(data) ? data : (data.data || []);
 
-    return { model: models[0]?.id || getDefaultModel('together') };
+    const preferredTogetherIds = [
+      'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
+      'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
+      'Qwen/Qwen2.5-72B-Instruct-Turbo',
+    ];
+    const preferredModel = preferredTogetherIds
+      .map((id) => models.find((m: { id: string }) => m.id === id))
+      .find(Boolean);
+
+    return { model: preferredModel?.id || models[0]?.id || getDefaultModel('together') };
   }
 
   /**

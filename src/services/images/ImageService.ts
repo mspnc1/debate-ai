@@ -156,7 +156,7 @@ export class ImageService {
   private static async generateGrok(opts: GenerateImageOptions): Promise<GeneratedImage[]> {
     const { apiKey, prompt, n = 1, signal } = opts;
     const body: Record<string, unknown> = {
-      model: 'grok-2-image-1212',
+      model: 'grok-imagine-image',
       prompt,
     };
     if (n && n > 1) {

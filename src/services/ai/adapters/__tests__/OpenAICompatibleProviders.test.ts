@@ -55,16 +55,16 @@ const ADAPTER_MATRIX: AdapterEntry[] = [
     provider: 'grok',
     AdapterCtor: GrokAdapter,
     baseUrl: 'https://api.x.ai/v1',
-    defaultModel: 'grok-2-1212',
+    defaultModel: 'grok-4-0709',
     capabilities: {
       streaming: true,
       attachments: true,  // Supports vision
       supportsImages: true,
       supportsDocuments: false,  // PDFs require separate Files API
-      functionCalling: false,
+      functionCalling: true,
       systemPrompt: true,
-      maxTokens: 4096,
-      contextWindow: 131072,
+      maxTokens: 100000,
+      contextWindow: 256000,
     },
   },
   {
@@ -89,7 +89,7 @@ const ADAPTER_MATRIX: AdapterEntry[] = [
     provider: 'together',
     AdapterCtor: TogetherAdapter,
     baseUrl: 'https://api.together.xyz/v1',
-    defaultModel: 'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo',
+    defaultModel: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
     capabilities: {
       streaming: true,
       attachments: false,  // Llama 3.1 models don't support vision

@@ -20,6 +20,10 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   providerId,
 }) => {
   const { theme } = useTheme();
+  const visibleModels = models.filter((model) => !model.isDeprecated);
+  const effectiveSelectedModel = visibleModels.some((model) => model.id === selectedModel)
+    ? selectedModel
+    : visibleModels.find((model) => model.isDefault)?.id;
   
   return (
     <View>
@@ -35,8 +39,8 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingRight: theme.spacing.md }}
       >
-        {models.map((model) => {
-          const isSelected = selectedModel === model.id;
+        {visibleModels.map((model) => {
+          const isSelected = effectiveSelectedModel === model.id;
           
           return (
             <TouchableOpacity
@@ -70,25 +74,24 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                 >
                   {model.name}
                 </Typography>
-                {/* No default badge in Expert Mode selector */}
               </View>
             </TouchableOpacity>
           );
         })}
       </ScrollView>
       
-      {selectedModel && (
+      {effectiveSelectedModel && (
         <View style={{ marginTop: theme.spacing.sm }}>
           <Typography 
             variant="caption" 
             color="secondary"
           >
-            {models.find(m => m.id === selectedModel)?.description}
+            {visibleModels.find(m => m.id === effectiveSelectedModel)?.description}
           </Typography>
           <View style={{ marginTop: theme.spacing.xs }}>
             {(() => {
-              const pricing = MODEL_PRICING[providerId]?.[selectedModel];
-              const freeInfo = getFreeMessageInfo(providerId, selectedModel);
+              const pricing = MODEL_PRICING[providerId]?.[effectiveSelectedModel];
+              const freeInfo = getFreeMessageInfo(providerId, effectiveSelectedModel);
               
               if (pricing || freeInfo) {
                 return (

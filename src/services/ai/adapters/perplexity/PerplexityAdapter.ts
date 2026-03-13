@@ -14,7 +14,7 @@ export class PerplexityAdapter extends OpenAICompatibleAdapter {
   protected getProviderConfig(): ProviderConfig {
     return {
       baseUrl: 'https://api.perplexity.ai',
-      defaultModel: 'sonar',  // Updated to working model
+      defaultModel: 'sonar-pro',
       headers: (apiKey: string) => ({
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,

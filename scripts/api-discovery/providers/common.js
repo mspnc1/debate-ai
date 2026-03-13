@@ -71,7 +71,9 @@ function loadRegistry() {
 
 function mergeWithRegistry(provider, discoveredModel, registry) {
   const entry = registry?.providers?.[provider]?.models?.[discoveredModel.id];
-  if (!entry) return { ...discoveredModel, _source: 'api' };
+  if (!entry || entry.verified !== true) {
+    return { ...discoveredModel, _source: 'api' };
+  }
 
   return {
     ...discoveredModel,

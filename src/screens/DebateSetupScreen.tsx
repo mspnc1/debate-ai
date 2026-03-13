@@ -25,7 +25,7 @@ import type { DemoDebate } from '@/types/demo';
 import { AI_PROVIDERS } from '../config/aiProviders';
 import { FormatModal } from '../components/organisms/debate/FormatModal';
 import { TopicService } from '../services/debate/TopicService';
-import { AI_MODELS } from '../config/modelConfigs';
+import { getProviderDefaultModel, resolveProviderModelId } from '@/config/modelConfigs';
 import { getAIProviderIcon } from '../utils/aiProviderAssets';
 // import { DEBATE_TOPICS } from '../constants/debateTopics';
 import { usePreDebateValidation } from '../hooks/debate';
@@ -82,9 +82,11 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
       const iconData = getAIProviderIcon(provider.id);
       const providerDefault = isDemo
         ? ({ google: 'gemini-2.5-pro', openai: 'gpt-5', claude: 'opus-4.1' } as Record<string, string>)[provider.id] || ''
-        : (AI_MODELS[provider.id]?.find(m => m.isDefault)?.id || AI_MODELS[provider.id]?.[0]?.id || '');
+        : (getProviderDefaultModel(provider.id)?.id || '');
       const expertCfg = (expertMode as Record<string, { enabled?: boolean; selectedModel?: string }>)[provider.id];
-      const defaultModel = (!isDemo && expertCfg?.enabled && expertCfg.selectedModel) ? expertCfg.selectedModel : providerDefault;
+      const defaultModel = (!isDemo && expertCfg?.enabled && expertCfg.selectedModel)
+        ? (resolveProviderModelId(provider.id, expertCfg.selectedModel) || providerDefault)
+        : providerDefault;
       return {
         id: provider.id,
         provider: provider.id,

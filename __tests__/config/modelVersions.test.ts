@@ -19,8 +19,8 @@ describe('Model version registry', () => {
   });
 
   it('returns the latest model by provider family', () => {
-    expect(getLatestModelInFamily('claude', 'premium')).toBe('claude-opus-4-1-20250805');
-    expect(getLatestModelInFamily('openai', 'flagship')).toBe('gpt-5');
+    expect(getLatestModelInFamily('claude', 'premium')).toBe('claude-opus-4-6');
+    expect(getLatestModelInFamily('openai', 'flagship')).toBe('gpt-5.4');
     expect(getLatestModelInFamily('unknown', 'family')).toBeNull();
     expect(getLatestModelInFamily('claude', 'nonexistent')).toBeNull();
   });
@@ -36,11 +36,12 @@ describe('Model version registry', () => {
   it('finds model info and deprecated status by id', () => {
     expect(getModelInfo('gpt-5')).toMatchObject({
       id: 'gpt-5',
-      isLatest: true,
+      isLatest: false,
     });
     expect(getModelInfo('does-not-exist')).toBeNull();
 
     expect(isModelDeprecated('claude-3-opus-20240229')).toBe(true);
+    expect(isModelDeprecated('claude-3-7-sonnet-20250219')).toBe(true);
     expect(isModelDeprecated('gpt-5')).toBe(false);
     expect(isModelDeprecated('unknown-model')).toBe(false);
   });

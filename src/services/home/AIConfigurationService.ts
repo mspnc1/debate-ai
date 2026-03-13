@@ -1,6 +1,6 @@
 import { AIConfig, AIProvider } from '../../types';
 import { AI_PROVIDERS } from '../../config/aiProviders';
-import { AI_MODELS } from '../../config/modelConfigs';
+import { getProviderDefaultModel } from '../../config/modelConfigs';
 import { getAIProviderIcon } from '../../utils/aiProviderAssets';
 import { isDemoModeEnabled } from '@/services/demo/demoMode';
 // Type guards available for future validation needs
@@ -53,7 +53,6 @@ export class AIConfigurationService {
     const inDemoMode = isDemo !== undefined ? isDemo : isDemoModeEnabled();
 
     // Find the default model for this provider
-    const providerModels = AI_MODELS[provider.id];
     // Demo-specific default models
     const DEMO_MODEL_OVERRIDES: Record<string, string> = {
       google: 'gemini-2.5-pro',
@@ -62,7 +61,7 @@ export class AIConfigurationService {
     };
     const defaultModel = inDemoMode && DEMO_MODEL_OVERRIDES[provider.id]
       ? DEMO_MODEL_OVERRIDES[provider.id]
-      : (providerModels?.find(m => m.isDefault)?.id || providerModels?.[0]?.id || '');
+      : (getProviderDefaultModel(provider.id)?.id || '');
     
     return {
       id: provider.id,

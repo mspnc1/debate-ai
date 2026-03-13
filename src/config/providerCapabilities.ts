@@ -46,7 +46,6 @@ export function getProviderCapabilities(provider: AIProvider): ProviderCapabilit
           supportsImageInput: true,  // Gemini supports img2img
           models: [
             'gemini-2.5-flash-image',
-            'gemini-3-pro-image',
           ],
           // Google uses aspect ratios, not pixel sizes
           sizes: ['1:1', '16:9', '9:16', '4:3', '3:4'],
@@ -61,7 +60,7 @@ export function getProviderCapabilities(provider: AIProvider): ProviderCapabilit
         imageGeneration: {
           supported: true,
           supportsImageInput: false,  // Grok does NOT support img2img
-          models: ['grok-2-image-1212'],
+          models: ['grok-imagine-image'],
           // Grok does not support size parameter - generates at fixed size
           sizes: [],
           maxPromptLength: 4000,

@@ -68,7 +68,7 @@ const cases: AdapterCase[] = [
   {
     name: 'GrokAdapter',
     Adapter: GrokAdapter,
-    config: { provider: 'grok', apiKey: 'test-key', model: 'grok-2-1212', parameters: { temperature: 0.7, maxTokens: 2048 } },
+    config: { provider: 'grok', apiKey: 'test-key', model: 'grok-4-0709', parameters: { temperature: 0.7, maxTokens: 2048 } },
     expectedUrl: 'https://api.x.ai/v1/chat/completions',
   },
   {
@@ -77,7 +77,7 @@ const cases: AdapterCase[] = [
     config: {
       provider: 'together',
       apiKey: 'test-key',
-      model: 'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo',
+      model: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
       parameters: { temperature: 0.7, maxTokens: 2048 },
     },
     expectedUrl: 'https://api.together.xyz/v1/chat/completions',

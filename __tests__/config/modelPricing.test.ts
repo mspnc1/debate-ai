@@ -26,7 +26,7 @@ describe('Model pricing utilities', () => {
 
   it('estimates per-message cost for known and unknown models', () => {
     expect(getEstimatedCostPerMessage('openai', 'gpt-5')).toBe('$0.008');
-    expect(getEstimatedCostPerMessage('unknown', 'model', 1_000, 1_000)).toBe('Free');
+    expect(getEstimatedCostPerMessage('unknown', 'model', 1_000, 1_000)).toBe('Pricing unavailable');
   });
 
   it('returns free message information when defined', () => {

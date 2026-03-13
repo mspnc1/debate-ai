@@ -32,12 +32,19 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
   const [isModalVisible, setIsModalVisible] = useState(false);
   
   const models = useMemo(() => {
-    return getProviderModels(providerId) || [];
+    return (getProviderModels(providerId) || []).filter((model) => !model.isDeprecated);
   }, [providerId]);
+
+  const effectiveSelectedModel = useMemo(() => {
+    if (models.some((model) => model.id === selectedModel)) {
+      return selectedModel;
+    }
+    return models.find((model) => model.isDefault)?.id || '';
+  }, [models, selectedModel]);
   
   const selectedModelInfo = useMemo(() => {
-    return models.find(m => m.id === selectedModel);
-  }, [models, selectedModel]);
+    return models.find(m => m.id === effectiveSelectedModel);
+  }, [models, effectiveSelectedModel]);
   
   const canSelectModel = (_model: typeof models[0]) => true;
   
@@ -90,9 +97,9 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
               <Typography variant="body" weight="medium">
                 {selectedModelInfo?.name || 'Select Model'}
               </Typography>
-              {showPricing && MODEL_PRICING[providerId]?.[selectedModel] && (
+              {showPricing && MODEL_PRICING[providerId]?.[effectiveSelectedModel] && (
                 <Typography variant="caption" color="secondary" style={{ marginTop: 2 }}>
-                  {getTokenPricing(selectedModel)}
+                  {getTokenPricing(effectiveSelectedModel)}
                 </Typography>
               )}
             </View>
@@ -138,7 +145,7 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
                 showsVerticalScrollIndicator={false}
               >
                 {models.map((model) => {
-                  const isSelected = selectedModel === model.id;
+                  const isSelected = effectiveSelectedModel === model.id;
                   const isLocked = !canSelectModel(model);
                   const pricing = MODEL_PRICING[providerId]?.[model.id];
                   
@@ -253,7 +260,7 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
         contentContainerStyle={{ paddingRight: theme.spacing.md }}
       >
         {models.map((model) => {
-          const isSelected = selectedModel === model.id;
+          const isSelected = effectiveSelectedModel === model.id;
           const isLocked = !canSelectModel(model);
           const pricing = MODEL_PRICING[providerId]?.[model.id];
           

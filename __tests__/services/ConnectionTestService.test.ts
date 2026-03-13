@@ -39,13 +39,13 @@ describe('ConnectionTestService', () => {
     const apiKey = 'sk-valid-key-1234567890';
     const realTestSpy = jest
       .spyOn(service as unknown as { realTest(providerId: string, apiKey: string, timeout: number): Promise<TestResult> }, 'realTest')
-      .mockResolvedValue({ success: true, message: 'Connection verified', model: 'gpt-5.2', responseTime: 100 });
+      .mockResolvedValue({ success: true, message: 'Connection verified', model: 'gpt-5.4', responseTime: 100 });
 
     const result = await service.testProvider('openai', apiKey);
 
     expect(realTestSpy).toHaveBeenCalledWith('openai', apiKey, expect.any(Number));
     expect(result.success).toBe(true);
-    expect(result.model).toBe('gpt-5.2');
+    expect(result.model).toBe('gpt-5.4');
   });
 
   it('stops retrying on auth errors', async () => {

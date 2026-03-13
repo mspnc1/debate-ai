@@ -32,8 +32,16 @@ import { Typography } from '../common/Typography';
 import { SizeOption, QualityOption } from '@/store/createSlice';
 import { SIZE_OPTIONS } from '@/config/create/sizeOptions';
 
-// Enable LayoutAnimation on Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+const isNewArchitecture = Boolean(
+  (globalThis as typeof globalThis & { nativeFabricUIManager?: unknown }).nativeFabricUIManager
+);
+
+// Enable LayoutAnimation on legacy Android only.
+if (
+  Platform.OS === 'android' &&
+  !isNewArchitecture &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 

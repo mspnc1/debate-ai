@@ -4,7 +4,7 @@
  * This file contains mappings for model versioning and easy updates.
  * Update this file when new model versions are released.
  * 
- * Last updated: August 2025
+ * Last updated: March 2026
  */
 
 export interface ModelVersionInfo {
@@ -31,15 +31,21 @@ export const MODEL_VERSIONS: ProviderVersions = {
   claude: {
     premium: [
       {
-        id: 'claude-opus-4-1-20250805',
-        version: '4.1-opus',
-        releaseDate: '2025-08-05',
+        id: 'claude-opus-4-6',
+        version: '4.6-opus',
+        releaseDate: '2026-03-01',
         isLatest: true,
       },
       {
-        id: 'claude-sonnet-4-20250514',
-        version: '4.0-sonnet',
-        releaseDate: '2025-05-14',
+        id: 'claude-opus-4-5-20251101',
+        version: '4.5-opus',
+        releaseDate: '2025-11-01',
+        isLatest: false,
+      },
+      {
+        id: 'claude-opus-4-1-20250805',
+        version: '4.1-opus',
+        releaseDate: '2025-08-05',
         isLatest: false,
       },
       {
@@ -49,34 +55,48 @@ export const MODEL_VERSIONS: ProviderVersions = {
         isLatest: false,
         isDeprecated: true,
         deprecationDate: '2025-06-30',
-        replacedBy: 'claude-opus-4-1-20250805',
+        replacedBy: 'claude-opus-4-6',
       },
     ],
     balanced: [
       {
-        id: 'claude-3-7-sonnet-20250219',
-        version: '3.7-sonnet',
-        releaseDate: '2025-02-19',
+        id: 'claude-sonnet-4-6',
+        version: '4.6-sonnet',
+        releaseDate: '2026-03-01',
         isLatest: true,
       },
       {
-        id: 'claude-3-5-sonnet-20241022',
-        version: '3.5-sonnet',
-        releaseDate: '2024-10-22',
+        id: 'claude-sonnet-4-5-20250929',
+        version: '4.5-sonnet',
+        releaseDate: '2025-09-29',
         isLatest: false,
+      },
+      {
+        id: 'claude-sonnet-4-20250514',
+        version: '4.0-sonnet',
+        releaseDate: '2025-05-14',
+        isLatest: false,
+      },
+      {
+        id: 'claude-3-7-sonnet-20250219',
+        version: '3.7-sonnet',
+        releaseDate: '2025-02-19',
+        isLatest: false,
+        isDeprecated: true,
+        replacedBy: 'claude-sonnet-4-6',
       },
     ],
     economy: [
       {
-        id: 'claude-3-5-haiku-20241022',
-        version: '3.5-haiku',
-        releaseDate: '2024-10-22',
+        id: 'claude-haiku-4-5-20251001',
+        version: '4.5-haiku',
+        releaseDate: '2025-10-01',
         isLatest: true,
       },
       {
-        id: 'claude-3-haiku-20240307',
-        version: '3.0-haiku',
-        releaseDate: '2024-03-07',
+        id: 'claude-3-5-haiku-20241022',
+        version: '3.5-haiku',
+        releaseDate: '2024-10-22',
         isLatest: false,
       },
     ],
@@ -84,37 +104,61 @@ export const MODEL_VERSIONS: ProviderVersions = {
   openai: {
     flagship: [
       {
-        id: 'gpt-5',
-        version: '5.0',
-        releaseDate: '2025-06-01',
+        id: 'gpt-5.4',
+        version: '5.4',
+        releaseDate: '2026-03-01',
         isLatest: true,
       },
       {
-        id: 'gpt-4o-2025',
-        version: '4o-2025',
-        releaseDate: '2025-03-01',
+        id: 'gpt-5.2',
+        version: '5.2',
+        releaseDate: '2025-12-01',
+        isLatest: false,
+      },
+      {
+        id: 'gpt-5',
+        version: '5.0',
+        releaseDate: '2025-08-01',
+        isLatest: false,
+      },
+      {
+        id: 'gpt-4.1',
+        version: '4.1',
+        releaseDate: '2025-04-01',
         isLatest: false,
       },
     ],
     efficient: [
       {
-        id: 'gpt-4o-mini-2025',
-        version: '4o-mini-2025',
-        releaseDate: '2025-03-01',
+        id: 'gpt-5-mini',
+        version: '5-mini',
+        releaseDate: '2025-08-01',
         isLatest: true,
+      },
+      {
+        id: 'gpt-5-nano',
+        version: '5-nano',
+        releaseDate: '2025-08-01',
+        isLatest: false,
       },
     ],
     reasoning: [
       {
-        id: 'o1-2025',
-        version: 'o1-2025',
+        id: 'o3',
+        version: 'o3',
         releaseDate: '2025-04-01',
         isLatest: true,
       },
       {
-        id: 'o1-mini-2025',
-        version: 'o1-mini-2025',
+        id: 'o4-mini',
+        version: 'o4-mini',
         releaseDate: '2025-04-01',
+        isLatest: false,
+      },
+      {
+        id: 'o1',
+        version: 'o1',
+        releaseDate: '2024-12-01',
         isLatest: false,
       },
     ],
@@ -170,17 +214,23 @@ export const MODEL_VERSIONS: ProviderVersions = {
   grok: {
     main: [
       {
-        id: 'grok-beta',
-        version: 'beta',
-        releaseDate: '2025-06-01',
+        id: 'grok-4-0709',
+        version: '4',
+        releaseDate: '2025-07-09',
         isLatest: true,
+      },
+      {
+        id: 'grok-3',
+        version: '3',
+        releaseDate: '2025-02-01',
+        isLatest: false,
       },
     ],
     vision: [
       {
-        id: 'grok-vision-beta',
-        version: 'vision-beta',
-        releaseDate: '2025-07-01',
+        id: 'grok-imagine-image',
+        version: 'imagine',
+        releaseDate: '2025-01-01',
         isLatest: true,
       },
     ],
@@ -188,21 +238,21 @@ export const MODEL_VERSIONS: ProviderVersions = {
   perplexity: {
     online: [
       {
-        id: 'llama-3.1-sonar-large-128k-online',
-        version: '3.1-large',
-        releaseDate: '2025-05-01',
+        id: 'sonar-pro',
+        version: 'pro',
+        releaseDate: '2025-01-01',
         isLatest: true,
       },
       {
-        id: 'llama-3.1-sonar-small-128k-online',
-        version: '3.1-small',
-        releaseDate: '2025-05-01',
+        id: 'sonar',
+        version: 'standard',
+        releaseDate: '2025-01-01',
         isLatest: false,
       },
       {
-        id: 'llama-3.1-sonar-huge-128k-online',
-        version: '3.1-huge',
-        releaseDate: '2025-06-01',
+        id: 'sonar-reasoning-pro',
+        version: 'reasoning-pro',
+        releaseDate: '2025-01-01',
         isLatest: false,
       },
     ],
@@ -242,10 +292,16 @@ export const MODEL_VERSIONS: ProviderVersions = {
   cohere: {
     command: [
       {
-        id: 'command-r-plus-08-2024',
-        version: 'r-plus-08-2024',
-        releaseDate: '2024-08-01',
+        id: 'command-a-reasoning-08-2025',
+        version: 'a-reasoning-08-2025',
+        releaseDate: '2025-08-01',
         isLatest: true,
+      },
+      {
+        id: 'command-a-vision-07-2025',
+        version: 'a-vision-07-2025',
+        releaseDate: '2025-07-01',
+        isLatest: false,
       },
       {
         id: 'command-r-08-2024',
@@ -254,9 +310,9 @@ export const MODEL_VERSIONS: ProviderVersions = {
         isLatest: false,
       },
       {
-        id: 'command-light',
-        version: 'light',
-        releaseDate: '2024-06-01',
+        id: 'command-r7b-12-2024',
+        version: 'r7b-12-2024',
+        releaseDate: '2024-12-01',
         isLatest: false,
       },
     ],
@@ -264,16 +320,10 @@ export const MODEL_VERSIONS: ProviderVersions = {
   together: {
     llama: [
       {
-        id: 'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo',
-        version: '3.1-405B',
-        releaseDate: '2024-07-01',
-        isLatest: true,
-      },
-      {
         id: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
         version: '3.1-70B',
         releaseDate: '2024-07-01',
-        isLatest: false,
+        isLatest: true,
       },
       {
         id: 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
@@ -295,7 +345,7 @@ export const MODEL_VERSIONS: ProviderVersions = {
     chat: [
       {
         id: 'deepseek-chat',
-        version: 'v2',
+        version: 'chat',
         releaseDate: '2025-01-01',
         isLatest: true,
       },
@@ -310,8 +360,8 @@ export const MODEL_VERSIONS: ProviderVersions = {
     ],
     reasoning: [
       {
-        id: 'deepseek-reasoning',
-        version: 'v1',
+        id: 'deepseek-reasoner',
+        version: 'reasoner',
         releaseDate: '2025-06-01',
         isLatest: true,
       },

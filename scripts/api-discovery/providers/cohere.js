@@ -21,9 +21,10 @@ async function discoverCohere(env, registry) {
     }
   } catch (_) {
     models = [
-      { id: 'command-r-plus', name: 'Command R Plus' },
-      { id: 'command-r', name: 'Command R' },
-      { id: 'command-light', name: 'Command Light' },
+      { id: 'command-a-reasoning-08-2025', name: 'Command A Reasoning' },
+      { id: 'command-a-vision-07-2025', name: 'Command A Vision' },
+      { id: 'command-r-08-2024', name: 'Command R' },
+      { id: 'command-r7b-12-2024', name: 'Command R7B' },
     ];
   }
 

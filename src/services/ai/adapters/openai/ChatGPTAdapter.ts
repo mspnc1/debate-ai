@@ -44,14 +44,15 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
                           model.startsWith('gpt-4.1') ||
                           model.startsWith('gpt-5') ||
                           model.startsWith('o1') ||
-                          model.startsWith('o3');
+                          model.startsWith('o3') ||
+                          model.startsWith('o4');
 
     // OpenAI now supports documents natively (as of March 2025)
     const supportsDocuments = supportsImages;
 
     return {
       baseUrl: 'https://api.openai.com/v1',
-      defaultModel: 'gpt-5',  // Updated to GPT-5 as default
+      defaultModel: 'gpt-5.4',
       headers: (apiKey: string) => ({
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
@@ -64,7 +65,7 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
         functionCalling: true,
         systemPrompt: true,
         maxTokens: 128000,  // GPT-5 max output
-        contextWindow: 272000,  // GPT-5 context
+        contextWindow: 400000,
       },
     };
   }

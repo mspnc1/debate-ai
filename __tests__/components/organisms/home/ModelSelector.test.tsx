@@ -13,6 +13,15 @@ jest.mock('@/components/organisms/subscription/ActualPricing', () => ({
   },
 }));
 
+jest.mock('@/components/molecules', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
+  return {
+    Typography: ({ children, ...props }: { children: React.ReactNode }) => React.createElement(Text, props, children),
+    InfoButton: ({ topicId }: { topicId: string }) => React.createElement(Text, { testID: `info-${topicId}` }, 'info'),
+  };
+});
+
 jest.mock('@/config/modelPricing', () => ({
   MODEL_PRICING: {
     provider: {
@@ -36,6 +45,7 @@ const models: ModelConfig[] = [
     description: 'Detailed',
     contextLength: 16000,
     isDefault: false,
+    isDeprecated: true,
   },
 ];
 
@@ -47,20 +57,19 @@ describe('ModelSelector', () => {
   it('toggles model selection on press', () => {
     const onSelectModel = jest.fn();
 
-    const { getByText } = renderWithProviders(
+    const { getByText, queryByText } = renderWithProviders(
       <ModelSelector
         models={models}
-        selectedModel="modelB"
+        selectedModel={undefined}
         onSelectModel={onSelectModel}
         providerId="provider"
       />
     );
 
-    fireEvent.press(getByText('Model B'));
-    expect(onSelectModel).toHaveBeenCalledWith('');
+    expect(queryByText('Model B')).toBeNull();
 
     fireEvent.press(getByText('Model A'));
-    expect(onSelectModel).toHaveBeenCalledWith('modelA');
+    expect(onSelectModel).toHaveBeenCalledWith('');
   });
 
   it('shows pricing details when model selected', () => {
@@ -78,5 +87,18 @@ describe('ModelSelector', () => {
       outputPricePerM: 2,
       freeInfo: 'Free usage',
     }));
+  });
+
+  it('hides deprecated models from the picker', () => {
+    const { queryByText } = renderWithProviders(
+      <ModelSelector
+        models={models}
+        selectedModel="modelB"
+        onSelectModel={jest.fn()}
+        providerId="provider"
+      />
+    );
+
+    expect(queryByText('Model B')).toBeNull();
   });
 });

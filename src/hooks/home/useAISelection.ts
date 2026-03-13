@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, setAIPersonality, setAIModel } from '../../store';
+import { resolveProviderModelId } from '../../config/modelConfigs';
 import { AIConfigurationService } from '../../services/home/AIConfigurationService';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
 import { AIConfig } from '../../types';
@@ -26,7 +27,10 @@ export const useAISelection = (maxAIs: number) => {
     return base.map(ai => {
       const cfg = (expertMode as Record<string, { enabled?: boolean; selectedModel?: string }>)[ai.id];
       if (cfg?.enabled && cfg.selectedModel) {
-        return { ...ai, model: cfg.selectedModel } as AIConfig;
+        return {
+          ...ai,
+          model: resolveProviderModelId(ai.id, cfg.selectedModel) || ai.model,
+        } as AIConfig;
       }
       return ai;
     });

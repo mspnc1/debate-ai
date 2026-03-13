@@ -15,6 +15,7 @@ async function discoverPerplexity(env, registry) {
     models = [
       { id: 'sonar', name: 'Sonar' },
       { id: 'sonar-pro', name: 'Sonar Pro' },
+      { id: 'sonar-reasoning-pro', name: 'Sonar Reasoning Pro' },
     ];
   }
 

@@ -21,7 +21,7 @@ export class CohereAdapter extends BaseAdapter {
       functionCalling: true,  // Cohere supports tool use
       systemPrompt: true,
       maxTokens: 4096,
-      contextWindow: 128000,
+      contextWindow: 288768,
     };
   }
 
@@ -60,7 +60,7 @@ export class CohereAdapter extends BaseAdapter {
     _attachments?: MessageAttachment[],
     modelOverride?: string
   ): Promise<SendMessageResponse> {
-    const model = modelOverride || this.config.model || 'command-r-plus';
+    const model = modelOverride || this.config.model || 'command-a-reasoning-08-2025';
     const messages = this.formatMessagesV2(message, conversationHistory, resumptionContext);
 
     try {
@@ -112,7 +112,7 @@ export class CohereAdapter extends BaseAdapter {
     abortSignal?: AbortSignal,
     onEvent?: (event: unknown) => void
   ): AsyncGenerator<string, void, unknown> {
-    const model = modelOverride || this.config.model || 'command-r-plus';
+    const model = modelOverride || this.config.model || 'command-a-reasoning-08-2025';
     const messages = this.formatMessagesV2(message, conversationHistory, resumptionContext);
 
     const requestBody = JSON.stringify({

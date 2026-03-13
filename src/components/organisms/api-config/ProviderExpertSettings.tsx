@@ -42,6 +42,9 @@ export const ProviderExpertSettings: React.FC<ProviderExpertSettingsProps> = ({
 }) => {
   const { theme } = useTheme();
   const models = getProviderModels(providerId) || [];
+  const visibleSelectedModel = selectedModel && models.some((model) => model.id === selectedModel)
+    ? selectedModel
+    : undefined;
   const supportedParams = PROVIDER_SUPPORTED_PARAMS[providerId] || [];
   
   const handleReset = () => {
@@ -124,7 +127,7 @@ export const ProviderExpertSettings: React.FC<ProviderExpertSettingsProps> = ({
           <View style={{ marginBottom: theme.spacing.xl }}>
             <ModelSelector
               models={models}
-              selectedModel={selectedModel || models.find(m => m.isDefault)?.id}
+              selectedModel={visibleSelectedModel || models.find(m => m.isDefault)?.id}
               onSelectModel={onModelChange}
               providerId={providerId}
             />

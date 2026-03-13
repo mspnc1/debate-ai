@@ -5,7 +5,7 @@ export class TogetherAdapter extends OpenAICompatibleAdapter {
   protected getProviderConfig(): ProviderConfig {
     return {
       baseUrl: 'https://api.together.xyz/v1',
-      defaultModel: 'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo',
+      defaultModel: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
       headers: (apiKey: string) => ({
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,

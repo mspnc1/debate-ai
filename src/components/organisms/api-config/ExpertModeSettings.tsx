@@ -11,7 +11,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '@/theme';
 import { Button, Typography } from '@/components/molecules';
 import { 
-  AI_MODELS, 
+  getProviderModels,
   ModelParameters,
   DEFAULT_PARAMETERS,
   PARAMETER_RANGES,
@@ -42,7 +42,7 @@ export const ExpertModeSettings: React.FC<ExpertModeSettingsProps> = ({
   const { theme } = useTheme();
   const [expandedParam, setExpandedParam] = useState<string | null>(null);
   
-  const models = AI_MODELS[providerId] || [];
+  const models = getProviderModels(providerId) || [];
   const supportedParams = PROVIDER_SUPPORTED_PARAMS[providerId] || [];
   const currentModel = models.find(m => m.id === selectedModel) || models.find(m => m.isDefault);
   

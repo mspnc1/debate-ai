@@ -310,7 +310,7 @@
         },
         "claude-3-7-sonnet-20250219": {
           "name": "Claude 3.7 Sonnet",
-          "description": "Legacy balanced model",
+          "description": "Deprecated Claude release kept for compatibility",
           "contextLength": 200000,
           "maxOutputTokens": 64000,
           "pricing": { "inputPer1M": 3.00, "outputPer1M": 15.00 },
@@ -319,7 +319,7 @@
             "webSearch": false, "thinking": true, "jsonMode": false
           },
           "flags": {},
-          "isDeprecated": false
+          "isDeprecated": true
         },
         "claude-3-5-haiku-20241022": {
           "name": "Claude 3.5 Haiku",

@@ -1,4 +1,4 @@
-import { DEFAULT_PARAMETERS } from '../config/modelConfigs';
+import { DEFAULT_PARAMETERS, resolveProviderModelId } from '../config/modelConfigs';
 import type { ModelParameters } from '../types';
 
 /**
@@ -22,7 +22,9 @@ export function getExpertOverrides(
 
   return {
     enabled: true,
-    model: cfg.selectedModel,
+    model: cfg.selectedModel
+      ? resolveProviderModelId(providerId, cfg.selectedModel)
+      : undefined,
     parameters: params,
   };
 }

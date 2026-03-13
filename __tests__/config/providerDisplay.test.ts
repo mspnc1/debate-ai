@@ -46,7 +46,6 @@ describe('Provider capability matrix', () => {
         supportsImageInput: true,
         models: [
           'gemini-2.5-flash-image',
-          'gemini-3-pro-image',
         ],
         // Google uses aspect ratios instead of pixel sizes
         sizes: ['1:1', '16:9', '9:16', '4:3', '3:4'],
@@ -64,7 +63,7 @@ describe('Provider capability matrix', () => {
       imageGeneration: {
         supported: true,
         supportsImageInput: false,
-        models: ['grok-2-image-1212'],
+        models: ['grok-imagine-image'],
         // Grok does not support size parameter - generates at fixed size
         sizes: [],
         maxPromptLength: 4000,

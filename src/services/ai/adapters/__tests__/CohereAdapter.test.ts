@@ -30,7 +30,7 @@ afterEach(() => {
 const makeConfig = (overrides: Partial<AIAdapterConfig> = {}): AIAdapterConfig => ({
   provider: 'cohere',
   apiKey: 'test-key',
-  model: 'command-r-plus',
+  model: 'command-a-reasoning-08-2025',
   parameters: { temperature: 0.7, maxTokens: 2048 },
   ...overrides,
 });
@@ -47,7 +47,7 @@ describe('CohereAdapter', () => {
       expect(capabilities.attachments).toBe(false);
       expect(capabilities.supportsImages).toBe(false);
       expect(capabilities.supportsDocuments).toBe(false);
-      expect(capabilities.contextWindow).toBe(128000);
+      expect(capabilities.contextWindow).toBe(288768);
     });
   });
 
@@ -97,7 +97,7 @@ describe('CohereAdapter', () => {
       });
 
       // Check other parameters
-      expect(body.model).toBe('command-r-plus');
+      expect(body.model).toBe('command-a-reasoning-08-2025');
       expect(body.temperature).toBe(0.7);
       expect(body.max_tokens).toBe(2048);
     });
@@ -107,7 +107,7 @@ describe('CohereAdapter', () => {
       const result = await adapter.sendMessage('Hello') as AdapterResponse;
 
       expect(result.response).toBe('Cohere output');
-      expect(result.modelUsed).toBe('command-r-plus');
+      expect(result.modelUsed).toBe('command-a-reasoning-08-2025');
       expect(result.usage).toEqual({
         promptTokens: 10,
         completionTokens: 20,
@@ -117,10 +117,10 @@ describe('CohereAdapter', () => {
 
     it('uses model override when provided', async () => {
       const adapter = new CohereAdapter(makeConfig());
-      await adapter.sendMessage('Hello', [], undefined, undefined, 'command-r');
+      await adapter.sendMessage('Hello', [], undefined, undefined, 'command-r-08-2024');
 
       const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
-      expect(body.model).toBe('command-r');
+      expect(body.model).toBe('command-r-08-2024');
     });
 
     it('includes correct authorization header', async () => {
