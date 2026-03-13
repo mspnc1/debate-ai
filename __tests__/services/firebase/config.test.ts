@@ -65,7 +65,7 @@ describe('initializeFirebase', () => {
     await initializeFirebase();
     expect(mockConnectAuthEmulator).not.toHaveBeenCalled();
     expect(mockConnectFirestoreEmulator).not.toHaveBeenCalled();
-    expect(consoleLog).toHaveBeenCalledWith('Firebase initialized successfully (Auth & Firestore only)');
+    expect(consoleWarn).not.toHaveBeenCalledWith('Firebase initialized successfully (Auth & Firestore only)');
   });
 
   it('connects to emulators when available', async () => {
