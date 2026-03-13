@@ -11,6 +11,7 @@ import { ChatService } from './ChatService';
 import { PromptBuilder } from './PromptBuilder';
 import { HOME_CONSTANTS } from '@/config/homeConstants';
 import { getPersonality, PersonalityOption } from '@/config/personalities';
+import { resolveProviderModelId } from '@/config/modelConfigs';
 import { getExpertOverrides } from '@/utils/expertMode';
 import { getStreamingService } from '@/services/streaming/StreamingService';
 import { RecordController } from '@/services/demo/RecordController';
@@ -122,7 +123,10 @@ export class ChatOrchestrator {
         continue;
       }
 
-      const effectiveModel = selectedModels[ai.id] || ai.model;
+      const effectiveModel = resolveProviderModelId(
+        ai.provider,
+        selectedModels[ai.id] || ai.model
+      ) || ai.model;
       const aiForTurn: AI = { ...ai, model: effectiveModel };
 
       const providerPreference = streamingPreferences?.[ai.id];

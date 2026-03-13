@@ -1,3 +1,5 @@
+import { resolveModelAlias } from './providers/modelRegistry';
+
 export interface ModelConfig {
   id: string;
   name: string;
@@ -481,9 +483,9 @@ export const AI_MODELS: ProviderModels = {
   ],
   together: [
     {
-      id: "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-      name: "Llama 3.1 70B",
-      description: "Current high-capability Together-hosted Llama 3.1 model",
+      id: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+      name: "Llama 3.3 70B",
+      description: "Current Together serverless default for high-capability general chat",
       contextLength: 131072,
       isDefault: true,
     },
@@ -494,9 +496,9 @@ export const AI_MODELS: ProviderModels = {
       contextLength: 131072,
     },
     {
-      id: "Qwen/Qwen2.5-72B-Instruct-Turbo",
-      name: "Qwen 2.5 72B",
-      description: "Strong multilingual capabilities",
+      id: "Qwen/Qwen2.5-7B-Instruct-Turbo",
+      name: "Qwen 2.5 7B",
+      description: "Fast multilingual Together serverless model",
       contextLength: 32768,
     },
   ],
@@ -606,9 +608,9 @@ export const CURATED_MODEL_IDS: { [providerId: string]: string[] } = {
     "command-r7b-12-2024",
   ],
   together: [
-    "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+    "meta-llama/Llama-3.3-70B-Instruct-Turbo",
     "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
-    "Qwen/Qwen2.5-72B-Instruct-Turbo",
+    "Qwen/Qwen2.5-7B-Instruct-Turbo",
   ],
   deepseek: ["deepseek-chat", "deepseek-reasoner"],
   grok: ["grok-4-0709", "grok-3", "grok-3-mini", "grok-imagine-image"],
@@ -722,7 +724,9 @@ export const getProviderModels = (providerId: string): ModelConfig[] => {
   const visibleModels = curated && curated.length
     ? all.filter((m) => curated.includes(m.id))
     : all;
-  return visibleModels.filter((model) => !model.isDeprecated);
+  return visibleModels.filter(
+    (model) => !model.isDeprecated && !model.supportsImageGeneration
+  );
 };
 
 // Helper function to get the default model for a provider
@@ -738,8 +742,12 @@ export const resolveProviderModelId = (
   modelId?: string
 ): string | undefined => {
   if (modelId) {
-    const requestedModel = getModelById(providerId, modelId);
-    if (requestedModel && !requestedModel.isDeprecated) {
+    const requestedModel = getModelById(providerId, resolveModelAlias(modelId));
+    if (
+      requestedModel &&
+      !requestedModel.isDeprecated &&
+      !requestedModel.supportsImageGeneration
+    ) {
       return requestedModel.id;
     }
   }

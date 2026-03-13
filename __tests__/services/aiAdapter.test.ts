@@ -109,6 +109,7 @@ describe('aiAdapter compatibility layer', () => {
 
     expect(adapter.config.model).toBe('gpt-4o-mini');
     expect(adapter.config.isDebateMode).toBe(false);
+    expect(adapter.config.parameters).toEqual({ temperature: 0.2 });
     expect(adapter.sendMessage).toHaveBeenCalledWith('Ping', undefined, undefined, undefined, 'gpt-4o-mini');
     expect(result).toEqual({ response: 'ok', modelUsed: 'gpt-4o-mini' });
   });

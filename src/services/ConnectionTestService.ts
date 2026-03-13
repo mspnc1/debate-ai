@@ -397,9 +397,9 @@ export class ConnectionTestService {
     const models = Array.isArray(data) ? data : (data.data || []);
 
     const preferredTogetherIds = [
-      'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
+      'meta-llama/Llama-3.3-70B-Instruct-Turbo',
       'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
-      'Qwen/Qwen2.5-72B-Instruct-Turbo',
+      'Qwen/Qwen2.5-7B-Instruct-Turbo',
     ];
     const preferredModel = preferredTogetherIds
       .map((id) => models.find((m: { id: string }) => m.id === id))

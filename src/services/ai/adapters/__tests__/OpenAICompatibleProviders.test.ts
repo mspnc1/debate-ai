@@ -89,7 +89,7 @@ const ADAPTER_MATRIX: AdapterEntry[] = [
     provider: 'together',
     AdapterCtor: TogetherAdapter,
     baseUrl: 'https://api.together.xyz/v1',
-    defaultModel: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
+    defaultModel: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
     capabilities: {
       streaming: true,
       attachments: false,  // Llama 3.1 models don't support vision

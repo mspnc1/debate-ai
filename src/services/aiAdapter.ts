@@ -3,6 +3,7 @@
 // but delegates to the new modular architecture in src/services/ai/
 
 import { AIProvider, ModelParameters, PersonalityConfig, Message, MessageAttachment } from '../types';
+import { resolveProviderModelId } from '../config/modelConfigs';
 import { PersonalityOption } from '../config/personalities';
 import { AdapterFactory, BaseAdapter } from './ai';
 import type { AIAdapterConfig, ResumptionContext } from './ai';
@@ -135,6 +136,7 @@ export class AIService {
     let resumptionContext: ResumptionContext | undefined;
     let model: string | undefined;
     let attachments: MessageAttachment[] | undefined;
+    let parameters: ModelParameters | undefined;
     
     // Parse the overloaded arguments
     if (typeof isDebateModeOrPersonality === 'boolean') {
@@ -153,6 +155,8 @@ export class AIService {
       if (attachmentsOrParams[0].type === 'image' || attachmentsOrParams[0].type === 'document') {
         attachments = attachmentsOrParams as MessageAttachment[];
       }
+    } else if (attachmentsOrParams && typeof attachmentsOrParams === 'object') {
+      parameters = attachmentsOrParams as ModelParameters;
     }
     
     if (typeof modelOrDebateMode === 'string') {
@@ -166,8 +170,13 @@ export class AIService {
       adapter.setTemporaryPersonality(personality);
     }
     
+    const resolvedModel = model ? resolveProviderModelId(provider, model) : undefined;
     if (model) {
-      adapter.config.model = model;
+      adapter.config.model = resolvedModel;
+    }
+
+    if (parameters) {
+      adapter.config.parameters = parameters;
     }
     
     if (isDebateMode !== undefined) {
@@ -179,12 +188,12 @@ export class AIService {
       conversationHistory,
       resumptionContext,
       attachments,
-      model
+      resolvedModel
     );
     
     // Return the full result object for compatibility
     if (typeof result === 'string') {
-      return { response: result, modelUsed: model || adapter.config.model };
+      return { response: result, modelUsed: resolvedModel || adapter.config.model };
     }
     return result;
   }

@@ -115,6 +115,26 @@ describe('CohereAdapter', () => {
       });
     });
 
+    it('extracts the first text content when reasoning appears before it', async () => {
+      fetchMock.mockImplementationOnce(async () => ({
+        ok: true,
+        json: async () => ({
+          message: {
+            role: 'assistant',
+            content: [
+              { type: 'thinking', thinking: 'Internal reasoning' },
+              { type: 'text', text: 'OK' },
+            ],
+          },
+        }),
+      }) as unknown as Response);
+
+      const adapter = new CohereAdapter(makeConfig());
+      const result = await adapter.sendMessage('Hello') as AdapterResponse;
+
+      expect(result.response).toBe('OK');
+    });
+
     it('uses model override when provided', async () => {
       const adapter = new CohereAdapter(makeConfig());
       await adapter.sendMessage('Hello', [], undefined, undefined, 'command-r-08-2024');

@@ -37,16 +37,16 @@ describe('useAISelection', () => {
     {
       id: 'claude',
       provider: 'claude',
-      name: 'Claude 3',
-      model: 'claude-3-opus',
+      name: 'Claude',
+      model: 'claude-sonnet-4-6',
       personality: 'default',
       color: '#f5f5f5',
     },
     {
-      id: 'gpt-4',
+      id: 'openai',
       provider: 'openai',
-      name: 'GPT-4',
-      model: 'gpt-4-turbo',
+      name: 'OpenAI',
+      model: 'gpt-5.4',
       personality: 'default',
       color: '#111111',
     },
@@ -58,7 +58,7 @@ describe('useAISelection', () => {
       fontSize: 'medium',
       apiKeys: { claude: 'key-1', openai: 'key-2' },
       expertMode: {
-        claude: { enabled: true, selectedModel: 'claude-3-haiku' },
+        claude: { enabled: true, selectedModel: 'claude-3-7-sonnet-20250219' },
       },
       verifiedProviders: [],
       verificationTimestamps: {},
@@ -71,7 +71,7 @@ describe('useAISelection', () => {
       typingAIs: [],
       isLoading: false,
       aiPersonalities: { claude: 'default' },
-      selectedModels: { claude: 'claude-3-sonnet' },
+      selectedModels: { claude: 'claude-sonnet-4-6' },
     },
   } as Partial<RootState>;
 
@@ -87,7 +87,7 @@ describe('useAISelection', () => {
     });
 
     expect(result.current.configuredAIs).toHaveLength(2);
-    expect(result.current.configuredAIs[0].model).toBe('claude-3-haiku');
+    expect(result.current.configuredAIs[0].model).toBe('claude-sonnet-4-6');
 
     expect(result.current.canSelectMore()).toBe(true);
     expect(result.current.isSelectionValid()).toBe(false);
@@ -118,7 +118,7 @@ describe('useAISelection', () => {
     });
 
     expect(result.current.selectedAIs).toHaveLength(1);
-    expect(result.current.isAISelected('gpt-4')).toBe(false);
+    expect(result.current.isAISelected('openai')).toBe(false);
 
     act(() => {
       result.current.toggleAI(result.current.configuredAIs[0]);
@@ -155,11 +155,11 @@ describe('useAISelection', () => {
 
     act(() => {
       result.current.changePersonality('claude', 'analyst');
-      result.current.changeModel('claude', 'claude-3-opus');
+      result.current.changeModel('claude', 'claude-opus-4-6');
     });
 
     const state = store.getState();
     expect(state.chat.aiPersonalities.claude).toBe('analyst');
-    expect(state.chat.selectedModels.claude).toBe('claude-3-opus');
+    expect(state.chat.selectedModels.claude).toBe('claude-opus-4-6');
   });
 });

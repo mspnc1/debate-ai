@@ -5,6 +5,7 @@ import { AdapterFactory } from '../ai/factory/AdapterFactory';
 import { ErrorService } from '@/services/errors/ErrorService';
 import { AppError } from '@/errors/types/AppError';
 import { ErrorCode } from '@/errors/codes/ErrorCodes';
+import { resolveProviderModelId } from '@/config/modelConfigs';
 
 // Chunk buffer configuration
 interface BufferConfig {
@@ -151,23 +152,29 @@ export class StreamingService {
     onError: (error: Error) => void,
     onEvent?: (event: unknown) => void
   ): Promise<void> {
-    const { messageId, message, conversationHistory, resumptionContext, attachments, modelOverride } = config;
+    const { messageId, message, conversationHistory, resumptionContext, attachments } = config;
     
     // Create adapter dynamically based on model if config provided
     let adapter: BaseAdapter;
+    let resolvedModelOverride = config.modelOverride;
     if (config.adapterConfig) {
       const { provider, apiKey, model, personality, parameters, isDebateMode, webSearchEnabled } = config.adapterConfig;
+      const resolvedModel = resolveProviderModelId(provider, model) || model;
+      resolvedModelOverride = resolveProviderModelId(
+        provider,
+        config.modelOverride || model
+      ) || resolvedModel;
       const adapterConfig: AIAdapterConfig = {
         provider,
         apiKey,
-        model,
+        model: resolvedModel,
         personality,
         parameters,
         isDebateMode,
         webSearchEnabled
       };
       // Use the new createWithModel method to get the correct adapter
-      adapter = AdapterFactory.createWithModel(adapterConfig, model);
+      adapter = AdapterFactory.createWithModel(adapterConfig, resolvedModel);
     } else if (config.adapter) {
       // Backward compatibility: use provided adapter
       adapter = config.adapter;
@@ -276,7 +283,7 @@ export class StreamingService {
         conversationHistory,
         attachments,
         resumptionContext,
-        modelOverride,
+        resolvedModelOverride,
         abortController.signal,
         onEvent
       );
