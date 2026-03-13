@@ -154,9 +154,21 @@ const buildLiveParameters = (
   model: string
 ): ModelParameters => {
   const modelConfig = getModelById(provider, model);
-  const maxTokens = provider === 'cohere'
-    ? 256
-    : modelConfig?.supportsThinking ? 128 : 16;
+  let maxTokens = 16;
+
+  if (provider === 'openai' && modelConfig?.useMaxCompletionTokens) {
+    maxTokens = model === 'gpt-5-mini' ? 512 : 128;
+  } else if (provider === 'google' && modelConfig?.supportsThinking) {
+    maxTokens = model === 'gemini-2.5-pro' ? 1024 : 256;
+  } else if (provider === 'perplexity' && modelConfig?.supportsThinking) {
+    maxTokens = 512;
+  } else if (provider === 'cohere' && modelConfig?.supportsThinking) {
+    maxTokens = 512;
+  } else if (provider === 'deepseek' && model === 'deepseek-reasoner') {
+    maxTokens = 384;
+  } else if (modelConfig?.supportsThinking) {
+    maxTokens = 128;
+  }
 
   return {
     temperature: 0,

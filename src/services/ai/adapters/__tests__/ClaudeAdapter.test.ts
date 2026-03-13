@@ -182,6 +182,20 @@ describe('ClaudeAdapter', () => {
     jest.useRealTimers();
   });
 
+  it('preserves explicit zero temperature values', async () => {
+    const adapter = new ClaudeAdapter({
+      ...makeConfig('claude-3-7-sonnet-20250219'),
+      parameters: { temperature: 0, maxTokens: 4096 },
+    });
+
+    await adapter.sendMessage('Be deterministic');
+
+    const [, requestInit] = fetchMock.mock.calls[0];
+    const body = JSON.parse(requestInit?.body as string);
+
+    expect(body.temperature).toBe(0);
+  });
+
   it('throws descriptive error when retries are exhausted', async () => {
     fetchMock.mockResolvedValue({
       ok: false,

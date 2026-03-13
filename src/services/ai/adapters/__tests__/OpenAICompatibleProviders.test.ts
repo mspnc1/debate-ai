@@ -165,6 +165,21 @@ describe.each(ADAPTER_MATRIX)('$name adapter', ({
     });
   });
 
+  it('preserves explicit zero temperature values', async () => {
+    const adapter = new AdapterCtor(
+      makeConfig(provider, defaultModel, {
+        parameters: { temperature: 0, maxTokens: 128 },
+      })
+    );
+
+    await adapter.sendMessage('Be deterministic');
+
+    const [, requestInit] = fetchMock.mock.calls[0];
+    const body = JSON.parse((requestInit?.body as string) || '{}');
+
+    expect(body.temperature).toBe(0);
+  });
+
   it('handles image attachments based on adapter capabilities', async () => {
     const adapter = new AdapterCtor(makeConfig(provider, defaultModel));
 

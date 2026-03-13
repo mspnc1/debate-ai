@@ -197,6 +197,21 @@ describe('PerplexityAdapter', () => {
       expect(userMessage.content).toBe('Simple question');
     });
 
+    it('preserves explicit zero temperature values', async () => {
+      const adapter = new PerplexityAdapter(
+        makeConfig({
+          parameters: { temperature: 0, maxTokens: 2048 },
+        })
+      );
+
+      await adapter.sendMessage('Simple question');
+
+      const [, requestInit] = fetchMock.mock.calls[0];
+      const body = JSON.parse(requestInit?.body as string);
+
+      expect(body.temperature).toBe(0);
+    });
+
     it('merges consecutive user messages to satisfy Perplexity alternation requirement', async () => {
       const adapter = new PerplexityAdapter(makeConfig());
 

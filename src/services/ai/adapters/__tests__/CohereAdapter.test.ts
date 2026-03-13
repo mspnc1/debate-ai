@@ -135,6 +135,19 @@ describe('CohereAdapter', () => {
       expect(result.response).toBe('OK');
     });
 
+    it('preserves explicit zero temperature values', async () => {
+      const adapter = new CohereAdapter(
+        makeConfig({
+          parameters: { temperature: 0, maxTokens: 2048 },
+        })
+      );
+
+      await adapter.sendMessage('Hello');
+
+      const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+      expect(body.temperature).toBe(0);
+    });
+
     it('uses model override when provided', async () => {
       const adapter = new CohereAdapter(makeConfig());
       await adapter.sendMessage('Hello', [], undefined, undefined, 'command-r-08-2024');
