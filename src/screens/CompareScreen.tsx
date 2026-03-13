@@ -20,6 +20,7 @@ import { useAIService } from '../providers/AIServiceProvider';
 import { AIConfig, Message, ChatSession, MessageAttachment } from '../types';
 import { StorageService } from '../services/chat/StorageService';
 import { getExpertOverrides } from '../utils/expertMode';
+import { resolveProviderModelId } from '@/config/modelConfigs';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
 import { usePersonality } from '@/hooks/usePersonality';
 import { DemoBanner } from '@/components/molecules/subscription/DemoBanner';
@@ -155,8 +156,12 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
   const rightCitationsRef = useRef<Array<{ index: number; url: string; title?: string; snippet?: string }> | undefined>(undefined);
 
   // Effective models for web search availability check
-  const leftEffectiveModel = leftAI ? (selectedModels[leftAI.id] || leftAI.model) : '';
-  const rightEffectiveModel = rightAI ? (selectedModels[rightAI.id] || rightAI.model) : '';
+  const leftEffectiveModel = leftAI
+    ? (resolveProviderModelId(leftAI.provider, selectedModels[leftAI.id] || leftAI.model) || leftAI.model)
+    : '';
+  const rightEffectiveModel = rightAI
+    ? (resolveProviderModelId(rightAI.provider, selectedModels[rightAI.id] || rightAI.model) || rightAI.model)
+    : '';
 
   // Build provider list for modality availability check
   const selectedList: Array<{ provider: string; model: string }> = (() => {
@@ -270,8 +275,8 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     const pendingPromises: Promise<void>[] = [];
 
     // Compute effective models and expert params at send time
-    const leftEffModel = selectedModels[leftAI.id] || leftAI.model;
-    const rightEffModel = selectedModels[rightAI.id] || rightAI.model;
+    const leftEffModel = leftEffectiveModel;
+    const rightEffModel = rightEffectiveModel;
     const leftExp = getExpertOverrides(expertModeConfigs as Record<string, unknown>, leftAI.provider);
     const rightExp = getExpertOverrides(expertModeConfigs as Record<string, unknown>, rightAI.provider);
 
@@ -671,7 +676,6 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     hasBeenSaved,
     saveComparisonSession,
     expertModeConfigs,
-    selectedModels,
     isDemo,
     apiKeys,
     streamingState?.globalStreamingEnabled,
@@ -679,6 +683,8 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     streamingState?.providerVerificationErrors,
     streamingState?.streamingSpeed,
     getMergedPersonality,
+    leftEffectiveModel,
+    rightEffectiveModel,
     webSearchEnabled,
   ]);
 
@@ -702,8 +708,8 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     setLeftTyping(true);
     setRightTyping(true);
 
-    const leftEffModel = selectedModels[leftAI.id] || leftAI.model;
-    const rightEffModel = selectedModels[rightAI.id] || rightAI.model;
+    const leftEffModel = leftEffectiveModel;
+    const rightEffModel = rightEffectiveModel;
 
     const leftPromise = aiService.sendMessage(leftAI.provider, messageText, leftHistoryRef.current, false, undefined, undefined, leftEffModel)
       .then(response => {
@@ -769,7 +775,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     }).catch(() => {
       // ignore individual rejection handling above
     });
-  }, [aiService, leftAI, rightAI, selectedModels, isDemo]);
+  }, [aiService, isDemo, leftAI, leftEffectiveModel, rightAI, rightEffectiveModel]);
 
   // Demo Mode: auto-start playback when both AIs are selected and no messages yet
   React.useEffect(() => {

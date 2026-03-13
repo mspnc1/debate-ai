@@ -111,13 +111,19 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
     // Update AIs with selected models
     const leftAIConfig = {
       ...leftAI[0],
-      model: leftModels[leftAI[0].id] || leftAI[0].model,
+      model: resolveProviderModelId(
+        leftAI[0].provider,
+        leftModels[leftAI[0].id] || leftAI[0].model
+      ) || leftAI[0].model,
       personality: leftPersonalities[leftAI[0].id] || leftAI[0].personality || 'default',
     };
     
     const rightAIConfig = {
       ...rightAI[0],
-      model: rightModels[rightAI[0].id] || rightAI[0].model,
+      model: resolveProviderModelId(
+        rightAI[0].provider,
+        rightModels[rightAI[0].id] || rightAI[0].model
+      ) || rightAI[0].model,
       personality: rightPersonalities[rightAI[0].id] || rightAI[0].personality || 'default',
     };
     
@@ -205,7 +211,10 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
                 setLeftPersonalities(prev => ({ ...prev, [aiId]: personalityId }))
               }
               onModelChange={(aiId, modelId) => 
-                setLeftModels(prev => ({ ...prev, [aiId]: modelId }))
+                setLeftModels(prev => ({
+                  ...prev,
+                  [aiId]: resolveProviderModelId(aiId, modelId) || modelId,
+                }))
               }
             />
           </View>
@@ -243,7 +252,10 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
                 setRightPersonalities(prev => ({ ...prev, [aiId]: personalityId }))
               }
               onModelChange={(aiId, modelId) => 
-                setRightModels(prev => ({ ...prev, [aiId]: modelId }))
+                setRightModels(prev => ({
+                  ...prev,
+                  [aiId]: resolveProviderModelId(aiId, modelId) || modelId,
+                }))
               }
             />
           </View>

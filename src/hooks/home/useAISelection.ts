@@ -75,7 +75,8 @@ export const useAISelection = (maxAIs: number) => {
    * @param modelId - New model ID
    */
   const changeModel = (aiId: string, modelId: string) => {
-    dispatch(setAIModel({ aiId, modelId }));
+    const resolvedModelId = resolveProviderModelId(aiId, modelId) || modelId;
+    dispatch(setAIModel({ aiId, modelId: resolvedModelId }));
   };
 
   /**

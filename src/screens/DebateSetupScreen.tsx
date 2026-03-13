@@ -172,10 +172,11 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   };
   
   const handleModelChange = (aiId: string, modelId: string) => {
-    dispatch(setAIModel({ aiId, modelId }));
+    const resolvedModelId = resolveProviderModelId(aiId, modelId) || modelId;
+    dispatch(setAIModel({ aiId, modelId: resolvedModelId }));
     setSelectedModels(prev => ({
       ...prev,
-      [aiId]: modelId
+      [aiId]: resolvedModelId
     }));
   };
   
@@ -204,7 +205,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
 
   const mapSelectedAIsWithModels = () => selectedAIs.map(ai => ({
     ...ai,
-    model: selectedModels[ai.id] || ai.model,
+    model: resolveProviderModelId(ai.provider, selectedModels[ai.id] || ai.model) || ai.model,
     personality: aiPersonalities[ai.id] || ai.personality || 'default',
   }));
 

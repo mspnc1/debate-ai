@@ -1,5 +1,6 @@
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, startSession } from '../../store';
+import { resolveProviderModelId } from '../../config/modelConfigs';
 import { SessionService } from '../../services/home/SessionService';
 import { AIConfig } from '../../types';
 
@@ -25,7 +26,7 @@ export const useSessionManagement = () => {
     // Update AIs with selected models
     const aisWithModels = selectedAIs.map(ai => ({
       ...ai,
-      model: selectedModels[ai.id] || ai.model,
+      model: resolveProviderModelId(ai.provider, selectedModels[ai.id] || ai.model) || ai.model,
     }));
     
     // Prepare session data for Redux

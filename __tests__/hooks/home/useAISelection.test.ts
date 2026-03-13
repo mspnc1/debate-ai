@@ -162,4 +162,17 @@ describe('useAISelection', () => {
     expect(state.chat.aiPersonalities.claude).toBe('analyst');
     expect(state.chat.selectedModels.claude).toBe('claude-opus-4-6');
   });
+
+  it('sanitizes image-generation model selections back to text defaults', () => {
+    const { result, store } = renderHookWithProviders(() => useAISelection(2), {
+      preloadedState: baseState,
+    });
+
+    act(() => {
+      result.current.changeModel('openai', 'gpt-image-1');
+    });
+
+    const state = store.getState();
+    expect(state.chat.selectedModels.openai).toBe('gpt-5.4');
+  });
 });
