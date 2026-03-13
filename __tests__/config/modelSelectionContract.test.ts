@@ -13,7 +13,9 @@ describe('Model selection contract', () => {
     const models = getProviderModels(providerId);
 
     expect(models.length).toBeGreaterThan(0);
+    expect(models.length).toBeLessThanOrEqual(5);
     expect(models.every((model) => model.isDeprecated !== true)).toBe(true);
+    expect(models.every((model) => model.supportsImageGeneration !== true)).toBe(true);
   });
 
   it.each(providerIds)('keeps provider defaults aligned for %s', (providerId) => {
@@ -31,5 +33,11 @@ describe('Model selection contract', () => {
     expect(resolveProviderModelId('claude', 'claude-3-7-sonnet-20250219')).toBe('claude-sonnet-4-6');
     expect(resolveProviderModelId('claude', 'gpt-5')).toBe('claude-sonnet-4-6');
     expect(resolveProviderModelId('openai', 'not-a-real-model')).toBe('gpt-5.4');
+  });
+
+  it('rejects image-generation models in text-mode resolution', () => {
+    expect(resolveProviderModelId('openai', 'gpt-image-1')).toBe('gpt-5.4');
+    expect(resolveProviderModelId('openai', 'dall-e-3')).toBe('gpt-5.4');
+    expect(resolveProviderModelId('grok', 'grok-imagine-image')).toBe('grok-4-0709');
   });
 });
