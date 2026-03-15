@@ -1,42 +1,19 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDecryptedApiKey, encryptionKey } from './apiKeys';
-
-/**
- * Image Generation Proxy
- * Supports OpenAI (gpt-image-1), Google Gemini, and Grok (xAI)
- *
- * All styling/sizing is done via natural language in the prompt.
- * This simplifies the API and ensures universal compatibility.
- */
-
-// Provider-specific configurations
-const IMAGE_PROVIDERS: Record<string, {
-  models: string[];
-  defaultModel: string;
-  supportsImageInput: boolean;
-}> = {
-  openai: {
-    models: ['gpt-image-1', 'dall-e-3'],
-    defaultModel: 'gpt-image-1',
-    supportsImageInput: true,
-  },
-  google: {
-    models: ['gemini-2.5-flash-image', 'gemini-3-pro-image'],
-    defaultModel: 'gemini-2.5-flash-image',
-    supportsImageInput: true,
-  },
-  grok: {
-    models: ['grok-2-image-1212'],
-    defaultModel: 'grok-2-image-1212',
-    supportsImageInput: false,
-  },
-};
+import {
+  getImageModels,
+  getResolvedImageModel,
+  isImageProvider,
+  type ImageModelConfig,
+} from './imageModelRegistry';
 
 // Simplified request - just prompt and basic options
 interface ImageProxyRequest {
   providerId: string;
   model?: string;
   prompt: string;
+  size?: string;
+  resolution?: string;
   n?: number;              // Number of images (usually 1)
   sourceImage?: string;    // Base64 image for img2img
   responseFormat?: 'url' | 'b64_json'; // Always returns b64_json regardless
@@ -74,16 +51,22 @@ export const proxyImageGeneration = onCall(
       providerId,
       model,
       prompt,
+      size,
+      resolution,
       n = 1,
       sourceImage,
     } = request.data as ImageProxyRequest;
 
     // Validate provider
-    if (!providerId || !IMAGE_PROVIDERS[providerId]) {
+    if (!providerId || !isImageProvider(providerId) || getImageModels(providerId).length === 0) {
       throw new HttpsError(
         'invalid-argument',
-        `Invalid or unsupported image provider: ${providerId}. Supported: ${Object.keys(IMAGE_PROVIDERS).join(', ')}`
+        `Invalid or unsupported image provider: ${providerId}. Supported: openai, google, grok`
       );
+    }
+    const modelConfig = getResolvedImageModel(providerId, model);
+    if (!modelConfig) {
+      throw new HttpsError('invalid-argument', `Invalid or unsupported image model for provider: ${providerId}`);
     }
 
     // Validate prompt
@@ -91,28 +74,22 @@ export const proxyImageGeneration = onCall(
       throw new HttpsError('invalid-argument', 'Prompt is required');
     }
 
-    if (prompt.length > 4000) {
-      throw new HttpsError('invalid-argument', 'Prompt exceeds maximum length of 4000 characters');
+    if (prompt.length > (modelConfig.maxPromptLength || 4000)) {
+      throw new HttpsError('invalid-argument', `Prompt exceeds maximum length of ${modelConfig.maxPromptLength || 4000} characters`);
     }
 
     const uid = request.auth.uid;
-    const providerConfig = IMAGE_PROVIDERS[providerId];
-    const resolvedModel = model || providerConfig.defaultModel;
+    const resolvedModel = modelConfig.id;
 
     // Log img2img request info for debugging
     if (sourceImage) {
       console.log(`[ImageProxy] img2img request for ${providerId}/${resolvedModel}, sourceImage length: ${sourceImage.length}`);
-      if (!providerConfig.supportsImageInput) {
-        console.warn(`[ImageProxy] ${providerId} does not support img2img - sourceImage will be ignored`);
+      if (!modelConfig.supportsImageInput) {
+        throw new HttpsError(
+          'invalid-argument',
+          `${modelConfig.displayName} does not support image-to-image generation`
+        );
       }
-    }
-
-    // Validate model
-    if (!providerConfig.models.includes(resolvedModel)) {
-      throw new HttpsError(
-        'invalid-argument',
-        `Invalid model: ${resolvedModel}. Supported for ${providerId}: ${providerConfig.models.join(', ')}`
-      );
     }
 
     // Get the user's API key for this provider
@@ -124,18 +101,21 @@ export const proxyImageGeneration = onCall(
     try {
       let result: { images: GeneratedImage[] };
 
-      switch (providerId) {
-        case 'openai':
-          result = await generateOpenAI(apiKey, resolvedModel, prompt, { n, sourceImage });
+      switch (modelConfig.apiFamily) {
+        case 'openai-images':
+          result = await generateOpenAI(apiKey, resolvedModel, prompt, { n, sourceImage, size });
           break;
-        case 'google':
-          result = await generateGemini(apiKey, resolvedModel, prompt, { sourceImage });
+        case 'google-gemini-image':
+          result = await generateGemini(apiKey, resolvedModel, prompt, { sourceImage, size, resolution });
           break;
-        case 'grok':
-          result = await generateGrok(apiKey, resolvedModel, prompt, { n });
+        case 'google-imagen':
+          result = await generateImagen(apiKey, resolvedModel, prompt, { n, size, resolution });
+          break;
+        case 'xai-images':
+          result = await generateGrok(apiKey, resolvedModel, prompt, { n, sourceImage, size });
           break;
         default:
-          throw new HttpsError('invalid-argument', `Unsupported provider: ${providerId}`);
+          throw new HttpsError('invalid-argument', `Unsupported image model family for ${providerId}`);
       }
 
       // Transform images to the expected response format
@@ -191,6 +171,23 @@ export const proxyImageGeneration = onCall(
   }
 );
 
+function normalizeAspectRatio(size?: string): string | undefined {
+  if (!size) return undefined;
+
+  switch (size) {
+    case '1024x1024':
+      return '1:1';
+    case '1024x1536':
+    case '1024x1792':
+      return '9:16';
+    case '1536x1024':
+    case '1792x1024':
+      return '16:9';
+    default:
+      return size;
+  }
+}
+
 /**
  * OpenAI Image Generation (gpt-image-1, dall-e-3)
  * Uses default API settings - all styling is in the prompt
@@ -199,12 +196,12 @@ async function generateOpenAI(
   apiKey: string,
   model: string,
   prompt: string,
-  options: { n?: number; sourceImage?: string }
+  options: { n?: number; sourceImage?: string; size?: string }
 ): Promise<{ images: GeneratedImage[] }> {
-  const { n = 1, sourceImage } = options;
+  const { n = 1, sourceImage, size } = options;
 
-  // Image editing with gpt-image-1
-  if (model === 'gpt-image-1' && sourceImage) {
+  // GPT Image models support image editing. DALL-E 3 remains generation-only.
+  if (sourceImage && model !== 'dall-e-3') {
     return generateOpenAIEdit(apiKey, model, prompt, sourceImage, { n });
   }
 
@@ -215,9 +212,13 @@ async function generateOpenAI(
     n: Math.min(n, model === 'dall-e-3' ? 1 : 10),
   };
 
+  if (size) {
+    body.size = size;
+  }
+
   // GPT image models don't support response_format - they always return base64
   // Legacy models (dall-e-3) need response_format to get base64
-  if (!model.startsWith('gpt-image')) {
+  if (!model.startsWith('gpt-image') && !model.startsWith('chatgpt-image')) {
     body.response_format = 'b64_json';
   }
 
@@ -304,9 +305,9 @@ async function generateGemini(
   apiKey: string,
   model: string,
   prompt: string,
-  options: { sourceImage?: string }
+  options: { sourceImage?: string; size?: string; resolution?: string }
 ): Promise<{ images: GeneratedImage[] }> {
-  const { sourceImage } = options;
+  const { sourceImage, size, resolution } = options;
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -331,6 +332,10 @@ async function generateGemini(
     contents: [{ parts }],
     generationConfig: {
       responseModalities: ['IMAGE', 'TEXT'],
+      imageConfig: {
+        aspectRatio: normalizeAspectRatio(size) || '1:1',
+        ...(resolution ? { imageSize: resolution } : {}),
+      },
     },
   };
 
@@ -381,6 +386,68 @@ async function generateGemini(
   return { images };
 }
 
+async function generateImagen(
+  apiKey: string,
+  model: string,
+  prompt: string,
+  options: { n?: number; size?: string; resolution?: string }
+): Promise<{ images: GeneratedImage[] }> {
+  const { n = 1, size, resolution } = options;
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        instances: [{ prompt }],
+        parameters: {
+          sampleCount: Math.max(1, Math.min(n, 4)),
+          aspectRatio: normalizeAspectRatio(size) || '1:1',
+          ...(resolution ? { imageSize: resolution } : {}),
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('Imagen generation error:', error);
+    throw { status: response.status, message: error };
+  }
+
+  const data = await response.json();
+  const images: GeneratedImage[] = [];
+
+  for (const item of data.generatedImages || []) {
+    const base64 = item.image?.imageBytes;
+    if (!base64) continue;
+    const mimeType = item.image?.mimeType || 'image/png';
+    images.push({
+      url: `data:${mimeType};base64,${base64}`,
+      base64,
+      mimeType,
+    });
+  }
+
+  for (const item of data.predictions || []) {
+    const base64 = item.bytesBase64Encoded || item.image?.imageBytes;
+    if (!base64) continue;
+    const mimeType = item.mimeType || item.image?.mimeType || 'image/png';
+    images.push({
+      url: `data:${mimeType};base64,${base64}`,
+      base64,
+      mimeType,
+    });
+  }
+
+  if (images.length === 0) {
+    throw new HttpsError('internal', 'No image generated by Imagen');
+  }
+
+  return { images };
+}
+
 /**
  * Grok (xAI) Image Generation
  * Uses default API settings - all styling is in the prompt
@@ -389,9 +456,13 @@ async function generateGrok(
   apiKey: string,
   model: string,
   prompt: string,
-  options: { n?: number }
+  options: { n?: number; sourceImage?: string; size?: string }
 ): Promise<{ images: GeneratedImage[] }> {
-  const { n = 1 } = options;
+  const { n = 1, sourceImage, size } = options;
+
+  if (sourceImage) {
+    return generateGrokEdit(apiKey, model, prompt, sourceImage, { n });
+  }
 
   const response = await fetch('https://api.x.ai/v1/images/generations', {
     method: 'POST',
@@ -403,6 +474,7 @@ async function generateGrok(
       model,
       prompt,
       n,
+      ...(size ? { aspect_ratio: normalizeAspectRatio(size) } : {}),
       response_format: 'b64_json',
     }),
   });
@@ -410,6 +482,49 @@ async function generateGrok(
   if (!response.ok) {
     const error = await response.text();
     console.error('Grok image generation error:', error);
+    throw { status: response.status, message: error };
+  }
+
+  const data = await response.json();
+
+  return {
+    images: data.data.map((item: any) => ({
+      url: item.url || `data:image/png;base64,${item.b64_json}`,
+      base64: item.b64_json,
+      mimeType: 'image/png',
+    })),
+  };
+}
+
+async function generateGrokEdit(
+  apiKey: string,
+  model: string,
+  prompt: string,
+  sourceImage: string,
+  options: { n?: number }
+): Promise<{ images: GeneratedImage[] }> {
+  const { n = 1 } = options;
+
+  const response = await fetch('https://api.x.ai/v1/images/edits', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      prompt,
+      n,
+      image: {
+        url: toDataUri(sourceImage),
+      },
+      response_format: 'b64_json',
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('Grok image edit error:', error);
     throw { status: response.status, message: error };
   }
 
@@ -438,4 +553,13 @@ function base64ToBlob(base64: string, mimeType: string): Blob {
 
   const byteArray = new Uint8Array(byteNumbers);
   return new Blob([byteArray], { type: mimeType });
+}
+
+function toDataUri(sourceImage: string, mimeType = 'image/png'): string {
+  if (sourceImage.startsWith('data:')) {
+    return sourceImage;
+  }
+
+  const base64Data = sourceImage.includes(',') ? sourceImage.split(',')[1] : sourceImage;
+  return `data:${mimeType};base64,${base64Data}`;
 }

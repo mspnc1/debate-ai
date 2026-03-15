@@ -15,8 +15,11 @@ import reducer, {
   generationError,
   clearGenerationError,
   addToGallery,
+  addToGalleryWithCleanup,
   removeFromGallery,
+  removeFromGalleryWithCleanup,
   clearGallery,
+  clearGalleryWithCleanup,
   startRefinement,
   setRefinementPrompt,
   cancelRefinement,
@@ -32,7 +35,6 @@ import reducer, {
   selectGenerationProgress,
   hydrateGallery,
   persistGallery,
-  type CreateState,
   type GeneratedImageEntry,
 } from '@/store/createSlice';
 import { configureStore } from '@reduxjs/toolkit';
@@ -47,7 +49,12 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 
 // Mock expo-file-system
 jest.mock('expo-file-system/legacy', () => ({
+  cacheDirectory: '/cache/',
+  documentDirectory: '/documents/',
   getInfoAsync: jest.fn(),
+  makeDirectoryAsync: jest.fn().mockResolvedValue(undefined),
+  copyAsync: jest.fn().mockResolvedValue(undefined),
+  downloadAsync: jest.fn().mockResolvedValue({ uri: '/documents/images/downloaded.png' }),
   deleteAsync: jest.fn().mockResolvedValue(undefined),
 }));
 
@@ -258,11 +265,11 @@ describe('createSlice', () => {
       expect(state.gallery).toHaveLength(0);
     });
 
-    it('calls FileSystem.deleteAsync when removing image', () => {
-      let state = reducer(initialState, addToGallery(mockImage));
+    it('does not perform filesystem side effects in reducer when removing image', () => {
+      const state = reducer(initialState, addToGallery(mockImage));
       reducer(state, removeFromGallery('img_1'));
 
-      expect(FileSystem.deleteAsync).toHaveBeenCalledWith(mockImage.uri, { idempotent: true });
+      expect(FileSystem.deleteAsync).not.toHaveBeenCalled();
     });
 
     it('clears entire gallery', () => {
@@ -273,7 +280,7 @@ describe('createSlice', () => {
       expect(state.gallery).toHaveLength(0);
     });
 
-    it('calls FileSystem.deleteAsync for all images when clearing gallery', () => {
+    it('does not perform filesystem side effects in reducer when clearing gallery', () => {
       const image1 = { ...mockImage, uri: 'file:///test/image1.png' };
       const image2 = { ...mockImage, id: 'img_2', uri: 'file:///test/image2.png' };
 
@@ -281,7 +288,7 @@ describe('createSlice', () => {
       state = reducer(state, addToGallery(image2));
       reducer(state, clearGallery());
 
-      expect(FileSystem.deleteAsync).toHaveBeenCalledTimes(2);
+      expect(FileSystem.deleteAsync).not.toHaveBeenCalled();
     });
 
     it('auto-prunes gallery when exceeding max size (50)', () => {
@@ -299,6 +306,20 @@ describe('createSlice', () => {
       expect(state.gallery).toHaveLength(50);
       // First image should be removed (oldest)
       expect(state.gallery.find(img => img.id === 'img_0')).toBeUndefined();
+    });
+
+    it('does not perform filesystem side effects in reducer when auto-pruning', () => {
+      let state = initialState;
+
+      for (let i = 0; i < 51; i++) {
+        state = reducer(state, addToGallery({
+          ...mockImage,
+          id: `img_${i}`,
+          uri: `file:///test/image_${i}.png`,
+        }));
+      }
+
+      expect(FileSystem.deleteAsync).not.toHaveBeenCalled();
     });
   });
 
@@ -428,6 +449,18 @@ describe('createSlice', () => {
   });
 
   describe('async thunks', () => {
+    const thunkImage: GeneratedImageEntry = {
+      id: 'img_thunk',
+      uri: 'file:///test/thunk-image.png',
+      prompt: 'Test',
+      originalPrompt: 'Test',
+      provider: 'openai',
+      model: 'gpt-image-1',
+      createdAt: Date.now(),
+      isRefinement: false,
+      isUploaded: false,
+    };
+
     it('hydrateGallery loads valid entries from storage', async () => {
       const mockGallery: GeneratedImageEntry[] = [
         {
@@ -553,6 +586,70 @@ describe('createSlice', () => {
         'create_gallery',
         JSON.stringify(mockGallery)
       );
+    });
+
+    it('addToGalleryWithCleanup deletes the pruned local file outside the reducer', async () => {
+      const store = configureStore({
+        reducer: { create: reducer },
+        preloadedState: {
+          create: {
+            ...initialState,
+            gallery: Array.from({ length: 50 }, (_, index) => 49 - index).map((index) => ({
+              ...thunkImage,
+              id: `img_${index}`,
+              uri: `file:///test/image_${index}.png`,
+            })),
+          },
+        },
+      });
+
+      await store.dispatch(addToGalleryWithCleanup({
+        ...thunkImage,
+        id: 'img_new',
+        uri: 'file:///test/new-image.png',
+      }));
+
+      expect(store.getState().create.gallery).toHaveLength(50);
+      expect(FileSystem.deleteAsync).toHaveBeenCalledWith('file:///test/image_0.png', { idempotent: true });
+      expect(store.getState().create.gallery[0].id).toBe('img_new');
+      expect(store.getState().create.gallery.find((image) => image.id === 'img_0')).toBeUndefined();
+    });
+
+    it('removeFromGalleryWithCleanup deletes the removed local file outside the reducer', async () => {
+      const store = configureStore({
+        reducer: { create: reducer },
+        preloadedState: {
+          create: {
+            ...initialState,
+            gallery: [thunkImage],
+          },
+        },
+      });
+
+      await store.dispatch(removeFromGalleryWithCleanup(thunkImage.id));
+
+      expect(store.getState().create.gallery).toHaveLength(0);
+      expect(FileSystem.deleteAsync).toHaveBeenCalledWith(thunkImage.uri, { idempotent: true });
+    });
+
+    it('clearGalleryWithCleanup deletes all local gallery files outside the reducer', async () => {
+      const secondImage = { ...thunkImage, id: 'img_2', uri: 'file:///test/second.png' };
+      const store = configureStore({
+        reducer: { create: reducer },
+        preloadedState: {
+          create: {
+            ...initialState,
+            gallery: [thunkImage, secondImage],
+          },
+        },
+      });
+
+      await store.dispatch(clearGalleryWithCleanup());
+
+      expect(store.getState().create.gallery).toEqual([]);
+      expect(FileSystem.deleteAsync).toHaveBeenCalledTimes(2);
+      expect(FileSystem.deleteAsync).toHaveBeenCalledWith(thunkImage.uri, { idempotent: true });
+      expect(FileSystem.deleteAsync).toHaveBeenCalledWith(secondImage.uri, { idempotent: true });
     });
   });
 

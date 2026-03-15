@@ -1,5 +1,6 @@
 import { act } from '@testing-library/react-native';
 import { renderHookWithProviders } from '../../../test-utils/renderHookWithProviders';
+import { resolveProviderModelId } from '@/config/modelConfigs';
 import { useSessionManagement } from '@/hooks/home/useSessionManagement';
 import type { RootState } from '@/store';
 import type { AIConfig } from '@/types';
@@ -66,18 +67,19 @@ describe('useSessionManagement', () => {
     });
 
     const sessionId = result.current.createSession(selectedAIs);
+    const resolvedModelId = resolveProviderModelId('claude', 'claude-3-sonnet') || 'claude-3-sonnet';
 
     expect(mockValidateSessionAIs).toHaveBeenCalledWith(selectedAIs);
     expect(mockPrepareSessionData).toHaveBeenCalledWith([
       {
         ...selectedAIs[0],
-        model: 'claude-3-sonnet',
+        model: resolvedModelId,
       },
     ], { claude: 'analyst' }, { claude: 'claude-3-sonnet' });
 
     const state = store.getState();
     expect(state.chat.sessions).toHaveLength(1);
-    expect(state.chat.sessions[0].selectedAIs[0].model).toBe('claude-3-sonnet');
+    expect(state.chat.sessions[0].selectedAIs[0].model).toBe(resolvedModelId);
     expect(sessionId).toBe(`session_${Date.now()}`);
   });
 

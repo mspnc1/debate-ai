@@ -1,5 +1,5 @@
 import { AIProvider } from '../types';
-import { IMAGE_GENERATION_CONSTANTS } from '../constants/imageGeneration';
+import { getImageGenerationCapabilities } from './imageGenerationModels';
 
 export interface ProviderCapabilities {
   imageGeneration?: {
@@ -18,53 +18,14 @@ export interface ProviderCapabilities {
 }
 
 export function getProviderCapabilities(provider: AIProvider): ProviderCapabilities {
+  const imageGeneration = getImageGenerationCapabilities(provider);
+
   switch (provider) {
     case 'openai':
-      return {
-        imageGeneration: {
-          supported: true,
-          supportsImageInput: true,  // gpt-image-1 supports img2img
-          models: [
-            IMAGE_GENERATION_CONSTANTS.MODELS.OPENAI_IMAGE,
-            IMAGE_GENERATION_CONSTANTS.MODELS.DALLE3,
-          ],
-          sizes: [
-            IMAGE_GENERATION_CONSTANTS.SIZES.AUTO,
-            IMAGE_GENERATION_CONSTANTS.SIZES.SQUARE_1024,
-            IMAGE_GENERATION_CONSTANTS.SIZES.PORTRAIT_1024x1536,
-            IMAGE_GENERATION_CONSTANTS.SIZES.LANDSCAPE_1536x1024,
-          ],
-          maxPromptLength: 4000,
-        },
-        // Video generation is out of scope for v1; keep disabled
-        videoGeneration: { supported: false },
-      };
     case 'google':
-      return {
-        imageGeneration: {
-          supported: true,
-          supportsImageInput: true,  // Gemini supports img2img
-          models: [
-            'gemini-2.5-flash-image',
-          ],
-          // Google uses aspect ratios, not pixel sizes
-          sizes: ['1:1', '16:9', '9:16', '4:3', '3:4'],
-          maxPromptLength: 4000,
-        },
-        videoGeneration: {
-          supported: false,
-        },
-      };
     case 'grok':
       return {
-        imageGeneration: {
-          supported: true,
-          supportsImageInput: false,  // Grok does NOT support img2img
-          models: ['grok-imagine-image'],
-          // Grok does not support size parameter - generates at fixed size
-          sizes: [],
-          maxPromptLength: 4000,
-        },
+        imageGeneration,
         videoGeneration: { supported: false },
       };
     default:

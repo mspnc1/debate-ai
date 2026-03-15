@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { act, waitFor } from '@testing-library/react-native';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
 import { createAppStore, showSheet } from '@/store';
+import { resolveProviderModelId } from '@/config/modelConfigs';
 import type { AppStore, RootState } from '@/store';
 import type { AIConfig, ChatSession, Message } from '@/types';
 
@@ -390,8 +391,24 @@ describe('CompareScreen', () => {
     expect(mockPrimeNextCompareTurn).toHaveBeenCalled();
     await waitFor(() => {
       expect(aiService.sendMessage).toHaveBeenCalledTimes(2);
-      expect(aiService.sendMessage).toHaveBeenCalledWith(leftAI.provider, expect.any(String), expect.any(Array), false, undefined, undefined, leftAI.model);
-      expect(aiService.sendMessage).toHaveBeenCalledWith(rightAI.provider, expect.any(String), expect.any(Array), false, undefined, undefined, rightAI.model);
+      expect(aiService.sendMessage).toHaveBeenCalledWith(
+        leftAI.provider,
+        expect.any(String),
+        expect.any(Array),
+        false,
+        undefined,
+        undefined,
+        resolveProviderModelId(leftAI.provider, leftAI.model) || leftAI.model
+      );
+      expect(aiService.sendMessage).toHaveBeenCalledWith(
+        rightAI.provider,
+        expect.any(String),
+        expect.any(Array),
+        false,
+        undefined,
+        undefined,
+        resolveProviderModelId(rightAI.provider, rightAI.model) || rightAI.model
+      );
     });
   });
 

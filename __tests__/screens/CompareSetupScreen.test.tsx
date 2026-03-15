@@ -94,6 +94,17 @@ jest.mock('@/config/modelConfigs', () => ({
     claude: [{ id: 'claude-default', name: 'Claude Default', isDefault: true }],
     openai: [{ id: 'gpt-5', name: 'GPT-5', isDefault: true }],
   },
+  getProviderDefaultModel: (providerId: 'claude' | 'openai') => ({
+    id: providerId === 'claude' ? 'claude-default' : 'gpt-5',
+    name: providerId === 'claude' ? 'Claude Default' : 'GPT-5',
+    isDefault: true,
+  }),
+  resolveProviderModelId: (providerId: 'claude' | 'openai', modelId?: string) => {
+    if (providerId === 'claude') {
+      return modelId === 'claude-default' ? modelId : 'claude-default';
+    }
+    return modelId === 'gpt-5' ? modelId : 'gpt-5';
+  },
 }));
 
 jest.mock('@/utils/aiProviderAssets', () => ({

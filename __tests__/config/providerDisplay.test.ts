@@ -1,6 +1,5 @@
 import { LOGO_CONFIGS, getLogoConfig } from '@/config/logoConfig';
 import { getProviderCapabilities } from '@/config/providerCapabilities';
-import { IMAGE_GENERATION_CONSTANTS } from '@/constants/imageGeneration';
 
 describe('Provider logo configuration', () => {
   it('returns known provider configuration verbatim', () => {
@@ -18,54 +17,68 @@ describe('Provider logo configuration', () => {
 });
 
 describe('Provider capability matrix', () => {
-  it('supports OpenAI image generation with documented sizes', () => {
+  it('derives OpenAI image capabilities from the shared image model registry', () => {
     const capabilities = getProviderCapabilities('openai');
     expect(capabilities.imageGeneration).toEqual({
       supported: true,
       supportsImageInput: true,
       models: [
-        IMAGE_GENERATION_CONSTANTS.MODELS.OPENAI_IMAGE,
-        IMAGE_GENERATION_CONSTANTS.MODELS.DALLE3,
+        'gpt-image-1.5',
+        'chatgpt-image-latest',
+        'gpt-image-1',
+        'gpt-image-1-mini',
+        'dall-e-3',
       ],
       sizes: [
-        IMAGE_GENERATION_CONSTANTS.SIZES.AUTO,
-        IMAGE_GENERATION_CONSTANTS.SIZES.SQUARE_1024,
-        IMAGE_GENERATION_CONSTANTS.SIZES.PORTRAIT_1024x1536,
-        IMAGE_GENERATION_CONSTANTS.SIZES.LANDSCAPE_1536x1024,
+        '1024x1024',
+        '1024x1536',
+        '1536x1024',
+        '1024x1792',
+        '1792x1024',
       ],
       maxPromptLength: 4000,
     });
     expect(capabilities.videoGeneration).toEqual({ supported: false });
   });
 
-  it('documents Google image generation constraints', () => {
+  it('surfaces both Gemini and Imagen offerings for Google', () => {
     const capabilities = getProviderCapabilities('google');
-    expect(capabilities).toEqual({
-      imageGeneration: {
-        supported: true,
-        supportsImageInput: true,
-        models: [
-          'gemini-2.5-flash-image',
-        ],
-        // Google uses aspect ratios instead of pixel sizes
-        sizes: ['1:1', '16:9', '9:16', '4:3', '3:4'],
-        maxPromptLength: 4000,
-      },
-      videoGeneration: {
-        supported: false,
-      },
+    expect(capabilities.videoGeneration).toEqual({ supported: false });
+    expect(capabilities.imageGeneration).toEqual({
+      supported: true,
+      supportsImageInput: true,
+      models: [
+        'gemini-2.5-flash-image',
+        'gemini-3.1-flash-image-preview',
+        'gemini-3-pro-image-preview',
+        'imagen-4.0-fast-generate-001',
+        'imagen-4.0-generate-001',
+        'imagen-4.0-ultra-generate-001',
+      ],
+      sizes: [
+        '1:1',
+        '16:9',
+        '9:16',
+        '4:3',
+        '3:4',
+        '2:3',
+        '3:2',
+        '4:5',
+        '5:4',
+        '21:9',
+      ],
+      maxPromptLength: 4000,
     });
   });
 
-  it('lists Grok image support and disables video', () => {
+  it('marks Grok refinement and aspect-ratio support correctly', () => {
     const capabilities = getProviderCapabilities('grok');
     expect(capabilities).toEqual({
       imageGeneration: {
         supported: true,
-        supportsImageInput: false,
+        supportsImageInput: true,
         models: ['grok-imagine-image'],
-        // Grok does not support size parameter - generates at fixed size
-        sizes: [],
+        sizes: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '2:1', '1:2', '19.5:9', '9:19.5', '20:9', '9:20'],
         maxPromptLength: 4000,
       },
       videoGeneration: { supported: false },

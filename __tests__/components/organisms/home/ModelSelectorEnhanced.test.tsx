@@ -85,8 +85,11 @@ jest.mock('@/config/modelConfigs', () => ({
   getProviderModels: jest.fn(() => ([
     { id: 'modelA', name: 'Model A', description: 'Primary', contextLength: 8000, isDefault: true },
     { id: 'modelB', name: 'Model B', description: 'Secondary', contextLength: 16000, isDeprecated: true },
-    { id: 'modelC', name: 'Model C', description: 'Tertiary', contextLength: 32000 },
+    { id: 'modelC', name: 'Model C', description: 'Tertiary', contextLength: 32000, contextLabel: 'Context unpublished' },
   ])),
+  getModelContextLabel: jest.fn((model: { contextLabel?: string; contextLength: number }) =>
+    model.contextLabel ?? `${Math.round(model.contextLength / 1000)}K context`
+  ),
 }));
 
 jest.mock('@/config/modelPricing', () => ({
@@ -155,5 +158,17 @@ describe('ModelSelectorEnhanced', () => {
     );
 
     expect(queryByText('Model B')).toBeNull();
+  });
+
+  it('renders explicit context labels when provided by metadata', () => {
+    const { getByText } = render(
+      <ModelSelectorEnhanced
+        providerId="provider"
+        selectedModel="modelC"
+        onSelectModel={jest.fn()}
+      />
+    );
+
+    expect(getByText('Context unpublished')).toBeTruthy();
   });
 });

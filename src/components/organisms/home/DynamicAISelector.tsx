@@ -30,6 +30,7 @@ interface DynamicAISelectorProps {
   selectedModels?: { [aiId: string]: string };
   onPersonalityChange?: (aiId: string, personalityId: string) => void;
   onModelChange?: (aiId: string, modelId: string) => void;
+  renderModelSelector?: (ai: AIConfig, selectedModel: string) => React.ReactNode;
   onQuickStart?: () => void;  // Handler for Quick Start icon tap
   /** Optional callback to get a badge for an AI (e.g., "img2img" for image refinement support) */
   getBadge?: (ai: AIConfig) => AICardBadge | undefined;
@@ -52,6 +53,7 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
   selectedModels = {},
   onPersonalityChange,
   onModelChange,
+  renderModelSelector,
   onQuickStart,
   getBadge,
 }) => {
@@ -123,6 +125,7 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
                 const ai = configuredAIs[itemIndex];
                 const isSelected = selectedAIs.some(s => s.id === ai.id);
                 const isDisabled = !isSelected && selectedAIs.length >= maxAIs;
+                const selectedModel = selectedModels[ai.id] || ai.model;
                 
                 return (
                   <View key={ai.id} style={{ 
@@ -134,7 +137,7 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
                     <AICard
                       ai={{
                         ...ai,
-                        model: selectedModels[ai.id] || ai.model,
+                        model: selectedModel,
                       }}
                       isSelected={isSelected}
                       isDisabled={isDisabled}
@@ -144,6 +147,7 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
                       personalityId={aiPersonalities[ai.id] || 'default'}
                       onPersonalityChange={isSelected && onPersonalityChange ? (personalityId) => onPersonalityChange(ai.id, personalityId) : undefined}
                       onModelChange={isSelected && onModelChange ? (modelId) => onModelChange(ai.id, modelId) : undefined}
+                      modelSelector={isSelected && renderModelSelector ? renderModelSelector({ ...ai, model: selectedModel }, selectedModel) : undefined}
                       badge={getBadge?.(ai)}
                     />
                   </View>

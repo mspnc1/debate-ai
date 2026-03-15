@@ -10,8 +10,29 @@ import { extractSSEErrorMessage } from '../../utils/extractSSEErrorMessage';
 
 // Define Cohere's SSE event types
 type CohereEventTypes = 'message-start' | 'content-start' | 'content-delta' | 'content-end' | 'message-end' | 'message';
+type CohereContentPart = { type?: string; text?: string };
+type CohereChatResponse = {
+  message?: {
+    content?: CohereContentPart[];
+  };
+  text?: string;
+};
 
 export class CohereAdapter extends BaseAdapter {
+  private extractResponseText(data: CohereChatResponse): string {
+    const content = data.message?.content;
+    if (Array.isArray(content)) {
+      const textPart = content.find(
+        (part) => typeof part?.text === 'string'
+      );
+      if (textPart?.text) {
+        return textPart.text;
+      }
+    }
+
+    return data.text || '';
+  }
+
   getCapabilities(): AdapterCapabilities {
     return {
       streaming: true,
@@ -74,7 +95,7 @@ export class CohereAdapter extends BaseAdapter {
         body: JSON.stringify({
           model,
           messages,
-          temperature: this.config.parameters?.temperature || 0.7,
+          temperature: this.config.parameters?.temperature ?? 0.7,
           max_tokens: this.config.parameters?.maxTokens || 2048,
         }),
       });
@@ -85,8 +106,7 @@ export class CohereAdapter extends BaseAdapter {
 
       const data = await response.json();
 
-      // v2 API returns message.content array
-      const responseText = data.message?.content?.[0]?.text || data.text || '';
+      const responseText = this.extractResponseText(data);
 
       return {
         response: responseText,
@@ -118,7 +138,7 @@ export class CohereAdapter extends BaseAdapter {
     const requestBody = JSON.stringify({
       model,
       messages,
-      temperature: this.config.parameters?.temperature || 0.7,
+      temperature: this.config.parameters?.temperature ?? 0.7,
       max_tokens: this.config.parameters?.maxTokens || 2048,
       stream: true,
     });

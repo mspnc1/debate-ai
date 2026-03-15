@@ -148,7 +148,7 @@ export class PerplexityAdapter extends OpenAICompatibleAdapter {
         body: JSON.stringify({
           model: resolvedModel,
           messages,
-          temperature: this.config.parameters?.temperature || 0.7,
+          temperature: this.config.parameters?.temperature ?? 0.7,
           max_tokens: this.config.parameters?.maxTokens || 2048,
           top_p: this.config.parameters?.topP,
           stream: false,

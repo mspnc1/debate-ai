@@ -2,7 +2,7 @@
  * CreateScreen - Active image generation session screen
  * Shows generation progress, image gallery, and refinement options
  */
-import React, { useEffect, useCallback, useState, useRef } from 'react';
+import React, { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -12,6 +12,7 @@ import {
   Dimensions,
   Alert,
   ActivityIndicator,
+  Platform,
   Share,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +22,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { useSelector, useDispatch } from 'react-redux';
 import * as Haptics from 'expo-haptics';
 import * as MediaLibrary from 'expo-media-library';
+import * as Sharing from 'expo-sharing';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../theme';
@@ -31,20 +33,33 @@ import {
   selectCreateState,
   selectGallery,
   selectIsGenerating,
+  addToGalleryWithCleanup,
   startGeneration,
   updateGenerationProgress,
   completeGeneration,
-  addToGallery,
-  removeFromGallery,
+  removeFromGalleryWithCleanup,
   persistGallery,
+  updateGalleryEntryUri,
   GeneratedImageEntry,
 } from '../store/createSlice';
 import { RootStackParamList, AIProvider } from '../types';
 import { ImageService, GeneratedImage } from '../services/images/ImageService';
 import { buildEnhancedPrompt } from '../config/create/stylePresets';
 import { mapSizeToProvider } from '../config/create/sizeOptions';
-import { supportsImageInput, getImageProviderDisplayName } from '../config/imageGenerationModels';
-import { loadBase64FromFileUri } from '../services/images/fileCache';
+import {
+  getImageInputModels,
+  getImageModelDisplayName,
+  getImageProviderDisplayName,
+  resolveImageModelId,
+  supportsImageInput,
+} from '../config/imageGenerationModels';
+import {
+  getImageShareUti,
+  getImageMimeType,
+  isDocumentImageUri,
+  loadBase64FromFileUri,
+  persistImageUri,
+} from '../services/images/fileCache';
 import useFeatureAccess from '../hooks/useFeatureAccess';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
@@ -61,7 +76,13 @@ export default function CreateScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const flatListRef = useRef<FlatList>(null);
 
-  const { providers = [], initialPrompt, sourceImage, refinementInstructions } = route.params || {};
+  const {
+    providers = [],
+    selectedModels: routeSelectedModels = {},
+    initialPrompt,
+    sourceImage,
+    refinementInstructions,
+  } = route.params || {};
 
   const createState = useSelector(selectCreateState);
   const gallery = useSelector(selectGallery);
@@ -70,34 +91,51 @@ export default function CreateScreen() {
   const { isDemo, loading: subscriptionLoading } = useFeatureAccess();
 
   const {
+    selectedModels: storedSelectedModels = {},
     selectedStyle,
     selectedSize,
     selectedQuality,
     generationProgress,
     generationError: errorMessage,
+    galleryHydrated,
   } = createState;
 
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [savingImage, setSavingImage] = useState(false);
+  const [sharingImageId, setSharingImageId] = useState<string | null>(null);
   const [refiningImage, setRefiningImage] = useState<GeneratedImageEntry | null>(null);
+  const longPressHandledRef = useRef<string | null>(null);
+
+  const activeSelectedModels = useMemo(() => {
+    return providers.reduce((acc, provider) => {
+      const resolvedModelId = resolveImageModelId(
+        provider,
+        routeSelectedModels[provider] || storedSelectedModels[provider]
+      );
+      if (resolvedModelId) {
+        acc[provider] = resolvedModelId;
+      }
+      return acc;
+    }, {} as Partial<Record<AIProvider, string>>);
+  }, [providers, routeSelectedModels, storedSelectedModels]);
 
   // Build available providers for refinement
-  const availableRefinementProviders: RefinementProvider[] = React.useMemo(() => {
+  const availableRefinementProviders: RefinementProvider[] = useMemo(() => {
     const imageProviders: AIProvider[] = ['openai', 'google', 'grok'];
     return imageProviders.map(provider => ({
       provider,
       name: getImageProviderDisplayName(provider),
-      supportsImg2Img: supportsImageInput(provider),
+      supportsImg2Img: getImageInputModels(provider).length > 0,
       hasApiKey: Boolean(apiKeys[provider]),
     }));
   }, [apiKeys]);
 
   // Auto-persist gallery whenever it changes
   useEffect(() => {
-    if (gallery.length > 0) {
+    if (galleryHydrated || gallery.length > 0) {
       dispatch(persistGallery(gallery));
     }
-  }, [gallery, dispatch]);
+  }, [dispatch, gallery, galleryHydrated]);
 
   // Start generation once subscription status is loaded
   useEffect(() => {
@@ -123,6 +161,7 @@ export default function CreateScreen() {
     if (!sourceImage || !refinementInstructions || providers.length === 0) return;
 
     const provider = providers[0]; // Use the first (and typically only) provider for refinement
+    const modelId = activeSelectedModels[provider];
     dispatch(startGeneration([provider]));
     dispatch(updateGenerationProgress({ provider, progress: 'generating' }));
 
@@ -132,16 +171,17 @@ export default function CreateScreen() {
         throw new Error(`No API key for ${provider}`);
       }
 
-      const size = mapSizeToProvider(selectedSize, provider);
+      const size = mapSizeToProvider(selectedSize, provider, modelId);
 
       // Load base64 from the uploaded file URI
       const base64Image = await loadBase64FromFileUri(sourceImage);
 
       const images = await ImageService.generateImage({
         provider,
+        model: modelId,
         apiKey,
         prompt: refinementInstructions,
-        size: size as 'auto' | '1024x1024' | '1024x1536' | '1536x1024',
+        size,
         sourceImage: base64Image || undefined,
       });
 
@@ -155,7 +195,7 @@ export default function CreateScreen() {
           prompt: refinementInstructions,
           originalPrompt: refinementInstructions,
           provider,
-          model: provider === 'openai' ? 'gpt-image-1' : provider === 'google' ? 'gemini-2.5-flash-image' : 'grok-imagine-image',
+          model: modelId || resolveImageModelId(provider) || provider,
           style: selectedStyle,
           size: selectedSize,
           quality: selectedQuality,
@@ -163,7 +203,7 @@ export default function CreateScreen() {
           isRefinement: true,
           isUploaded: true, // Mark as uploaded image refinement
         };
-        dispatch(addToGallery(entry));
+        dispatch(addToGalleryWithCleanup(entry));
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -180,6 +220,7 @@ export default function CreateScreen() {
     sourceImage,
     refinementInstructions,
     providers,
+    activeSelectedModels,
     selectedStyle,
     selectedSize,
     selectedQuality,
@@ -203,6 +244,7 @@ export default function CreateScreen() {
 
     await Promise.all(
       providers.map(async (provider) => {
+        const modelId = activeSelectedModels[provider];
         dispatch(updateGenerationProgress({ provider, progress: 'generating' }));
 
         try {
@@ -211,13 +253,14 @@ export default function CreateScreen() {
             throw new Error(`No API key for ${provider}`);
           }
 
-          const size = mapSizeToProvider(selectedSize, provider);
+          const size = mapSizeToProvider(selectedSize, provider, modelId);
 
           const images = await ImageService.generateImage({
             provider,
+            model: modelId,
             apiKey,
             prompt: enhancedPrompt,
-            size: size as 'auto' | '1024x1024' | '1024x1536' | '1536x1024',
+            size,
             sourceImage,
           });
 
@@ -231,7 +274,7 @@ export default function CreateScreen() {
               prompt: enhancedPrompt,
               originalPrompt: initialPrompt,
               provider,
-              model: provider === 'openai' ? 'gpt-image-1' : provider === 'google' ? 'gemini-2.5-flash-image' : 'grok-imagine-image',
+              model: modelId || resolveImageModelId(provider) || provider,
               style: selectedStyle,
               size: selectedSize,
               quality: selectedQuality,
@@ -239,7 +282,7 @@ export default function CreateScreen() {
               isRefinement: Boolean(sourceImage),
               isUploaded: false,
             };
-            dispatch(addToGallery(entry));
+            dispatch(addToGalleryWithCleanup(entry));
           }
 
           results.push({ provider, images });
@@ -259,7 +302,10 @@ export default function CreateScreen() {
     const failedProviders = results.filter(r => r.images instanceof Error);
     if (failedProviders.length > 0) {
       const failedNames = failedProviders
-        .map(r => getImageProviderDisplayName(r.provider))
+        .map(r => getImageProviderDisplayName(r.provider, {
+          includeModel: true,
+          modelId: activeSelectedModels[r.provider],
+        }))
         .join(', ');
       ErrorService.showWarning(
         `Image generation failed for: ${failedNames}. ${failedProviders.length < providers.length ? 'Other providers succeeded.' : 'Please try again.'}`,
@@ -270,6 +316,7 @@ export default function CreateScreen() {
     isDemo,
     initialPrompt,
     providers,
+    activeSelectedModels,
     selectedStyle,
     selectedSize,
     selectedQuality,
@@ -288,23 +335,52 @@ export default function CreateScreen() {
     if (!image) return;
 
     // Check if any provider supports refinement
-    const hasRefinementProvider = availableRefinementProviders.some(p => p.supportsImg2Img && p.hasApiKey);
+    const hasRefinementProvider = availableRefinementProviders.some((providerInfo) => (
+      providerInfo.supportsImg2Img && providerInfo.hasApiKey
+    ));
     if (!hasRefinementProvider) {
-      ErrorService.showInfo('No providers with image refinement capability are configured. Add an OpenAI or Google API key to enable refinement.', 'create');
+      ErrorService.showInfo('No providers with image refinement capability are configured. Add an OpenAI, Google, or Grok API key to enable refinement.', 'create');
       return;
     }
 
     setRefiningImage(image);
   }, [isDemo, gallery, availableRefinementProviders]);
 
-  const handleRefinementSubmit = useCallback(async (opts: { instructions: string; provider: AIProvider }) => {
+  const getResolvedGalleryImage = useCallback(async (imageId: string): Promise<GeneratedImageEntry | null> => {
+    const image = gallery.find((entry) => entry.id === imageId);
+    if (!image) return null;
+
+    if (isDocumentImageUri(image.uri)) {
+      return image;
+    }
+
+    const persistedUri = await persistImageUri(image.uri, { prefix: 'gallery' });
+    if (!persistedUri) {
+      return null;
+    }
+
+    if (persistedUri !== image.uri) {
+      dispatch(updateGalleryEntryUri({ id: image.id, uri: persistedUri }));
+      return { ...image, uri: persistedUri };
+    }
+
+    return image;
+  }, [dispatch, gallery]);
+
+  const handleRefinementSubmit = useCallback(async (opts: { instructions: string; provider: AIProvider; modelId: string }) => {
     if (!refiningImage) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setRefiningImage(null);
 
+    const resolvedImage = await getResolvedGalleryImage(refiningImage.id);
+    if (!resolvedImage) {
+      ErrorService.handleWithToast(new Error('Image file is unavailable.'), { feature: 'create' });
+      return;
+    }
+
     // Load base64 from the image file
-    const base64 = await loadBase64FromFileUri(refiningImage.uri);
+    const base64 = await loadBase64FromFileUri(resolvedImage.uri);
     if (!base64) {
       ErrorService.handleWithToast(new Error('Could not load image for refinement.'), { feature: 'create' });
       return;
@@ -313,18 +389,26 @@ export default function CreateScreen() {
     // Navigate to a new session with this image as source
     navigation.replace('CreateSession', {
       providers: [opts.provider],
-      initialPrompt: `${refiningImage.originalPrompt}. Refinement: ${opts.instructions}`,
+      selectedModels: { [opts.provider]: opts.modelId },
+      initialPrompt: `${resolvedImage.originalPrompt}. Refinement: ${opts.instructions}`,
       sourceImage: base64,
     });
-  }, [refiningImage, navigation]);
+  }, [getResolvedGalleryImage, refiningImage, navigation]);
 
   const handleSaveToPhotos = useCallback(async (imageId: string) => {
-    const image = gallery.find(img => img.id === imageId);
-    if (!image) return;
+    const image = await getResolvedGalleryImage(imageId);
+    if (!image) {
+      ErrorService.handleWithToast(new Error('Image file is unavailable.'), { feature: 'create' });
+      return;
+    }
 
     setSavingImage(true);
     try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
+      const currentPermission = await MediaLibrary.getPermissionsAsync();
+      const permission = currentPermission.granted
+        ? currentPermission
+        : await MediaLibrary.requestPermissionsAsync();
+      const { status } = permission;
       if (status !== 'granted') {
         ErrorService.showWarning('Please allow access to save images.', 'create');
         return;
@@ -340,21 +424,45 @@ export default function CreateScreen() {
     } finally {
       setSavingImage(false);
     }
-  }, [gallery]);
+  }, [getResolvedGalleryImage]);
 
   const handleShare = useCallback(async (imageId: string) => {
-    const image = gallery.find(img => img.id === imageId);
-    if (!image) return;
+    setSharingImageId(imageId);
 
     try {
+      const image = await getResolvedGalleryImage(imageId);
+      if (!image) {
+        ErrorService.handleWithToast(new Error('Image file is unavailable.'), { feature: 'create' });
+        return;
+      }
+
+      const shareMessage = `Generated with ${getImageProviderDisplayName(image.provider, {
+        includeModel: true,
+        modelId: image.model,
+      })}: "${image.originalPrompt}"`;
+      const localMimeType = getImageMimeType(image.uri);
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(image.uri, {
+          mimeType: localMimeType,
+          UTI: Platform.OS === 'ios' ? getImageShareUti(image.uri) : undefined,
+          dialogTitle: 'Share Image',
+        });
+        return;
+      }
+
       await Share.share({
         url: image.uri,
-        message: `Generated with ${getImageProviderDisplayName(image.provider)}: "${image.originalPrompt}"`,
+        message: shareMessage,
+        title: 'Share Image',
       });
     } catch (error) {
       console.error('[CreateScreen] Share error:', error);
+      ErrorService.handleWithToast(new Error('Failed to share image.'), { feature: 'create' });
+    } finally {
+      setSharingImageId(null);
     }
-  }, [gallery]);
+  }, [getResolvedGalleryImage]);
 
   const handleDelete = useCallback((imageId: string) => {
     Alert.alert(
@@ -367,27 +475,48 @@ export default function CreateScreen() {
           style: 'destructive',
           onPress: () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            dispatch(removeFromGallery(imageId));
+            dispatch(removeFromGalleryWithCleanup(imageId));
           },
         },
       ]
     );
   }, [dispatch]);
 
+  const handleImagePress = useCallback((imageId: string) => {
+    if (longPressHandledRef.current === imageId) {
+      longPressHandledRef.current = null;
+      return;
+    }
+
+    setSelectedImageId((current) => (current === imageId ? null : imageId));
+  }, []);
+
+  const handleImageLongPress = useCallback((imageId: string) => {
+    longPressHandledRef.current = imageId;
+    handleDelete(imageId);
+  }, [handleDelete]);
+
   const renderImageItem = useCallback(({ item }: { item: GeneratedImageEntry }) => {
     const isSelected = selectedImageId === item.id;
-    const canRefine = supportsImageInput(item.provider);
-    const providerName = getImageProviderDisplayName(item.provider);
+    const canRefine = supportsImageInput(item.provider, item.model);
+    const providerName = getImageProviderDisplayName(item.provider, {
+      includeModel: true,
+      modelId: item.model,
+    });
+    const badgeLabel = getImageModelDisplayName(item.provider, item.model);
+    const isSharing = sharingImageId === item.id;
 
     return (
       <TouchableOpacity
         style={[styles.imageCard, { backgroundColor: theme.colors.surface }]}
-        onPress={() => setSelectedImageId(isSelected ? null : item.id)}
+        onPress={() => handleImagePress(item.id)}
+        onLongPress={() => handleImageLongPress(item.id)}
+        delayLongPress={350}
         activeOpacity={0.9}
         accessible={true}
         accessibilityRole="button"
         accessibilityLabel={`Image generated by ${providerName}${item.isRefinement ? ', refined' : ''}`}
-        accessibilityHint={isSelected ? "Tap to hide actions" : "Tap to show save, share, and refine options"}
+        accessibilityHint={isSelected ? "Tap to hide actions or long press to delete" : "Tap to show save, share, and refine options, or long press to delete"}
         accessibilityState={{ selected: isSelected }}
       >
         <Image
@@ -399,7 +528,7 @@ export default function CreateScreen() {
         {/* Provider Badge */}
         <View style={[styles.providerBadge, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
           <Typography variant="caption" style={{ color: '#FFFFFF' }}>
-            {providerName}
+            {badgeLabel}
           </Typography>
           {item.isRefinement && (
             <View style={[styles.refinedBadge, { backgroundColor: theme.colors.primary[500] }]}>
@@ -437,12 +566,18 @@ export default function CreateScreen() {
               <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => handleShare(item.id)}
+                disabled={isSharing}
                 accessible={true}
                 accessibilityRole="button"
                 accessibilityLabel="Share image"
                 accessibilityHint="Opens share sheet to share this image"
+                accessibilityState={{ disabled: isSharing }}
               >
-                <Ionicons name="share-outline" size={24} color="#FFFFFF" />
+                {isSharing ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Ionicons name="share-outline" size={24} color="#FFFFFF" />
+                )}
                 <Typography variant="caption" style={{ color: '#FFFFFF', marginTop: 4 }}>
                   Share
                 </Typography>
@@ -490,15 +625,19 @@ export default function CreateScreen() {
     handleShare,
     handleRefine,
     handleDelete,
+    handleImageLongPress,
+    handleImagePress,
+    sharingImageId,
   ]);
 
   // In gallery mode (no initialPrompt), show all images
   // In generation mode, show only recent images from selected providers
-  const isGalleryMode = !initialPrompt;
+  const isGalleryMode = !initialPrompt && !sourceImage && !refinementInstructions && providers.length === 0;
   const sessionGallery = isGalleryMode
     ? gallery
     : gallery.filter(img =>
         providers.includes(img.provider) &&
+        activeSelectedModels[img.provider] === img.model &&
         img.createdAt >= Date.now() - 3600000 // Last hour
       );
 
@@ -523,7 +662,10 @@ export default function CreateScreen() {
           <Typography variant="caption" color="secondary">
             {isGalleryMode
               ? `${gallery.length} images`
-              : providers.map(p => getImageProviderDisplayName(p)).join(', ')}
+              : providers.map(p => getImageProviderDisplayName(p, {
+                  includeModel: true,
+                  modelId: activeSelectedModels[p],
+                })).join(', ')}
           </Typography>
         </View>
         <View style={{ width: 40 }} />
@@ -537,7 +679,7 @@ export default function CreateScreen() {
             return (
               <View key={provider} style={styles.progressItem}>
                 <Typography variant="body">
-                  {getImageProviderDisplayName(provider)}
+                  {getImageModelDisplayName(provider, activeSelectedModels[provider])}
                 </Typography>
                 {progress === 'generating' && (
                   <ActivityIndicator size="small" color={theme.colors.primary[500]} />
@@ -595,6 +737,7 @@ export default function CreateScreen() {
         visible={refiningImage !== null}
         imageUri={refiningImage?.uri || ''}
         originalProvider={refiningImage?.provider || 'openai'}
+        originalModelId={refiningImage?.model}
         availableProviders={availableRefinementProviders}
         onClose={() => setRefiningImage(null)}
         onRefine={handleRefinementSubmit}

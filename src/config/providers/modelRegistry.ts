@@ -1,5 +1,5 @@
-import { ModelConfig } from '../modelConfigs';
-import { ModelPricing } from '../modelPricing';
+import type { ModelConfig } from '../modelConfigs';
+import type { ModelPricing } from '../modelPricing';
 
 export interface ModelDefinition extends ModelConfig {
   pricing: ModelPricing;
@@ -85,10 +85,10 @@ export const MODEL_ALIASES: Record<string, string> = {
   'command-light-latest': 'command-r7b-12-2024',
 
   // Together aliases
-  'llama-405b-latest': 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
-  'llama-70b-latest': 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
+  'llama-405b-latest': 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+  'llama-70b-latest': 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
   'llama-8b-latest': 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
-  'qwen-72b-latest': 'Qwen/Qwen2.5-72B-Instruct-Turbo',
+  'qwen-72b-latest': 'Qwen/Qwen2.5-7B-Instruct-Turbo',
 
   // DeepSeek aliases
   'deepseek-chat-latest': 'deepseek-chat',
@@ -110,7 +110,7 @@ export const getDefaultModel = (providerId: string): string => {
     perplexity: 'sonar-pro',
     mistral: 'mistral-medium-latest',
     cohere: 'command-a-reasoning-08-2025',
-    together: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
+    together: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
     deepseek: 'deepseek-chat',
   };
 

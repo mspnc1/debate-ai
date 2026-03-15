@@ -12,6 +12,7 @@ import {
   clearPreservedTopic,
 } from '@/store';
 import { setProviderStreamingPreference } from '@/store/streamingSlice';
+import { resolveProviderModelId } from '@/config/modelConfigs';
 import type { AIConfig } from '@/types';
 import type { RootState } from '@/store';
 
@@ -345,7 +346,10 @@ describe('DebateSetupScreen', () => {
     await act(async () => {
       await aiSelectorProps.onModelChange('claude', 'claude-custom');
     });
-    expect(mockDispatch).toHaveBeenCalledWith(setAIModel({ aiId: 'claude', modelId: 'claude-custom' }));
+    expect(mockDispatch).toHaveBeenCalledWith(setAIModel({
+      aiId: 'claude',
+      modelId: resolveProviderModelId('claude', 'claude-custom') || 'claude-custom',
+    }));
 
     fireEvent.press(renderResult.getByText('Streaming: On'));
     expect(mockDispatch).toHaveBeenCalledWith(setGlobalStreaming(false));

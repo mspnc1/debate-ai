@@ -3,8 +3,31 @@
  * Note: Simplified tests due to component complexity
  */
 import React from 'react';
-import { fireEvent } from '@testing-library/react-native';
+import { Platform } from 'react-native';
+import { fireEvent, waitFor } from '@testing-library/react-native';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
+import {
+  getImageShareUti,
+  loadBase64FromFileUri,
+  persistImageUri,
+} from '@/services/images/fileCache';
+import * as Sharing from 'expo-sharing';
+import CreateScreen from '@/screens/CreateScreen';
+
+type MockRootState = {
+  settings: {
+    apiKeys: Record<string, string>;
+  };
+  create: {
+    selectedStyle: string;
+    selectedSize: string;
+    selectedQuality: string;
+    generationProgress: Record<string, string>;
+    generationError?: string;
+    isGenerating: boolean;
+    gallery: Array<Record<string, unknown>>;
+  };
+};
 
 // Mock dispatch and selector
 const mockDispatch = jest.fn();
@@ -18,7 +41,7 @@ jest.mock('react-redux', () => {
   return {
     ...actual,
     useDispatch: () => mockDispatch,
-    useSelector: (selector: (state: any) => any) => mockUseSelector(selector),
+    useSelector: (selector: (state: MockRootState) => unknown) => mockUseSelector(selector),
   };
 });
 
@@ -44,8 +67,14 @@ jest.mock('expo-haptics', () => ({
 }));
 
 jest.mock('expo-media-library', () => ({
+  getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted', granted: true }),
   requestPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
   saveToLibraryAsync: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('expo-sharing', () => ({
+  isAvailableAsync: jest.fn().mockResolvedValue(true),
+  shareAsync: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -53,24 +82,40 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 jest.mock('@expo/vector-icons', () => {
-  const React = require('react');
-  const { Text } = require('react-native');
+  const ReactModule = jest.requireActual('react') as typeof import('react');
+  const ReactNative = jest.requireActual('react-native') as typeof import('react-native');
   return {
-    Ionicons: (props: any) => React.createElement(Text, { testID: `icon-${props.name}` }, props.name),
+    Ionicons: ({ name }: { name?: string }) => ReactModule.createElement(
+      ReactNative.Text,
+      { testID: `icon-${name}` },
+      name
+    ),
   };
 });
 
 jest.mock('@/components/molecules', () => {
-  const React = require('react');
-  const { Text } = require('react-native');
+  const ReactModule = jest.requireActual('react') as typeof import('react');
+  const ReactNative = jest.requireActual('react-native') as typeof import('react-native');
   return {
     Typography: ({ children, testID }: { children: React.ReactNode; testID?: string }) =>
-      React.createElement(Text, { testID }, children),
+      ReactModule.createElement(ReactNative.Text, { testID }, children),
   };
 });
 
 jest.mock('@/components/organisms/chat/ImageRefinementModal', () => ({
-  ImageRefinementModal: () => null,
+  ImageRefinementModal: ({ visible, onRefine }: { visible: boolean; onRefine: (opts: { instructions: string; provider: string; modelId: string }) => void }) => {
+    const ReactModule = jest.requireActual('react') as typeof import('react');
+    const ReactNative = jest.requireActual('react-native') as typeof import('react-native');
+    if (!visible) return null;
+    return ReactModule.createElement(
+      ReactNative.TouchableOpacity,
+      {
+        testID: 'refinement-submit',
+        onPress: () => onRefine({ instructions: 'Add more detail', provider: 'openai', modelId: 'gpt-image-1.5' }),
+      },
+      ReactModule.createElement(ReactNative.Text, null, 'Submit Refinement')
+    );
+  },
 }));
 
 jest.mock('@/services/images/ImageService', () => ({
@@ -88,6 +133,23 @@ jest.mock('@/config/create/sizeOptions', () => ({
 }));
 
 jest.mock('@/config/imageGenerationModels', () => ({
+  getImageInputModels: (provider: string) => {
+    const modelsByProvider: Record<string, Array<{ id: string }>> = {
+      openai: [{ id: 'gpt-image-1.5' }, { id: 'gpt-image-1-mini' }],
+      google: [{ id: 'gemini-2.5-flash-image' }, { id: 'gemini-3-pro-image-preview' }],
+      grok: [{ id: 'grok-imagine-image' }],
+    };
+    return modelsByProvider[provider] || [];
+  },
+  resolveImageModelId: (provider: string, modelId?: string) => {
+    if (modelId) return modelId;
+    const defaults: Record<string, string> = {
+      openai: 'gpt-image-1.5',
+      google: 'gemini-2.5-flash-image',
+      grok: 'grok-imagine-image',
+    };
+    return defaults[provider];
+  },
   supportsImageInput: (provider: string) => ['openai', 'google'].includes(provider),
   getImageProviderDisplayName: (provider: string) => {
     const names: Record<string, string> = {
@@ -97,10 +159,15 @@ jest.mock('@/config/imageGenerationModels', () => ({
     };
     return names[provider] || provider;
   },
+  getImageModelDisplayName: (_provider: string, modelId?: string) => modelId || 'Default Image Model',
 }));
 
 jest.mock('@/services/images/fileCache', () => ({
   loadBase64FromFileUri: jest.fn().mockResolvedValue('base64encodedimage'),
+  persistImageUri: jest.fn().mockImplementation(async (uri: string) => uri),
+  getImageMimeType: jest.fn().mockReturnValue('image/png'),
+  getImageShareUti: jest.fn().mockReturnValue('public.png'),
+  isDocumentImageUri: jest.fn().mockReturnValue(false),
 }));
 
 // Mock useFeatureAccess hook
@@ -112,18 +179,21 @@ jest.mock('@/hooks/useFeatureAccess', () => ({
 }));
 
 jest.mock('@/store/createSlice', () => ({
-  selectCreateState: (state: any) => state.create,
-  selectGallery: (state: any) => state.create.gallery,
-  selectIsGenerating: (state: any) => state.create.isGenerating,
+  selectCreateState: (state: MockRootState) => state.create,
+  selectGallery: (state: MockRootState) => state.create.gallery,
+  selectIsGenerating: (state: MockRootState) => state.create.isGenerating,
   startGeneration: jest.fn((providers) => ({ type: 'create/startGeneration', payload: providers })),
   updateGenerationProgress: jest.fn((payload) => ({ type: 'create/updateGenerationProgress', payload })),
   completeGeneration: jest.fn(() => ({ type: 'create/completeGeneration' })),
-  addToGallery: jest.fn((entry) => ({ type: 'create/addToGallery', payload: entry })),
-  removeFromGallery: jest.fn((id) => ({ type: 'create/removeFromGallery', payload: id })),
+  addToGalleryWithCleanup: jest.fn((entry) => ({ type: 'create/addToGalleryWithCleanup', payload: entry })),
+  removeFromGalleryWithCleanup: jest.fn((id) => ({ type: 'create/removeFromGalleryWithCleanup', payload: id })),
   persistGallery: jest.fn((gallery) => ({ type: 'create/persistGallery', payload: gallery })),
+  updateGalleryEntryUri: jest.fn((payload) => ({ type: 'create/updateGalleryEntryUri', payload })),
 }));
-
-const CreateScreen = require('@/screens/CreateScreen').default;
+const mockedSharing = Sharing as jest.Mocked<typeof Sharing>;
+const mockedGetImageShareUti = getImageShareUti as jest.Mock;
+const mockedLoadBase64FromFileUri = loadBase64FromFileUri as jest.Mock;
+const mockedPersistImageUri = persistImageUri as jest.Mock;
 
 describe('CreateScreen', () => {
   const mockGalleryImage = {
@@ -200,6 +270,87 @@ describe('CreateScreen', () => {
 
       const { getByText } = renderWithProviders(<CreateScreen />);
       expect(getByText('No images generated yet')).toBeTruthy();
+    });
+  });
+
+  describe('refinement flow', () => {
+    it('normalizes remote gallery images before starting refinement', async () => {
+      mockedPersistImageUri.mockResolvedValueOnce('/documents/images/refine-source.png');
+      mockedLoadBase64FromFileUri.mockResolvedValueOnce('remote-image-base64');
+
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          create: {
+            ...baseState.create,
+            gallery: [
+              {
+                ...mockGalleryImage,
+                uri: 'https://example.com/generated.png',
+                model: 'gpt-image-1.5',
+              },
+            ],
+          },
+        })
+      );
+
+      const { getByLabelText, getByText, getByTestId } = renderWithProviders(<CreateScreen />);
+
+      fireEvent.press(getByLabelText('Image generated by OpenAI'));
+      fireEvent.press(getByText('Refine'));
+      fireEvent.press(getByTestId('refinement-submit'));
+
+      await waitFor(() => {
+        expect(mockedPersistImageUri).toHaveBeenCalledWith(
+          'https://example.com/generated.png',
+          { prefix: 'gallery' }
+        );
+        expect(mockedLoadBase64FromFileUri).toHaveBeenCalledWith('/documents/images/refine-source.png');
+        expect(mockReplace).toHaveBeenCalledWith('CreateSession', expect.objectContaining({
+          providers: ['openai'],
+          selectedModels: { openai: 'gpt-image-1.5' },
+          sourceImage: 'remote-image-base64',
+        }));
+      });
+    });
+  });
+
+  describe('share flow', () => {
+    it('shares the resolved local image with native sharing metadata', async () => {
+      mockedPersistImageUri.mockResolvedValueOnce('file:///documents/images/shared.png');
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          create: {
+            ...baseState.create,
+            gallery: [
+              {
+                ...mockGalleryImage,
+                model: 'gpt-image-1.5',
+              },
+            ],
+          },
+        })
+      );
+
+      const { getByLabelText, getByText } = renderWithProviders(<CreateScreen />);
+
+      fireEvent.press(getByLabelText('Image generated by OpenAI'));
+      fireEvent.press(getByText('Share'));
+
+      await waitFor(() => {
+        expect(mockedSharing.shareAsync).toHaveBeenCalledWith(
+          'file:///documents/images/shared.png',
+          expect.objectContaining({
+            mimeType: 'image/png',
+            ...(Platform.OS === 'ios' ? { UTI: 'public.png' } : {}),
+          })
+        );
+      });
+
+      if (Platform.OS === 'ios') {
+        expect(mockedGetImageShareUti).toHaveBeenCalledWith('file:///documents/images/shared.png');
+      }
     });
   });
 

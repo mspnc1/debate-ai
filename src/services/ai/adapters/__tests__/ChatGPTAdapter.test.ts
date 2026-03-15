@@ -165,6 +165,22 @@ describe('ChatGPTAdapter', () => {
     expect(body.top_p).toBe(0.42);
   });
 
+  it('uses max_completion_tokens for reasoning-family models', async () => {
+    const adapter = new ChatGPTAdapter({
+      ...baseConfig,
+      model: 'o3',
+      parameters: { temperature: 0.2, maxTokens: 321, topP: 0.42 },
+    });
+
+    await adapter.sendMessage('Configure options');
+
+    const [, requestInit] = fetchMock.mock.calls[0];
+    const body = JSON.parse(requestInit?.body as string);
+    expect(body.temperature).toBe(1);
+    expect(body.max_completion_tokens).toBe(321);
+    expect(body).not.toHaveProperty('max_tokens');
+  });
+
   it('throws enriched errors when OpenAI responds with failure', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: false,

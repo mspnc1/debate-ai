@@ -6,6 +6,12 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { AIProvider } from '../types';
+import { resolveImageModelId } from '../config/imageGenerationModels';
+import {
+  isFileSystemImageUri,
+  isRemoteImageUri,
+  persistImageUri,
+} from '../services/images/fileCache';
 
 // Constants
 const GALLERY_STORAGE_KEY = 'create_gallery';
@@ -48,6 +54,7 @@ export interface GeneratedImageEntry {
 export interface CreateState {
   // Provider selection
   selectedProviders: AIProvider[];
+  selectedModels: Partial<Record<AIProvider, string>>;
   mode: 'single' | 'compare';
 
   // Current generation state
@@ -80,6 +87,7 @@ export interface CreateState {
 
 const initialState: CreateState = {
   selectedProviders: [],
+  selectedModels: {},
   mode: 'single',
   isGenerating: false,
   generationProgress: {},
@@ -93,6 +101,18 @@ const initialState: CreateState = {
   refinementPrompt: '',
 };
 
+async function deleteGalleryFile(uri?: string): Promise<void> {
+  if (!uri || !isFileSystemImageUri(uri)) {
+    return;
+  }
+
+  try {
+    await FileSystem.deleteAsync(uri, { idempotent: true });
+  } catch {
+    // ignore cleanup failures
+  }
+}
+
 // Async thunk to hydrate gallery from AsyncStorage
 export const hydrateGallery = createAsyncThunk(
   'create/hydrateGallery',
@@ -103,13 +123,33 @@ export const hydrateGallery = createAsyncThunk(
         const gallery = JSON.parse(stored) as GeneratedImageEntry[];
         // Validate that files still exist
         const validGallery: GeneratedImageEntry[] = [];
+        let didNormalizeGallery = false;
         for (const entry of gallery) {
           if (entry.uri) {
-            const fileInfo = await FileSystem.getInfoAsync(entry.uri);
-            if (fileInfo.exists) {
-              validGallery.push(entry);
+            if (isRemoteImageUri(entry.uri)) {
+              const persistedUri = await persistImageUri(entry.uri, { prefix: 'gallery' });
+              if (persistedUri && persistedUri !== entry.uri) {
+                validGallery.push({ ...entry, uri: persistedUri });
+                didNormalizeGallery = true;
+              } else {
+                validGallery.push(entry);
+              }
+              continue;
+            }
+
+            const persistedUri = await persistImageUri(entry.uri, { prefix: 'gallery' });
+            if (persistedUri) {
+              validGallery.push(persistedUri === entry.uri ? entry : { ...entry, uri: persistedUri });
+              if (persistedUri !== entry.uri) {
+                didNormalizeGallery = true;
+              }
+            } else {
+              didNormalizeGallery = true;
             }
           }
+        }
+        if (didNormalizeGallery || validGallery.length !== gallery.length) {
+          await AsyncStorage.setItem(GALLERY_STORAGE_KEY, JSON.stringify(validGallery));
         }
         return validGallery;
       }
@@ -133,6 +173,49 @@ export const persistGallery = createAsyncThunk(
   }
 );
 
+export const addToGalleryWithCleanup = createAsyncThunk(
+  'create/addToGalleryWithCleanup',
+  async (entry: GeneratedImageEntry, { dispatch, getState }) => {
+    const state = getState() as { create: CreateState };
+    const removed = state.create.gallery.length >= MAX_GALLERY_SIZE
+      ? state.create.gallery[state.create.gallery.length - 1]
+      : undefined;
+
+    dispatch(addToGallery(entry));
+
+    if (removed?.uri) {
+      await deleteGalleryFile(removed.uri);
+    }
+  }
+);
+
+export const removeFromGalleryWithCleanup = createAsyncThunk(
+  'create/removeFromGalleryWithCleanup',
+  async (imageId: string, { dispatch, getState }) => {
+    const state = getState() as { create: CreateState };
+    const removed = state.create.gallery.find((image) => image.id === imageId);
+
+    dispatch(removeFromGallery(imageId));
+
+    if (removed?.uri) {
+      await deleteGalleryFile(removed.uri);
+    }
+  }
+);
+
+export const clearGalleryWithCleanup = createAsyncThunk(
+  'create/clearGalleryWithCleanup',
+  async (_, { dispatch, getState }) => {
+    const state = getState() as { create: CreateState };
+    const urisToDelete = state.create.gallery
+      .map((image) => image.uri)
+      .filter((uri): uri is string => Boolean(uri));
+
+    dispatch(clearGallery());
+    await Promise.all(urisToDelete.map((uri) => deleteGalleryFile(uri)));
+  }
+);
+
 const createSlice_ = createSlice({
   name: 'create',
   initialState,
@@ -141,6 +224,12 @@ const createSlice_ = createSlice({
     setSelectedProviders: (state, action: PayloadAction<AIProvider[]>) => {
       state.selectedProviders = action.payload.slice(0, 3); // Max 3 for compare
       state.mode = action.payload.length > 1 ? 'compare' : 'single';
+    },
+    setSelectedModel: (state, action: PayloadAction<{ provider: AIProvider; modelId: string }>) => {
+      state.selectedModels[action.payload.provider] = resolveImageModelId(
+        action.payload.provider,
+        action.payload.modelId
+      ) || action.payload.modelId;
     },
     toggleProvider: (state, action: PayloadAction<AIProvider>) => {
       const provider = action.payload;
@@ -205,31 +294,23 @@ const createSlice_ = createSlice({
     // Gallery management
     addToGallery: (state, action: PayloadAction<GeneratedImageEntry>) => {
       state.gallery.unshift(action.payload);
-      // Auto-prune oldest if exceeds max
       if (state.gallery.length > MAX_GALLERY_SIZE) {
-        const removed = state.gallery.pop();
-        // Note: File cleanup should be handled by a middleware or thunk
-        if (removed?.uri) {
-          FileSystem.deleteAsync(removed.uri, { idempotent: true }).catch(() => {});
-        }
+        state.gallery.pop();
+      }
+    },
+    updateGalleryEntryUri: (state, action: PayloadAction<{ id: string; uri: string }>) => {
+      const entry = state.gallery.find((image) => image.id === action.payload.id);
+      if (entry) {
+        entry.uri = action.payload.uri;
       }
     },
     removeFromGallery: (state, action: PayloadAction<string>) => {
       const index = state.gallery.findIndex(img => img.id === action.payload);
       if (index >= 0) {
-        const removed = state.gallery.splice(index, 1)[0];
-        if (removed?.uri) {
-          FileSystem.deleteAsync(removed.uri, { idempotent: true }).catch(() => {});
-        }
+        state.gallery.splice(index, 1);
       }
     },
     clearGallery: (state) => {
-      // Clean up files
-      state.gallery.forEach(img => {
-        if (img.uri) {
-          FileSystem.deleteAsync(img.uri, { idempotent: true }).catch(() => {});
-        }
-      });
       state.gallery = [];
     },
 
@@ -285,6 +366,7 @@ const createSlice_ = createSlice({
 
 export const {
   setSelectedProviders,
+  setSelectedModel,
   toggleProvider,
   setMode,
   setPrompt,
@@ -297,6 +379,7 @@ export const {
   generationError,
   clearGenerationError,
   addToGallery,
+  updateGalleryEntryUri,
   removeFromGallery,
   clearGallery,
   startRefinement,
@@ -317,3 +400,4 @@ export const selectGallery = (state: { create: CreateState }) => state.create.ga
 export const selectIsGenerating = (state: { create: CreateState }) => state.create.isGenerating;
 export const selectSelectedProviders = (state: { create: CreateState }) => state.create.selectedProviders;
 export const selectGenerationProgress = (state: { create: CreateState }) => state.create.generationProgress;
+export const selectCreateSelectedModels = (state: { create: CreateState }) => state.create.selectedModels;

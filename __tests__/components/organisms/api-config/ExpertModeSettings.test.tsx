@@ -69,7 +69,7 @@ describe('ExpertModeSettings', () => {
         isEnabled={true}
         isPremium={true}
         onToggle={onToggle}
-        selectedModel="gpt-5"
+        selectedModel="gpt-5.4"
         onModelChange={onModelChange}
         parameters={baseParameters}
         onParameterChange={onParameterChange}
@@ -77,7 +77,7 @@ describe('ExpertModeSettings', () => {
     );
 
     expect(getByText('Fine-tune model behavior and parameters')).toBeTruthy();
-    expect(getByText('Primary GPT-5 production model')).toBeTruthy();
+    expect(getByText('Latest GPT-5 family API model currently listed by OpenAI')).toBeTruthy();
 
     const toggle = getByRole('switch');
     fireEvent(toggle, 'valueChange', false);

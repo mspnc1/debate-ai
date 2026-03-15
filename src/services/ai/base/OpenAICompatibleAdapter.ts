@@ -73,7 +73,7 @@ export abstract class OpenAICompatibleAdapter extends BaseAdapter {
       const requestBody: Record<string, unknown> = {
         model: resolvedModel,
         messages,
-        temperature: this.config.parameters?.temperature || 0.7,
+        temperature: this.config.parameters?.temperature ?? 0.7,
         stream: false,
       };
       
@@ -219,7 +219,7 @@ export abstract class OpenAICompatibleAdapter extends BaseAdapter {
         // GPT-5 and O1 models require temperature=1
         requestBodyObj.temperature = 1;
       } else {
-        requestBodyObj.temperature = this.config.parameters?.temperature || 0.7;
+        requestBodyObj.temperature = this.config.parameters?.temperature ?? 0.7;
       }
       
       // Handle token parameter - GPT-5 and O1 use max_completion_tokens, others use max_tokens
@@ -233,7 +233,7 @@ export abstract class OpenAICompatibleAdapter extends BaseAdapter {
       }
     } else {
       // Non-OpenAI providers use standard parameters
-      requestBodyObj.temperature = this.config.parameters?.temperature || 0.7;
+      requestBodyObj.temperature = this.config.parameters?.temperature ?? 0.7;
       // Only set max_tokens if explicitly configured
       if (this.config.parameters?.maxTokens) {
         requestBodyObj.max_tokens = this.config.parameters.maxTokens;

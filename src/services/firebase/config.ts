@@ -73,7 +73,10 @@ export const initializeFirebase = async () => {
       }
     }
   }
-  console.log('Firebase initialized successfully (Auth & Firestore only)');
+
+  if (__DEV__) {
+    console.warn('Firebase initialized successfully (Auth & Firestore only)');
+  }
 };
 
 /**

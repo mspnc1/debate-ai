@@ -7,14 +7,11 @@ jest.mock('@/config/aiProviders', () => ({
 }));
 
 jest.mock('@/config/modelConfigs', () => ({
-  AI_MODELS: {
-    claude: [
-      { id: 'claude-3', isDefault: false },
-      { id: 'claude-4', isDefault: true },
-    ],
-    openai: [],
-    perplexity: [{ id: 'sonar-small', isDefault: false }],
-  },
+  getProviderDefaultModel: jest.fn((providerId: string) => ({
+    claude: { id: 'claude-sonnet-4-6', isDefault: true },
+    openai: { id: 'gpt-5.4', isDefault: true },
+    perplexity: { id: 'sonar-pro', isDefault: true },
+  }[providerId] || undefined)),
 }));
 
 jest.mock('@/utils/aiProviderAssets', () => ({
@@ -29,7 +26,6 @@ jest.mock('@/services/demo/demoMode', () => ({
 }));
 
 import { AIConfigurationService } from '@/services/home/AIConfigurationService';
-import { AI_MODELS } from '@/config/modelConfigs';
 import { AI_PROVIDERS } from '@/config/aiProviders';
 import { getAIProviderIcon } from '@/utils/aiProviderAssets';
 import { isDemoModeEnabled } from '@/services/demo/demoMode';
@@ -45,7 +41,7 @@ describe('AIConfigurationService', () => {
   it('returns configured AIs based on available keys when not in demo mode', () => {
     const configs = AIConfigurationService.getConfiguredAIs({ claude: 'key', openai: undefined });
     expect(configs.map(c => c.id)).toEqual(['claude']);
-    expect(configs[0].model).toBe('claude-4');
+    expect(configs[0].model).toBe('claude-sonnet-4-6');
   });
 
   it('limits configured AIs in demo mode to whitelisted providers', () => {
@@ -71,7 +67,7 @@ describe('AIConfigurationService', () => {
       id: 'claude',
       provider: 'claude',
       name: 'Claude',
-      model: 'claude-4',
+      model: 'claude-sonnet-4-6',
       icon: 'claude-icon',
       iconType: 'letter',
     });
@@ -83,7 +79,7 @@ describe('AIConfigurationService', () => {
       id: 'claude',
       provider: 'claude',
       name: 'Claude',
-      model: 'claude-4',
+      model: 'claude-sonnet-4-6',
       personality: 'default',
       avatar: 'x',
       icon: 'x',

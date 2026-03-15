@@ -158,20 +158,20 @@ describe('sizeOptions', () => {
     });
 
     describe('Grok provider', () => {
-      it('returns empty string for auto (no size support)', () => {
-        expect(mapSizeToProvider('auto', 'grok')).toBe('');
+      it('returns 1:1 for auto', () => {
+        expect(mapSizeToProvider('auto', 'grok')).toBe('1:1');
       });
 
-      it('returns empty string for square', () => {
-        expect(mapSizeToProvider('square', 'grok')).toBe('');
+      it('returns 1:1 for square', () => {
+        expect(mapSizeToProvider('square', 'grok')).toBe('1:1');
       });
 
-      it('returns empty string for portrait', () => {
-        expect(mapSizeToProvider('portrait', 'grok')).toBe('');
+      it('returns 9:16 for portrait', () => {
+        expect(mapSizeToProvider('portrait', 'grok')).toBe('9:16');
       });
 
-      it('returns empty string for landscape', () => {
-        expect(mapSizeToProvider('landscape', 'grok')).toBe('');
+      it('returns 16:9 for landscape', () => {
+        expect(mapSizeToProvider('landscape', 'grok')).toBe('16:9');
       });
     });
 

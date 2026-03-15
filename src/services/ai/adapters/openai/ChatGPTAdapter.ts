@@ -137,6 +137,7 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
     
     // O1 models don't support system messages
     const isO1Model = resolvedModel.startsWith('o1');
+    const usesMaxCompletionTokens = Boolean(modelConfig?.useMaxCompletionTokens) || isO1Model;
     
     // Format user message with attachments (images and documents supported)
     const userContent = this.formatUserMessage(message, attachments);
@@ -165,9 +166,8 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
       requestBody.temperature = this.config.parameters?.temperature || 0.7;
     }
     
-    // Handle token limits - GPT-5 and O1 use max_completion_tokens, others use max_tokens
-    const isGPT5 = resolvedModel.startsWith('gpt-5');
-    if (isGPT5 || isO1Model) {
+    // Handle token limits - reasoning / GPT-5 families use max_completion_tokens
+    if (usesMaxCompletionTokens) {
       // Don't set a default - let OpenAI use its own defaults
       if (this.config.parameters?.maxTokens) {
         requestBody.max_completion_tokens = this.config.parameters.maxTokens;

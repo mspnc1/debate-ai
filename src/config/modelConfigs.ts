@@ -1,8 +1,11 @@
+import { resolveModelAlias } from './providers/modelRegistry';
+
 export interface ModelConfig {
   id: string;
   name: string;
   description: string;
   contextLength: number;
+  contextLabel?: string | null; // Optional UI label when the provider publishes a friendly label or no numeric window
   maxOutputTokens?: number; // Maximum output tokens the model supports
   isDefault?: boolean;
   supportsVision?: boolean;
@@ -132,7 +135,7 @@ export const AI_MODELS: ProviderModels = {
       id: "gpt-5.4",
       name: "GPT-5.4",
       description: "Latest GPT-5 family API model currently listed by OpenAI",
-      contextLength: 400000,
+      contextLength: 1050000,
       maxOutputTokens: 128000,
       isDefault: true,
       supportsVision: true,
@@ -365,13 +368,14 @@ export const AI_MODELS: ProviderModels = {
     {
       id: "gemini-2.0-flash",
       name: "Gemini 2.0 Flash",
-      description: "Fast multimodal model",
+      description: "Deprecated Gemini 2.0 model scheduled for shutdown by Google",
       contextLength: 1048576,
       maxOutputTokens: 8192,
       supportsVision: true,
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      isDeprecated: true,
     },
   ],
   perplexity: [
@@ -380,6 +384,7 @@ export const AI_MODELS: ProviderModels = {
       name: "Sonar Pro",
       description: "High-accuracy Perplexity search model with citations",
       contextLength: 200000,
+      contextLabel: "Context unpublished",
       maxOutputTokens: 8000,
       isDefault: true,
       supportsWebSearch: true,
@@ -389,6 +394,7 @@ export const AI_MODELS: ProviderModels = {
       name: "Sonar",
       description: "Fast search model with real-time web access and citations",
       contextLength: 128000,
+      contextLabel: "Context unpublished",
       maxOutputTokens: 8000,
       supportsWebSearch: true,
     },
@@ -397,6 +403,7 @@ export const AI_MODELS: ProviderModels = {
       name: "Sonar Reasoning Pro",
       description: "Advanced reasoning with web search and citations",
       contextLength: 128000,
+      contextLabel: "Context unpublished",
       maxOutputTokens: 8000,
       supportsWebSearch: true,
       supportsThinking: true,
@@ -407,7 +414,7 @@ export const AI_MODELS: ProviderModels = {
       id: "mistral-medium-latest",
       name: "Mistral Medium",
       description: "Balanced current Mistral model for general-purpose chat",
-      contextLength: 131072,
+      contextLength: 128000,
       isDefault: true,
       supportsVision: true,
       supportsImageInput: true,
@@ -417,7 +424,7 @@ export const AI_MODELS: ProviderModels = {
       id: "mistral-small-latest",
       name: "Mistral Small",
       description: "Enterprise-grade small model with vision",
-      contextLength: 131072,
+      contextLength: 128000,
       supportsVision: true,
       supportsImageInput: true,
       supportsFunctions: true,
@@ -433,7 +440,7 @@ export const AI_MODELS: ProviderModels = {
       id: "pixtral-large-latest",
       name: "Pixtral Large",
       description: "Vision-focused Mistral model",
-      contextLength: 131072,
+      contextLength: 128000,
       supportsVision: true,
       supportsImageInput: true,
       supportsFunctions: true,
@@ -444,7 +451,7 @@ export const AI_MODELS: ProviderModels = {
       id: "command-a-reasoning-08-2025",
       name: "Command A Reasoning",
       description: "Current Cohere reasoning model with extended context",
-      contextLength: 288768,
+      contextLength: 256000,
       isDefault: true,
       supportsVision: true,
       supportsImageInput: true,
@@ -468,22 +475,22 @@ export const AI_MODELS: ProviderModels = {
       id: "command-r-08-2024",
       name: "Command R",
       description: "Stable retrieval-oriented Cohere chat model",
-      contextLength: 132096,
+      contextLength: 128000,
       supportsFunctions: true,
     },
     {
       id: "command-r7b-12-2024",
       name: "Command R7B",
       description: "Lower-cost Cohere chat model",
-      contextLength: 132000,
+      contextLength: 128000,
       supportsFunctions: true,
     },
   ],
   together: [
     {
-      id: "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-      name: "Llama 3.1 70B",
-      description: "Current high-capability Together-hosted Llama 3.1 model",
+      id: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+      name: "Llama 3.3 70B",
+      description: "Current Together serverless default for high-capability general chat",
       contextLength: 131072,
       isDefault: true,
     },
@@ -494,9 +501,9 @@ export const AI_MODELS: ProviderModels = {
       contextLength: 131072,
     },
     {
-      id: "Qwen/Qwen2.5-72B-Instruct-Turbo",
-      name: "Qwen 2.5 72B",
-      description: "Strong multilingual capabilities",
+      id: "Qwen/Qwen2.5-7B-Instruct-Turbo",
+      name: "Qwen 2.5 7B",
+      description: "Fast multilingual Together serverless model",
       contextLength: 32768,
     },
   ],
@@ -570,27 +577,15 @@ export const CURATED_MODEL_IDS: { [providerId: string]: string[] } = {
   ],
   openai: [
     "gpt-5.4",
-    "gpt-5.2",
-    "gpt-5",
     "gpt-5-mini",
-    "gpt-5-nano",
     "gpt-4.1",
     "gpt-4.1-mini",
-    "gpt-4.1-nano",
-    "gpt-4o",
-    "gpt-4o-mini",
     "o3",
-    "o4-mini",
-    "o3-mini",
-    "o1",
-    "gpt-image-1",
-    "dall-e-3",
   ],
   google: [
     "gemini-2.5-flash",
     "gemini-2.5-pro",
     "gemini-2.5-flash-lite",
-    "gemini-2.0-flash",
   ],
   perplexity: ["sonar-pro", "sonar", "sonar-reasoning-pro"],
   mistral: [
@@ -606,9 +601,9 @@ export const CURATED_MODEL_IDS: { [providerId: string]: string[] } = {
     "command-r7b-12-2024",
   ],
   together: [
-    "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+    "meta-llama/Llama-3.3-70B-Instruct-Turbo",
     "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
-    "Qwen/Qwen2.5-72B-Instruct-Turbo",
+    "Qwen/Qwen2.5-7B-Instruct-Turbo",
   ],
   deepseek: ["deepseek-chat", "deepseek-reasoner"],
   grok: ["grok-4-0709", "grok-3", "grok-3-mini", "grok-imagine-image"],
@@ -715,6 +710,39 @@ export const PROVIDER_SUPPORTED_PARAMS: {
   grok: ["temperature", "maxTokens", "topP", "stopSequences", "seed"],
 };
 
+const trimDecimal = (value: string): string =>
+  value.replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1');
+
+export const formatContextLength = (contextLength: number): string => {
+  if (contextLength >= 1_000_000) {
+    if (contextLength % (1024 * 1024) === 0) {
+      return `${contextLength / (1024 * 1024)}M`;
+    }
+    return `${trimDecimal((contextLength / 1_000_000).toFixed(2))}M`;
+  }
+
+  if (contextLength >= 1_000) {
+    if (contextLength % 1024 === 0) {
+      return `${contextLength / 1024}K`;
+    }
+    return `${trimDecimal((contextLength / 1_000).toFixed(contextLength >= 100_000 ? 0 : 1))}K`;
+  }
+
+  return `${contextLength}`;
+};
+
+export const getModelContextLabel = (model: ModelConfig): string | null => {
+  if (model.contextLabel !== undefined) {
+    return model.contextLabel;
+  }
+
+  if (!model.contextLength) {
+    return null;
+  }
+
+  return `${formatContextLength(model.contextLength)} context`;
+};
+
 // Helper function to get models for a specific provider
 export const getProviderModels = (providerId: string): ModelConfig[] => {
   const all = AI_MODELS[providerId] || [];
@@ -722,7 +750,9 @@ export const getProviderModels = (providerId: string): ModelConfig[] => {
   const visibleModels = curated && curated.length
     ? all.filter((m) => curated.includes(m.id))
     : all;
-  return visibleModels.filter((model) => !model.isDeprecated);
+  return visibleModels.filter(
+    (model) => !model.isDeprecated && !model.supportsImageGeneration
+  );
 };
 
 // Helper function to get the default model for a provider
@@ -738,8 +768,12 @@ export const resolveProviderModelId = (
   modelId?: string
 ): string | undefined => {
   if (modelId) {
-    const requestedModel = getModelById(providerId, modelId);
-    if (requestedModel && !requestedModel.isDeprecated) {
+    const requestedModel = getModelById(providerId, resolveModelAlias(modelId));
+    if (
+      requestedModel &&
+      !requestedModel.isDeprecated &&
+      !requestedModel.supportsImageGeneration
+    ) {
       return requestedModel.id;
     }
   }

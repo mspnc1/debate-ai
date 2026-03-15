@@ -26,11 +26,13 @@ import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { useGreeting } from '../hooks/useGreeting';
 import {
   Typography,
+  Badge,
   GradientButton,
   HeaderIcon,
   SectionHeader,
   PromptHeroInput,
   AdvancedOptionsSection,
+  ImageModelSelector,
 } from '../components/molecules';
 import { Header, HeaderActions, DynamicAISelector, ImageRefinementModal } from '../components/organisms';
 import type { RefinementProvider } from '../components/organisms/chat/ImageRefinementModal';
@@ -40,13 +42,20 @@ import {
   setStyle,
   setSize,
   setQuality,
+  setSelectedModel,
   setSelectedProviders,
   hydrateGallery,
   selectCreateState,
 } from '../store/createSlice';
 import { RootStackParamList, AIProvider, AIConfig } from '../types';
 import { STYLE_PRESETS } from '../config/create/stylePresets';
-import { supportsImageGeneration, supportsImageInput } from '../config/imageGenerationModels';
+import {
+  getImageInputModels,
+  getImageProviderDisplayName,
+  resolveImageModelId,
+  supportsImageGeneration,
+  supportsImageInput,
+} from '../config/imageGenerationModels';
 import { AI_PROVIDERS } from '../config/aiProviders';
 import { getAIProviderIcon } from '../utils/aiProviderAssets';
 
@@ -70,6 +79,7 @@ export default function CreateSetupScreen() {
 
   const {
     selectedProviders,
+    selectedModels = {},
     currentPrompt,
     selectedStyle,
     selectedSize,
@@ -127,13 +137,13 @@ export default function CreateSetupScreen() {
           id: provider.id,
           provider: provider.id as AIProvider,
           name: provider.name,
-          model: 'default',
+          model: resolveImageModelId(provider.id as AIProvider, selectedModels[provider.id as AIProvider]) || 'default',
           icon: iconData.icon,
           iconType: iconData.iconType,
           color: provider.color,
         } as AIConfig;
       });
-  }, [apiKeys, verifiedProviders, isDemo]);
+  }, [apiKeys, verifiedProviders, isDemo, selectedModels]);
 
   // Sync selectedAIs with selectedProviders from Redux
   useEffect(() => {
@@ -185,11 +195,20 @@ export default function CreateSetupScreen() {
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+    const sessionSelectedModels = selectedProviders.reduce((acc, provider) => {
+      const resolvedModelId = resolveImageModelId(provider, selectedModels[provider]);
+      if (resolvedModelId) {
+        acc[provider] = resolvedModelId;
+      }
+      return acc;
+    }, {} as Partial<Record<AIProvider, string>>);
+
     navigation.navigate('CreateSession', {
       providers: selectedProviders,
+      selectedModels: sessionSelectedModels,
       initialPrompt: currentPrompt,
     });
-  }, [currentPrompt, selectedProviders, navigation]);
+  }, [currentPrompt, navigation, selectedModels, selectedProviders]);
 
   const canGenerate = currentPrompt.trim().length > 0 && selectedProviders.length > 0;
 
@@ -197,8 +216,8 @@ export default function CreateSetupScreen() {
   const availableRefinementProviders: RefinementProvider[] = useMemo(() => {
     return IMAGE_GEN_PROVIDERS.map(providerId => ({
       provider: providerId as AIProvider,
-      name: AI_PROVIDERS.find(p => p.id === providerId)?.name || providerId,
-      supportsImg2Img: supportsImageInput(providerId as AIProvider),
+      name: getImageProviderDisplayName(providerId as AIProvider),
+      supportsImg2Img: getImageInputModels(providerId as AIProvider).length > 0,
       hasApiKey: Boolean(apiKeys[providerId as keyof typeof apiKeys]) || isDemo,
     }));
   }, [apiKeys, isDemo]);
@@ -237,7 +256,7 @@ export default function CreateSetupScreen() {
   }, []);
 
   // Handle refinement submission from modal
-  const handleRefinement = useCallback(async (opts: { instructions: string; provider: AIProvider }) => {
+  const handleRefinement = useCallback(async (opts: { instructions: string; provider: AIProvider; modelId: string }) => {
     if (!uploadedImageUri) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -246,13 +265,14 @@ export default function CreateSetupScreen() {
     // Navigate to CreateSession with the refinement params
     navigation.navigate('CreateSession', {
       providers: [opts.provider],
+      selectedModels: { [opts.provider]: opts.modelId },
       sourceImage: uploadedImageUri,
       refinementInstructions: opts.instructions,
     });
 
     // Clear the uploaded image
     setUploadedImageUri(null);
-  }, [uploadedImageUri, navigation]);
+  }, [navigation, uploadedImageUri]);
 
   const handleGalleryPress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -275,14 +295,6 @@ export default function CreateSetupScreen() {
   const handleAddAI = useCallback(() => {
     navigation.navigate('APIConfig');
   }, [navigation]);
-
-  // Get badge for AI cards (show img2img badge for providers that support it)
-  const getBadge = useCallback((ai: AIConfig) => {
-    if (supportsImageInput(ai.provider)) {
-      return { text: 'img2img', color: theme.colors.success[500] };
-    }
-    return undefined;
-  }, [theme.colors.success]);
 
   // Custom right element with gallery icon and header actions
   const renderHeaderRight = () => (
@@ -378,16 +390,24 @@ export default function CreateSetupScreen() {
               hideStartButton={true}
               hideAddAI={isDemo}
               customSubtitle={`${configuredImageAIs.length} image providers • Select up to 3`}
-              getBadge={getBadge}
+              selectedModels={selectedModels}
+              onModelChange={(aiId, modelId) => {
+                dispatch(setSelectedModel({ provider: aiId as AIProvider, modelId }));
+              }}
+              renderModelSelector={(ai, selectedModelId) => (
+                <ImageModelSelector
+                  providerId={ai.provider}
+                  selectedModel={selectedModelId}
+                  onSelectModel={(modelId) => {
+                    dispatch(setSelectedModel({ provider: ai.provider, modelId }));
+                  }}
+                  aiName={ai.name}
+                />
+              )}
             />
-            {/* img2img badge legend */}
-            {configuredImageAIs.some(ai => supportsImageInput(ai.provider)) && (
+            {configuredImageAIs.some(ai => supportsImageInput(ai.provider, selectedModels[ai.id as AIProvider] || ai.model)) && (
               <View style={styles.legendRow}>
-                <View style={[styles.legendBadge, { backgroundColor: theme.colors.success[500] }]}>
-                  <Typography variant="caption" style={{ color: '#FFFFFF', fontSize: 10 }}>
-                    img2img
-                  </Typography>
-                </View>
+                <Badge label="img2img" type="new" />
                 <Typography variant="caption" color="secondary">
                   Supports image refinement
                 </Typography>
@@ -538,11 +558,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginTop: 8,
-  },
-  legendBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
   },
   styleScroll: {
     paddingRight: 16,

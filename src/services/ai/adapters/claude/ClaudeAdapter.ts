@@ -113,7 +113,7 @@ export class ClaudeAdapter extends BaseAdapter {
           body: JSON.stringify({
             model: modelId,
             max_tokens: this.config.parameters?.maxTokens || 8192, // Claude requires this, use maximum
-            temperature: this.config.parameters?.temperature || 0.7,
+            temperature: this.config.parameters?.temperature ?? 0.7,
             top_p: this.config.parameters?.topP,
             top_k: this.config.parameters?.topK,
             system: this.getSystemPrompt(),
@@ -182,7 +182,7 @@ export class ClaudeAdapter extends BaseAdapter {
     const requestBody = JSON.stringify({
       model: modelId,
       max_tokens: this.config.parameters?.maxTokens || 8192, // Claude requires this, use maximum
-      temperature: this.config.parameters?.temperature || 0.7,
+      temperature: this.config.parameters?.temperature ?? 0.7,
       stream: true,
       system: this.getSystemPrompt(),
       messages: [

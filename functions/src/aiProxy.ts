@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDecryptedApiKey, encryptionKey } from './apiKeys';
 import { recordUsageInternal } from './usageTracking';
+import { normalizeProviderTemperature, resolveProviderModelId } from './modelRegistry';
 
 // Provider API endpoints
 const PROVIDER_CONFIGS: Record<string, {
@@ -262,12 +263,20 @@ export const proxyAIRequest = onCall(
 
     // Only use maxTokens if explicitly provided - otherwise let providers use their defaults
     const resolvedMaxTokens = typeof maxTokens === 'number' && maxTokens > 0 ? Math.floor(maxTokens) : undefined;
-    const resolvedTemperature = typeof temperature === 'number' ? temperature : 0.7;
 
     // Validate provider
     if (!providerId || !PROVIDER_CONFIGS[providerId]) {
       throw new HttpsError('invalid-argument', `Invalid provider: ${providerId}`);
     }
+    const resolvedModel = resolveProviderModelId(providerId, model);
+    if (!resolvedModel) {
+      throw new HttpsError('invalid-argument', `No model configured for provider: ${providerId}`);
+    }
+    const resolvedTemperature = normalizeProviderTemperature(
+      providerId,
+      resolvedModel,
+      typeof temperature === 'number' ? temperature : 0.7
+    ) ?? 0.7;
 
     // Validate messages
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -293,17 +302,17 @@ export const proxyAIRequest = onCall(
       };
 
       if (providerId === 'claude') {
-        result = await callClaude(apiKey, model, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, attachments);
+        result = await callClaude(apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, attachments);
       } else if (providerId === 'google') {
-        result = await callGemini(apiKey, model, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, searchOptions, attachments);
+        result = await callGemini(apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, searchOptions, attachments);
       } else if (providerId === 'cohere') {
-        result = await callCohere(apiKey, model, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, attachments);
+        result = await callCohere(apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, attachments);
       } else if (providerId === 'perplexity') {
         // Perplexity has built-in web search with citations
-        result = await callPerplexity(apiKey, model, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, searchOptions, attachments);
+        result = await callPerplexity(apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, searchOptions, attachments);
       } else {
         // OpenAI-compatible providers (OpenAI, Mistral, Together, DeepSeek, Grok)
-        result = await callOpenAICompatible(apiKey, config.baseUrl, model, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, providerId, searchOptions, attachments);
+        result = await callOpenAICompatible(apiKey, config.baseUrl, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, providerId, searchOptions, attachments);
       }
 
       // Record usage for tracking (non-blocking)
@@ -317,7 +326,7 @@ export const proxyAIRequest = onCall(
           messageId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           sessionId: sessionId || 'unknown',
           providerId,
-          modelId: model,
+          modelId: resolvedModel,
           inputTokens,
           outputTokens,
           totalTokens,
@@ -333,7 +342,7 @@ export const proxyAIRequest = onCall(
         content: result.content,
         usage: result.usage,
         providerId,
-        model,
+        model: resolvedModel,
         citations: result.citations,
         searchPerformed: result.searchPerformed,
       };
@@ -735,8 +744,15 @@ async function callCohere(
   }
 
   const data = await response.json();
-  // v2 API returns message.content array
-  const content = data.message?.content?.[0]?.text || data.text || '';
+  // Cohere v2 returns a message.content array. Reasoning-capable models may
+  // emit non-text blocks before the assistant text, so scan all parts.
+  const contentParts = Array.isArray(data.message?.content)
+    ? data.message.content
+    : [];
+  const content = contentParts
+    .filter((part: { text?: unknown }) => typeof part?.text === 'string')
+    .map((part: { text: string }) => part.text)
+    .join('') || data.text || '';
   return {
     content,
     usage: {
@@ -765,6 +781,36 @@ async function callPerplexity(
   citations?: Citation[];
   searchPerformed?: boolean;
 }> {
+  const extractPerplexityText = (value: unknown): string => {
+    if (typeof value === 'string') {
+      return value.trim();
+    }
+
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => extractPerplexityText(item))
+        .filter(Boolean)
+        .join('\n')
+        .trim();
+    }
+
+    if (!value || typeof value !== 'object') {
+      return '';
+    }
+
+    const record = value as Record<string, unknown>;
+    const preferredKeys = ['text', 'content', 'output_text', 'answer', 'reasoning_content', 'reasoning', 'parts'];
+
+    for (const key of preferredKeys) {
+      const extracted = extractPerplexityText(record[key]);
+      if (extracted) {
+        return extracted;
+      }
+    }
+
+    return '';
+  };
+
   // Perplexity sonar models support vision AND file attachments
   type PerplexityContentPart =
     | { type: 'text'; text: string }
@@ -874,7 +920,22 @@ async function callPerplexity(
   }
 
   const data = await response.json();
-  const content = data.choices?.[0]?.message?.content || '';
+  const choice = data.choices?.[0];
+  const content = (
+    extractPerplexityText(choice?.message?.content) ||
+    extractPerplexityText(choice?.message?.reasoning_content) ||
+    extractPerplexityText(choice?.message?.reasoning) ||
+    extractPerplexityText(choice?.delta?.content)
+  ).trim();
+
+  if (!content) {
+    console.warn('[callPerplexity] Empty content response', {
+      model,
+      hasCitations: Array.isArray(data.citations) && data.citations.length > 0,
+      usage: data.usage,
+      choiceKeys: choice?.message ? Object.keys(choice.message) : [],
+    });
+  }
 
   // Extract citations from Perplexity's response
   // Perplexity returns citations as an array of URLs in the response

@@ -320,9 +320,9 @@ export const MODEL_VERSIONS: ProviderVersions = {
   together: {
     llama: [
       {
-        id: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
-        version: '3.1-70B',
-        releaseDate: '2024-07-01',
+        id: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+        version: '3.3-70B',
+        releaseDate: '2024-12-01',
         isLatest: true,
       },
       {
@@ -334,8 +334,8 @@ export const MODEL_VERSIONS: ProviderVersions = {
     ],
     qwen: [
       {
-        id: 'Qwen/Qwen2.5-72B-Instruct-Turbo',
-        version: '2.5-72B',
+        id: 'Qwen/Qwen2.5-7B-Instruct-Turbo',
+        version: '2.5-7B',
         releaseDate: '2024-09-01',
         isLatest: true,
       },

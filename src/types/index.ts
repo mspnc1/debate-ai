@@ -197,6 +197,7 @@ export type RootStackParamList = {
   CreateTab: undefined;
   CreateSession: {
     providers?: AIProvider[];
+    selectedModels?: Partial<Record<AIProvider, string>>;
     initialPrompt?: string;
     sourceImage?: string;
     refinementInstructions?: string;

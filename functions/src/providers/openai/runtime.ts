@@ -18,6 +18,7 @@ import type {
   CanonicalToolDefinition,
   CanonicalToolChoice,
 } from '../../types/canonical';
+import { normalizeProviderTemperature } from '../../modelRegistry';
 import type { ProviderRuntime, ProviderRequest, BuiltRequest, ProviderConfig } from '../types';
 import {
   parseSSEStream,
@@ -135,11 +136,16 @@ export class OpenAIRuntime implements ProviderRuntime {
    */
   buildRequest(request: ProviderRequest, apiKey: string): BuiltRequest {
     const openaiMessages = this.transformMessages(request);
+    const temperature = normalizeProviderTemperature(
+      this.providerId,
+      request.model,
+      request.temperature ?? 0.7
+    ) ?? 0.7;
 
     const body: Record<string, unknown> = {
       model: request.model,
       messages: openaiMessages,
-      temperature: request.temperature ?? 0.7,
+      temperature,
       stream: true,
       stream_options: { include_usage: true },
     };

@@ -43,7 +43,7 @@ export class CrashlyticsService {
       this.initialized = true;
 
       if (__DEV__) {
-        console.log('[Crashlytics] Initialized successfully');
+        console.warn('[Crashlytics] Initialized successfully');
       }
     } catch (error) {
       console.error('[Crashlytics] Failed to initialize:', error);

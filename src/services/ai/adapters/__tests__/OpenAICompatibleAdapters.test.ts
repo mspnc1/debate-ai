@@ -77,7 +77,7 @@ const cases: AdapterCase[] = [
     config: {
       provider: 'together',
       apiKey: 'test-key',
-      model: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
+      model: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
       parameters: { temperature: 0.7, maxTokens: 2048 },
     },
     expectedUrl: 'https://api.together.xyz/v1/chat/completions',

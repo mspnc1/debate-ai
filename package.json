@@ -1,6 +1,6 @@
 {
   "name": "symposium-ai",
-  "version": "1.5.5",
+  "version": "1.5.7",
   "main": "index.ts",
   "scripts": {
     "start": "expo start --dev-client",
@@ -24,6 +24,8 @@
     "demo:build-recordings": "node scripts/demo/build-recordings-manifest.js",
     "demo:bridge": "node scripts/demo/dev-bridge.mjs",
     "test": "jest --watch=false",
+    "test:model-routing": "jest --runInBand __tests__/config/modelSelectionContract.test.ts __tests__/services/ai/ModelRoutingContract.test.ts __tests__/services/modelSelectionFlow.test.ts __tests__/hooks/home/useAISelection.test.ts __tests__/services/home/AIConfigurationService.test.ts",
+    "test:model-routing:live": "LIVE_MODEL_TEST=1 jest --runInBand --runTestsByPath __tests__/integration/liveModelRouting.test.ts",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage --maxWorkers=50%",
     "eas-build-post-install": "bash scripts/eas-prebuild.sh"
@@ -53,7 +55,6 @@
     "expo-clipboard": "~55.0.8",
     "expo-constants": "~55.0.7",
     "expo-crypto": "~55.0.9",
-    "expo-dev-client": "~55.0.16",
     "expo-device": "~55.0.9",
     "expo-document-picker": "~55.0.8",
     "expo-file-system": "~55.0.10",
@@ -105,10 +106,13 @@
     "msw": "^2.4.10",
     "node-forge": "^1.3.3",
     "react-test-renderer": "^19.2.4",
-    "sharp": "^0.34.4",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.39.0",
     "whatwg-fetch": "^3.6.20"
+  },
+  "optionalDependencies": {
+    "node-addon-api": "^8.6.0",
+    "sharp": "^0.34.5"
   },
   "overrides": {
     "markdown-it": "^14.1.0",

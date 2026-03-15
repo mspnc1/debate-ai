@@ -11,13 +11,36 @@ jest.mock('expo-blur', () => ({
 }));
 
 jest.mock('@/components/molecules', () => {
-  const { Text, View, TouchableOpacity } = require('react-native');
+  const { Text, TouchableOpacity, View } = require('react-native');
   return {
     Typography: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text>,
-    SheetHeader: ({ title, onClose }: { title: string; onClose: () => void }) => (
-      <View testID="sheet-header">
+    GradientButton: ({
+      title,
+      onPress,
+      disabled,
+      testID,
+    }: {
+      title: string;
+      onPress: () => void;
+      disabled?: boolean;
+      testID?: string;
+    }) => (
+      <TouchableOpacity onPress={onPress} disabled={disabled} testID={testID} accessibilityState={{ disabled: Boolean(disabled) }}>
         <Text>{title}</Text>
-        <TouchableOpacity onPress={onClose} testID="close-button">
+      </TouchableOpacity>
+    ),
+    SheetHeader: ({
+      title,
+      onClose,
+      testID,
+    }: {
+      title: string;
+      onClose: () => void;
+      testID?: string;
+    }) => (
+      <View>
+        <Text>{title}</Text>
+        <TouchableOpacity onPress={onClose} testID={testID ? `${testID}-close` : 'close-button'}>
           <Text>Close</Text>
         </TouchableOpacity>
       </View>
@@ -25,11 +48,19 @@ jest.mock('@/components/molecules', () => {
   };
 });
 
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
+  return {
+    Ionicons: ({ name }: { name: string }) => <Text>{name}</Text>,
+  };
+});
+
 describe('ImageRefinementModal', () => {
   const mockProviders: RefinementProvider[] = [
-    { provider: 'openai', name: 'ChatGPT (DALL-E)', supportsImg2Img: true, hasApiKey: true },
+    { provider: 'openai', name: 'ChatGPT', supportsImg2Img: true, hasApiKey: true },
     { provider: 'google', name: 'Gemini', supportsImg2Img: true, hasApiKey: true },
-    { provider: 'grok', name: 'Grok', supportsImg2Img: false, hasApiKey: true },
+    { provider: 'grok', name: 'Grok', supportsImg2Img: true, hasApiKey: true },
     { provider: 'claude', name: 'Claude', supportsImg2Img: false, hasApiKey: false },
   ];
 
@@ -37,6 +68,7 @@ describe('ImageRefinementModal', () => {
     visible: true,
     imageUri: 'https://example.com/image.jpg',
     originalProvider: 'openai' as const,
+    originalModelId: 'gpt-image-1.5',
     availableProviders: mockProviders,
     onClose: jest.fn(),
     onRefine: jest.fn(),
@@ -86,30 +118,28 @@ describe('ImageRefinementModal', () => {
 
   describe('Provider Selection', () => {
     it('renders only eligible providers as chips', () => {
-      const { getByText, queryByText } = renderWithProviders(<ImageRefinementModal {...defaultProps} />);
+      const { getAllByText, queryByText } = renderWithProviders(<ImageRefinementModal {...defaultProps} />);
       // Only providers with supportsImg2Img=true and hasApiKey=true should appear
-      expect(getByText('ChatGPT (DALL-E)')).toBeTruthy();
-      expect(getByText('Gemini')).toBeTruthy();
-      // Ineligible providers should not appear
-      expect(queryByText('Grok')).toBeNull();
+      expect(getAllByText('ChatGPT').length).toBeGreaterThan(0);
+      expect(getAllByText('Gemini').length).toBeGreaterThan(0);
       expect(queryByText('Claude')).toBeNull();
     });
 
     it('hides provider selection when only one eligible provider', () => {
       const singleProviderList: RefinementProvider[] = [
-        { provider: 'openai', name: 'ChatGPT (DALL-E)', supportsImg2Img: true, hasApiKey: true },
+        { provider: 'openai', name: 'ChatGPT', supportsImg2Img: true, hasApiKey: true },
         { provider: 'grok', name: 'Grok', supportsImg2Img: false, hasApiKey: true },
       ];
       const props = { ...defaultProps, availableProviders: singleProviderList };
-      const { queryByText } = renderWithProviders(<ImageRefinementModal {...props} />);
-      // Provider section label should not appear when only one eligible
-      expect(queryByText('Generate with')).toBeNull();
+      const { queryByTestId } = renderWithProviders(<ImageRefinementModal {...props} />);
+      expect(queryByTestId('provider-option-openai')).toBeNull();
     });
 
     it('auto-selects first eligible provider if original is not eligible', () => {
       const props = {
         ...defaultProps,
-        originalProvider: 'grok' as const,
+        originalProvider: 'claude' as const,
+        originalModelId: undefined,
       };
       const { onRefine } = props;
 
@@ -126,6 +156,22 @@ describe('ImageRefinementModal', () => {
       expect(onRefine).toHaveBeenCalledWith({
         instructions: 'Make it better',
         provider: 'openai',
+        modelId: 'gpt-image-1.5',
+      });
+    });
+
+    it('lets the user switch both provider and model', () => {
+      const { getByPlaceholderText, getByTestId } = renderWithProviders(<ImageRefinementModal {...defaultProps} />);
+
+      fireEvent.press(getByTestId('provider-option-google'));
+      fireEvent.press(getByTestId('model-option-gemini-3-pro-image-preview'));
+      fireEvent.changeText(getByPlaceholderText('Describe the improvements you want...'), 'Push the image toward a premium edit');
+      fireEvent.press(getByTestId('refine-submit'));
+
+      expect(defaultProps.onRefine).toHaveBeenCalledWith({
+        instructions: 'Push the image toward a premium edit',
+        provider: 'google',
+        modelId: 'gemini-3-pro-image-preview',
       });
     });
   });
@@ -139,53 +185,48 @@ describe('ImageRefinementModal', () => {
 
     it('calls onClose when header close button is pressed', () => {
       const { getByTestId } = renderWithProviders(<ImageRefinementModal {...defaultProps} />);
-      fireEvent.press(getByTestId('close-button'));
+      fireEvent.press(getByTestId('refinement-header-close'));
       expect(defaultProps.onClose).toHaveBeenCalled();
     });
 
     it('disables Refine button when instructions are empty', () => {
       const onRefine = jest.fn();
       const props = { ...defaultProps, onRefine };
-      const { getAllByText } = renderWithProviders(<ImageRefinementModal {...props} />);
+      const { getByTestId } = renderWithProviders(<ImageRefinementModal {...props} />);
 
-      // Find and press the button (not the header) - button is the second match
-      const refineTexts = getAllByText('Refine Image');
-      fireEvent.press(refineTexts[refineTexts.length - 1]);
+      fireEvent.press(getByTestId('refine-submit'));
 
       // Should not call onRefine when instructions are empty
       expect(onRefine).not.toHaveBeenCalled();
     });
 
     it('enables Refine button when instructions are provided', () => {
-      const { getAllByText, getByPlaceholderText } = renderWithProviders(<ImageRefinementModal {...defaultProps} />);
+      const { getByPlaceholderText, getByTestId } = renderWithProviders(<ImageRefinementModal {...defaultProps} />);
 
       fireEvent.changeText(getByPlaceholderText('Describe the improvements you want...'), 'Make it sharper');
 
-      const refineTexts = getAllByText('Refine Image');
-      const refineButton = refineTexts[refineTexts.length - 1].parent;
-      expect(refineButton?.props.accessibilityState?.disabled).toBeFalsy();
+      expect(getByTestId('refine-submit').props.accessibilityState?.disabled).toBeFalsy();
     });
 
     it('calls onRefine with instructions and provider when Refine is pressed', () => {
-      const { getAllByText, getByPlaceholderText } = renderWithProviders(<ImageRefinementModal {...defaultProps} />);
+      const { getByPlaceholderText, getByTestId } = renderWithProviders(<ImageRefinementModal {...defaultProps} />);
 
       fireEvent.changeText(getByPlaceholderText('Describe the improvements you want...'), 'Add more detail');
-      const refineTexts = getAllByText('Refine Image');
-      fireEvent.press(refineTexts[refineTexts.length - 1]);
+      fireEvent.press(getByTestId('refine-submit'));
 
       expect(defaultProps.onRefine).toHaveBeenCalledWith({
         instructions: 'Add more detail',
         provider: 'openai',
+        modelId: 'gpt-image-1.5',
       });
     });
 
     it('clears instructions after refinement', () => {
-      const { getAllByText, getByPlaceholderText } = renderWithProviders(<ImageRefinementModal {...defaultProps} />);
+      const { getByPlaceholderText, getByTestId } = renderWithProviders(<ImageRefinementModal {...defaultProps} />);
 
       const input = getByPlaceholderText('Describe the improvements you want...');
       fireEvent.changeText(input, 'Add more detail');
-      const refineTexts = getAllByText('Refine Image');
-      fireEvent.press(refineTexts[refineTexts.length - 1]);
+      fireEvent.press(getByTestId('refine-submit'));
 
       // Instructions should be cleared
       expect(input.props.value).toBe('');
@@ -212,11 +253,10 @@ describe('ImageRefinementModal', () => {
       // Refine button should be disabled even with instructions since no providers support img2img
       const onRefine = jest.fn();
       const propsWithRefine = { ...props, onRefine };
-      const { getAllByText: getAllByText2, getByPlaceholderText: getByPlaceholderText2 } = renderWithProviders(<ImageRefinementModal {...propsWithRefine} />);
+      const { getByPlaceholderText: getByPlaceholderText2, getByTestId: getByTestId2 } = renderWithProviders(<ImageRefinementModal {...propsWithRefine} />);
 
       fireEvent.changeText(getByPlaceholderText2('Describe the improvements you want...'), 'Make it better');
-      const refineTexts2 = getAllByText2('Refine Image');
-      fireEvent.press(refineTexts2[refineTexts2.length - 1]);
+      fireEvent.press(getByTestId2('refine-submit'));
 
       // Should not call onRefine even with instructions since no eligible providers
       expect(onRefine).not.toHaveBeenCalled();
