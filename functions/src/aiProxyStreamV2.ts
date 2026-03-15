@@ -16,6 +16,7 @@ import { getDecryptedApiKey, encryptionKey } from './apiKeys';
 import { recordUsageInternal } from './usageTracking';
 import { ProviderRegistry, isV2Supported } from './providers/registry';
 import { generateTraceId, createErrorEvent } from './providers/base-runtime';
+import { resolveProviderModelId } from './modelRegistry';
 import type {
   CanonicalStreamRequest,
   CanonicalSSEEvent,
@@ -253,6 +254,15 @@ export const proxyAIRequestStreamV2 = onRequest(
         writer.end();
         return;
       }
+      const resolvedModel = resolveProviderModelId(providerId, model);
+      if (!resolvedModel) {
+        writer.write(createErrorEvent(
+          `No model configured for provider '${providerId}'.`,
+          'invalid-argument'
+        ));
+        writer.end();
+        return;
+      }
 
       // Validate messages
       if (!rawMessages || !Array.isArray(rawMessages) || rawMessages.length === 0) {
@@ -269,7 +279,7 @@ export const proxyAIRequestStreamV2 = onRequest(
         traceId,
         event: 'request_parsed',
         providerId,
-        model,
+        model: resolvedModel,
         messageCount: messages.length,
         hasTools: !!(tools && tools.length > 0),
         toolCount: tools?.length || 0,
@@ -296,7 +306,7 @@ export const proxyAIRequestStreamV2 = onRequest(
       // Build provider-specific request
       const builtRequest = runtime.buildRequest(
         {
-          model,
+          model: resolvedModel,
           messages,
           systemPrompt,
           maxTokens,
@@ -417,7 +427,7 @@ export const proxyAIRequestStreamV2 = onRequest(
         traceId,
         event: 'stream_complete',
         providerId,
-        model,
+        model: resolvedModel,
         duration,
         inputTokens,
         outputTokens,
@@ -432,7 +442,7 @@ export const proxyAIRequestStreamV2 = onRequest(
           messageId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           sessionId: sessionId || 'unknown',
           providerId,
-          modelId: model,
+          modelId: resolvedModel,
           inputTokens,
           outputTokens,
           totalTokens: inputTokens + outputTokens,

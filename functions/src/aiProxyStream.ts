@@ -1,6 +1,7 @@
 import { onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { getAuth } from 'firebase-admin/auth';
 import { getDecryptedApiKey, encryptionKey } from './apiKeys';
+import { normalizeProviderTemperature, resolveProviderModelId } from './modelRegistry';
 import { recordUsageInternal } from './usageTracking';
 import {
   type ToolDefinition,
@@ -1356,6 +1357,12 @@ export const proxyAIRequestStream = onRequest(
         res.end();
         return;
       }
+      const resolvedModel = resolveProviderModelId(providerId, model);
+      if (!resolvedModel) {
+        writeSSE(res, { type: 'error', error: `No model configured for provider: ${providerId}`, code: 'invalid-argument' });
+        res.end();
+        return;
+      }
 
       // Validate messages
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -1374,6 +1381,7 @@ export const proxyAIRequestStream = onRequest(
 
       const config = PROVIDER_CONFIGS[providerId];
       const resolvedMaxTokens = typeof maxTokens === 'number' && maxTokens > 0 ? Math.floor(maxTokens) : undefined;
+      const resolvedTemperature = normalizeProviderTemperature(providerId, resolvedModel, temperature) ?? temperature;
 
       let result: {
         inputTokens: number;
@@ -1385,16 +1393,16 @@ export const proxyAIRequestStream = onRequest(
 
       // Route to provider-specific streaming function
       if (providerId === 'claude') {
-        result = await streamClaude(res, apiKey, model, messages, systemPrompt, resolvedMaxTokens, temperature, attachments, tools, toolChoice, data.toolResults);
+        result = await streamClaude(res, apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, attachments, tools, toolChoice, data.toolResults);
       } else if (providerId === 'google') {
-        result = await streamGemini(res, apiKey, model, messages, systemPrompt, resolvedMaxTokens, temperature, searchOptions, attachments);
+        result = await streamGemini(res, apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, searchOptions, attachments);
       } else if (providerId === 'cohere') {
-        result = await streamCohere(res, apiKey, model, messages, systemPrompt, resolvedMaxTokens, temperature, attachments);
+        result = await streamCohere(res, apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, attachments);
       } else if (providerId === 'perplexity') {
-        result = await streamPerplexity(res, apiKey, model, messages, systemPrompt, resolvedMaxTokens, temperature, searchOptions, attachments);
+        result = await streamPerplexity(res, apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, searchOptions, attachments);
       } else {
         // OpenAI-compatible providers (OpenAI, Mistral, Together, DeepSeek, Grok)
-        result = await streamOpenAICompatible(res, apiKey, config.baseUrl, model, messages, systemPrompt, resolvedMaxTokens, temperature, providerId, attachments, tools, toolChoice);
+        result = await streamOpenAICompatible(res, apiKey, config.baseUrl, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, providerId, attachments, tools, toolChoice);
       }
 
       // Determine if tool execution is required
@@ -1405,7 +1413,7 @@ export const proxyAIRequestStream = onRequest(
         type: 'done',
         usage: { inputTokens: result.inputTokens, outputTokens: result.outputTokens },
         citations: result.citations,
-        modelUsed: model,
+        modelUsed: resolvedModel,
         finishReason: result.finishReason as SSEDoneEvent['finishReason'],
         toolCalls: result.toolCalls,
         requiresToolExecution,
@@ -1417,7 +1425,7 @@ export const proxyAIRequestStream = onRequest(
           messageId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           sessionId: sessionId || 'unknown',
           providerId,
-          modelId: model,
+          modelId: resolvedModel,
           inputTokens: result.inputTokens,
           outputTokens: result.outputTokens,
           totalTokens: result.inputTokens + result.outputTokens,
