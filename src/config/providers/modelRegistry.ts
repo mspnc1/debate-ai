@@ -58,10 +58,12 @@ export const MODEL_ALIASES: Record<string, string> = {
   'o3-mini-latest': 'o3-mini',
 
   // Google aliases
-  'gemini-latest': 'gemini-2.5-flash',
-  'gemini-pro-latest': 'gemini-2.5-pro',
-  'gemini-flash-latest': 'gemini-2.5-flash',
-  'gemini-3-latest': 'gemini-2.5-pro',
+  'gemini-latest': 'gemini-3-flash-preview',
+  'gemini-pro-latest': 'gemini-3.1-pro-preview',
+  'gemini-flash-latest': 'gemini-3-flash-preview',
+  'gemini-3-latest': 'gemini-3-flash-preview',
+  'gemini-3.1-latest': 'gemini-3.1-pro-preview',
+  'gemini-2.5-latest': 'gemini-2.5-flash',
 
   // Grok aliases
   'grok-latest': 'grok-4-0709',
@@ -75,7 +77,7 @@ export const MODEL_ALIASES: Record<string, string> = {
   'sonar-pro-latest': 'sonar-pro',
 
   // Mistral aliases (using -latest suffix models directly)
-  'mistral-latest': 'mistral-medium-latest',
+  'mistral-latest': 'mistral-large-latest',
 
   // Cohere aliases
   'command-a-reasoning-latest': 'command-a-reasoning-08-2025',
@@ -105,10 +107,10 @@ export const getDefaultModel = (providerId: string): string => {
   const defaults: Record<string, string> = {
     claude: 'claude-sonnet-4-6',
     openai: 'gpt-5.4',
-    google: 'gemini-2.5-flash',
+    google: 'gemini-3-flash-preview',
     grok: 'grok-4-0709',
     perplexity: 'sonar-pro',
-    mistral: 'mistral-medium-latest',
+    mistral: 'mistral-large-latest',
     cohere: 'command-a-reasoning-08-2025',
     together: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
     deepseek: 'deepseek-chat',

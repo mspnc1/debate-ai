@@ -219,7 +219,7 @@
     },
     {
       "id": "dall-e-3",
-      "name": "DALL-E 3",
+      "name": "dall-e-3",
       "_raw": {
         "id": "dall-e-3",
         "object": "model",
@@ -234,21 +234,7 @@
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
       "supportsImageInput": false,
-      "description": "Image generation model",
-      "contextLength": null,
-      "maxOutputTokens": null,
-      "pricing": {
-        "inputPer1M": null,
-        "outputPer1M": null
-      },
-      "supportsFunctions": false,
-      "supportsWebSearch": false,
-      "supportsThinking": false,
-      "supportsJsonMode": false,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": false,
-      "isDeprecated": false,
-      "_source": "merged"
+      "_source": "api"
     },
     {
       "id": "dall-e-2",
@@ -487,7 +473,7 @@
     },
     {
       "id": "gpt-4o",
-      "name": "GPT-4o",
+      "name": "gpt-4o",
       "_raw": {
         "id": "gpt-4o",
         "object": "model",
@@ -501,21 +487,7 @@
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
       "supportsImageInput": true,
-      "description": "Previous flagship multimodal model",
-      "contextLength": 128000,
-      "maxOutputTokens": 16384,
-      "pricing": {
-        "inputPer1M": 2.5,
-        "outputPer1M": 10
-      },
-      "supportsFunctions": true,
-      "supportsWebSearch": false,
-      "supportsThinking": false,
-      "supportsJsonMode": true,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": false,
-      "isDeprecated": false,
-      "_source": "merged"
+      "_source": "api"
     },
     {
       "id": "gpt-4o-2024-05-13",
@@ -555,7 +527,7 @@
     },
     {
       "id": "gpt-4o-mini",
-      "name": "GPT-4o Mini",
+      "name": "gpt-4o-mini",
       "_raw": {
         "id": "gpt-4o-mini",
         "object": "model",
@@ -569,21 +541,7 @@
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
       "supportsImageInput": true,
-      "description": "Small, fast, affordable model from GPT-4o family",
-      "contextLength": 128000,
-      "maxOutputTokens": 16384,
-      "pricing": {
-        "inputPer1M": 0.15,
-        "outputPer1M": 0.6
-      },
-      "supportsFunctions": true,
-      "supportsWebSearch": false,
-      "supportsThinking": false,
-      "supportsJsonMode": true,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": false,
-      "isDeprecated": false,
-      "_source": "merged"
+      "_source": "api"
     },
     {
       "id": "gpt-4o-2024-08-06",
@@ -767,7 +725,7 @@
     },
     {
       "id": "o1",
-      "name": "O1",
+      "name": "o1",
       "_raw": {
         "id": "o1",
         "object": "model",
@@ -781,21 +739,7 @@
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
       "supportsImageInput": false,
-      "description": "First-generation reasoning model",
-      "contextLength": 200000,
-      "maxOutputTokens": 100000,
-      "pricing": {
-        "inputPer1M": 15,
-        "outputPer1M": 60
-      },
-      "supportsFunctions": false,
-      "supportsWebSearch": false,
-      "supportsThinking": true,
-      "supportsJsonMode": false,
-      "requiresTemperature1": true,
-      "useMaxCompletionTokens": true,
-      "isDeprecated": false,
-      "_source": "merged"
+      "_source": "api"
     },
     {
       "id": "gpt-4o-mini-realtime-preview",
@@ -835,7 +779,7 @@
     },
     {
       "id": "o3-mini",
-      "name": "O3 Mini",
+      "name": "o3-mini",
       "_raw": {
         "id": "o3-mini",
         "object": "model",
@@ -849,21 +793,7 @@
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
       "supportsImageInput": false,
-      "description": "Smaller reasoning model, faster and more affordable",
-      "contextLength": 200000,
-      "maxOutputTokens": 100000,
-      "pricing": {
-        "inputPer1M": 1.1,
-        "outputPer1M": 4.4
-      },
-      "supportsFunctions": true,
-      "supportsWebSearch": false,
-      "supportsThinking": true,
-      "supportsJsonMode": true,
-      "requiresTemperature1": true,
-      "useMaxCompletionTokens": true,
-      "isDeprecated": false,
-      "_source": "merged"
+      "_source": "api"
     },
     {
       "id": "o3-mini-2025-01-31",
@@ -1065,7 +995,7 @@
     },
     {
       "id": "o3",
-      "name": "O3",
+      "name": "o3",
       "_raw": {
         "id": "o3",
         "object": "model",
@@ -1079,21 +1009,7 @@
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
       "supportsImageInput": false,
-      "description": "Advanced reasoning model for complex problem-solving",
-      "contextLength": 200000,
-      "maxOutputTokens": 100000,
-      "pricing": {
-        "inputPer1M": 2,
-        "outputPer1M": 8
-      },
-      "supportsFunctions": true,
-      "supportsWebSearch": false,
-      "supportsThinking": true,
-      "supportsJsonMode": true,
-      "requiresTemperature1": true,
-      "useMaxCompletionTokens": true,
-      "isDeprecated": false,
-      "_source": "merged"
+      "_source": "api"
     },
     {
       "id": "o4-mini",
@@ -1133,7 +1049,7 @@
     },
     {
       "id": "gpt-4.1",
-      "name": "GPT-4.1",
+      "name": "gpt-4.1",
       "_raw": {
         "id": "gpt-4.1",
         "object": "model",
@@ -1147,21 +1063,7 @@
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
       "supportsImageInput": true,
-      "description": "Flagship GPT-4 model with improved coding and instruction following",
-      "contextLength": 1047576,
-      "maxOutputTokens": 32768,
-      "pricing": {
-        "inputPer1M": 2,
-        "outputPer1M": 8
-      },
-      "supportsFunctions": true,
-      "supportsWebSearch": false,
-      "supportsThinking": false,
-      "supportsJsonMode": true,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": true,
-      "isDeprecated": false,
-      "_source": "merged"
+      "_source": "api"
     },
     {
       "id": "gpt-4.1-mini-2025-04-14",
@@ -1183,7 +1085,7 @@
     },
     {
       "id": "gpt-4.1-mini",
-      "name": "GPT-4.1 Mini",
+      "name": "gpt-4.1-mini",
       "_raw": {
         "id": "gpt-4.1-mini",
         "object": "model",
@@ -1197,21 +1099,7 @@
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
       "supportsImageInput": true,
-      "description": "Fast, affordable small model for focused tasks",
-      "contextLength": 1047576,
-      "maxOutputTokens": 32768,
-      "pricing": {
-        "inputPer1M": 0.4,
-        "outputPer1M": 1.6
-      },
-      "supportsFunctions": true,
-      "supportsWebSearch": false,
-      "supportsThinking": false,
-      "supportsJsonMode": true,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": true,
-      "isDeprecated": false,
-      "_source": "merged"
+      "_source": "api"
     },
     {
       "id": "gpt-4.1-nano-2025-04-14",
@@ -1233,7 +1121,7 @@
     },
     {
       "id": "gpt-4.1-nano",
-      "name": "GPT-4.1 Nano",
+      "name": "gpt-4.1-nano",
       "_raw": {
         "id": "gpt-4.1-nano",
         "object": "model",
@@ -1247,21 +1135,7 @@
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
       "supportsImageInput": true,
-      "description": "Fastest, most affordable model for simple tasks",
-      "contextLength": 1047576,
-      "maxOutputTokens": 32768,
-      "pricing": {
-        "inputPer1M": 0.1,
-        "outputPer1M": 0.4
-      },
-      "supportsFunctions": true,
-      "supportsWebSearch": false,
-      "supportsThinking": false,
-      "supportsJsonMode": true,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": true,
-      "isDeprecated": false,
-      "_source": "merged"
+      "_source": "api"
     },
     {
       "id": "gpt-image-1",
@@ -1274,21 +1148,7 @@
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
       "supportsImageInput": false,
-      "description": "OpenAI's image generation model",
-      "contextLength": null,
-      "maxOutputTokens": null,
-      "pricing": {
-        "inputPer1M": null,
-        "outputPer1M": null
-      },
-      "supportsFunctions": false,
-      "supportsWebSearch": false,
-      "supportsThinking": false,
-      "supportsJsonMode": false,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": false,
-      "isDeprecated": false,
-      "_source": "merged"
+      "_source": "api"
     },
     {
       "id": "o3-pro",
@@ -2014,7 +1874,7 @@
     },
     {
       "id": "gpt-5.2",
-      "name": "GPT-5.2",
+      "name": "gpt-5.2",
       "_raw": {
         "id": "gpt-5.2",
         "object": "model",
@@ -2028,21 +1888,7 @@
       "supportsVideoGeneration": false,
       "supportsRealtime": false,
       "supportsImageInput": true,
-      "description": "Most capable GPT model with enhanced reasoning and multimodal understanding",
-      "contextLength": 272000,
-      "maxOutputTokens": 100000,
-      "pricing": {
-        "inputPer1M": 1.75,
-        "outputPer1M": 14
-      },
-      "supportsFunctions": true,
-      "supportsWebSearch": false,
-      "supportsThinking": false,
-      "supportsJsonMode": true,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": true,
-      "isDeprecated": false,
-      "_source": "merged"
+      "_source": "api"
     },
     {
       "id": "gpt-5.2-pro-2025-12-11",
@@ -2406,6 +2252,6 @@
     }
   ],
   "meta": {
-    "discoveredAt": "2026-03-12T17:35:24.757Z"
+    "discoveredAt": "2026-03-17T15:12:27.795Z"
   }
 }

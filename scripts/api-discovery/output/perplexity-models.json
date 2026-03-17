@@ -13,20 +13,7 @@
       "supportsRealtime": false,
       "supportsImageInput": false,
       "supportsWebSearch": true,
-      "description": "Fast search model with real-time web access and citations",
-      "contextLength": 128000,
-      "maxOutputTokens": 8000,
-      "pricing": {
-        "inputPer1M": 1,
-        "outputPer1M": 1
-      },
-      "supportsFunctions": false,
-      "supportsThinking": false,
-      "supportsJsonMode": false,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": false,
-      "isDeprecated": false,
-      "_source": "merged"
+      "_source": "api"
     },
     {
       "id": "sonar-pro",
@@ -40,23 +27,24 @@
       "supportsRealtime": false,
       "supportsImageInput": false,
       "supportsWebSearch": true,
-      "description": "Advanced search model with comprehensive answers and citations",
-      "contextLength": 200000,
-      "maxOutputTokens": 8000,
-      "pricing": {
-        "inputPer1M": 3,
-        "outputPer1M": 15
-      },
-      "supportsFunctions": false,
-      "supportsThinking": false,
-      "supportsJsonMode": false,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": false,
-      "isDeprecated": false,
-      "_source": "merged"
+      "_source": "api"
+    },
+    {
+      "id": "sonar-reasoning-pro",
+      "name": "Sonar Reasoning Pro",
+      "supportsVision": false,
+      "supportsDocuments": false,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false,
+      "supportsWebSearch": true,
+      "_source": "api"
     }
   ],
   "meta": {
-    "discoveredAt": "2026-03-12T17:35:25.374Z"
+    "discoveredAt": "2026-03-17T15:12:28.299Z"
   }
 }

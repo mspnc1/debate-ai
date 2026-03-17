@@ -2,8 +2,8 @@
   "provider": "claude",
   "models": [
     {
-      "id": "claude-3-7-sonnet-20250219",
-      "name": "Claude 3.7 Sonnet",
+      "id": "claude-sonnet-4-6",
+      "name": "Claude Sonnet 4.6",
       "supportsVision": true,
       "supportsDocuments": true,
       "supportsImageGeneration": false,
@@ -12,52 +12,37 @@
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
       "supportsImageInput": true,
-      "description": "Legacy balanced model",
-      "contextLength": 200000,
-      "maxOutputTokens": 64000,
-      "pricing": {
-        "inputPer1M": 3,
-        "outputPer1M": 15
-      },
-      "supportsFunctions": true,
-      "supportsWebSearch": false,
-      "supportsThinking": true,
-      "supportsJsonMode": false,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": false,
-      "isDeprecated": false,
-      "_source": "merged"
+      "_source": "api"
     },
     {
-      "id": "claude-4-sonnet-20250514",
+      "id": "claude-opus-4-6",
+      "name": "Claude Opus 4.6",
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "claude-haiku-4-5-20251001",
+      "name": "Claude 4.5 Haiku",
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "claude-sonnet-4-20250514",
       "name": "Claude 4 Sonnet",
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true,
-      "description": "Balanced performance and speed",
-      "contextLength": 200000,
-      "maxOutputTokens": 64000,
-      "pricing": {
-        "inputPer1M": 3,
-        "outputPer1M": 15
-      },
-      "supportsFunctions": true,
-      "supportsWebSearch": false,
-      "supportsThinking": true,
-      "supportsJsonMode": false,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": false,
-      "isDeprecated": false,
-      "_source": "merged"
-    },
-    {
-      "id": "claude-4.1-opus-20250805",
-      "name": "Claude 4.1 Opus",
       "supportsVision": true,
       "supportsDocuments": true,
       "supportsImageGeneration": false,
@@ -70,6 +55,6 @@
     }
   ],
   "meta": {
-    "discoveredAt": "2026-03-12T17:35:24.917Z"
+    "discoveredAt": "2026-03-17T15:12:27.933Z"
   }
 }

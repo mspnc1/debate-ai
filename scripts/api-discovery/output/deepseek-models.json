@@ -2,35 +2,13 @@
   "provider": "deepseek",
   "models": [
     {
-      "id": "deepseek-reasoner",
-      "name": "DeepSeek Reasoner",
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true,
-      "description": "Advanced reasoning model with chain-of-thought",
-      "contextLength": 64000,
-      "maxOutputTokens": 8192,
-      "pricing": {
-        "inputPer1M": 0.55,
-        "outputPer1M": 2.19
-      },
-      "supportsFunctions": false,
-      "supportsWebSearch": false,
-      "supportsThinking": true,
-      "supportsJsonMode": false,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": false,
-      "isDeprecated": false,
-      "_source": "merged"
-    },
-    {
       "id": "deepseek-chat",
-      "name": "DeepSeek Chat",
+      "name": "deepseek-chat",
+      "_raw": {
+        "id": "deepseek-chat",
+        "object": "model",
+        "owned_by": "deepseek"
+      },
       "supportsVision": true,
       "supportsDocuments": true,
       "supportsImageGeneration": false,
@@ -39,25 +17,16 @@
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
       "supportsImageInput": true,
-      "description": "General-purpose chat model with strong reasoning",
-      "contextLength": 64000,
-      "maxOutputTokens": 8192,
-      "pricing": {
-        "inputPer1M": 0.27,
-        "outputPer1M": 1.1
-      },
-      "supportsFunctions": true,
-      "supportsWebSearch": false,
-      "supportsThinking": false,
-      "supportsJsonMode": true,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": false,
-      "isDeprecated": false,
-      "_source": "merged"
+      "_source": "api"
     },
     {
-      "id": "deepseek-coder",
-      "name": "DeepSeek Coder",
+      "id": "deepseek-reasoner",
+      "name": "deepseek-reasoner",
+      "_raw": {
+        "id": "deepseek-reasoner",
+        "object": "model",
+        "owned_by": "deepseek"
+      },
       "supportsVision": true,
       "supportsDocuments": true,
       "supportsImageGeneration": false,
@@ -70,6 +39,6 @@
     }
   ],
   "meta": {
-    "discoveredAt": "2026-03-12T17:35:30.952Z"
+    "discoveredAt": "2026-03-17T15:12:36.539Z"
   }
 }

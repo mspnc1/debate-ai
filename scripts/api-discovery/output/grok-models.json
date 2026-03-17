@@ -3,7 +3,7 @@
   "models": [
     {
       "id": "grok-3",
-      "name": "Grok 3",
+      "name": "grok-3",
       "_raw": {
         "id": "grok-3",
         "created": 1743724800,
@@ -18,25 +18,11 @@
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
       "supportsImageInput": true,
-      "description": "Previous flagship xAI model",
-      "contextLength": 131072,
-      "maxOutputTokens": 131072,
-      "pricing": {
-        "inputPer1M": 3,
-        "outputPer1M": 15
-      },
-      "supportsFunctions": true,
-      "supportsWebSearch": false,
-      "supportsThinking": false,
-      "supportsJsonMode": true,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": false,
-      "isDeprecated": false,
-      "_source": "merged"
+      "_source": "api"
     },
     {
       "id": "grok-3-mini",
-      "name": "Grok 3 Mini",
+      "name": "grok-3-mini",
       "_raw": {
         "id": "grok-3-mini",
         "created": 1743724800,
@@ -51,21 +37,7 @@
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
       "supportsImageInput": true,
-      "description": "Lightweight reasoning model from xAI",
-      "contextLength": 131072,
-      "maxOutputTokens": 131072,
-      "pricing": {
-        "inputPer1M": 0.3,
-        "outputPer1M": 0.5
-      },
-      "supportsFunctions": true,
-      "supportsWebSearch": false,
-      "supportsThinking": true,
-      "supportsJsonMode": true,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": false,
-      "isDeprecated": false,
-      "_source": "merged"
+      "_source": "api"
     },
     {
       "id": "grok-4-0709",
@@ -297,6 +269,6 @@
     }
   ],
   "meta": {
-    "discoveredAt": "2026-03-12T17:35:31.157Z"
+    "discoveredAt": "2026-03-17T15:12:36.745Z"
   }
 }

@@ -1,10 +1,10 @@
 // Curated ModelConfig entries for AI_MODELS['google'] (default + recommended)
 {
-      id: 'gemini-2.5-pro',
-      name: 'Gemini 2.5 Pro',
-      description: 'Stable release (June 17th, 2025) of Gemini 2.5 Pro',
+      id: 'gemini-3.1-pro-preview',
+      name: 'Gemini 3.1 Pro Preview',
+      description: 'Gemini 3.1 Pro Preview',
       contextLength: 1048576,
-      maxOutputTokens: 65536, // Pricing: $1.25/1M in, $10/1M out [merged]
+      maxOutputTokens: 65536,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
@@ -13,11 +13,11 @@
       isDefault: true,
     },
 {
-      id: 'gemini-2.5-flash',
-      name: 'Gemini 2.5 Flash',
-      description: 'Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.',
+      id: 'gemini-3-flash-preview',
+      name: 'Gemini 3 Flash Preview',
+      description: 'Gemini 3 Flash Preview',
       contextLength: 1048576,
-      maxOutputTokens: 65536, // Pricing: $0.15/1M in, $0.6/1M out [merged]
+      maxOutputTokens: 65536,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
@@ -25,11 +25,11 @@
       supportsThinking: true,
     },
 {
-      id: 'gemini-2.5-flash-lite',
-      name: 'Gemini 2.5 Flash-Lite',
-      description: 'Stable version of Gemini 2.5 Flash-Lite, released in July of 2025',
+      id: 'gemini-3.1-flash-lite-preview',
+      name: 'Gemini 3.1 Flash Lite Preview',
+      description: 'Gemini 3.1 Flash Lite Preview',
       contextLength: 1048576,
-      maxOutputTokens: 65536, // Pricing: $0.075/1M in, $0.3/1M out [merged]
+      maxOutputTokens: 65536,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,

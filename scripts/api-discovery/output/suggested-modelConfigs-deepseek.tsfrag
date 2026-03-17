@@ -1,29 +1,16 @@
 // Insert the following ModelConfig entries into AI_MODELS['deepseek'] array
 {
-      id: 'deepseek-reasoner',
-      name: 'DeepSeek Reasoner',
-      description: 'Advanced reasoning model with chain-of-thought',
-      contextLength: 64000,
-      maxOutputTokens: 8192, // Pricing: $0.55/1M in, $2.19/1M out [merged]
-      supportsVision: true,
-      supportsDocuments: true,
-      supportsImageInput: true,
-      supportsThinking: true,
-    },
-{
       id: 'deepseek-chat',
-      name: 'DeepSeek Chat',
-      description: 'General-purpose chat model with strong reasoning',
-      contextLength: 64000,
-      maxOutputTokens: 8192, // Pricing: $0.27/1M in, $1.1/1M out [merged]
+      name: 'deepseek-chat',
+      description: 'No description available',
+      contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
-      supportsFunctions: true,
     },
 {
-      id: 'deepseek-coder',
-      name: 'DeepSeek Coder',
+      id: 'deepseek-reasoner',
+      name: 'deepseek-reasoner',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,

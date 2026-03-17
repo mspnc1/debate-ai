@@ -27,13 +27,11 @@ This bundle consolidates curated entries to update:
     },
 {
       id: 'gpt-4o',
-      name: 'GPT-4o',
-      description: 'Previous flagship multimodal model',
+      name: 'gpt-4o',
+      description: 'No description available',
       contextLength: 128000,
-      maxOutputTokens: 16384, // Pricing: $2.5/1M in, $10/1M out [merged]
       supportsVision: true,
       supportsImageInput: true,
-      supportsFunctions: true,
     },
 {
       id: 'gpt-4o-mini-2024-07-18',
@@ -45,14 +43,9 @@ This bundle consolidates curated entries to update:
     },
 {
       id: 'o3-mini',
-      name: 'O3 Mini',
-      description: 'Smaller reasoning model, faster and more affordable',
-      contextLength: 200000,
-      maxOutputTokens: 100000, // Pricing: $1.1/1M in, $4.4/1M out [merged]
-      supportsFunctions: true,
-      supportsThinking: true,
-      requiresTemperature1: true,
-      useMaxCompletionTokens: true,
+      name: 'o3-mini',
+      description: 'No description available',
+      contextLength: 128000,
     },
 {
       id: 'o1-pro-2025-03-19',
@@ -62,8 +55,8 @@ This bundle consolidates curated entries to update:
     },
 {
       id: 'dall-e-3',
-      name: 'DALL-E 3',
-      description: 'Image generation model',
+      name: 'dall-e-3',
+      description: 'No description available',
       contextLength: 128000,
       supportsImageGeneration: true,
     },
@@ -72,26 +65,14 @@ This bundle consolidates curated entries to update:
 ```ts
 // Curated ModelConfig entries for AI_MODELS['claude'] (default + recommended)
 {
-      id: 'claude-4.1-opus-20250805',
-      name: 'Claude 4.1 Opus',
+      id: 'claude-sonnet-4-6',
+      name: 'Claude Sonnet 4.6',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
       isDefault: true,
-    },
-{
-      id: 'claude-4-sonnet-20250514',
-      name: 'Claude 4 Sonnet',
-      description: 'Balanced performance and speed',
-      contextLength: 200000,
-      maxOutputTokens: 64000, // Pricing: $3/1M in, $15/1M out [merged]
-      supportsVision: true,
-      supportsDocuments: true,
-      supportsImageInput: true,
-      supportsFunctions: true,
-      supportsThinking: true,
     },
 ```
 ### Provider: google
@@ -102,7 +83,7 @@ This bundle consolidates curated entries to update:
       name: 'Gemini 2.5 Pro',
       description: 'Stable release (June 17th, 2025) of Gemini 2.5 Pro',
       contextLength: 1048576,
-      maxOutputTokens: 65536, // Pricing: $1.25/1M in, $10/1M out [merged]
+      maxOutputTokens: 65536,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
@@ -115,7 +96,7 @@ This bundle consolidates curated entries to update:
       name: 'Gemini 2.5 Flash',
       description: 'Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.',
       contextLength: 1048576,
-      maxOutputTokens: 65536, // Pricing: $0.15/1M in, $0.6/1M out [merged]
+      maxOutputTokens: 65536,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
@@ -127,7 +108,7 @@ This bundle consolidates curated entries to update:
       name: 'Gemini 2.5 Flash-Lite',
       description: 'Stable version of Gemini 2.5 Flash-Lite, released in July of 2025',
       contextLength: 1048576,
-      maxOutputTokens: 65536, // Pricing: $0.075/1M in, $0.3/1M out [merged]
+      maxOutputTokens: 65536,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
@@ -149,18 +130,23 @@ This bundle consolidates curated entries to update:
 {
       id: 'sonar-pro',
       name: 'Sonar Pro',
-      description: 'Advanced search model with comprehensive answers and citations',
-      contextLength: 200000,
-      maxOutputTokens: 8000, // Pricing: $3/1M in, $15/1M out [merged]
+      description: 'No description available',
+      contextLength: 128000,
       supportsWebSearch: true,
       isDefault: true,
     },
 {
       id: 'sonar',
       name: 'Sonar',
-      description: 'Fast search model with real-time web access and citations',
+      description: 'No description available',
       contextLength: 128000,
-      maxOutputTokens: 8000, // Pricing: $1/1M in, $1/1M out [merged]
+      supportsWebSearch: true,
+    },
+{
+      id: 'sonar-reasoning-pro',
+      name: 'Sonar Reasoning Pro',
+      description: 'No description available',
+      contextLength: 128000,
       supportsWebSearch: true,
     },
 ```
@@ -171,10 +157,12 @@ This bundle consolidates curated entries to update:
       id: 'mistral-large-latest',
       name: 'mistral-large-2512',
       description: 'Official mistral-large-2512 Mistral AI model',
-      contextLength: 262144, // Pricing: $2/1M in, $6/1M out [merged]
+      contextLength: 262144,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
+      supportsRealtime: true,
+      supportsVoiceInput: true,
       supportsFunctions: true,
       isDefault: true,
     },
@@ -182,10 +170,12 @@ This bundle consolidates curated entries to update:
       id: 'mistral-medium-latest',
       name: 'mistral-medium-2508',
       description: 'Update on Mistral Medium 3 with improved capabilities.',
-      contextLength: 131072, // Pricing: $0.4/1M in, $2/1M out [merged]
+      contextLength: 131072,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
+      supportsRealtime: true,
+      supportsVoiceInput: true,
       supportsFunctions: true,
     },
 ```
@@ -196,7 +186,7 @@ This bundle consolidates curated entries to update:
       id: 'command-a-vision-07-2025',
       name: 'command-a-vision-07-2025',
       description: 'No description available',
-      contextLength: 128000, // Pricing: $2.5/1M in, $10/1M out [merged]
+      contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
@@ -221,26 +211,22 @@ This bundle consolidates curated entries to update:
 // Curated ModelConfig entries for AI_MODELS['deepseek'] (default + recommended)
 {
       id: 'deepseek-reasoner',
-      name: 'DeepSeek Reasoner',
-      description: 'Advanced reasoning model with chain-of-thought',
-      contextLength: 64000,
-      maxOutputTokens: 8192, // Pricing: $0.55/1M in, $2.19/1M out [merged]
+      name: 'deepseek-reasoner',
+      description: 'No description available',
+      contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
-      supportsThinking: true,
       isDefault: true,
     },
 {
       id: 'deepseek-chat',
-      name: 'DeepSeek Chat',
-      description: 'General-purpose chat model with strong reasoning',
-      contextLength: 64000,
-      maxOutputTokens: 8192, // Pricing: $0.27/1M in, $1.1/1M out [merged]
+      name: 'deepseek-chat',
+      description: 'No description available',
+      contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
-      supportsFunctions: true,
     },
 ```
 ### Provider: grok
@@ -258,26 +244,21 @@ This bundle consolidates curated entries to update:
     },
 {
       id: 'grok-3',
-      name: 'Grok 3',
-      description: 'Previous flagship xAI model',
-      contextLength: 131072,
-      maxOutputTokens: 131072, // Pricing: $3/1M in, $15/1M out [merged]
+      name: 'grok-3',
+      description: 'No description available',
+      contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
-      supportsFunctions: true,
     },
 {
       id: 'grok-3-mini',
-      name: 'Grok 3 Mini',
-      description: 'Lightweight reasoning model from xAI',
-      contextLength: 131072,
-      maxOutputTokens: 131072, // Pricing: $0.3/1M in, $0.5/1M out [merged]
+      name: 'grok-3-mini',
+      description: 'No description available',
+      contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
-      supportsFunctions: true,
-      supportsThinking: true,
     },
 ```
 

@@ -1,7 +1,7 @@
 // Curated ModelConfig entries for AI_MODELS['claude'] (default + recommended)
 {
-      id: 'claude-4.1-opus-20250805',
-      name: 'Claude 4.1 Opus',
+      id: 'claude-opus-4-6',
+      name: 'Claude Opus 4.6',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
@@ -10,14 +10,20 @@
       isDefault: true,
     },
 {
-      id: 'claude-4-sonnet-20250514',
-      name: 'Claude 4 Sonnet',
-      description: 'Balanced performance and speed',
-      contextLength: 200000,
-      maxOutputTokens: 64000, // Pricing: $3/1M in, $15/1M out [merged]
+      id: 'claude-sonnet-4-6',
+      name: 'Claude Sonnet 4.6',
+      description: 'No description available',
+      contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
-      supportsFunctions: true,
-      supportsThinking: true,
+    },
+{
+      id: 'claude-haiku-4-5-20251001',
+      name: 'Claude 4.5 Haiku',
+      description: 'No description available',
+      contextLength: 128000,
+      supportsVision: true,
+      supportsDocuments: true,
+      supportsImageInput: true,
     },

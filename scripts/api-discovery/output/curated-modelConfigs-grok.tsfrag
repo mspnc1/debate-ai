@@ -1,7 +1,7 @@
 // Curated ModelConfig entries for AI_MODELS['grok'] (default + recommended)
 {
-      id: 'grok-4-0709',
-      name: 'grok-4-0709',
+      id: 'grok-4.20-beta-0309-non-reasoning',
+      name: 'grok-4.20-beta-0309-non-reasoning',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
@@ -10,25 +10,20 @@
       isDefault: true,
     },
 {
-      id: 'grok-3',
-      name: 'Grok 3',
-      description: 'Previous flagship xAI model',
-      contextLength: 131072,
-      maxOutputTokens: 131072, // Pricing: $3/1M in, $15/1M out [merged]
+      id: 'grok-3-mini',
+      name: 'grok-3-mini',
+      description: 'No description available',
+      contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
-      supportsFunctions: true,
     },
 {
-      id: 'grok-3-mini',
-      name: 'Grok 3 Mini',
-      description: 'Lightweight reasoning model from xAI',
-      contextLength: 131072,
-      maxOutputTokens: 131072, // Pricing: $0.3/1M in, $0.5/1M out [merged]
+      id: 'grok-4-1-fast-non-reasoning',
+      name: 'grok-4-1-fast-non-reasoning',
+      description: 'No description available',
+      contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
-      supportsFunctions: true,
-      supportsThinking: true,
     },

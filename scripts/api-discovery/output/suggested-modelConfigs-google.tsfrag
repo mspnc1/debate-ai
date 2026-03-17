@@ -4,7 +4,7 @@
       name: 'Gemini 2.5 Flash',
       description: 'Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.',
       contextLength: 1048576,
-      maxOutputTokens: 65536, // Pricing: $0.15/1M in, $0.6/1M out [merged]
+      maxOutputTokens: 65536,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
@@ -16,7 +16,7 @@
       name: 'Gemini 2.5 Pro',
       description: 'Stable release (June 17th, 2025) of Gemini 2.5 Pro',
       contextLength: 1048576,
-      maxOutputTokens: 65536, // Pricing: $1.25/1M in, $10/1M out [merged]
+      maxOutputTokens: 65536,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
@@ -28,7 +28,7 @@
       name: 'Gemini 2.0 Flash',
       description: 'Gemini 2.0 Flash',
       contextLength: 1048576,
-      maxOutputTokens: 8192, // Pricing: $0.1/1M in, $0.4/1M out [merged]
+      maxOutputTokens: 8192,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
@@ -61,7 +61,7 @@
       name: 'Gemini 2.0 Flash-Lite',
       description: 'Gemini 2.0 Flash-Lite',
       contextLength: 1048576,
-      maxOutputTokens: 8192, // Pricing: $0.075/1M in, $0.3/1M out [merged]
+      maxOutputTokens: 8192,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
@@ -198,7 +198,7 @@
       name: 'Gemini 2.5 Flash-Lite',
       description: 'Stable version of Gemini 2.5 Flash-Lite, released in July of 2025',
       contextLength: 1048576,
-      maxOutputTokens: 65536, // Pricing: $0.075/1M in, $0.3/1M out [merged]
+      maxOutputTokens: 65536,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,

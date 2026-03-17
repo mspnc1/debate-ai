@@ -28,7 +28,7 @@ describe('Model selection contract', () => {
   it('resolves aliases before validating provider ownership', () => {
     expect(resolveProviderModelId('claude', 'claude-latest')).toBe('claude-sonnet-4-6');
     expect(resolveProviderModelId('openai', 'gpt-latest')).toBe('gpt-5.4');
-    expect(resolveProviderModelId('google', 'gemini-pro-latest')).toBe('gemini-2.5-pro');
+    expect(resolveProviderModelId('google', 'gemini-pro-latest')).toBe('gemini-3.1-pro-preview');
   });
 
   it('falls back to provider default for deprecated, invalid, or cross-provider models', () => {

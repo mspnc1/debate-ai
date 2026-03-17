@@ -1,26 +1,21 @@
 // Insert the following ModelConfig entries into AI_MODELS['grok'] array
 {
       id: 'grok-3',
-      name: 'Grok 3',
-      description: 'Previous flagship xAI model',
-      contextLength: 131072,
-      maxOutputTokens: 131072, // Pricing: $3/1M in, $15/1M out [merged]
+      name: 'grok-3',
+      description: 'No description available',
+      contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
-      supportsFunctions: true,
     },
 {
       id: 'grok-3-mini',
-      name: 'Grok 3 Mini',
-      description: 'Lightweight reasoning model from xAI',
-      contextLength: 131072,
-      maxOutputTokens: 131072, // Pricing: $0.3/1M in, $0.5/1M out [merged]
+      name: 'grok-3-mini',
+      description: 'No description available',
+      contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
-      supportsFunctions: true,
-      supportsThinking: true,
     },
 {
       id: 'grok-4-0709',

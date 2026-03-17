@@ -14,7 +14,7 @@
       "_raw": {
         "id": "mistral-medium-2505",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -26,7 +26,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "mistral-medium-2505",
         "description": "Our frontier-class multimodal model released May 2025.",
@@ -40,20 +42,10 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "maxOutputTokens": null,
-      "pricing": {
-        "inputPer1M": 0.4,
-        "outputPer1M": 2
-      },
-      "supportsWebSearch": false,
-      "supportsThinking": false,
-      "supportsJsonMode": false,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": false,
-      "_source": "merged"
+      "supportsRealtime": true,
+      "_source": "api"
     },
     {
       "id": "mistral-medium-2508",
@@ -72,7 +64,7 @@
       "_raw": {
         "id": "mistral-medium-2508",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -84,7 +76,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "mistral-medium-2508",
         "description": "Update on Mistral Medium 3 with improved capabilities.",
@@ -102,9 +96,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -124,7 +118,7 @@
       "_raw": {
         "id": "mistral-medium-latest",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -136,7 +130,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "mistral-medium-2508",
         "description": "Update on Mistral Medium 3 with improved capabilities.",
@@ -154,20 +150,10 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "maxOutputTokens": null,
-      "pricing": {
-        "inputPer1M": 0.4,
-        "outputPer1M": 2
-      },
-      "supportsWebSearch": false,
-      "supportsThinking": false,
-      "supportsJsonMode": false,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": false,
-      "_source": "merged"
+      "supportsRealtime": true,
+      "_source": "api"
     },
     {
       "id": "mistral-medium",
@@ -186,7 +172,7 @@
       "_raw": {
         "id": "mistral-medium",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -198,7 +184,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "mistral-medium-2508",
         "description": "Update on Mistral Medium 3 with improved capabilities.",
@@ -216,9 +204,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -238,7 +226,7 @@
       "_raw": {
         "id": "mistral-vibe-cli-with-tools",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -250,7 +238,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "mistral-medium-2508",
         "description": "Update on Mistral Medium 3 with improved capabilities.",
@@ -268,9 +258,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -290,7 +280,7 @@
       "_raw": {
         "id": "open-mistral-nemo",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -302,7 +292,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "open-mistral-nemo",
         "description": "Our best multilingual open source model released July 2024.",
@@ -320,9 +312,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -342,7 +334,7 @@
       "_raw": {
         "id": "open-mistral-nemo-2407",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -354,7 +346,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "open-mistral-nemo",
         "description": "Our best multilingual open source model released July 2024.",
@@ -372,9 +366,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -394,7 +388,7 @@
       "_raw": {
         "id": "mistral-tiny-2407",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -406,7 +400,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "open-mistral-nemo",
         "description": "Our best multilingual open source model released July 2024.",
@@ -424,9 +420,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -446,7 +442,7 @@
       "_raw": {
         "id": "mistral-tiny-latest",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -458,7 +454,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "open-mistral-nemo",
         "description": "Our best multilingual open source model released July 2024.",
@@ -476,9 +474,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -496,7 +494,7 @@
       "_raw": {
         "id": "codestral-2508",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -508,7 +506,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "codestral-2508",
         "description": "Our cutting-edge language model for coding released August 2025.",
@@ -524,9 +524,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -544,7 +544,7 @@
       "_raw": {
         "id": "codestral-latest",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -556,7 +556,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "codestral-2508",
         "description": "Our cutting-edge language model for coding released August 2025.",
@@ -572,20 +574,10 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "maxOutputTokens": null,
-      "pricing": {
-        "inputPer1M": 0.3,
-        "outputPer1M": 0.9
-      },
-      "supportsWebSearch": false,
-      "supportsThinking": false,
-      "supportsJsonMode": false,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": false,
-      "_source": "merged"
+      "supportsRealtime": true,
+      "_source": "api"
     },
     {
       "id": "devstral-2512",
@@ -600,7 +592,7 @@
       "_raw": {
         "id": "devstral-2512",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -612,7 +604,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "devstral-2512",
         "description": "Official devstral-2512 Mistral AI model",
@@ -626,9 +620,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -644,7 +638,7 @@
       "_raw": {
         "id": "mistral-vibe-cli-latest",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -656,7 +650,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "devstral-2512",
         "description": "Official devstral-2512 Mistral AI model",
@@ -670,9 +666,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -688,7 +684,7 @@
       "_raw": {
         "id": "devstral-medium-latest",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -700,7 +696,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "devstral-2512",
         "description": "Official devstral-2512 Mistral AI model",
@@ -714,9 +712,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -732,7 +730,7 @@
       "_raw": {
         "id": "devstral-latest",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -744,7 +742,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "devstral-2512",
         "description": "Official devstral-2512 Mistral AI model",
@@ -758,9 +758,165 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
+      "_source": "api"
+    },
+    {
+      "id": "mistral-small-2603",
+      "name": "mistral-small-2603",
+      "description": "Mistral Small 4.",
+      "contextLength": 262144,
+      "supportsFunctions": true,
+      "supportsVision": true,
+      "supportsImageInput": true,
+      "isDeprecated": false,
+      "aliases": [
+        "mistral-small-latest",
+        "mistral-vibe-cli-fast"
+      ],
+      "_raw": {
+        "id": "mistral-small-2603",
+        "object": "model",
+        "created": 1773760348,
+        "owned_by": "mistralai",
+        "capabilities": {
+          "completion_chat": true,
+          "function_calling": true,
+          "completion_fim": false,
+          "fine_tuning": false,
+          "vision": true,
+          "ocr": false,
+          "classification": false,
+          "moderation": false,
+          "audio": false,
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
+        },
+        "name": "mistral-small-2603",
+        "description": "Mistral Small 4.",
+        "max_context_length": 262144,
+        "aliases": [
+          "mistral-small-latest",
+          "mistral-vibe-cli-fast"
+        ],
+        "deprecation": null,
+        "deprecation_replacement_model": null,
+        "default_model_temperature": 0.3,
+        "type": "base"
+      },
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": true,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": true,
+      "_source": "api"
+    },
+    {
+      "id": "mistral-small-latest",
+      "name": "mistral-small-2603",
+      "description": "Mistral Small 4.",
+      "contextLength": 262144,
+      "supportsFunctions": true,
+      "supportsVision": true,
+      "supportsImageInput": true,
+      "isDeprecated": false,
+      "aliases": [
+        "mistral-small-2603",
+        "mistral-vibe-cli-fast"
+      ],
+      "_raw": {
+        "id": "mistral-small-latest",
+        "object": "model",
+        "created": 1773760348,
+        "owned_by": "mistralai",
+        "capabilities": {
+          "completion_chat": true,
+          "function_calling": true,
+          "completion_fim": false,
+          "fine_tuning": false,
+          "vision": true,
+          "ocr": false,
+          "classification": false,
+          "moderation": false,
+          "audio": false,
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
+        },
+        "name": "mistral-small-2603",
+        "description": "Mistral Small 4.",
+        "max_context_length": 262144,
+        "aliases": [
+          "mistral-small-2603",
+          "mistral-vibe-cli-fast"
+        ],
+        "deprecation": null,
+        "deprecation_replacement_model": null,
+        "default_model_temperature": 0.3,
+        "type": "base"
+      },
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": true,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": true,
+      "_source": "api"
+    },
+    {
+      "id": "mistral-vibe-cli-fast",
+      "name": "mistral-small-2603",
+      "description": "Mistral Small 4.",
+      "contextLength": 262144,
+      "supportsFunctions": true,
+      "supportsVision": true,
+      "supportsImageInput": true,
+      "isDeprecated": false,
+      "aliases": [
+        "mistral-small-2603",
+        "mistral-small-latest"
+      ],
+      "_raw": {
+        "id": "mistral-vibe-cli-fast",
+        "object": "model",
+        "created": 1773760348,
+        "owned_by": "mistralai",
+        "capabilities": {
+          "completion_chat": true,
+          "function_calling": true,
+          "completion_fim": false,
+          "fine_tuning": false,
+          "vision": true,
+          "ocr": false,
+          "classification": false,
+          "moderation": false,
+          "audio": false,
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
+        },
+        "name": "mistral-small-2603",
+        "description": "Mistral Small 4.",
+        "max_context_length": 262144,
+        "aliases": [
+          "mistral-small-2603",
+          "mistral-small-latest"
+        ],
+        "deprecation": null,
+        "deprecation_replacement_model": null,
+        "default_model_temperature": 0.3,
+        "type": "base"
+      },
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": true,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -772,13 +928,11 @@
       "supportsVision": true,
       "supportsImageInput": true,
       "isDeprecated": false,
-      "aliases": [
-        "mistral-small-latest"
-      ],
+      "aliases": [],
       "_raw": {
         "id": "mistral-small-2506",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -790,14 +944,14 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "mistral-small-2506",
         "description": "Our latest enterprise-grade small model with the latest version released June 2025.",
         "max_context_length": 131072,
-        "aliases": [
-          "mistral-small-latest"
-        ],
+        "aliases": [],
         "deprecation": null,
         "deprecation_replacement_model": null,
         "default_model_temperature": 0.3,
@@ -806,68 +960,10 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
-    },
-    {
-      "id": "mistral-small-latest",
-      "name": "mistral-small-2506",
-      "description": "Our latest enterprise-grade small model with the latest version released June 2025.",
-      "contextLength": 131072,
-      "supportsFunctions": true,
-      "supportsVision": true,
-      "supportsImageInput": true,
-      "isDeprecated": false,
-      "aliases": [
-        "mistral-small-2506"
-      ],
-      "_raw": {
-        "id": "mistral-small-latest",
-        "object": "model",
-        "created": 1773336925,
-        "owned_by": "mistralai",
-        "capabilities": {
-          "completion_chat": true,
-          "function_calling": true,
-          "completion_fim": false,
-          "fine_tuning": false,
-          "vision": true,
-          "ocr": false,
-          "classification": false,
-          "moderation": false,
-          "audio": false,
-          "audio_transcription": false
-        },
-        "name": "mistral-small-2506",
-        "description": "Our latest enterprise-grade small model with the latest version released June 2025.",
-        "max_context_length": 131072,
-        "aliases": [
-          "mistral-small-2506"
-        ],
-        "deprecation": null,
-        "deprecation_replacement_model": null,
-        "default_model_temperature": 0.3,
-        "type": "base"
-      },
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "maxOutputTokens": null,
-      "pricing": {
-        "inputPer1M": 0.1,
-        "outputPer1M": 0.3
-      },
-      "supportsWebSearch": false,
-      "supportsThinking": false,
-      "supportsJsonMode": false,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": false,
-      "_source": "merged"
     },
     {
       "id": "labs-mistral-small-creative",
@@ -882,7 +978,7 @@
       "_raw": {
         "id": "labs-mistral-small-creative",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -894,7 +990,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "labs-mistral-small-creative",
         "description": "Official labs-mistral-small-creative Mistral AI model",
@@ -908,9 +1006,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -928,7 +1026,7 @@
       "_raw": {
         "id": "magistral-medium-2509",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -940,7 +1038,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "magistral-medium-2509",
         "description": "Our frontier-class reasoning model release candidate September 2025.",
@@ -956,9 +1056,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -976,7 +1076,7 @@
       "_raw": {
         "id": "magistral-medium-latest",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -988,7 +1088,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "magistral-medium-2509",
         "description": "Our frontier-class reasoning model release candidate September 2025.",
@@ -1004,9 +1106,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -1024,7 +1126,7 @@
       "_raw": {
         "id": "magistral-small-2509",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -1036,7 +1138,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "magistral-small-2509",
         "description": "Our efficient reasoning model released September 2025.",
@@ -1052,9 +1156,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -1072,7 +1176,7 @@
       "_raw": {
         "id": "magistral-small-latest",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -1084,7 +1188,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "magistral-small-2509",
         "description": "Our efficient reasoning model released September 2025.",
@@ -1100,9 +1206,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -1120,10 +1226,10 @@
       "_raw": {
         "id": "voxtral-small-2507",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
-          "completion_chat": false,
+          "completion_chat": true,
           "function_calling": true,
           "completion_fim": false,
           "fine_tuning": false,
@@ -1132,7 +1238,9 @@
           "classification": false,
           "moderation": false,
           "audio": true,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "voxtral-small-2507",
         "description": "A small audio understanding model released in July 2025",
@@ -1145,12 +1253,12 @@
         "default_model_temperature": 0.2,
         "type": "base"
       },
-      "supportsDocuments": false,
+      "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": true,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -1168,10 +1276,10 @@
       "_raw": {
         "id": "voxtral-small-latest",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
-          "completion_chat": false,
+          "completion_chat": true,
           "function_calling": true,
           "completion_fim": false,
           "fine_tuning": false,
@@ -1180,7 +1288,9 @@
           "classification": false,
           "moderation": false,
           "audio": true,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "voxtral-small-2507",
         "description": "A small audio understanding model released in July 2025",
@@ -1193,12 +1303,58 @@
         "default_model_temperature": 0.2,
         "type": "base"
       },
-      "supportsDocuments": false,
+      "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": true,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
+      "_source": "api"
+    },
+    {
+      "id": "labs-leanstral-2603",
+      "name": "labs-leanstral-2603",
+      "description": "A mid & post-trained version of mistral small 4 for Lean",
+      "contextLength": 196608,
+      "supportsFunctions": true,
+      "supportsVision": true,
+      "supportsImageInput": true,
+      "isDeprecated": false,
+      "aliases": [],
+      "_raw": {
+        "id": "labs-leanstral-2603",
+        "object": "model",
+        "created": 1773760348,
+        "owned_by": "mistralai",
+        "capabilities": {
+          "completion_chat": true,
+          "function_calling": true,
+          "completion_fim": false,
+          "fine_tuning": false,
+          "vision": true,
+          "ocr": false,
+          "classification": false,
+          "moderation": false,
+          "audio": false,
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
+        },
+        "name": "labs-leanstral-2603",
+        "description": "A mid & post-trained version of mistral small 4 for Lean",
+        "max_context_length": 196608,
+        "aliases": [],
+        "deprecation": null,
+        "deprecation_replacement_model": null,
+        "default_model_temperature": 1,
+        "type": "base"
+      },
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": true,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -1214,7 +1370,7 @@
       "_raw": {
         "id": "mistral-large-2512",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -1226,7 +1382,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "mistral-large-2512",
         "description": "Official mistral-large-2512 Mistral AI model",
@@ -1240,9 +1398,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -1258,7 +1416,7 @@
       "_raw": {
         "id": "mistral-large-latest",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -1270,7 +1428,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "mistral-large-2512",
         "description": "Official mistral-large-2512 Mistral AI model",
@@ -1284,20 +1444,10 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "maxOutputTokens": null,
-      "pricing": {
-        "inputPer1M": 2,
-        "outputPer1M": 6
-      },
-      "supportsWebSearch": false,
-      "supportsThinking": false,
-      "supportsJsonMode": false,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": false,
-      "_source": "merged"
+      "supportsRealtime": true,
+      "_source": "api"
     },
     {
       "id": "ministral-3b-2512",
@@ -1314,7 +1464,7 @@
       "_raw": {
         "id": "ministral-3b-2512",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -1326,7 +1476,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "ministral-3b-2512",
         "description": "Ministral 3 (a.k.a. Tinystral) 3B Instruct.",
@@ -1342,9 +1494,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -1362,7 +1514,7 @@
       "_raw": {
         "id": "ministral-3b-latest",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -1374,7 +1526,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "ministral-3b-2512",
         "description": "Ministral 3 (a.k.a. Tinystral) 3B Instruct.",
@@ -1390,9 +1544,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -1410,7 +1564,7 @@
       "_raw": {
         "id": "ministral-8b-2512",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -1422,7 +1576,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "ministral-8b-2512",
         "description": "Ministral 3 (a.k.a. Tinystral) 8B Instruct.",
@@ -1438,9 +1594,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -1458,7 +1614,7 @@
       "_raw": {
         "id": "ministral-8b-latest",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -1470,7 +1626,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "ministral-8b-2512",
         "description": "Ministral 3 (a.k.a. Tinystral) 8B Instruct.",
@@ -1486,9 +1644,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -1506,7 +1664,7 @@
       "_raw": {
         "id": "ministral-14b-2512",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -1518,7 +1676,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "ministral-14b-2512",
         "description": "Ministral 3 (a.k.a. Tinystral) 14B Instruct.",
@@ -1534,9 +1694,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -1554,7 +1714,7 @@
       "_raw": {
         "id": "ministral-14b-latest",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -1566,7 +1726,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "ministral-14b-2512",
         "description": "Ministral 3 (a.k.a. Tinystral) 14B Instruct.",
@@ -1582,9 +1744,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -1600,7 +1762,7 @@
       "_raw": {
         "id": "mistral-large-2411",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -1612,7 +1774,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "mistral-large-2411",
         "description": "Our top-tier reasoning model for high-complexity tasks with the lastest version released November 2024.",
@@ -1626,9 +1790,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -1647,7 +1811,7 @@
       "_raw": {
         "id": "pixtral-large-2411",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -1659,7 +1823,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "pixtral-large-2411",
         "description": "Official pixtral-large-2411 Mistral AI model",
@@ -1676,9 +1842,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -1697,7 +1863,7 @@
       "_raw": {
         "id": "pixtral-large-latest",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -1709,7 +1875,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "pixtral-large-2411",
         "description": "Official pixtral-large-2411 Mistral AI model",
@@ -1726,20 +1894,10 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "maxOutputTokens": null,
-      "pricing": {
-        "inputPer1M": 2,
-        "outputPer1M": 6
-      },
-      "supportsWebSearch": false,
-      "supportsThinking": false,
-      "supportsJsonMode": false,
-      "requiresTemperature1": false,
-      "useMaxCompletionTokens": false,
-      "_source": "merged"
+      "supportsRealtime": true,
+      "_source": "api"
     },
     {
       "id": "mistral-large-pixtral-2411",
@@ -1757,7 +1915,7 @@
       "_raw": {
         "id": "mistral-large-pixtral-2411",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -1769,7 +1927,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "pixtral-large-2411",
         "description": "Official pixtral-large-2411 Mistral AI model",
@@ -1786,9 +1946,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -1804,7 +1964,7 @@
       "_raw": {
         "id": "devstral-small-2507",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -1816,7 +1976,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "devstral-small-2507",
         "description": "Our small open-source code-agentic model.",
@@ -1830,9 +1992,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -1848,7 +2010,7 @@
       "_raw": {
         "id": "devstral-medium-2507",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -1860,7 +2022,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "devstral-medium-2507",
         "description": "Our medium code-agentic model.",
@@ -1874,9 +2038,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -1892,7 +2056,7 @@
       "_raw": {
         "id": "labs-devstral-small-2512",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -1904,7 +2068,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "labs-devstral-small-2512",
         "description": "Official labs-devstral-small-2512 Mistral AI model",
@@ -1918,9 +2084,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -1936,7 +2102,7 @@
       "_raw": {
         "id": "devstral-small-latest",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -1948,7 +2114,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "labs-devstral-small-2512",
         "description": "Official labs-devstral-small-2512 Mistral AI model",
@@ -1962,9 +2130,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -1982,7 +2150,7 @@
       "_raw": {
         "id": "voxtral-mini-2507",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -1994,7 +2162,9 @@
           "classification": false,
           "moderation": false,
           "audio": true,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "voxtral-mini-2507",
         "description": "A mini audio understanding model released in July 2025",
@@ -2010,9 +2180,9 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": true,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -2030,7 +2200,7 @@
       "_raw": {
         "id": "voxtral-mini-latest",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": true,
@@ -2042,7 +2212,9 @@
           "classification": false,
           "moderation": false,
           "audio": true,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "voxtral-mini-2507",
         "description": "A mini audio understanding model released in July 2025",
@@ -2058,9 +2230,55 @@
       "supportsDocuments": true,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": true,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
+      "_source": "api"
+    },
+    {
+      "id": "mistral-squarepoint-2602",
+      "name": "mistral-squarepoint-2602",
+      "description": "Official mistral-squarepoint-2602 Mistral AI model",
+      "contextLength": 32768,
+      "supportsFunctions": false,
+      "supportsVision": true,
+      "supportsImageInput": true,
+      "isDeprecated": false,
+      "aliases": [],
+      "_raw": {
+        "id": "mistral-squarepoint-2602",
+        "object": "model",
+        "created": 1773760348,
+        "owned_by": "mistralai",
+        "capabilities": {
+          "completion_chat": false,
+          "function_calling": false,
+          "completion_fim": false,
+          "fine_tuning": false,
+          "vision": false,
+          "ocr": false,
+          "classification": false,
+          "moderation": false,
+          "audio": false,
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
+        },
+        "name": "mistral-squarepoint-2602",
+        "description": "Official mistral-squarepoint-2602 Mistral AI model",
+        "max_context_length": 32768,
+        "aliases": [],
+        "deprecation": null,
+        "deprecation_replacement_model": null,
+        "default_model_temperature": null,
+        "type": "base"
+      },
+      "supportsDocuments": false,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": true,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -2078,7 +2296,7 @@
       "_raw": {
         "id": "mistral-embed-2312",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": false,
@@ -2090,7 +2308,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "mistral-embed-2312",
         "description": "Official mistral-embed-2312 Mistral AI model",
@@ -2106,9 +2326,9 @@
       "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -2126,7 +2346,7 @@
       "_raw": {
         "id": "mistral-embed",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": false,
@@ -2138,7 +2358,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "mistral-embed-2312",
         "description": "Official mistral-embed-2312 Mistral AI model",
@@ -2154,9 +2376,9 @@
       "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -2174,7 +2396,7 @@
       "_raw": {
         "id": "codestral-embed",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": false,
@@ -2186,7 +2408,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "codestral-embed",
         "description": "Official codestral-embed Mistral AI model",
@@ -2202,9 +2426,9 @@
       "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -2222,7 +2446,7 @@
       "_raw": {
         "id": "codestral-embed-2505",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": false,
@@ -2234,7 +2458,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "codestral-embed",
         "description": "Official codestral-embed Mistral AI model",
@@ -2250,9 +2476,9 @@
       "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -2270,7 +2496,7 @@
       "_raw": {
         "id": "mistral-moderation-2411",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": false,
@@ -2282,7 +2508,9 @@
           "classification": true,
           "moderation": true,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "mistral-moderation-2411",
         "description": "Official mistral-moderation-2411 Mistral AI model",
@@ -2298,9 +2526,9 @@
       "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -2318,7 +2546,7 @@
       "_raw": {
         "id": "mistral-moderation-latest",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": false,
@@ -2330,7 +2558,9 @@
           "classification": true,
           "moderation": true,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "mistral-moderation-2411",
         "description": "Official mistral-moderation-2411 Mistral AI model",
@@ -2346,9 +2576,9 @@
       "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -2366,7 +2596,7 @@
       "_raw": {
         "id": "mistral-ocr-2512",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": false,
@@ -2378,7 +2608,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "mistral-ocr-2512",
         "description": "Official mistral-ocr-2512 Mistral AI model",
@@ -2394,9 +2626,9 @@
       "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -2414,7 +2646,7 @@
       "_raw": {
         "id": "mistral-ocr-latest",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": false,
@@ -2426,7 +2658,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "mistral-ocr-2512",
         "description": "Official mistral-ocr-2512 Mistral AI model",
@@ -2442,9 +2676,9 @@
       "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -2460,7 +2694,7 @@
       "_raw": {
         "id": "mistral-ocr-2503",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": false,
@@ -2472,7 +2706,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "mistral-ocr-2503",
         "description": "Official mistral-ocr-2503 Mistral AI model",
@@ -2486,9 +2722,9 @@
       "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -2504,7 +2740,7 @@
       "_raw": {
         "id": "mistral-ocr-2505",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": false,
@@ -2516,7 +2752,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": false
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "mistral-ocr-2505",
         "description": "Official mistral-ocr-2505 Mistral AI model",
@@ -2530,9 +2768,9 @@
       "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
+      "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -2548,7 +2786,7 @@
       "_raw": {
         "id": "voxtral-mini-2602",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": false,
@@ -2560,7 +2798,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": true
+          "audio_transcription": true,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "voxtral-mini-2602",
         "description": "Official voxtral-mini-2602 Mistral AI model",
@@ -2576,7 +2816,7 @@
       "supportsVideoGeneration": false,
       "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -2592,7 +2832,7 @@
       "_raw": {
         "id": "voxtral-mini-latest",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": false,
@@ -2604,7 +2844,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": true
+          "audio_transcription": true,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "voxtral-mini-2602",
         "description": "Official voxtral-mini-2602 Mistral AI model",
@@ -2620,7 +2862,163 @@
       "supportsVideoGeneration": false,
       "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
+      "_source": "api"
+    },
+    {
+      "id": "voxtral-mini-transcribe-realtime-2602",
+      "name": "voxtral-mini-transcribe-realtime-2602",
+      "description": "A realtime transcription model released in January 2026",
+      "contextLength": 16384,
+      "supportsFunctions": false,
+      "supportsVision": true,
+      "supportsImageInput": true,
+      "isDeprecated": false,
+      "aliases": [
+        "voxtral-mini-realtime-2602",
+        "voxtral-mini-realtime-latest"
+      ],
+      "_raw": {
+        "id": "voxtral-mini-transcribe-realtime-2602",
+        "object": "model",
+        "created": 1773760348,
+        "owned_by": "mistralai",
+        "capabilities": {
+          "completion_chat": true,
+          "function_calling": false,
+          "completion_fim": false,
+          "fine_tuning": false,
+          "vision": false,
+          "ocr": false,
+          "classification": false,
+          "moderation": false,
+          "audio": true,
+          "audio_transcription": false,
+          "audio_transcription_realtime": true,
+          "audio_speech": false
+        },
+        "name": "voxtral-mini-transcribe-realtime-2602",
+        "description": "A realtime transcription model released in January 2026",
+        "max_context_length": 16384,
+        "aliases": [
+          "voxtral-mini-realtime-2602",
+          "voxtral-mini-realtime-latest"
+        ],
+        "deprecation": null,
+        "deprecation_replacement_model": null,
+        "default_model_temperature": 0,
+        "type": "base"
+      },
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": true,
+      "supportsVoiceOutput": true,
+      "supportsRealtime": true,
+      "_source": "api"
+    },
+    {
+      "id": "voxtral-mini-realtime-2602",
+      "name": "voxtral-mini-transcribe-realtime-2602",
+      "description": "A realtime transcription model released in January 2026",
+      "contextLength": 16384,
+      "supportsFunctions": false,
+      "supportsVision": true,
+      "supportsImageInput": true,
+      "isDeprecated": false,
+      "aliases": [
+        "voxtral-mini-transcribe-realtime-2602",
+        "voxtral-mini-realtime-latest"
+      ],
+      "_raw": {
+        "id": "voxtral-mini-realtime-2602",
+        "object": "model",
+        "created": 1773760348,
+        "owned_by": "mistralai",
+        "capabilities": {
+          "completion_chat": true,
+          "function_calling": false,
+          "completion_fim": false,
+          "fine_tuning": false,
+          "vision": false,
+          "ocr": false,
+          "classification": false,
+          "moderation": false,
+          "audio": true,
+          "audio_transcription": false,
+          "audio_transcription_realtime": true,
+          "audio_speech": false
+        },
+        "name": "voxtral-mini-transcribe-realtime-2602",
+        "description": "A realtime transcription model released in January 2026",
+        "max_context_length": 16384,
+        "aliases": [
+          "voxtral-mini-transcribe-realtime-2602",
+          "voxtral-mini-realtime-latest"
+        ],
+        "deprecation": null,
+        "deprecation_replacement_model": null,
+        "default_model_temperature": 0,
+        "type": "base"
+      },
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": true,
+      "supportsVoiceOutput": true,
+      "supportsRealtime": true,
+      "_source": "api"
+    },
+    {
+      "id": "voxtral-mini-realtime-latest",
+      "name": "voxtral-mini-transcribe-realtime-2602",
+      "description": "A realtime transcription model released in January 2026",
+      "contextLength": 16384,
+      "supportsFunctions": false,
+      "supportsVision": true,
+      "supportsImageInput": true,
+      "isDeprecated": false,
+      "aliases": [
+        "voxtral-mini-transcribe-realtime-2602",
+        "voxtral-mini-realtime-2602"
+      ],
+      "_raw": {
+        "id": "voxtral-mini-realtime-latest",
+        "object": "model",
+        "created": 1773760348,
+        "owned_by": "mistralai",
+        "capabilities": {
+          "completion_chat": true,
+          "function_calling": false,
+          "completion_fim": false,
+          "fine_tuning": false,
+          "vision": false,
+          "ocr": false,
+          "classification": false,
+          "moderation": false,
+          "audio": true,
+          "audio_transcription": false,
+          "audio_transcription_realtime": true,
+          "audio_speech": false
+        },
+        "name": "voxtral-mini-transcribe-realtime-2602",
+        "description": "A realtime transcription model released in January 2026",
+        "max_context_length": 16384,
+        "aliases": [
+          "voxtral-mini-transcribe-realtime-2602",
+          "voxtral-mini-realtime-2602"
+        ],
+        "deprecation": null,
+        "deprecation_replacement_model": null,
+        "default_model_temperature": 0,
+        "type": "base"
+      },
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": true,
+      "supportsVoiceOutput": true,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -2638,7 +3036,7 @@
       "_raw": {
         "id": "voxtral-mini-transcribe-2507",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": false,
@@ -2650,7 +3048,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": true
+          "audio_transcription": true,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "voxtral-mini-transcribe-2507",
         "description": "A mini transcription model released in July 2025",
@@ -2668,7 +3068,7 @@
       "supportsVideoGeneration": false,
       "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
       "_source": "api"
     },
     {
@@ -2686,7 +3086,7 @@
       "_raw": {
         "id": "voxtral-mini-2507",
         "object": "model",
-        "created": 1773336925,
+        "created": 1773760348,
         "owned_by": "mistralai",
         "capabilities": {
           "completion_chat": false,
@@ -2698,7 +3098,9 @@
           "classification": false,
           "moderation": false,
           "audio": false,
-          "audio_transcription": true
+          "audio_transcription": true,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
         },
         "name": "voxtral-mini-transcribe-2507",
         "description": "A mini transcription model released in July 2025",
@@ -2716,11 +3118,57 @@
       "supportsVideoGeneration": false,
       "supportsVoiceInput": true,
       "supportsVoiceOutput": false,
-      "supportsRealtime": false,
+      "supportsRealtime": true,
+      "_source": "api"
+    },
+    {
+      "id": "voxtral-mini-tts-260213",
+      "name": "voxtral-mini-tts-260213",
+      "description": "Official voxtral-mini-tts-260213 Mistral AI model",
+      "contextLength": 32768,
+      "supportsFunctions": false,
+      "supportsVision": true,
+      "supportsImageInput": true,
+      "isDeprecated": false,
+      "aliases": [],
+      "_raw": {
+        "id": "voxtral-mini-tts-260213",
+        "object": "model",
+        "created": 1773760348,
+        "owned_by": "mistralai",
+        "capabilities": {
+          "completion_chat": false,
+          "function_calling": false,
+          "completion_fim": false,
+          "fine_tuning": false,
+          "vision": false,
+          "ocr": false,
+          "classification": false,
+          "moderation": false,
+          "audio": false,
+          "audio_transcription": false,
+          "audio_transcription_realtime": false,
+          "audio_speech": false
+        },
+        "name": "voxtral-mini-tts-260213",
+        "description": "Official voxtral-mini-tts-260213 Mistral AI model",
+        "max_context_length": 32768,
+        "aliases": [],
+        "deprecation": null,
+        "deprecation_replacement_model": null,
+        "default_model_temperature": null,
+        "type": "base"
+      },
+      "supportsDocuments": false,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": true,
+      "supportsVoiceOutput": true,
+      "supportsRealtime": true,
       "_source": "api"
     }
   ],
   "meta": {
-    "discoveredAt": "2026-03-12T17:35:25.699Z"
+    "discoveredAt": "2026-03-17T15:12:28.890Z"
   }
 }

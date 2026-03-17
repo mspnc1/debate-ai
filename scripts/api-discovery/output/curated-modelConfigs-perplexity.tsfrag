@@ -2,17 +2,22 @@
 {
       id: 'sonar-pro',
       name: 'Sonar Pro',
-      description: 'Advanced search model with comprehensive answers and citations',
-      contextLength: 200000,
-      maxOutputTokens: 8000, // Pricing: $3/1M in, $15/1M out [merged]
+      description: 'No description available',
+      contextLength: 128000,
       supportsWebSearch: true,
       isDefault: true,
     },
 {
       id: 'sonar',
       name: 'Sonar',
-      description: 'Fast search model with real-time web access and citations',
+      description: 'No description available',
       contextLength: 128000,
-      maxOutputTokens: 8000, // Pricing: $1/1M in, $1/1M out [merged]
+      supportsWebSearch: true,
+    },
+{
+      id: 'sonar-reasoning-pro',
+      name: 'Sonar Reasoning Pro',
+      description: 'No description available',
+      contextLength: 128000,
       supportsWebSearch: true,
     },
