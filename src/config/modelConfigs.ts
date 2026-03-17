@@ -543,8 +543,9 @@ export const AI_MODELS: ProviderModels = {
     {
       id: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
       name: "Llama 3.1 8B",
-      description: "Fast and lightweight",
+      description: "Retired Together serverless model that now requires a dedicated endpoint",
       contextLength: 131072,
+      isDeprecated: true,
     },
     {
       id: "Qwen/Qwen2.5-7B-Instruct-Turbo",
@@ -651,7 +652,6 @@ export const CURATED_MODEL_IDS: { [providerId: string]: string[] } = {
   ],
   together: [
     "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-    "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
     "Qwen/Qwen2.5-7B-Instruct-Turbo",
   ],
   deepseek: ["deepseek-chat", "deepseek-reasoner"],
