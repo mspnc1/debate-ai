@@ -1,7 +1,7 @@
 // Insert the following ModelConfig entries into AI_MODELS['deepseek'] array
 {
-      id: 'deepseek-chat',
-      name: 'deepseek-chat',
+      id: 'deepseek-v4-flash',
+      name: 'deepseek-v4-flash',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
@@ -9,8 +9,8 @@
       supportsImageInput: true,
     },
 {
-      id: 'deepseek-reasoner',
-      name: 'deepseek-reasoner',
+      id: 'deepseek-v4-pro',
+      name: 'deepseek-v4-pro',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,

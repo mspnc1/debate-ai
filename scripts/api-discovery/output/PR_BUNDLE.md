@@ -9,8 +9,8 @@ This bundle consolidates curated entries to update:
 ```ts
 // Curated ModelConfig entries for AI_MODELS['openai'] (default + recommended)
 {
-      id: 'gpt-5.4',
-      name: 'gpt-5.4',
+      id: 'gpt-5.5',
+      name: 'gpt-5.5',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
@@ -18,52 +18,53 @@ This bundle consolidates curated entries to update:
       isDefault: true,
     },
 {
-      id: 'gpt-4.1-2025-04-14',
-      name: 'gpt-4.1-2025-04-14',
+      id: 'gpt-5.4-mini',
+      name: 'gpt-5.4-mini',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
       supportsImageInput: true,
     },
 {
-      id: 'gpt-4o',
-      name: 'gpt-4o',
+      id: 'gpt-5.4-nano',
+      name: 'gpt-5.4-nano',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
       supportsImageInput: true,
     },
 {
-      id: 'gpt-4o-mini-2024-07-18',
-      name: 'gpt-4o-mini-2024-07-18',
-      description: 'No description available',
-      contextLength: 128000,
-      supportsVision: true,
-      supportsImageInput: true,
-    },
-{
-      id: 'o3-mini',
-      name: 'o3-mini',
+      id: 'o3',
+      name: 'o3',
       description: 'No description available',
       contextLength: 128000,
     },
 {
-      id: 'o1-pro-2025-03-19',
-      name: 'o1-pro-2025-03-19',
+      id: 'o4-mini',
+      name: 'o4-mini',
       description: 'No description available',
       contextLength: 128000,
     },
 {
-      id: 'dall-e-3',
-      name: 'dall-e-3',
+      id: 'gpt-image-2',
+      name: 'gpt-image-2',
       description: 'No description available',
       contextLength: 128000,
-      supportsImageGeneration: true,
     },
 ```
 ### Provider: claude
 ```ts
 // Curated ModelConfig entries for AI_MODELS['claude'] (default + recommended)
+{
+      id: 'claude-opus-4-6',
+      name: 'Claude Opus 4.6',
+      description: 'No description available',
+      contextLength: 128000,
+      supportsVision: true,
+      supportsDocuments: true,
+      supportsImageInput: true,
+      isDefault: true,
+    },
 {
       id: 'claude-sonnet-4-6',
       name: 'Claude Sonnet 4.6',
@@ -72,16 +73,24 @@ This bundle consolidates curated entries to update:
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
-      isDefault: true,
+    },
+{
+      id: 'claude-haiku-4-5-20251001',
+      name: 'Claude 4.5 Haiku',
+      description: 'No description available',
+      contextLength: 128000,
+      supportsVision: true,
+      supportsDocuments: true,
+      supportsImageInput: true,
     },
 ```
 ### Provider: google
 ```ts
 // Curated ModelConfig entries for AI_MODELS['google'] (default + recommended)
 {
-      id: 'gemini-2.5-pro',
-      name: 'Gemini 2.5 Pro',
-      description: 'Stable release (June 17th, 2025) of Gemini 2.5 Pro',
+      id: 'gemini-3.1-pro-preview',
+      name: 'Gemini 3.1 Pro Preview',
+      description: 'Gemini 3.1 Pro Preview',
       contextLength: 1048576,
       maxOutputTokens: 65536,
       supportsVision: true,
@@ -92,9 +101,9 @@ This bundle consolidates curated entries to update:
       isDefault: true,
     },
 {
-      id: 'gemini-2.5-flash',
-      name: 'Gemini 2.5 Flash',
-      description: 'Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.',
+      id: 'gemini-3-flash-preview',
+      name: 'Gemini 3 Flash Preview',
+      description: 'Gemini 3 Flash Preview',
       contextLength: 1048576,
       maxOutputTokens: 65536,
       supportsVision: true,
@@ -104,9 +113,9 @@ This bundle consolidates curated entries to update:
       supportsThinking: true,
     },
 {
-      id: 'gemini-2.5-flash-lite',
-      name: 'Gemini 2.5 Flash-Lite',
-      description: 'Stable version of Gemini 2.5 Flash-Lite, released in July of 2025',
+      id: 'gemini-3.1-flash-lite-preview',
+      name: 'Gemini 3.1 Flash Lite Preview',
+      description: 'Gemini 3.1 Flash Lite Preview',
       contextLength: 1048576,
       maxOutputTokens: 65536,
       supportsVision: true,
@@ -154,7 +163,7 @@ This bundle consolidates curated entries to update:
 ```ts
 // Curated ModelConfig entries for AI_MODELS['mistral'] (default + recommended)
 {
-      id: 'mistral-large-latest',
+      id: 'mistral-large-2512',
       name: 'mistral-large-2512',
       description: 'Official mistral-large-2512 Mistral AI model',
       contextLength: 262144,
@@ -167,10 +176,34 @@ This bundle consolidates curated entries to update:
       isDefault: true,
     },
 {
-      id: 'mistral-medium-latest',
-      name: 'mistral-medium-2508',
-      description: 'Update on Mistral Medium 3 with improved capabilities.',
+      id: 'magistral-medium-2509',
+      name: 'magistral-medium-2509',
+      description: 'Our frontier-class reasoning model release candidate September 2025.',
       contextLength: 131072,
+      supportsVision: true,
+      supportsDocuments: true,
+      supportsImageInput: true,
+      supportsRealtime: true,
+      supportsVoiceInput: true,
+      supportsFunctions: true,
+    },
+{
+      id: 'mistral-small-2603',
+      name: 'mistral-small-2603',
+      description: 'Mistral Small 4.',
+      contextLength: 262144,
+      supportsVision: true,
+      supportsDocuments: true,
+      supportsImageInput: true,
+      supportsRealtime: true,
+      supportsVoiceInput: true,
+      supportsFunctions: true,
+    },
+{
+      id: 'codestral-2508',
+      name: 'codestral-2508',
+      description: 'Our cutting-edge language model for coding released August 2025.',
+      contextLength: 256000,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
@@ -183,6 +216,15 @@ This bundle consolidates curated entries to update:
 ```ts
 // Curated ModelConfig entries for AI_MODELS['cohere'] (default + recommended)
 {
+      id: 'command-a-reasoning-08-2025',
+      name: 'command-a-reasoning-08-2025',
+      description: 'No description available',
+      contextLength: 288768,
+      supportsDocuments: true,
+      supportsFunctions: true,
+      isDefault: true,
+    },
+{
       id: 'command-a-vision-07-2025',
       name: 'command-a-vision-07-2025',
       description: 'No description available',
@@ -191,13 +233,20 @@ This bundle consolidates curated entries to update:
       supportsDocuments: true,
       supportsImageInput: true,
       supportsFunctions: true,
-      isDefault: true,
     },
 {
       id: 'command-r-08-2024',
       name: 'command-r-08-2024',
       description: 'No description available',
-      contextLength: 132096,
+      contextLength: 128000,
+      supportsDocuments: true,
+      supportsFunctions: true,
+    },
+{
+      id: 'command-r7b-12-2024',
+      name: 'command-r7b-12-2024',
+      description: 'No description available',
+      contextLength: 132000,
       supportsDocuments: true,
       supportsFunctions: true,
     },
@@ -210,31 +259,22 @@ This bundle consolidates curated entries to update:
 ```ts
 // Curated ModelConfig entries for AI_MODELS['deepseek'] (default + recommended)
 {
-      id: 'deepseek-reasoner',
-      name: 'deepseek-reasoner',
+      id: 'deepseek-v4-flash',
+      name: 'deepseek-v4-flash',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
       isDefault: true,
-    },
-{
-      id: 'deepseek-chat',
-      name: 'deepseek-chat',
-      description: 'No description available',
-      contextLength: 128000,
-      supportsVision: true,
-      supportsDocuments: true,
-      supportsImageInput: true,
     },
 ```
 ### Provider: grok
 ```ts
 // Curated ModelConfig entries for AI_MODELS['grok'] (default + recommended)
 {
-      id: 'grok-4-0709',
-      name: 'grok-4-0709',
+      id: 'grok-4.20-0309-non-reasoning',
+      name: 'grok-4.20-0309-non-reasoning',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
@@ -243,8 +283,8 @@ This bundle consolidates curated entries to update:
       isDefault: true,
     },
 {
-      id: 'grok-3',
-      name: 'grok-3',
+      id: 'grok-3-mini',
+      name: 'grok-3-mini',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
@@ -252,8 +292,8 @@ This bundle consolidates curated entries to update:
       supportsImageInput: true,
     },
 {
-      id: 'grok-3-mini',
-      name: 'grok-3-mini',
+      id: 'grok-4-1-fast-non-reasoning',
+      name: 'grok-4-1-fast-non-reasoning',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,

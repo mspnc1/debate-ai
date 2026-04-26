@@ -531,6 +531,84 @@
       "_source": "api"
     },
     {
+      "id": "gemma-4-26b-a4b-it",
+      "name": "Gemma 4 26B A4B IT",
+      "description": "Gemma 4 26B A4B IT",
+      "contextLength": 262144,
+      "maxOutputTokens": 32768,
+      "supportsThinking": true,
+      "temperatureRange": {
+        "default": 1,
+        "max": 2
+      },
+      "_raw": {
+        "name": "models/gemma-4-26b-a4b-it",
+        "version": "001",
+        "displayName": "Gemma 4 26B A4B IT",
+        "description": "Gemma 4 26B A4B IT",
+        "inputTokenLimit": 262144,
+        "outputTokenLimit": 32768,
+        "supportedGenerationMethods": [
+          "generateContent",
+          "countTokens"
+        ],
+        "temperature": 1,
+        "topP": 0.95,
+        "topK": 64,
+        "maxTemperature": 2,
+        "thinking": true
+      },
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceOutput": false,
+      "supportsVoiceInput": false,
+      "supportsRealtime": false,
+      "supportsFunctions": true,
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "gemma-4-31b-it",
+      "name": "Gemma 4 31B IT",
+      "description": "Gemma 4 31B IT",
+      "contextLength": 262144,
+      "maxOutputTokens": 32768,
+      "supportsThinking": true,
+      "temperatureRange": {
+        "default": 1,
+        "max": 2
+      },
+      "_raw": {
+        "name": "models/gemma-4-31b-it",
+        "version": "001",
+        "displayName": "Gemma 4 31B IT",
+        "description": "Gemma 4 31B IT",
+        "inputTokenLimit": 262144,
+        "outputTokenLimit": 32768,
+        "supportedGenerationMethods": [
+          "generateContent",
+          "countTokens"
+        ],
+        "temperature": 1,
+        "topP": 0.95,
+        "topK": 64,
+        "maxTemperature": 2,
+        "thinking": true
+      },
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceOutput": false,
+      "supportsVoiceInput": false,
+      "supportsRealtime": false,
+      "supportsFunctions": true,
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
       "id": "gemini-flash-latest",
       "name": "Gemini Flash Latest",
       "description": "Latest release of Gemini Flash",
@@ -721,47 +799,6 @@
         "topP": 0.95,
         "topK": 64,
         "maxTemperature": 1
-      },
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceOutput": false,
-      "supportsVoiceInput": false,
-      "supportsRealtime": false,
-      "supportsFunctions": true,
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageInput": true,
-      "_source": "api"
-    },
-    {
-      "id": "gemini-2.5-flash-lite-preview-09-2025",
-      "name": "Gemini 2.5 Flash-Lite Preview Sep 2025",
-      "description": "Preview release (Septempber 25th, 2025) of Gemini 2.5 Flash-Lite",
-      "contextLength": 1048576,
-      "maxOutputTokens": 65536,
-      "supportsThinking": true,
-      "temperatureRange": {
-        "default": 1,
-        "max": 2
-      },
-      "_raw": {
-        "name": "models/gemini-2.5-flash-lite-preview-09-2025",
-        "version": "2.5-preview-09-25",
-        "displayName": "Gemini 2.5 Flash-Lite Preview Sep 2025",
-        "description": "Preview release (Septempber 25th, 2025) of Gemini 2.5 Flash-Lite",
-        "inputTokenLimit": 1048576,
-        "outputTokenLimit": 65536,
-        "supportedGenerationMethods": [
-          "generateContent",
-          "countTokens",
-          "createCachedContent",
-          "batchGenerateContent"
-        ],
-        "temperature": 1,
-        "topP": 0.95,
-        "topK": 64,
-        "maxTemperature": 2,
-        "thinking": true
       },
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
@@ -1100,6 +1137,122 @@
       "_source": "api"
     },
     {
+      "id": "lyria-3-clip-preview",
+      "name": "Lyria 3 Clip Preview",
+      "description": "Lyria 3 30s model Preview",
+      "contextLength": 1048576,
+      "maxOutputTokens": 65536,
+      "supportsThinking": false,
+      "temperatureRange": {
+        "default": 1,
+        "max": 2
+      },
+      "_raw": {
+        "name": "models/lyria-3-clip-preview",
+        "version": "lyria-3-clip-preview",
+        "displayName": "Lyria 3 Clip Preview",
+        "description": "Lyria 3 30s model Preview",
+        "inputTokenLimit": 1048576,
+        "outputTokenLimit": 65536,
+        "supportedGenerationMethods": [
+          "generateContent",
+          "countTokens"
+        ],
+        "temperature": 1,
+        "topP": 0.95,
+        "topK": 64,
+        "maxTemperature": 2
+      },
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceOutput": false,
+      "supportsVoiceInput": false,
+      "supportsRealtime": false,
+      "supportsFunctions": true,
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "lyria-3-pro-preview",
+      "name": "Lyria 3 Pro Preview",
+      "description": "Lyria 3 Pro Preview",
+      "contextLength": 1048576,
+      "maxOutputTokens": 65536,
+      "supportsThinking": false,
+      "temperatureRange": {
+        "default": 1,
+        "max": 2
+      },
+      "_raw": {
+        "name": "models/lyria-3-pro-preview",
+        "version": "lyria-3-pro-preview",
+        "displayName": "Lyria 3 Pro Preview",
+        "description": "Lyria 3 Pro Preview",
+        "inputTokenLimit": 1048576,
+        "outputTokenLimit": 65536,
+        "supportedGenerationMethods": [
+          "generateContent",
+          "countTokens"
+        ],
+        "temperature": 1,
+        "topP": 0.95,
+        "topK": 64,
+        "maxTemperature": 2
+      },
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceOutput": false,
+      "supportsVoiceInput": false,
+      "supportsRealtime": false,
+      "supportsFunctions": true,
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "gemini-3.1-flash-tts-preview",
+      "name": "Gemini 3.1 Flash TTS Preview",
+      "description": "Gemini 3.1 Flash TTS Preview",
+      "contextLength": 8192,
+      "maxOutputTokens": 16384,
+      "supportsThinking": true,
+      "temperatureRange": {
+        "default": 1,
+        "max": 2
+      },
+      "_raw": {
+        "name": "models/gemini-3.1-flash-tts-preview",
+        "version": "3.1-flash-tts-preview",
+        "displayName": "Gemini 3.1 Flash TTS Preview",
+        "description": "Gemini 3.1 Flash TTS Preview",
+        "inputTokenLimit": 8192,
+        "outputTokenLimit": 16384,
+        "supportedGenerationMethods": [
+          "generateContent",
+          "countTokens",
+          "batchGenerateContent"
+        ],
+        "temperature": 1,
+        "topP": 0.95,
+        "topK": 64,
+        "maxTemperature": 2,
+        "thinking": true
+      },
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceOutput": true,
+      "supportsVoiceInput": false,
+      "supportsRealtime": false,
+      "supportsFunctions": true,
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
       "id": "gemini-robotics-er-1.5-preview",
       "name": "Gemini Robotics-ER 1.5 Preview",
       "description": "Gemini Robotics-ER 1.5 Preview",
@@ -1139,6 +1292,47 @@
       "_source": "api"
     },
     {
+      "id": "gemini-robotics-er-1.6-preview",
+      "name": "Gemini Robotics-ER 1.6 Preview",
+      "description": "Gemini Robotics-ER 1.6 Preview",
+      "contextLength": 131072,
+      "maxOutputTokens": 65536,
+      "supportsThinking": true,
+      "temperatureRange": {
+        "default": 1,
+        "max": 2
+      },
+      "_raw": {
+        "name": "models/gemini-robotics-er-1.6-preview",
+        "version": "1.6-preview",
+        "displayName": "Gemini Robotics-ER 1.6 Preview",
+        "description": "Gemini Robotics-ER 1.6 Preview",
+        "inputTokenLimit": 131072,
+        "outputTokenLimit": 65536,
+        "supportedGenerationMethods": [
+          "generateContent",
+          "countTokens",
+          "createCachedContent",
+          "batchGenerateContent"
+        ],
+        "temperature": 1,
+        "topP": 0.95,
+        "topK": 64,
+        "maxTemperature": 2,
+        "thinking": true
+      },
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceOutput": false,
+      "supportsVoiceInput": false,
+      "supportsRealtime": false,
+      "supportsFunctions": true,
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
       "id": "gemini-2.5-computer-use-preview-10-2025",
       "name": "Gemini 2.5 Computer Use Preview 10-2025",
       "description": "Gemini 2.5 Computer Use Preview 10-2025",
@@ -1154,6 +1348,84 @@
         "version": "Gemini 2.5 Computer Use Preview 10-2025",
         "displayName": "Gemini 2.5 Computer Use Preview 10-2025",
         "description": "Gemini 2.5 Computer Use Preview 10-2025",
+        "inputTokenLimit": 131072,
+        "outputTokenLimit": 65536,
+        "supportedGenerationMethods": [
+          "generateContent",
+          "countTokens"
+        ],
+        "temperature": 1,
+        "topP": 0.95,
+        "topK": 64,
+        "maxTemperature": 2,
+        "thinking": true
+      },
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceOutput": false,
+      "supportsVoiceInput": false,
+      "supportsRealtime": false,
+      "supportsFunctions": true,
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "deep-research-max-preview-04-2026",
+      "name": "Deep Research Max Preview (Apr-21-2026)",
+      "description": "Preview release (April 21st, 2026) of Deep Research Max",
+      "contextLength": 131072,
+      "maxOutputTokens": 65536,
+      "supportsThinking": true,
+      "temperatureRange": {
+        "default": 1,
+        "max": 2
+      },
+      "_raw": {
+        "name": "models/deep-research-max-preview-04-2026",
+        "version": "deepthink-exp-05-20",
+        "displayName": "Deep Research Max Preview (Apr-21-2026)",
+        "description": "Preview release (April 21st, 2026) of Deep Research Max",
+        "inputTokenLimit": 131072,
+        "outputTokenLimit": 65536,
+        "supportedGenerationMethods": [
+          "generateContent",
+          "countTokens"
+        ],
+        "temperature": 1,
+        "topP": 0.95,
+        "topK": 64,
+        "maxTemperature": 2,
+        "thinking": true
+      },
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceOutput": false,
+      "supportsVoiceInput": false,
+      "supportsRealtime": false,
+      "supportsFunctions": true,
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "deep-research-preview-04-2026",
+      "name": "Deep Research Preview (Apr-21-2026)",
+      "description": "Preview release (April 21th, 2026) of Deep Research",
+      "contextLength": 131072,
+      "maxOutputTokens": 65536,
+      "supportsThinking": true,
+      "temperatureRange": {
+        "default": 1,
+        "max": 2
+      },
+      "_raw": {
+        "name": "models/deep-research-preview-04-2026",
+        "version": "deepthink-exp-05-20",
+        "displayName": "Deep Research Preview (Apr-21-2026)",
+        "description": "Preview release (April 21th, 2026) of Deep Research",
         "inputTokenLimit": 131072,
         "outputTokenLimit": 65536,
         "supportedGenerationMethods": [
@@ -1261,6 +1533,39 @@
         "name": "models/gemini-embedding-2-preview",
         "version": "2",
         "displayName": "Gemini Embedding 2 Preview",
+        "description": "Obtain a distributed representation of multimodal content.",
+        "inputTokenLimit": 8192,
+        "outputTokenLimit": 1,
+        "supportedGenerationMethods": [
+          "embedContent",
+          "countTextTokens",
+          "countTokens",
+          "asyncBatchEmbedContent"
+        ]
+      },
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceOutput": false,
+      "supportsVoiceInput": false,
+      "supportsRealtime": false,
+      "supportsFunctions": false,
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "gemini-embedding-2",
+      "name": "Gemini Embedding 2",
+      "description": "Obtain a distributed representation of multimodal content.",
+      "contextLength": 8192,
+      "maxOutputTokens": 1,
+      "supportsThinking": false,
+      "temperatureRange": {},
+      "_raw": {
+        "name": "models/gemini-embedding-2",
+        "version": "2",
+        "displayName": "Gemini Embedding 2",
         "description": "Obtain a distributed representation of multimodal content.",
         "inputTokenLimit": 8192,
         "outputTokenLimit": 1,
@@ -1556,126 +1861,9 @@
       "supportsDocuments": false,
       "supportsImageInput": false,
       "_source": "api"
-    },
-    {
-      "id": "gemini-2.5-flash-native-audio-latest",
-      "name": "Gemini 2.5 Flash Native Audio Latest",
-      "description": "Latest release of Gemini 2.5 Flash Native Audio",
-      "contextLength": 131072,
-      "maxOutputTokens": 8192,
-      "supportsThinking": true,
-      "temperatureRange": {
-        "default": 1,
-        "max": 2
-      },
-      "_raw": {
-        "name": "models/gemini-2.5-flash-native-audio-latest",
-        "version": "Gemini 2.5 Flash Native Audio Latest",
-        "displayName": "Gemini 2.5 Flash Native Audio Latest",
-        "description": "Latest release of Gemini 2.5 Flash Native Audio",
-        "inputTokenLimit": 131072,
-        "outputTokenLimit": 8192,
-        "supportedGenerationMethods": [
-          "countTokens",
-          "bidiGenerateContent"
-        ],
-        "temperature": 1,
-        "topP": 0.95,
-        "topK": 64,
-        "maxTemperature": 2,
-        "thinking": true
-      },
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceOutput": true,
-      "supportsVoiceInput": true,
-      "supportsRealtime": false,
-      "supportsFunctions": false,
-      "supportsVision": false,
-      "supportsDocuments": false,
-      "supportsImageInput": false,
-      "_source": "api"
-    },
-    {
-      "id": "gemini-2.5-flash-native-audio-preview-09-2025",
-      "name": "Gemini 2.5 Flash Native Audio Preview 09-2025",
-      "description": "Gemini 2.5 Flash Native Audio Preview 09-2025",
-      "contextLength": 131072,
-      "maxOutputTokens": 8192,
-      "supportsThinking": true,
-      "temperatureRange": {
-        "default": 1,
-        "max": 2
-      },
-      "_raw": {
-        "name": "models/gemini-2.5-flash-native-audio-preview-09-2025",
-        "version": "gemini-2.5-flash-preview-native-audio-dialog-2025-05-19",
-        "displayName": "Gemini 2.5 Flash Native Audio Preview 09-2025",
-        "description": "Gemini 2.5 Flash Native Audio Preview 09-2025",
-        "inputTokenLimit": 131072,
-        "outputTokenLimit": 8192,
-        "supportedGenerationMethods": [
-          "countTokens",
-          "bidiGenerateContent"
-        ],
-        "temperature": 1,
-        "topP": 0.95,
-        "topK": 64,
-        "maxTemperature": 2,
-        "thinking": true
-      },
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceOutput": true,
-      "supportsVoiceInput": true,
-      "supportsRealtime": false,
-      "supportsFunctions": false,
-      "supportsVision": false,
-      "supportsDocuments": false,
-      "supportsImageInput": false,
-      "_source": "api"
-    },
-    {
-      "id": "gemini-2.5-flash-native-audio-preview-12-2025",
-      "name": "Gemini 2.5 Flash Native Audio Preview 12-2025",
-      "description": "Gemini 2.5 Flash Native Audio Preview 12-2025",
-      "contextLength": 131072,
-      "maxOutputTokens": 8192,
-      "supportsThinking": true,
-      "temperatureRange": {
-        "default": 1,
-        "max": 2
-      },
-      "_raw": {
-        "name": "models/gemini-2.5-flash-native-audio-preview-12-2025",
-        "version": "12-2025",
-        "displayName": "Gemini 2.5 Flash Native Audio Preview 12-2025",
-        "description": "Gemini 2.5 Flash Native Audio Preview 12-2025",
-        "inputTokenLimit": 131072,
-        "outputTokenLimit": 8192,
-        "supportedGenerationMethods": [
-          "countTokens",
-          "bidiGenerateContent"
-        ],
-        "temperature": 1,
-        "topP": 0.95,
-        "topK": 64,
-        "maxTemperature": 2,
-        "thinking": true
-      },
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceOutput": true,
-      "supportsVoiceInput": true,
-      "supportsRealtime": false,
-      "supportsFunctions": false,
-      "supportsVision": false,
-      "supportsDocuments": false,
-      "supportsImageInput": false,
-      "_source": "api"
     }
   ],
   "meta": {
-    "discoveredAt": "2026-03-17T15:12:28.151Z"
+    "discoveredAt": "2026-04-26T06:45:09.236Z"
   }
 }

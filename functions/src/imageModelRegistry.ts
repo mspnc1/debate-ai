@@ -18,6 +18,10 @@ export interface ImageModelConfig {
 }
 
 const IMAGE_MODEL_ALIASES: Partial<Record<ImageProviderId, Record<string, string>>> = {
+  openai: {
+    'gpt-image-latest': 'gpt-image-2',
+    'chatgpt-image-latest': 'gpt-image-2',
+  },
   google: {
     'gemini-3-pro-image': 'gemini-3-pro-image-preview',
   },
@@ -36,11 +40,18 @@ function createImageModel(config: ImageModelConfig): ImageModelConfig {
 export const IMAGE_MODELS: Record<ImageProviderId, ImageModelConfig[]> = {
   openai: [
     createImageModel({
+      id: 'gpt-image-2',
+      displayName: 'GPT Image 2',
+      apiFamily: 'openai-images',
+      supportsImageInput: true,
+      isDefault: true,
+    }),
+    createImageModel({
       id: 'gpt-image-1.5',
       displayName: 'GPT Image 1.5',
       apiFamily: 'openai-images',
       supportsImageInput: true,
-      isDefault: true,
+      isDefault: false,
     }),
     createImageModel({
       id: 'chatgpt-image-latest',
@@ -48,6 +59,7 @@ export const IMAGE_MODELS: Record<ImageProviderId, ImageModelConfig[]> = {
       apiFamily: 'openai-images',
       supportsImageInput: true,
       isDefault: false,
+      isDeprecated: true,
     }),
     createImageModel({
       id: 'gpt-image-1',

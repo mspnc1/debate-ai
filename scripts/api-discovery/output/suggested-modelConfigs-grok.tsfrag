@@ -63,8 +63,8 @@
       supportsImageInput: true,
     },
 {
-      id: 'grok-4.20-beta-0309-non-reasoning',
-      name: 'grok-4.20-beta-0309-non-reasoning',
+      id: 'grok-4.20-0309-non-reasoning',
+      name: 'grok-4.20-0309-non-reasoning',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
@@ -72,8 +72,8 @@
       supportsImageInput: true,
     },
 {
-      id: 'grok-4.20-beta-0309-reasoning',
-      name: 'grok-4.20-beta-0309-reasoning',
+      id: 'grok-4.20-0309-reasoning',
+      name: 'grok-4.20-0309-reasoning',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
@@ -81,8 +81,8 @@
       supportsImageInput: true,
     },
 {
-      id: 'grok-4.20-multi-agent-beta-0309',
-      name: 'grok-4.20-multi-agent-beta-0309',
+      id: 'grok-4.20-multi-agent-0309',
+      name: 'grok-4.20-multi-agent-0309',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,

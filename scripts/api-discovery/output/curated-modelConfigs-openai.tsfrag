@@ -1,7 +1,7 @@
 // Curated ModelConfig entries for AI_MODELS['openai'] (default + recommended)
 {
-      id: 'gpt-5.4',
-      name: 'gpt-5.4',
+      id: 'gpt-5.5',
+      name: 'gpt-5.5',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
@@ -9,16 +9,16 @@
       isDefault: true,
     },
 {
-      id: 'gpt-5.1-codex-mini',
-      name: 'gpt-5.1-codex-mini',
+      id: 'gpt-5.4-mini',
+      name: 'gpt-5.4-mini',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
       supportsImageInput: true,
     },
 {
-      id: 'gpt-5-nano',
-      name: 'gpt-5-nano',
+      id: 'gpt-5.4-nano',
+      name: 'gpt-5.4-nano',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
@@ -37,9 +37,8 @@
       contextLength: 128000,
     },
 {
-      id: 'gpt-image-1.5',
-      name: 'gpt-image-1.5',
+      id: 'gpt-image-2',
+      name: 'gpt-image-2',
       description: 'No description available',
       contextLength: 128000,
-      supportsImageGeneration: true,
     },

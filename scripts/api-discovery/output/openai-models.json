@@ -56,12 +56,12 @@
       "_source": "api"
     },
     {
-      "id": "gpt-5.4",
-      "name": "gpt-5.4",
+      "id": "gpt-5.5-pro-2026-04-23",
+      "name": "gpt-5.5-pro-2026-04-23",
       "_raw": {
-        "id": "gpt-5.4",
+        "id": "gpt-5.5-pro-2026-04-23",
         "object": "model",
-        "created": 1772691852,
+        "created": 1776894470,
         "owned_by": "system"
       },
       "supportsVision": true,
@@ -74,12 +74,30 @@
       "_source": "api"
     },
     {
-      "id": "gpt-5.3-chat-latest",
-      "name": "gpt-5.3-chat-latest",
+      "id": "gpt-image-2-2026-04-21",
+      "name": "gpt-image-2-2026-04-21",
       "_raw": {
-        "id": "gpt-5.3-chat-latest",
+        "id": "gpt-image-2-2026-04-21",
         "object": "model",
-        "created": 1772236571,
+        "created": 1776399994,
+        "owned_by": "system"
+      },
+      "supportsVision": false,
+      "supportsDocuments": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-5.5",
+      "name": "gpt-5.5",
+      "_raw": {
+        "id": "gpt-5.5",
+        "object": "model",
+        "created": 1776824847,
         "owned_by": "system"
       },
       "supportsVision": true,
@@ -92,12 +110,12 @@
       "_source": "api"
     },
     {
-      "id": "gpt-5.4-2026-03-05",
-      "name": "gpt-5.4-2026-03-05",
+      "id": "gpt-5.5-2026-04-23",
+      "name": "gpt-5.5-2026-04-23",
       "_raw": {
-        "id": "gpt-5.4-2026-03-05",
+        "id": "gpt-5.5-2026-04-23",
         "object": "model",
-        "created": 1772654062,
+        "created": 1776839241,
         "owned_by": "system"
       },
       "supportsVision": true,
@@ -110,30 +128,12 @@
       "_source": "api"
     },
     {
-      "id": "gpt-5.4-pro",
-      "name": "gpt-5.4-pro",
+      "id": "gpt-5.5-pro",
+      "name": "gpt-5.5-pro",
       "_raw": {
-        "id": "gpt-5.4-pro",
+        "id": "gpt-5.5-pro",
         "object": "model",
-        "created": 1772659601,
-        "owned_by": "system"
-      },
-      "supportsVision": true,
-      "supportsDocuments": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsVideoGeneration": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true,
-      "_source": "api"
-    },
-    {
-      "id": "gpt-5.4-pro-2026-03-05",
-      "name": "gpt-5.4-pro-2026-03-05",
-      "_raw": {
-        "id": "gpt-5.4-pro-2026-03-05",
-        "object": "model",
-        "created": 1772659657,
+        "created": 1776894349,
         "owned_by": "system"
       },
       "supportsVision": true,
@@ -256,24 +256,6 @@
       "_source": "api"
     },
     {
-      "id": "gpt-4-1106-preview",
-      "name": "gpt-4-1106-preview",
-      "_raw": {
-        "id": "gpt-4-1106-preview",
-        "object": "model",
-        "created": 1698957206,
-        "owned_by": "system"
-      },
-      "supportsVision": false,
-      "supportsDocuments": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsVideoGeneration": false,
-      "supportsRealtime": false,
-      "supportsImageInput": false,
-      "_source": "api"
-    },
-    {
       "id": "gpt-3.5-turbo-1106",
       "name": "gpt-3.5-turbo-1106",
       "_raw": {
@@ -370,42 +352,6 @@
         "id": "text-embedding-3-large",
         "object": "model",
         "created": 1705953180,
-        "owned_by": "system"
-      },
-      "supportsVision": false,
-      "supportsDocuments": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsVideoGeneration": false,
-      "supportsRealtime": false,
-      "supportsImageInput": false,
-      "_source": "api"
-    },
-    {
-      "id": "gpt-4-0125-preview",
-      "name": "gpt-4-0125-preview",
-      "_raw": {
-        "id": "gpt-4-0125-preview",
-        "object": "model",
-        "created": 1706037612,
-        "owned_by": "system"
-      },
-      "supportsVision": false,
-      "supportsDocuments": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsVideoGeneration": false,
-      "supportsRealtime": false,
-      "supportsImageInput": false,
-      "_source": "api"
-    },
-    {
-      "id": "gpt-4-turbo-preview",
-      "name": "gpt-4-turbo-preview",
-      "_raw": {
-        "id": "gpt-4-turbo-preview",
-        "object": "model",
-        "created": 1706037777,
         "owned_by": "system"
       },
       "supportsVision": false,
@@ -2179,6 +2125,186 @@
       "_source": "api"
     },
     {
+      "id": "gpt-5.3-chat-latest",
+      "name": "gpt-5.3-chat-latest",
+      "_raw": {
+        "id": "gpt-5.3-chat-latest",
+        "object": "model",
+        "created": 1772236571,
+        "owned_by": "system"
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-5.4-2026-03-05",
+      "name": "gpt-5.4-2026-03-05",
+      "_raw": {
+        "id": "gpt-5.4-2026-03-05",
+        "object": "model",
+        "created": 1772654062,
+        "owned_by": "system"
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-5.4-pro",
+      "name": "gpt-5.4-pro",
+      "_raw": {
+        "id": "gpt-5.4-pro",
+        "object": "model",
+        "created": 1772659601,
+        "owned_by": "system"
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-5.4-pro-2026-03-05",
+      "name": "gpt-5.4-pro-2026-03-05",
+      "_raw": {
+        "id": "gpt-5.4-pro-2026-03-05",
+        "object": "model",
+        "created": 1772659657,
+        "owned_by": "system"
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-5.4",
+      "name": "gpt-5.4",
+      "_raw": {
+        "id": "gpt-5.4",
+        "object": "model",
+        "created": 1772691852,
+        "owned_by": "system"
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-5.4-nano-2026-03-17",
+      "name": "gpt-5.4-nano-2026-03-17",
+      "_raw": {
+        "id": "gpt-5.4-nano-2026-03-17",
+        "object": "model",
+        "created": 1773450837,
+        "owned_by": "system"
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-5.4-nano",
+      "name": "gpt-5.4-nano",
+      "_raw": {
+        "id": "gpt-5.4-nano",
+        "object": "model",
+        "created": 1773450870,
+        "owned_by": "system"
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-5.4-mini-2026-03-17",
+      "name": "gpt-5.4-mini-2026-03-17",
+      "_raw": {
+        "id": "gpt-5.4-mini-2026-03-17",
+        "object": "model",
+        "created": 1773451076,
+        "owned_by": "system"
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-5.4-mini",
+      "name": "gpt-5.4-mini",
+      "_raw": {
+        "id": "gpt-5.4-mini",
+        "object": "model",
+        "created": 1773451123,
+        "owned_by": "system"
+      },
+      "supportsVision": true,
+      "supportsDocuments": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "gpt-image-2",
+      "name": "gpt-image-2",
+      "_raw": {
+        "id": "gpt-image-2",
+        "object": "model",
+        "created": 1776399795,
+        "owned_by": "system"
+      },
+      "supportsVision": false,
+      "supportsDocuments": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsVideoGeneration": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false,
+      "_source": "api"
+    },
+    {
       "id": "gpt-3.5-turbo-16k",
       "name": "gpt-3.5-turbo-16k",
       "_raw": {
@@ -2252,6 +2378,6 @@
     }
   ],
   "meta": {
-    "discoveredAt": "2026-03-17T15:12:27.795Z"
+    "discoveredAt": "2026-04-26T06:45:08.843Z"
   }
 }

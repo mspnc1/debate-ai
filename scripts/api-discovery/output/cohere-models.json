@@ -2,22 +2,94 @@
   "provider": "cohere",
   "models": [
     {
-      "id": "embed-english-light-v3.0",
-      "name": "embed-english-light-v3.0",
-      "contextLength": 512,
+      "id": "c4ai-aya-expanse-32b",
+      "name": "c4ai-aya-expanse-32b",
+      "contextLength": 128000,
       "features": [],
       "endpoints": [
-        "embed"
+        "generate",
+        "chat"
       ],
       "isDeprecated": false,
       "_raw": {
-        "name": "embed-english-light-v3.0",
+        "name": "c4ai-aya-expanse-32b",
         "endpoints": [
-          "embed"
+          "generate",
+          "chat"
         ],
         "finetuned": false,
-        "context_length": 512,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/embed-english-light-v3.0.json",
+        "context_length": 128000,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/c4ai-aya-expanse-32b.json",
+        "features": null,
+        "default_endpoints": []
+      },
+      "supportsVision": false,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
+      "_source": "api"
+    },
+    {
+      "id": "c4ai-aya-vision-32b",
+      "name": "c4ai-aya-vision-32b",
+      "contextLength": 16384,
+      "features": [
+        "logprobs",
+        "vision"
+      ],
+      "endpoints": [
+        "chat"
+      ],
+      "isDeprecated": false,
+      "_raw": {
+        "name": "c4ai-aya-vision-32b",
+        "endpoints": [
+          "chat"
+        ],
+        "finetuned": false,
+        "context_length": 16384,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/c4ai-aya-vision-32b.json",
+        "features": [
+          "logprobs",
+          "vision"
+        ],
+        "default_endpoints": []
+      },
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
+      "_source": "api"
+    },
+    {
+      "id": "cohere-transcribe-03-2026",
+      "name": "cohere-transcribe-03-2026",
+      "contextLength": 32768,
+      "features": [],
+      "endpoints": [
+        "transcriptions"
+      ],
+      "isDeprecated": false,
+      "_raw": {
+        "name": "cohere-transcribe-03-2026",
+        "endpoints": [
+          "transcriptions"
+        ],
+        "finetuned": false,
+        "context_length": 32768,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/cohere-transcribe-03-2026.json",
         "features": null,
         "default_endpoints": []
       },
@@ -31,6 +103,145 @@
       "supportsImageInput": false,
       "supportsFunctions": false,
       "supportsJsonMode": false,
+      "_source": "api"
+    },
+    {
+      "id": "command-a-03-2025",
+      "name": "command-a-03-2025",
+      "contextLength": 288000,
+      "features": [
+        "json_mode",
+        "json_schema",
+        "strict_tools",
+        "safety_modes",
+        "tools"
+      ],
+      "endpoints": [
+        "chat"
+      ],
+      "isDeprecated": false,
+      "_raw": {
+        "name": "command-a-03-2025",
+        "endpoints": [
+          "chat"
+        ],
+        "finetuned": false,
+        "context_length": 288000,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-a-03-2025.json",
+        "features": [
+          "json_mode",
+          "json_schema",
+          "strict_tools",
+          "safety_modes",
+          "tools"
+        ],
+        "default_endpoints": [
+          "chat",
+          "generate"
+        ]
+      },
+      "supportsVision": false,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false,
+      "supportsFunctions": true,
+      "supportsJsonMode": true,
+      "_source": "api"
+    },
+    {
+      "id": "command-a-reasoning-08-2025",
+      "name": "command-a-reasoning-08-2025",
+      "contextLength": 288768,
+      "features": [
+        "json_mode",
+        "json_schema",
+        "strict_tools",
+        "safety_modes",
+        "tools",
+        "reasoning"
+      ],
+      "endpoints": [
+        "chat"
+      ],
+      "isDeprecated": false,
+      "_raw": {
+        "name": "command-a-reasoning-08-2025",
+        "endpoints": [
+          "chat"
+        ],
+        "finetuned": false,
+        "context_length": 288768,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-a-reasoning-08-2025.json",
+        "features": [
+          "json_mode",
+          "json_schema",
+          "strict_tools",
+          "safety_modes",
+          "tools",
+          "reasoning"
+        ],
+        "default_endpoints": [],
+        "sampling_defaults": {
+          "temperature": 0.6,
+          "p": 0.95
+        }
+      },
+      "supportsVision": false,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false,
+      "supportsFunctions": true,
+      "supportsJsonMode": true,
+      "_source": "api"
+    },
+    {
+      "id": "command-a-translate-08-2025",
+      "name": "command-a-translate-08-2025",
+      "contextLength": 8992,
+      "features": [
+        "json_mode",
+        "json_schema",
+        "safety_modes",
+        "tools"
+      ],
+      "endpoints": [
+        "chat"
+      ],
+      "isDeprecated": false,
+      "_raw": {
+        "name": "command-a-translate-08-2025",
+        "endpoints": [
+          "chat"
+        ],
+        "finetuned": false,
+        "context_length": 8992,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-a-translate-08-2025.json",
+        "features": [
+          "json_mode",
+          "json_schema",
+          "safety_modes",
+          "tools"
+        ],
+        "default_endpoints": []
+      },
+      "supportsVision": false,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": true,
       "_source": "api"
     },
     {
@@ -80,364 +291,9 @@
       "_source": "api"
     },
     {
-      "id": "embed-multilingual-v2.0",
-      "name": "embed-multilingual-v2.0",
-      "contextLength": 256,
-      "features": [],
-      "endpoints": [
-        "embed"
-      ],
-      "isDeprecated": true,
-      "_raw": {
-        "name": "embed-multilingual-v2.0",
-        "endpoints": [
-          "embed"
-        ],
-        "finetuned": false,
-        "context_length": 256,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-v2.0.json",
-        "features": null,
-        "default_endpoints": [],
-        "is_deprecated": true
-      },
-      "supportsVision": false,
-      "supportsDocuments": false,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": false,
-      "supportsFunctions": false,
-      "supportsJsonMode": false,
-      "_source": "api"
-    },
-    {
-      "id": "rerank-v4.0-fast",
-      "name": "rerank-v4.0-fast",
-      "contextLength": 32768,
-      "features": [],
-      "endpoints": [
-        "rerank"
-      ],
-      "isDeprecated": false,
-      "_raw": {
-        "name": "rerank-v4.0-fast",
-        "endpoints": [
-          "rerank"
-        ],
-        "finetuned": false,
-        "context_length": 32768,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/rerank-v4.0-fast.json",
-        "features": null,
-        "default_endpoints": []
-      },
-      "supportsVision": false,
-      "supportsDocuments": false,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": false,
-      "supportsFunctions": false,
-      "supportsJsonMode": false,
-      "_source": "api"
-    },
-    {
-      "id": "rerank-multilingual-v3.0",
-      "name": "rerank-multilingual-v3.0",
-      "contextLength": 4096,
-      "features": [],
-      "endpoints": [
-        "rerank"
-      ],
-      "isDeprecated": false,
-      "_raw": {
-        "name": "rerank-multilingual-v3.0",
-        "endpoints": [
-          "rerank"
-        ],
-        "finetuned": false,
-        "context_length": 4096,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/rerank-multilingual-v3.0.json",
-        "features": null,
-        "default_endpoints": []
-      },
-      "supportsVision": false,
-      "supportsDocuments": false,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": false,
-      "supportsFunctions": false,
-      "supportsJsonMode": false,
-      "_source": "api"
-    },
-    {
-      "id": "c4ai-aya-vision-8b",
-      "name": "c4ai-aya-vision-8b",
-      "contextLength": 16384,
-      "features": [
-        "logprobs",
-        "vision"
-      ],
-      "endpoints": [
-        "chat"
-      ],
-      "isDeprecated": true,
-      "_raw": {
-        "name": "c4ai-aya-vision-8b",
-        "endpoints": [
-          "chat"
-        ],
-        "finetuned": false,
-        "context_length": 16384,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/c4ai-aya-vision-8b.json",
-        "features": [
-          "logprobs",
-          "vision"
-        ],
-        "default_endpoints": [],
-        "is_deprecated": true
-      },
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true,
-      "supportsFunctions": false,
-      "supportsJsonMode": false,
-      "_source": "api"
-    },
-    {
-      "id": "tiny-aya-fire",
-      "name": "tiny-aya-fire",
-      "contextLength": 8192,
-      "features": [
-        "logprobs",
-        "json_mode",
-        "json_schema"
-      ],
-      "endpoints": [
-        "generate",
-        "chat"
-      ],
-      "isDeprecated": false,
-      "_raw": {
-        "name": "tiny-aya-fire",
-        "endpoints": [
-          "generate",
-          "chat"
-        ],
-        "finetuned": false,
-        "context_length": 8192,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/tiny-aya-fire.json",
-        "features": [
-          "logprobs",
-          "json_mode",
-          "json_schema"
-        ],
-        "default_endpoints": []
-      },
-      "supportsVision": false,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": false,
-      "supportsFunctions": false,
-      "supportsJsonMode": true,
-      "_source": "api"
-    },
-    {
-      "id": "command-a-reasoning-08-2025",
-      "name": "command-a-reasoning-08-2025",
-      "contextLength": 288768,
-      "features": [
-        "json_mode",
-        "json_schema",
-        "strict_tools",
-        "safety_modes",
-        "tools",
-        "reasoning"
-      ],
-      "endpoints": [
-        "chat"
-      ],
-      "isDeprecated": false,
-      "_raw": {
-        "name": "command-a-reasoning-08-2025",
-        "endpoints": [
-          "chat"
-        ],
-        "finetuned": false,
-        "context_length": 288768,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-a-reasoning-08-2025.json",
-        "features": [
-          "json_mode",
-          "json_schema",
-          "strict_tools",
-          "safety_modes",
-          "tools",
-          "reasoning"
-        ],
-        "default_endpoints": []
-      },
-      "supportsVision": false,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": false,
-      "supportsFunctions": true,
-      "supportsJsonMode": true,
-      "_source": "api"
-    },
-    {
-      "id": "embed-multilingual-light-v3.0-image",
-      "name": "embed-multilingual-light-v3.0-image",
-      "contextLength": null,
-      "features": [],
-      "endpoints": [
-        "embed_image"
-      ],
-      "isDeprecated": false,
-      "_raw": {
-        "name": "embed-multilingual-light-v3.0-image",
-        "endpoints": [
-          "embed_image"
-        ],
-        "finetuned": false,
-        "context_length": 0,
-        "tokenizer_url": null,
-        "features": null,
-        "default_endpoints": []
-      },
-      "supportsVision": false,
-      "supportsDocuments": false,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": false,
-      "supportsFunctions": false,
-      "supportsJsonMode": false,
-      "_source": "api"
-    },
-    {
-      "id": "embed-english-light-v3.0-image",
-      "name": "embed-english-light-v3.0-image",
-      "contextLength": null,
-      "features": [],
-      "endpoints": [
-        "embed_image"
-      ],
-      "isDeprecated": false,
-      "_raw": {
-        "name": "embed-english-light-v3.0-image",
-        "endpoints": [
-          "embed_image"
-        ],
-        "finetuned": false,
-        "context_length": 0,
-        "tokenizer_url": null,
-        "features": null,
-        "default_endpoints": []
-      },
-      "supportsVision": false,
-      "supportsDocuments": false,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": false,
-      "supportsFunctions": false,
-      "supportsJsonMode": false,
-      "_source": "api"
-    },
-    {
-      "id": "embed-english-v3.0-image",
-      "name": "embed-english-v3.0-image",
-      "contextLength": null,
-      "features": [],
-      "endpoints": [
-        "embed_image"
-      ],
-      "isDeprecated": false,
-      "_raw": {
-        "name": "embed-english-v3.0-image",
-        "endpoints": [
-          "embed_image"
-        ],
-        "finetuned": false,
-        "context_length": 0,
-        "tokenizer_url": null,
-        "features": null,
-        "default_endpoints": []
-      },
-      "supportsVision": false,
-      "supportsDocuments": false,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": false,
-      "supportsFunctions": false,
-      "supportsJsonMode": false,
-      "_source": "api"
-    },
-    {
-      "id": "c4ai-aya-expanse-8b",
-      "name": "c4ai-aya-expanse-8b",
-      "contextLength": 8192,
-      "features": [],
-      "endpoints": [
-        "generate",
-        "chat"
-      ],
-      "isDeprecated": true,
-      "_raw": {
-        "name": "c4ai-aya-expanse-8b",
-        "endpoints": [
-          "generate",
-          "chat"
-        ],
-        "finetuned": false,
-        "context_length": 8192,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/c4ai-aya-expanse-8b.json",
-        "features": null,
-        "default_endpoints": [],
-        "is_deprecated": true
-      },
-      "supportsVision": false,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": false,
-      "supportsFunctions": false,
-      "supportsJsonMode": false,
-      "_source": "api"
-    },
-    {
       "id": "command-r-08-2024",
       "name": "command-r-08-2024",
-      "contextLength": 132096,
+      "contextLength": 128000,
       "features": [
         "logprobs",
         "json_mode",
@@ -460,7 +316,7 @@
           "summarize"
         ],
         "finetuned": false,
-        "context_length": 132096,
+        "context_length": 128000,
         "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-r-08-2024.json",
         "features": [
           "logprobs",
@@ -485,32 +341,40 @@
       "_source": "api"
     },
     {
-      "id": "tiny-aya-water",
-      "name": "tiny-aya-water",
-      "contextLength": 8192,
+      "id": "command-r-plus-08-2024",
+      "name": "command-r-plus-08-2024",
+      "contextLength": 128000,
       "features": [
         "logprobs",
         "json_mode",
-        "json_schema"
+        "json_schema",
+        "strict_tools",
+        "safety_modes",
+        "tools"
       ],
       "endpoints": [
         "generate",
-        "chat"
+        "chat",
+        "summarize"
       ],
       "isDeprecated": false,
       "_raw": {
-        "name": "tiny-aya-water",
+        "name": "command-r-plus-08-2024",
         "endpoints": [
           "generate",
-          "chat"
+          "chat",
+          "summarize"
         ],
         "finetuned": false,
-        "context_length": 8192,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/tiny-aya-water.json",
+        "context_length": 128000,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-r-plus-08-2024.json",
         "features": [
           "logprobs",
           "json_mode",
-          "json_schema"
+          "json_schema",
+          "strict_tools",
+          "safety_modes",
+          "tools"
         ],
         "default_endpoints": []
       },
@@ -522,7 +386,55 @@
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
       "supportsImageInput": false,
-      "supportsFunctions": false,
+      "supportsFunctions": true,
+      "supportsJsonMode": true,
+      "_source": "api"
+    },
+    {
+      "id": "command-r7b-12-2024",
+      "name": "command-r7b-12-2024",
+      "contextLength": 132000,
+      "features": [
+        "logprobs",
+        "json_mode",
+        "json_schema",
+        "strict_tools",
+        "safety_modes",
+        "tools"
+      ],
+      "endpoints": [
+        "generate",
+        "chat"
+      ],
+      "isDeprecated": false,
+      "_raw": {
+        "name": "command-r7b-12-2024",
+        "endpoints": [
+          "generate",
+          "chat"
+        ],
+        "finetuned": false,
+        "context_length": 132000,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-r7b-12-2024.json",
+        "features": [
+          "logprobs",
+          "json_mode",
+          "json_schema",
+          "strict_tools",
+          "safety_modes",
+          "tools"
+        ],
+        "default_endpoints": []
+      },
+      "supportsVision": false,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false,
+      "supportsFunctions": true,
       "supportsJsonMode": true,
       "_source": "api"
     },
@@ -575,22 +487,54 @@
       "_source": "api"
     },
     {
-      "id": "rerank-v4.0-pro",
-      "name": "rerank-v4.0-pro",
-      "contextLength": 32768,
+      "id": "embed-english-light-v3.0",
+      "name": "embed-english-light-v3.0",
+      "contextLength": 512,
       "features": [],
       "endpoints": [
-        "rerank"
+        "embed"
       ],
       "isDeprecated": false,
       "_raw": {
-        "name": "rerank-v4.0-pro",
+        "name": "embed-english-light-v3.0",
         "endpoints": [
-          "rerank"
+          "embed"
         ],
         "finetuned": false,
-        "context_length": 32768,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/rerank-v4.0-pro.json",
+        "context_length": 512,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/embed-english-light-v3.0.json",
+        "features": null,
+        "default_endpoints": []
+      },
+      "supportsVision": false,
+      "supportsDocuments": false,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
+      "_source": "api"
+    },
+    {
+      "id": "embed-english-light-v3.0-image",
+      "name": "embed-english-light-v3.0-image",
+      "contextLength": null,
+      "features": [],
+      "endpoints": [
+        "embed_image"
+      ],
+      "isDeprecated": false,
+      "_raw": {
+        "name": "embed-english-light-v3.0-image",
+        "endpoints": [
+          "embed_image"
+        ],
+        "finetuned": false,
+        "context_length": 0,
+        "tokenizer_url": null,
         "features": null,
         "default_endpoints": []
       },
@@ -639,29 +583,27 @@
       "_source": "api"
     },
     {
-      "id": "c4ai-aya-expanse-32b",
-      "name": "c4ai-aya-expanse-32b",
-      "contextLength": 128000,
+      "id": "embed-english-v3.0-image",
+      "name": "embed-english-v3.0-image",
+      "contextLength": null,
       "features": [],
       "endpoints": [
-        "generate",
-        "chat"
+        "embed_image"
       ],
       "isDeprecated": false,
       "_raw": {
-        "name": "c4ai-aya-expanse-32b",
+        "name": "embed-english-v3.0-image",
         "endpoints": [
-          "generate",
-          "chat"
+          "embed_image"
         ],
         "finetuned": false,
-        "context_length": 128000,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/c4ai-aya-expanse-32b.json",
+        "context_length": 0,
+        "tokenizer_url": null,
         "features": null,
         "default_endpoints": []
       },
       "supportsVision": false,
-      "supportsDocuments": true,
+      "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
       "supportsVoiceInput": false,
@@ -673,51 +615,131 @@
       "_source": "api"
     },
     {
-      "id": "command-r7b-12-2024",
-      "name": "command-r7b-12-2024",
-      "contextLength": 132000,
-      "features": [
-        "logprobs",
-        "json_mode",
-        "json_schema",
-        "strict_tools",
-        "safety_modes",
-        "tools"
-      ],
+      "id": "embed-multilingual-light-v3.0",
+      "name": "embed-multilingual-light-v3.0",
+      "contextLength": 512,
+      "features": [],
       "endpoints": [
-        "generate",
-        "chat"
+        "embed"
       ],
       "isDeprecated": false,
       "_raw": {
-        "name": "command-r7b-12-2024",
+        "name": "embed-multilingual-light-v3.0",
         "endpoints": [
-          "generate",
-          "chat"
+          "embed"
         ],
         "finetuned": false,
-        "context_length": 132000,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-r7b-12-2024.json",
-        "features": [
-          "logprobs",
-          "json_mode",
-          "json_schema",
-          "strict_tools",
-          "safety_modes",
-          "tools"
-        ],
+        "context_length": 512,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-light-v3.0.json",
+        "features": null,
         "default_endpoints": []
       },
       "supportsVision": false,
-      "supportsDocuments": true,
+      "supportsDocuments": false,
       "supportsImageGeneration": false,
       "supportsVideoGeneration": false,
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
       "supportsImageInput": false,
-      "supportsFunctions": true,
-      "supportsJsonMode": true,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
+      "_source": "api"
+    },
+    {
+      "id": "embed-multilingual-light-v3.0-image",
+      "name": "embed-multilingual-light-v3.0-image",
+      "contextLength": null,
+      "features": [],
+      "endpoints": [
+        "embed_image"
+      ],
+      "isDeprecated": false,
+      "_raw": {
+        "name": "embed-multilingual-light-v3.0-image",
+        "endpoints": [
+          "embed_image"
+        ],
+        "finetuned": false,
+        "context_length": 0,
+        "tokenizer_url": null,
+        "features": null,
+        "default_endpoints": []
+      },
+      "supportsVision": false,
+      "supportsDocuments": false,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
+      "_source": "api"
+    },
+    {
+      "id": "embed-multilingual-v3.0",
+      "name": "embed-multilingual-v3.0",
+      "contextLength": 512,
+      "features": [],
+      "endpoints": [
+        "embed"
+      ],
+      "isDeprecated": false,
+      "_raw": {
+        "name": "embed-multilingual-v3.0",
+        "endpoints": [
+          "embed"
+        ],
+        "finetuned": false,
+        "context_length": 512,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-v3.0.json",
+        "features": null,
+        "default_endpoints": []
+      },
+      "supportsVision": false,
+      "supportsDocuments": false,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
+      "_source": "api"
+    },
+    {
+      "id": "embed-multilingual-v3.0-image",
+      "name": "embed-multilingual-v3.0-image",
+      "contextLength": null,
+      "features": [],
+      "endpoints": [
+        "embed_image"
+      ],
+      "isDeprecated": false,
+      "_raw": {
+        "name": "embed-multilingual-v3.0-image",
+        "endpoints": [
+          "embed_image"
+        ],
+        "finetuned": false,
+        "context_length": 0,
+        "tokenizer_url": null,
+        "features": null,
+        "default_endpoints": []
+      },
+      "supportsVision": false,
+      "supportsDocuments": false,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": false,
+      "supportsFunctions": false,
+      "supportsJsonMode": false,
       "_source": "api"
     },
     {
@@ -754,6 +776,6 @@
     }
   ],
   "meta": {
-    "discoveredAt": "2026-03-17T15:12:29.260Z"
+    "discoveredAt": "2026-04-26T06:45:10.188Z"
   }
 }

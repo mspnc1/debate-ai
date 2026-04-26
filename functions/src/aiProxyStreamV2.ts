@@ -16,7 +16,7 @@ import { getDecryptedApiKey, encryptionKey } from './apiKeys';
 import { recordUsageInternal } from './usageTracking';
 import { ProviderRegistry, isV2Supported } from './providers/registry';
 import { generateTraceId, createErrorEvent } from './providers/base-runtime';
-import { resolveProviderModelId } from './modelRegistry';
+import { normalizeProviderTemperature, resolveProviderModelId } from './modelRegistry';
 import type {
   CanonicalStreamRequest,
   CanonicalSSEEvent,
@@ -263,6 +263,11 @@ export const proxyAIRequestStreamV2 = onRequest(
         writer.end();
         return;
       }
+      const resolvedTemperature = normalizeProviderTemperature(
+        providerId,
+        resolvedModel,
+        typeof temperature === 'number' ? temperature : 0.7
+      ) ?? 0.7;
 
       // Validate messages
       if (!rawMessages || !Array.isArray(rawMessages) || rawMessages.length === 0) {
@@ -310,7 +315,7 @@ export const proxyAIRequestStreamV2 = onRequest(
           messages,
           systemPrompt,
           maxTokens,
-          temperature,
+          temperature: resolvedTemperature,
           tools,
           toolChoice,
           attachments,

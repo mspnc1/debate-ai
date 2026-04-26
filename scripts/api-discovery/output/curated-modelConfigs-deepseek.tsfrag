@@ -1,20 +1,11 @@
 // Curated ModelConfig entries for AI_MODELS['deepseek'] (default + recommended)
 {
-      id: 'deepseek-chat',
-      name: 'deepseek-chat',
+      id: 'deepseek-v4-flash',
+      name: 'deepseek-v4-flash',
       description: 'No description available',
       contextLength: 128000,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
       isDefault: true,
-    },
-{
-      id: 'deepseek-reasoner',
-      name: 'deepseek-reasoner',
-      description: 'No description available',
-      contextLength: 128000,
-      supportsVision: true,
-      supportsDocuments: true,
-      supportsImageInput: true,
     },

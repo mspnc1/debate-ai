@@ -167,7 +167,10 @@ function parseProviderError(
     case 400:
       if (errorMessage.includes('max_tokens') || errorMessage.includes('max_completion_tokens')) {
         userMessage = `${displayName} request failed due to a parameter issue. This is a bug - please report it.`;
-      } else if (errorMessage.includes('model')) {
+      } else if (
+        /model (not found|not available|does not exist|is not supported|is unavailable)/i.test(errorMessage) ||
+        /invalid model/i.test(errorMessage)
+      ) {
         userMessage = `${displayName} model not available. Please try a different model.`;
       } else if (errorMessage.includes('content') || errorMessage.includes('safety') || errorMessage.includes('moderation')) {
         userMessage = `${displayName} declined this request due to content policy.`;
