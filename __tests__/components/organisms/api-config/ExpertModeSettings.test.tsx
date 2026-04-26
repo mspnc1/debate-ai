@@ -69,7 +69,7 @@ describe('ExpertModeSettings', () => {
         isEnabled={true}
         isPremium={true}
         onToggle={onToggle}
-        selectedModel="gpt-5.4"
+        selectedModel="gpt-5.5"
         onModelChange={onModelChange}
         parameters={baseParameters}
         onParameterChange={onParameterChange}
@@ -77,14 +77,14 @@ describe('ExpertModeSettings', () => {
     );
 
     expect(getByText('Fine-tune model behavior and parameters')).toBeTruthy();
-    expect(getByText('Latest GPT-5 family API model currently listed by OpenAI')).toBeTruthy();
+    expect(getByText('Latest GPT-5.5 frontier model for complex professional work, agents, coding, and long-context document generation')).toBeTruthy();
 
     const toggle = getByRole('switch');
     fireEvent(toggle, 'valueChange', false);
     expect(onToggle).toHaveBeenCalledWith(false);
 
-    fireEvent.press(getByText('GPT-4.1 Mini'));
-    expect(onModelChange).toHaveBeenCalledWith('gpt-4.1-mini');
+    fireEvent.press(getByText('GPT-5.4 Mini'));
+    expect(onModelChange).toHaveBeenCalledWith('gpt-5.4-mini');
 
     fireEvent.press(getByText('Temperature'));
     fireEvent.press(getByText('+'));

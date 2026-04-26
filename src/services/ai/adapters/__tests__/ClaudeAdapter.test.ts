@@ -196,6 +196,23 @@ describe('ClaudeAdapter', () => {
     expect(body.temperature).toBe(0);
   });
 
+  it('omits deprecated sampling parameters for Claude Opus 4.7', async () => {
+    const adapter = new ClaudeAdapter({
+      ...makeConfig('claude-opus-4-7'),
+      parameters: { temperature: 0, maxTokens: 4096, topP: 0.9, topK: 40 },
+    });
+
+    await adapter.sendMessage('Use provider defaults');
+
+    const [, requestInit] = fetchMock.mock.calls[0];
+    const body = JSON.parse(requestInit?.body as string);
+
+    expect(body.model).toBe('claude-opus-4-7');
+    expect(body.temperature).toBeUndefined();
+    expect(body.top_p).toBeUndefined();
+    expect(body.top_k).toBeUndefined();
+  });
+
   it('throws descriptive error when retries are exhausted', async () => {
     fetchMock.mockResolvedValue({
       ok: false,

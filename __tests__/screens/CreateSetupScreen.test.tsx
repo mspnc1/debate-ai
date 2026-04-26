@@ -159,7 +159,7 @@ jest.mock('@/config/create/sizeOptions', () => ({
 jest.mock('@/config/imageGenerationModels', () => ({
   getImageInputModels: (provider: string) => {
     const modelsByProvider: Record<string, Array<{ id: string }>> = {
-      openai: [{ id: 'gpt-image-1.5' }, { id: 'gpt-image-1-mini' }],
+      openai: [{ id: 'gpt-image-2' }, { id: 'gpt-image-1-mini' }],
       google: [{ id: 'gemini-2.5-flash-image' }, { id: 'gemini-3-pro-image-preview' }],
       grok: [{ id: 'grok-imagine-image' }],
     };
@@ -168,7 +168,7 @@ jest.mock('@/config/imageGenerationModels', () => ({
   resolveImageModelId: (provider: string, modelId?: string) => {
     if (modelId) return modelId;
     const defaults: Record<string, string> = {
-      openai: 'gpt-image-1.5',
+      openai: 'gpt-image-2',
       google: 'gemini-2.5-flash-image',
       grok: 'grok-imagine-image',
     };
@@ -402,7 +402,7 @@ describe('CreateSetupScreen', () => {
       expect(mockNavigate).toHaveBeenCalledWith('CreateSession', {
         providers: ['openai', 'google'],
         selectedModels: {
-          openai: 'gpt-image-1.5',
+          openai: 'gpt-image-2',
           google: 'gemini-2.5-flash-image',
         },
         initialPrompt: 'A beautiful sunset',

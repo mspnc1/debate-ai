@@ -38,7 +38,8 @@
     },
 {
       id: 'gpt-image-2',
-      name: 'gpt-image-2',
+      name: 'GPT Image 2',
       description: 'No description available',
       contextLength: 128000,
+      supportsImageGeneration: true,
     },

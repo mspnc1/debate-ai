@@ -30,6 +30,7 @@
       name: 'gpt-image-2-2026-04-21',
       description: 'No description available',
       contextLength: 128000,
+      supportsImageGeneration: true,
     },
 {
       id: 'gpt-5.5',
@@ -596,7 +597,7 @@
     },
 {
       id: 'gpt-image-1-mini',
-      name: 'gpt-image-1-mini',
+      name: 'GPT Image 1 Mini',
       description: 'No description available',
       contextLength: 128000,
       supportsImageGeneration: true,
@@ -727,7 +728,7 @@
     },
 {
       id: 'gpt-image-1.5',
-      name: 'gpt-image-1.5',
+      name: 'GPT Image 1.5',
       description: 'No description available',
       contextLength: 128000,
       supportsImageGeneration: true,
@@ -826,6 +827,7 @@
       name: 'chatgpt-image-latest',
       description: 'No description available',
       contextLength: 128000,
+      supportsImageGeneration: true,
     },
 {
       id: 'gpt-5.2-codex',
@@ -948,9 +950,10 @@
     },
 {
       id: 'gpt-image-2',
-      name: 'gpt-image-2',
+      name: 'GPT Image 2',
       description: 'No description available',
       contextLength: 128000,
+      supportsImageGeneration: true,
     },
 {
       id: 'gpt-3.5-turbo-16k',

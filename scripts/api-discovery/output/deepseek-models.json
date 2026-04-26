@@ -9,6 +9,7 @@
         "object": "model",
         "owned_by": "deepseek"
       },
+      "contextLength": 1048576,
       "supportsVision": true,
       "supportsDocuments": true,
       "supportsImageGeneration": false,
@@ -17,6 +18,7 @@
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
       "supportsImageInput": true,
+      "supportsThinking": true,
       "_source": "api"
     },
     {
@@ -27,6 +29,7 @@
         "object": "model",
         "owned_by": "deepseek"
       },
+      "contextLength": 1048576,
       "supportsVision": true,
       "supportsDocuments": true,
       "supportsImageGeneration": false,
@@ -35,10 +38,11 @@
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
       "supportsImageInput": true,
+      "supportsThinking": true,
       "_source": "api"
     }
   ],
   "meta": {
-    "discoveredAt": "2026-04-26T06:45:11.469Z"
+    "discoveredAt": "2026-04-26T06:57:35.864Z"
   }
 }

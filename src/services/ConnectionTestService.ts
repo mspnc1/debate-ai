@@ -193,7 +193,7 @@ export class ConnectionTestService {
     const data = await response.json();
     // Prefer current documented production models when present.
     const models = data.data || [];
-    const preferredIds = ['gpt-5.4', 'gpt-5.2', 'gpt-5', 'gpt-4.1', 'gpt-4o'];
+    const preferredIds = ['gpt-5.5', 'gpt-5.4', 'gpt-5.2', 'gpt-5', 'gpt-4.1', 'gpt-4o'];
     const preferredModel = preferredIds
       .map((id) => models.find((m: { id: string }) => m.id === id))
       .find(Boolean)
@@ -286,7 +286,10 @@ export class ConnectionTestService {
     const data = await response.json();
     const models = data.data || [];
     // Find a grok model to report
-    const grokModel = models.find((m: { id: string }) => m.id === 'grok-4-0709')
+    const grokModel = models.find((m: { id: string }) => m.id === 'grok-4.20-0309-non-reasoning')
+      || models.find((m: { id: string }) => m.id === 'grok-4.20-0309-reasoning')
+      || models.find((m: { id: string }) => m.id === 'grok-4-1-fast-non-reasoning')
+      || models.find((m: { id: string }) => m.id === 'grok-4-1-fast-reasoning')
       || models.find((m: { id: string }) => m.id.includes('grok-4'))
       || models.find((m: { id: string }) => m.id.includes('grok'))
       || models[0];

@@ -4,7 +4,7 @@
  * This file contains mappings for model versioning and easy updates.
  * Update this file when new model versions are released.
  * 
- * Last updated: March 2026
+ * Last updated: April 2026
  */
 
 export interface ModelVersionInfo {
@@ -31,10 +31,16 @@ export const MODEL_VERSIONS: ProviderVersions = {
   claude: {
     premium: [
       {
+        id: 'claude-opus-4-7',
+        version: '4.7-opus',
+        releaseDate: '2026-03-01',
+        isLatest: true,
+      },
+      {
         id: 'claude-opus-4-6',
         version: '4.6-opus',
         releaseDate: '2026-03-01',
-        isLatest: true,
+        isLatest: false,
       },
       {
         id: 'claude-opus-4-5-20251101',
@@ -55,7 +61,7 @@ export const MODEL_VERSIONS: ProviderVersions = {
         isLatest: false,
         isDeprecated: true,
         deprecationDate: '2025-06-30',
-        replacedBy: 'claude-opus-4-6',
+        replacedBy: 'claude-opus-4-7',
       },
     ],
     balanced: [
@@ -104,10 +110,22 @@ export const MODEL_VERSIONS: ProviderVersions = {
   openai: {
     flagship: [
       {
+        id: 'gpt-5.5',
+        version: '5.5',
+        releaseDate: '2026-04-23',
+        isLatest: true,
+      },
+      {
+        id: 'gpt-5.5-pro',
+        version: '5.5-pro',
+        releaseDate: '2026-04-23',
+        isLatest: false,
+      },
+      {
         id: 'gpt-5.4',
         version: '5.4',
         releaseDate: '2026-03-01',
-        isLatest: true,
+        isLatest: false,
       },
       {
         id: 'gpt-5.2',
@@ -130,10 +148,22 @@ export const MODEL_VERSIONS: ProviderVersions = {
     ],
     efficient: [
       {
+        id: 'gpt-5.4-mini',
+        version: '5.4-mini',
+        releaseDate: '2026-03-17',
+        isLatest: true,
+      },
+      {
+        id: 'gpt-5.4-nano',
+        version: '5.4-nano',
+        releaseDate: '2026-03-17',
+        isLatest: false,
+      },
+      {
         id: 'gpt-5-mini',
         version: '5-mini',
         releaseDate: '2025-08-01',
-        isLatest: true,
+        isLatest: false,
       },
       {
         id: 'gpt-5-nano',
@@ -166,10 +196,16 @@ export const MODEL_VERSIONS: ProviderVersions = {
   google: {
     flagship: [
       {
+        id: 'gemini-3.1-pro-preview',
+        version: '3.1-pro-preview',
+        releaseDate: '2026-03-01',
+        isLatest: true,
+      },
+      {
         id: 'gemini-2.5-pro',
         version: '2.5',
         releaseDate: '2025-06-17',
-        isLatest: true,
+        isLatest: false,
       },
       {
         id: 'gemini-1.5-pro',
@@ -180,10 +216,22 @@ export const MODEL_VERSIONS: ProviderVersions = {
     ],
     fast: [
       {
+        id: 'gemini-3-flash-preview',
+        version: '3-flash-preview',
+        releaseDate: '2026-03-01',
+        isLatest: true,
+      },
+      {
+        id: 'gemini-3.1-flash-lite-preview',
+        version: '3.1-flash-lite-preview',
+        releaseDate: '2026-03-01',
+        isLatest: false,
+      },
+      {
         id: 'gemini-2.5-flash',
         version: '001',
         releaseDate: '2025-06-01',
-        isLatest: true,
+        isLatest: false,
       },
       {
         id: 'gemini-2.5-flash-lite',
@@ -214,10 +262,34 @@ export const MODEL_VERSIONS: ProviderVersions = {
   grok: {
     main: [
       {
+        id: 'grok-4.20-0309-non-reasoning',
+        version: '4.20-non-reasoning',
+        releaseDate: '2026-03-09',
+        isLatest: true,
+      },
+      {
+        id: 'grok-4.20-0309-reasoning',
+        version: '4.20-reasoning',
+        releaseDate: '2026-03-09',
+        isLatest: false,
+      },
+      {
+        id: 'grok-4-1-fast-non-reasoning',
+        version: '4.1-fast-non-reasoning',
+        releaseDate: '2026-04-01',
+        isLatest: false,
+      },
+      {
+        id: 'grok-4-1-fast-reasoning',
+        version: '4.1-fast-reasoning',
+        releaseDate: '2026-04-01',
+        isLatest: false,
+      },
+      {
         id: 'grok-4-0709',
         version: '4',
         releaseDate: '2025-07-09',
-        isLatest: true,
+        isLatest: false,
       },
       {
         id: 'grok-3',
@@ -260,32 +332,34 @@ export const MODEL_VERSIONS: ProviderVersions = {
   mistral: {
     large: [
       {
-        id: 'mistral-large-2407',
-        version: '2407',
-        releaseDate: '2025-07-01',
+        id: 'mistral-large-2512',
+        version: '2512',
+        releaseDate: '2025-12-01',
         isLatest: true,
       },
     ],
     small: [
       {
-        id: 'mistral-small-2402',
-        version: '2402',
-        releaseDate: '2025-02-01',
+        id: 'mistral-small-2603',
+        version: '2603',
+        releaseDate: '2026-03-01',
         isLatest: true,
       },
     ],
-    mixtral: [
+    reasoning: [
       {
-        id: 'mixtral-8x22b-32768',
-        version: '8x22b',
-        releaseDate: '2025-04-01',
+        id: 'magistral-medium-2509',
+        version: '2509',
+        releaseDate: '2025-09-01',
         isLatest: true,
       },
+    ],
+    coding: [
       {
-        id: 'mixtral-8x7b-32768',
-        version: '8x7b',
-        releaseDate: '2024-12-01',
-        isLatest: false,
+        id: 'codestral-2508',
+        version: '2508',
+        releaseDate: '2025-08-01',
+        isLatest: true,
       },
     ],
   },
@@ -344,26 +418,34 @@ export const MODEL_VERSIONS: ProviderVersions = {
   deepseek: {
     chat: [
       {
-        id: 'deepseek-chat',
-        version: 'chat',
-        releaseDate: '2025-01-01',
+        id: 'deepseek-v4-flash',
+        version: 'v4-flash',
+        releaseDate: '2026-04-24',
         isLatest: true,
       },
     ],
-    coder: [
+    pro: [
       {
-        id: 'deepseek-coder',
-        version: 'v2',
-        releaseDate: '2025-01-01',
+        id: 'deepseek-v4-pro',
+        version: 'v4-pro',
+        releaseDate: '2026-04-24',
         isLatest: true,
       },
     ],
     reasoning: [
       {
+        id: 'deepseek-v4-flash',
+        version: 'v4-flash-thinking',
+        releaseDate: '2026-04-24',
+        isLatest: true,
+      },
+      {
         id: 'deepseek-reasoner',
         version: 'reasoner',
         releaseDate: '2025-06-01',
-        isLatest: true,
+        isLatest: false,
+        isDeprecated: true,
+        replacedBy: 'deepseek-v4-flash',
       },
     ],
   },

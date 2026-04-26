@@ -84,6 +84,7 @@
       },
       "supportsVision": false,
       "supportsDocuments": false,
+      "supportsImageGeneration": true,
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
@@ -1476,16 +1477,10 @@
     },
     {
       "id": "gpt-image-1-mini",
-      "name": "gpt-image-1-mini",
-      "_raw": {
-        "id": "gpt-image-1-mini",
-        "object": "model",
-        "created": 1758845821,
-        "owned_by": "system"
-      },
+      "name": "GPT Image 1 Mini",
+      "supportsImageGeneration": true,
       "supportsVision": false,
       "supportsDocuments": false,
-      "supportsImageGeneration": true,
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
@@ -1783,16 +1778,10 @@
     },
     {
       "id": "gpt-image-1.5",
-      "name": "gpt-image-1.5",
-      "_raw": {
-        "id": "gpt-image-1.5",
-        "object": "model",
-        "created": 1764030620,
-        "owned_by": "system"
-      },
+      "name": "GPT Image 1.5",
+      "supportsImageGeneration": true,
       "supportsVision": false,
       "supportsDocuments": false,
-      "supportsImageGeneration": true,
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
@@ -2009,6 +1998,7 @@
       },
       "supportsVision": false,
       "supportsDocuments": false,
+      "supportsImageGeneration": true,
       "supportsVoiceInput": false,
       "supportsVoiceOutput": false,
       "supportsVideoGeneration": false,
@@ -2288,13 +2278,8 @@
     },
     {
       "id": "gpt-image-2",
-      "name": "gpt-image-2",
-      "_raw": {
-        "id": "gpt-image-2",
-        "object": "model",
-        "created": 1776399795,
-        "owned_by": "system"
-      },
+      "name": "GPT Image 2",
+      "supportsImageGeneration": true,
       "supportsVision": false,
       "supportsDocuments": false,
       "supportsVoiceInput": false,
@@ -2378,6 +2363,6 @@
     }
   ],
   "meta": {
-    "discoveredAt": "2026-04-26T06:45:08.843Z"
+    "discoveredAt": "2026-04-26T06:57:33.438Z"
   }
 }

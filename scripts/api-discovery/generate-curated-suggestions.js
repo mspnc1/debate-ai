@@ -124,6 +124,8 @@ function classifyFamily(provider, id) {
       return 'together-other';
     }
     case 'deepseek': {
+      if (/v4.*flash/.test(lower)) return 'deepseek-v4-flash';
+      if (/v4.*pro/.test(lower)) return 'deepseek-v4-pro';
       if (/reasoner/.test(lower)) return 'deepseek-reasoner';
       return 'deepseek-chat';
     }
@@ -144,7 +146,7 @@ const PROVIDER_FAMILIES = {
   mistral: ['mistral-large', 'mistral-medium', 'mistral-small', 'codestral', 'pixtral'],
   cohere: ['command-reasoning', 'command-vision', 'command-r', 'command-light'],
   together: ['llama-70b', 'llama-8b', 'qwen'],
-  deepseek: ['deepseek-chat', 'deepseek-reasoner'],
+  deepseek: ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-chat', 'deepseek-reasoner'],
   grok: ['grok-full', 'grok-mini', 'grok-fast'],
 };
 
@@ -205,7 +207,7 @@ function parseExistingIdsForProvider(source, provider){
   const re = new RegExp(`\\n\\s*${provider}:\\s*\\[(.*?)\\n\\s*\\],`, 's');
   const m = source.match(re);
   if(!m) return new Set();
-  const block=m[1]; const idRe=/id:\s*'([^']+)'/g; const ids=new Set(); let mm; while((mm=idRe.exec(block))) ids.add(mm[1]); return ids;
+  const block=m[1]; const idRe=/id:\s*['"]([^'"]+)['"]/g; const ids=new Set(); let mm; while((mm=idRe.exec(block))) ids.add(mm[1]); return ids;
 }
 
 function genTsEntry(m,{isDefault=false}={}){

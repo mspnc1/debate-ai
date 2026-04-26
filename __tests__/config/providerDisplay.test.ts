@@ -23,6 +23,7 @@ describe('Provider capability matrix', () => {
       supported: true,
       supportsImageInput: true,
       models: [
+        'gpt-image-2',
         'gpt-image-1.5',
         'chatgpt-image-latest',
         'gpt-image-1',
@@ -77,7 +78,7 @@ describe('Provider capability matrix', () => {
       imageGeneration: {
         supported: true,
         supportsImageInput: true,
-        models: ['grok-imagine-image'],
+        models: ['grok-imagine-image', 'grok-imagine-image-pro'],
         sizes: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '2:1', '1:2', '19.5:9', '9:19.5', '20:9', '9:20'],
         maxPromptLength: 4000,
       },

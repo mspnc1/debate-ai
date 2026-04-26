@@ -68,7 +68,7 @@ describe('ImageRefinementModal', () => {
     visible: true,
     imageUri: 'https://example.com/image.jpg',
     originalProvider: 'openai' as const,
-    originalModelId: 'gpt-image-1.5',
+    originalModelId: 'gpt-image-2',
     availableProviders: mockProviders,
     onClose: jest.fn(),
     onRefine: jest.fn(),
@@ -156,7 +156,7 @@ describe('ImageRefinementModal', () => {
       expect(onRefine).toHaveBeenCalledWith({
         instructions: 'Make it better',
         provider: 'openai',
-        modelId: 'gpt-image-1.5',
+        modelId: 'gpt-image-2',
       });
     });
 
@@ -217,7 +217,7 @@ describe('ImageRefinementModal', () => {
       expect(defaultProps.onRefine).toHaveBeenCalledWith({
         instructions: 'Add more detail',
         provider: 'openai',
-        modelId: 'gpt-image-1.5',
+        modelId: 'gpt-image-2',
       });
     });
 

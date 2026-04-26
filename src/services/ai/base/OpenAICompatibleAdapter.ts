@@ -13,6 +13,35 @@ import { extractSSEErrorMessage } from '../utils/extractSSEErrorMessage';
 
 export abstract class OpenAICompatibleAdapter extends BaseAdapter {
   protected abstract getProviderConfig(): ProviderConfig;
+
+  protected normalizeTextContent(content: unknown): string {
+    if (typeof content === 'string') {
+      return content;
+    }
+
+    if (Array.isArray(content)) {
+      return content
+        .map((part) => {
+          if (typeof part === 'string') {
+            return part;
+          }
+          if (part && typeof part === 'object') {
+            const record = part as Record<string, unknown>;
+            if (typeof record.text === 'string') {
+              return record.text;
+            }
+            if (typeof record.content === 'string') {
+              return record.content;
+            }
+          }
+          return '';
+        })
+        .filter(Boolean)
+        .join('');
+    }
+
+    return '';
+  }
   
   getCapabilities(): AdapterCapabilities {
     return this.getProviderConfig().capabilities;
@@ -96,9 +125,10 @@ export abstract class OpenAICompatibleAdapter extends BaseAdapter {
       }
       
       const data = await response.json();
+      const responseContent = this.normalizeTextContent(data.choices?.[0]?.message?.content);
       
       return {
-        response: data.choices[0].message.content,
+        response: responseContent,
         modelUsed: data.model,
         usage: data.usage ? {
           promptTokens: data.usage.prompt_tokens,

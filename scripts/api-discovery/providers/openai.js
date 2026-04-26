@@ -21,7 +21,10 @@ async function discoverOpenAI(env, registry) {
 
   // Augment with known image generation model(s) which may be omitted from /models
   const knownExtras = [
+    { id: 'gpt-image-2', name: 'GPT Image 2', supportsImageGeneration: true },
+    { id: 'gpt-image-1.5', name: 'GPT Image 1.5', supportsImageGeneration: true },
     { id: 'gpt-image-1', name: 'GPT Image 1', supportsImageGeneration: true },
+    { id: 'gpt-image-1-mini', name: 'GPT Image 1 Mini', supportsImageGeneration: true },
   ];
 
   // Heuristics for capabilities
@@ -31,7 +34,7 @@ async function discoverOpenAI(env, registry) {
     ...m,
     supportsVision: /(gpt-4-vision|gpt-5|gpt-4o|gpt-4\.1)/.test(m.id),
     supportsDocuments: false, // Chat API does not accept PDFs directly; keep false
-    supportsImageGeneration: /(gpt-image-1|dall-e-3|dall-e-2)/.test(m.id) || m.supportsImageGeneration,
+    supportsImageGeneration: /(gpt-image-\d|chatgpt-image|dall-e-3|dall-e-2)/.test(m.id) || m.supportsImageGeneration,
     supportsVoiceInput: /(gpt-audio|realtime)/.test(m.id),
     supportsVoiceOutput: /(tts-)/.test(m.id),
     supportsVideoGeneration: /(sora|gpt-video)/i.test(m.id),

@@ -52,7 +52,7 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
 
     return {
       baseUrl: 'https://api.openai.com/v1',
-      defaultModel: 'gpt-5.4',
+      defaultModel: 'gpt-5.5',
       headers: (apiKey: string) => ({
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
@@ -65,7 +65,7 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
         functionCalling: true,
         systemPrompt: true,
         maxTokens: 128000,  // GPT-5 max output
-        contextWindow: 400000,
+        contextWindow: 1050000,
       },
     };
   }

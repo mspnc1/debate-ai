@@ -16,6 +16,7 @@ export interface ModelConfig {
   requiresTemperature1?: boolean; // For GPT-5 and O1/O3 models
   useMaxCompletionTokens?: boolean; // For GPT-5 and reasoning models that use max_completion_tokens
   isDeprecated?: boolean; // Model is deprecated by provider
+  supportsChatCompletions?: boolean; // False when known to require a non-chat endpoint the app does not route yet
   // Extended capability flags:
   supportsImageInput?: boolean; // Alias of supportsVision (explicit)
   supportsImageGeneration?: boolean; // Can generate images (e.g., gpt-image-1, dall-e-3)
@@ -25,7 +26,7 @@ export interface ProviderModels {
   [providerId: string]: ModelConfig[];
 }
 
-// Updated March 2026 using verified live model IDs plus current provider docs.
+// Updated April 2026 using verified live model IDs plus current provider docs.
 export const AI_MODELS: ProviderModels = {
   claude: [
     {
@@ -42,10 +43,23 @@ export const AI_MODELS: ProviderModels = {
       supportsThinking: true,
     },
     {
+      id: "claude-opus-4-7",
+      name: "Claude Opus 4.7",
+      description: "Latest Claude Opus model for complex reasoning, agentic coding, and document-heavy workflows",
+      contextLength: 1048576,
+      maxOutputTokens: 128000,
+      supportsVision: true,
+      supportsImageInput: true,
+      supportsDocuments: true,
+      supportsFunctions: true,
+      supportsThinking: true,
+      requiresTemperature1: true,
+    },
+    {
       id: "claude-opus-4-6",
       name: "Claude Opus 4.6",
-      description: "Current flagship Claude model for the hardest reasoning tasks",
-      contextLength: 200000,
+      description: "Previous Claude Opus release for the hardest reasoning tasks",
+      contextLength: 1048576,
       maxOutputTokens: 128000,
       supportsVision: true,
       supportsImageInput: true,
@@ -132,9 +146,9 @@ export const AI_MODELS: ProviderModels = {
   ],
   openai: [
     {
-      id: "gpt-5.4",
-      name: "GPT-5.4",
-      description: "Latest GPT-5 family API model currently listed by OpenAI",
+      id: "gpt-5.5",
+      name: "GPT-5.5",
+      description: "Latest GPT-5.5 frontier model for complex professional work, agents, coding, and long-context document generation",
       contextLength: 1050000,
       maxOutputTokens: 128000,
       isDefault: true,
@@ -142,6 +156,68 @@ export const AI_MODELS: ProviderModels = {
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      supportsWebSearch: true,
+      supportsThinking: true,
+      supportsImageGeneration: false,
+      requiresTemperature1: true,
+      useMaxCompletionTokens: true,
+    },
+    {
+      id: "gpt-5.5-pro",
+      name: "GPT-5.5 Pro",
+      description: "Higher-compute GPT-5.5 variant for the hardest reasoning and precision tasks",
+      contextLength: 1050000,
+      maxOutputTokens: 128000,
+      supportsVision: true,
+      supportsImageInput: true,
+      supportsDocuments: true,
+      supportsFunctions: true,
+      supportsWebSearch: true,
+      supportsThinking: true,
+      supportsChatCompletions: false,
+      requiresTemperature1: true,
+      useMaxCompletionTokens: true,
+    },
+    {
+      id: "gpt-5.4",
+      name: "GPT-5.4",
+      description: "Previous GPT-5.4 family API model",
+      contextLength: 1050000,
+      maxOutputTokens: 128000,
+      isDefault: false,
+      supportsVision: true,
+      supportsImageInput: true,
+      supportsDocuments: true,
+      supportsFunctions: true,
+      supportsThinking: true,
+      requiresTemperature1: true,
+      useMaxCompletionTokens: true,
+    },
+    {
+      id: "gpt-5.4-mini",
+      name: "GPT-5.4 Mini",
+      description: "Fast, lower-cost GPT-5.4-class model for high-volume workloads",
+      contextLength: 400000,
+      maxOutputTokens: 128000,
+      supportsVision: true,
+      supportsImageInput: true,
+      supportsDocuments: true,
+      supportsFunctions: true,
+      supportsThinking: true,
+      requiresTemperature1: true,
+      useMaxCompletionTokens: true,
+    },
+    {
+      id: "gpt-5.4-nano",
+      name: "GPT-5.4 Nano",
+      description: "Cheapest GPT-5.4-class model for simple high-volume tasks",
+      contextLength: 400000,
+      maxOutputTokens: 128000,
+      supportsVision: true,
+      supportsImageInput: true,
+      supportsDocuments: true,
+      supportsFunctions: true,
+      supportsThinking: true,
       requiresTemperature1: true,
       useMaxCompletionTokens: true,
     },
@@ -155,6 +231,7 @@ export const AI_MODELS: ProviderModels = {
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      supportsThinking: true,
       requiresTemperature1: true,
       useMaxCompletionTokens: true,
     },
@@ -168,6 +245,7 @@ export const AI_MODELS: ProviderModels = {
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      supportsThinking: true,
       requiresTemperature1: true,
       useMaxCompletionTokens: true,
     },
@@ -181,6 +259,7 @@ export const AI_MODELS: ProviderModels = {
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      supportsThinking: true,
       requiresTemperature1: true,
       useMaxCompletionTokens: true,
     },
@@ -194,6 +273,7 @@ export const AI_MODELS: ProviderModels = {
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      supportsThinking: true,
       requiresTemperature1: true,
       useMaxCompletionTokens: true,
     },
@@ -312,9 +392,17 @@ export const AI_MODELS: ProviderModels = {
       useMaxCompletionTokens: true,
     },
     {
+      id: "gpt-image-2",
+      name: "GPT Image 2",
+      description: "State-of-the-art OpenAI image generation and editing model",
+      contextLength: 0,
+      supportsImageInput: true,
+      supportsImageGeneration: true,
+    },
+    {
       id: "gpt-image-1",
       name: "GPT Image 1",
-      description: "OpenAI's latest image generation model",
+      description: "Previous OpenAI image generation model",
       contextLength: 0,
       supportsImageInput: true,
       supportsImageGeneration: true,
@@ -447,9 +535,9 @@ export const AI_MODELS: ProviderModels = {
   ],
   mistral: [
     {
-      id: "mistral-large-latest",
-      name: "Mistral Large",
-      description: "Flagship Mistral model with 256K context and advanced capabilities",
+      id: "mistral-large-2512",
+      name: "Mistral Large 3",
+      description: "Latest flagship Mistral model with 256K context and multimodal capabilities",
       contextLength: 262144,
       isDefault: true,
       supportsVision: true,
@@ -458,38 +546,43 @@ export const AI_MODELS: ProviderModels = {
       supportsFunctions: true,
     },
     {
-      id: "mistral-medium-latest",
-      name: "Mistral Medium",
-      description: "Balanced Mistral model for general-purpose chat",
-      contextLength: 128000,
+      id: "magistral-medium-2509",
+      name: "Magistral Medium 1.2",
+      description: "Frontier-class multimodal reasoning model from Mistral",
+      contextLength: 131072,
       supportsVision: true,
       supportsImageInput: true,
+      supportsDocuments: true,
+      supportsFunctions: true,
+      supportsThinking: true,
+    },
+    {
+      id: "mistral-small-2603",
+      name: "Mistral Small 4",
+      description: "Current smaller Mistral model with vision and agentic capabilities",
+      contextLength: 262144,
+      supportsVision: true,
+      supportsImageInput: true,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
     {
-      id: "mistral-small-latest",
-      name: "Mistral Small",
-      description: "Enterprise-grade small model with vision",
-      contextLength: 128000,
-      supportsVision: true,
-      supportsImageInput: true,
-      supportsFunctions: true,
-    },
-    {
-      id: "codestral-latest",
+      id: "codestral-2508",
       name: "Codestral",
-      description: "Coding-focused Mistral model",
-      contextLength: 128000,
+      description: "Current coding-focused Mistral model",
+      contextLength: 256000,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
     {
       id: "pixtral-large-latest",
       name: "Pixtral Large",
-      description: "Vision-focused Mistral model",
+      description: "Legacy vision-focused Mistral model",
       contextLength: 128000,
       supportsVision: true,
       supportsImageInput: true,
       supportsFunctions: true,
+      isDeprecated: true,
     },
   ],
   cohere: [
@@ -497,10 +590,8 @@ export const AI_MODELS: ProviderModels = {
       id: "command-a-reasoning-08-2025",
       name: "Command A Reasoning",
       description: "Current Cohere reasoning model with extended context",
-      contextLength: 256000,
+      contextLength: 288768,
       isDefault: true,
-      supportsVision: true,
-      supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
       supportsThinking: true,
@@ -522,13 +613,15 @@ export const AI_MODELS: ProviderModels = {
       name: "Command R",
       description: "Stable retrieval-oriented Cohere chat model",
       contextLength: 128000,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
     {
       id: "command-r7b-12-2024",
       name: "Command R7B",
       description: "Lower-cost Cohere chat model",
-      contextLength: 128000,
+      contextLength: 132000,
+      supportsDocuments: true,
       supportsFunctions: true,
     },
   ],
@@ -556,30 +649,94 @@ export const AI_MODELS: ProviderModels = {
   ],
   deepseek: [
     {
+      id: "deepseek-v4-flash",
+      name: "DeepSeek V4 Flash",
+      description: "Fast, cost-effective DeepSeek V4 model with 1M context and dual thinking modes",
+      contextLength: 1048576,
+      isDefault: true,
+      supportsVision: true,
+      supportsImageInput: true,
+      supportsDocuments: true,
+      supportsThinking: true,
+    },
+    {
+      id: "deepseek-v4-pro",
+      name: "DeepSeek V4 Pro",
+      description: "Higher-capability DeepSeek V4 model for agentic coding and reasoning",
+      contextLength: 1048576,
+      supportsVision: true,
+      supportsImageInput: true,
+      supportsDocuments: true,
+      supportsThinking: true,
+    },
+    {
       id: "deepseek-chat",
       name: "DeepSeek Chat",
-      description: "General-purpose DeepSeek chat model",
+      description: "Legacy DeepSeek chat alias now routed by DeepSeek to V4 Flash non-thinking mode",
       contextLength: 128000,
       maxOutputTokens: 8000,
-      isDefault: true,
       supportsFunctions: true,
+      isDeprecated: true,
     },
     {
       id: "deepseek-reasoner",
       name: "DeepSeek Reasoner",
-      description: "DeepSeek reasoning model optimized for long-form thought",
+      description: "Legacy DeepSeek reasoning alias now routed by DeepSeek to V4 Flash thinking mode",
       contextLength: 128000,
       maxOutputTokens: 64000,
       supportsThinking: true,
+      isDeprecated: true,
     },
   ],
   grok: [
     {
+      id: "grok-4.20-0309-non-reasoning",
+      name: "Grok 4.20",
+      description: "Current xAI default model for fast, high-capability chat and tool use",
+      contextLength: 2000000,
+      isDefault: true,
+      supportsVision: true,
+      supportsImageInput: true,
+      supportsDocuments: true,
+      supportsFunctions: true,
+    },
+    {
+      id: "grok-4.20-0309-reasoning",
+      name: "Grok 4.20 Reasoning",
+      description: "Reasoning variant of Grok 4.20 for harder planning and analysis tasks",
+      contextLength: 2000000,
+      supportsVision: true,
+      supportsImageInput: true,
+      supportsDocuments: true,
+      supportsFunctions: true,
+      supportsThinking: true,
+    },
+    {
+      id: "grok-4-1-fast-non-reasoning",
+      name: "Grok 4.1 Fast",
+      description: "Cost-efficient low-latency Grok 4.1 Fast model for high-volume chat and tool use",
+      contextLength: 2000000,
+      supportsVision: true,
+      supportsImageInput: true,
+      supportsDocuments: true,
+      supportsFunctions: true,
+    },
+    {
+      id: "grok-4-1-fast-reasoning",
+      name: "Grok 4.1 Fast Reasoning",
+      description: "Cost-efficient Grok 4.1 Fast reasoning variant for harder planning and analysis tasks",
+      contextLength: 2000000,
+      supportsVision: true,
+      supportsImageInput: true,
+      supportsDocuments: true,
+      supportsFunctions: true,
+      supportsThinking: true,
+    },
+    {
       id: "grok-4-0709",
       name: "Grok 4",
-      description: "Current Grok flagship model from xAI",
+      description: "Previous Grok 4 flagship model from xAI",
       contextLength: 256000,
-      isDefault: true,
       supportsVision: true,
       supportsImageInput: true,
       supportsFunctions: true,
@@ -609,6 +766,14 @@ export const AI_MODELS: ProviderModels = {
       contextLength: 0,
       supportsImageGeneration: true,
     },
+    {
+      id: "grok-imagine-image-pro",
+      name: "Grok Imagine Pro",
+      description: "Higher-fidelity image generation and editing model from xAI",
+      contextLength: 0,
+      supportsImageInput: true,
+      supportsImageGeneration: true,
+    },
   ],
 };
 
@@ -616,18 +781,17 @@ export const AI_MODELS: ProviderModels = {
 export const CURATED_MODEL_IDS: { [providerId: string]: string[] } = {
   claude: [
     "claude-sonnet-4-6",
+    "claude-opus-4-7",
     "claude-opus-4-6",
     "claude-sonnet-4-5-20250929",
     "claude-haiku-4-5-20251001",
-    "claude-opus-4-5-20251101",
-    "claude-3-7-sonnet-20250219",
   ],
   openai: [
+    "gpt-5.5",
+    "gpt-5.5-pro",
     "gpt-5.4",
-    "gpt-5-mini",
-    "gpt-4.1",
-    "gpt-4.1-mini",
-    "o3",
+    "gpt-5.4-mini",
+    "gpt-5.4-nano",
   ],
   google: [
     "gemini-3-flash-preview",
@@ -638,11 +802,10 @@ export const CURATED_MODEL_IDS: { [providerId: string]: string[] } = {
   ],
   perplexity: ["sonar-pro", "sonar", "sonar-reasoning-pro"],
   mistral: [
-    "mistral-large-latest",
-    "mistral-medium-latest",
-    "mistral-small-latest",
-    "codestral-latest",
-    "pixtral-large-latest",
+    "mistral-large-2512",
+    "magistral-medium-2509",
+    "mistral-small-2603",
+    "codestral-2508",
   ],
   cohere: [
     "command-a-reasoning-08-2025",
@@ -654,8 +817,14 @@ export const CURATED_MODEL_IDS: { [providerId: string]: string[] } = {
     "meta-llama/Llama-3.3-70B-Instruct-Turbo",
     "Qwen/Qwen2.5-7B-Instruct-Turbo",
   ],
-  deepseek: ["deepseek-chat", "deepseek-reasoner"],
-  grok: ["grok-4-0709", "grok-3", "grok-3-mini", "grok-imagine-image"],
+  deepseek: ["deepseek-v4-flash", "deepseek-v4-pro"],
+  grok: [
+    "grok-4.20-0309-non-reasoning",
+    "grok-4.20-0309-reasoning",
+    "grok-4-1-fast-non-reasoning",
+    "grok-4-1-fast-reasoning",
+    "grok-3-mini",
+  ],
 };
 
 export interface ModelParameters {
@@ -800,7 +969,10 @@ export const getProviderModels = (providerId: string): ModelConfig[] => {
     ? all.filter((m) => curated.includes(m.id))
     : all;
   return visibleModels.filter(
-    (model) => !model.isDeprecated && !model.supportsImageGeneration
+    (model) =>
+      !model.isDeprecated &&
+      !model.supportsImageGeneration &&
+      model.supportsChatCompletions !== false
   );
 };
 
@@ -821,7 +993,8 @@ export const resolveProviderModelId = (
     if (
       requestedModel &&
       !requestedModel.isDeprecated &&
-      !requestedModel.supportsImageGeneration
+      !requestedModel.supportsImageGeneration &&
+      requestedModel.supportsChatCompletions !== false
     ) {
       return requestedModel.id;
     }

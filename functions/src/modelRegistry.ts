@@ -20,11 +20,16 @@ export const MODEL_ALIASES: Record<string, string> = {
   'gpt-latest': 'gpt-5.5',
   'gpt-5-latest': 'gpt-5.5',
   'gpt-5.5-latest': 'gpt-5.5',
+  'gpt-5.5-2026-04-23': 'gpt-5.5',
+  'gpt-5.5-pro-latest': 'gpt-5.5-pro',
+  'gpt-5.5-pro-2026-04-23': 'gpt-5.5-pro',
   'gpt-5.2-latest': 'gpt-5.2',
   'gpt-5-mini-latest': 'gpt-5.4-mini',
   'gpt-5-nano-latest': 'gpt-5.4-nano',
   'gpt-5.4-mini-latest': 'gpt-5.4-mini',
+  'gpt-5.4-mini-2026-03-17': 'gpt-5.4-mini',
   'gpt-5.4-nano-latest': 'gpt-5.4-nano',
+  'gpt-5.4-nano-2026-03-17': 'gpt-5.4-nano',
   'gpt-4o-latest': 'gpt-4o',
   'o1-latest': 'o1',
   'o3-latest': 'o3',
@@ -33,6 +38,8 @@ export const MODEL_ALIASES: Record<string, string> = {
 
   // Google aliases
   'gemini-latest': 'gemini-3-flash-preview',
+  'gemini-pro-latest': 'gemini-3.1-pro-preview',
+  'gemini-flash-latest': 'gemini-3-flash-preview',
   'gemini-3-latest': 'gemini-3-flash-preview',
   'gemini-3.1-latest': 'gemini-3.1-pro-preview',
   'gemini-2.5-latest': 'gemini-2.5-flash',
@@ -41,8 +48,16 @@ export const MODEL_ALIASES: Record<string, string> = {
   'grok-latest': 'grok-4.20-0309-non-reasoning',
   'grok-4-latest': 'grok-4.20-0309-non-reasoning',
   'grok-4.20': 'grok-4.20-0309-non-reasoning',
+  'grok-4.20-non-reasoning': 'grok-4.20-0309-non-reasoning',
+  'grok-4.20-reasoning': 'grok-4.20-0309-reasoning',
+  'grok-fast-latest': 'grok-4-1-fast-non-reasoning',
+  'grok-4.1-fast': 'grok-4-1-fast-non-reasoning',
+  'grok-4-1-fast': 'grok-4-1-fast-non-reasoning',
+  'grok-4-1-fast-reasoning-latest': 'grok-4-1-fast-reasoning',
+  'grok-4-1-fast-non-reasoning-latest': 'grok-4-1-fast-non-reasoning',
   'grok-3-latest': 'grok-3',
   'grok-vision-latest': 'grok-4.20-0309-non-reasoning',
+  'grok-image-latest': 'grok-imagine-image',
 
   // Perplexity aliases
   'sonar-latest': 'sonar-pro',
@@ -53,8 +68,12 @@ export const MODEL_ALIASES: Record<string, string> = {
 
   // Mistral aliases
   'mistral-latest': 'mistral-large-2512',
+  'mistral-large-latest': 'mistral-large-2512',
+  'mistral-small-latest': 'mistral-small-2603',
   'devstral-medium-2512': 'devstral-2512',
-  'magistral-latest': 'mistral-small-2603',
+  'magistral-latest': 'magistral-medium-2509',
+  'magistral-medium-latest': 'magistral-medium-2509',
+  'codestral-latest': 'codestral-2508',
 
   // Cohere aliases
   'command-a-reasoning-latest': 'command-a-reasoning-08-2025',
@@ -66,14 +85,11 @@ export const MODEL_ALIASES: Record<string, string> = {
   'command-light-latest': 'command-r7b-12-2024',
 
   // Together aliases
-  'together-latest': 'deepseek-ai/DeepSeek-V3.1',
+  'together-latest': 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
   'llama-405b-latest': 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
   'llama-70b-latest': 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
   'llama-8b-latest': 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
-  'qwen-72b-latest': 'deepseek-ai/DeepSeek-V3.1',
-  'qwen-latest': 'deepseek-ai/DeepSeek-V3.1',
-  'kimi-latest': 'deepseek-ai/DeepSeek-V3.1',
-  'minimax-latest': 'deepseek-ai/DeepSeek-V3.1',
+  'qwen-72b-latest': 'Qwen/Qwen2.5-7B-Instruct-Turbo',
 
   // DeepSeek aliases
   'deepseek-chat': 'deepseek-v4-flash',
@@ -90,7 +106,7 @@ export const DEFAULT_PROVIDER_MODELS: Record<string, string> = {
   perplexity: 'sonar-pro',
   mistral: 'mistral-large-2512',
   cohere: 'command-a-reasoning-08-2025',
-  together: 'deepseek-ai/DeepSeek-V3.1',
+  together: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
   deepseek: 'deepseek-v4-flash',
   grok: 'grok-4.20-0309-non-reasoning',
 };
@@ -112,6 +128,10 @@ const MODELS_REQUIRING_TEMPERATURE_1 = new Set([
   'o4-mini',
 ]);
 
+const MODELS_UNSUPPORTED_CHAT_COMPLETIONS = new Set([
+  'gpt-5.5-pro',
+]);
+
 export function resolveModelAlias(modelId: string): string {
   return MODEL_ALIASES[modelId] || modelId;
 }
@@ -122,7 +142,14 @@ export function getDefaultModel(providerId: string): string {
 
 export function resolveProviderModelId(providerId: string, modelId?: string): string {
   if (modelId) {
-    return resolveModelAlias(modelId);
+    const resolvedModel = resolveModelAlias(modelId);
+    if (
+      providerId === 'openai' &&
+      MODELS_UNSUPPORTED_CHAT_COMPLETIONS.has(resolvedModel)
+    ) {
+      return getDefaultModel(providerId);
+    }
+    return resolvedModel;
   }
   return getDefaultModel(providerId);
 }

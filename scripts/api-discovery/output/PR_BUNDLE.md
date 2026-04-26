@@ -47,9 +47,10 @@ This bundle consolidates curated entries to update:
     },
 {
       id: 'gpt-image-2',
-      name: 'gpt-image-2',
+      name: 'GPT Image 2',
       description: 'No description available',
       contextLength: 128000,
+      supportsImageGeneration: true,
     },
 ```
 ### Provider: claude
@@ -262,11 +263,22 @@ This bundle consolidates curated entries to update:
       id: 'deepseek-v4-flash',
       name: 'deepseek-v4-flash',
       description: 'No description available',
-      contextLength: 128000,
+      contextLength: 1048576,
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
+      supportsThinking: true,
       isDefault: true,
+    },
+{
+      id: 'deepseek-v4-pro',
+      name: 'deepseek-v4-pro',
+      description: 'No description available',
+      contextLength: 1048576,
+      supportsVision: true,
+      supportsDocuments: true,
+      supportsImageInput: true,
+      supportsThinking: true,
     },
 ```
 ### Provider: grok
@@ -306,7 +318,7 @@ This bundle consolidates curated entries to update:
 ### Provider: openai
 ```ts
 // Insert into getProviderCapabilities('openai') imageGeneration models/sizes
-imageGeneration: { supported: true, models: ["dall-e-3","dall-e-2","gpt-image-1","gpt-image-1-mini","gpt-image-1.5"], sizes: ["auto","1024x1024","1024x1536","1536x1024"], maxPromptLength: 4000 },
+imageGeneration: { supported: true, models: ["gpt-image-2-2026-04-21","dall-e-3","dall-e-2","gpt-image-1","gpt-image-1-mini","gpt-image-1.5","chatgpt-image-latest","gpt-image-2"], sizes: ["auto","1024x1024","1024x1536","1536x1024"], maxPromptLength: 4000 },
 ```
 ### Provider: together
 ```ts

@@ -132,7 +132,7 @@ describe('OpenAICompatibleAdapter', () => {
     const [, request] = fetchMock.mock.calls[0];
     const parsedBody = JSON.parse((request?.body as string) ?? '{}');
 
-    expect(parsedBody.model).toBe('gpt-5.4'); // alias resolved via resolveModelAlias
+    expect(parsedBody.model).toBe('gpt-5.5'); // alias resolved via resolveModelAlias
     expect(parsedBody.temperature).toBe(0.4);
     expect(parsedBody.max_tokens).toBe(256);
     expect(parsedBody.top_p).toBe(0.9);
@@ -158,6 +158,25 @@ describe('OpenAICompatibleAdapter', () => {
       text: '[Document attachments not supported for openai]',
     });
     expect(consoleWarnSpy).toHaveBeenCalledWith('[openai] Document support not implemented in base adapter');
+  });
+
+  it('normalizes array content responses from OpenAI-compatible providers', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: [{ type: 'text', text: 'Final' }, { type: 'text', text: ' reply' }] } }],
+        model: 'array-content-model',
+      }),
+    });
+
+    const adapter = new TestOpenAIAdapter(baseConfig);
+
+    const response = await adapter.sendMessage('Send new info');
+
+    expect(response).toMatchObject({
+      response: 'Final reply',
+      modelUsed: 'array-content-model',
+    });
   });
 
   it('passes through message text when attachments unsupported', async () => {

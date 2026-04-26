@@ -56,19 +56,19 @@ const cases: AdapterCase[] = [
   {
     name: 'MistralAdapter',
     Adapter: MistralAdapter,
-    config: { provider: 'mistral', apiKey: 'test-key', model: 'mistral-medium-latest', parameters: { temperature: 0.7, maxTokens: 2048 } },
+    config: { provider: 'mistral', apiKey: 'test-key', model: 'mistral-large-2512', parameters: { temperature: 0.7, maxTokens: 2048 } },
     expectedUrl: 'https://api.mistral.ai/v1/chat/completions',
   },
   {
     name: 'DeepSeekAdapter',
     Adapter: DeepSeekAdapter,
-    config: { provider: 'deepseek', apiKey: 'test-key', model: 'deepseek-chat', parameters: { temperature: 0.7, maxTokens: 2048 } },
+    config: { provider: 'deepseek', apiKey: 'test-key', model: 'deepseek-v4-flash', parameters: { temperature: 0.7, maxTokens: 2048 } },
     expectedUrl: 'https://api.deepseek.com/v1/chat/completions',
   },
   {
     name: 'GrokAdapter',
     Adapter: GrokAdapter,
-    config: { provider: 'grok', apiKey: 'test-key', model: 'grok-4-0709', parameters: { temperature: 0.7, maxTokens: 2048 } },
+    config: { provider: 'grok', apiKey: 'test-key', model: 'grok-4.20-0309-non-reasoning', parameters: { temperature: 0.7, maxTokens: 2048 } },
     expectedUrl: 'https://api.x.ai/v1/chat/completions',
   },
   {

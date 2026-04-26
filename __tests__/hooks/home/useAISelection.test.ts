@@ -46,7 +46,7 @@ describe('useAISelection', () => {
       id: 'openai',
       provider: 'openai',
       name: 'OpenAI',
-      model: 'gpt-5.4',
+      model: 'gpt-5.5',
       personality: 'default',
       color: '#111111',
     },
@@ -155,12 +155,12 @@ describe('useAISelection', () => {
 
     act(() => {
       result.current.changePersonality('claude', 'analyst');
-      result.current.changeModel('claude', 'claude-opus-4-6');
+      result.current.changeModel('claude', 'claude-opus-4-7');
     });
 
     const state = store.getState();
     expect(state.chat.aiPersonalities.claude).toBe('analyst');
-    expect(state.chat.selectedModels.claude).toBe('claude-opus-4-6');
+    expect(state.chat.selectedModels.claude).toBe('claude-opus-4-7');
   });
 
   it('sanitizes image-generation model selections back to text defaults', () => {
@@ -173,6 +173,6 @@ describe('useAISelection', () => {
     });
 
     const state = store.getState();
-    expect(state.chat.selectedModels.openai).toBe('gpt-5.4');
+    expect(state.chat.selectedModels.openai).toBe('gpt-5.5');
   });
 });

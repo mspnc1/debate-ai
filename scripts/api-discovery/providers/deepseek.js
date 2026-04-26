@@ -19,8 +19,11 @@ async function discoverDeepseek(env, registry) {
     ];
   }
 
-  const mapCaps = (m) => ({
+  const mapCaps = (m) => {
+    const isV4 = /^deepseek-v4-/i.test(m.id);
+    return ({
     ...m,
+    contextLength: isV4 ? 1048576 : m.contextLength,
     supportsVision: true,
     supportsDocuments: true,
     supportsImageGeneration: false,
@@ -29,7 +32,9 @@ async function discoverDeepseek(env, registry) {
     supportsVoiceOutput: false,
     supportsRealtime: false,
     supportsImageInput: true,
+    supportsThinking: isV4 || /reasoner/i.test(m.id),
   });
+  };
 
   const mapped = models.map(mapCaps);
   const merged = registry

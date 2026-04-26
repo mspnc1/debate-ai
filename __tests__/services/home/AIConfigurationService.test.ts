@@ -9,7 +9,7 @@ jest.mock('@/config/aiProviders', () => ({
 jest.mock('@/config/modelConfigs', () => ({
   getProviderDefaultModel: jest.fn((providerId: string) => ({
     claude: { id: 'claude-sonnet-4-6', isDefault: true },
-    openai: { id: 'gpt-5.4', isDefault: true },
+    openai: { id: 'gpt-5.5', isDefault: true },
     perplexity: { id: 'sonar-pro', isDefault: true },
   }[providerId] || undefined)),
 }));

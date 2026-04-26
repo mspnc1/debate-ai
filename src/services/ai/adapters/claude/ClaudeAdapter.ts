@@ -14,6 +14,10 @@ type ClaudeEventTypes = 'message_start' | 'content_block_start' | 'content_block
 
 export class ClaudeAdapter extends BaseAdapter {
   private lastModelUsed?: string;
+
+  private shouldOmitSamplingParameters(modelId: string): boolean {
+    return modelId === 'claude-opus-4-7';
+  }
   
   getCapabilities(): AdapterCapabilities {
     // Check if the current model supports documents (PDFs)
@@ -103,6 +107,26 @@ export class ClaudeAdapter extends BaseAdapter {
     
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
+        const requestBody: Record<string, unknown> = {
+          model: modelId,
+          max_tokens: this.config.parameters?.maxTokens || 8192,
+          system: this.getSystemPrompt(),
+          messages: [
+            ...formattedHistory,
+            { role: 'user', content: userContent }
+          ],
+        };
+
+        if (!this.shouldOmitSamplingParameters(modelId)) {
+          requestBody.temperature = this.config.parameters?.temperature ?? 0.7;
+          if (this.config.parameters?.topP !== undefined) {
+            requestBody.top_p = this.config.parameters.topP;
+          }
+          if (this.config.parameters?.topK !== undefined) {
+            requestBody.top_k = this.config.parameters.topK;
+          }
+        }
+
         const response = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
@@ -110,18 +134,7 @@ export class ClaudeAdapter extends BaseAdapter {
             'x-api-key': this.config.apiKey,
             'anthropic-version': '2023-06-01',
           },
-          body: JSON.stringify({
-            model: modelId,
-            max_tokens: this.config.parameters?.maxTokens || 8192, // Claude requires this, use maximum
-            temperature: this.config.parameters?.temperature ?? 0.7,
-            top_p: this.config.parameters?.topP,
-            top_k: this.config.parameters?.topK,
-            system: this.getSystemPrompt(),
-            messages: [
-              ...formattedHistory,
-              { role: 'user', content: userContent }
-            ],
-          }),
+          body: JSON.stringify(requestBody),
         });
         
         if (!response.ok) {
@@ -178,18 +191,23 @@ export class ClaudeAdapter extends BaseAdapter {
     const userContent = this.formatMessageContent(message, attachments);
     const formattedHistory = this.formatHistory(conversationHistory, resumptionContext);
     
-    // Create the request body
-    const requestBody = JSON.stringify({
+    const requestBodyObj: Record<string, unknown> = {
       model: modelId,
-      max_tokens: this.config.parameters?.maxTokens || 8192, // Claude requires this, use maximum
-      temperature: this.config.parameters?.temperature ?? 0.7,
+      max_tokens: this.config.parameters?.maxTokens || 8192,
       stream: true,
       system: this.getSystemPrompt(),
       messages: [
         ...formattedHistory,
         { role: 'user', content: userContent }
       ],
-    });
+    };
+
+    if (!this.shouldOmitSamplingParameters(modelId)) {
+      requestBodyObj.temperature = this.config.parameters?.temperature ?? 0.7;
+    }
+
+    // Create the request body
+    const requestBody = JSON.stringify(requestBodyObj);
     
     
     // Create EventSource for real streaming in React Native

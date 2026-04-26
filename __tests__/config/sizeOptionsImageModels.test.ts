@@ -16,6 +16,6 @@ describe('Create image size mapping', () => {
   });
 
   it('falls back to the provider default image model when selection is invalid', () => {
-    expect(mapSizeToProvider('portrait', 'openai', 'gpt-5.4')).toBe('1024x1536');
+    expect(mapSizeToProvider('portrait', 'openai', 'gpt-5.5')).toBe('1024x1536');
   });
 });

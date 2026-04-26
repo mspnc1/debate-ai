@@ -49,7 +49,7 @@ describe('ImageService', () => {
       headers: expect.objectContaining({ Authorization: 'Bearer key' }),
     }));
     const body = JSON.parse((mockedFetch.mock.calls[0][1] as RequestInit).body as string);
-    expect(body).toMatchObject({ model: 'gpt-image-1.5', prompt: 'a cat', size: '1024x1024' });
+    expect(body).toMatchObject({ model: 'gpt-image-2', prompt: 'a cat', size: '1024x1024' });
     expect(mockedPersistImageUri).toHaveBeenCalledWith('https://example.com/image.png', {
       mimeType: 'image/png',
       prefix: 'generated',

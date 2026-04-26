@@ -20,6 +20,7 @@ export interface ImageModelConfig {
 const IMAGE_MODEL_ALIASES: Partial<Record<ImageProviderId, Record<string, string>>> = {
   openai: {
     'gpt-image-latest': 'gpt-image-2',
+    'gpt-image-2-2026-04-21': 'gpt-image-2',
     'chatgpt-image-latest': 'gpt-image-2',
   },
   google: {
@@ -27,6 +28,7 @@ const IMAGE_MODEL_ALIASES: Partial<Record<ImageProviderId, Record<string, string
   },
   grok: {
     'grok-2-image-1212': 'grok-imagine-image',
+    'grok-image-latest': 'grok-imagine-image',
   },
 };
 
@@ -137,6 +139,13 @@ export const IMAGE_MODELS: Record<ImageProviderId, ImageModelConfig[]> = {
       apiFamily: 'xai-images',
       supportsImageInput: true,
       isDefault: true,
+    }),
+    createImageModel({
+      id: 'grok-imagine-image-pro',
+      displayName: 'Grok Imagine Pro',
+      apiFamily: 'xai-images',
+      supportsImageInput: true,
+      isDefault: false,
     }),
   ],
 };

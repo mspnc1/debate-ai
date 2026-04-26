@@ -18,9 +18,10 @@ describe('Image generation model config', () => {
   });
 
   it('resolves defaults and explicit model selections safely', () => {
-    expect(resolveImageModelId('openai')).toBe('gpt-image-1.5');
+    expect(resolveImageModelId('openai')).toBe('gpt-image-2');
     expect(resolveImageModelId('openai', 'dall-e-3')).toBe('dall-e-3');
-    expect(resolveImageModelId('openai', 'gpt-5.4')).toBe('gpt-image-1.5');
+    expect(resolveImageModelId('openai', 'gpt-5.5')).toBe('gpt-image-2');
+    expect(resolveImageModelId('openai', 'gpt-image-latest')).toBe('gpt-image-2');
     expect(resolveImageModelId('google', 'imagen-4.0-generate-001')).toBe('imagen-4.0-generate-001');
   });
 
@@ -31,7 +32,7 @@ describe('Image generation model config', () => {
       modelId: 'dall-e-3',
     })).toBe('ChatGPT (DALL-E 3)');
     expect(getImageModelDisplayName('openai', 'dall-e-3')).toBe('DALL-E 3');
-    expect(supportsImageInput('openai', 'gpt-image-1.5')).toBe(true);
+    expect(supportsImageInput('openai', 'gpt-image-2')).toBe(true);
     expect(supportsImageInput('openai', 'dall-e-3')).toBe(false);
     expect(supportsImageInput('google', 'imagen-4.0-generate-001')).toBe(false);
     expect(supportsImageInput('grok', 'grok-imagine-image')).toBe(true);
@@ -39,6 +40,7 @@ describe('Image generation model config', () => {
 
   it('surfaces only refinement-capable models for model-aware img2img flows', () => {
     expect(getImageInputModels('openai').map((model) => model.id)).toEqual(expect.arrayContaining([
+      'gpt-image-2',
       'gpt-image-1.5',
       'chatgpt-image-latest',
       'gpt-image-1',
@@ -57,6 +59,7 @@ describe('Image generation model config', () => {
 
   it('expands provider offerings beyond the original minimal registry', () => {
     expect(getImageModels('openai').map((model) => model.id)).toEqual(expect.arrayContaining([
+      'gpt-image-2',
       'gpt-image-1.5',
       'chatgpt-image-latest',
       'gpt-image-1',

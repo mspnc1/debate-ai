@@ -60,6 +60,21 @@ const XAI_ASPECT_RATIOS = [
   '9:20',
 ] as const;
 
+const IMAGE_MODEL_ALIASES: Partial<Record<AIProvider, Record<string, string>>> = {
+  openai: {
+    'gpt-image-latest': 'gpt-image-2',
+    'gpt-image-2-2026-04-21': 'gpt-image-2',
+    'chatgpt-image-latest': 'gpt-image-2',
+  },
+  google: {
+    'gemini-3-pro-image': 'gemini-3-pro-image-preview',
+  },
+  grok: {
+    'grok-2-image-1212': 'grok-imagine-image',
+    'grok-image-latest': 'grok-imagine-image',
+  },
+};
+
 function createImageModel(config: ImageModelConfig): ImageModelConfig {
   return {
     maxPromptLength: 4000,
@@ -70,15 +85,26 @@ function createImageModel(config: ImageModelConfig): ImageModelConfig {
 export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
   openai: [
     createImageModel({
-      id: 'gpt-image-1.5',
-      displayName: 'GPT Image 1.5',
-      providerDisplayName: 'ChatGPT (GPT Image 1.5)',
+      id: 'gpt-image-2',
+      displayName: 'GPT Image 2',
+      providerDisplayName: 'ChatGPT (GPT Image 2)',
       shortProviderName: 'ChatGPT',
-      description: 'Current versioned OpenAI image model with native edits and strong prompt fidelity.',
+      description: 'State-of-the-art OpenAI image model for high-quality generation and native edits.',
       apiFamily: 'openai-images',
       supportsImageInput: true,
       sizes: [...OPENAI_IMAGE_SIZES],
       isDefault: true,
+    }),
+    createImageModel({
+      id: 'gpt-image-1.5',
+      displayName: 'GPT Image 1.5',
+      providerDisplayName: 'ChatGPT (GPT Image 1.5)',
+      shortProviderName: 'ChatGPT',
+      description: 'Previous OpenAI image model with native edits and strong prompt fidelity.',
+      apiFamily: 'openai-images',
+      supportsImageInput: true,
+      sizes: [...OPENAI_IMAGE_SIZES],
+      isDefault: false,
     }),
     createImageModel({
       id: 'chatgpt-image-latest',
@@ -90,6 +116,7 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
       supportsImageInput: true,
       sizes: [...OPENAI_IMAGE_SIZES],
       isDefault: false,
+      isDeprecated: true,
     }),
     createImageModel({
       id: 'gpt-image-1',
@@ -219,6 +246,20 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
       supportsMultipleReferenceImages: true,
       isDefault: true,
     }),
+    createImageModel({
+      id: 'grok-imagine-image-pro',
+      displayName: 'Grok Imagine Pro',
+      providerDisplayName: 'Grok (Imagine Pro)',
+      shortProviderName: 'Grok',
+      description: 'Higher-fidelity xAI image model with text-to-image generation, edits, and aspect-ratio controls.',
+      apiFamily: 'xai-images',
+      supportsImageInput: true,
+      sizes: [...XAI_ASPECT_RATIOS],
+      aspectRatios: [...XAI_ASPECT_RATIOS],
+      resolutions: ['1K', '2K'],
+      supportsMultipleReferenceImages: true,
+      isDefault: false,
+    }),
   ],
 };
 
@@ -288,8 +329,12 @@ export function resolveImageModelId(
   provider: AIProvider,
   modelId?: string
 ): string | undefined {
+  const resolvedModelId = modelId
+    ? IMAGE_MODEL_ALIASES[provider]?.[modelId] || modelId
+    : undefined;
+
   if (modelId) {
-    const requestedModel = getImageModelById(provider, modelId);
+    const requestedModel = getImageModelById(provider, resolvedModelId || modelId);
     if (requestedModel) {
       return requestedModel.id;
     }

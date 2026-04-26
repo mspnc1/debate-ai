@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-26T06:45:11.690Z",
+  "generatedAt": "2026-04-26T06:57:36.032Z",
   "providers": {
     "openai": {
       "pricingSource": "https://openai.com/api/pricing/",
@@ -111,7 +111,7 @@
             "vision": false,
             "documents": false,
             "imageInput": false,
-            "imageGeneration": false,
+            "imageGeneration": true,
             "videoGeneration": false,
             "voiceInput": false,
             "voiceOutput": false,
@@ -1974,7 +1974,7 @@
         },
         {
           "id": "gpt-image-1-mini",
-          "name": "gpt-image-1-mini",
+          "name": "GPT Image 1 Mini",
           "description": null,
           "contextLength": null,
           "maxOutputTokens": null,
@@ -2382,7 +2382,7 @@
         },
         {
           "id": "gpt-image-1.5",
-          "name": "gpt-image-1.5",
+          "name": "GPT Image 1.5",
           "description": null,
           "contextLength": null,
           "maxOutputTokens": null,
@@ -2679,7 +2679,7 @@
             "vision": false,
             "documents": false,
             "imageInput": false,
-            "imageGeneration": false,
+            "imageGeneration": true,
             "videoGeneration": false,
             "voiceInput": false,
             "voiceOutput": false,
@@ -3054,7 +3054,7 @@
         },
         {
           "id": "gpt-image-2",
-          "name": "gpt-image-2",
+          "name": "GPT Image 2",
           "description": null,
           "contextLength": null,
           "maxOutputTokens": null,
@@ -3063,7 +3063,7 @@
             "vision": false,
             "documents": false,
             "imageInput": false,
-            "imageGeneration": false,
+            "imageGeneration": true,
             "videoGeneration": false,
             "voiceInput": false,
             "voiceOutput": false,
@@ -6546,7 +6546,7 @@
           "id": "deepseek-v4-flash",
           "name": "deepseek-v4-flash",
           "description": null,
-          "contextLength": null,
+          "contextLength": 1048576,
           "maxOutputTokens": null,
           "pricing": null,
           "capabilities": {
@@ -6560,7 +6560,7 @@
             "realtime": false,
             "functions": false,
             "webSearch": false,
-            "thinking": false,
+            "thinking": true,
             "jsonMode": false
           },
           "isDeprecated": false,
@@ -6570,7 +6570,7 @@
           "id": "deepseek-v4-pro",
           "name": "deepseek-v4-pro",
           "description": null,
-          "contextLength": null,
+          "contextLength": 1048576,
           "maxOutputTokens": null,
           "pricing": null,
           "capabilities": {
@@ -6584,7 +6584,7 @@
             "realtime": false,
             "functions": false,
             "webSearch": false,
-            "thinking": false,
+            "thinking": true,
             "jsonMode": false
           },
           "isDeprecated": false,

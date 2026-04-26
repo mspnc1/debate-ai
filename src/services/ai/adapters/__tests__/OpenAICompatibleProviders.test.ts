@@ -38,7 +38,7 @@ const ADAPTER_MATRIX: AdapterEntry[] = [
     provider: 'deepseek',
     AdapterCtor: DeepSeekAdapter,
     baseUrl: 'https://api.deepseek.com/v1',
-    defaultModel: 'deepseek-chat',
+    defaultModel: 'deepseek-v4-flash',
     capabilities: {
       streaming: true,
       attachments: false,  // Chat API doesn't support vision
@@ -46,8 +46,8 @@ const ADAPTER_MATRIX: AdapterEntry[] = [
       supportsDocuments: false,
       functionCalling: true,
       systemPrompt: true,
-      maxTokens: 4096,
-      contextWindow: 128000,
+      maxTokens: 64000,
+      contextWindow: 1048576,
     },
   },
   {
@@ -55,7 +55,7 @@ const ADAPTER_MATRIX: AdapterEntry[] = [
     provider: 'grok',
     AdapterCtor: GrokAdapter,
     baseUrl: 'https://api.x.ai/v1',
-    defaultModel: 'grok-4-0709',
+    defaultModel: 'grok-4.20-0309-non-reasoning',
     capabilities: {
       streaming: true,
       attachments: true,  // Supports vision
@@ -64,7 +64,7 @@ const ADAPTER_MATRIX: AdapterEntry[] = [
       functionCalling: true,
       systemPrompt: true,
       maxTokens: 100000,
-      contextWindow: 256000,
+      contextWindow: 2000000,
     },
   },
   {
@@ -72,7 +72,7 @@ const ADAPTER_MATRIX: AdapterEntry[] = [
     provider: 'mistral',
     AdapterCtor: MistralAdapter,
     baseUrl: 'https://api.mistral.ai/v1',
-    defaultModel: 'mistral-medium-latest',
+    defaultModel: 'mistral-large-2512',
     capabilities: {
       streaming: true,
       attachments: true,  // Supports images only
@@ -81,7 +81,7 @@ const ADAPTER_MATRIX: AdapterEntry[] = [
       functionCalling: true,
       systemPrompt: true,
       maxTokens: 32768,
-      contextWindow: 128000,
+      contextWindow: 262144,
     },
   },
   {

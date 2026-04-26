@@ -5,7 +5,7 @@ export class DeepSeekAdapter extends OpenAICompatibleAdapter {
   protected getProviderConfig(): ProviderConfig {
     return {
       baseUrl: 'https://api.deepseek.com/v1',
-      defaultModel: 'deepseek-chat',
+      defaultModel: 'deepseek-v4-flash',
       headers: (apiKey: string) => ({
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
@@ -17,8 +17,8 @@ export class DeepSeekAdapter extends OpenAICompatibleAdapter {
         supportsDocuments: false,  // Chat API doesn't support vision
         functionCalling: true,
         systemPrompt: true,
-        maxTokens: 4096,
-        contextWindow: 128000,
+        maxTokens: 64000,
+        contextWindow: 1048576,
       },
     };
   }
