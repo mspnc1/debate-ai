@@ -1,24 +1,20 @@
 import { Platform } from 'react-native';
 import { getAuth } from '@react-native-firebase/auth';
 import { getFirestore, collection, doc, getDoc, setDoc, addDoc } from '@react-native-firebase/firestore';
-import {
-  initConnection,
-  endConnection,
-  purchaseUpdatedListener,
-  purchaseErrorListener,
-  fetchProducts,
-  requestPurchase,
-  getAvailablePurchases,
-  finishTransaction,
-  type Purchase,
-  type ProductSubscriptionAndroid,
-  type ProductSubscriptionAndroidOfferDetails,
-  type PricingPhaseAndroid,
+import type {
+  Purchase,
+  ProductSubscriptionAndroid,
+  ProductSubscriptionAndroidOfferDetails,
+  PricingPhaseAndroid,
 } from 'react-native-iap';
 import { SUBSCRIPTION_PRODUCTS, type PlanType } from '@/services/iap/products';
+import { isAndroidEmulatorStoreUnavailable } from '@/services/iap/environment';
+import { getIapModule, getLoadedIapModule } from '@/services/iap/nativeModule';
 import * as Crypto from 'expo-crypto';
 import Constants from 'expo-constants';
 import { ErrorService } from '@/services/errors/ErrorService';
+
+type InitializeResult = { success: true } | { success: false; error?: unknown; skipped?: boolean };
 
 /** Timeout helper for promises */
 function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> {
@@ -145,7 +141,7 @@ export class PurchaseService {
   private static purchaseUpdateSub: { remove: () => void } | null = null;
   private static purchaseErrorSub: { remove: () => void } | null = null;
   private static isInitialized = false;
-  private static initializationInProgress: Promise<{ success: boolean; error?: unknown }> | null = null;
+  private static initializationInProgress: Promise<InitializeResult> | null = null;
 
   // Track when we're expecting a purchase - only process listener events when true
   // This prevents assigning purchases from a different Google account to the current Firebase user
@@ -170,10 +166,14 @@ export class PurchaseService {
     });
   }
 
-  static async initialize() {
+  static async initialize(): Promise<InitializeResult> {
     // Already initialized - return immediately
     if (this.isInitialized) {
       return { success: true };
+    }
+
+    if (isAndroidEmulatorStoreUnavailable()) {
+      return { success: false, skipped: true };
     }
 
     // Initialization already in progress - wait for it
@@ -184,8 +184,9 @@ export class PurchaseService {
     // Start initialization with lock
     this.initializationInProgress = (async () => {
       try {
+        const { initConnection } = await getIapModule();
         await initConnection();
-        this.setupListeners();
+        await this.setupListeners();
         this.isInitialized = true;
         return { success: true };
       } catch (error) {
@@ -214,7 +215,9 @@ export class PurchaseService {
     }
   }
 
-  private static setupListeners() {
+  private static async setupListeners() {
+    const { purchaseUpdatedListener, purchaseErrorListener } = await getIapModule();
+
     if (!this.purchaseUpdateSub) {
       this.purchaseUpdateSub = purchaseUpdatedListener(async (purchase: Purchase) => {
         try {
@@ -243,7 +246,10 @@ export class PurchaseService {
     this.isInitialized = false;
     this.initializationInProgress = null;
     errorListeners.clear();
-    endConnection().catch(() => {});
+    const iapModule = getLoadedIapModule();
+    if (iapModule) {
+      iapModule.endConnection().catch(() => {});
+    }
   }
 
   /**
@@ -255,7 +261,12 @@ export class PurchaseService {
     products: string[];
     unavailable: string[];
   }> {
+    if (isAndroidEmulatorStoreUnavailable()) {
+      return { available: false, products: [], unavailable: Object.values(SUBSCRIPTION_PRODUCTS) };
+    }
+
     try {
+      const { fetchProducts } = await getIapModule();
       const allSkus = Object.values(SUBSCRIPTION_PRODUCTS);
       const subscriptionSkus = [SUBSCRIPTION_PRODUCTS.monthly, SUBSCRIPTION_PRODUCTS.annual];
       const productSkus = [SUBSCRIPTION_PRODUCTS.lifetime];
@@ -287,6 +298,16 @@ export class PurchaseService {
     productsMissing: string[];
     platform: string;
   }> {
+    if (isAndroidEmulatorStoreUnavailable()) {
+      return {
+        connectionOk: false,
+        productsAvailable: [],
+        productsMissing: Object.values(SUBSCRIPTION_PRODUCTS),
+        platform: Platform.OS,
+      };
+    }
+
+    const { initConnection } = await getIapModule();
     const connectionOk = await initConnection()
       .then(() => true)
       .catch(() => false);
@@ -306,7 +327,16 @@ export class PurchaseService {
       return this.purchaseLifetime();
     }
 
+    if (isAndroidEmulatorStoreUnavailable()) {
+      return {
+        success: false,
+        errorCode: 'E_BILLING_UNAVAILABLE',
+        userMessage: IAP_ERROR_MESSAGES.E_BILLING_UNAVAILABLE,
+      } as const;
+    }
+
     try {
+      const { fetchProducts, requestPurchase } = await getIapModule();
       console.warn('[IAP] purchaseSubscription starting for plan:', plan);
 
       // Ensure IAP is initialized (handles hot reload scenarios)
@@ -451,7 +481,16 @@ export class PurchaseService {
   }
 
   static async purchaseLifetime() {
+    if (isAndroidEmulatorStoreUnavailable()) {
+      return {
+        success: false,
+        errorCode: 'E_BILLING_UNAVAILABLE',
+        userMessage: IAP_ERROR_MESSAGES.E_BILLING_UNAVAILABLE,
+      } as const;
+    }
+
     try {
+      const { fetchProducts, requestPurchase } = await getIapModule();
       // Ensure IAP is initialized (handles hot reload scenarios)
       await this.ensureInitialized();
 
@@ -523,6 +562,8 @@ export class PurchaseService {
 
   private static async handlePurchaseUpdate(purchase: Purchase) {
     if (!purchase.purchaseToken) return;
+
+    const { finishTransaction } = await getIapModule();
 
     // CRITICAL: Only process purchases that we initiated
     // This prevents assigning purchases from a different Google Play account
@@ -685,7 +726,16 @@ export class PurchaseService {
   }
 
   static async restorePurchases() {
+    if (isAndroidEmulatorStoreUnavailable()) {
+      return {
+        success: false,
+        errorCode: 'E_BILLING_UNAVAILABLE',
+        userMessage: IAP_ERROR_MESSAGES.E_BILLING_UNAVAILABLE,
+      } as const;
+    }
+
     try {
+      const { getAvailablePurchases } = await getIapModule();
       // Ensure IAP is initialized
       await this.ensureInitialized();
 

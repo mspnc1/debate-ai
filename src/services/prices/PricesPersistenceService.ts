@@ -4,12 +4,10 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import {
-  fetchProducts,
-  type ProductSubscriptionAndroid,
-  type ProductSubscriptionIOS,
-} from 'react-native-iap';
+import type { ProductSubscriptionAndroid, ProductSubscriptionIOS } from 'react-native-iap';
 import { SUBSCRIPTION_PRODUCTS } from '@/services/iap/products';
+import { isAndroidEmulatorStoreUnavailable } from '@/services/iap/environment';
+import { getIapModule } from '@/services/iap/nativeModule';
 
 export interface TrialInfo {
   /** Human-readable trial duration (e.g., "1 week", "7 days", "3 days") */
@@ -87,7 +85,12 @@ export async function fetchAndPersistPrices(): Promise<{
   annual: PriceInfo;
   lifetime: PriceInfo;
 }> {
+  if (isAndroidEmulatorStoreUnavailable()) {
+    return FALLBACK_PRICES;
+  }
+
   try {
+    const { fetchProducts } = await getIapModule();
     const subscriptionSkus = [SUBSCRIPTION_PRODUCTS.monthly, SUBSCRIPTION_PRODUCTS.annual];
     const productSkus = [SUBSCRIPTION_PRODUCTS.lifetime];
 

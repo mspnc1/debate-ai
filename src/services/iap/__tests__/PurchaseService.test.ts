@@ -61,6 +61,8 @@ jest.mock('expo-crypto', () => ({
   },
 }));
 
+jest.mock('expo-device', () => ({ isDevice: true }));
+
 // Import after mocks
 import { PurchaseService } from '../PurchaseService';
 import { SUBSCRIPTION_PRODUCTS } from '../products';

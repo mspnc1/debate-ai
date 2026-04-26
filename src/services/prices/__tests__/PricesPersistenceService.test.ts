@@ -16,6 +16,8 @@ jest.mock('react-native-iap', () => ({
   fetchProducts: (...args: unknown[]) => mockFetchProducts(...args),
 }));
 
+jest.mock('expo-device', () => ({ isDevice: true }));
+
 jest.mock('@/services/iap/products', () => ({
   SUBSCRIPTION_PRODUCTS: {
     monthly: 'symposiumai_monthly',

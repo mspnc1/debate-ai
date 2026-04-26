@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
-import { LogBox } from 'react-native';
+import { LogBox, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import * as Device from 'expo-device';
 
 // Suppress Reanimated v4 dev-mode worklet warnings
 LogBox.ignoreLogs(['[Worklets] Tried to synchronously call a non-worklet function']);
@@ -9,7 +10,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { store, RootState } from './src/store';
 import { updateApiKeys, restoreVerificationData, restoreStats, restoreOnboarding, setPrices } from './src/store';
-import { loadPersistedPrices, fetchAndPersistPrices } from './src/services/prices/PricesPersistenceService';
+import { loadPersistedPrices, fetchAndPersistPrices, FALLBACK_PRICES } from './src/services/prices/PricesPersistenceService';
 import { settingsService } from './src/services/settings/SettingsService';
 import AppNavigator from './src/navigation/AppNavigator';
 import { AIServiceProvider } from './src/providers/AIServiceProvider';
@@ -49,8 +50,18 @@ function AppContent() {
 
         // Initialize IAP connection and load prices ONCE
         try {
-          await PurchaseService.initialize();
-          console.log('IAP initialized');
+          const isAndroidEmulator = Platform.OS === 'android' && !Device.isDevice;
+          const iapResult = isAndroidEmulator
+            ? { success: false as const, skipped: true }
+            : await PurchaseService.initialize();
+
+          if (iapResult.success) {
+            console.log('IAP initialized');
+          } else if (iapResult.skipped) {
+            console.log('IAP skipped on Android emulator');
+          } else {
+            console.warn('IAP init failed, continuing without IAP:', iapResult.error);
+          }
 
           // Load cached prices or fetch fresh if stale/missing
           const cachedPrices = await loadPersistedPrices();
@@ -61,6 +72,9 @@ function AppContent() {
               lifetime: cachedPrices.lifetime,
             }));
             console.log('Loaded cached prices');
+          } else if (!iapResult.success) {
+            dispatch(setPrices(FALLBACK_PRICES));
+            console.log('Using fallback store prices');
           } else {
             const freshPrices = await fetchAndPersistPrices();
             dispatch(setPrices(freshPrices));
