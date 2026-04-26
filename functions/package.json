@@ -17,7 +17,7 @@
     "dompurify": "^3.3.2",
     "firebase-admin": "^13.0.0",
     "firebase-functions": "^7.0.5",
-    "googleapis": "^148.0.0",
+    "googleapis": "^171.4.0",
     "handlebars": "^4.7.8",
     "jose": "^5.9.3",
     "marked": "^17.0.1",
@@ -33,6 +33,12 @@
     "typescript": "^5.6.3"
   },
   "overrides": {
-    "fast-xml-parser": "^5.3.4"
+    "fast-xml-parser": "^5.7.0",
+    "gaxios": "^7.1.4",
+    "google-gax": "^5.0.6",
+    "http-proxy-agent": "^7.0.2",
+    "retry-request": "^8.0.2",
+    "teeny-request": "^10.1.2",
+    "uuid": "^14.0.0"
   }
 }
