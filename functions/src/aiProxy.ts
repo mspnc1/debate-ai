@@ -66,6 +66,13 @@ interface Citation {
   domain?: string;
 }
 
+interface ProviderResult {
+  content: string;
+  usage?: { inputTokens: number; outputTokens: number };
+  citations?: Citation[];
+  searchPerformed?: boolean;
+}
+
 interface MessageAttachment {
   type: 'image' | 'document';
   uri: string;           // Data URL (data:image/jpeg;base64,...)
@@ -114,6 +121,59 @@ function createAttachmentFallbackText(attachments?: MessageAttachment[]): string
   });
 
   return descriptions.join('\n');
+}
+
+function getCitationDomain(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}
+
+function compactCitations(citations: Citation[]): Citation[] {
+  const seen = new Set<string>();
+  const compacted: Citation[] = [];
+
+  for (const citation of citations) {
+    if (!citation.url) continue;
+    const key = `${citation.url}|${citation.title || ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    compacted.push({
+      ...citation,
+      index: compacted.length + 1,
+      domain: citation.domain || getCitationDomain(citation.url),
+    });
+  }
+
+  return compacted;
+}
+
+function normalizeProviderResult(result: ProviderResult, providerId: string): ProviderResult {
+  const content = typeof result.content === 'string' ? result.content : '';
+  const citations = result.citations ? compactCitations(result.citations) : undefined;
+
+  if (!content.trim() && (result.searchPerformed || (citations && citations.length > 0))) {
+    console.warn('[proxyAIRequest] Provider returned a search response without answer text; suppressing citations', {
+      providerId,
+      citationCount: citations?.length || 0,
+    });
+
+    const providerName = PROVIDER_NAMES[providerId] || providerId;
+    return {
+      ...result,
+      content: `${providerName} returned a search response without answer text. Please retry the request.`,
+      citations: undefined,
+      searchPerformed: true,
+    };
+  }
+
+  return {
+    ...result,
+    content,
+    citations: citations && citations.length > 0 ? citations : undefined,
+  };
 }
 
 // Provider display names for user-friendly error messages
@@ -297,15 +357,10 @@ export const proxyAIRequest = onCall(
     const config = PROVIDER_CONFIGS[providerId];
 
     try {
-      let result: {
-        content: string;
-        usage?: { inputTokens: number; outputTokens: number };
-        citations?: Citation[];
-        searchPerformed?: boolean;
-      };
+      let result: ProviderResult;
 
       if (providerId === 'claude') {
-        result = await callClaude(apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, attachments);
+        result = await callClaude(apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, searchOptions, attachments);
       } else if (providerId === 'google') {
         result = await callGemini(apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, searchOptions, attachments);
       } else if (providerId === 'cohere') {
@@ -317,6 +372,8 @@ export const proxyAIRequest = onCall(
         // OpenAI-compatible providers (OpenAI, Mistral, Together, DeepSeek, Grok)
         result = await callOpenAICompatible(apiKey, config.baseUrl, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, providerId, searchOptions, attachments);
       }
+
+      result = normalizeProviderResult(result, providerId);
 
       // Record usage for tracking (non-blocking)
       if (result.usage && (result.usage.inputTokens > 0 || result.usage.outputTokens > 0)) {
@@ -390,12 +447,70 @@ async function callClaude(
   systemPrompt: string | undefined,
   maxTokens: number | undefined,
   temperature: number,
+  searchOptions?: SearchOptions,
   attachments?: MessageAttachment[]
-) {
+): Promise<ProviderResult> {
   // Claude requires max_tokens - use 8192 as default for generous responses
   const resolvedMaxTokens = maxTokens ?? 8192;
+
+  type AnthropicContentPart =
+    | { type: 'text'; text: string }
+    | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
+    | { type: 'document'; source: { type: 'base64'; media_type: string; data: string } };
+
+  type AnthropicMessage = {
+    role: 'user' | 'assistant';
+    content: string | AnthropicContentPart[] | Record<string, unknown>[];
+  };
+
+  type AnthropicCitationBlock = {
+    type?: string;
+    url?: string;
+    title?: string;
+    cited_text?: string;
+  };
+
+  type AnthropicResponseBlock = {
+    type?: string;
+    text?: string;
+    citations?: AnthropicCitationBlock[];
+  };
+
+  const extractAnthropicResponse = (data: Record<string, unknown>): { content: string; citations: Citation[] } => {
+    const contentBlocks = Array.isArray(data.content) ? data.content as AnthropicResponseBlock[] : [];
+    const textParts: string[] = [];
+    const citations: Citation[] = [];
+
+    for (const block of contentBlocks) {
+      if (block.type === 'text' && typeof block.text === 'string') {
+        textParts.push(block.text);
+      }
+
+      if (Array.isArray(block.citations)) {
+        for (const citation of block.citations) {
+          if (citation.type !== 'web_search_result_location' || !citation.url) {
+            continue;
+          }
+
+          citations.push({
+            index: citations.length + 1,
+            url: citation.url,
+            title: citation.title,
+            snippet: citation.cited_text,
+            domain: getCitationDomain(citation.url),
+          });
+        }
+      }
+    }
+
+    return {
+      content: textParts.join(''),
+      citations,
+    };
+  };
+
   // Build messages, adding attachments to the last user message if present
-  const anthropicMessages = messages
+  const anthropicMessages: AnthropicMessage[] = messages
     .filter(m => m.role !== 'system')
     .map((m, idx, arr) => {
       const isLastUserMessage = m.role === 'user' && idx === arr.length - 1;
@@ -404,12 +519,7 @@ async function callClaude(
       if (isLastUserMessage && attachments && attachments.length > 0) {
         // Claude supports both images and documents (PDFs)
         // All claude-3-* and claude-sonnet-4-* models support vision
-        type ContentPart =
-          | { type: 'text'; text: string }
-          | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
-          | { type: 'document'; source: { type: 'base64'; media_type: string; data: string } };
-
-        const contentParts: ContentPart[] = [];
+        const contentParts: AnthropicContentPart[] = [];
 
         // Add attachments first
         for (const att of attachments) {
@@ -453,34 +563,84 @@ async function callClaude(
       };
     });
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: model || 'claude-sonnet-4-20250514',
-      max_tokens: resolvedMaxTokens,
-      temperature,
-      system: systemPrompt || messages.find(m => m.role === 'system')?.content,
-      messages: anthropicMessages,
-    }),
-  });
+  const requestBody: Record<string, unknown> = {
+    model: model || 'claude-sonnet-4-20250514',
+    max_tokens: resolvedMaxTokens,
+    temperature,
+    system: systemPrompt || messages.find(m => m.role === 'system')?.content,
+    messages: anthropicMessages,
+  };
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw { status: response.status, message: error };
+  if (searchOptions?.enabled) {
+    const webSearchTool: Record<string, unknown> = {
+      type: 'web_search_20250305',
+      name: 'web_search',
+      max_uses: 3,
+    };
+
+    if (searchOptions.domainFilter && searchOptions.domainFilter.length > 0) {
+      webSearchTool.allowed_domains = searchOptions.domainFilter;
+    } else if (searchOptions.domainExclude && searchOptions.domainExclude.length > 0) {
+      webSearchTool.blocked_domains = searchOptions.domainExclude;
+    }
+
+    requestBody.tools = [webSearchTool];
   }
 
-  const data = await response.json();
+  let latestData: Record<string, unknown> | undefined;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    requestBody.messages = anthropicMessages;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw { status: response.status, message: error };
+    }
+
+    latestData = await response.json() as Record<string, unknown>;
+
+    if (latestData.stop_reason === 'pause_turn' && attempt < 2) {
+      const content = Array.isArray(latestData.content)
+        ? latestData.content as Record<string, unknown>[]
+        : [];
+
+      anthropicMessages.push({
+        role: 'assistant',
+        content,
+      });
+      continue;
+    }
+
+    const extracted = extractAnthropicResponse(latestData);
+    return {
+      content: extracted.content,
+      usage: {
+        inputTokens: (latestData.usage as { input_tokens?: number } | undefined)?.input_tokens || 0,
+        outputTokens: (latestData.usage as { output_tokens?: number } | undefined)?.output_tokens || 0,
+      },
+      citations: extracted.citations.length > 0 ? extracted.citations : undefined,
+      searchPerformed: Boolean(searchOptions?.enabled || extracted.citations.length > 0),
+    };
+  }
+
+  const extracted = latestData ? extractAnthropicResponse(latestData) : { content: '', citations: [] };
   return {
-    content: data.content[0]?.text || '',
+    content: extracted.content,
     usage: {
-      inputTokens: data.usage?.input_tokens || 0,
-      outputTokens: data.usage?.output_tokens || 0,
+      inputTokens: (latestData?.usage as { input_tokens?: number } | undefined)?.input_tokens || 0,
+      outputTokens: (latestData?.usage as { output_tokens?: number } | undefined)?.output_tokens || 0,
     },
+    citations: extracted.citations.length > 0 ? extracted.citations : undefined,
+    searchPerformed: Boolean(searchOptions?.enabled || extracted.citations.length > 0),
   };
 }
 
@@ -602,7 +762,7 @@ async function callGemini(
 
   // Extract citations from grounding metadata if present
   let citations: Citation[] | undefined;
-  let searchPerformed = false;
+  let searchPerformed = Boolean(searchOptions?.enabled);
 
   const groundingMetadata = data.candidates?.[0]?.groundingMetadata;
   if (groundingMetadata) {
@@ -903,9 +1063,13 @@ async function callPerplexity(
     requestBody.search_recency_filter = searchOptions.recencyFilter;
   }
 
-  // Add domain filters if specified
-  if (searchOptions?.domainFilter && searchOptions.domainFilter.length > 0) {
-    requestBody.search_domain_filter = searchOptions.domainFilter;
+  // Add domain filters if specified. Perplexity accepts excluded domains with a leading "-".
+  const searchDomainFilter = [
+    ...(searchOptions?.domainFilter || []),
+    ...(searchOptions?.domainExclude || []).map(domain => domain.startsWith('-') ? domain : `-${domain}`),
+  ];
+  if (searchDomainFilter.length > 0) {
+    requestBody.search_domain_filter = searchDomainFilter;
   }
 
   const response = await fetch('https://api.perplexity.ai/chat/completions', {
@@ -940,24 +1104,28 @@ async function callPerplexity(
     });
   }
 
-  // Extract citations from Perplexity's response
-  // Perplexity returns citations as an array of URLs in the response
-  const rawCitations: string[] = data.citations || [];
-  const citations: Citation[] = rawCitations.map((url: string, index: number) => {
-    // Extract domain from URL
-    let domain = '';
-    try {
-      domain = new URL(url).hostname.replace(/^www\./, '');
-    } catch {
-      domain = url;
-    }
+  // Prefer search_results when available because it carries title/snippet metadata.
+  const searchResults = Array.isArray(data.search_results)
+    ? data.search_results as Array<{ url?: string; title?: string; snippet?: string }>
+    : [];
+  const searchResultCitations: Citation[] = searchResults
+    .filter(result => typeof result.url === 'string' && result.url.length > 0)
+    .map((result, index) => ({
+      index: index + 1,
+      url: result.url as string,
+      title: result.title,
+      snippet: result.snippet,
+      domain: getCitationDomain(result.url as string),
+    }));
 
-    return {
-      index: index + 1, // 1-indexed to match [1], [2] in text
-      url,
-      domain,
-    };
-  });
+  // Perplexity also returns citations as an array of URLs in some responses.
+  const rawCitations: string[] = Array.isArray(data.citations) ? data.citations : [];
+  const urlCitations: Citation[] = rawCitations.map((url: string, index: number) => ({
+    index: index + 1,
+    url,
+    domain: getCitationDomain(url),
+  }));
+  const citations = searchResultCitations.length > 0 ? searchResultCitations : urlCitations;
 
   return {
     content,
@@ -965,7 +1133,7 @@ async function callPerplexity(
       inputTokens: data.usage?.prompt_tokens || 0,
       outputTokens: data.usage?.completion_tokens || 0,
     },
-    citations: citations.length > 0 ? citations : undefined,
+    citations: citations.length > 0 ? compactCitations(citations) : undefined,
     searchPerformed: true, // Perplexity always performs search
   };
 }
@@ -1029,8 +1197,8 @@ async function callOpenAIWithSearch(
 
   // Extract content from Responses API format
   // The response has an 'output' array with items
-  let content = '';
-  let citations: Citation[] | undefined;
+  const contentParts: string[] = [];
+  const citations: Citation[] = [];
   const searchPerformed = true;
 
   const output = data.output || [];
@@ -1038,31 +1206,26 @@ async function callOpenAIWithSearch(
     if (item.type === 'message' && item.content) {
       for (const contentItem of item.content) {
         if (contentItem.type === 'output_text') {
-          content = contentItem.text || '';
+          if (typeof contentItem.text === 'string') {
+            contentParts.push(contentItem.text);
+          }
 
           // Extract citations from annotations
           const annotations = contentItem.annotations || [];
           const urlCitations = annotations.filter((a: { type: string }) => a.type === 'url_citation');
 
           if (urlCitations.length > 0) {
-            citations = urlCitations.map((annotation: {
+            citations.push(...urlCitations.map((annotation: {
               url: string;
               title?: string;
             }, index: number) => {
-              let domain = '';
-              try {
-                domain = new URL(annotation.url).hostname.replace(/^www\./, '');
-              } catch {
-                domain = annotation.url;
-              }
-
               return {
-                index: index + 1,
+                index: citations.length + index + 1,
                 url: annotation.url,
                 title: annotation.title,
-                domain,
+                domain: getCitationDomain(annotation.url),
               };
-            });
+            }));
           }
         }
       }
@@ -1070,12 +1233,12 @@ async function callOpenAIWithSearch(
   }
 
   return {
-    content,
+    content: contentParts.join(''),
     usage: {
       inputTokens: data.usage?.input_tokens || 0,
       outputTokens: data.usage?.output_tokens || 0,
     },
-    citations: citations && citations.length > 0 ? citations : undefined,
+    citations: citations.length > 0 ? compactCitations(citations) : undefined,
     searchPerformed,
   };
 }
@@ -1277,8 +1440,21 @@ async function callOpenAICompatible(
   }
 
   const data = await response.json();
+  const messageContent = data.choices?.[0]?.message?.content;
+  const content = typeof messageContent === 'string'
+    ? messageContent
+    : Array.isArray(messageContent)
+      ? messageContent
+        .map((part: { text?: unknown; content?: unknown }) => {
+          if (typeof part.text === 'string') return part.text;
+          if (typeof part.content === 'string') return part.content;
+          return '';
+        })
+        .join('')
+      : '';
+
   return {
-    content: data.choices?.[0]?.message?.content || '',
+    content,
     usage: {
       inputTokens: data.usage?.prompt_tokens || 0,
       outputTokens: data.usage?.completion_tokens || 0,
