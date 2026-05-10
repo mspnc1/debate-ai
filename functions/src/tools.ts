@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import * as crypto from 'crypto';
 import { getDecryptedApiKey, encryptionKey } from './apiKeys';
 import { executeWebSearch } from './web_search';
 import {
@@ -274,6 +275,54 @@ interface ExtractedLink {
   url: string;
 }
 
+interface SalesforceDocsLookupTopicArg {
+  id?: string;
+  label?: string;
+  query?: string;
+  category?: string;
+  reasons?: string[];
+  componentTypes?: string[];
+  apiVersions?: string[];
+  riskSignalIds?: string[];
+}
+
+interface SalesforceDocsLookupArgs {
+  topics?: Array<string | SalesforceDocsLookupTopicArg>;
+  componentTypes?: string[];
+  apiVersions?: string[];
+  riskSignalIds?: string[];
+  releaseContext?: string;
+  maxResultsPerTopic?: number;
+}
+
+interface SalesforceDocsTopic {
+  id: string;
+  label: string;
+  query: string;
+  category: string;
+  reasons: string[];
+  componentTypes: string[];
+  apiVersions: string[];
+  riskSignalIds: string[];
+}
+
+interface SalesforceDocEvidenceSource {
+  id: string;
+  topicId: string;
+  title: string;
+  url: string;
+  domain: string;
+  sourceType: 'release_page' | 'release_notes' | 'developer_doc' | 'help_doc' | 'architect_doc' | 'official_doc';
+  status: 'ga' | 'preview' | 'unknown';
+  retrievedAt: string;
+  responseHash: string;
+  contentLength: number;
+  excerpt: string;
+  searchSnippet?: string;
+  warnings: string[];
+  confidenceImpact: 'supports' | 'unclear' | 'stale-risk';
+}
+
 interface ConnectorInferenceRule {
   connectorId: string;
   matches: (url: URL) => boolean;
@@ -309,6 +358,9 @@ const BLOCKED_HOSTS = [
 
 const MAX_FETCH_API_RESPONSE_BYTES = 750_000;
 const SOCRATA_DOWNLOAD_BLOCK_MESSAGE = 'Blocked bulk download endpoint rows.json?accessType=DOWNLOAD because it is too large for interactive analysis. Query the dataset /resource/{dataset_id}.json endpoint with SoQL filters and a modest $limit (for example: 100-1000 rows), then paginate with $offset.';
+const SALESFORCE_RELEASES_URL = 'https://www.salesforce.com/releases';
+const SALESFORCE_OFFICIAL_HOST_PATTERN = /(^|\.)salesforce\.com$/i;
+const SALESFORCE_RELEASE_LABEL_PATTERN = /\b(Spring|Summer|Winter)\s+[’']?(\d{2})\b/i;
 
 const KNOWN_API_HOSTS = new Set([
   'api.weather.gov',
@@ -955,6 +1007,351 @@ function stripHtmlTags(html: string): string {
 }
 
 // ============================================================================
+// salesforce_docs_lookup Handler
+// ============================================================================
+
+async function handleSalesforceDocsLookup(
+  args: SalesforceDocsLookupArgs,
+  uid: string,
+  encryptionKeyValue: string
+): Promise<ToolResult> {
+  const startTime = Date.now();
+  const generatedAt = new Date().toISOString();
+  const componentTypes = normalizeStringArray(args.componentTypes);
+  const apiVersions = normalizeStringArray(args.apiVersions);
+  const riskSignalIds = normalizeStringArray(args.riskSignalIds);
+  const topics = normalizeSalesforceDocsTopics(args.topics, componentTypes, apiVersions, riskSignalIds);
+  const maxResultsPerTopic = clampInteger(args.maxResultsPerTopic, 1, 5, 2);
+  const warnings: string[] = [];
+  const releaseContextWarnings: string[] = [];
+  const rejectedUrls = new Set<string>();
+  const sources: SalesforceDocEvidenceSource[] = [];
+  const seenUrls = new Set<string>();
+
+  const releaseFetch = await handleFetchUrl({
+    url: SALESFORCE_RELEASES_URL,
+    includeMetadata: true,
+    maxLength: 20000,
+  });
+  let detectedRelease: string | undefined;
+  if (releaseFetch.success && releaseFetch.content) {
+    const match = releaseFetch.content.match(SALESFORCE_RELEASE_LABEL_PATTERN);
+    detectedRelease = match ? `${match[1]} '${match[2]}` : undefined;
+    const releaseSource = buildSalesforceDocEvidenceSource({
+      topic: {
+        id: 'salesforce-release-context',
+        label: 'Salesforce release context',
+        query: 'Salesforce release cycle current releases',
+        category: 'release',
+        reasons: ['Runtime release context is derived from the official Salesforce releases page.'],
+        componentTypes: [],
+        apiVersions: [],
+        riskSignalIds: [],
+      },
+      title: 'Salesforce Releases',
+      url: SALESFORCE_RELEASES_URL,
+      snippet: 'Official Salesforce releases page used to derive release context.',
+      content: releaseFetch.content,
+      retrievedAt: generatedAt,
+      sourceIndex: 1,
+    });
+    sources.push(releaseSource);
+    seenUrls.add(releaseSource.url);
+  } else {
+    releaseContextWarnings.push(`Could not derive Salesforce release context from ${SALESFORCE_RELEASES_URL}: ${releaseFetch.error || 'no content returned'}`);
+  }
+
+  if (topics.length === 0) {
+    warnings.push('No documentation topics were provided; Salesforce docs lookup could not ground audit claims.');
+  }
+
+  for (const topic of topics.slice(0, 12)) {
+    const directTopicUrl = canonicalizeSalesforceDocsUrl(topic.query);
+    if (directTopicUrl) {
+      if (seenUrls.has(directTopicUrl)) continue;
+      const fetched = await handleFetchUrl({
+        url: directTopicUrl,
+        includeMetadata: true,
+        maxLength: 30000,
+      });
+      if (!fetched.success || !fetched.content) {
+        warnings.push(`Fetch failed for ${directTopicUrl}: ${fetched.error || 'no content returned'}`);
+        continue;
+      }
+
+      seenUrls.add(directTopicUrl);
+      sources.push(buildSalesforceDocEvidenceSource({
+        topic,
+        title: topic.label,
+        url: directTopicUrl,
+        snippet: 'Direct official Salesforce documentation reference supplied by the audit context.',
+        content: fetched.content,
+        retrievedAt: generatedAt,
+        sourceIndex: sources.length + 1,
+      }));
+      continue;
+    }
+
+    if (/^https?:\/\//i.test(topic.query.trim())) {
+      rejectedUrls.add(topic.query.trim());
+      warnings.push(`Documentation reference for ${topic.label} is not an allowed official Salesforce HTTPS URL.`);
+      continue;
+    }
+
+    const query = buildSalesforceDocsSearchQuery(topic, args.releaseContext || detectedRelease);
+    let searchResponse: Awaited<ReturnType<typeof executeWebSearch>>;
+    try {
+      searchResponse = await executeWebSearch(uid, {
+        query,
+        num_results: Math.max(maxResultsPerTopic * 3, 5),
+      }, encryptionKeyValue);
+    } catch (error: any) {
+      warnings.push(`Search failed for ${topic.label}: ${error?.message || 'unknown search failure'}`);
+      continue;
+    }
+
+    const officialResults = [];
+    for (const result of searchResponse.results || []) {
+      const canonicalUrl = canonicalizeSalesforceDocsUrl(result.url);
+      if (!canonicalUrl) {
+        rejectedUrls.add(result.url);
+        continue;
+      }
+      if (seenUrls.has(canonicalUrl)) continue;
+      officialResults.push({
+        title: result.title,
+        url: canonicalUrl,
+        snippet: result.snippet,
+      });
+      if (officialResults.length >= maxResultsPerTopic) break;
+    }
+
+    if (officialResults.length === 0) {
+      warnings.push(`No official Salesforce documentation result was found for ${topic.label}.`);
+      continue;
+    }
+
+    for (const result of officialResults) {
+      const fetched = await handleFetchUrl({
+        url: result.url,
+        includeMetadata: true,
+        maxLength: 30000,
+      });
+      if (!fetched.success || !fetched.content) {
+        warnings.push(`Fetch failed for ${result.url}: ${fetched.error || 'no content returned'}`);
+        continue;
+      }
+
+      seenUrls.add(result.url);
+      sources.push(buildSalesforceDocEvidenceSource({
+        topic,
+        title: result.title,
+        url: result.url,
+        snippet: result.snippet,
+        content: fetched.content,
+        retrievedAt: generatedAt,
+        sourceIndex: sources.length + 1,
+      }));
+    }
+  }
+
+  const evidence = {
+    version: 1,
+    generatedAt,
+    releaseContext: {
+      requested: args.releaseContext,
+      detected: detectedRelease,
+      sourceUrl: sources.find((source) => source.topicId === 'salesforce-release-context')?.url,
+      warnings: releaseContextWarnings,
+    },
+    officialDomainPolicy: {
+      allowedHostPattern: '*.salesforce.com',
+      rejectedUrls: Array.from(rejectedUrls).sort(),
+    },
+    topics,
+    sources: sources.sort((a, b) => a.topicId.localeCompare(b.topicId) || a.title.localeCompare(b.title)),
+    warnings,
+  };
+
+  return {
+    toolCallId: '',
+    success: true,
+    content: JSON.stringify(evidence),
+    metadata: {
+      executionTime: Date.now() - startTime,
+      originalLength: JSON.stringify(evidence).length,
+    },
+  };
+}
+
+function normalizeSalesforceDocsTopics(
+  rawTopics: SalesforceDocsLookupArgs['topics'],
+  componentTypes: string[],
+  apiVersions: string[],
+  riskSignalIds: string[]
+): SalesforceDocsTopic[] {
+  if (!Array.isArray(rawTopics)) return [];
+  return rawTopics.flatMap((topic, index): SalesforceDocsTopic[] => {
+    if (typeof topic === 'string' && topic.trim()) {
+      const label = topic.trim();
+      return [{
+        id: slugify(label) || `topic-${index + 1}`,
+        label,
+        query: label,
+        category: 'general',
+        reasons: ['User/model supplied documentation topic.'],
+        componentTypes,
+        apiVersions,
+        riskSignalIds,
+      }];
+    }
+    if (!topic || typeof topic !== 'object' || Array.isArray(topic)) return [];
+    const label = typeof topic.label === 'string' && topic.label.trim()
+      ? topic.label.trim()
+      : typeof topic.query === 'string' && topic.query.trim()
+        ? topic.query.trim()
+        : `Salesforce documentation topic ${index + 1}`;
+    return [{
+      id: typeof topic.id === 'string' && topic.id.trim() ? slugify(topic.id) : slugify(label) || `topic-${index + 1}`,
+      label,
+      query: typeof topic.query === 'string' && topic.query.trim() ? topic.query.trim() : label,
+      category: typeof topic.category === 'string' && topic.category.trim() ? topic.category.trim() : 'general',
+      reasons: normalizeStringArray(topic.reasons),
+      componentTypes: normalizeStringArray(topic.componentTypes).length > 0 ? normalizeStringArray(topic.componentTypes) : componentTypes,
+      apiVersions: normalizeStringArray(topic.apiVersions).length > 0 ? normalizeStringArray(topic.apiVersions) : apiVersions,
+      riskSignalIds: normalizeStringArray(topic.riskSignalIds).length > 0 ? normalizeStringArray(topic.riskSignalIds) : riskSignalIds,
+    }];
+  });
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return Array.from(new Set(
+    value
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter(Boolean)
+  ));
+}
+
+function clampInteger(value: unknown, min: number, max: number, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isInteger(value)) return fallback;
+  return Math.max(min, Math.min(max, value));
+}
+
+function slugify(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
+}
+
+function buildSalesforceDocsSearchQuery(topic: SalesforceDocsTopic, releaseContext?: string): string {
+  const query = [
+    'Salesforce official documentation',
+    topic.query,
+    topic.componentTypes.length > 0 ? topic.componentTypes.join(' ') : '',
+    topic.apiVersions.length > 0 ? `API version ${topic.apiVersions.join(' ')}` : '',
+    releaseContext ? `release ${releaseContext}` : '',
+    'site:help.salesforce.com OR site:developer.salesforce.com OR site:architect.salesforce.com OR site:salesforce.com',
+  ].filter(Boolean).join(' ');
+  return query.length > 480 ? query.slice(0, 480).trim() : query;
+}
+
+function canonicalizeSalesforceDocsUrl(urlValue: string): string | null {
+  try {
+    const url = new URL(urlValue);
+    if (url.protocol !== 'https:' || !SALESFORCE_OFFICIAL_HOST_PATTERN.test(url.hostname)) {
+      return null;
+    }
+    url.hash = '';
+    for (const key of Array.from(url.searchParams.keys())) {
+      if (/^(utm_|cmpid|d|nc|trk|mc_)/i.test(key)) {
+        url.searchParams.delete(key);
+      }
+    }
+    url.hostname = url.hostname.toLowerCase();
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function buildSalesforceDocEvidenceSource(input: {
+  topic: SalesforceDocsTopic;
+  title: string;
+  url: string;
+  snippet?: string;
+  content: string;
+  retrievedAt: string;
+  sourceIndex: number;
+}): SalesforceDocEvidenceSource {
+  const status = inferSalesforceDocStatus(input.content);
+  const warnings = inferSalesforceDocWarnings(input.content, status);
+  return {
+    id: `sf-doc-${input.sourceIndex}`,
+    topicId: input.topic.id,
+    title: input.title,
+    url: input.url,
+    domain: new URL(input.url).hostname,
+    sourceType: inferSalesforceDocSourceType(input.url),
+    status,
+    retrievedAt: input.retrievedAt,
+    responseHash: crypto.createHash('sha256').update(input.content).digest('hex'),
+    contentLength: input.content.length,
+    excerpt: buildSalesforceDocExcerpt(input.content, input.topic.query),
+    searchSnippet: input.snippet,
+    warnings,
+    confidenceImpact: status === 'preview' || warnings.some((warning) => /previous|stale/i.test(warning))
+      ? 'stale-risk'
+      : status === 'ga'
+        ? 'supports'
+        : 'unclear',
+  };
+}
+
+function inferSalesforceDocSourceType(urlValue: string): SalesforceDocEvidenceSource['sourceType'] {
+  const url = new URL(urlValue);
+  if (url.hostname === 'www.salesforce.com' || url.pathname.includes('/releases')) return 'release_page';
+  if (url.hostname === 'help.salesforce.com' && url.pathname.includes('release-notes')) return 'release_notes';
+  if (url.hostname === 'developer.salesforce.com') return 'developer_doc';
+  if (url.hostname === 'help.salesforce.com') return 'help_doc';
+  if (url.hostname === 'architect.salesforce.com') return 'architect_doc';
+  return 'official_doc';
+}
+
+function inferSalesforceDocStatus(content: string): SalesforceDocEvidenceSource['status'] {
+  if (/release is in preview|beta|pilot|developer preview|don't become generally available|do not become generally available|can't guarantee general availability/i.test(content)) {
+    return 'preview';
+  }
+  if (/generally available|\bGA\b|current release|latest release/i.test(content)) {
+    return 'ga';
+  }
+  return 'unknown';
+}
+
+function inferSalesforceDocWarnings(content: string, status: SalesforceDocEvidenceSource['status']): string[] {
+  const warnings: string[] = [];
+  if (status === 'preview') {
+    warnings.push('Source contains preview, beta, pilot, or not-yet-GA language; recommendations must be confidence-downgraded.');
+  }
+  if (/links point to material from the previous release|previous-release documentation|previous release/i.test(content)) {
+    warnings.push('Source warns that linked documentation may point to previous-release material.');
+  }
+  return warnings;
+}
+
+function buildSalesforceDocExcerpt(content: string, query: string): string {
+  const normalized = content.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= 500) return normalized;
+  const terms = query.toLowerCase().split(/[^a-z0-9]+/).filter((term) => term.length >= 4);
+  const lower = normalized.toLowerCase();
+  const index = terms
+    .map((term) => lower.indexOf(term))
+    .filter((position) => position >= 0)
+    .sort((a, b) => a - b)[0] ?? 0;
+  const start = Math.max(0, index - 180);
+  return `${start > 0 ? '...' : ''}${normalized.slice(start, start + 500)}${start + 500 < normalized.length ? '...' : ''}`;
+}
+
+// ============================================================================
 // fetch_api Handler
 // ============================================================================
 
@@ -1366,6 +1763,19 @@ export const executeTool = onCall(
             success: true,
             content: JSON.stringify(searchResponse),
           };
+          break;
+        }
+
+        case 'salesforce_docs_lookup': {
+          const keyValue = encryptionKey.value();
+          if (!keyValue) {
+            throw new Error('Encryption not configured');
+          }
+          result = await handleSalesforceDocsLookup(
+            args as unknown as SalesforceDocsLookupArgs,
+            request.auth!.uid,
+            keyValue
+          );
           break;
         }
 
