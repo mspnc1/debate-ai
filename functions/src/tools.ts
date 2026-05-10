@@ -2,6 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as crypto from 'crypto';
 import { getDecryptedApiKey, encryptionKey } from './apiKeys';
 import { executeWebSearch } from './web_search';
+import { lookupSalesforceDocsIndex } from './salesforceDocsIndex';
 import {
   getDecryptedDataServiceKey,
   CONNECTOR_AUTH_CONFIG,
@@ -1027,6 +1028,7 @@ async function handleSalesforceDocsLookup(
   const rejectedUrls = new Set<string>();
   const sources: SalesforceDocEvidenceSource[] = [];
   const seenUrls = new Set<string>();
+  let docsIndexSummary: Record<string, unknown> | undefined;
 
   const releaseFetch = await handleFetchUrl({
     url: SALESFORCE_RELEASES_URL,
@@ -1065,7 +1067,31 @@ async function handleSalesforceDocsLookup(
     warnings.push('No documentation topics were provided; Salesforce docs lookup could not ground audit claims.');
   }
 
+  const indexLookup = await lookupSalesforceDocsIndex(topics, {
+    generatedAt,
+    maxResultsPerTopic,
+  });
+  warnings.push(...indexLookup.warnings);
+  docsIndexSummary = indexLookup.indexSummary;
+  const cachedTopicIds = new Set(
+    indexLookup.indexSummary?.status === 'hit'
+      ? indexLookup.sources
+        .filter((source) => source.confidenceImpact !== 'stale-risk')
+        .map((source) => source.topicId)
+      : []
+  );
+  for (const source of indexLookup.sources) {
+    if (seenUrls.has(source.url)) continue;
+    seenUrls.add(source.url);
+    sources.push({
+      ...source,
+      id: `sf-doc-${sources.length + 1}`,
+    });
+  }
+
   for (const topic of topics.slice(0, 12)) {
+    if (cachedTopicIds.has(topic.id)) continue;
+
     const directTopicUrl = canonicalizeSalesforceDocsUrl(topic.query);
     if (directTopicUrl) {
       if (seenUrls.has(directTopicUrl)) continue;
@@ -1168,6 +1194,7 @@ async function handleSalesforceDocsLookup(
       allowedHostPattern: '*.salesforce.com',
       rejectedUrls: Array.from(rejectedUrls).sort(),
     },
+    documentationIndex: docsIndexSummary,
     topics,
     sources: sources.sort((a, b) => a.topicId.localeCompare(b.topicId) || a.title.localeCompare(b.title)),
     warnings,

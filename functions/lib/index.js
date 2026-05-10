@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createHtmlPdfExport = exports.createExportJob = exports.runExportJob = exports.appleAuthCallback = exports.symposiumFeedback = exports.contactForm = exports.exportUserData = exports.recordImageGeneration = exports.getUsageStats = exports.getProviderBalances = exports.stripeWebhook = exports.cancelStripeSubscription = exports.createStripeBillingPortal = exports.createStripeCheckoutSession = exports.executeTool = exports.proxyImageGeneration = exports.proxyAIRequestStreamV2 = exports.proxyAIRequestStream = exports.proxyAIRequest = exports.getConfiguredDataServices = exports.deleteDataServiceKey = exports.saveDataServiceKey = exports.getConfiguredProviders = exports.deleteApiKey = exports.saveApiKey = exports.deleteAccount = exports.handleAppStoreNotification = exports.handlePlayStoreNotification = exports.validatePurchase = void 0;
+exports.createHtmlPdfExport = exports.createExportJob = exports.runExportJob = exports.appleAuthCallback = exports.symposiumFeedback = exports.contactForm = exports.exportUserData = exports.recordImageGeneration = exports.getUsageStats = exports.getProviderBalances = exports.stripeWebhook = exports.cancelStripeSubscription = exports.createStripeBillingPortal = exports.createStripeCheckoutSession = exports.scheduledSalesforceDocsIndexRefresh = exports.refreshSalesforceDocsIndex = exports.executeTool = exports.proxyImageGeneration = exports.proxyAIRequestStreamV2 = exports.proxyAIRequestStream = exports.proxyAIRequest = exports.getConfiguredDataServices = exports.deleteDataServiceKey = exports.saveDataServiceKey = exports.getConfiguredProviders = exports.deleteApiKey = exports.saveApiKey = exports.deleteAccount = exports.handleAppStoreNotification = exports.handlePlayStoreNotification = exports.validatePurchase = void 0;
 var validatePurchase_1 = require("./validatePurchase");
 Object.defineProperty(exports, "validatePurchase", { enumerable: true, get: function () { return validatePurchase_1.validatePurchase; } });
 var playStore_1 = require("./notifications/playStore");
@@ -32,6 +32,9 @@ Object.defineProperty(exports, "proxyImageGeneration", { enumerable: true, get: 
 // Tool Execution (all server tools route through executeTool)
 var tools_1 = require("./tools");
 Object.defineProperty(exports, "executeTool", { enumerable: true, get: function () { return tools_1.executeTool; } });
+var salesforceDocsIndex_1 = require("./salesforceDocsIndex");
+Object.defineProperty(exports, "refreshSalesforceDocsIndex", { enumerable: true, get: function () { return salesforceDocsIndex_1.refreshSalesforceDocsIndex; } });
+Object.defineProperty(exports, "scheduledSalesforceDocsIndexRefresh", { enumerable: true, get: function () { return salesforceDocsIndex_1.scheduledSalesforceDocsIndexRefresh; } });
 // Stripe (Web Subscriptions)
 var stripe_1 = require("./stripe");
 Object.defineProperty(exports, "createStripeCheckoutSession", { enumerable: true, get: function () { return stripe_1.createStripeCheckoutSession; } });

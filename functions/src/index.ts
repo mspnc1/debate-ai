@@ -19,6 +19,10 @@ export { proxyImageGeneration } from './imageProxy';
 
 // Tool Execution (all server tools route through executeTool)
 export { executeTool } from './tools';
+export {
+  refreshSalesforceDocsIndex,
+  scheduledSalesforceDocsIndexRefresh,
+} from './salesforceDocsIndex';
 
 // Stripe (Web Subscriptions)
 export {
