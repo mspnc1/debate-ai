@@ -30,7 +30,7 @@ on:
           - gcloud
           - google-auth
   schedule:
-    - cron: '17 8 * * *'
+    - cron: '15 16 * * 1-5'
 
 jobs:
   build-index:
