@@ -2,7 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
-import { getExportBucket } from './exports/utils';
+import { GoogleAuth } from 'google-auth-library';
 
 try {
   admin.app();
@@ -11,6 +11,7 @@ try {
 }
 
 const SALESFORCE_DOC_INDEX_PATH = 'salesforce-docs/index-v1.json';
+const SALESFORCE_DOC_INDEX_BUCKET = 'symposium-ai.firebasestorage.app';
 const SALESFORCE_DOC_INDEX_VERSION = 1;
 const MAX_INDEX_SOURCE_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 const MAX_INDEX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
@@ -270,6 +271,64 @@ const SALESFORCE_DOC_SITEMAP_SOURCES: SalesforceDocsSitemapSource[] = [
     maxEntries: 4000,
   },
 ];
+
+const storageAuth = new GoogleAuth({
+  scopes: ['https://www.googleapis.com/auth/devstorage.read_write'],
+});
+
+async function getStorageAccessToken(): Promise<string> {
+  const client = await storageAuth.getClient();
+  const accessTokenResponse = await client.getAccessToken();
+  const accessToken = typeof accessTokenResponse === 'string'
+    ? accessTokenResponse
+    : accessTokenResponse?.token;
+  if (!accessToken) {
+    throw new Error('Unable to acquire a Google Cloud Storage access token for Salesforce docs index storage.');
+  }
+  return accessToken;
+}
+
+async function authorizedStorageFetch(url: string, init: RequestInit): Promise<Response> {
+  const accessToken = await getStorageAccessToken();
+  const headers = new Headers(init.headers || {});
+  headers.set('Authorization', `Bearer ${accessToken}`);
+  return fetch(url, { ...init, headers });
+}
+
+function storageBucketPath(): string {
+  return encodeURIComponent(SALESFORCE_DOC_INDEX_BUCKET);
+}
+
+function storageObjectPath(): string {
+  return encodeURIComponent(SALESFORCE_DOC_INDEX_PATH);
+}
+
+async function writeSalesforceDocsIndex(index: SalesforceDocsIndex): Promise<void> {
+  const uploadUrl = `https://storage.googleapis.com/upload/storage/v1/b/${storageBucketPath()}/o?uploadType=media&name=${storageObjectPath()}`;
+  const response = await authorizedStorageFetch(uploadUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+    },
+    body: JSON.stringify(index, null, 2),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to write Salesforce docs index to Cloud Storage (${response.status}): ${errorText}`);
+  }
+}
+
+async function readSalesforceDocsIndexText(): Promise<string | null> {
+  const downloadUrl = `https://storage.googleapis.com/storage/v1/b/${storageBucketPath()}/o/${storageObjectPath()}?alt=media`;
+  const response = await authorizedStorageFetch(downloadUrl, { method: 'GET' });
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to read Salesforce docs index from Cloud Storage (${response.status}): ${errorText}`);
+  }
+  return response.text();
+}
 
 function isOfficialSalesforceUrl(urlValue: string): boolean {
   try {
@@ -820,29 +879,15 @@ export async function refreshSalesforceDocsIndexNow(): Promise<SalesforceDocsInd
     ].filter(Boolean),
   };
 
-  const bucket = getExportBucket();
-  await bucket.file(SALESFORCE_DOC_INDEX_PATH).save(JSON.stringify(index, null, 2), {
-    contentType: 'application/json; charset=utf-8',
-    metadata: {
-      cacheControl: 'private, max-age=300',
-      metadata: {
-        generatedAt,
-        version: String(SALESFORCE_DOC_INDEX_VERSION),
-        recordCount: String(records.length),
-      },
-    },
-  });
+  await writeSalesforceDocsIndex(index);
   return index;
 }
 
 export async function readSalesforceDocsIndex(): Promise<SalesforceDocsIndex | null> {
   try {
-    const bucket = getExportBucket();
-    const file = bucket.file(SALESFORCE_DOC_INDEX_PATH);
-    const [exists] = await file.exists();
-    if (!exists) return null;
-    const [buffer] = await file.download();
-    const parsed = JSON.parse(buffer.toString('utf-8')) as SalesforceDocsIndex;
+    const indexText = await readSalesforceDocsIndexText();
+    if (!indexText) return null;
+    const parsed = JSON.parse(indexText) as SalesforceDocsIndex;
     return parsed && parsed.version === SALESFORCE_DOC_INDEX_VERSION ? parsed : null;
   } catch (error) {
     console.warn('[salesforceDocsIndex] Failed to read Salesforce docs index:', error);
@@ -1008,11 +1053,21 @@ export const scheduledSalesforceDocsIndexRefresh = onSchedule(
     memory: '1GiB',
   },
   async () => {
-    const index = await refreshSalesforceDocsIndexNow();
-    console.log('[salesforceDocsIndex] Refreshed Salesforce docs index', {
-      generatedAt: index.generatedAt,
-      recordCount: index.records.length,
-      failureCount: index.failures.length,
-    });
+    try {
+      const index = await refreshSalesforceDocsIndexNow();
+      console.log('[salesforceDocsIndex] Refreshed Salesforce docs index', {
+        generatedAt: index.generatedAt,
+        recordCount: index.records.length,
+        failureCount: index.failures.length,
+      });
+    } catch (error: any) {
+      console.error('[salesforceDocsIndex] Scheduled refresh failed', {
+        name: error?.name,
+        message: error?.message,
+        code: error?.code,
+        stack: error?.stack,
+      });
+      throw error;
+    }
   }
 );
