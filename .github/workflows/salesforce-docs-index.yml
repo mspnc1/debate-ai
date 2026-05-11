@@ -13,12 +13,28 @@ on:
         required: false
         default: '1'
         type: string
+      runner_label:
+        description: Runner label. Use self-hosted for scheduled ingestion; ubuntu-latest is a canary only.
+        required: false
+        default: self-hosted
+        type: choice
+        options:
+          - self-hosted
+          - ubuntu-latest
+      upload_mode:
+        description: Upload mode. Use gcloud for a trusted self-hosted runner; google-auth for Workload Identity.
+        required: false
+        default: gcloud
+        type: choice
+        options:
+          - gcloud
+          - google-auth
   schedule:
     - cron: '17 8 * * *'
 
 jobs:
   build-index:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.runner_label || 'self-hosted' }}
     timeout-minutes: 25
     permissions:
       contents: read
@@ -27,6 +43,7 @@ jobs:
     env:
       UPLOAD_REQUESTED: ${{ github.event_name == 'schedule' || inputs.upload == true }}
       MIN_DEVELOPER_RECORDS: ${{ inputs.min_developer_records || '1' }}
+      UPLOAD_MODE: ${{ inputs.upload_mode || 'gcloud' }}
       GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
       GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
@@ -46,7 +63,7 @@ jobs:
         working-directory: functions
 
       - name: Verify upload credentials
-        if: env.UPLOAD_REQUESTED == 'true'
+        if: env.UPLOAD_REQUESTED == 'true' && env.UPLOAD_MODE == 'google-auth'
         run: |
           if [[ -z "$GCP_WORKLOAD_IDENTITY_PROVIDER" || -z "$GCP_SERVICE_ACCOUNT" ]]; then
             echo "GCP_WORKLOAD_IDENTITY_PROVIDER and GCP_SERVICE_ACCOUNT secrets are required when upload is requested." >&2
@@ -54,7 +71,7 @@ jobs:
           fi
 
       - name: Authenticate to Google Cloud
-        if: env.UPLOAD_REQUESTED == 'true'
+        if: env.UPLOAD_REQUESTED == 'true' && env.UPLOAD_MODE == 'google-auth'
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
@@ -70,7 +87,7 @@ jobs:
           npm --prefix functions run salesforce-docs:index -- \
             --out /tmp/salesforce-docs-index-v1.json \
             "$upload_flag" \
-            --upload-mode google-auth \
+            --upload-mode "$UPLOAD_MODE" \
             --min-developer-records "$MIN_DEVELOPER_RECORDS"
 
       - name: Upload generated index artifact
