@@ -10,9 +10,10 @@ try {
   admin.initializeApp();
 }
 
-const SALESFORCE_DOC_INDEX_PATH = 'salesforce-docs/index-v1.json';
-const SALESFORCE_DOC_INDEX_BUCKET = 'symposium-ai.firebasestorage.app';
+export const SALESFORCE_DOC_INDEX_PATH = 'salesforce-docs/index-v1.json';
+export const SALESFORCE_DOC_INDEX_BUCKET = 'symposium-ai.firebasestorage.app';
 const SALESFORCE_DOC_INDEX_VERSION = 1;
+const MIN_REFRESH_DEVELOPER_DOC_RECORDS = 1;
 const MAX_INDEX_SOURCE_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 const MAX_INDEX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 const MAX_SITEMAP_CHILDREN_PER_SOURCE = 60;
@@ -162,7 +163,8 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     keywords: ['apex', 'governor limits', 'soql', 'dml', 'bulkification', 'bulkify'],
     seedUrls: [
       'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_gov_limits.htm',
-      'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_code_best_practices.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_limits_tips.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_triggers_bestpract.htm',
     ],
   },
   {
@@ -173,7 +175,7 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     keywords: ['apex', 'sharing', 'with sharing', 'without sharing', 'inherited sharing', 'record access'],
     seedUrls: [
       'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_classes_keywords_sharing.htm',
-      'https://developer.salesforce.com/docs/platform/salesforce-code-analyzer/guide/usewithsharingondatabaseoperation-rule.html',
+      'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_security_sharing_rules.htm',
     ],
   },
   {
@@ -240,7 +242,7 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     keywords: ['metadata api', 'api version', 'package xml', 'release notes'],
     seedUrls: [
       'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_intro.htm',
-      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_versions.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_support_policy.htm',
     ],
   },
 ];
@@ -303,7 +305,7 @@ function storageObjectPath(): string {
   return encodeURIComponent(SALESFORCE_DOC_INDEX_PATH);
 }
 
-async function writeSalesforceDocsIndex(index: SalesforceDocsIndex): Promise<void> {
+export async function writeSalesforceDocsIndex(index: SalesforceDocsIndex): Promise<void> {
   const uploadUrl = `https://storage.googleapis.com/upload/storage/v1/b/${storageBucketPath()}/o?uploadType=media&name=${storageObjectPath()}`;
   const response = await authorizedStorageFetch(uploadUrl, {
     method: 'POST',
@@ -380,6 +382,13 @@ function stripHtmlTags(html: string): string {
     .replace(/&[a-z]+;/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function extractHtmlTitle(html: string): string | undefined {
+  const navTitle = html.match(/<meta\s+name=["']nav-title["']\s+content=["']([^"']+)["']/i)?.[1];
+  if (navTitle) return decodeXmlEntities(navTitle).trim().slice(0, 180);
+  const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1];
+  return title ? decodeXmlEntities(stripHtmlTags(title)).trim().slice(0, 180) : undefined;
 }
 
 function normalizeForMatch(value: string): string {
@@ -627,19 +636,28 @@ async function fetchDeveloperDocsContent(urlValue: string): Promise<OfficialDocC
 }
 
 async function fetchOfficialDoc(url: string): Promise<OfficialDocContent> {
-  const developerContent = await fetchDeveloperDocsContent(url);
-  if (developerContent) return developerContent;
+  let developerDocsApiError: string | undefined;
+  try {
+    const developerContent = await fetchDeveloperDocsContent(url);
+    if (developerContent) return developerContent;
+  } catch (error: any) {
+    developerDocsApiError = error?.message || 'Unknown developer docs API failure';
+  }
 
   const helpArticleMetadata = buildHelpArticleMetadata(url);
   if (helpArticleMetadata) return helpArticleMetadata;
 
-  const text = await fetchText(url);
-  const normalized = stripHtmlTags(text);
+  const html = await fetchText(url);
+  const normalized = stripHtmlTags(html);
   if (normalized.length < 80) {
     throw new Error(`Fetched content was too short (${normalized.length} chars)`);
   }
   return {
     text: normalized.slice(0, 120000),
+    title: extractHtmlTitle(html),
+    warnings: developerDocsApiError
+      ? [`Developer docs JSON endpoint failed (${developerDocsApiError}); indexed rendered official HTML fallback.`]
+      : [],
   };
 }
 
@@ -786,7 +804,7 @@ async function buildRecord(
   };
 }
 
-export async function refreshSalesforceDocsIndexNow(): Promise<SalesforceDocsIndex> {
+export async function buildSalesforceDocsIndexNow(): Promise<SalesforceDocsIndex> {
   const generatedAt = new Date().toISOString();
   const records: SalesforceDocsIndexRecord[] = [];
   const failures: SalesforceDocsIndex['failures'] = [];
@@ -878,6 +896,28 @@ export async function refreshSalesforceDocsIndexNow(): Promise<SalesforceDocsInd
     ].filter(Boolean),
   };
 
+  return index;
+}
+
+function developerDocRecordCount(index: SalesforceDocsIndex): number {
+  return index.records.filter((record) => record.domain === 'developer.salesforce.com').length;
+}
+
+function refreshCoverageError(index: SalesforceDocsIndex): string | null {
+  const developerRecords = developerDocRecordCount(index);
+  if (developerRecords >= MIN_REFRESH_DEVELOPER_DOC_RECORDS) return null;
+  return [
+    `Salesforce docs index refresh produced ${developerRecords} developer.salesforce.com record(s),`,
+    `below required minimum ${MIN_REFRESH_DEVELOPER_DOC_RECORDS}; keeping the previous index.`,
+  ].join(' ');
+}
+
+export async function refreshSalesforceDocsIndexNow(): Promise<SalesforceDocsIndex> {
+  const index = await buildSalesforceDocsIndexNow();
+  const coverageError = refreshCoverageError(index);
+  if (coverageError) {
+    throw new Error(coverageError);
+  }
   await writeSalesforceDocsIndex(index);
   return index;
 }
@@ -1060,6 +1100,12 @@ export const scheduledSalesforceDocsIndexRefresh = onSchedule(
         failureCount: index.failures.length,
       });
     } catch (error: any) {
+      if (typeof error?.message === 'string' && error.message.includes('keeping the previous index')) {
+        console.warn('[salesforceDocsIndex] Scheduled refresh skipped', {
+          message: error.message,
+        });
+        return;
+      }
       console.error('[salesforceDocsIndex] Scheduled refresh failed', {
         name: error?.name,
         message: error?.message,

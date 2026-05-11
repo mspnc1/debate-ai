@@ -1,0 +1,81 @@
+name: Salesforce Docs Index
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: Upload the generated index to Firebase Storage
+        required: false
+        default: false
+        type: boolean
+      min_developer_records:
+        description: Minimum developer.salesforce.com records required before success
+        required: false
+        default: '1'
+        type: string
+  schedule:
+    - cron: '17 8 * * *'
+
+jobs:
+  build-index:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      UPLOAD_REQUESTED: ${{ github.event_name == 'schedule' || inputs.upload == true }}
+      MIN_DEVELOPER_RECORDS: ${{ inputs.min_developer_records || '1' }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install Functions dependencies
+        run: npm ci
+        working-directory: functions
+
+      - name: Verify upload credentials
+        if: env.UPLOAD_REQUESTED == 'true'
+        run: |
+          if [[ -z "$GCP_WORKLOAD_IDENTITY_PROVIDER" || -z "$GCP_SERVICE_ACCOUNT" ]]; then
+            echo "GCP_WORKLOAD_IDENTITY_PROVIDER and GCP_SERVICE_ACCOUNT secrets are required when upload is requested." >&2
+            exit 1
+          fi
+
+      - name: Authenticate to Google Cloud
+        if: env.UPLOAD_REQUESTED == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+
+      - name: Build Salesforce docs index
+        run: |
+          upload_flag="--no-upload"
+          if [[ "$UPLOAD_REQUESTED" == "true" ]]; then
+            upload_flag="--upload"
+          fi
+
+          npm --prefix functions run salesforce-docs:index -- \
+            --out /tmp/salesforce-docs-index-v1.json \
+            "$upload_flag" \
+            --upload-mode google-auth \
+            --min-developer-records "$MIN_DEVELOPER_RECORDS"
+
+      - name: Upload generated index artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: salesforce-docs-index-v1
+          path: /tmp/salesforce-docs-index-v1.json
+          if-no-files-found: error
