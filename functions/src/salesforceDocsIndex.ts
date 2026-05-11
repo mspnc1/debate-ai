@@ -525,7 +525,6 @@ async function fetchText(url: string, timeoutMs = 20000): Promise<string> {
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'SymposiumAI/1.0 SalesforceDocsIndex (+https://www.symposiumai.app)',
         'Accept': 'text/html, text/plain, application/xhtml+xml, */*',
       },
     });
