@@ -13,9 +13,13 @@
  *   4. Return canonical spec
  */
 import { z } from 'zod';
-import type { ReportSpecV1, ReportTheme } from './types';
+import type { ArtifactBrandingOptions, ReportSpecV1, ReportTheme } from './types';
 import { EXPLANATION_CHAR_LIMITS } from './types';
 import { sha256Hex, stableSerialize } from './utils';
+import {
+  formatBrandingLine,
+  normalizeArtifactBrandingOptions,
+} from './artifactBranding';
 
 // ============================================================================
 // Constants (must match web repo)
@@ -23,6 +27,7 @@ import { sha256Hex, stableSerialize } from './utils';
 
 export const DEFAULT_THEME: ReportTheme = {
   pageSize: 'A4',
+  landscape: false,
   margins: { top: 40, right: 40, bottom: 40, left: 40 },
   fonts: {
     heading: 'Helvetica',
@@ -128,6 +133,7 @@ const reportBlockSchema = z.discriminatedUnion('kind', [
 
 const reportThemeSchema = z.object({
   pageSize: z.enum(['A4', 'LETTER']),
+  landscape: z.boolean().optional(),
   margins: z.object({
     top: z.number().nonnegative(),
     right: z.number().nonnegative(),
@@ -152,6 +158,12 @@ const reportPageSchema = z.object({
   blocks: z.array(reportBlockSchema).max(LIMITS.MAX_BLOCKS_PER_PAGE),
 });
 
+const artifactBrandingOptionsSchema = z.object({
+  visibility: z.enum(['visible', 'metadata', 'off']).optional(),
+  includeLogo: z.boolean().optional(),
+  includeUrl: z.boolean().optional(),
+}).optional();
+
 const reportSpecOptionsSchema = z.object({
   includeProvenanceAttachment: z.boolean().optional(),
   citationStyle: z.enum(['none', 'numeric_endnotes']).optional(),
@@ -169,6 +181,7 @@ const reportSpecOptionsSchema = z.object({
     center: z.string().max(LIMITS.MAX_CHROME_TEXT_LENGTH).optional(),
     right: z.string().max(LIMITS.MAX_CHROME_TEXT_LENGTH).optional(),
   }).optional(),
+  branding: artifactBrandingOptionsSchema,
 });
 
 export const reportSpecV1Schema = z.object({
@@ -245,6 +258,7 @@ function deepMergeTheme(
 
   return {
     pageSize: (partial.pageSize as ReportTheme['pageSize']) ?? defaults.pageSize,
+    landscape: typeof partial.landscape === 'boolean' ? partial.landscape : defaults.landscape,
     margins: {
       ...defaults.margins,
       ...((partial.margins as Partial<ReportTheme['margins']>) ?? {}),
@@ -283,6 +297,16 @@ function applyDefaults(input: unknown): unknown {
       ? existingOptions.footer
       : {}
   ) as Record<string, unknown>;
+  const existingBranding = (
+    existingOptions.branding && typeof existingOptions.branding === 'object'
+      ? existingOptions.branding
+      : {}
+  ) as ArtifactBrandingOptions;
+  const resolvedBranding = normalizeArtifactBrandingOptions(existingBranding);
+  const defaultFooterRight = resolvedBranding.visibility === 'visible'
+    ? formatBrandingLine(resolvedBranding)
+    : '';
+
   data.options = {
     includeProvenanceAttachment: false,
     citationStyle: 'none',
@@ -300,9 +324,10 @@ function applyDefaults(input: unknown): unknown {
       enabled: true,
       left: '',
       center: '{{pageNumber}} / {{totalPages}}',
-      right: '',
+      right: defaultFooterRight,
       ...existingFooter,
     },
+    branding: resolvedBranding,
   };
 
   return data;
