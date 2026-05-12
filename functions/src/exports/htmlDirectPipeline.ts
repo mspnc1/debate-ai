@@ -15,6 +15,7 @@
 import type { Page } from 'puppeteer-core';
 import type { ArtifactDoc, HtmlDirectOptions } from './types';
 import { sha256Hex } from './utils';
+import { applyBrandingToHtml } from './artifactBranding';
 
 // ============================================================================
 // Bundle Inlining (server-side equivalent of InlineBundlerService)
@@ -225,6 +226,10 @@ export async function runHtmlDirectPipeline(
   }
 
   const sourceHash = sha256Hex(artifact.data);
+
+  // Apply app-owned visible branding after bundle inlining so the logo is
+  // embedded in the HTML/PDF and raw source artifacts stay unchanged.
+  html = applyBrandingToHtml(html, options?.branding);
 
   // Inject print-optimized CSS
   html = injectPrintCSS(html);

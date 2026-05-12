@@ -45,6 +45,12 @@ import { assembleReportHtml, renderDatasetPreview, renderJsonDocument } from './
 import { generateManifest, signManifest, storeProvenance } from './provenance';
 import { getOrRenderVisual, resetCacheStats, getCacheStats } from './renderCache';
 import { runHtmlDirectPipeline } from './htmlDirectPipeline';
+import {
+  createArtifactBrandingRecord,
+  formatBrandingLine,
+  isVisibleBranding,
+  shouldWriteBrandingMetadata,
+} from './artifactBranding';
 
 const provenanceHmacKey = defineSecret('PROVENANCE_HMAC_KEY');
 
@@ -76,7 +82,7 @@ const DEFAULT_FOOTER: Required<ReportChromeSlot> = {
   enabled: true,
   left: '',
   center: '{{pageNumber}} / {{totalPages}}',
-  right: '',
+  right: formatBrandingLine(),
 };
 
 function escapeHtml(value: string): string {
@@ -294,6 +300,9 @@ export const runExportJob = onRequest(
 
         // Create document_pdf artifact in Firestore
         const pdfArtifactId = `document_pdf_${pdfHash.slice(0, 12)}`;
+        const brandingRecord = shouldWriteBrandingMetadata(job.options?.branding)
+          ? createArtifactBrandingRecord(job.options?.branding)
+          : undefined;
         await db
           .collection('users')
           .doc(createdBy)
@@ -316,6 +325,7 @@ export const runExportJob = onRequest(
               downloadUrl,
               sourceArtifactId: artifactId,
               exportJobId: jobId,
+              ...(brandingRecord ? { branding: brandingRecord } : {}),
             },
             profile: 'ARCHIVE_PORTABLE',
             provenance: {
@@ -623,7 +633,13 @@ export const runExportJob = onRequest(
       // Convert points to inches (1pt = 1/72in) — Puppeteer only supports px/in/cm/mm
       const ptToIn = (pt: number) => `${(pt / 72).toFixed(4)}in`;
       const headerTemplate = buildChromeTemplate(reportSpec.options?.header, DEFAULT_HEADER);
-      const footerTemplate = buildChromeTemplate(reportSpec.options?.footer, DEFAULT_FOOTER);
+      const footerDefaults: Required<ReportChromeSlot> = {
+        ...DEFAULT_FOOTER,
+        right: isVisibleBranding(reportSpec.options?.branding)
+          ? formatBrandingLine(reportSpec.options?.branding)
+          : '',
+      };
+      const footerTemplate = buildChromeTemplate(reportSpec.options?.footer, footerDefaults);
       const displayHeaderFooter = headerTemplate !== EMPTY_CHROME_TEMPLATE || footerTemplate !== EMPTY_CHROME_TEMPLATE;
       const pdfBuffer = Buffer.from(await pdfPage.pdf({
         format: reportSpec.theme.pageSize === 'LETTER' ? 'Letter' : 'A4',
@@ -713,6 +729,9 @@ export const runExportJob = onRequest(
       // 16. Create document_pdf artifact in Firestore
       // ================================================================
       const pdfArtifactId = `document_pdf_${pdfHash.slice(0, 12)}`;
+      const brandingRecord = shouldWriteBrandingMetadata(reportSpec.options?.branding)
+        ? createArtifactBrandingRecord(reportSpec.options?.branding)
+        : undefined;
       await db
         .collection('users')
         .doc(createdBy)
@@ -736,6 +755,7 @@ export const runExportJob = onRequest(
             downloadUrl,
             reportSpecArtifactId,
             exportJobId: jobId,
+            ...(brandingRecord ? { branding: brandingRecord } : {}),
           },
           profile: 'ARCHIVE_PORTABLE',
           provenance: {

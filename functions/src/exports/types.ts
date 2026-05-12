@@ -135,6 +135,23 @@ export interface ReportPage {
 
 export type CitationStyle = 'none' | 'numeric_endnotes';
 export type ProvenanceDetailLevel = 'brief' | 'full';
+export type ArtifactBrandingVisibility = 'visible' | 'metadata' | 'off';
+
+export interface ArtifactBrandingOptions {
+  visibility?: ArtifactBrandingVisibility;
+  includeLogo?: boolean;
+  includeUrl?: boolean;
+}
+
+export interface ArtifactBrandingRecord {
+  version: 1;
+  visibility: ArtifactBrandingVisibility;
+  brandName: string;
+  attribution: string;
+  url: string;
+  logoPath: string;
+  appliedAt: string;
+}
 
 export interface ReportChromeSlot {
   enabled?: boolean;
@@ -150,6 +167,7 @@ export interface ReportSpecOptions {
   provenanceDetailLevel?: ProvenanceDetailLevel;
   header?: ReportChromeSlot;
   footer?: ReportChromeSlot;
+  branding?: ArtifactBrandingOptions;
 }
 
 export interface ReportSpecV1 {
@@ -207,6 +225,7 @@ export interface HtmlDirectOptions {
   margins?: { top: number; right: number; bottom: number; left: number };
   landscape?: boolean;
   printBackground?: boolean;
+  branding?: ArtifactBrandingOptions;
 }
 
 export interface ExportJobDoc {
