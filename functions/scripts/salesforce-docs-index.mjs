@@ -21,6 +21,8 @@ function parseArgs(argv) {
     uploadMode: 'google-auth',
     maxFailures: null,
     minDeveloperRecords: 0,
+    minFullTextRecords: 0,
+    maxMetadataOnlyRatio: null,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -49,6 +51,14 @@ function parseArgs(argv) {
       if (!next) throw new Error('--min-developer-records requires a number');
       options.minDeveloperRecords = Number(next);
       i += 1;
+    } else if (arg === '--min-full-text-records') {
+      if (!next) throw new Error('--min-full-text-records requires a number');
+      options.minFullTextRecords = Number(next);
+      i += 1;
+    } else if (arg === '--max-metadata-only-ratio') {
+      if (!next) throw new Error('--max-metadata-only-ratio requires a number');
+      options.maxMetadataOnlyRatio = Number(next);
+      i += 1;
     } else if (arg === '--help' || arg === '-h') {
       options.help = true;
     } else {
@@ -61,6 +71,16 @@ function parseArgs(argv) {
   }
   if (!Number.isInteger(options.minDeveloperRecords)) {
     throw new Error('--min-developer-records must be an integer');
+  }
+  if (!Number.isInteger(options.minFullTextRecords)) {
+    throw new Error('--min-full-text-records must be an integer');
+  }
+  if (options.maxMetadataOnlyRatio !== null && (
+    !Number.isFinite(options.maxMetadataOnlyRatio)
+    || options.maxMetadataOnlyRatio < 0
+    || options.maxMetadataOnlyRatio > 1
+  )) {
+    throw new Error('--max-metadata-only-ratio must be a number between 0 and 1');
   }
 
   return options;
@@ -80,6 +100,8 @@ Options:
   --upload-mode <mode>            Upload with google-auth or gcloud. Default: google-auth.
   --max-failures <number>         Fail if fetch failures exceed this count.
   --min-developer-records <num>   Fail if fewer developer.salesforce.com records are indexed.
+  --min-full-text-records <num>   Fail if fewer full-text records meet the quality floor.
+  --max-metadata-only-ratio <n>   Fail if metadata-only records exceed this ratio (0-1).
   -h, --help                      Show this help.
 
 Authentication for --upload:
@@ -99,6 +121,10 @@ function countBy(items, keyFn) {
 
 function summarizeIndex(index) {
   const developerRecords = index.records.filter((record) => record.domain === 'developer.salesforce.com');
+  const fullTextRecords = index.records.filter((record) =>
+    record.contentQuality === 'full_text' && record.contentLength >= 300
+  );
+  const metadataOnlyRecords = index.records.filter((record) => record.contentQuality === 'metadata_only');
   const failureDomains = countBy(index.failures, (failure) => {
     try {
       return new URL(failure.url).hostname;
@@ -112,7 +138,17 @@ function summarizeIndex(index) {
     recordCount: index.records.length,
     failureCount: index.failures.length,
     developerRecordCount: developerRecords.length,
+    fullTextRecordCount: fullTextRecords.length,
+    metadataOnlyRecordCount: metadataOnlyRecords.length,
+    metadataOnlyRatio: index.records.length === 0 ? 0 : Number((metadataOnlyRecords.length / index.records.length).toFixed(3)),
+    topicsWithoutRecords: index.topics
+      .filter((topic) => !index.records.some((record) => record.topicIds.includes(topic.id)))
+      .map((topic) => topic.id),
+    topicsWithoutFullTextRecords: index.topics
+      .filter((topic) => !fullTextRecords.some((record) => record.topicIds.includes(topic.id)))
+      .map((topic) => topic.id),
     sourceTypeCounts: countBy(index.records, (record) => record.sourceType),
+    contentQualityCounts: countBy(index.records, (record) => record.contentQuality),
     statusCounts: countBy(index.records, (record) => record.status),
     topicCoverage: index.topics.map((topic) => ({
       topicId: topic.id,
@@ -157,6 +193,21 @@ async function main() {
   if (summary.developerRecordCount < options.minDeveloperRecords) {
     throw new Error(
       `Indexed ${summary.developerRecordCount} developer.salesforce.com record(s), below required minimum ${options.minDeveloperRecords}.`,
+    );
+  }
+
+  if (summary.fullTextRecordCount < options.minFullTextRecords) {
+    throw new Error(
+      `Indexed ${summary.fullTextRecordCount} full-text record(s), below required minimum ${options.minFullTextRecords}.`,
+    );
+  }
+
+  if (
+    options.maxMetadataOnlyRatio !== null
+    && summary.metadataOnlyRatio > options.maxMetadataOnlyRatio
+  ) {
+    throw new Error(
+      `Metadata-only ratio ${summary.metadataOnlyRatio} is above allowed maximum ${options.maxMetadataOnlyRatio}.`,
     );
   }
 

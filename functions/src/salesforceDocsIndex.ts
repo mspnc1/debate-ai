@@ -13,14 +13,20 @@ try {
 export const SALESFORCE_DOC_INDEX_PATH = 'salesforce-docs/index-v1.json';
 export const SALESFORCE_DOC_INDEX_BUCKET = 'symposium-ai.firebasestorage.app';
 const SALESFORCE_DOC_INDEX_VERSION = 1;
-const MIN_REFRESH_DEVELOPER_DOC_RECORDS = 1;
+const MIN_REFRESH_DEVELOPER_DOC_RECORDS = 24;
+const MIN_REFRESH_FULL_TEXT_RECORDS = 28;
+const MAX_REFRESH_METADATA_ONLY_RATIO = 0.65;
 const MAX_INDEX_SOURCE_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 const MAX_INDEX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 const MAX_SITEMAP_CHILDREN_PER_SOURCE = 60;
 const MAX_SITEMAP_ENTRIES_PER_SOURCE = 15000;
-const MAX_SITEMAP_RECORDS_PER_TOPIC = 4;
+const MAX_SITEMAP_RECORDS_PER_TOPIC = 3;
+const MAX_METADATA_ONLY_SITEMAP_RECORDS_PER_TOPIC = 1;
+const FULL_TEXT_CONTENT_LENGTH_FLOOR = 300;
 const MIN_SITEMAP_TOPIC_SCORE = 8;
 const OFFICIAL_HOST_PATTERN = /(^|\.)salesforce\.com$/i;
+
+export type SalesforceDocsContentQuality = 'full_text' | 'metadata_only';
 
 interface SalesforceDocsSitemapSource {
   label: string;
@@ -38,6 +44,7 @@ interface SalesforceDocsSitemapEntry {
 
 interface OfficialDocContent {
   text: string;
+  contentQuality: SalesforceDocsContentQuality;
   title?: string;
   apiVersion?: string;
   releaseLabel?: string;
@@ -64,6 +71,7 @@ export interface SalesforceDocsIndexRecord {
   status: 'ga' | 'preview' | 'unknown';
   retrievedAt: string;
   responseHash: string;
+  contentQuality: SalesforceDocsContentQuality;
   contentLength: number;
   excerpt: string;
   keywords: string[];
@@ -120,6 +128,7 @@ export interface SalesforceDocsIndexEvidenceSource {
   status: SalesforceDocsIndexRecord['status'];
   retrievedAt: string;
   responseHash: string;
+  contentQuality: SalesforceDocsContentQuality;
   contentLength: number;
   excerpt: string;
   searchSnippet?: string;
@@ -141,6 +150,8 @@ export interface SalesforceDocsIndexLookupResult {
     storagePath: string;
     recordCount: number;
     developerDocCount?: number;
+    fullTextRecordCount?: number;
+    metadataOnlyRecordCount?: number;
     indexSourceCounts?: Record<string, number>;
     failedDomains?: Record<string, number>;
     topicCoverage?: Array<{
@@ -194,6 +205,42 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     ],
   },
   {
+    id: 'apex-crud-fls-user-mode',
+    label: 'Apex CRUD/FLS enforcement and user-mode data operations',
+    query: 'Apex CRUD FLS user mode data operations stripInaccessible WITH SECURITY_ENFORCED Salesforce',
+    category: 'security',
+    keywords: ['apex', 'crud', 'fls', 'user mode', 'stripinaccessible', 'with security enforced', 'object permissions', 'field permissions'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_classes_enforce_usermode.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_classes_with_security_stripInaccessible.htm',
+      'https://developer.salesforce.com/docs/platform/lwc/guide/apex-security.html',
+    ],
+  },
+  {
+    id: 'apex-async-processing',
+    label: 'Asynchronous Apex, Queueable Apex, and Batch Apex',
+    query: 'Asynchronous Apex Queueable Apex Batch Apex future scheduled limits Salesforce',
+    category: 'apex',
+    keywords: ['apex', 'async', 'asynchronous apex', 'queueable', 'batch apex', 'future', 'scheduled apex'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_async_overview.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_queueing_jobs.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_batch_interface.htm',
+    ],
+  },
+  {
+    id: 'soql-query-selectivity',
+    label: 'SOQL selectivity, query plans, and large data volumes',
+    query: 'SOQL selectivity query plan large data volumes Query Plan tool Salesforce',
+    category: 'apex',
+    keywords: ['soql', 'query plan', 'selectivity', 'large data volumes', 'where clause', 'query optimizer'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/langCon_apex_SOQL.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/langCon_apex_SOQL_VLSQ.htm',
+      'https://developer.salesforce.com/docs/platform/code-builder/guide/retrieve-query-plans.html',
+    ],
+  },
+  {
     id: 'apex-testing',
     label: 'Apex testing data isolation and assertions',
     query: 'Apex testing seeAllData false assertions best practices Salesforce',
@@ -227,6 +274,18 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     ],
   },
   {
+    id: 'flow-tests-debugging',
+    label: 'Flow tests, debugging, and runtime error handling',
+    query: 'Salesforce Flow tests debug flow error emails fault path troubleshooting',
+    category: 'flow',
+    keywords: ['flow', 'flow tests', 'debug flow', 'error handling', 'fault path', 'troubleshooting'],
+    seedUrls: [
+      'https://help.salesforce.com/s/articleView?id=sf.flow_tests.htm&type=5',
+      'https://help.salesforce.com/s/articleView?id=sf.flow_debug.htm&type=5',
+      'https://help.salesforce.com/s/articleView?id=sf.process_troubleshoot_flow_errors.htm&type=5',
+    ],
+  },
+  {
     id: 'permissions-least-privilege',
     label: 'Permission set and profile least privilege',
     query: 'Salesforce permission sets profiles ModifyAllData ViewAllData least privilege',
@@ -235,6 +294,30 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     seedUrls: [
       'https://help.salesforce.com/s/articleView?id=sf.perm_sets_overview.htm&type=5',
       'https://help.salesforce.com/s/articleView?id=sf.admin_userperms.htm&type=5',
+    ],
+  },
+  {
+    id: 'field-level-security-object-permissions',
+    label: 'Field-level security and object permission metadata',
+    query: 'Salesforce field level security object permissions profile permission set Metadata API',
+    category: 'permissions',
+    keywords: ['field-level security', 'field permissions', 'object permissions', 'profile', 'permission set', 'crud', 'fls'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_profile.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_permissionset.htm',
+      'https://developer.salesforce.com/docs/platform/lwc/guide/apex-security.html',
+    ],
+  },
+  {
+    id: 'sharing-model-rules',
+    label: 'Org sharing model, sharing rules, and record visibility',
+    query: 'Salesforce sharing model organization-wide defaults sharing rules role hierarchy Metadata API',
+    category: 'security',
+    keywords: ['sharing rules', 'sharing model', 'organization-wide defaults', 'owd', 'role hierarchy', 'record visibility'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_sharingrules.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_security_sharing_rules.htm',
+      'https://help.salesforce.com/s/articleView?id=sf.security_sharing_owd_about.htm&type=5',
     ],
   },
   {
@@ -250,6 +333,19 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     ],
   },
   {
+    id: 'lightning-record-pages-layouts',
+    label: 'Lightning record pages, layouts, and component exposure',
+    query: 'Salesforce Lightning record pages FlexiPage layouts LWC targets metadata',
+    category: 'lightning',
+    keywords: ['lightning record page', 'flexipage', 'layout', 'lwc targets', 'record context', 'quick action'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_flexipage.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_layouts.htm',
+      'https://developer.salesforce.com/docs/platform/lwc/guide/reference-configuration-tags.html',
+      'https://developer.salesforce.com/docs/platform/lwc/guide/use-record-context.html',
+    ],
+  },
+  {
     id: 'metadata-api-versioning',
     label: 'Metadata API and component API versioning',
     query: 'Salesforce Metadata API API version support release notes',
@@ -258,6 +354,135 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     seedUrls: [
       'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_intro.htm',
       'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_support_policy.htm',
+    ],
+  },
+  {
+    id: 'metadata-deploy-retrieve-source-format',
+    label: 'Metadata API deploy, retrieve, and source package boundaries',
+    query: 'Salesforce Metadata API deploy retrieve package xml source format deployment',
+    category: 'deployment',
+    keywords: ['metadata api', 'deploy', 'retrieve', 'package xml', 'source format', 'deployment'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_deploy.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_retrieve.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_intro.htm',
+    ],
+  },
+  {
+    id: 'object-field-modeling',
+    label: 'Custom object and field metadata modeling',
+    query: 'Salesforce CustomObject CustomField metadata field types relationships object model',
+    category: 'metadata_api',
+    keywords: ['customobject', 'customfield', 'object model', 'field types', 'relationships', 'metadata'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/customobject.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/customfield.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_custom_objects.htm',
+    ],
+  },
+  {
+    id: 'validation-rules-formulas',
+    label: 'Validation rules and formula behavior',
+    query: 'Salesforce validation rules formulas error condition formula metadata Tooling API',
+    category: 'metadata_api',
+    keywords: ['validation rule', 'validationrule', 'formula', 'error condition formula', 'field validation'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.api_tooling.meta/api_tooling/tooling_api_objects_validationrule.htm',
+      'https://help.salesforce.com/s/articleView?id=sf.fields_about_field_validation.htm&type=5',
+      'https://help.salesforce.com/s/articleView?id=sf.customize_functions.htm&type=5',
+    ],
+  },
+  {
+    id: 'custom-metadata-types',
+    label: 'Custom metadata types and deployable configuration',
+    query: 'Salesforce custom metadata types CustomMetadata Metadata API Apex deployable configuration',
+    category: 'metadata_api',
+    keywords: ['custom metadata', 'custommetadata', 'custom metadata types', 'deployable configuration', 'metadata relationship'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_custommetadatatypes.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_custommetadata.htm',
+    ],
+  },
+  {
+    id: 'record-types-picklists',
+    label: 'Record types and picklist metadata',
+    query: 'Salesforce record types picklist values value sets Metadata API',
+    category: 'metadata_api',
+    keywords: ['record type', 'recordtype', 'picklist', 'value set', 'business process'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_recordtype.htm',
+      'https://help.salesforce.com/s/articleView?id=sf.customize_recordtype.htm&type=5',
+      'https://help.salesforce.com/s/articleView?id=sf.fields_about_picklists.htm&type=5',
+    ],
+  },
+  {
+    id: 'reports-dashboards-metadata',
+    label: 'Report and dashboard metadata',
+    query: 'Salesforce Report Dashboard Metadata API folders report types dashboards',
+    category: 'metadata_api',
+    keywords: ['report', 'dashboard', 'metadata api', 'folder', 'report type'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_report.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_dashboard.htm',
+    ],
+  },
+  {
+    id: 'workflow-approval-processes',
+    label: 'Workflow rules and approval process metadata',
+    query: 'Salesforce Workflow ApprovalProcess metadata approval process workflow rules',
+    category: 'metadata_api',
+    keywords: ['workflow', 'approval process', 'approvalprocess', 'workflow rule', 'metadata'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_workflow.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_approvalprocess.htm',
+    ],
+  },
+  {
+    id: 'connected-app-oauth',
+    label: 'Connected apps, OAuth settings, and scopes',
+    query: 'Salesforce ConnectedApp OAuth scopes callback URL metadata security',
+    category: 'integration',
+    keywords: ['connected app', 'connectedapp', 'oauth', 'scopes', 'callback url', 'consumer key'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_connectedapp.htm',
+      'https://help.salesforce.com/s/articleView?id=sf.connected_app_create.htm&type=5',
+      'https://help.salesforce.com/s/articleView?id=sf.remoteaccess_oauth_scopes.htm&type=5',
+    ],
+  },
+  {
+    id: 'named-credentials-external-credentials',
+    label: 'Named credentials and external credentials for callouts',
+    query: 'Salesforce named credentials external credentials Apex callouts OAuth packaging principals',
+    category: 'integration',
+    keywords: ['named credential', 'external credential', 'callout', 'oauth', 'principal', 'user external credentials'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/platform/named-credentials/guide/get-started.html',
+      'https://developer.salesforce.com/docs/platform/named-credentials/guide/nc-oauth-dev-guide.html',
+      'https://developer.salesforce.com/docs/platform/named-credentials/guide/nc-package-credentials.html',
+    ],
+  },
+  {
+    id: 'platform-events-pubsub',
+    label: 'Platform events, event bus, and Pub/Sub API',
+    query: 'Salesforce platform events event bus Pub/Sub API publish subscribe allocations Apex',
+    category: 'integration',
+    keywords: ['platform events', 'event bus', 'pub/sub api', 'publish', 'subscribe', 'change data capture'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.platform_events.meta/platform_events/platform_events_intro.htm',
+      'https://developer.salesforce.com/docs/platform/pub-sub-api/guide/intro.html',
+      'https://developer.salesforce.com/docs/platform/pub-sub-api/guide/allocations.html',
+    ],
+  },
+  {
+    id: 'duplicate-matching-rules',
+    label: 'Duplicate rules and matching rules',
+    query: 'Salesforce DuplicateRule MatchingRule metadata duplicate management matching rules',
+    category: 'metadata_api',
+    keywords: ['duplicate rule', 'duplicaterule', 'matching rule', 'matchingrule', 'duplicate management'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_duplicaterule.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_matchingrule.htm',
+      'https://help.salesforce.com/s/articleView?id=sf.managing_duplicates_overview.htm&type=5',
     ],
   },
   {
@@ -322,7 +547,6 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     keywords: ['email services', 'emailservicesfunction', 'emailservicesaddress', 'inboundemail', 'inbound envelope', 'messaging.inboundemail'],
     seedUrls: [
       'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_classes_email_inbound.htm',
-      'https://developer.salesforce.com/docs/atlas.en-us.apexref.meta/apexref/apex_classes_email_inbound.htm',
     ],
   },
   {
@@ -584,6 +808,7 @@ function buildHelpArticleMetadata(urlValue: string): OfficialDocContent | null {
       release ? `Release parameter: ${release}.` : '',
       `Canonical URL: ${url.toString()}.`,
     ].filter(Boolean).join(' '),
+    contentQuality: 'metadata_only',
     title,
     documentationVersion: release,
     releaseLabel: release ? `Salesforce release ${release}` : undefined,
@@ -738,6 +963,7 @@ async function fetchDeveloperDocsContent(urlValue: string): Promise<OfficialDocC
 
   return {
     text: text.slice(0, 120000),
+    contentQuality: 'full_text',
     title,
     apiVersion,
     releaseLabel,
@@ -767,6 +993,7 @@ async function fetchOfficialDoc(url: string): Promise<OfficialDocContent> {
   }
   return {
     text: normalized.slice(0, 120000),
+    contentQuality: 'full_text',
     title: extractHtmlTitle(html),
     warnings: developerDocsApiError
       ? [`Developer docs JSON endpoint failed (${developerDocsApiError}); indexed rendered official HTML fallback.`]
@@ -871,6 +1098,40 @@ function scoreSitemapEntryForTopic(entry: SalesforceDocsSitemapEntry, topic: Sal
   return score;
 }
 
+function isMetadataOnlyUrl(urlValue: string): boolean {
+  try {
+    const url = new URL(urlValue);
+    return url.hostname === 'help.salesforce.com' && url.pathname.includes('/articleView');
+  } catch {
+    return false;
+  }
+}
+
+function contentQualityForRecord(record: SalesforceDocsIndexRecord): SalesforceDocsContentQuality {
+  return record.contentQuality || (record.contentLength >= FULL_TEXT_CONTENT_LENGTH_FLOOR ? 'full_text' : 'metadata_only');
+}
+
+function isFullTextRecord(record: SalesforceDocsIndexRecord): boolean {
+  return contentQualityForRecord(record) === 'full_text' && record.contentLength >= FULL_TEXT_CONTENT_LENGTH_FLOOR;
+}
+
+function topicRecords(records: SalesforceDocsIndexRecord[], topicId: string): SalesforceDocsIndexRecord[] {
+  return records.filter((record) => record.topicIds.includes(topicId));
+}
+
+function shouldFetchSitemapEntryForTopic(
+  entry: SalesforceDocsSitemapEntry,
+  topic: SalesforceDocsIndexTopic,
+  records: SalesforceDocsIndexRecord[],
+): boolean {
+  if (!isMetadataOnlyUrl(entry.url)) return true;
+  const recordsForTopic = topicRecords(records, topic.id);
+  const metadataOnlyRecordsForTopic = recordsForTopic.filter((record) => contentQualityForRecord(record) === 'metadata_only').length;
+  const fullTextRecordsForTopic = recordsForTopic.filter(isFullTextRecord).length;
+  if (metadataOnlyRecordsForTopic >= MAX_METADATA_ONLY_SITEMAP_RECORDS_PER_TOPIC) return false;
+  return fullTextRecordsForTopic === 0 || recordsForTopic.length < 2;
+}
+
 async function buildRecord(
   topic: SalesforceDocsIndexTopic,
   rawUrl: string,
@@ -901,6 +1162,7 @@ async function buildRecord(
     status,
     retrievedAt,
     responseHash: crypto.createHash('sha256').update(text).digest('hex'),
+    contentQuality: content.contentQuality,
     contentLength: text.length,
     excerpt: excerptFor(text, topic),
     keywords: topic.keywords,
@@ -960,10 +1222,12 @@ export async function buildSalesforceDocsIndexNow(): Promise<SalesforceDocsIndex
     const scoredEntries = sitemapEntries
       .map((entry) => ({ entry, score: scoreSitemapEntryForTopic(entry, topic) }))
       .filter(({ score }) => score >= MIN_SITEMAP_TOPIC_SCORE)
-      .sort((a, b) => b.score - a.score || a.entry.url.localeCompare(b.entry.url))
-      .slice(0, MAX_SITEMAP_RECORDS_PER_TOPIC);
+      .sort((a, b) => b.score - a.score || a.entry.url.localeCompare(b.entry.url));
 
+    let topicSitemapRecordCount = 0;
     for (const { entry, score } of scoredEntries) {
+      if (topicSitemapRecordCount >= MAX_SITEMAP_RECORDS_PER_TOPIC) break;
+      if (!shouldFetchSitemapEntryForTopic(entry, topic, records)) continue;
       const existingRecord = records.find((record) => record.url === entry.url);
       if (existingRecord) {
         existingRecord.topicIds = Array.from(new Set([...existingRecord.topicIds, topic.id]));
@@ -980,6 +1244,7 @@ export async function buildSalesforceDocsIndexNow(): Promise<SalesforceDocsIndex
           sitemapUrl: entry.sitemapUrl,
           sitemapScore: score,
         }));
+        topicSitemapRecordCount += 1;
       } catch (error: any) {
         failures.push({
           topicId: topic.id,
@@ -989,6 +1254,9 @@ export async function buildSalesforceDocsIndexNow(): Promise<SalesforceDocsIndex
       }
     }
   }
+
+  const fullTextRecords = records.filter(isFullTextRecord).length;
+  const metadataOnlyRecords = records.filter((record) => contentQualityForRecord(record) === 'metadata_only').length;
 
   const index: SalesforceDocsIndex = {
     version: SALESFORCE_DOC_INDEX_VERSION,
@@ -1009,6 +1277,8 @@ export async function buildSalesforceDocsIndexNow(): Promise<SalesforceDocsIndex
       records.length === 0 ? 'No official Salesforce documentation records were fetched.' : '',
       failures.length > 0 ? `${failures.length} official Salesforce documentation seed URL(s) failed to fetch.` : '',
       sitemapEntries.length === 0 ? 'Salesforce documentation sitemap discovery returned no official URLs.' : '',
+      metadataOnlyRecords > 0 ? `${metadataOnlyRecords} official Salesforce documentation record(s) are metadata-only Help Center references without extracted article body text.` : '',
+      fullTextRecords < MIN_REFRESH_FULL_TEXT_RECORDS ? `Only ${fullTextRecords} full-text documentation record(s) met the quality floor.` : '',
     ].filter(Boolean),
   };
 
@@ -1017,6 +1287,19 @@ export async function buildSalesforceDocsIndexNow(): Promise<SalesforceDocsIndex
 
 function developerDocRecordCount(index: SalesforceDocsIndex): number {
   return index.records.filter((record) => record.domain === 'developer.salesforce.com').length;
+}
+
+function fullTextRecordCount(index: SalesforceDocsIndex): number {
+  return index.records.filter(isFullTextRecord).length;
+}
+
+function metadataOnlyRecordCount(index: SalesforceDocsIndex): number {
+  return index.records.filter((record) => contentQualityForRecord(record) === 'metadata_only').length;
+}
+
+function metadataOnlyRatio(index: SalesforceDocsIndex): number {
+  if (index.records.length === 0) return 0;
+  return metadataOnlyRecordCount(index) / index.records.length;
 }
 
 function countRecordsBySourceType(index: SalesforceDocsIndex): Record<string, number> {
@@ -1041,11 +1324,30 @@ function countFailuresByDomain(index: SalesforceDocsIndex): Record<string, numbe
 
 function refreshCoverageError(index: SalesforceDocsIndex): string | null {
   const developerRecords = developerDocRecordCount(index);
-  if (developerRecords >= MIN_REFRESH_DEVELOPER_DOC_RECORDS) return null;
-  return [
-    `Salesforce docs index refresh produced ${developerRecords} developer.salesforce.com record(s),`,
-    `below required minimum ${MIN_REFRESH_DEVELOPER_DOC_RECORDS}; keeping the previous index.`,
-  ].join(' ');
+  if (developerRecords < MIN_REFRESH_DEVELOPER_DOC_RECORDS) {
+    return [
+      `Salesforce docs index refresh produced ${developerRecords} developer.salesforce.com record(s),`,
+      `below required minimum ${MIN_REFRESH_DEVELOPER_DOC_RECORDS}; keeping the previous index.`,
+    ].join(' ');
+  }
+
+  const fullTextRecords = fullTextRecordCount(index);
+  if (fullTextRecords < MIN_REFRESH_FULL_TEXT_RECORDS) {
+    return [
+      `Salesforce docs index refresh produced ${fullTextRecords} full-text record(s),`,
+      `below required minimum ${MIN_REFRESH_FULL_TEXT_RECORDS}; keeping the previous index.`,
+    ].join(' ');
+  }
+
+  const ratio = metadataOnlyRatio(index);
+  if (ratio > MAX_REFRESH_METADATA_ONLY_RATIO) {
+    return [
+      `Salesforce docs index refresh produced a metadata-only ratio of ${ratio.toFixed(2)},`,
+      `above allowed maximum ${MAX_REFRESH_METADATA_ONLY_RATIO}; keeping the previous index.`,
+    ].join(' ');
+  }
+
+  return null;
 }
 
 export async function refreshSalesforceDocsIndexNow(): Promise<SalesforceDocsIndex> {
@@ -1180,6 +1482,7 @@ export async function lookupSalesforceDocsIndex(
         status: item.record.status,
         retrievedAt: item.record.retrievedAt,
         responseHash: item.record.responseHash,
+        contentQuality: contentQualityForRecord(item.record),
         contentLength: item.record.contentLength,
         excerpt: item.record.excerpt,
         searchSnippet: `Cached official Salesforce documentation index match (score ${item.score}).`,
@@ -1207,6 +1510,8 @@ export async function lookupSalesforceDocsIndex(
       storagePath: SALESFORCE_DOC_INDEX_PATH,
       recordCount: index.records.length,
       developerDocCount: developerDocRecordCount(index),
+      fullTextRecordCount: fullTextRecordCount(index),
+      metadataOnlyRecordCount: metadataOnlyRecordCount(index),
       indexSourceCounts: countRecordsBySourceType(index),
       failedDomains: countFailuresByDomain(index),
       topicCoverage: topics.map((topic) => {
