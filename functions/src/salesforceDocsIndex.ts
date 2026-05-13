@@ -2,6 +2,8 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
+import { execFile as execFileCallback } from 'child_process';
+import { promisify } from 'util';
 import { GoogleAuth } from 'google-auth-library';
 
 try {
@@ -15,16 +17,29 @@ export const SALESFORCE_DOC_INDEX_BUCKET = 'symposium-ai.firebasestorage.app';
 const SALESFORCE_DOC_INDEX_VERSION = 1;
 const MIN_REFRESH_DEVELOPER_DOC_RECORDS = 110;
 const MIN_REFRESH_FULL_TEXT_RECORDS = 180;
+const MIN_REFRESH_PDF_RECORDS = 10;
 const MAX_REFRESH_METADATA_ONLY_RATIO = 0.05;
 const MAX_INDEX_SOURCE_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 const MAX_INDEX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+const PDF_REFRESH_CADENCE_DAYS = 30;
+const PDF_REFRESH_OVERDUE_MULTIPLIER = 2;
+const PDF_EXTRACT_MAX_PAGES = Number(process.env.SALESFORCE_DOCS_PDF_EXTRACT_MAX_PAGES || 0);
+const PDF_EXTRACT_MAX_CHARS = Number(process.env.SALESFORCE_DOCS_PDF_EXTRACT_MAX_CHARS || 0);
+const PDF_TEXT_CHUNK_TARGET_CHARS = Number(process.env.SALESFORCE_DOCS_PDF_CHUNK_TARGET_CHARS || 3500);
+const PDF_TEXT_CHUNK_OVERLAP_CHARS = Number(process.env.SALESFORCE_DOCS_PDF_CHUNK_OVERLAP_CHARS || 350);
 const MAX_SITEMAP_RECORDS_PER_TOPIC = 3;
 const MAX_METADATA_ONLY_SITEMAP_RECORDS_PER_TOPIC = 0;
 const FULL_TEXT_CONTENT_LENGTH_FLOOR = 300;
 const MIN_SITEMAP_TOPIC_SCORE = 8;
 const OFFICIAL_HOST_PATTERN = /(^|\.)salesforce\.com$/i;
+const ALLOW_CURL_TEXT_FETCH = process.env.SALESFORCE_DOCS_ALLOW_CURL_FETCH === '1';
+const ALLOW_CURL_PDF_FETCH = process.env.SALESFORCE_DOCS_ALLOW_CURL_PDF_FETCH === '1';
+const execFile = promisify(execFileCallback);
 
 export type SalesforceDocsContentQuality = 'full_text' | 'metadata_only';
+export type SalesforceDocsSourceFormat = 'html' | 'json' | 'pdf';
+export type SalesforceDocsPdfRefreshStatus = 'fresh' | 'due' | 'overdue';
+export type SalesforceDocsFreshnessSignal = 'etag' | 'last_modified' | 'content_hash_only';
 
 interface SalesforceDocsSitemapSource {
   label: string;
@@ -50,6 +65,39 @@ interface OfficialDocContent {
   warnings?: string[];
 }
 
+interface SalesforceDocsPdfSource {
+  id: string;
+  title: string;
+  url: string;
+  topicIds: string[];
+  keywords: string[];
+  refreshCadenceDays?: number;
+}
+
+interface FetchedPdfDocument {
+  bytes: Uint8Array;
+  contentType?: string;
+  etag?: string;
+  lastModified?: string;
+  contentByteLength?: number;
+}
+
+export interface SalesforceDocsIndexTextChunk {
+  id: string;
+  ordinal: number;
+  text: string;
+  contentLength: number;
+  responseHash: string;
+}
+
+interface ExtractedPdfText {
+  text: string;
+  chunks: SalesforceDocsIndexTextChunk[];
+  pageCount: number;
+  extractedPageCount: number;
+  warnings: string[];
+}
+
 export interface SalesforceDocsIndexTopic {
   id: string;
   label: string;
@@ -65,23 +113,63 @@ export interface SalesforceDocsIndexRecord {
   title: string;
   url: string;
   domain: string;
-  sourceType: 'release_page' | 'release_notes' | 'developer_doc' | 'help_doc' | 'architect_doc' | 'official_doc';
+  sourceType: 'release_page' | 'release_notes' | 'developer_doc' | 'help_doc' | 'architect_doc' | 'pdf_guide' | 'release_notes_pdf' | 'official_doc';
+  sourceFormat?: SalesforceDocsSourceFormat;
+  pdfSourceId?: string;
   status: 'ga' | 'preview' | 'unknown';
   retrievedAt: string;
   responseHash: string;
   contentQuality: SalesforceDocsContentQuality;
   contentLength: number;
+  contentType?: string;
+  contentByteLength?: number;
+  textChunks?: SalesforceDocsIndexTextChunk[];
+  chunkCount?: number;
   excerpt: string;
   keywords: string[];
   warnings: string[];
   apiVersion?: string;
   releaseLabel?: string;
   documentationVersion?: string;
+  etag?: string;
   lastModified?: string;
+  pageCount?: number;
+  extractedPageCount?: number;
+  refreshCadenceDays?: number;
+  nextRefreshDueAt?: string;
+  freshnessSignal?: SalesforceDocsFreshnessSignal;
   discoverySource: 'seed' | 'sitemap';
   sitemapUrl?: string;
   sitemapScore?: number;
   confidenceImpact: 'supports' | 'unclear' | 'stale-risk';
+}
+
+export interface SalesforceDocsPdfCorpusSourceHealth {
+  sourceId: string;
+  title: string;
+  url: string;
+  retrievedAt: string;
+  lastModified?: string;
+  etag?: string;
+  contentByteLength?: number;
+  pageCount?: number;
+  extractedPageCount?: number;
+  chunkCount?: number;
+  refreshCadenceDays: number;
+  nextRefreshDueAt: string;
+  refreshStatus: SalesforceDocsPdfRefreshStatus;
+  freshnessSignal: SalesforceDocsFreshnessSignal;
+}
+
+export interface SalesforceDocsPdfCorpusSummary {
+  sourceCount: number;
+  indexedCount: number;
+  refreshCadenceDays: number;
+  dueForRefreshCount: number;
+  overdueCount: number;
+  sourcesDueForRefresh: SalesforceDocsPdfCorpusSourceHealth[];
+  sources: SalesforceDocsPdfCorpusSourceHealth[];
+  warnings: string[];
 }
 
 export interface SalesforceDocsIndex {
@@ -103,7 +191,14 @@ export interface SalesforceDocsIndex {
     sitemapUrlCount: number;
     sitemapRecordLimitPerTopic: number;
   };
+  pdfCorpus?: SalesforceDocsPdfCorpusSummary;
   warnings: string[];
+}
+
+export interface SalesforceDocsIndexBuildOptions {
+  includePdfDocs?: boolean;
+  includeWebDocs?: boolean;
+  includeSitemapDocs?: boolean;
 }
 
 export interface SalesforceDocsLookupTopicLike {
@@ -129,6 +224,13 @@ export interface SalesforceDocsIndexEvidenceSource {
   contentQuality: SalesforceDocsContentQuality;
   contentLength: number;
   excerpt: string;
+  matchedChunks?: Array<{
+    id: string;
+    ordinal: number;
+    text: string;
+    score: number;
+    contentLength: number;
+  }>;
   searchSnippet?: string;
   warnings: string[];
   apiVersion?: string;
@@ -150,7 +252,9 @@ export interface SalesforceDocsIndexLookupResult {
     developerDocCount?: number;
     fullTextRecordCount?: number;
     metadataOnlyRecordCount?: number;
+    pdfRecordCount?: number;
     indexSourceCounts?: Record<string, number>;
+    pdfCorpus?: SalesforceDocsPdfCorpusSummary;
     failedDomains?: Record<string, number>;
     topicCoverage?: Array<{
       topicId: string;
@@ -775,6 +879,192 @@ const SALESFORCE_DOC_SITEMAP_SOURCES: SalesforceDocsSitemapSource[] = [
   },
 ];
 
+const SALESFORCE_DOC_PDF_BASE_URL = 'https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf';
+
+const SALESFORCE_DOC_PDF_SOURCES: SalesforceDocsPdfSource[] = [
+  {
+    id: 'metadata-api-developer-guide',
+    title: 'Metadata API Developer Guide PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/api_meta.pdf`,
+    topicIds: [
+      'metadata-api-versioning',
+      'metadata-deploy-retrieve-source-format',
+      'metadata-api-type-reference',
+      'flow-metadata-edge-cases',
+      'flow-fault-paths',
+      'flow-tests-debugging',
+      'permissions-least-privilege',
+      'field-level-security-object-permissions',
+      'custom-metadata-types',
+      'record-types-picklists',
+      'reports-dashboards-metadata',
+      'workflow-approval-processes',
+      'connected-app-oauth',
+    ],
+    keywords: ['metadata api', 'metadata type', 'flow', 'profile', 'permission set', 'custom object', 'custom field'],
+  },
+  {
+    id: 'object-reference',
+    title: 'Object Reference for the Salesforce Platform PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/object_reference.pdf`,
+    topicIds: [
+      'standard-object-reference-sales-service',
+      'sales-cloud-admin-setup',
+      'service-cloud-admin-setup',
+      'revenue-cloud-data-model',
+      'emailmessage-object-reference',
+      'emailmessage-threading-fields',
+      'enhanced-email-activity-capture',
+      'activity-task-relationships',
+      'email-templates',
+    ],
+    keywords: ['object reference', 'standard object', 'account', 'contact', 'case', 'emailmessage', 'quote', 'order'],
+  },
+  {
+    id: 'apex-language-reference',
+    title: 'Apex Developer Guide PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/salesforce_apex_language_reference.pdf`,
+    topicIds: [
+      'apex-governor-limits',
+      'apex-sharing-security',
+      'apex-crud-fls-user-mode',
+      'apex-async-processing',
+      'apex-testing',
+      'apex-email-apis',
+      'email-services',
+    ],
+    keywords: ['apex', 'governor limits', 'sharing', 'test methods', 'queueable', 'batch apex', 'email'],
+  },
+  {
+    id: 'rest-api-developer-guide',
+    title: 'REST API Developer Guide PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/api_rest.pdf`,
+    topicIds: [
+      'metadata-deploy-retrieve-source-format',
+      'connected-app-oauth',
+      'data-cloud-ingestion-query',
+      'standard-object-reference-sales-service',
+    ],
+    keywords: ['rest api', 'oauth', 'sobject', 'query', 'composite'],
+  },
+  {
+    id: 'tooling-api-developer-guide',
+    title: 'Tooling API Developer Guide PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/api_tooling.pdf`,
+    topicIds: [
+      'validation-rules-formulas',
+      'metadata-api-type-reference',
+      'apex-testing',
+      'flow-tests-debugging',
+    ],
+    keywords: ['tooling api', 'validation rule', 'apex test', 'metadata component'],
+  },
+  {
+    id: 'sales-cloud-guide',
+    title: 'Sales Cloud PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/sales_core.pdf`,
+    topicIds: [
+      'sales-cloud-admin-setup',
+      'standard-object-reference-sales-service',
+      'sharing-model-rules',
+      'permissions-least-privilege',
+    ],
+    keywords: ['sales cloud', 'lead', 'opportunity', 'forecast', 'territory', 'account', 'contact'],
+  },
+  {
+    id: 'entitlements-implementation-guide',
+    title: 'Entitlement Management Implementation Guide PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/salesforce_entitlements_implementation_guide.pdf`,
+    topicIds: [
+      'service-cloud-admin-setup',
+      'standard-object-reference-sales-service',
+      'workflow-approval-processes',
+    ],
+    keywords: ['entitlement', 'milestone', 'case', 'service cloud', 'support process'],
+  },
+  {
+    id: 'knowledge-developer-guide',
+    title: 'Salesforce Knowledge Developer Guide PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/salesforce_knowledge_dev_guide.pdf`,
+    topicIds: [
+      'service-cloud-admin-setup',
+      'standard-object-reference-sales-service',
+      'data-cloud-development',
+    ],
+    keywords: ['knowledge', 'article', 'knowledge__kav', 'data category', 'service cloud'],
+  },
+  {
+    id: 'security-implementation-guide',
+    title: 'Salesforce Security Implementation Guide PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/salesforce_security_impl_guide.pdf`,
+    topicIds: [
+      'permissions-least-privilege',
+      'field-level-security-object-permissions',
+      'sharing-model-rules',
+      'apex-sharing-security',
+      'lightning-security',
+    ],
+    keywords: ['security', 'profile', 'permission set', 'sharing', 'field-level security', 'oauth'],
+  },
+  {
+    id: 'limits-quick-reference',
+    title: 'Salesforce Limits Quick Reference PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/salesforce_app_limits_cheatsheet.pdf`,
+    topicIds: [
+      'apex-governor-limits',
+      'apex-async-processing',
+      'soql-query-selectivity',
+      'platform-events-pubsub',
+    ],
+    keywords: ['limits', 'governor limits', 'api limits', 'async', 'platform events'],
+  },
+  {
+    id: 'bulk-api-guide',
+    title: 'Bulk API Developer Guide PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/api_asynch.pdf`,
+    topicIds: [
+      'data-cloud-ingestion-query',
+      'soql-query-selectivity',
+      'connected-app-oauth',
+    ],
+    keywords: ['bulk api', 'query', 'ingest', 'large data volumes', 'oauth'],
+  },
+  {
+    id: 'integration-patterns-guide',
+    title: 'Integration Patterns and Practices PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/integration_patterns_and_practices.pdf`,
+    topicIds: [
+      'connected-app-oauth',
+      'named-credentials-external-credentials',
+      'platform-events-pubsub',
+      'data-cloud-ingestion-query',
+    ],
+    keywords: ['integration', 'event bus', 'callout', 'oauth', 'pattern'],
+  },
+  {
+    id: 'marketing-cloud-data-management',
+    title: 'Marketing Cloud Data Management and Analytics PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/mc_data_management_and_analytics.pdf`,
+    topicIds: [
+      'marketing-cloud-engagement-apis',
+      'marketing-cloud-growth-development',
+      'data-cloud-development',
+    ],
+    keywords: ['marketing cloud', 'data extension', 'subscriber', 'analytics', 'journey'],
+  },
+  {
+    id: 'account-engagement-implementation-guide',
+    title: 'Account Engagement Implementation Guide PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/pardot_pbus_upgrade_implementation_guide.pdf`,
+    topicIds: [
+      'marketing-cloud-engagement-apis',
+      'marketing-cloud-growth-development',
+      'sales-cloud-admin-setup',
+    ],
+    keywords: ['account engagement', 'pardot', 'marketing cloud', 'campaign', 'lead'],
+  },
+];
+
 const storageAuth = new GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/devstorage.read_write'],
 });
@@ -994,8 +1284,45 @@ function buildHelpArticleMetadata(urlValue: string): OfficialDocContent | null {
   };
 }
 
+function addDaysIso(isoValue: string, days: number): string {
+  const base = Date.parse(isoValue);
+  const timestamp = Number.isFinite(base) ? base : Date.now();
+  return new Date(timestamp + days * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function freshnessSignalFor(record: Pick<SalesforceDocsIndexRecord, 'etag' | 'lastModified'>): SalesforceDocsFreshnessSignal {
+  if (record.etag) return 'etag';
+  if (record.lastModified) return 'last_modified';
+  return 'content_hash_only';
+}
+
+function pdfRefreshStatus(record: Pick<SalesforceDocsIndexRecord, 'retrievedAt' | 'refreshCadenceDays'>, now = Date.now()): SalesforceDocsPdfRefreshStatus {
+  const retrievedAtMs = Date.parse(record.retrievedAt);
+  const cadenceDays = record.refreshCadenceDays || PDF_REFRESH_CADENCE_DAYS;
+  if (!Number.isFinite(retrievedAtMs)) return 'overdue';
+  const ageMs = now - retrievedAtMs;
+  const cadenceMs = cadenceDays * 24 * 60 * 60 * 1000;
+  if (ageMs > cadenceMs * PDF_REFRESH_OVERDUE_MULTIPLIER) return 'overdue';
+  if (ageMs > cadenceMs) return 'due';
+  return 'fresh';
+}
+
+function inferPdfVersion(text: string): { apiVersion?: string; releaseLabel?: string; documentationVersion?: string } {
+  const match = text.match(/Version\s+([0-9]+(?:\.[0-9]+)?)\s*,\s*([^.\n\r]+?)(?:\s+Last updated|\s{2,}|$)/i);
+  if (!match) return {};
+  const releaseLabel = match[2].replace(/\s+/g, ' ').trim();
+  return {
+    apiVersion: match[1],
+    releaseLabel,
+    documentationVersion: match[1],
+  };
+}
+
 function inferSourceType(urlValue: string): SalesforceDocsIndexRecord['sourceType'] {
   const url = new URL(urlValue);
+  if (url.pathname.endsWith('.pdf')) {
+    return /release[-_]?notes/i.test(url.pathname) ? 'release_notes_pdf' : 'pdf_guide';
+  }
   if (url.hostname === 'www.salesforce.com' || url.pathname.includes('/releases')) return 'release_page';
   if (url.hostname === 'help.salesforce.com' && url.pathname.includes('release-notes')) return 'release_notes';
   if (url.hostname === 'developer.salesforce.com') return 'developer_doc';
@@ -1038,8 +1365,28 @@ function excerptFor(text: string, topic: SalesforceDocsIndexTopic): string {
   return `${start > 0 ? '...' : ''}${text.slice(start, start + 700)}${start + 700 < text.length ? '...' : ''}`;
 }
 
+function fetchErrorMessage(error: any, fallback = 'Unknown fetch failure'): string {
+  const message = error?.message || fallback;
+  const cause = error?.cause;
+  const causeCode = typeof cause?.code === 'string' ? cause.code : undefined;
+  const causeMessage = typeof cause?.message === 'string' ? cause.message : undefined;
+  if (causeCode && causeMessage) return `${message}: ${causeCode} ${causeMessage}`;
+  if (causeCode) return `${message}: ${causeCode}`;
+  if (causeMessage) return `${message}: ${causeMessage}`;
+  return message;
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchTextWithCurl(url: string, timeoutMs: number): Promise<string> {
+  const timeoutSeconds = Math.max(5, Math.ceil(timeoutMs / 1000));
+  const result = await execFile('curl', ['-L', '--fail', '--silent', '--show-error', '--max-time', String(timeoutSeconds), url], {
+    encoding: 'utf8',
+    maxBuffer: 20 * 1024 * 1024,
+  }) as { stdout: string; stderr: string };
+  return result.stdout;
 }
 
 async function fetchText(url: string, timeoutMs = 20000): Promise<string> {
@@ -1062,23 +1409,219 @@ async function fetchText(url: string, timeoutMs = 20000): Promise<string> {
         return await response.text();
       }
       lastError = new Error(`HTTP ${response.status}`);
+      if (ALLOW_CURL_TEXT_FETCH && response.status === 403) break;
       if (![403, 429, 500, 502, 503, 504].includes(response.status) || attempt === 2) {
-        throw lastError;
+        break;
       }
     } catch (error: any) {
-      lastError = error instanceof Error ? error : new Error(error?.message || 'Unknown fetch failure');
-      if (attempt === 2) throw lastError;
+      lastError = error instanceof Error ? new Error(fetchErrorMessage(error)) : new Error(fetchErrorMessage(error, 'Unknown fetch failure'));
+      if (ALLOW_CURL_TEXT_FETCH && /UNABLE_TO_VERIFY|fetch failed/i.test(lastError.message)) break;
+      if (attempt === 2) break;
     } finally {
       clearTimeout(timeout);
     }
     await sleep(750 * (attempt + 1));
   }
+  if (ALLOW_CURL_TEXT_FETCH) {
+    try {
+      console.warn('[salesforceDocsIndex] Falling back to curl for Salesforce text fetch', {
+        url,
+        fetchError: lastError?.message,
+      });
+      return await fetchTextWithCurl(url, timeoutMs);
+    } catch (curlError: any) {
+      throw new Error(`Text fetch failed via fetch (${lastError?.message || 'unknown'}) and curl fallback (${fetchErrorMessage(curlError, 'Unknown curl text fetch failure')})`);
+    }
+  }
   throw lastError || new Error('Unknown fetch failure');
+}
+
+function parseCurlHeaderValue(headers: string, name: string): string | undefined {
+  const pattern = new RegExp(`^${name}:\\s*(.+)$`, 'im');
+  return headers.match(pattern)?.[1]?.trim();
+}
+
+async function fetchPdfDocumentWithCurl(url: string): Promise<FetchedPdfDocument> {
+  const [bodyResult, headResult] = await Promise.all([
+    execFile('curl', ['-L', '--fail', '--silent', '--show-error', '--max-time', '90', url], {
+      encoding: 'buffer',
+      maxBuffer: 80 * 1024 * 1024,
+    } as any) as Promise<{ stdout: Buffer; stderr: Buffer }>,
+    execFile('curl', ['-I', '-L', '--silent', '--show-error', '--max-time', '30', url], {
+      encoding: 'utf8',
+      maxBuffer: 1024 * 1024,
+    }) as Promise<{ stdout: string; stderr: string }>,
+  ]);
+  const bytes = new Uint8Array(bodyResult.stdout);
+  if (bytes.length < 1000) {
+    throw new Error(`curl PDF response was too short (${bytes.length} bytes)`);
+  }
+  const signature = Buffer.from(bytes.slice(0, 4)).toString('utf8');
+  if (signature !== '%PDF') {
+    throw new Error(`curl PDF response did not start with a PDF signature; content-type was ${parseCurlHeaderValue(headResult.stdout, 'content-type') || 'unknown'}`);
+  }
+  return {
+    bytes,
+    contentType: parseCurlHeaderValue(headResult.stdout, 'content-type'),
+    etag: parseCurlHeaderValue(headResult.stdout, 'etag'),
+    lastModified: parseCurlHeaderValue(headResult.stdout, 'last-modified'),
+    contentByteLength: Number(parseCurlHeaderValue(headResult.stdout, 'content-length')) || bytes.length,
+  };
+}
+
+async function fetchPdfDocument(url: string, timeoutMs = 60000): Promise<FetchedPdfDocument> {
+  if (!isOfficialSalesforceUrl(url)) {
+    throw new Error(`URL is not an allowed official Salesforce URL: ${url}`);
+  }
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/pdf, application/octet-stream, */*',
+          'User-Agent': 'SymposiumAI-SalesforceDocsIndexer/1.0 (+https://app.symposiumai.app)',
+        },
+      });
+      if (response.ok) {
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        if (bytes.length < 1000) {
+          throw new Error(`PDF response was too short (${bytes.length} bytes)`);
+        }
+        const signature = Buffer.from(bytes.slice(0, 4)).toString('utf8');
+        if (signature !== '%PDF') {
+          throw new Error(`PDF response did not start with a PDF signature; content-type was ${response.headers.get('content-type') || 'unknown'}`);
+        }
+        return {
+          bytes,
+          contentType: response.headers.get('content-type') || undefined,
+          etag: response.headers.get('etag') || undefined,
+          lastModified: response.headers.get('last-modified') || undefined,
+          contentByteLength: Number(response.headers.get('content-length')) || bytes.length,
+        };
+      }
+      lastError = new Error(`HTTP ${response.status}`);
+      if ((ALLOW_CURL_PDF_FETCH || ALLOW_CURL_TEXT_FETCH) && response.status === 403) break;
+      if (![403, 429, 500, 502, 503, 504].includes(response.status) || attempt === 2) {
+        break;
+      }
+    } catch (error: any) {
+      lastError = error instanceof Error ? new Error(fetchErrorMessage(error, 'Unknown PDF fetch failure')) : new Error(fetchErrorMessage(error, 'Unknown PDF fetch failure'));
+      if ((ALLOW_CURL_PDF_FETCH || ALLOW_CURL_TEXT_FETCH) && /UNABLE_TO_VERIFY|fetch failed/i.test(lastError.message)) break;
+      if (attempt === 2) break;
+    } finally {
+      clearTimeout(timeout);
+    }
+    await sleep(1250 * (attempt + 1));
+  }
+  if (ALLOW_CURL_PDF_FETCH || ALLOW_CURL_TEXT_FETCH) {
+    try {
+      console.warn('[salesforceDocsIndex] Falling back to curl for Salesforce PDF fetch', {
+        url,
+        fetchError: lastError?.message,
+      });
+      return await fetchPdfDocumentWithCurl(url);
+    } catch (curlError: any) {
+      throw new Error(`PDF fetch failed via fetch (${lastError?.message || 'unknown'}) and curl fallback (${fetchErrorMessage(curlError, 'Unknown curl PDF fetch failure')})`);
+    }
+  }
+  throw lastError || new Error('Unknown PDF fetch failure');
 }
 
 async function fetchOfficialJson<T>(url: string): Promise<T> {
   const text = await fetchText(url);
   return JSON.parse(text) as T;
+}
+
+let pdfJsPromise: Promise<any> | null = null;
+
+async function loadPdfJs(): Promise<any> {
+  if (!pdfJsPromise) {
+    pdfJsPromise = import('pdfjs-dist/legacy/build/pdf.mjs');
+  }
+  return pdfJsPromise;
+}
+
+function normalizeExtractedPdfText(text: string): string {
+  return text
+    .replace(/\u0000/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
+function positiveLimit(value: number): number | null {
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function buildTextChunks(text: string, sourceId: string): SalesforceDocsIndexTextChunk[] {
+  const targetChars = Math.max(1000, positiveLimit(PDF_TEXT_CHUNK_TARGET_CHARS) || 3500);
+  const overlapChars = Math.min(Math.max(0, positiveLimit(PDF_TEXT_CHUNK_OVERLAP_CHARS) || 350), Math.floor(targetChars / 3));
+  const step = Math.max(1, targetChars - overlapChars);
+  const chunks: SalesforceDocsIndexTextChunk[] = [];
+  for (let start = 0; start < text.length; start += step) {
+    const chunkText = text.slice(start, start + targetChars).trim();
+    if (chunkText.length < 80) continue;
+    chunks.push({
+      id: `${sourceId}-chunk-${chunks.length + 1}`,
+      ordinal: chunks.length + 1,
+      text: chunkText,
+      contentLength: chunkText.length,
+      responseHash: crypto.createHash('sha256').update(chunkText).digest('hex'),
+    });
+  }
+  return chunks;
+}
+
+async function extractPdfText(bytes: Uint8Array, sourceId: string): Promise<ExtractedPdfText> {
+  const pdfjs = await loadPdfJs();
+  const document = await pdfjs.getDocument({
+    data: bytes,
+    disableWorker: true,
+    isEvalSupported: false,
+    useWorkerFetch: false,
+  }).promise;
+  const pageCount = Number(document.numPages) || 0;
+  const configuredPageLimit = positiveLimit(PDF_EXTRACT_MAX_PAGES);
+  const configuredCharLimit = positiveLimit(PDF_EXTRACT_MAX_CHARS);
+  const pageLimit = configuredPageLimit ? Math.min(pageCount, configuredPageLimit) : pageCount;
+  let extractedPageCount = 0;
+  let extractedTextLength = 0;
+  const pageChunks: string[] = [];
+  const warnings: string[] = [];
+
+  for (let pageNumber = 1; pageNumber <= pageLimit; pageNumber += 1) {
+    const page = await document.getPage(pageNumber);
+    const content = await page.getTextContent();
+    const pageText = content.items
+      .map((item: any) => typeof item?.str === 'string' ? item.str : '')
+      .filter(Boolean)
+      .join(' ');
+    if (pageText.trim()) pageChunks.push(pageText);
+    extractedPageCount = pageNumber;
+    extractedTextLength += pageText.length;
+    if (configuredCharLimit && extractedTextLength >= configuredCharLimit) break;
+  }
+
+  const normalizedText = normalizeExtractedPdfText(pageChunks.join('\n\n'));
+  const text = configuredCharLimit ? normalizedText.slice(0, configuredCharLimit) : normalizedText;
+  if (pageCount > extractedPageCount) {
+    warnings.push(`PDF has ${pageCount} page(s); only the first ${extractedPageCount} page(s) were extracted for the documentation index.`);
+  }
+  if (configuredCharLimit && text.length >= configuredCharLimit) {
+    warnings.push(`PDF text extraction was truncated at ${configuredCharLimit} characters for index size control.`);
+  }
+
+  return {
+    text,
+    chunks: buildTextChunks(text, sourceId),
+    pageCount,
+    extractedPageCount,
+    warnings,
+  };
 }
 
 function parseDeveloperDocsReference(urlValue: string): { docId: string; deliverable: string; contentDocumentId: string } | null {
@@ -1378,17 +1921,190 @@ async function buildRecord(
       ? 'stale-risk'
       : status === 'ga'
         ? 'supports'
+      : 'unclear',
+  };
+}
+
+async function buildPdfRecord(
+  source: SalesforceDocsPdfSource,
+  retrievedAt: string,
+  index: number,
+): Promise<SalesforceDocsIndexRecord> {
+  const url = canonicalizeUrl(source.url);
+  if (!url) {
+    throw new Error(`URL is not an allowed official Salesforce PDF URL: ${source.url}`);
+  }
+
+  const topics = source.topicIds
+    .map((topicId) => SALESFORCE_DOC_TOPICS.find((topic) => topic.id === topicId))
+    .filter((topic): topic is SalesforceDocsIndexTopic => Boolean(topic));
+  if (topics.length === 0) {
+    throw new Error(`PDF source ${source.id} did not reference any indexed Salesforce docs topics.`);
+  }
+
+  const pdf = await fetchPdfDocument(url);
+  const extracted = await extractPdfText(pdf.bytes, source.id);
+  if (extracted.text.length < FULL_TEXT_CONTENT_LENGTH_FLOOR) {
+    throw new Error(`PDF text extraction was too short (${extracted.text.length} chars)`);
+  }
+
+  const primaryTopic = topics[0];
+  const keywords = Array.from(new Set([
+    ...source.keywords,
+    ...topics.flatMap((topic) => topic.keywords),
+  ]));
+  const version = inferPdfVersion(extracted.text);
+  const status = inferStatus(version.releaseLabel || source.title);
+  const refreshCadenceDays = source.refreshCadenceDays || PDF_REFRESH_CADENCE_DAYS;
+  const recordSeed = {
+    etag: pdf.etag,
+    lastModified: pdf.lastModified,
+  };
+  const freshnessSignal = freshnessSignalFor(recordSeed);
+  const warnings = [
+    ...sourceWarnings(version.releaseLabel || '', status),
+    ...extracted.warnings,
+    freshnessSignal === 'content_hash_only'
+      ? 'PDF source did not expose ETag or Last-Modified headers; staleness checks rely on scheduled re-fetch and content hash comparison.'
+      : '',
+  ].filter(Boolean);
+
+  return {
+    id: `sf-doc-index-${index}`,
+    topicIds: topics.map((topic) => topic.id),
+    title: source.title,
+    url,
+    domain: new URL(url).hostname,
+    sourceType: inferSourceType(url),
+    sourceFormat: 'pdf',
+    pdfSourceId: source.id,
+    status,
+    retrievedAt,
+    responseHash: crypto.createHash('sha256').update(Buffer.from(pdf.bytes)).digest('hex'),
+    contentQuality: 'full_text',
+    contentLength: extracted.text.length,
+    contentType: pdf.contentType,
+    contentByteLength: pdf.contentByteLength,
+    textChunks: extracted.chunks,
+    chunkCount: extracted.chunks.length,
+    excerpt: excerptFor(extracted.text, { ...primaryTopic, keywords }),
+    keywords,
+    warnings,
+    apiVersion: version.apiVersion,
+    releaseLabel: version.releaseLabel,
+    documentationVersion: version.documentationVersion,
+    etag: pdf.etag,
+    lastModified: pdf.lastModified,
+    pageCount: extracted.pageCount,
+    extractedPageCount: extracted.extractedPageCount,
+    refreshCadenceDays,
+    nextRefreshDueAt: addDaysIso(retrievedAt, refreshCadenceDays),
+    freshnessSignal,
+    discoverySource: 'seed',
+    confidenceImpact: status === 'preview' || warnings.some((warning) => /previous|stale/i.test(warning))
+      ? 'stale-risk'
+      : status === 'ga'
+        ? 'supports'
         : 'unclear',
   };
 }
 
-export async function buildSalesforceDocsIndexNow(): Promise<SalesforceDocsIndex> {
+function buildPdfCorpusSourceHealth(
+  record: SalesforceDocsIndexRecord,
+  generatedAt: string,
+): SalesforceDocsPdfCorpusSourceHealth {
+  const refreshCadenceDays = record.refreshCadenceDays || PDF_REFRESH_CADENCE_DAYS;
+  const nextRefreshDueAt = record.nextRefreshDueAt || addDaysIso(record.retrievedAt, refreshCadenceDays);
+  return {
+    sourceId: record.pdfSourceId || record.id,
+    title: record.title,
+    url: record.url,
+    retrievedAt: record.retrievedAt,
+    lastModified: record.lastModified,
+    etag: record.etag,
+    contentByteLength: record.contentByteLength,
+    pageCount: record.pageCount,
+    extractedPageCount: record.extractedPageCount,
+    chunkCount: record.chunkCount,
+    refreshCadenceDays,
+    nextRefreshDueAt,
+    refreshStatus: pdfRefreshStatus(record, Date.parse(generatedAt)),
+    freshnessSignal: record.freshnessSignal || freshnessSignalFor(record),
+  };
+}
+
+function buildPdfCorpusSummary(
+  records: SalesforceDocsIndexRecord[],
+  generatedAt: string,
+): SalesforceDocsPdfCorpusSummary {
+  const pdfRecords = records.filter((record) => record.sourceFormat === 'pdf');
+  const sources = pdfRecords
+    .map((record) => buildPdfCorpusSourceHealth(record, generatedAt))
+    .sort((a, b) => a.title.localeCompare(b.title));
+  const sourcesDueForRefresh = sources.filter((source) => source.refreshStatus !== 'fresh');
+  const missingFreshnessSignals = sources.filter((source) => source.freshnessSignal === 'content_hash_only');
+  const truncatedSources = pdfRecords.filter((record) =>
+    typeof record.pageCount === 'number'
+    && typeof record.extractedPageCount === 'number'
+    && record.pageCount > record.extractedPageCount
+  );
+
+  return {
+    sourceCount: SALESFORCE_DOC_PDF_SOURCES.length,
+    indexedCount: pdfRecords.length,
+    refreshCadenceDays: PDF_REFRESH_CADENCE_DAYS,
+    dueForRefreshCount: sourcesDueForRefresh.length,
+    overdueCount: sourcesDueForRefresh.filter((source) => source.refreshStatus === 'overdue').length,
+    sourcesDueForRefresh,
+    sources,
+    warnings: [
+      sourcesDueForRefresh.length > 0
+        ? `${sourcesDueForRefresh.length} official Salesforce PDF source(s) are due or overdue for refresh.`
+        : '',
+      missingFreshnessSignals.length > 0
+        ? `${missingFreshnessSignals.length} official Salesforce PDF source(s) lack ETag/Last-Modified validators; scheduled re-fetch and response hashing are required to detect changes.`
+        : '',
+      truncatedSources.length > 0
+        ? `${truncatedSources.length} official Salesforce PDF source(s) were partially extracted because of page or character limits.`
+        : '',
+    ].filter(Boolean),
+  };
+}
+
+export async function buildSalesforceDocsIndexNow(options: SalesforceDocsIndexBuildOptions = {}): Promise<SalesforceDocsIndex> {
   const generatedAt = new Date().toISOString();
   const records: SalesforceDocsIndexRecord[] = [];
   const failures: SalesforceDocsIndex['failures'] = [];
   const seenUrls = new Set<string>();
+  const includePdfDocs = options.includePdfDocs !== false;
+  const includeWebDocs = options.includeWebDocs !== false;
+  const includeSitemapDocs = includeWebDocs && options.includeSitemapDocs !== false;
 
-  for (const topic of SALESFORCE_DOC_TOPICS) {
+  for (const pdfSource of includePdfDocs ? SALESFORCE_DOC_PDF_SOURCES : []) {
+    const canonicalUrl = canonicalizeUrl(pdfSource.url);
+    if (!canonicalUrl) {
+      failures.push({ topicId: pdfSource.topicIds[0] || pdfSource.id, url: pdfSource.url, error: 'PDF URL is not an allowed official Salesforce URL.' });
+      continue;
+    }
+    if (seenUrls.has(canonicalUrl)) continue;
+    seenUrls.add(canonicalUrl);
+
+    try {
+      console.log('[salesforceDocsIndex] Fetching Salesforce PDF source', {
+        sourceId: pdfSource.id,
+        url: canonicalUrl,
+      });
+      records.push(await buildPdfRecord(pdfSource, generatedAt, records.length + 1));
+    } catch (error: any) {
+      failures.push({
+        topicId: pdfSource.topicIds[0] || pdfSource.id,
+        url: canonicalUrl,
+        error: error?.message || 'Unknown PDF fetch or extraction failure',
+      });
+    }
+  }
+
+  for (const topic of includeWebDocs ? SALESFORCE_DOC_TOPICS : []) {
     for (const rawUrl of topic.seedUrls) {
       const canonicalUrl = canonicalizeUrl(rawUrl);
       if (!canonicalUrl) {
@@ -1417,8 +2133,8 @@ export async function buildSalesforceDocsIndexNow(): Promise<SalesforceDocsIndex
     }
   }
 
-  const sitemapEntries = await discoverSitemapEntries(failures);
-  for (const topic of SALESFORCE_DOC_TOPICS) {
+  const sitemapEntries = includeSitemapDocs ? await discoverSitemapEntries(failures) : [];
+  for (const topic of includeSitemapDocs ? SALESFORCE_DOC_TOPICS : []) {
     const scoredEntries = sitemapEntries
       .map((entry) => ({ entry, score: scoreSitemapEntryForTopic(entry, topic) }))
       .filter(({ score }) => score >= MIN_SITEMAP_TOPIC_SCORE)
@@ -1457,6 +2173,7 @@ export async function buildSalesforceDocsIndexNow(): Promise<SalesforceDocsIndex
 
   const fullTextRecords = records.filter(isFullTextRecord).length;
   const metadataOnlyRecords = records.filter((record) => contentQualityForRecord(record) === 'metadata_only').length;
+  const pdfCorpus = buildPdfCorpusSummary(records, generatedAt);
 
   const index: SalesforceDocsIndex = {
     version: SALESFORCE_DOC_INDEX_VERSION,
@@ -1473,12 +2190,19 @@ export async function buildSalesforceDocsIndexNow(): Promise<SalesforceDocsIndex
       sitemapUrlCount: sitemapEntries.length,
       sitemapRecordLimitPerTopic: MAX_SITEMAP_RECORDS_PER_TOPIC,
     },
+    pdfCorpus,
     warnings: [
       records.length === 0 ? 'No official Salesforce documentation records were fetched.' : '',
       failures.length > 0 ? `${failures.length} official Salesforce documentation seed URL(s) failed to fetch.` : '',
-      sitemapEntries.length === 0 ? 'Salesforce documentation sitemap discovery returned no official URLs.' : '',
+      includeSitemapDocs && sitemapEntries.length === 0 ? 'Salesforce documentation sitemap discovery returned no official URLs.' : '',
+      !includeWebDocs ? 'Salesforce web documentation fetch was skipped for this index build.' : '',
+      !includePdfDocs ? 'Salesforce PDF documentation fetch was skipped for this index build.' : '',
+      pdfCorpus.indexedCount < SALESFORCE_DOC_PDF_SOURCES.length
+        ? `Only ${pdfCorpus.indexedCount} of ${SALESFORCE_DOC_PDF_SOURCES.length} curated official Salesforce PDF source(s) were indexed.`
+        : '',
       metadataOnlyRecords > 0 ? `${metadataOnlyRecords} official Salesforce documentation record(s) are metadata-only Help Center references without extracted article body text.` : '',
       fullTextRecords < MIN_REFRESH_FULL_TEXT_RECORDS ? `Only ${fullTextRecords} full-text documentation record(s) met the quality floor.` : '',
+      ...pdfCorpus.warnings,
     ].filter(Boolean),
   };
 
@@ -1495,6 +2219,10 @@ function fullTextRecordCount(index: SalesforceDocsIndex): number {
 
 function metadataOnlyRecordCount(index: SalesforceDocsIndex): number {
   return index.records.filter((record) => contentQualityForRecord(record) === 'metadata_only').length;
+}
+
+function pdfRecordCount(index: SalesforceDocsIndex): number {
+  return index.records.filter((record) => record.sourceFormat === 'pdf').length;
 }
 
 function metadataOnlyRatio(index: SalesforceDocsIndex): number {
@@ -1536,6 +2264,14 @@ function refreshCoverageError(index: SalesforceDocsIndex): string | null {
     return [
       `Salesforce docs index refresh produced ${fullTextRecords} full-text record(s),`,
       `below required minimum ${MIN_REFRESH_FULL_TEXT_RECORDS}; keeping the previous index.`,
+    ].join(' ');
+  }
+
+  const pdfRecords = pdfRecordCount(index);
+  if (pdfRecords < MIN_REFRESH_PDF_RECORDS) {
+    return [
+      `Salesforce docs index refresh produced ${pdfRecords} official Salesforce PDF record(s),`,
+      `below required minimum ${MIN_REFRESH_PDF_RECORDS}; keeping the previous index.`,
     ].join(' ');
   }
 
@@ -1583,6 +2319,35 @@ function tokensForTopic(topic: SalesforceDocsLookupTopicLike): string[] {
   ].join(' ').toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 3)));
 }
 
+function scoreTextForTokens(text: string, tokens: string[]): number {
+  const haystack = text.toLowerCase();
+  let score = 0;
+  for (const token of tokens) {
+    if (!haystack.includes(token)) continue;
+    score += token.length >= 8 ? 4 : 2;
+  }
+  return score;
+}
+
+function matchedChunksForRecord(
+  record: SalesforceDocsIndexRecord,
+  tokens: string[],
+  maxChunks = 3,
+): NonNullable<SalesforceDocsIndexEvidenceSource['matchedChunks']> {
+  if (!record.textChunks || record.textChunks.length === 0) return [];
+  return record.textChunks
+    .map((chunk) => ({
+      id: chunk.id,
+      ordinal: chunk.ordinal,
+      text: chunk.text,
+      score: scoreTextForTokens(chunk.text, tokens),
+      contentLength: chunk.contentLength,
+    }))
+    .filter((chunk) => chunk.score > 0)
+    .sort((a, b) => b.score - a.score || a.ordinal - b.ordinal)
+    .slice(0, maxChunks);
+}
+
 function scoreRecordForTopic(record: SalesforceDocsIndexRecord, topic: SalesforceDocsLookupTopicLike, tokens: string[]): number {
   let score = 0;
   if (record.topicIds.includes(topic.id)) score += 100;
@@ -1596,6 +2361,11 @@ function scoreRecordForTopic(record: SalesforceDocsIndexRecord, topic: Salesforc
   for (const token of tokens) {
     if (haystack.includes(token)) score += 2;
   }
+  const chunkScores = record.textChunks
+    ? record.textChunks.map((chunk) => scoreTextForTokens(chunk.text, tokens))
+    : [];
+  const bestChunkScore = chunkScores.length > 0 ? Math.max(...chunkScores) : 0;
+  score += Math.min(bestChunkScore, 80);
   for (const riskSignalId of topic.riskSignalIds || []) {
     if (riskSignalId.includes('apex') && record.topicIds.some((id) => id.startsWith('apex-'))) score += 8;
     if (riskSignalId.includes('flow') && record.topicIds.some((id) => id.startsWith('flow-'))) score += 8;
@@ -1637,6 +2407,10 @@ export async function lookupSalesforceDocsIndex(
 
   const indexAgeMs = Date.now() - Date.parse(index.generatedAt);
   const warnings = [...index.warnings];
+  const pdfCorpus = buildPdfCorpusSummary(index.records, new Date().toISOString());
+  if (pdfCorpus.dueForRefreshCount > 0) {
+    warnings.push(`${pdfCorpus.dueForRefreshCount} cached official Salesforce PDF source(s) are due or overdue for refresh.`);
+  }
   if (Number.isFinite(indexAgeMs) && indexAgeMs > MAX_INDEX_AGE_MS) {
     warnings.push(`Salesforce documentation index is older than ${Math.round(MAX_INDEX_AGE_MS / (24 * 60 * 60 * 1000))} days; live verification is recommended.`);
   }
@@ -1664,11 +2438,18 @@ export async function lookupSalesforceDocsIndex(
       seenSourceKeys.add(sourceKey);
 
       const sourceAgeMs = Date.now() - Date.parse(item.record.retrievedAt);
+      const recordPdfRefreshStatus = item.record.sourceFormat === 'pdf'
+        ? pdfRefreshStatus(item.record)
+        : null;
+      const matchedChunks = matchedChunksForRecord(item.record, tokens);
       const sourceWarnings = [
         ...item.record.warnings,
         `Source came from cached official Salesforce docs index generated ${index.generatedAt}.`,
         Number.isFinite(sourceAgeMs) && sourceAgeMs > MAX_INDEX_SOURCE_AGE_MS
           ? 'Cached source is older than 90 days; confidence should be downgraded unless live verification succeeds.'
+          : '',
+        recordPdfRefreshStatus && recordPdfRefreshStatus !== 'fresh'
+          ? `Cached PDF source is ${recordPdfRefreshStatus} for refresh; verify against the latest official PDF before making release-sensitive claims.`
           : '',
       ].filter(Boolean);
 
@@ -1684,14 +2465,15 @@ export async function lookupSalesforceDocsIndex(
         responseHash: item.record.responseHash,
         contentQuality: contentQualityForRecord(item.record),
         contentLength: item.record.contentLength,
-        excerpt: item.record.excerpt,
+        excerpt: matchedChunks[0]?.text || item.record.excerpt,
+        matchedChunks: matchedChunks.length > 0 ? matchedChunks : undefined,
         searchSnippet: `Cached official Salesforce documentation index match (score ${item.score}).`,
         warnings: sourceWarnings,
         apiVersion: item.record.apiVersion,
         releaseLabel: item.record.releaseLabel,
         documentationVersion: item.record.documentationVersion,
         lastModified: item.record.lastModified,
-        confidenceImpact: sourceWarnings.some((warning) => /older than|stale|preview|previous/i.test(warning))
+        confidenceImpact: sourceWarnings.some((warning) => /older than|stale|preview|previous|due|overdue/i.test(warning))
           ? 'stale-risk'
           : item.record.confidenceImpact,
       });
@@ -1712,7 +2494,9 @@ export async function lookupSalesforceDocsIndex(
       developerDocCount: developerDocRecordCount(index),
       fullTextRecordCount: fullTextRecordCount(index),
       metadataOnlyRecordCount: metadataOnlyRecordCount(index),
+      pdfRecordCount: pdfRecordCount(index),
       indexSourceCounts: countRecordsBySourceType(index),
+      pdfCorpus,
       failedDomains: countFailuresByDomain(index),
       topicCoverage: topics.map((topic) => {
         const sourceCount = topicSourceCounts.get(topic.id) || 0;
@@ -1735,15 +2519,15 @@ export async function lookupSalesforceDocsIndex(
             ? 'no_official_source' as const
             : 'not_indexed' as const,
         })),
-      stalenessWarnings: warnings.filter((warning) => /older than|stale|previous/i.test(warning)),
+      stalenessWarnings: warnings.filter((warning) => /older than|stale|previous|due|overdue/i.test(warning)),
     },
   };
 }
 
 export const refreshSalesforceDocsIndex = onCall(
   {
-    timeoutSeconds: 540,
-    memory: '1GiB',
+    timeoutSeconds: 1800,
+    memory: '2GiB',
   },
   async (request) => {
     if (!request.auth) {
@@ -1768,8 +2552,8 @@ export const refreshSalesforceDocsIndex = onCall(
 export const scheduledSalesforceDocsIndexRefresh = onSchedule(
   {
     schedule: 'every 24 hours',
-    timeoutSeconds: 540,
-    memory: '1GiB',
+    timeoutSeconds: 1800,
+    memory: '2GiB',
   },
   async () => {
     try {

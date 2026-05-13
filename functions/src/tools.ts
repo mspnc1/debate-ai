@@ -313,12 +313,19 @@ interface SalesforceDocEvidenceSource {
   title: string;
   url: string;
   domain: string;
-  sourceType: 'release_page' | 'release_notes' | 'developer_doc' | 'help_doc' | 'architect_doc' | 'official_doc';
+  sourceType: 'release_page' | 'release_notes' | 'developer_doc' | 'help_doc' | 'architect_doc' | 'pdf_guide' | 'release_notes_pdf' | 'official_doc';
   status: 'ga' | 'preview' | 'unknown';
   retrievedAt: string;
   responseHash: string;
   contentLength: number;
   excerpt: string;
+  matchedChunks?: Array<{
+    id: string;
+    ordinal: number;
+    text: string;
+    score: number;
+    contentLength: number;
+  }>;
   searchSnippet?: string;
   warnings: string[];
   confidenceImpact: 'supports' | 'unclear' | 'stale-risk';
@@ -1247,7 +1254,7 @@ function buildSalesforceDocumentationIndexHealth(
       const stale = sources
         .filter((source) => source.topicId === topic.id)
         .some((source) => source.confidenceImpact === 'stale-risk' || source.status === 'preview')
-        || sourceWarnings.some((warning) => /older than|stale|previous/i.test(warning));
+        || sourceWarnings.some((warning) => /older than|stale|previous|due|overdue/i.test(warning));
       return {
         topicId: topic.id,
         status: stale ? 'stale' : 'hit',
@@ -1292,7 +1299,7 @@ function buildSalesforceDocumentationIndexHealth(
     status: hasTopicSources ? (hasStaleTopic ? 'stale' : 'hit') : (indexSummary?.status || 'unavailable'),
     topicCoverage,
     missedTopics,
-    stalenessWarnings: warnings.filter((warning) => /older than|stale|previous|preview|beta|pilot/i.test(warning)),
+    stalenessWarnings: warnings.filter((warning) => /older than|stale|previous|preview|beta|pilot|due|overdue/i.test(warning)),
   };
 }
 
@@ -1421,6 +1428,9 @@ function buildSalesforceDocEvidenceSource(input: {
 
 function inferSalesforceDocSourceType(urlValue: string): SalesforceDocEvidenceSource['sourceType'] {
   const url = new URL(urlValue);
+  if (url.pathname.endsWith('.pdf')) {
+    return /release[-_]?notes/i.test(url.pathname) ? 'release_notes_pdf' : 'pdf_guide';
+  }
   if (url.hostname === 'www.salesforce.com' || url.pathname.includes('/releases')) return 'release_page';
   if (url.hostname === 'help.salesforce.com' && url.pathname.includes('release-notes')) return 'release_notes';
   if (url.hostname === 'developer.salesforce.com') return 'developer_doc';

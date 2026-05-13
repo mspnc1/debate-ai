@@ -18,6 +18,11 @@ on:
         required: false
         default: '180'
         type: string
+      min_pdf_records:
+        description: Minimum official Salesforce PDF records required before success
+        required: false
+        default: '10'
+        type: string
       max_metadata_only_ratio:
         description: Maximum allowed ratio of metadata-only documentation records
         required: false
@@ -45,7 +50,7 @@ on:
 jobs:
   build-index:
     runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.runner_label || 'salesforce-docs-ingestion' }}
-    timeout-minutes: 25
+    timeout-minutes: 60
     permissions:
       contents: read
       id-token: write
@@ -54,7 +59,10 @@ jobs:
       UPLOAD_REQUESTED: ${{ github.event_name == 'schedule' || inputs.upload == true }}
       MIN_DEVELOPER_RECORDS: ${{ inputs.min_developer_records || '110' }}
       MIN_FULL_TEXT_RECORDS: ${{ inputs.min_full_text_records || '180' }}
+      MIN_PDF_RECORDS: ${{ inputs.min_pdf_records || '10' }}
       MAX_METADATA_ONLY_RATIO: ${{ inputs.max_metadata_only_ratio || '0.05' }}
+      SALESFORCE_DOCS_ALLOW_CURL_FETCH: '1'
+      SALESFORCE_DOCS_ALLOW_CURL_PDF_FETCH: '1'
       UPLOAD_MODE: ${{ inputs.upload_mode || 'google-auth' }}
       FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
       GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
@@ -114,6 +122,7 @@ jobs:
             --upload-mode "$UPLOAD_MODE" \
             --min-developer-records "$MIN_DEVELOPER_RECORDS" \
             --min-full-text-records "$MIN_FULL_TEXT_RECORDS" \
+            --min-pdf-records "$MIN_PDF_RECORDS" \
             --max-metadata-only-ratio "$MAX_METADATA_ONLY_RATIO"
 
       - name: Upload generated index artifact

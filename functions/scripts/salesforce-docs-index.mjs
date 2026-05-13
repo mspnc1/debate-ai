@@ -22,7 +22,9 @@ function parseArgs(argv) {
     maxFailures: null,
     minDeveloperRecords: 0,
     minFullTextRecords: 0,
+    minPdfRecords: 0,
     maxMetadataOnlyRatio: null,
+    pdfOnly: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -55,10 +57,16 @@ function parseArgs(argv) {
       if (!next) throw new Error('--min-full-text-records requires a number');
       options.minFullTextRecords = Number(next);
       i += 1;
+    } else if (arg === '--min-pdf-records') {
+      if (!next) throw new Error('--min-pdf-records requires a number');
+      options.minPdfRecords = Number(next);
+      i += 1;
     } else if (arg === '--max-metadata-only-ratio') {
       if (!next) throw new Error('--max-metadata-only-ratio requires a number');
       options.maxMetadataOnlyRatio = Number(next);
       i += 1;
+    } else if (arg === '--pdf-only') {
+      options.pdfOnly = true;
     } else if (arg === '--help' || arg === '-h') {
       options.help = true;
     } else {
@@ -74,6 +82,9 @@ function parseArgs(argv) {
   }
   if (!Number.isInteger(options.minFullTextRecords)) {
     throw new Error('--min-full-text-records must be an integer');
+  }
+  if (!Number.isInteger(options.minPdfRecords)) {
+    throw new Error('--min-pdf-records must be an integer');
   }
   if (options.maxMetadataOnlyRatio !== null && (
     !Number.isFinite(options.maxMetadataOnlyRatio)
@@ -101,7 +112,9 @@ Options:
   --max-failures <number>         Fail if fetch failures exceed this count.
   --min-developer-records <num>   Fail if fewer developer.salesforce.com records are indexed.
   --min-full-text-records <num>   Fail if fewer full-text records meet the quality floor.
+  --min-pdf-records <num>         Fail if fewer official Salesforce PDF records are indexed.
   --max-metadata-only-ratio <n>   Fail if metadata-only records exceed this ratio (0-1).
+  --pdf-only                      Build only the curated official PDF corpus for smoke testing.
   -h, --help                      Show this help.
 
 Authentication for --upload:
@@ -125,6 +138,8 @@ function summarizeIndex(index) {
     record.contentQuality === 'full_text' && record.contentLength >= 300
   );
   const metadataOnlyRecords = index.records.filter((record) => record.contentQuality === 'metadata_only');
+  const pdfRecords = index.records.filter((record) => record.sourceFormat === 'pdf');
+  const pdfChunkCount = pdfRecords.reduce((total, record) => total + (record.chunkCount || 0), 0);
   const failureDomains = countBy(index.failures, (failure) => {
     try {
       return new URL(failure.url).hostname;
@@ -140,6 +155,20 @@ function summarizeIndex(index) {
     developerRecordCount: developerRecords.length,
     fullTextRecordCount: fullTextRecords.length,
     metadataOnlyRecordCount: metadataOnlyRecords.length,
+    pdfRecordCount: pdfRecords.length,
+    pdfChunkCount,
+    pdfCorpus: index.pdfCorpus ? {
+      sourceCount: index.pdfCorpus.sourceCount,
+      indexedCount: index.pdfCorpus.indexedCount,
+      dueForRefreshCount: index.pdfCorpus.dueForRefreshCount,
+      overdueCount: index.pdfCorpus.overdueCount,
+      sourcesDueForRefresh: index.pdfCorpus.sourcesDueForRefresh.map((source) => ({
+        sourceId: source.sourceId,
+        title: source.title,
+        nextRefreshDueAt: source.nextRefreshDueAt,
+        refreshStatus: source.refreshStatus,
+      })),
+    } : undefined,
     metadataOnlyRatio: index.records.length === 0 ? 0 : Number((metadataOnlyRecords.length / index.records.length).toFixed(3)),
     topicsWithoutRecords: index.topics
       .filter((topic) => !index.records.some((record) => record.topicIds.includes(topic.id)))
@@ -173,7 +202,10 @@ async function main() {
   }
 
   console.log('[salesforce-docs-index] Building official Salesforce docs index...');
-  const index = await buildSalesforceDocsIndexNow();
+  const index = await buildSalesforceDocsIndexNow(options.pdfOnly ? {
+    includeWebDocs: false,
+    includeSitemapDocs: false,
+  } : undefined);
   const summary = summarizeIndex(index);
 
   await fs.mkdir(path.dirname(path.resolve(options.out)), { recursive: true });
@@ -199,6 +231,12 @@ async function main() {
   if (summary.fullTextRecordCount < options.minFullTextRecords) {
     throw new Error(
       `Indexed ${summary.fullTextRecordCount} full-text record(s), below required minimum ${options.minFullTextRecords}.`,
+    );
+  }
+
+  if (summary.pdfRecordCount < options.minPdfRecords) {
+    throw new Error(
+      `Indexed ${summary.pdfRecordCount} official Salesforce PDF record(s), below required minimum ${options.minPdfRecords}.`,
     );
   }
 
