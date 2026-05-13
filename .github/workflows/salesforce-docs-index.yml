@@ -22,13 +22,13 @@ on:
           - salesforce-docs-ingestion
           - ubuntu-latest
       upload_mode:
-        description: Upload mode. Use gcloud for a trusted self-hosted runner; google-auth for Workload Identity.
+        description: Upload mode. Use google-auth for scheduled ingestion; gcloud is a local runner fallback only.
         required: false
-        default: gcloud
+        default: google-auth
         type: choice
         options:
-          - gcloud
           - google-auth
+          - gcloud
   schedule:
     - cron: '15 16 * * 1-5'
 
@@ -43,7 +43,8 @@ jobs:
     env:
       UPLOAD_REQUESTED: ${{ github.event_name == 'schedule' || inputs.upload == true }}
       MIN_DEVELOPER_RECORDS: ${{ inputs.min_developer_records || '1' }}
-      UPLOAD_MODE: ${{ inputs.upload_mode || 'gcloud' }}
+      UPLOAD_MODE: ${{ inputs.upload_mode || 'google-auth' }}
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
       GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
       GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
@@ -63,13 +64,19 @@ jobs:
       - name: Verify upload credentials
         if: env.UPLOAD_REQUESTED == 'true' && env.UPLOAD_MODE == 'google-auth'
         run: |
-          if [[ -z "$GCP_WORKLOAD_IDENTITY_PROVIDER" || -z "$GCP_SERVICE_ACCOUNT" ]]; then
-            echo "GCP_WORKLOAD_IDENTITY_PROVIDER and GCP_SERVICE_ACCOUNT secrets are required when upload is requested." >&2
+          if [[ -z "$GOOGLE_SERVICE_ACCOUNT_JSON" && ( -z "$GCP_WORKLOAD_IDENTITY_PROVIDER" || -z "$GCP_SERVICE_ACCOUNT" ) ]]; then
+            echo "GOOGLE_SERVICE_ACCOUNT_JSON or both GCP_WORKLOAD_IDENTITY_PROVIDER and GCP_SERVICE_ACCOUNT are required when upload is requested with google-auth." >&2
             exit 1
           fi
 
-      - name: Authenticate to Google Cloud
-        if: env.UPLOAD_REQUESTED == 'true' && env.UPLOAD_MODE == 'google-auth'
+      - name: Authenticate to Google Cloud with service account JSON
+        if: env.UPLOAD_REQUESTED == 'true' && env.UPLOAD_MODE == 'google-auth' && env.GOOGLE_SERVICE_ACCOUNT_JSON != ''
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ env.GOOGLE_SERVICE_ACCOUNT_JSON }}
+
+      - name: Authenticate to Google Cloud with Workload Identity
+        if: env.UPLOAD_REQUESTED == 'true' && env.UPLOAD_MODE == 'google-auth' && env.GOOGLE_SERVICE_ACCOUNT_JSON == ''
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
