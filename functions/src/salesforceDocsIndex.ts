@@ -13,15 +13,13 @@ try {
 export const SALESFORCE_DOC_INDEX_PATH = 'salesforce-docs/index-v1.json';
 export const SALESFORCE_DOC_INDEX_BUCKET = 'symposium-ai.firebasestorage.app';
 const SALESFORCE_DOC_INDEX_VERSION = 1;
-const MIN_REFRESH_DEVELOPER_DOC_RECORDS = 24;
-const MIN_REFRESH_FULL_TEXT_RECORDS = 28;
-const MAX_REFRESH_METADATA_ONLY_RATIO = 0.65;
+const MIN_REFRESH_DEVELOPER_DOC_RECORDS = 110;
+const MIN_REFRESH_FULL_TEXT_RECORDS = 180;
+const MAX_REFRESH_METADATA_ONLY_RATIO = 0.05;
 const MAX_INDEX_SOURCE_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 const MAX_INDEX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
-const MAX_SITEMAP_CHILDREN_PER_SOURCE = 60;
-const MAX_SITEMAP_ENTRIES_PER_SOURCE = 15000;
 const MAX_SITEMAP_RECORDS_PER_TOPIC = 3;
-const MAX_METADATA_ONLY_SITEMAP_RECORDS_PER_TOPIC = 1;
+const MAX_METADATA_ONLY_SITEMAP_RECORDS_PER_TOPIC = 0;
 const FULL_TEXT_CONTENT_LENGTH_FLOOR = 300;
 const MIN_SITEMAP_TOPIC_SCORE = 8;
 const OFFICIAL_HOST_PATTERN = /(^|\.)salesforce\.com$/i;
@@ -178,7 +176,6 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     keywords: ['release', 'release notes', 'current release', 'spring', 'summer', 'winter'],
     seedUrls: [
       'https://www.salesforce.com/releases',
-      'https://help.salesforce.com/s/articleView?id=release-notes.salesforce_release_notes.htm&language=en_US&type=5',
     ],
   },
   {
@@ -258,8 +255,9 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     category: 'flow',
     keywords: ['flow', 'fault path', 'fault connector', 'error handling', 'record triggered flow'],
     seedUrls: [
-      'https://help.salesforce.com/s/articleView?id=sf.flow_ref_elements_actions_update_records.htm&type=5',
-      'https://help.salesforce.com/s/articleView?id=sf.flow_ref_elements.htm&type=5',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_visual_workflow.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_flowdefinition.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_flowsettings.htm',
     ],
   },
   {
@@ -269,8 +267,9 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     category: 'flow',
     keywords: ['flow', 'order of execution', 'recursion', 'record updates', 'autolaunched flow'],
     seedUrls: [
-      'https://help.salesforce.com/s/articleView?id=sf.process_troubleshoot_flow_errors.htm&type=5',
-      'https://help.salesforce.com/s/articleView?id=sf.flow_considerations_design.htm&type=5',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_visual_workflow.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_flowsettings.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_triggers_order_of_execution.htm',
     ],
   },
   {
@@ -280,9 +279,9 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     category: 'flow',
     keywords: ['flow', 'flow tests', 'debug flow', 'error handling', 'fault path', 'troubleshooting'],
     seedUrls: [
-      'https://help.salesforce.com/s/articleView?id=sf.flow_tests.htm&type=5',
-      'https://help.salesforce.com/s/articleView?id=sf.flow_debug.htm&type=5',
-      'https://help.salesforce.com/s/articleView?id=sf.process_troubleshoot_flow_errors.htm&type=5',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_flowtest.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_visual_workflow.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_flowdefinition.htm',
     ],
   },
   {
@@ -292,8 +291,10 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     category: 'permissions',
     keywords: ['permission set', 'profile', 'modify all data', 'view all data', 'least privilege', 'object permissions'],
     seedUrls: [
-      'https://help.salesforce.com/s/articleView?id=sf.perm_sets_overview.htm&type=5',
-      'https://help.salesforce.com/s/articleView?id=sf.admin_userperms.htm&type=5',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_profile.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_permissionset.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_custompermission.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_permissionsetgroup.htm',
     ],
   },
   {
@@ -317,7 +318,6 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     seedUrls: [
       'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_sharingrules.htm',
       'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_security_sharing_rules.htm',
-      'https://help.salesforce.com/s/articleView?id=sf.security_sharing_owd_about.htm&type=5',
     ],
   },
   {
@@ -388,8 +388,7 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     keywords: ['validation rule', 'validationrule', 'formula', 'error condition formula', 'field validation'],
     seedUrls: [
       'https://developer.salesforce.com/docs/atlas.en-us.api_tooling.meta/api_tooling/tooling_api_objects_validationrule.htm',
-      'https://help.salesforce.com/s/articleView?id=sf.fields_about_field_validation.htm&type=5',
-      'https://help.salesforce.com/s/articleView?id=sf.customize_functions.htm&type=5',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/customfield.htm',
     ],
   },
   {
@@ -411,8 +410,8 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     keywords: ['record type', 'recordtype', 'picklist', 'value set', 'business process'],
     seedUrls: [
       'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_recordtype.htm',
-      'https://help.salesforce.com/s/articleView?id=sf.customize_recordtype.htm&type=5',
-      'https://help.salesforce.com/s/articleView?id=sf.fields_about_picklists.htm&type=5',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_globalvalueset.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_standardvalueset.htm',
     ],
   },
   {
@@ -445,8 +444,6 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     keywords: ['connected app', 'connectedapp', 'oauth', 'scopes', 'callback url', 'consumer key'],
     seedUrls: [
       'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_connectedapp.htm',
-      'https://help.salesforce.com/s/articleView?id=sf.connected_app_create.htm&type=5',
-      'https://help.salesforce.com/s/articleView?id=sf.remoteaccess_oauth_scopes.htm&type=5',
     ],
   },
   {
@@ -482,7 +479,187 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     seedUrls: [
       'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_duplicaterule.htm',
       'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_matchingrule.htm',
-      'https://help.salesforce.com/s/articleView?id=sf.managing_duplicates_overview.htm&type=5',
+    ],
+  },
+  {
+    id: 'sales-cloud-admin-setup',
+    label: 'Sales Cloud admin setup and data model',
+    query: 'Sales Cloud setup data model accounts contacts leads opportunities campaigns forecasts territories',
+    category: 'sales_cloud',
+    keywords: ['sales cloud', 'account', 'contact', 'lead', 'opportunity', 'campaign', 'forecast', 'territory', 'sales process'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/platform/data-models/guide/sales-cloud-overview.html',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_account.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_contact.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_lead.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_opportunity.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_campaign.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_opportunitylineitem.htm',
+    ],
+  },
+  {
+    id: 'service-cloud-admin-setup',
+    label: 'Service Cloud admin setup and case model',
+    query: 'Service Cloud setup data model cases entitlements milestones knowledge queues routing',
+    category: 'service_cloud',
+    keywords: ['service cloud', 'case', 'entitlement', 'milestone', 'knowledge', 'queue', 'routing', 'support process'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/platform/data-models/guide/service-cloud-overview.html',
+      'https://developer.salesforce.com/docs/platform/data-models/guide/case.html',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_case.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_entitlement.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_knowledge__kav.htm',
+    ],
+  },
+  {
+    id: 'data-cloud-development',
+    label: 'Data Cloud development and object model',
+    query: 'Salesforce Data Cloud development data lake objects data model objects DMO DLO',
+    category: 'data_cloud',
+    keywords: ['data cloud', 'data lake object', 'dlo', 'data model object', 'dmo', 'calculated insight', 'unified individual'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/data/data-cloud-dev/guide/get-started.htm',
+      'https://developer.salesforce.com/docs/data/data-cloud-dev/guide/dc-object-model.html',
+      'https://developer.salesforce.com/docs/data/data-cloud-ref/guide/c360dm-datamodelobjects.html',
+    ],
+  },
+  {
+    id: 'data-cloud-ingestion-query',
+    label: 'Data Cloud ingestion, extraction, and metadata APIs',
+    query: 'Salesforce Data Cloud ingestion API query extract metadata API data streams',
+    category: 'data_cloud',
+    keywords: ['data cloud', 'ingest', 'ingestion api', 'extract api', 'metadata api', 'data stream', 'query'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.c360a_api.meta/c360a_api/c360a_api_ingest_data.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.c360a_api.meta/c360a_api/c360a_api_extract_data.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.c360a_api.meta/c360a_api/c360a_api_metadata_api.htm',
+    ],
+  },
+  {
+    id: 'data-cloud-identity-modeling',
+    label: 'Data Cloud identity resolution and data modeling',
+    query: 'Salesforce Data Cloud identity resolution data model unified individual data model objects',
+    category: 'data_cloud',
+    keywords: ['data cloud', 'identity resolution', 'unified individual', 'data model', 'data model object', 'profile'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.c360a_api.meta/c360a_api/c360dm_model_data.htm',
+      'https://developer.salesforce.com/docs/data/data-cloud-dev/guide/dc-object-model.html',
+      'https://developer.salesforce.com/docs/data/data-cloud-ref/guide/c360dm-datamodelobjects.html',
+    ],
+  },
+  {
+    id: 'revenue-cloud-data-model',
+    label: 'Revenue Cloud product, pricing, quote, and order model',
+    query: 'Revenue Cloud product catalog pricing quote order contract data model Salesforce',
+    category: 'revenue_cloud',
+    keywords: ['revenue cloud', 'product catalog', 'pricing', 'quote', 'quote line item', 'order', 'contract', 'price book'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/platform/data-models/guide/revenue-cloud-category.html',
+      'https://developer.salesforce.com/docs/platform/data-models/guide/product-catalog-mgmt.html',
+      'https://developer.salesforce.com/docs/platform/data-models/guide/product-pricing.html',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_product2.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_pricebook2.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_quote.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_quotelineitem.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_order.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_orderitem.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_contract.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_asset.htm',
+    ],
+  },
+  {
+    id: 'revenue-cloud-cpq-industries',
+    label: 'Revenue Cloud CPQ and Industries Communications data model',
+    query: 'Salesforce Revenue Cloud CPQ Industries CME product catalog pricing quote order',
+    category: 'revenue_cloud',
+    keywords: ['revenue cloud', 'cpq', 'industries', 'communications cloud', 'cme', 'quote', 'order capture', 'product catalog'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/industries/cme/guide/introduction.html',
+      'https://developer.salesforce.com/docs/industries/cme/guide/get-started.html',
+      'https://developer.salesforce.com/docs/platform/data-models/guide/revenue-cloud-category.html',
+      'https://developer.salesforce.com/docs/platform/data-models/guide/product-catalog-mgmt.html',
+    ],
+  },
+  {
+    id: 'marketing-cloud-engagement-apis',
+    label: 'Marketing Cloud Engagement APIs and object model',
+    query: 'Marketing Cloud Engagement REST SOAP API DataExtension Subscriber Journey Content API',
+    category: 'marketing_cloud',
+    keywords: ['marketing cloud', 'engagement', 'rest api', 'soap api', 'data extension', 'subscriber', 'journey', 'content api'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/marketing/marketing-cloud/guide/apis-overview.html',
+      'https://developer.salesforce.com/docs/marketing/marketing-cloud/guide/rest-api-overview.html',
+      'https://developer.salesforce.com/docs/marketing/marketing-cloud/guide/content-api',
+      'https://developer.salesforce.com/docs/marketing/marketing-cloud/guide/soap_web_service_objects.html',
+      'https://developer.salesforce.com/docs/marketing/marketing-cloud/references',
+    ],
+  },
+  {
+    id: 'marketing-cloud-growth-development',
+    label: 'Marketing Cloud Growth administration and object model',
+    query: 'Marketing Cloud Growth administration setup objects Salesforce developer guide',
+    category: 'marketing_cloud',
+    keywords: ['marketing cloud growth', 'campaign', 'segment', 'activation', 'object model', 'administration'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/marketing/marketing-cloud-growth/guide/mc-getting-started.html',
+      'https://developer.salesforce.com/docs/marketing/marketing-cloud-growth/guide/mc-administration.html',
+      'https://developer.salesforce.com/docs/marketing/marketing-cloud-growth/guide/mc-manage-objects.html',
+    ],
+  },
+  {
+    id: 'standard-object-reference-sales-service',
+    label: 'Standard object reference for Sales and Service Cloud',
+    query: 'Salesforce standard object reference Account Contact Lead Opportunity Case Task Event User Product Quote Order Contract Asset',
+    category: 'object_reference',
+    keywords: ['standard object', 'object reference', 'account', 'contact', 'lead', 'opportunity', 'case', 'task', 'event', 'user', 'product', 'quote', 'order'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_account.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_contact.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_lead.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_opportunity.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_case.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_task.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_event.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_user.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_product2.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_pricebook2.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_quote.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_order.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_contract.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_asset.htm',
+    ],
+  },
+  {
+    id: 'metadata-api-type-reference',
+    label: 'Metadata API type reference and coverage matrix',
+    query: 'Salesforce Metadata API all metadata types metadata coverage CustomObject Flow Profile PermissionSet FlexiPage Layout',
+    category: 'metadata_api',
+    keywords: ['metadata api', 'metadata types', 'metadata coverage', 'customobject', 'customfield', 'flow', 'profile', 'permissionset', 'flexipage', 'layout'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/success/metadata-coverage-report/references/metadata-types/v66.0/metadata-types.html',
+      'https://developer.salesforce.com/docs/metadata-coverage',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_intro.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/customobject.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/customfield.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_profile.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_permissionset.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_flexipage.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_layouts.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_customapplication.htm',
+    ],
+  },
+  {
+    id: 'flow-metadata-edge-cases',
+    label: 'Flow metadata edge cases, tests, and runtime settings',
+    query: 'Salesforce Flow Metadata API FlowDefinition FlowSettings FlowTest record triggered autolaunched subflow edge cases',
+    category: 'flow',
+    keywords: ['flow', 'flowdefinition', 'flowsettings', 'flowtest', 'record triggered flow', 'autolaunched flow', 'subflow', 'fault path'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_visual_workflow.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_flowdefinition.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_flowsettings.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_flowtest.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_triggers_order_of_execution.htm',
     ],
   },
   {
@@ -493,7 +670,6 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     keywords: ['emailmessage', 'email message', 'replytoemailmessageid', 'threadidentifier', 'relatedtoid', 'headers', 'object reference'],
     seedUrls: [
       'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_emailmessage.htm',
-      'https://help.salesforce.com/s/articleView?id=000381944&language=en_US&type=1',
     ],
   },
   {
@@ -509,23 +685,23 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
   {
     id: 'email-to-salesforce',
     label: 'Email-to-Salesforce behavior and enablement',
-    query: 'Email-to-Salesforce setup behavior active Salesforce Help',
+    query: 'Email-to-Salesforce setup behavior active Salesforce developer documentation',
     category: 'integration',
     keywords: ['email to salesforce', 'email-to-salesforce', 'emailservicesaddress', 'emailservicesfunction', 'active', 'setup'],
     seedUrls: [
-      'https://help.salesforce.com/s/articleView?id=sales.emailadmin_email2salesforce.htm&language=en_US&type=5',
-      'https://help.salesforce.com/s/articleView?id=sales.emailadmin_email2salesforce_how.htm&language=en_US&type=5',
+      'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_classes_email_inbound.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_emailmessage.htm',
     ],
   },
   {
     id: 'enhanced-email-activity-capture',
     label: 'Enhanced Email and Einstein Activity Capture behavior',
-    query: 'Enhanced Email Einstein Activity Capture EmailMessage Salesforce Help',
+    query: 'Enhanced Email Einstein Activity Capture EmailMessage Salesforce developer documentation',
     category: 'integration',
     keywords: ['enhanced email', 'einstein activity capture', 'emailmessage', 'activity capture', 'logged as email messages'],
     seedUrls: [
-      'https://help.salesforce.com/s/articleView?id=000381944&language=en_US&type=1',
-      'https://help.salesforce.com/s/articleView?id=sf.emailadmin_enhanced_email_enable.htm&language=en_US&type=5',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_emailmessage.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_task.htm',
     ],
   },
   {
@@ -535,8 +711,9 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     category: 'integration',
     keywords: ['outlook integration', 'gmail integration', 'email logging', 'send through external email services', 'office 365'],
     seedUrls: [
-      'https://help.salesforce.com/s/articleView?id=email_enable_send_through_external.htm&language=en_US&type=0',
-      'https://help.salesforce.com/s/articleView?id=sf.outlookcrm_side_panel_log_email.htm&language=en_US&type=5',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_emailmessage.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_task.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_event.htm',
     ],
   },
   {
@@ -568,7 +745,6 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     keywords: ['emailtemplate', 'email template', 'htmlvalue', 'body', 'merge fields'],
     seedUrls: [
       'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_emailtemplate.htm',
-      'https://help.salesforce.com/s/articleView?id=sf.email_templates.htm&language=en_US&type=5',
     ],
   },
   {
@@ -590,18 +766,6 @@ const SALESFORCE_DOC_SITEMAP_SOURCES: SalesforceDocsSitemapSource[] = [
     url: 'https://developer.salesforce.com/sitemap.xml',
     maxChildSitemaps: 4,
     maxEntries: 2500,
-  },
-  {
-    label: 'Salesforce Help release notes sitemap',
-    url: 'https://help.salesforce.com/apex/Help_SiteMapIndexExternal?producttype=release-notes',
-    maxChildSitemaps: 20,
-    maxEntries: 8000,
-  },
-  {
-    label: 'Salesforce Help platform sitemap',
-    url: 'https://help.salesforce.com/apex/Help_SiteMapIndexExternal?producttype=platform',
-    maxChildSitemaps: MAX_SITEMAP_CHILDREN_PER_SOURCE,
-    maxEntries: MAX_SITEMAP_ENTRIES_PER_SOURCE,
   },
   {
     label: 'Salesforce Architect sitemap',
@@ -748,6 +912,17 @@ function extractTagValue(block: string, tagName: string): string | undefined {
   return match?.[1] ? decodeXmlEntities(match[1]).trim() : undefined;
 }
 
+function isEligibleSitemapDocumentationUrl(urlValue: string): boolean {
+  const url = new URL(urlValue);
+  if (url.hostname === 'developer.salesforce.com') {
+    return url.pathname.startsWith('/docs/');
+  }
+  if (url.hostname === 'architect.salesforce.com') {
+    return !['/', '/connect', '/homepage'].includes(url.pathname);
+  }
+  return true;
+}
+
 function parseSitemapIndexUrls(xml: string): string[] {
   return Array.from(xml.matchAll(/<sitemap\b[\s\S]*?<\/sitemap>/gi))
     .map((match) => extractTagValue(match[0], 'loc'))
@@ -763,6 +938,7 @@ function parseSitemapEntries(xml: string, sitemapUrl: string, sourceLabel: strin
       if (!urlValue) return null;
       const canonicalUrl = canonicalizeUrl(urlValue);
       if (!canonicalUrl) return null;
+      if (!isEligibleSitemapDocumentationUrl(canonicalUrl)) return null;
       const entry: SalesforceDocsSitemapEntry = {
         url: canonicalUrl,
         sitemapUrl,
@@ -862,26 +1038,42 @@ function excerptFor(text: string, topic: SalesforceDocsIndexTopic): string {
   return `${start > 0 ? '...' : ''}${text.slice(start, start + 700)}${start + 700 < text.length ? '...' : ''}`;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function fetchText(url: string, timeoutMs = 20000): Promise<string> {
   if (!isOfficialSalesforceUrl(url)) {
     throw new Error(`URL is not an allowed official Salesforce URL: ${url}`);
   }
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'Accept': 'text/html, text/plain, application/xhtml+xml, */*',
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'text/html, text/plain, application/xhtml+xml, application/json, */*',
+          'User-Agent': 'SymposiumAI-SalesforceDocsIndexer/1.0 (+https://app.symposiumai.app)',
+        },
+      });
+      if (response.ok) {
+        return await response.text();
+      }
+      lastError = new Error(`HTTP ${response.status}`);
+      if (![403, 429, 500, 502, 503, 504].includes(response.status) || attempt === 2) {
+        throw lastError;
+      }
+    } catch (error: any) {
+      lastError = error instanceof Error ? error : new Error(error?.message || 'Unknown fetch failure');
+      if (attempt === 2) throw lastError;
+    } finally {
+      clearTimeout(timeout);
     }
-    return await response.text();
-  } finally {
-    clearTimeout(timeout);
+    await sleep(750 * (attempt + 1));
   }
+  throw lastError || new Error('Unknown fetch failure');
 }
 
 async function fetchOfficialJson<T>(url: string): Promise<T> {
@@ -1073,9 +1265,17 @@ function scoreSitemapEntryForTopic(entry: SalesforceDocsSitemapEntry, topic: Sal
   if (topic.id.includes('lightning') && /(lwc|lightning|security|dom)/.test(haystack)) score += 10;
   if (topic.id.includes('metadata') && /(metadata|api|version|package)/.test(haystack)) score += 10;
   if (topic.id.includes('release') && /(release notes|release notes|rn |release)/.test(haystack)) score += 12;
+  if (topic.id.includes('sales-cloud') && /(sales cloud|sales|account|contact|lead|opportunity|campaign|forecast|territory)/.test(haystack)) score += 14;
+  if (topic.id.includes('service-cloud') && /(service cloud|service|case|entitlement|milestone|knowledge|queue|routing)/.test(haystack)) score += 14;
+  if (topic.id.includes('data-cloud') && /(data cloud|c360|customer 360|data model|dmo|dlo|ingest|extract|identity)/.test(haystack)) score += 14;
+  if (topic.id.includes('revenue-cloud') && /(revenue cloud|cpq|quote|order|product|price|catalog|contract|asset|industries|cme)/.test(haystack)) score += 14;
+  if (topic.id.includes('marketing-cloud') && /(marketing cloud|engagement|growth|dataextension|subscriber|journey|content api|soap|rest)/.test(haystack)) score += 14;
+  if (topic.id === 'standard-object-reference-sales-service' && /(object reference|sforce api objects|account|contact|lead|opportunity|case|task|event|quote|order)/.test(haystack)) score += 16;
+  if (topic.id === 'metadata-api-type-reference' && /(metadata coverage|metadata types|api meta|customobject|customfield|flow|profile|permissionset|layout|flexipage)/.test(haystack)) score += 16;
+  if (topic.id === 'flow-metadata-edge-cases' && /(flow|visual workflow|flowdefinition|flowsettings|flowtest|record triggered|autolaunched|subflow)/.test(haystack)) score += 16;
   if (/(email|emailmessage|activity|task|outlook|gmail)/.test(topic.id) && /(email|emailmessage|emailmessageid|activity|task|outlook|gmail|emailservices)/.test(haystack)) score += 14;
   if (topic.category === 'object_reference' && /(object reference|sforce api objects|object_reference)/.test(haystack)) score += 12;
-  if (topic.category === 'integration' && /(help|setup|integration|emailadmin|outlook|gmail|activity capture)/.test(haystack)) score += 8;
+  if (topic.category === 'integration' && /(setup|integration|emailadmin|outlook|gmail|activity capture)/.test(haystack)) score += 8;
 
   for (const keyword of topic.keywords) {
     const normalizedKeyword = normalizeForMatch(keyword);

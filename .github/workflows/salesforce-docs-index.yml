@@ -11,17 +11,17 @@ on:
       min_developer_records:
         description: Minimum developer.salesforce.com records required before success
         required: false
-        default: '24'
+        default: '110'
         type: string
       min_full_text_records:
         description: Minimum full-text documentation records required before success
         required: false
-        default: '28'
+        default: '180'
         type: string
       max_metadata_only_ratio:
-        description: Maximum allowed ratio of metadata-only Help Center records
+        description: Maximum allowed ratio of metadata-only documentation records
         required: false
-        default: '0.65'
+        default: '0.05'
         type: string
       runner_label:
         description: Runner label. Use salesforce-docs-ingestion for scheduled ingestion; ubuntu-latest is a canary only.
@@ -52,9 +52,9 @@ jobs:
 
     env:
       UPLOAD_REQUESTED: ${{ github.event_name == 'schedule' || inputs.upload == true }}
-      MIN_DEVELOPER_RECORDS: ${{ inputs.min_developer_records || '24' }}
-      MIN_FULL_TEXT_RECORDS: ${{ inputs.min_full_text_records || '28' }}
-      MAX_METADATA_ONLY_RATIO: ${{ inputs.max_metadata_only_ratio || '0.65' }}
+      MIN_DEVELOPER_RECORDS: ${{ inputs.min_developer_records || '110' }}
+      MIN_FULL_TEXT_RECORDS: ${{ inputs.min_full_text_records || '180' }}
+      MAX_METADATA_ONLY_RATIO: ${{ inputs.max_metadata_only_ratio || '0.05' }}
       UPLOAD_MODE: ${{ inputs.upload_mode || 'google-auth' }}
       FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
       GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
