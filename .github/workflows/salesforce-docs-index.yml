@@ -44,6 +44,7 @@ jobs:
       UPLOAD_REQUESTED: ${{ github.event_name == 'schedule' || inputs.upload == true }}
       MIN_DEVELOPER_RECORDS: ${{ inputs.min_developer_records || '1' }}
       UPLOAD_MODE: ${{ inputs.upload_mode || 'google-auth' }}
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
       GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
       GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
       GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
@@ -64,19 +65,25 @@ jobs:
       - name: Verify upload credentials
         if: env.UPLOAD_REQUESTED == 'true' && env.UPLOAD_MODE == 'google-auth'
         run: |
-          if [[ -z "$GOOGLE_SERVICE_ACCOUNT_JSON" && ( -z "$GCP_WORKLOAD_IDENTITY_PROVIDER" || -z "$GCP_SERVICE_ACCOUNT" ) ]]; then
-            echo "GOOGLE_SERVICE_ACCOUNT_JSON or both GCP_WORKLOAD_IDENTITY_PROVIDER and GCP_SERVICE_ACCOUNT are required when upload is requested with google-auth." >&2
+          if [[ -z "$FIREBASE_SERVICE_ACCOUNT" && -z "$GOOGLE_SERVICE_ACCOUNT_JSON" && ( -z "$GCP_WORKLOAD_IDENTITY_PROVIDER" || -z "$GCP_SERVICE_ACCOUNT" ) ]]; then
+            echo "FIREBASE_SERVICE_ACCOUNT, raw GOOGLE_SERVICE_ACCOUNT_JSON, or both GCP_WORKLOAD_IDENTITY_PROVIDER and GCP_SERVICE_ACCOUNT are required when upload is requested with google-auth." >&2
             exit 1
           fi
 
-      - name: Authenticate to Google Cloud with service account JSON
-        if: env.UPLOAD_REQUESTED == 'true' && env.UPLOAD_MODE == 'google-auth' && env.GOOGLE_SERVICE_ACCOUNT_JSON != ''
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ env.GOOGLE_SERVICE_ACCOUNT_JSON }}
+      - name: Prepare Google auth credentials from service account JSON
+        if: env.UPLOAD_REQUESTED == 'true' && env.UPLOAD_MODE == 'google-auth' && (env.FIREBASE_SERVICE_ACCOUNT != '' || env.GOOGLE_SERVICE_ACCOUNT_JSON != '')
+        run: |
+          credentials_path="$RUNNER_TEMP/salesforce-docs-index-gcp.json"
+          if [[ -n "$FIREBASE_SERVICE_ACCOUNT" ]]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$credentials_path"
+          else
+            printf '%s' "$GOOGLE_SERVICE_ACCOUNT_JSON" > "$credentials_path"
+          fi
+          node -e "JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8'));" "$credentials_path"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$credentials_path" >> "$GITHUB_ENV"
 
       - name: Authenticate to Google Cloud with Workload Identity
-        if: env.UPLOAD_REQUESTED == 'true' && env.UPLOAD_MODE == 'google-auth' && env.GOOGLE_SERVICE_ACCOUNT_JSON == ''
+        if: env.UPLOAD_REQUESTED == 'true' && env.UPLOAD_MODE == 'google-auth' && env.FIREBASE_SERVICE_ACCOUNT == '' && env.GOOGLE_SERVICE_ACCOUNT_JSON == ''
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
