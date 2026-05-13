@@ -16,7 +16,7 @@ export const SALESFORCE_DOC_INDEX_PATH = 'salesforce-docs/index-v1.json';
 export const SALESFORCE_DOC_INDEX_BUCKET = 'symposium-ai.firebasestorage.app';
 const SALESFORCE_DOC_INDEX_VERSION = 1;
 const MIN_REFRESH_DEVELOPER_DOC_RECORDS = 110;
-const MIN_REFRESH_FULL_TEXT_RECORDS = 180;
+const MIN_REFRESH_FULL_TEXT_RECORDS = 130;
 const MIN_REFRESH_PDF_RECORDS = 10;
 const MAX_REFRESH_METADATA_ONLY_RATIO = 0.05;
 const MAX_INDEX_SOURCE_AGE_MS = 90 * 24 * 60 * 60 * 1000;
@@ -27,6 +27,7 @@ const PDF_EXTRACT_MAX_PAGES = Number(process.env.SALESFORCE_DOCS_PDF_EXTRACT_MAX
 const PDF_EXTRACT_MAX_CHARS = Number(process.env.SALESFORCE_DOCS_PDF_EXTRACT_MAX_CHARS || 0);
 const PDF_TEXT_CHUNK_TARGET_CHARS = Number(process.env.SALESFORCE_DOCS_PDF_CHUNK_TARGET_CHARS || 3500);
 const PDF_TEXT_CHUNK_OVERLAP_CHARS = Number(process.env.SALESFORCE_DOCS_PDF_CHUNK_OVERLAP_CHARS || 350);
+const MAX_MATCHED_CHUNKS_PER_SOURCE = 5;
 const MAX_SITEMAP_RECORDS_PER_TOPIC = 3;
 const MAX_METADATA_ONLY_SITEMAP_RECORDS_PER_TOPIC = 0;
 const FULL_TEXT_CONTENT_LENGTH_FLOOR = 300;
@@ -879,6 +880,19 @@ const SALESFORCE_DOC_SITEMAP_SOURCES: SalesforceDocsSitemapSource[] = [
   },
 ];
 
+const SALESFORCE_DOC_TOPIC_ALIASES: Record<string, string[]> = {
+  'emailmessage-object-fields': ['emailmessage-object-reference'],
+  'emailmessage-fields': ['emailmessage-object-reference'],
+  'emailmessage-reply-threading': ['emailmessage-threading-fields'],
+  'emailmessage-threading': ['emailmessage-threading-fields'],
+  'email-to-case-threading': ['emailmessage-threading-fields', 'email-to-salesforce', 'service-cloud-admin-setup'],
+  'task-whatid-whoid': ['activity-task-relationships', 'standard-object-reference-sales-service'],
+  'task-activity-relationships': ['activity-task-relationships'],
+  'flow-record-update-fault': ['flow-fault-paths', 'flow-metadata-edge-cases'],
+  'flow-trigger-emailmessage': ['flow-metadata-edge-cases', 'emailmessage-object-reference'],
+  'apex-governor-limits-flow': ['apex-governor-limits', 'flow-order-recursion', 'flow-metadata-edge-cases'],
+};
+
 const SALESFORCE_DOC_PDF_BASE_URL = 'https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf';
 
 const SALESFORCE_DOC_PDF_SOURCES: SalesforceDocsPdfSource[] = [
@@ -1197,6 +1211,44 @@ function normalizeForMatch(value: string): string {
     .trim();
 }
 
+function normalizeTopicAliasKey(value: string): string {
+  return normalizeForMatch(value).replace(/\s+/g, '-');
+}
+
+function aliasTopicIdsFor(topic: SalesforceDocsLookupTopicLike): string[] {
+  const aliases = new Set<string>([topic.id]);
+  const lookupValues = [topic.id, topic.label, topic.query].filter(Boolean);
+  for (const value of lookupValues) {
+    const key = normalizeTopicAliasKey(value);
+    for (const alias of SALESFORCE_DOC_TOPIC_ALIASES[key] || []) {
+      aliases.add(alias);
+    }
+  }
+  return Array.from(aliases);
+}
+
+function indexedTopicsForAliasIds(aliasIds: string[]): SalesforceDocsIndexTopic[] {
+  const aliasSet = new Set(aliasIds);
+  return SALESFORCE_DOC_TOPICS.filter((indexedTopic) => aliasSet.has(indexedTopic.id));
+}
+
+function isNonEnglishLocalizedSalesforceUrl(urlValue: string): boolean {
+  try {
+    const url = new URL(urlValue);
+    return /\/(?!en-us(?:\/|$))[a-z]{2}-[a-z]{2}(?:\/|$)/i.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+function prefersDeveloperReferenceSources(category?: string): boolean {
+  return Boolean(category && ['object_reference', 'apex', 'flow', 'metadata_api', 'email', 'integration'].includes(category));
+}
+
+function scoringCategoryForTopic(topic: SalesforceDocsLookupTopicLike, aliasTopicIds: string[]): string | undefined {
+  return topic.category || indexedTopicsForAliasIds(aliasTopicIds)[0]?.category;
+}
+
 function extractTagValue(block: string, tagName: string): string | undefined {
   const match = block.match(new RegExp(`<${tagName}\\b[^>]*>([\\s\\S]*?)<\\/${tagName}>`, 'i'));
   return match?.[1] ? decodeXmlEntities(match[1]).trim() : undefined;
@@ -1204,6 +1256,7 @@ function extractTagValue(block: string, tagName: string): string | undefined {
 
 function isEligibleSitemapDocumentationUrl(urlValue: string): boolean {
   const url = new URL(urlValue);
+  if (isNonEnglishLocalizedSalesforceUrl(urlValue)) return false;
   if (url.hostname === 'developer.salesforce.com') {
     return url.pathname.startsWith('/docs/');
   }
@@ -1796,6 +1849,7 @@ async function discoverSitemapEntries(failures: SalesforceDocsIndex['failures'])
 function scoreSitemapEntryForTopic(entry: SalesforceDocsSitemapEntry, topic: SalesforceDocsIndexTopic): number {
   let score = 0;
   const url = new URL(entry.url);
+  if (isNonEnglishLocalizedSalesforceUrl(entry.url)) return 0;
   const idParam = url.searchParams.get('id') || '';
   const releaseParam = url.searchParams.get('release') || '';
   const haystack = normalizeForMatch(`${url.hostname} ${url.pathname} ${idParam} ${releaseParam} ${entry.sourceLabel}`);
@@ -1838,7 +1892,14 @@ function scoreSitemapEntryForTopic(entry: SalesforceDocsSitemapEntry, topic: Sal
     if (Number.isFinite(ageMs) && ageMs < MAX_INDEX_SOURCE_AGE_MS) score += 2;
   }
 
-  return score;
+  if (prefersDeveloperReferenceSources(topic.category) && url.hostname === 'developer.salesforce.com') {
+    score += 4;
+  }
+  if (prefersDeveloperReferenceSources(topic.category) && url.hostname === 'architect.salesforce.com') {
+    score -= 25;
+  }
+
+  return Math.max(0, score);
 }
 
 function isMetadataOnlyUrl(urlValue: string): boolean {
@@ -1893,10 +1954,14 @@ async function buildRecord(
   }
   const content = await fetchOfficialDoc(url);
   const text = content.text;
+  const recordId = `sf-doc-index-${index}`;
+  const textChunks = content.contentQuality === 'full_text'
+    ? buildTextChunks(text, recordId)
+    : [];
   const status = inferStatus(`${text} ${content.releaseLabel || ''}`);
   const warnings = [...sourceWarnings(`${text} ${content.releaseLabel || ''}`, status), ...(content.warnings || [])];
   return {
-    id: `sf-doc-index-${index}`,
+    id: recordId,
     topicIds: [topic.id],
     title: content.title || extractTitle(text, topic.label),
     url,
@@ -1907,6 +1972,8 @@ async function buildRecord(
     responseHash: crypto.createHash('sha256').update(text).digest('hex'),
     contentQuality: content.contentQuality,
     contentLength: text.length,
+    textChunks: textChunks.length > 0 ? textChunks : undefined,
+    chunkCount: textChunks.length > 0 ? textChunks.length : undefined,
     excerpt: excerptFor(text, topic),
     keywords: topic.keywords,
     warnings,
@@ -2309,10 +2376,20 @@ export async function readSalesforceDocsIndex(): Promise<SalesforceDocsIndex | n
 }
 
 function tokensForTopic(topic: SalesforceDocsLookupTopicLike): string[] {
+  const aliasTopicIds = aliasTopicIdsFor(topic);
+  const indexedAliasTopics = indexedTopicsForAliasIds(aliasTopicIds);
   return Array.from(new Set([
     topic.id,
     topic.label,
     topic.query,
+    ...aliasTopicIds,
+    ...indexedAliasTopics.flatMap((indexedTopic) => [
+      indexedTopic.id,
+      indexedTopic.label,
+      indexedTopic.query,
+      indexedTopic.category,
+      ...indexedTopic.keywords,
+    ]),
     ...(topic.componentTypes || []),
     ...(topic.apiVersions || []),
     ...(topic.riskSignalIds || []),
@@ -2332,7 +2409,7 @@ function scoreTextForTokens(text: string, tokens: string[]): number {
 function matchedChunksForRecord(
   record: SalesforceDocsIndexRecord,
   tokens: string[],
-  maxChunks = 3,
+  maxChunks = MAX_MATCHED_CHUNKS_PER_SOURCE,
 ): NonNullable<SalesforceDocsIndexEvidenceSource['matchedChunks']> {
   if (!record.textChunks || record.textChunks.length === 0) return [];
   return record.textChunks
@@ -2348,9 +2425,16 @@ function matchedChunksForRecord(
     .slice(0, maxChunks);
 }
 
-function scoreRecordForTopic(record: SalesforceDocsIndexRecord, topic: SalesforceDocsLookupTopicLike, tokens: string[]): number {
+function scoreRecordForTopic(
+  record: SalesforceDocsIndexRecord,
+  topic: SalesforceDocsLookupTopicLike,
+  tokens: string[],
+  aliasTopicIds: string[],
+): number {
+  if (isNonEnglishLocalizedSalesforceUrl(record.url)) return 0;
   let score = 0;
-  if (record.topicIds.includes(topic.id)) score += 100;
+  const aliasTopicMatch = record.topicIds.some((topicId) => aliasTopicIds.includes(topicId));
+  if (aliasTopicMatch) score += 100;
   const haystack = [
     record.title,
     record.url,
@@ -2372,7 +2456,51 @@ function scoreRecordForTopic(record: SalesforceDocsIndexRecord, topic: Salesforc
     if (riskSignalId.includes('permissions') && record.topicIds.includes('permissions-least-privilege')) score += 8;
     if (riskSignalId.includes('lightning') && record.topicIds.includes('lightning-security')) score += 8;
   }
-  return score;
+  const scoringCategory = scoringCategoryForTopic(topic, aliasTopicIds);
+  if (aliasTopicMatch && record.sourceType === 'developer_doc') {
+    score += 30;
+  }
+  if (aliasTopicMatch && record.sourceFormat === 'pdf' && record.topicIds.length > 5 && aliasTopicIds.length > 2) {
+    score -= 20;
+  }
+  if (prefersDeveloperReferenceSources(scoringCategory) && record.sourceType === 'developer_doc') {
+    score += 8;
+  }
+  if (prefersDeveloperReferenceSources(scoringCategory) && record.sourceType === 'architect_doc') {
+    score -= 35;
+  }
+  return Math.max(0, score);
+}
+
+function selectScoredRecordsForTopic(
+  scored: Array<{ record: SalesforceDocsIndexRecord; score: number }>,
+  aliasTopicIds: string[],
+  maxResults: number,
+): Array<{ record: SalesforceDocsIndexRecord; score: number }> {
+  const indexedAliasIds = aliasTopicIds.filter((topicId) =>
+    SALESFORCE_DOC_TOPICS.some((indexedTopic) => indexedTopic.id === topicId)
+  );
+  const selected: Array<{ record: SalesforceDocsIndexRecord; score: number }> = [];
+  const seenUrls = new Set<string>();
+
+  for (const aliasTopicId of indexedAliasIds) {
+    if (selected.length >= maxResults) break;
+    const bestForAlias = scored.find((item) =>
+      item.record.topicIds.includes(aliasTopicId) && !seenUrls.has(item.record.url)
+    );
+    if (!bestForAlias) continue;
+    selected.push(bestForAlias);
+    seenUrls.add(bestForAlias.record.url);
+  }
+
+  for (const item of scored) {
+    if (selected.length >= maxResults) break;
+    if (seenUrls.has(item.record.url)) continue;
+    selected.push(item);
+    seenUrls.add(item.record.url);
+  }
+
+  return selected;
 }
 
 export async function lookupSalesforceDocsIndex(
@@ -2422,17 +2550,18 @@ export async function lookupSalesforceDocsIndex(
 
   for (const topic of topics) {
     const tokens = tokensForTopic(topic);
+    const aliasTopicIds = aliasTopicIdsFor(topic);
     const scored = index.records
-      .map((record) => ({ record, score: scoreRecordForTopic(record, topic, tokens) }))
+      .map((record) => ({ record, score: scoreRecordForTopic(record, topic, tokens, aliasTopicIds) }))
       .filter((item) => item.score > 0)
-      .sort((a, b) => b.score - a.score || a.record.title.localeCompare(b.record.title))
-      .slice(0, options.maxResultsPerTopic);
+      .sort((a, b) => b.score - a.score || a.record.title.localeCompare(b.record.title));
+    const selected = selectScoredRecordsForTopic(scored, aliasTopicIds, options.maxResultsPerTopic);
 
-    if (scored.length === 0) continue;
+    if (selected.length === 0) continue;
     topicHits.add(topic.id);
-    topicSourceCounts.set(topic.id, scored.length);
+    topicSourceCounts.set(topic.id, selected.length);
 
-    for (const item of scored) {
+    for (const item of selected) {
       const sourceKey = `${topic.id}:${item.record.url}`;
       if (seenSourceKeys.has(sourceKey)) continue;
       seenSourceKeys.add(sourceKey);
@@ -2515,7 +2644,7 @@ export async function lookupSalesforceDocsIndex(
         .map((topic) => ({
           topicId: topic.id,
           label: topic.label,
-          reason: index.topics.some((indexedTopic) => indexedTopic.id === topic.id)
+          reason: index.topics.some((indexedTopic) => aliasTopicIdsFor(topic).includes(indexedTopic.id))
             ? 'no_official_source' as const
             : 'not_indexed' as const,
         })),

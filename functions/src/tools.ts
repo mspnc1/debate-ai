@@ -317,6 +317,7 @@ interface SalesforceDocEvidenceSource {
   status: 'ga' | 'preview' | 'unknown';
   retrievedAt: string;
   responseHash: string;
+  contentQuality?: 'full_text' | 'metadata_only';
   contentLength: number;
   excerpt: string;
   matchedChunks?: Array<{
@@ -1374,6 +1375,53 @@ function buildSalesforceDocsSearchQuery(topic: SalesforceDocsTopic, releaseConte
   return query.length > 480 ? query.slice(0, 480).trim() : query;
 }
 
+function buildSalesforceDocsChunkTokens(query: string): string[] {
+  return Array.from(new Set(
+    query
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((term) => term.length >= 3)
+  ));
+}
+
+function scoreSalesforceDocsChunk(text: string, tokens: string[]): number {
+  const haystack = text.toLowerCase();
+  return tokens.reduce((score, token) => {
+    if (!haystack.includes(token)) return score;
+    return score + (token.length >= 8 ? 4 : 2);
+  }, 0);
+}
+
+function buildSalesforceDocsMatchedChunks(
+  content: string,
+  query: string,
+  sourceId: string,
+): NonNullable<SalesforceDocEvidenceSource['matchedChunks']> {
+  const normalized = content.replace(/\s+/g, ' ').trim();
+  if (normalized.length < 80) return [];
+  const targetChars = 3500;
+  const overlapChars = 350;
+  const step = targetChars - overlapChars;
+  const tokens = buildSalesforceDocsChunkTokens(query);
+  const chunks: NonNullable<SalesforceDocEvidenceSource['matchedChunks']> = [];
+  for (let start = 0; start < normalized.length; start += step) {
+    const text = normalized.slice(start, start + targetChars).trim();
+    if (text.length < 80) continue;
+    chunks.push({
+      id: `${sourceId}-chunk-${chunks.length + 1}`,
+      ordinal: chunks.length + 1,
+      text,
+      score: scoreSalesforceDocsChunk(text, tokens),
+      contentLength: text.length,
+    });
+  }
+  const scored = chunks
+    .filter((chunk) => chunk.score > 0)
+    .sort((a, b) => b.score - a.score || a.ordinal - b.ordinal)
+    .slice(0, 5);
+  return scored.length > 0 ? scored : chunks.slice(0, 2);
+}
+
 function canonicalizeSalesforceDocsUrl(urlValue: string): string | null {
   try {
     const url = new URL(urlValue);
@@ -1402,10 +1450,12 @@ function buildSalesforceDocEvidenceSource(input: {
   retrievedAt: string;
   sourceIndex: number;
 }): SalesforceDocEvidenceSource {
+  const sourceId = `sf-doc-${input.sourceIndex}`;
   const status = inferSalesforceDocStatus(input.content);
   const warnings = inferSalesforceDocWarnings(input.content, status);
+  const matchedChunks = buildSalesforceDocsMatchedChunks(input.content, input.topic.query, sourceId);
   return {
-    id: `sf-doc-${input.sourceIndex}`,
+    id: sourceId,
     topicId: input.topic.id,
     title: input.title,
     url: input.url,
@@ -1414,8 +1464,10 @@ function buildSalesforceDocEvidenceSource(input: {
     status,
     retrievedAt: input.retrievedAt,
     responseHash: crypto.createHash('sha256').update(input.content).digest('hex'),
+    contentQuality: 'full_text',
     contentLength: input.content.length,
     excerpt: buildSalesforceDocExcerpt(input.content, input.topic.query),
+    matchedChunks: matchedChunks.length > 0 ? matchedChunks : undefined,
     searchSnippet: input.snippet,
     warnings,
     confidenceImpact: status === 'preview' || warnings.some((warning) => /previous|stale/i.test(warning))
