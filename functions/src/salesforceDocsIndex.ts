@@ -140,6 +140,21 @@ export interface SalesforceDocsIndexLookupResult {
     generatedAt?: string;
     storagePath: string;
     recordCount: number;
+    developerDocCount?: number;
+    indexSourceCounts?: Record<string, number>;
+    failedDomains?: Record<string, number>;
+    topicCoverage?: Array<{
+      topicId: string;
+      status: 'hit' | 'miss' | 'unavailable' | 'stale' | 'blocked' | 'empty_shell' | 'no_official_source' | 'not_indexed';
+      sourceCount: number;
+      reason?: string;
+    }>;
+    missedTopics?: Array<{
+      topicId: string;
+      label?: string;
+      reason: 'blocked' | 'not_indexed' | 'empty_shell' | 'no_official_source' | 'stale' | 'unavailable';
+    }>;
+    stalenessWarnings?: string[];
   };
 }
 
@@ -243,6 +258,104 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     seedUrls: [
       'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_intro.htm',
       'https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_support_policy.htm',
+    ],
+  },
+  {
+    id: 'emailmessage-object-reference',
+    label: 'EmailMessage object reference and supported fields',
+    query: 'EmailMessage object reference fields Salesforce API ReplyToEmailMessageId ThreadIdentifier RelatedToId Headers',
+    category: 'object_reference',
+    keywords: ['emailmessage', 'email message', 'replytoemailmessageid', 'threadidentifier', 'relatedtoid', 'headers', 'object reference'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_emailmessage.htm',
+      'https://help.salesforce.com/s/articleView?id=000381944&language=en_US&type=1',
+    ],
+  },
+  {
+    id: 'emailmessage-threading-fields',
+    label: 'EmailMessage threading fields and header behavior',
+    query: 'EmailMessage ReplyToEmailMessageId ThreadIdentifier Headers Salesforce object reference',
+    category: 'object_reference',
+    keywords: ['emailmessage', 'replytoemailmessageid', 'threadidentifier', 'headers', 'message identifier', 'threading'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_emailmessage.htm',
+    ],
+  },
+  {
+    id: 'email-to-salesforce',
+    label: 'Email-to-Salesforce behavior and enablement',
+    query: 'Email-to-Salesforce setup behavior active Salesforce Help',
+    category: 'integration',
+    keywords: ['email to salesforce', 'email-to-salesforce', 'emailservicesaddress', 'emailservicesfunction', 'active', 'setup'],
+    seedUrls: [
+      'https://help.salesforce.com/s/articleView?id=sales.emailadmin_email2salesforce.htm&language=en_US&type=5',
+      'https://help.salesforce.com/s/articleView?id=sales.emailadmin_email2salesforce_how.htm&language=en_US&type=5',
+    ],
+  },
+  {
+    id: 'enhanced-email-activity-capture',
+    label: 'Enhanced Email and Einstein Activity Capture behavior',
+    query: 'Enhanced Email Einstein Activity Capture EmailMessage Salesforce Help',
+    category: 'integration',
+    keywords: ['enhanced email', 'einstein activity capture', 'emailmessage', 'activity capture', 'logged as email messages'],
+    seedUrls: [
+      'https://help.salesforce.com/s/articleView?id=000381944&language=en_US&type=1',
+      'https://help.salesforce.com/s/articleView?id=sf.emailadmin_enhanced_email_enable.htm&language=en_US&type=5',
+    ],
+  },
+  {
+    id: 'outlook-email-integration',
+    label: 'Outlook/Gmail integration email logging behavior',
+    query: 'Salesforce Outlook Gmail integration email logging Enhanced Email',
+    category: 'integration',
+    keywords: ['outlook integration', 'gmail integration', 'email logging', 'send through external email services', 'office 365'],
+    seedUrls: [
+      'https://help.salesforce.com/s/articleView?id=email_enable_send_through_external.htm&language=en_US&type=0',
+      'https://help.salesforce.com/s/articleView?id=sf.outlookcrm_side_panel_log_email.htm&language=en_US&type=5',
+    ],
+  },
+  {
+    id: 'email-services',
+    label: 'Email Services and inbound email Apex behavior',
+    query: 'Salesforce Email Services inbound email Apex EmailServicesFunction Messaging.InboundEmail',
+    category: 'apex',
+    keywords: ['email services', 'emailservicesfunction', 'emailservicesaddress', 'inboundemail', 'inbound envelope', 'messaging.inboundemail'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_classes_email_inbound.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.apexref.meta/apexref/apex_classes_email_inbound.htm',
+    ],
+  },
+  {
+    id: 'activity-task-relationships',
+    label: 'Activity, Task, and email relationship fields',
+    query: 'Salesforce Task Activity EmailMessage RelatedToId WhatId WhoId object reference',
+    category: 'object_reference',
+    keywords: ['task', 'activity', 'whatid', 'whoid', 'relatedtoid', 'emailmessage', 'relationship fields'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_task.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_emailmessage.htm',
+    ],
+  },
+  {
+    id: 'email-templates',
+    label: 'Email template body and merge field behavior',
+    query: 'Salesforce EmailTemplate Body HtmlValue merge fields object reference',
+    category: 'object_reference',
+    keywords: ['emailtemplate', 'email template', 'htmlvalue', 'body', 'merge fields'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_emailtemplate.htm',
+      'https://help.salesforce.com/s/articleView?id=sf.email_templates.htm&language=en_US&type=5',
+    ],
+  },
+  {
+    id: 'apex-email-apis',
+    label: 'Apex outbound email APIs',
+    query: 'Apex Messaging.SingleEmailMessage sendEmail Salesforce',
+    category: 'apex',
+    keywords: ['messaging.singleemailmessage', 'sendemail', 'apex email', 'single email message', 'mass email message'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.apexref.meta/apexref/apex_classes_email_outbound_single.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.apexref.meta/apexref/apex_classes_email_outbound_messaging.htm',
     ],
   },
 ];
@@ -733,6 +846,9 @@ function scoreSitemapEntryForTopic(entry: SalesforceDocsSitemapEntry, topic: Sal
   if (topic.id.includes('lightning') && /(lwc|lightning|security|dom)/.test(haystack)) score += 10;
   if (topic.id.includes('metadata') && /(metadata|api|version|package)/.test(haystack)) score += 10;
   if (topic.id.includes('release') && /(release notes|release notes|rn |release)/.test(haystack)) score += 12;
+  if (/(email|emailmessage|activity|task|outlook|gmail)/.test(topic.id) && /(email|emailmessage|emailmessageid|activity|task|outlook|gmail|emailservices)/.test(haystack)) score += 14;
+  if (topic.category === 'object_reference' && /(object reference|sforce api objects|object_reference)/.test(haystack)) score += 12;
+  if (topic.category === 'integration' && /(help|setup|integration|emailadmin|outlook|gmail|activity capture)/.test(haystack)) score += 8;
 
   for (const keyword of topic.keywords) {
     const normalizedKeyword = normalizeForMatch(keyword);
@@ -903,6 +1019,26 @@ function developerDocRecordCount(index: SalesforceDocsIndex): number {
   return index.records.filter((record) => record.domain === 'developer.salesforce.com').length;
 }
 
+function countRecordsBySourceType(index: SalesforceDocsIndex): Record<string, number> {
+  return index.records.reduce((acc, record) => {
+    acc[record.sourceType] = (acc[record.sourceType] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+}
+
+function countFailuresByDomain(index: SalesforceDocsIndex): Record<string, number> {
+  return index.failures.reduce((acc, failure) => {
+    let domain = 'unknown';
+    try {
+      domain = new URL(failure.url).hostname;
+    } catch {
+      domain = 'invalid-url';
+    }
+    acc[domain] = (acc[domain] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+}
+
 function refreshCoverageError(index: SalesforceDocsIndex): string | null {
   const developerRecords = developerDocRecordCount(index);
   if (developerRecords >= MIN_REFRESH_DEVELOPER_DOC_RECORDS) return null;
@@ -981,6 +1117,18 @@ export async function lookupSalesforceDocsIndex(
         status: 'unavailable',
         storagePath: SALESFORCE_DOC_INDEX_PATH,
         recordCount: 0,
+        topicCoverage: topics.map((topic) => ({
+          topicId: topic.id,
+          status: 'unavailable',
+          sourceCount: 0,
+          reason: 'Salesforce documentation index was unavailable.',
+        })),
+        missedTopics: topics.map((topic) => ({
+          topicId: topic.id,
+          label: topic.label,
+          reason: 'unavailable',
+        })),
+        stalenessWarnings: [],
       },
     };
   }
@@ -993,6 +1141,7 @@ export async function lookupSalesforceDocsIndex(
 
   const sources: SalesforceDocsIndexEvidenceSource[] = [];
   const topicHits = new Set<string>();
+  const topicSourceCounts = new Map<string, number>();
   const seenSourceKeys = new Set<string>();
 
   for (const topic of topics) {
@@ -1005,6 +1154,7 @@ export async function lookupSalesforceDocsIndex(
 
     if (scored.length === 0) continue;
     topicHits.add(topic.id);
+    topicSourceCounts.set(topic.id, scored.length);
 
     for (const item of scored) {
       const sourceKey = `${topic.id}:${item.record.url}`;
@@ -1056,6 +1206,31 @@ export async function lookupSalesforceDocsIndex(
       generatedAt: index.generatedAt,
       storagePath: SALESFORCE_DOC_INDEX_PATH,
       recordCount: index.records.length,
+      developerDocCount: developerDocRecordCount(index),
+      indexSourceCounts: countRecordsBySourceType(index),
+      failedDomains: countFailuresByDomain(index),
+      topicCoverage: topics.map((topic) => {
+        const sourceCount = topicSourceCounts.get(topic.id) || 0;
+        const stale = sourceCount > 0 && Number.isFinite(indexAgeMs) && indexAgeMs > MAX_INDEX_AGE_MS;
+        return {
+          topicId: topic.id,
+          status: sourceCount > 0 ? (stale ? 'stale' as const : 'hit' as const) : 'miss' as const,
+          sourceCount,
+          reason: sourceCount > 0
+            ? undefined
+            : 'No cached official Salesforce documentation source matched this topic.',
+        };
+      }),
+      missedTopics: topics
+        .filter((topic) => !topicHits.has(topic.id))
+        .map((topic) => ({
+          topicId: topic.id,
+          label: topic.label,
+          reason: index.topics.some((indexedTopic) => indexedTopic.id === topic.id)
+            ? 'no_official_source' as const
+            : 'not_indexed' as const,
+        })),
+      stalenessWarnings: warnings.filter((warning) => /older than|stale|previous/i.test(warning)),
     },
   };
 }

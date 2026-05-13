@@ -114,6 +114,11 @@ function summarizeIndex(index) {
     developerRecordCount: developerRecords.length,
     sourceTypeCounts: countBy(index.records, (record) => record.sourceType),
     statusCounts: countBy(index.records, (record) => record.status),
+    topicCoverage: index.topics.map((topic) => ({
+      topicId: topic.id,
+      recordCount: index.records.filter((record) => record.topicIds.includes(topic.id)).length,
+      seedFailureCount: index.failures.filter((failure) => failure.topicId === topic.id).length,
+    })),
     failureDomains,
     storagePath: index.sourcePolicy.storagePath,
   };

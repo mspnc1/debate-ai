@@ -1194,7 +1194,12 @@ async function handleSalesforceDocsLookup(
       allowedHostPattern: '*.salesforce.com',
       rejectedUrls: Array.from(rejectedUrls).sort(),
     },
-    documentationIndex: docsIndexSummary,
+    documentationIndex: buildSalesforceDocumentationIndexHealth(
+      docsIndexSummary,
+      topics,
+      sources,
+      warnings,
+    ),
     topics,
     sources: sources.sort((a, b) => a.topicId.localeCompare(b.topicId) || a.title.localeCompare(b.title)),
     warnings,
@@ -1208,6 +1213,86 @@ async function handleSalesforceDocsLookup(
       executionTime: Date.now() - startTime,
       originalLength: JSON.stringify(evidence).length,
     },
+  };
+}
+
+function buildSalesforceDocumentationIndexHealth(
+  indexSummary: Record<string, unknown> | undefined,
+  topics: SalesforceDocsTopic[],
+  sources: SalesforceDocEvidenceSource[],
+  warnings: string[],
+): Record<string, unknown> | undefined {
+  const sourceCountByTopic = sources.reduce((acc, source) => {
+    if (source.topicId === 'salesforce-release-context') return acc;
+    acc[source.topicId] = (acc[source.topicId] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  const indexedMisses = new Map<string, { reason?: string; label?: string }>();
+  const rawMisses = Array.isArray(indexSummary?.missedTopics) ? indexSummary!.missedTopics as Array<Record<string, unknown>> : [];
+  rawMisses.forEach((miss) => {
+    if (typeof miss.topicId === 'string') {
+      indexedMisses.set(miss.topicId, {
+        reason: typeof miss.reason === 'string' ? miss.reason : undefined,
+        label: typeof miss.label === 'string' ? miss.label : undefined,
+      });
+    }
+  });
+
+  const topicCoverage = topics.map((topic) => {
+    const sourceCount = sourceCountByTopic[topic.id] || 0;
+    if (sourceCount > 0) {
+      const sourceWarnings = sources
+        .filter((source) => source.topicId === topic.id)
+        .flatMap((source) => source.warnings);
+      const stale = sources
+        .filter((source) => source.topicId === topic.id)
+        .some((source) => source.confidenceImpact === 'stale-risk' || source.status === 'preview')
+        || sourceWarnings.some((warning) => /older than|stale|previous/i.test(warning));
+      return {
+        topicId: topic.id,
+        status: stale ? 'stale' : 'hit',
+        sourceCount,
+      };
+    }
+
+    const relatedWarnings = warnings.filter((warning) =>
+      warning.toLowerCase().includes(topic.label.toLowerCase())
+      || warning.toLowerCase().includes(topic.id.toLowerCase())
+    );
+    const joined = relatedWarnings.join(' ');
+    let status = indexedMisses.get(topic.id)?.reason || 'no_official_source';
+    if (/403|permission|blocked|rate limit|rate-limit|too many requests/i.test(joined)) status = 'blocked';
+    if (/too short|loading|empty|no content/i.test(joined)) status = 'empty_shell';
+    if (!indexSummary || indexSummary.status === 'unavailable') status = 'unavailable';
+
+    return {
+      topicId: topic.id,
+      status,
+      sourceCount,
+      reason: relatedWarnings[0] || indexedMisses.get(topic.id)?.reason || 'No official Salesforce documentation source was fetched for this topic.',
+    };
+  });
+
+  const missedTopics = topicCoverage
+    .filter((coverage) => coverage.sourceCount === 0)
+    .map((coverage) => ({
+      topicId: coverage.topicId,
+      label: topics.find((topic) => topic.id === coverage.topicId)?.label,
+      reason: coverage.status,
+    }));
+  const hasTopicSources = topicCoverage.some((coverage) => coverage.sourceCount > 0);
+  const hasStaleTopic = topicCoverage.some((coverage) => coverage.status === 'stale');
+
+  return {
+    ...(indexSummary || {
+      status: sources.length > 0 ? 'hit' : 'unavailable',
+      storagePath: 'live-official-lookup',
+      recordCount: 0,
+    }),
+    status: hasTopicSources ? (hasStaleTopic ? 'stale' : 'hit') : (indexSummary?.status || 'unavailable'),
+    topicCoverage,
+    missedTopics,
+    stalenessWarnings: warnings.filter((warning) => /older than|stale|previous|preview|beta|pilot/i.test(warning)),
   };
 }
 
