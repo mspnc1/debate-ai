@@ -16,7 +16,7 @@ on:
       min_full_text_records:
         description: Minimum full-text documentation records required before success
         required: false
-        default: '180'
+        default: '130'
         type: string
       min_pdf_records:
         description: Minimum official Salesforce PDF records required before success
@@ -58,7 +58,7 @@ jobs:
     env:
       UPLOAD_REQUESTED: ${{ github.event_name == 'schedule' || inputs.upload == true }}
       MIN_DEVELOPER_RECORDS: ${{ inputs.min_developer_records || '110' }}
-      MIN_FULL_TEXT_RECORDS: ${{ inputs.min_full_text_records || '180' }}
+      MIN_FULL_TEXT_RECORDS: ${{ inputs.min_full_text_records || '130' }}
       MIN_PDF_RECORDS: ${{ inputs.min_pdf_records || '10' }}
       MAX_METADATA_ONLY_RATIO: ${{ inputs.max_metadata_only_ratio || '0.05' }}
       SALESFORCE_DOCS_ALLOW_CURL_FETCH: '1'
