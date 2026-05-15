@@ -1620,7 +1620,13 @@ function inferSourceType(urlValue: string): SalesforceDocsIndexRecord['sourceTyp
 }
 
 function inferStatus(text: string): SalesforceDocsIndexRecord['status'] {
-  if (/release is in preview|beta|pilot|developer preview|do not become generally available|don't become generally available|can't guarantee general availability/i.test(text)) {
+  const normalized = text.replace(/\s+/g, ' ');
+  if (
+    /\b(?:developer|public|private)\s+preview\b/i.test(normalized)
+    || /\b(?:this|the)\s+(?:release|feature|document|content|functionality|release note)\s+is\s+(?:currently\s+)?(?:in\s+)?(?:preview|beta|pilot)\b/i.test(normalized)
+    || /\b(?:these|the)\s+features?\b.{0,160}\b(?:preview|beta|pilot|do not become generally available|don't become generally available|can't guarantee general availability)\b/i.test(normalized)
+    || /(?:do not|don't|can't|cannot)\s+(?:become\s+)?generally available/i.test(normalized)
+  ) {
     return 'preview';
   }
   if (/generally available|\bGA\b|current release|latest release/i.test(text)) {
@@ -1651,8 +1657,7 @@ function confidenceImpactForSource(
   if (warnings.some((warning) => /previous-release|previous release|previous/i.test(warning))) {
     return 'release-link-risk';
   }
-  if (status === 'ga') return 'supports';
-  return 'unclear';
+  return 'supports';
 }
 
 function excerptFor(text: string, topic: SalesforceDocsIndexTopic): string {
