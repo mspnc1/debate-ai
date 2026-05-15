@@ -2,6 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
+import { existsSync } from 'fs';
 import { execFile as execFileCallback } from 'child_process';
 import { promisify } from 'util';
 import { GoogleAuth } from 'google-auth-library';
@@ -31,16 +32,23 @@ const MAX_MATCHED_CHUNKS_PER_SOURCE = 5;
 const MAX_SITEMAP_RECORDS_PER_TOPIC = 3;
 const MAX_METADATA_ONLY_SITEMAP_RECORDS_PER_TOPIC = 0;
 const FULL_TEXT_CONTENT_LENGTH_FLOOR = 300;
+const SALESFORCE_HELP_RENDER_TIMEOUT_MS = Number(process.env.SALESFORCE_DOCS_HELP_RENDER_TIMEOUT_MS || 60000);
+const SALESFORCE_HELP_RENDER_MAX_CHARS = Number(process.env.SALESFORCE_DOCS_HELP_RENDER_MAX_CHARS || 0);
 const MIN_SITEMAP_TOPIC_SCORE = 8;
 const OFFICIAL_HOST_PATTERN = /(^|\.)salesforce\.com$/i;
 const ALLOW_CURL_TEXT_FETCH = process.env.SALESFORCE_DOCS_ALLOW_CURL_FETCH === '1';
 const ALLOW_CURL_PDF_FETCH = process.env.SALESFORCE_DOCS_ALLOW_CURL_PDF_FETCH === '1';
 const execFile = promisify(execFileCallback);
+const LOCAL_CHROME_EXECUTABLE_PATHS = [
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/Applications/Chromium.app/Contents/MacOS/Chromium',
+];
 
 export type SalesforceDocsContentQuality = 'full_text' | 'metadata_only';
 export type SalesforceDocsSourceFormat = 'html' | 'json' | 'pdf';
 export type SalesforceDocsPdfRefreshStatus = 'fresh' | 'due' | 'overdue';
 export type SalesforceDocsFreshnessSignal = 'etag' | 'last_modified' | 'content_hash_only';
+export type SalesforceDocsConfidenceImpact = 'supports' | 'unclear' | 'preview-risk' | 'release-link-risk' | 'stale-risk';
 
 interface SalesforceDocsSitemapSource {
   label: string;
@@ -142,7 +150,7 @@ export interface SalesforceDocsIndexRecord {
   discoverySource: 'seed' | 'sitemap';
   sitemapUrl?: string;
   sitemapScore?: number;
-  confidenceImpact: 'supports' | 'unclear' | 'stale-risk';
+  confidenceImpact: SalesforceDocsConfidenceImpact;
 }
 
 export interface SalesforceDocsPdfCorpusSourceHealth {
@@ -200,6 +208,7 @@ export interface SalesforceDocsIndexBuildOptions {
   includePdfDocs?: boolean;
   includeWebDocs?: boolean;
   includeSitemapDocs?: boolean;
+  topicIds?: string[];
 }
 
 export interface SalesforceDocsLookupTopicLike {
@@ -281,6 +290,23 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     keywords: ['release', 'release notes', 'current release', 'spring', 'summer', 'winter'],
     seedUrls: [
       'https://www.salesforce.com/releases',
+      'https://help.salesforce.com/s/articleView?id=release-notes.salesforce_release_notes.htm&language=en_US&type=5',
+      'https://help.salesforce.com/s/articleView?id=release-notes.rn_change_log.htm&language=en_US&type=5',
+      'https://help.salesforce.com/s/articleView?id=release-notes.rn_feature_impact.htm&language=en_US&type=5',
+      'https://help.salesforce.com/s/articleView?id=release-notes.rn_ru.htm&language=en_US&type=5',
+      'https://help.salesforce.com/s/articleView?id=release-notes.rn_customization_general.htm&language=en_US&type=5',
+      'https://help.salesforce.com/s/articleView?id=release-notes.rn_sales.htm&language=en_US&type=5',
+      'https://help.salesforce.com/s/articleView?id=release-notes.rn_service.htm&language=en_US&type=5',
+      'https://help.salesforce.com/s/articleView?id=release-notes.rn_automate.htm&language=en_US&type=5',
+      'https://help.salesforce.com/s/articleView?id=release-notes.rn_automate_flow_release_update.htm&language=en_US&type=5',
+      'https://help.salesforce.com/s/articleView?id=release-notes.rn_development.htm&language=en_US&type=5',
+      'https://help.salesforce.com/s/articleView?id=release-notes.rn_apex.htm&language=en_US&type=5',
+      'https://help.salesforce.com/s/articleView?id=release-notes.rn_api_objects.htm&language=en_US&type=5',
+      'https://help.salesforce.com/s/articleView?id=release-notes.rn_api_meta.htm&language=en_US&type=5',
+      'https://help.salesforce.com/s/articleView?id=release-notes.rn_c360_truth.htm&language=en_US&type=5',
+      'https://help.salesforce.com/s/articleView?id=data.c360_a_dc_releases.htm&language=en_US&type=5',
+      'https://help.salesforce.com/s/articleView?id=release-notes.rn_marketing.htm&language=en_US&type=5',
+      'https://help.salesforce.com/s/articleView?id=release-notes.rn_revenue.htm&language=en_US&type=5',
     ],
   },
   {
@@ -1313,6 +1339,215 @@ function humanizeSalesforceDocId(id: string): string {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function isRenderableSalesforceHelpArticleUrl(urlValue: string): boolean {
+  try {
+    const url = new URL(urlValue);
+    if (url.hostname !== 'help.salesforce.com' || !url.pathname.includes('/articleView')) return false;
+    const articleId = (url.searchParams.get('id') || '').toLowerCase();
+    if (articleId.startsWith('release-notes.')) return true;
+    return articleId === 'data.c360_a_dc_releases.htm';
+  } catch {
+    return false;
+  }
+}
+
+function isSalesforceHelpReleaseNotesUrl(urlValue: string): boolean {
+  try {
+    const url = new URL(urlValue);
+    const articleId = url.searchParams.get('id') || '';
+    return url.hostname === 'help.salesforce.com' && (
+      /release-notes/i.test(url.pathname)
+      || /^release-notes\./i.test(articleId)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function buildRenderableHelpArticleUrl(urlValue: string): string {
+  const url = new URL(urlValue);
+  if (!url.searchParams.get('language')) url.searchParams.set('language', 'en_US');
+  if (!url.searchParams.get('type')) url.searchParams.set('type', '5');
+  return url.toString();
+}
+
+function normalizeRenderedHelpTitle(value: string): string | undefined {
+  const title = value
+    .replace(/\s+\|\s+Salesforce.*$/i, '')
+    .replace(/\s+-\s+Salesforce Help$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return title ? title.slice(0, 180) : undefined;
+}
+
+function normalizeRenderedHelpText(value: string): string {
+  const dropLinePatterns = [
+    /^loading$/i,
+    /^agentforce is temporarily unavailable\./i,
+    /^read more$/i,
+    /^pdf$/i,
+    /^table of contents$/i,
+    /^search$/i,
+    /^search\[input:/i,
+    /^filter by\b/i,
+    /^select filters$/i,
+    /^clear all$/i,
+    /^done$/i,
+    /^you are here:?$/i,
+    /^image:/i,
+    /^salesforce help$/i,
+    /^docs$/i,
+  ];
+
+  return value
+    .replace(/\u0000/g, ' ')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\r/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/[ \t]{2,}/g, ' ').trim())
+    .filter((line) => line && !dropLinePatterns.some((pattern) => pattern.test(line)))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function isSalesforceHelpErrorText(text: string): boolean {
+  return /we looked high and low|couldn['\u2019]t find that page/i.test(text);
+}
+
+function extractSalesforceReleaseLabel(text: string): string | undefined {
+  const match = text.match(/\b(Spring|Summer|Winter)\s+[\u2019']?([0-9]{2})\b/i);
+  if (!match) return undefined;
+  const season = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
+  return `${season} '${match[2]}`;
+}
+
+function extractHelpReleaseVersion(urlValue: string): string | undefined {
+  try {
+    const release = new URL(urlValue).searchParams.get('release') || '';
+    return release.match(/\b[0-9]{3}\b/)?.[0];
+  } catch {
+    return undefined;
+  }
+}
+
+async function resolveSalesforceHelpChromeExecutable(chromium: any): Promise<string> {
+  const configuredPath = process.env.CHROME_EXECUTABLE_PATH || process.env.PUPPETEER_EXECUTABLE_PATH;
+  if (configuredPath) return configuredPath;
+  for (const localPath of LOCAL_CHROME_EXECUTABLE_PATHS) {
+    if (existsSync(localPath)) return localPath;
+  }
+  return chromium.default.executablePath();
+}
+
+function isLocalChromeExecutablePath(executablePath: string): boolean {
+  return LOCAL_CHROME_EXECUTABLE_PATHS.includes(executablePath)
+    || /\/Applications\/.*Chrome/i.test(executablePath)
+    || /\/Applications\/.*Chromium/i.test(executablePath);
+}
+
+let salesforceHelpBrowserPromise: Promise<any> | null = null;
+
+async function getSalesforceHelpBrowser(): Promise<any> {
+  if (!salesforceHelpBrowserPromise) {
+    salesforceHelpBrowserPromise = (async () => {
+      const chromium = await import('@sparticuz/chromium');
+      const puppeteer = await import('puppeteer-core');
+      const executablePath = await resolveSalesforceHelpChromeExecutable(chromium);
+      const isLocalChrome = isLocalChromeExecutablePath(executablePath);
+      const args = isLocalChrome
+        ? [
+          '--disable-setuid-sandbox',
+          '--no-sandbox',
+          '--no-first-run',
+          '--no-default-browser-check',
+          '--lang=en-US',
+        ]
+        : [
+          ...(chromium.default.args || []),
+          '--disable-setuid-sandbox',
+          '--no-first-run',
+          '--no-zygote',
+          '--lang=en-US',
+        ];
+      return puppeteer.default.launch({
+        executablePath,
+        headless: isLocalChrome ? true : chromium.default.headless,
+        args: Array.from(new Set(args)),
+      });
+    })().catch((error) => {
+      salesforceHelpBrowserPromise = null;
+      throw error;
+    });
+  }
+  return salesforceHelpBrowserPromise;
+}
+
+async function closeSalesforceHelpBrowser(): Promise<void> {
+  const browserPromise = salesforceHelpBrowserPromise;
+  salesforceHelpBrowserPromise = null;
+  if (!browserPromise) return;
+  try {
+    const browser = await browserPromise;
+    await browser.close();
+  } catch (error) {
+    console.warn('[salesforceDocsIndex] Failed to close Salesforce Help browser', error);
+  }
+}
+
+async function fetchRenderedHelpArticleContent(urlValue: string): Promise<OfficialDocContent | null> {
+  if (!isRenderableSalesforceHelpArticleUrl(urlValue)) return null;
+
+  const browser = await getSalesforceHelpBrowser();
+  const page = await browser.newPage();
+  try {
+    console.log('[salesforceDocsIndex] Rendering Salesforce Help article', { url: urlValue });
+    await page.setViewport({ width: 1200, height: 900, deviceScaleFactor: 1 });
+    await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US' });
+    await page.goto(buildRenderableHelpArticleUrl(urlValue), {
+      waitUntil: 'domcontentloaded',
+      timeout: SALESFORCE_HELP_RENDER_TIMEOUT_MS,
+    });
+    await page.waitForFunction(
+      () => {
+        const text = document.body?.innerText || '';
+        return text.length > 1200 && /Release Notes|Release Updates|Features Become Available|About Data 360 Releases/i.test(text);
+      },
+      { timeout: Math.min(30000, SALESFORCE_HELP_RENDER_TIMEOUT_MS) },
+    ).catch(() => undefined);
+
+    const rendered = await page.evaluate(() => ({
+      title: document.title || '',
+      text: document.body?.innerText || '',
+      url: window.location.href,
+    }));
+    const normalizedText = normalizeRenderedHelpText(rendered.text);
+    if (isSalesforceHelpErrorText(normalizedText)) {
+      throw new Error('Rendered Salesforce Help article was an error page.');
+    }
+    if (normalizedText.length < FULL_TEXT_CONTENT_LENGTH_FLOOR) {
+      throw new Error(`Rendered Salesforce Help article was too short (${normalizedText.length} chars)`);
+    }
+
+    const maxChars = positiveLimit(SALESFORCE_HELP_RENDER_MAX_CHARS);
+    const text = maxChars ? normalizedText.slice(0, maxChars) : normalizedText;
+    return {
+      text,
+      contentQuality: 'full_text',
+      title: normalizeRenderedHelpTitle(rendered.title) || extractTitle(text, humanizeSalesforceDocId(new URL(urlValue).searchParams.get('id') || 'Salesforce Help Article')),
+      releaseLabel: extractSalesforceReleaseLabel(`${rendered.title}\n${text}`),
+      documentationVersion: extractHelpReleaseVersion(rendered.url) || extractHelpReleaseVersion(urlValue),
+      warnings: [
+        maxChars && normalizedText.length > maxChars
+          ? `Rendered Salesforce Help article text was truncated at ${maxChars} characters by SALESFORCE_DOCS_HELP_RENDER_MAX_CHARS.`
+          : '',
+      ].filter(Boolean),
+    };
+  } finally {
+    await page.close().catch(() => undefined);
+  }
+}
+
 function buildHelpArticleMetadata(urlValue: string): OfficialDocContent | null {
   const url = new URL(urlValue);
   if (url.hostname !== 'help.salesforce.com' || !url.pathname.includes('/articleView')) return null;
@@ -1377,7 +1612,7 @@ function inferSourceType(urlValue: string): SalesforceDocsIndexRecord['sourceTyp
     return /release[-_]?notes/i.test(url.pathname) ? 'release_notes_pdf' : 'pdf_guide';
   }
   if (url.hostname === 'www.salesforce.com' || url.pathname.includes('/releases')) return 'release_page';
-  if (url.hostname === 'help.salesforce.com' && url.pathname.includes('release-notes')) return 'release_notes';
+  if (isSalesforceHelpReleaseNotesUrl(urlValue)) return 'release_notes';
   if (url.hostname === 'developer.salesforce.com') return 'developer_doc';
   if (url.hostname === 'help.salesforce.com') return 'help_doc';
   if (url.hostname === 'architect.salesforce.com') return 'architect_doc';
@@ -1403,6 +1638,21 @@ function sourceWarnings(text: string, status: SalesforceDocsIndexRecord['status'
     warnings.push('Source warns that linked documentation may point to previous-release material.');
   }
   return warnings;
+}
+
+function confidenceImpactForSource(
+  status: SalesforceDocsIndexRecord['status'],
+  warnings: string[],
+): SalesforceDocsConfidenceImpact {
+  if (warnings.some((warning) => /older than|stale|due|overdue/i.test(warning))) return 'stale-risk';
+  if (status === 'preview' || warnings.some((warning) => /preview|beta|pilot|not-yet-GA|not yet GA/i.test(warning))) {
+    return 'preview-risk';
+  }
+  if (warnings.some((warning) => /previous-release|previous release|previous/i.test(warning))) {
+    return 'release-link-risk';
+  }
+  if (status === 'ga') return 'supports';
+  return 'unclear';
 }
 
 function excerptFor(text: string, topic: SalesforceDocsIndexTopic): string {
@@ -1771,6 +2021,9 @@ async function fetchOfficialDoc(url: string): Promise<OfficialDocContent> {
     developerDocsApiError = error?.message || 'Unknown developer docs API failure';
   }
 
+  const renderedHelpArticle = await fetchRenderedHelpArticleContent(url);
+  if (renderedHelpArticle) return renderedHelpArticle;
+
   const helpArticleMetadata = buildHelpArticleMetadata(url);
   if (helpArticleMetadata) return helpArticleMetadata;
 
@@ -1984,11 +2237,7 @@ async function buildRecord(
     discoverySource: discovery.source,
     sitemapUrl: discovery.sitemapUrl,
     sitemapScore: discovery.sitemapScore,
-    confidenceImpact: status === 'preview' || warnings.some((warning) => /previous|stale/i.test(warning))
-      ? 'stale-risk'
-      : status === 'ga'
-        ? 'supports'
-      : 'unclear',
+    confidenceImpact: confidenceImpactForSource(status, warnings),
   };
 }
 
@@ -2068,11 +2317,7 @@ async function buildPdfRecord(
     nextRefreshDueAt: addDaysIso(retrievedAt, refreshCadenceDays),
     freshnessSignal,
     discoverySource: 'seed',
-    confidenceImpact: status === 'preview' || warnings.some((warning) => /previous|stale/i.test(warning))
-      ? 'stale-risk'
-      : status === 'ga'
-        ? 'supports'
-        : 'unclear',
+    confidenceImpact: confidenceImpactForSource(status, warnings),
   };
 }
 
@@ -2139,6 +2384,14 @@ function buildPdfCorpusSummary(
 }
 
 export async function buildSalesforceDocsIndexNow(options: SalesforceDocsIndexBuildOptions = {}): Promise<SalesforceDocsIndex> {
+  try {
+    return await buildSalesforceDocsIndexNowInternal(options);
+  } finally {
+    await closeSalesforceHelpBrowser();
+  }
+}
+
+async function buildSalesforceDocsIndexNowInternal(options: SalesforceDocsIndexBuildOptions = {}): Promise<SalesforceDocsIndex> {
   const generatedAt = new Date().toISOString();
   const records: SalesforceDocsIndexRecord[] = [];
   const failures: SalesforceDocsIndex['failures'] = [];
@@ -2146,8 +2399,16 @@ export async function buildSalesforceDocsIndexNow(options: SalesforceDocsIndexBu
   const includePdfDocs = options.includePdfDocs !== false;
   const includeWebDocs = options.includeWebDocs !== false;
   const includeSitemapDocs = includeWebDocs && options.includeSitemapDocs !== false;
+  const requestedTopicIds = options.topicIds?.length ? new Set(options.topicIds) : null;
+  const selectedTopics = requestedTopicIds
+    ? SALESFORCE_DOC_TOPICS.filter((topic) => requestedTopicIds.has(topic.id))
+    : SALESFORCE_DOC_TOPICS;
+  const selectedTopicIds = new Set(selectedTopics.map((topic) => topic.id));
+  const selectedPdfSources = requestedTopicIds
+    ? SALESFORCE_DOC_PDF_SOURCES.filter((source) => source.topicIds.some((topicId) => selectedTopicIds.has(topicId)))
+    : SALESFORCE_DOC_PDF_SOURCES;
 
-  for (const pdfSource of includePdfDocs ? SALESFORCE_DOC_PDF_SOURCES : []) {
+  for (const pdfSource of includePdfDocs ? selectedPdfSources : []) {
     const canonicalUrl = canonicalizeUrl(pdfSource.url);
     if (!canonicalUrl) {
       failures.push({ topicId: pdfSource.topicIds[0] || pdfSource.id, url: pdfSource.url, error: 'PDF URL is not an allowed official Salesforce URL.' });
@@ -2171,7 +2432,7 @@ export async function buildSalesforceDocsIndexNow(options: SalesforceDocsIndexBu
     }
   }
 
-  for (const topic of includeWebDocs ? SALESFORCE_DOC_TOPICS : []) {
+  for (const topic of includeWebDocs ? selectedTopics : []) {
     for (const rawUrl of topic.seedUrls) {
       const canonicalUrl = canonicalizeUrl(rawUrl);
       if (!canonicalUrl) {
@@ -2201,7 +2462,7 @@ export async function buildSalesforceDocsIndexNow(options: SalesforceDocsIndexBu
   }
 
   const sitemapEntries = includeSitemapDocs ? await discoverSitemapEntries(failures) : [];
-  for (const topic of includeSitemapDocs ? SALESFORCE_DOC_TOPICS : []) {
+  for (const topic of includeSitemapDocs ? selectedTopics : []) {
     const scoredEntries = sitemapEntries
       .map((entry) => ({ entry, score: scoreSitemapEntryForTopic(entry, topic) }))
       .filter(({ score }) => score >= MIN_SITEMAP_TOPIC_SCORE)
@@ -2249,7 +2510,7 @@ export async function buildSalesforceDocsIndexNow(options: SalesforceDocsIndexBu
       allowedHostPattern: '*.salesforce.com',
       storagePath: SALESFORCE_DOC_INDEX_PATH,
     },
-    topics: SALESFORCE_DOC_TOPICS,
+    topics: selectedTopics,
     records,
     failures,
     discovery: {
@@ -2602,9 +2863,7 @@ export async function lookupSalesforceDocsIndex(
         releaseLabel: item.record.releaseLabel,
         documentationVersion: item.record.documentationVersion,
         lastModified: item.record.lastModified,
-        confidenceImpact: sourceWarnings.some((warning) => /older than|stale|preview|previous|due|overdue/i.test(warning))
-          ? 'stale-risk'
-          : item.record.confidenceImpact,
+        confidenceImpact: confidenceImpactForSource(item.record.status, sourceWarnings),
       });
     }
   }

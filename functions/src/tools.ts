@@ -329,7 +329,7 @@ interface SalesforceDocEvidenceSource {
   }>;
   searchSnippet?: string;
   warnings: string[];
-  confidenceImpact: 'supports' | 'unclear' | 'stale-risk';
+  confidenceImpact: 'supports' | 'unclear' | 'preview-risk' | 'release-link-risk' | 'stale-risk';
 }
 
 interface ConnectorInferenceRule {
@@ -1035,7 +1035,8 @@ async function handleSalesforceDocsLookup(
   const releaseContextWarnings: string[] = [];
   const rejectedUrls = new Set<string>();
   const sources: SalesforceDocEvidenceSource[] = [];
-  const seenUrls = new Set<string>();
+  const seenSourceKeys = new Set<string>();
+  const sourceKey = (topicId: string, url: string) => `${topicId}:${url}`;
   let docsIndexSummary: Record<string, unknown> | undefined;
 
   const releaseFetch = await handleFetchUrl({
@@ -1066,7 +1067,7 @@ async function handleSalesforceDocsLookup(
       sourceIndex: 1,
     });
     sources.push(releaseSource);
-    seenUrls.add(releaseSource.url);
+    seenSourceKeys.add(sourceKey(releaseSource.topicId, releaseSource.url));
   } else {
     releaseContextWarnings.push(`Could not derive Salesforce release context from ${SALESFORCE_RELEASES_URL}: ${releaseFetch.error || 'no content returned'}`);
   }
@@ -1089,8 +1090,9 @@ async function handleSalesforceDocsLookup(
       : []
   );
   for (const source of indexLookup.sources) {
-    if (seenUrls.has(source.url)) continue;
-    seenUrls.add(source.url);
+    const key = sourceKey(source.topicId, source.url);
+    if (seenSourceKeys.has(key)) continue;
+    seenSourceKeys.add(key);
     sources.push({
       ...source,
       id: `sf-doc-${sources.length + 1}`,
@@ -1102,7 +1104,8 @@ async function handleSalesforceDocsLookup(
 
     const directTopicUrl = canonicalizeSalesforceDocsUrl(topic.query);
     if (directTopicUrl) {
-      if (seenUrls.has(directTopicUrl)) continue;
+      const key = sourceKey(topic.id, directTopicUrl);
+      if (seenSourceKeys.has(key)) continue;
       const fetched = await handleFetchUrl({
         url: directTopicUrl,
         includeMetadata: true,
@@ -1113,7 +1116,7 @@ async function handleSalesforceDocsLookup(
         continue;
       }
 
-      seenUrls.add(directTopicUrl);
+      seenSourceKeys.add(key);
       sources.push(buildSalesforceDocEvidenceSource({
         topic,
         title: topic.label,
@@ -1151,7 +1154,7 @@ async function handleSalesforceDocsLookup(
         rejectedUrls.add(result.url);
         continue;
       }
-      if (seenUrls.has(canonicalUrl)) continue;
+      if (seenSourceKeys.has(sourceKey(topic.id, canonicalUrl))) continue;
       officialResults.push({
         title: result.title,
         url: canonicalUrl,
@@ -1176,7 +1179,7 @@ async function handleSalesforceDocsLookup(
         continue;
       }
 
-      seenUrls.add(result.url);
+      seenSourceKeys.add(sourceKey(topic.id, result.url));
       sources.push(buildSalesforceDocEvidenceSource({
         topic,
         title: result.title,
@@ -1245,6 +1248,16 @@ function buildSalesforceDocumentationIndexHealth(
       });
     }
   });
+  const indexedCoverage = new Map<string, { status?: string; sourceCount?: number }>();
+  const rawCoverage = Array.isArray(indexSummary?.topicCoverage) ? indexSummary!.topicCoverage as Array<Record<string, unknown>> : [];
+  rawCoverage.forEach((coverage) => {
+    if (typeof coverage.topicId === 'string') {
+      indexedCoverage.set(coverage.topicId, {
+        status: typeof coverage.status === 'string' ? coverage.status : undefined,
+        sourceCount: typeof coverage.sourceCount === 'number' ? coverage.sourceCount : undefined,
+      });
+    }
+  });
 
   const topicCoverage = topics.map((topic) => {
     const sourceCount = sourceCountByTopic[topic.id] || 0;
@@ -1254,12 +1267,22 @@ function buildSalesforceDocumentationIndexHealth(
         .flatMap((source) => source.warnings);
       const stale = sources
         .filter((source) => source.topicId === topic.id)
-        .some((source) => source.confidenceImpact === 'stale-risk' || source.status === 'preview')
-        || sourceWarnings.some((warning) => /older than|stale|previous|due|overdue/i.test(warning));
+        .some((source) => source.confidenceImpact === 'stale-risk')
+        || sourceWarnings.some((warning) => /older than|stale|due|overdue/i.test(warning));
       return {
         topicId: topic.id,
         status: stale ? 'stale' : 'hit',
         sourceCount,
+      };
+    }
+
+    const indexedTopicCoverage = indexedCoverage.get(topic.id);
+    if (indexedTopicCoverage?.sourceCount && indexedTopicCoverage.sourceCount > 0) {
+      return {
+        topicId: topic.id,
+        status: indexedTopicCoverage.status === 'stale' ? 'stale' : 'hit',
+        sourceCount: indexedTopicCoverage.sourceCount,
+        reason: 'Official Salesforce documentation source(s) matched this topic in the cached index.',
       };
     }
 
@@ -1470,12 +1493,23 @@ function buildSalesforceDocEvidenceSource(input: {
     matchedChunks: matchedChunks.length > 0 ? matchedChunks : undefined,
     searchSnippet: input.snippet,
     warnings,
-    confidenceImpact: status === 'preview' || warnings.some((warning) => /previous|stale/i.test(warning))
-      ? 'stale-risk'
-      : status === 'ga'
-        ? 'supports'
-        : 'unclear',
+    confidenceImpact: confidenceImpactForSalesforceEvidence(status, warnings),
   };
+}
+
+function confidenceImpactForSalesforceEvidence(
+  status: SalesforceDocEvidenceSource['status'],
+  warnings: string[],
+): SalesforceDocEvidenceSource['confidenceImpact'] {
+  if (warnings.some((warning) => /older than|stale|due|overdue/i.test(warning))) return 'stale-risk';
+  if (status === 'preview' || warnings.some((warning) => /preview|beta|pilot|not-yet-GA|not yet GA/i.test(warning))) {
+    return 'preview-risk';
+  }
+  if (warnings.some((warning) => /previous-release|previous release|previous/i.test(warning))) {
+    return 'release-link-risk';
+  }
+  if (status === 'ga') return 'supports';
+  return 'unclear';
 }
 
 function inferSalesforceDocSourceType(urlValue: string): SalesforceDocEvidenceSource['sourceType'] {
@@ -1484,7 +1518,10 @@ function inferSalesforceDocSourceType(urlValue: string): SalesforceDocEvidenceSo
     return /release[-_]?notes/i.test(url.pathname) ? 'release_notes_pdf' : 'pdf_guide';
   }
   if (url.hostname === 'www.salesforce.com' || url.pathname.includes('/releases')) return 'release_page';
-  if (url.hostname === 'help.salesforce.com' && url.pathname.includes('release-notes')) return 'release_notes';
+  if (url.hostname === 'help.salesforce.com' && (
+    url.pathname.includes('release-notes')
+    || /^release-notes\./i.test(url.searchParams.get('id') || '')
+  )) return 'release_notes';
   if (url.hostname === 'developer.salesforce.com') return 'developer_doc';
   if (url.hostname === 'help.salesforce.com') return 'help_doc';
   if (url.hostname === 'architect.salesforce.com') return 'architect_doc';
