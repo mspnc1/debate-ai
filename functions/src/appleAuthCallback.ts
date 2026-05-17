@@ -19,7 +19,7 @@ const appleRedirectUriSecret = defineSecret('APPLE_REDIRECT_URI');
  * Since the web app is statically hosted, we need this Cloud Function to:
  * 1. Receive the POST from Apple with the authorization code
  * 2. Exchange the code for tokens (including id_token)
- * 3. Redirect to the web app callback page with the id_token in query params
+ * 3. Redirect to the web app callback page with the id_token in the fragment
  */
 export const appleAuthCallback = onRequest(
   { secrets: [appleTeamIdSecret, appleKeyIdSecret, appleServiceIdSecret, applePrivateKeySecret, appleRedirectUriSecret] },
@@ -52,25 +52,29 @@ export const appleAuthCallback = onRequest(
     const user = (body as Record<string, unknown>)?.user ?? null;
     const error = firstString((body as Record<string, unknown>)?.error) || null;
     const errorDescription = firstString((body as Record<string, unknown>)?.error_description) || null;
+    const redirectBase = 'https://symposiumai.app/auth/apple/callback/';
+    const buildCallbackRedirect = (params: URLSearchParams) => {
+      const serializedParams = params.toString();
+      return serializedParams ? `${redirectBase}#${serializedParams}` : redirectBase;
+    };
 
     // If Apple returned an error, redirect with the error
     if (error) {
-      const redirectBase = 'https://symposiumai.app/auth/apple/callback/';
       const params = new URLSearchParams();
       params.set('error', error);
       if (errorDescription) params.set('error_description', errorDescription);
       if (state) params.set('state', state);
-      res.redirect(303, `${redirectBase}?${params.toString()}`);
+      res.redirect(303, buildCallbackRedirect(params));
       return;
     }
 
     // If no code, we can't proceed
     if (!code) {
-      const redirectBase = 'https://symposiumai.app/auth/apple/callback/';
       const params = new URLSearchParams();
       params.set('error', 'no_code');
       params.set('error_description', 'No authorization code received from Apple');
-      res.redirect(303, `${redirectBase}?${params.toString()}`);
+      if (state) params.set('state', state);
+      res.redirect(303, buildCallbackRedirect(params));
       return;
     }
 
@@ -117,32 +121,29 @@ export const appleAuthCallback = onRequest(
           throw new Error('No id_token in Apple response');
         }
 
-        const redirectBase = 'https://symposiumai.app/auth/apple/callback/';
         const params = new URLSearchParams();
         params.set('id_token', idToken);
         if (state) params.set('state', state);
         if (user) params.set('user', typeof user === 'string' ? user : JSON.stringify(user));
-        res.redirect(303, `${redirectBase}?${params.toString()}`);
+        res.redirect(303, buildCallbackRedirect(params));
       } else {
         // Token exchange failed
         const data = tokenResponse.data as Record<string, unknown> | undefined;
         const exchangeError = typeof data?.error === 'string' ? data.error : 'token_exchange_failed';
 
-        const redirectBase = 'https://symposiumai.app/auth/apple/callback/';
         const params = new URLSearchParams();
         params.set('error', exchangeError);
         if (state) params.set('state', state);
-        res.redirect(303, `${redirectBase}?${params.toString()}`);
+        res.redirect(303, buildCallbackRedirect(params));
       }
     } catch (err) {
       console.error('[appleAuthCallback] Token exchange error:', err);
 
-      const redirectBase = 'https://symposiumai.app/auth/apple/callback/';
       const params = new URLSearchParams();
       params.set('error', 'token_exchange_exception');
       params.set('error_description', err instanceof Error ? err.message : 'Unknown error');
       if (state) params.set('state', state);
-      res.redirect(303, `${redirectBase}?${params.toString()}`);
+      res.redirect(303, buildCallbackRedirect(params));
     }
   }
 );
