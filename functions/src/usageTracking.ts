@@ -80,6 +80,35 @@ interface UsageSummary {
   byModel: Record<string, ModelUsageStats>;
 }
 
+type FreeTierInteractionType = 'debate' | 'compare' | 'chat' | 'analyze';
+
+type FreeTierUsageField =
+  | 'freeDebatesRemaining'
+  | 'freeComparesRemaining'
+  | 'freeChatsRemaining'
+  | 'freeAnalyzesRemaining';
+
+interface FreeTierUsageState {
+  freeDebatesRemaining: number;
+  freeComparesRemaining: number;
+  freeChatsRemaining: number;
+  freeAnalyzesRemaining: number;
+}
+
+const FREE_TIER_LIMITS: FreeTierUsageState = {
+  freeDebatesRemaining: 5,
+  freeComparesRemaining: 5,
+  freeChatsRemaining: 5,
+  freeAnalyzesRemaining: 5,
+};
+
+const FREE_TIER_FIELD_BY_TYPE: Record<FreeTierInteractionType, FreeTierUsageField> = {
+  debate: 'freeDebatesRemaining',
+  compare: 'freeComparesRemaining',
+  chat: 'freeChatsRemaining',
+  analyze: 'freeAnalyzesRemaining',
+};
+
 // ============================================================================
 // Get Provider Balances
 // ============================================================================
@@ -364,6 +393,107 @@ export async function recordUsageInternal(
   console.log('Usage batch committed successfully for:', { uid, dateStr, providerId: record.providerId });
 }
 
+function normalizeFreeTierUsage(data: FirebaseFirestore.DocumentData | undefined): FreeTierUsageState {
+  return {
+    freeDebatesRemaining: typeof data?.freeDebatesRemaining === 'number'
+      ? data.freeDebatesRemaining
+      : FREE_TIER_LIMITS.freeDebatesRemaining,
+    freeComparesRemaining: typeof data?.freeComparesRemaining === 'number'
+      ? data.freeComparesRemaining
+      : FREE_TIER_LIMITS.freeComparesRemaining,
+    freeChatsRemaining: typeof data?.freeChatsRemaining === 'number'
+      ? data.freeChatsRemaining
+      : FREE_TIER_LIMITS.freeChatsRemaining,
+    freeAnalyzesRemaining: typeof data?.freeAnalyzesRemaining === 'number'
+      ? data.freeAnalyzesRemaining
+      : FREE_TIER_LIMITS.freeAnalyzesRemaining,
+  };
+}
+
+function isActiveServerOwnedPremium(
+  userData: FirebaseFirestore.DocumentData | undefined,
+  billingData: FirebaseFirestore.DocumentData | undefined
+): boolean {
+  return billingData?.status === 'active'
+    || billingData?.status === 'trialing'
+    || userData?.isPremium === true;
+}
+
+// ============================================================================
+// Record Free Tier Interaction
+// ============================================================================
+
+export const recordFreeTierInteraction = onCall(
+  {
+    timeoutSeconds: 10,
+    memory: '256MiB',
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Must be authenticated');
+    }
+
+    const { type } = request.data || {};
+    if (!type || !Object.prototype.hasOwnProperty.call(FREE_TIER_FIELD_BY_TYPE, type)) {
+      throw new HttpsError('invalid-argument', 'Invalid interaction type');
+    }
+
+    const interactionType = type as FreeTierInteractionType;
+    const usageField = FREE_TIER_FIELD_BY_TYPE[interactionType];
+    const uid = request.auth.uid;
+    const db = getFirestore();
+    const userRef = db.collection('users').doc(uid);
+    const billingRef = userRef.collection('billing').doc('subscription');
+
+    return db.runTransaction(async (transaction) => {
+      const [userDoc, billingDoc] = await Promise.all([
+        transaction.get(userRef),
+        transaction.get(billingRef),
+      ]);
+      const userData = userDoc.data();
+      const billingData = billingDoc.data();
+      const usage = normalizeFreeTierUsage(userData);
+
+      if (isActiveServerOwnedPremium(userData, billingData)) {
+        return {
+          success: true,
+          premium: true,
+          exhausted: false,
+          usage,
+        };
+      }
+
+      const currentRemaining = usage[usageField];
+      if (currentRemaining <= 0) {
+        return {
+          success: false,
+          exhausted: true,
+          remaining: 0,
+          usage,
+        };
+      }
+
+      const remaining = currentRemaining - 1;
+      const updatedUsage: FreeTierUsageState = {
+        ...usage,
+        [usageField]: remaining,
+      };
+
+      transaction.set(userRef, {
+        [usageField]: remaining,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+
+      return {
+        success: true,
+        exhausted: remaining <= 0,
+        remaining,
+        usage: updatedUsage,
+      };
+    });
+  }
+);
+
 // ============================================================================
 // Record Image Generation (internal function)
 // ============================================================================
@@ -621,4 +751,3 @@ function getStartDateForPeriod(period: string): string {
   startDate.setDate(startDate.getDate() - daysBack);
   return startDate.toISOString().split('T')[0];
 }
-

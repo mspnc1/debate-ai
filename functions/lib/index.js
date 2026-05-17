@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createHtmlPdfExport = exports.createExportJob = exports.runExportJob = exports.appleAuthCallback = exports.symposiumFeedback = exports.contactForm = exports.exportUserData = exports.recordImageGeneration = exports.getUsageStats = exports.getProviderBalances = exports.stripeWebhook = exports.cancelStripeSubscription = exports.createStripeBillingPortal = exports.createStripeCheckoutSession = exports.scheduledSalesforceDocsIndexRefresh = exports.refreshSalesforceDocsIndex = exports.executeTool = exports.proxyImageGeneration = exports.proxyAIRequestStreamV2 = exports.proxyAIRequestStream = exports.proxyAIRequest = exports.getConfiguredDataServices = exports.deleteDataServiceKey = exports.saveDataServiceKey = exports.getConfiguredProviders = exports.deleteApiKey = exports.saveApiKey = exports.deleteAccount = exports.handleAppStoreNotification = exports.handlePlayStoreNotification = exports.validatePurchase = void 0;
+exports.createHtmlPdfExport = exports.createExportJob = exports.runExportJob = exports.appleAuthCallback = exports.symposiumFeedback = exports.contactForm = exports.exportUserData = exports.recordImageGeneration = exports.recordFreeTierInteraction = exports.getUsageStats = exports.getProviderBalances = exports.stripeWebhook = exports.cancelStripeSubscription = exports.createStripeBillingPortal = exports.createStripeCheckoutSession = exports.scheduledSalesforceDocsIndexRefresh = exports.refreshSalesforceDocsIndex = exports.executeTool = exports.proxyImageGeneration = exports.proxyAIRequestStreamV2 = exports.proxyAIRequestStream = exports.proxyAIRequest = exports.getConfiguredDataServices = exports.deleteDataServiceKey = exports.saveDataServiceKey = exports.getConfiguredProviders = exports.deleteApiKey = exports.saveApiKey = exports.requestPasswordResetEmail = exports.checkPasswordResetRateLimit = exports.clearLoginAttempts = exports.verifyEmailPasswordSignIn = exports.checkLoginRateLimit = exports.deleteAccount = exports.handleAppStoreNotification = exports.handlePlayStoreNotification = exports.validatePurchase = void 0;
 var validatePurchase_1 = require("./validatePurchase");
 Object.defineProperty(exports, "validatePurchase", { enumerable: true, get: function () { return validatePurchase_1.validatePurchase; } });
 var playStore_1 = require("./notifications/playStore");
@@ -9,6 +9,12 @@ var appStore_1 = require("./notifications/appStore");
 Object.defineProperty(exports, "handleAppStoreNotification", { enumerable: true, get: function () { return appStore_1.handleAppStoreNotification; } });
 var deleteAccount_1 = require("./deleteAccount");
 Object.defineProperty(exports, "deleteAccount", { enumerable: true, get: function () { return deleteAccount_1.deleteAccount; } });
+var authRateLimiting_1 = require("./authRateLimiting");
+Object.defineProperty(exports, "checkLoginRateLimit", { enumerable: true, get: function () { return authRateLimiting_1.checkLoginRateLimit; } });
+Object.defineProperty(exports, "verifyEmailPasswordSignIn", { enumerable: true, get: function () { return authRateLimiting_1.verifyEmailPasswordSignIn; } });
+Object.defineProperty(exports, "clearLoginAttempts", { enumerable: true, get: function () { return authRateLimiting_1.clearLoginAttempts; } });
+Object.defineProperty(exports, "checkPasswordResetRateLimit", { enumerable: true, get: function () { return authRateLimiting_1.checkPasswordResetRateLimit; } });
+Object.defineProperty(exports, "requestPasswordResetEmail", { enumerable: true, get: function () { return authRateLimiting_1.requestPasswordResetEmail; } });
 // API Key Management
 var apiKeys_1 = require("./apiKeys");
 Object.defineProperty(exports, "saveApiKey", { enumerable: true, get: function () { return apiKeys_1.saveApiKey; } });
@@ -45,6 +51,7 @@ Object.defineProperty(exports, "stripeWebhook", { enumerable: true, get: functio
 var usageTracking_1 = require("./usageTracking");
 Object.defineProperty(exports, "getProviderBalances", { enumerable: true, get: function () { return usageTracking_1.getProviderBalances; } });
 Object.defineProperty(exports, "getUsageStats", { enumerable: true, get: function () { return usageTracking_1.getUsageStats; } });
+Object.defineProperty(exports, "recordFreeTierInteraction", { enumerable: true, get: function () { return usageTracking_1.recordFreeTierInteraction; } });
 Object.defineProperty(exports, "recordImageGeneration", { enumerable: true, get: function () { return usageTracking_1.recordImageGeneration; } });
 // GDPR User Data Export
 var userData_1 = require("./userData");

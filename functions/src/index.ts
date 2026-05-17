@@ -2,6 +2,13 @@ export { validatePurchase } from './validatePurchase';
 export { handlePlayStoreNotification } from './notifications/playStore';
 export { handleAppStoreNotification } from './notifications/appStore';
 export { deleteAccount } from './deleteAccount';
+export {
+  checkLoginRateLimit,
+  verifyEmailPasswordSignIn,
+  clearLoginAttempts,
+  checkPasswordResetRateLimit,
+  requestPasswordResetEmail,
+} from './authRateLimiting';
 
 // API Key Management
 export { saveApiKey, deleteApiKey, getConfiguredProviders } from './apiKeys';
@@ -33,7 +40,12 @@ export {
 } from './stripe';
 
 // Usage Tracking
-export { getProviderBalances, getUsageStats, recordImageGeneration } from './usageTracking';
+export {
+  getProviderBalances,
+  getUsageStats,
+  recordFreeTierInteraction,
+  recordImageGeneration,
+} from './usageTracking';
 
 // GDPR User Data Export
 export { exportUserData } from './userData';
