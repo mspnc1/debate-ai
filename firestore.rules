@@ -66,6 +66,11 @@ service cloud.firestore {
       allow write: if false; // Only cloud functions (admin SDK) can write
     }
 
+    // Auth rate-limit state - only cloud functions (admin SDK) can access
+    match /loginAttempts/{docId} {
+      allow read, write: if false;
+    }
+
     // Export Jobs - creator can read status, only cloud functions write
     match /exportJobs/{jobId} {
       allow read: if request.auth != null && resource.data.createdBy == request.auth.uid;
