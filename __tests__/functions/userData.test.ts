@@ -18,13 +18,13 @@ jest.mock('firebase-admin', () => ({
   auth: jest.fn(() => ({
     getUser: mockGetUser,
   })),
-}));
+}), { virtual: true });
 
 jest.mock('firebase-admin/firestore', () => ({
   getFirestore: jest.fn(() => ({
     collection: mockCollection,
   })),
-}));
+}), { virtual: true });
 
 // Mock firebase-functions/v2/https
 const mockOnCall = jest.fn((handler) => handler);
@@ -39,7 +39,9 @@ jest.mock('firebase-functions/v2/https', () => ({
       this.name = 'HttpsError';
     }
   },
-}));
+}), { virtual: true });
+
+const { exportUserData } = require('../../functions/src/userData') as typeof import('../../functions/src/userData');
 
 describe('exportUserData Cloud Function', () => {
   beforeEach(() => {
@@ -48,9 +50,6 @@ describe('exportUserData Cloud Function', () => {
 
   describe('authentication', () => {
     it('should require authentication', async () => {
-      // Import after mocks are set up
-      const { exportUserData } = await import('../../functions/src/userData');
-
       // Call the function without auth
       await expect(
         (exportUserData as (request: { auth?: { uid: string } }) => Promise<unknown>)({ auth: undefined })
@@ -131,8 +130,6 @@ describe('exportUserData Cloud Function', () => {
         }
       });
 
-      const { exportUserData } = await import('../../functions/src/userData');
-
       const result = await (exportUserData as (request: { auth: { uid: string } }) => Promise<{
         profile: { uid: string; email: string; displayName: string };
         subscription: { status: string; plan: string } | null;
@@ -194,8 +191,6 @@ describe('exportUserData Cloud Function', () => {
         })),
       }));
 
-      const { exportUserData } = await import('../../functions/src/userData');
-
       const result = await (exportUserData as (request: { auth: { uid: string } }) => Promise<{
         subscription: unknown;
         syncSettings: unknown;
@@ -256,8 +251,6 @@ describe('exportUserData Cloud Function', () => {
           }),
         })),
       }));
-
-      const { exportUserData } = await import('../../functions/src/userData');
 
       const result = await (exportUserData as (request: { auth: { uid: string } }) => Promise<Record<string, unknown>>)({
         auth: { uid: mockUid },
