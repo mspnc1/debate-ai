@@ -9,17 +9,11 @@ export interface User {
   email?: string;
   subscription: SubscriptionTier;
   uiMode: UIMode;
-  apiKeys?: {
-    claude?: string;
-    openai?: string;
-    google?: string;
-    perplexity?: string;
-    mistral?: string;
-    cohere?: string;
-    together?: string;
-    deepseek?: string;
-    grok?: string;
-  };
+  apiKeyStatuses?: Partial<Record<AIProvider, {
+    configured: boolean;
+    maskedLabel: string;
+    updatedAt: number;
+  }>>;
   preferences: {
     theme: 'light' | 'dark' | 'auto';
     fontSize: 'small' | 'medium' | 'large';

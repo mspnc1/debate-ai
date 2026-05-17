@@ -179,18 +179,59 @@ interface ExpertModeConfig {
   };
 }
 
+export interface ApiKeyStatus {
+  configured: boolean;
+  maskedLabel: string;
+  updatedAt: number;
+}
+
+type ApiKeyStatusInput = ApiKeyStatus | string | null | undefined;
+
+const maskApiKeyForStatus = (key: string): string => {
+  const trimmed = key.trim();
+  if (!trimmed) return '';
+  if (trimmed.length <= 8) return '••••••••';
+  return `${trimmed.slice(0, 4)}${'•'.repeat(Math.min(trimmed.length - 8, 12))}${trimmed.slice(-4)}`;
+};
+
+export const buildApiKeyStatus = (key: string): ApiKeyStatus => ({
+  configured: key.trim().length > 0,
+  maskedLabel: maskApiKeyForStatus(key),
+  updatedAt: Date.now(),
+});
+
+export const isApiKeyConfigured = (status: unknown): boolean => {
+  if (typeof status === 'string') {
+    return status.trim().length > 0;
+  }
+  if (status && typeof status === 'object' && 'configured' in status) {
+    return (status as ApiKeyStatus).configured === true;
+  }
+  return false;
+};
+
+export const getApiKeyMaskedLabel = (status: unknown): string => {
+  if (typeof status === 'string') {
+    return maskApiKeyForStatus(status);
+  }
+  if (status && typeof status === 'object' && 'maskedLabel' in status) {
+    return (status as ApiKeyStatus).maskedLabel || '';
+  }
+  return '';
+};
+
+const normalizeApiKeyStatus = (status: ApiKeyStatusInput): ApiKeyStatus | undefined => {
+  if (!status) return undefined;
+  if (typeof status === 'string') {
+    return status.trim() ? buildApiKeyStatus(status) : undefined;
+  }
+  return status.configured ? status : undefined;
+};
+
 interface SettingsState {
   theme: 'light' | 'dark' | 'auto';
   fontSize: 'small' | 'medium' | 'large';
-  apiKeys: {
-    claude?: string;
-    openai?: string;
-    google?: string;
-    nomi?: string;
-    mistral?: string;
-    perplexity?: string;
-    [key: string]: string | undefined; // Allow any provider
-  };
+  apiKeys: Record<string, ApiKeyStatus | undefined>;
   verifiedProviders: string[]; // List of provider IDs that have been verified
   verificationTimestamps: {
     [key: string]: number; // Unix timestamp of when each provider was verified
@@ -229,19 +270,31 @@ const settingsSlice = createSlice({
       state.fontSize = action.payload;
     },
     setAPIKey: (state, action: PayloadAction<{ provider: 'claude' | 'openai' | 'google'; key: string }>) => {
-      state.apiKeys[action.payload.provider] = action.payload.key;
+      const status = normalizeApiKeyStatus(action.payload.key);
+      if (status) {
+        state.apiKeys[action.payload.provider] = status;
+      } else {
+        delete state.apiKeys[action.payload.provider];
+      }
     },
-    updateApiKeys: (state, action: PayloadAction<Record<string, string | undefined>>) => {
+    updateApiKeys: (state, action: PayloadAction<Record<string, ApiKeyStatusInput>>) => {
       // If payload is empty object, clear all keys
       if (Object.keys(action.payload).length === 0) {
         state.apiKeys = {};
       } else {
-        state.apiKeys = { ...state.apiKeys, ...action.payload };
+        Object.entries(action.payload).forEach(([provider, value]) => {
+          const status = normalizeApiKeyStatus(value);
+          if (status) {
+            state.apiKeys[provider] = status;
+          } else {
+            delete state.apiKeys[provider];
+          }
+        });
       }
       // Remove providers from verified list if their keys are removed
       const verifiedToRemove: string[] = [];
-      Object.entries(action.payload).forEach(([provider, key]) => {
-        if (!key && state.verifiedProviders.includes(provider)) {
+      Object.entries(action.payload).forEach(([provider, status]) => {
+        if (!isApiKeyConfigured(status) && state.verifiedProviders.includes(provider)) {
           verifiedToRemove.push(provider);
         }
       });

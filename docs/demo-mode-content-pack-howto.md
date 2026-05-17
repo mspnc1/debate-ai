@@ -3,13 +3,14 @@
 This guide explains how to author, record, and package Demo content.
 
 ### Where files live
-- Pack JSON: `src/assets/demo/demo-pack.v1.json`
+- Source recordings: `scripts/demo/recordings/*.json`
+- Generated manifest: `src/assets/demo/recordingsManifest.ts`
 - Media: `src/assets/demo/media/` (WebP preferred)
 - Asset map: `src/services/demo/demoAssets.ts` (`asset:key` → require mapping)
 - Loader: `src/services/demo/DemoContentService.ts`
 - Router: `src/services/demo/DemoPlaybackRouter.ts`
 - Dev recorder: `src/services/demo/Recorder.ts`
-- Packer script: `scripts/demo/packer.mjs`
+- Manifest builder: `scripts/demo/build-recordings-manifest.js`
 
 ### Authoring manually
 1) Add Chat samples
@@ -36,8 +37,9 @@ This guide explains how to author, record, and package Demo content.
 - Record each chunk/event with `recordEvent({ type, role, content, speakerProvider, ... })`.
 - On finish, call `stopRecording()` and save the JSON to `scripts/demo/recordings/<name>.json`.
 
-2) Pack
-- Run `node scripts/demo/packer.mjs` to append recordings into the pack and update routing.
+2) Build the manifest
+- Run `npm run demo:build-recordings` to regenerate `src/assets/demo/recordingsManifest.ts`.
+- Commit the source recording JSON and generated manifest together.
 
 ### Naming conventions
 - IDs: `chat_c_sql_v1`, `debate_co_george_1`, `compare_og_itinerary_v1`
@@ -48,4 +50,3 @@ This guide explains how to author, record, and package Demo content.
 - Mark simulated behavior in copy (e.g., “Simulated search”).
 - Ensure neutral, brand-safe content.
 - Target total demo bundle ≤ 8 MB compressed.
-

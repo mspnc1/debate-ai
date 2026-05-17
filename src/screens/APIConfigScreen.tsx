@@ -193,7 +193,6 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                   providers={enabledProviders}
                   apiKeys={apiKeys}
                   verificationStatus={verificationStatus}
-                  onKeyChange={handleKeyChange}
                   onTest={handleTestConnection}
                   onSave={handleSaveKey}
                   onToggleExpand={onToggleExpand}

@@ -5,6 +5,7 @@ const mockUseAPIKeys = jest.fn();
 const mockUseProviderVerification = jest.fn();
 const mockUseConnectionTest = jest.fn();
 const mockUseExpertMode = jest.fn();
+const mockGetKey = jest.fn();
 
 jest.mock('@/hooks/useAPIKeys', () => ({
   useAPIKeys: () => mockUseAPIKeys(),
@@ -22,6 +23,13 @@ jest.mock('@/hooks/useExpertMode', () => ({
   useExpertMode: () => mockUseExpertMode(),
 }));
 
+jest.mock('@/services/APIKeyService', () => ({
+  __esModule: true,
+  default: {
+    getKey: (...args: string[]) => mockGetKey(...args),
+  },
+}));
+
 jest.mock('expo-haptics', () => ({
   ImpactFeedbackStyle: { Light: 'Light' },
   impactAsync: jest.fn().mockResolvedValue(undefined),
@@ -32,6 +40,7 @@ const { impactAsync } = require('expo-haptics');
 describe('useAPIConfigHandlers', () => {
   const apiKeys = { claude: 'anthropic-key' };
   const updateKey = jest.fn().mockResolvedValue(undefined);
+  const refreshKeyStatus = jest.fn().mockResolvedValue(undefined);
   const removeVerification = jest.fn().mockResolvedValue(undefined);
   const verifyProvider = jest.fn().mockResolvedValue(undefined);
   const testConnection = jest.fn().mockResolvedValue({ success: true, message: 'ok', model: 'gpt' });
@@ -42,7 +51,8 @@ describe('useAPIConfigHandlers', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockUseAPIKeys.mockReturnValue({ apiKeys, updateKey });
+    mockGetKey.mockResolvedValue('anthropic-key');
+    mockUseAPIKeys.mockReturnValue({ apiKeys, updateKey, refreshKeyStatus });
     mockUseProviderVerification.mockReturnValue({ verifyProvider, removeVerification });
     mockUseConnectionTest.mockReturnValue({ testConnection });
     mockUseExpertMode.mockReturnValue({ toggleExpertMode, updateModel, updateParameter });
@@ -74,13 +84,15 @@ describe('useAPIConfigHandlers', () => {
     const outcome = await result.current.handleTestConnection('claude');
 
     expect(testConnection).toHaveBeenCalledWith('claude', 'anthropic-key');
-    expect(updateKey).toHaveBeenCalledWith('claude', 'anthropic-key');
+    expect(updateKey).not.toHaveBeenCalled();
+    expect(refreshKeyStatus).toHaveBeenCalledWith('claude');
     expect(verifyProvider).toHaveBeenCalledWith('claude', expect.objectContaining({ success: true, model: 'gpt' }));
     expect(outcome).toEqual({ success: true, message: 'ok', model: 'gpt' });
   });
 
   it('returns friendly error when no key is present', async () => {
     mockUseAPIKeys.mockReturnValueOnce({ apiKeys: {}, updateKey });
+    mockGetKey.mockResolvedValueOnce(null);
     const { result } = renderHandlers();
 
     const outcome = await result.current.handleTestConnection('openai');
@@ -98,7 +110,7 @@ describe('useAPIConfigHandlers', () => {
 
   it('saves key explicitly when requested', async () => {
     const { result } = renderHandlers();
-    await result.current.handleSaveKey('claude');
+    await result.current.handleSaveKey('claude', 'anthropic-key');
     expect(updateKey).toHaveBeenCalledWith('claude', 'anthropic-key');
   });
 

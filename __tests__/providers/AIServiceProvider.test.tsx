@@ -91,7 +91,7 @@ describe('AIServiceProvider', () => {
     });
 
     await waitFor(() => expect(result.current.isInitialized).toBe(true));
-    expect(mockAIServiceConstructor).toHaveBeenCalledWith(baseSettings.apiKeys);
+    expect(mockAIServiceConstructor).toHaveBeenCalledWith();
     expect(mockSetDemoModeEnabled).toHaveBeenCalledWith(false);
 
   });

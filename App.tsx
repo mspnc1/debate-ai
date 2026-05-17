@@ -186,7 +186,7 @@ function AppContent() {
               }
             );
 
-            console.log('User authenticated with Firebase:', user.uid);
+            console.warn('User authenticated with Firebase');
 
             // NOTE: Auto-restore removed - it was assigning purchases from OTHER Google accounts
             // to the currently logged-in Firebase user. This caused:

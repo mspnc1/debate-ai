@@ -19,21 +19,22 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run npm audit
-        run: |
-          npm audit --audit-level=moderate || true
-        continue-on-error: true
+      - name: Run root npm audit
+        run: npm audit --audit-level=moderate
 
-      - name: Check for known vulnerabilities
-        run: |
-          npx better-npm-audit audit --level moderate || true
-        continue-on-error: true
+      - name: Install Functions dependencies
+        run: npm ci
+        working-directory: functions
+
+      - name: Run Functions npm audit
+        run: npm audit --audit-level=moderate
+        working-directory: functions
 
   secret-scan:
     runs-on: ubuntu-latest
@@ -50,7 +51,6 @@ jobs:
           path: ./
           base: ${{ github.event.repository.default_branch }}
           head: HEAD
-        continue-on-error: true
 
   codeql-analysis:
     runs-on: ubuntu-latest

@@ -118,7 +118,10 @@ describe('CrashlyticsService', () => {
 
       CrashlyticsService.setUserId('user123');
 
-      expect(mockSetUserId).toHaveBeenCalledWith(mockCrashlyticsInstance, 'user123');
+      expect(mockSetUserId).toHaveBeenCalledWith(
+        mockCrashlyticsInstance,
+        expect.stringMatching(/^user_[a-z0-9]+$/)
+      );
     });
 
     it('clears user ID when null is provided', async () => {

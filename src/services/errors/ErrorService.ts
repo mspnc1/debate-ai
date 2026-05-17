@@ -286,7 +286,10 @@ class ErrorServiceClass {
     const result: Record<string, string> = {};
     for (const [key, value] of Object.entries(context)) {
       if (value !== undefined && value !== null) {
-        result[key] = typeof value === 'string' ? value : JSON.stringify(value);
+        const redacted = typeof Logger.redactValue === 'function'
+          ? Logger.redactValue(key, value)
+          : value;
+        result[key] = typeof redacted === 'string' ? redacted : JSON.stringify(redacted);
       }
     }
     return result;

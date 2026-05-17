@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, waitFor } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { CopyButton } from '@/components/molecules/common/CopyButton';
 
@@ -85,7 +85,9 @@ describe('CopyButton', () => {
         expect(getByText('checkmark-outline')).toBeTruthy();
       });
 
-      jest.advanceTimersByTime(1500);
+      act(() => {
+        jest.advanceTimersByTime(1500);
+      });
 
       await waitFor(() => {
         expect(getByText('copy-outline')).toBeTruthy();

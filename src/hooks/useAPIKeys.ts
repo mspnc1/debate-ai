@@ -1,11 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState, updateApiKeys } from '@/store';
+import {
+  RootState,
+  updateApiKeys,
+  getApiKeyMaskedLabel,
+  isApiKeyConfigured,
+  ApiKeyStatus,
+} from '@/store';
 import APIKeyService from '@/services/APIKeyService';
 import { AI_PROVIDERS } from '@/config/aiProviders';
 // Type guards imported for future validation needs
 
 export interface UseAPIKeysReturn {
+  apiKeyStatuses: Record<string, ApiKeyStatus | undefined>;
   apiKeys: Record<string, string>;
   isLoading: boolean;
   error: string | null;
@@ -15,20 +22,21 @@ export interface UseAPIKeysReturn {
   hasKey: (providerId: string) => boolean;
   getKeyCount: () => number;
   refreshKeys: () => Promise<void>;
+  refreshKeyStatus: (providerId: string) => Promise<void>;
   validateKey: (providerId: string, key: string) => { isValid: boolean; message: string };
   maskKey: (key: string) => string;
 }
 
 export const useAPIKeys = (): UseAPIKeysReturn => {
   const dispatch = useDispatch();
-  const existingKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
+  const existingStatuses = useSelector((state: RootState) => state.settings.apiKeys || {});
   
-  // Local state for immediate UI updates
+  // Local display state for immediate UI updates. These are masked labels only,
+  // never raw provider keys.
   const [localKeys, setLocalKeys] = useState<Record<string, string>>(() => {
     const keys: Record<string, string> = {};
     AI_PROVIDERS.forEach(provider => {
-      const existingKey = existingKeys?.[provider.id];
-      keys[provider.id] = existingKey || '';
+      keys[provider.id] = getApiKeyMaskedLabel(existingStatuses?.[provider.id]);
     });
     return keys;
   });
@@ -42,11 +50,20 @@ export const useAPIKeys = (): UseAPIKeysReturn => {
   useEffect(() => {
     const keys: Record<string, string> = {};
     AI_PROVIDERS.forEach(provider => {
-      const existingKey = existingKeys?.[provider.id];
-      keys[provider.id] = existingKey || '';
+      keys[provider.id] = getApiKeyMaskedLabel(existingStatuses?.[provider.id]);
     });
     setLocalKeys(keys);
-  }, [existingKeys]);
+  }, [existingStatuses]);
+
+  const refreshKeyStatus = useCallback(async (providerId: string) => {
+    try {
+      const key = await APIKeyService.getKey(providerId);
+      dispatch(updateApiKeys({ [providerId]: key || undefined }));
+    } catch (err) {
+      console.error(`Failed to refresh API key status for ${providerId}:`, err);
+      setError(`Failed to refresh ${providerId} API key status`);
+    }
+  }, [dispatch]);
 
   /**
    * Update a single API key
@@ -55,32 +72,20 @@ export const useAPIKeys = (): UseAPIKeysReturn => {
     try {
       setError(null);
       
-      // Optimistically update local state
-      setLocalKeys(prev => ({ ...prev, [providerId]: key }));
-
       // Save to secure storage
       await APIKeyService.saveKey(providerId, key);
 
-      // Update Redux state
-      const updatedKeys = { ...existingKeys, [providerId]: key };
-      if (!key) {
-        delete updatedKeys[providerId];
-      }
-      
-      dispatch(updateApiKeys(updatedKeys));
+      // Update Redux state with safe metadata only
+      dispatch(updateApiKeys({ [providerId]: key || undefined }));
     } catch (err) {
       console.error(`Failed to update API key for ${providerId}:`, err);
       setError(`Failed to update ${providerId} API key`);
       
-      // Revert optimistic update
-      setLocalKeys(prev => ({
-        ...prev,
-        [providerId]: existingKeys?.[providerId] || ''
-      }));
+      await refreshKeyStatus(providerId);
       
       throw err;
     }
-  }, [dispatch, existingKeys]);
+  }, [dispatch, refreshKeyStatus]);
 
   /**
    * Delete an API key
@@ -89,30 +94,21 @@ export const useAPIKeys = (): UseAPIKeysReturn => {
     try {
       setError(null);
       
-      // Optimistically update local state
       setLocalKeys(prev => ({ ...prev, [providerId]: '' }));
 
       // Delete from secure storage
       await APIKeyService.deleteKey(providerId);
 
-      // Update Redux state
-      const updatedKeys = { ...existingKeys };
-      delete updatedKeys[providerId];
-      
-      dispatch(updateApiKeys(updatedKeys));
+      dispatch(updateApiKeys({ [providerId]: undefined }));
     } catch (err) {
       console.error(`Failed to delete API key for ${providerId}:`, err);
       setError(`Failed to delete ${providerId} API key`);
       
-      // Revert optimistic update
-      setLocalKeys(prev => ({
-        ...prev,
-        [providerId]: existingKeys?.[providerId] || ''
-      }));
+      await refreshKeyStatus(providerId);
       
       throw err;
     }
-  }, [dispatch, existingKeys]);
+  }, [dispatch, refreshKeyStatus]);
 
   /**
    * Refresh keys from storage
@@ -127,7 +123,7 @@ export const useAPIKeys = (): UseAPIKeysReturn => {
       // Update local state with all providers
       const updatedKeys: Record<string, string> = {};
       AI_PROVIDERS.forEach(provider => {
-        updatedKeys[provider.id] = keys[provider.id] || '';
+        updatedKeys[provider.id] = getApiKeyMaskedLabel(keys[provider.id]);
       });
       
       setLocalKeys(updatedKeys);
@@ -150,7 +146,6 @@ export const useAPIKeys = (): UseAPIKeysReturn => {
       setError(null);
       setIsLoading(true);
 
-      // Optimistically update local state
       const emptyKeys: Record<string, string> = {};
       AI_PROVIDERS.forEach(provider => {
         emptyKeys[provider.id] = '';
@@ -179,15 +174,15 @@ export const useAPIKeys = (): UseAPIKeysReturn => {
    * Check if provider has an API key
    */
   const hasKey = useCallback((providerId: string): boolean => {
-    return !!(localKeys[providerId] && localKeys[providerId].trim().length > 0);
-  }, [localKeys]);
+    return isApiKeyConfigured(existingStatuses[providerId]);
+  }, [existingStatuses]);
 
   /**
    * Get count of configured API keys
    */
   const getKeyCount = useCallback((): number => {
-    return Object.values(localKeys).filter(key => key && key.trim().length > 0).length;
-  }, [localKeys]);
+    return Object.values(existingStatuses).filter(isApiKeyConfigured).length;
+  }, [existingStatuses]);
 
   /**
    * Validate API key format
@@ -204,6 +199,7 @@ export const useAPIKeys = (): UseAPIKeysReturn => {
   }, []);
 
   return {
+    apiKeyStatuses: existingStatuses,
     apiKeys: localKeys,
     isLoading,
     error,
@@ -213,6 +209,7 @@ export const useAPIKeys = (): UseAPIKeysReturn => {
     hasKey,
     getKeyCount,
     refreshKeys,
+    refreshKeyStatus,
     validateKey,
     maskKey,
   };

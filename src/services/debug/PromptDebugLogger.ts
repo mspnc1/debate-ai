@@ -1,3 +1,5 @@
+import { Logger } from '@/services/logging';
+
 export type PromptDebugPayload = {
   aiId: string;
   aiName: string;
@@ -29,7 +31,10 @@ export class PromptDebugLogger {
     try {
       // Use a compact label + pretty JSON for readability in RN logs
       // Avoid massive spam: cap extremely large prompts but keep them mostly intact
-      const cap = (s?: string) => (s && s.length > 8000 ? s.slice(0, 8000) + '\n…[truncated]' : s);
+      const cap = (s?: string) => {
+        const redacted = s ? Logger.redactString(s) : s;
+        return redacted && redacted.length > 8000 ? redacted.slice(0, 8000) + '\n…[truncated]' : redacted;
+      };
       const sanitized: PromptDebugPayload = {
         ...payload,
         systemPromptApplied: cap(payload.systemPromptApplied),
@@ -43,4 +48,3 @@ export class PromptDebugLogger {
     }
   }
 }
-

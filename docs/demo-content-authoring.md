@@ -3,15 +3,12 @@
 This guide shows how to create the content used by Demo Mode.
 
 ## What you create
-- A single JSON pack at `src/assets/demo/demo-pack.v1.json` with:
-  - `chats`: pre-recorded chat sessions
-  - `debates`: pre-recorded debates
-  - `compares`: pre-recorded compare runs
-  - `assets`: optional map of logical names → asset paths
+- One recording JSON per sample under `scripts/demo/recordings/`.
+- A generated manifest at `src/assets/demo/recordingsManifest.ts` built by `scripts/demo/build-recordings-manifest.js`.
 - Optional media under `src/assets/demo/media/` (WebP preferred)
 
 ## Quick start (manual authoring)
-1) Duplicate the sample chat in `demo-pack.v1.json` and change:
+1) Add or duplicate a recording JSON in `scripts/demo/recordings/` and change:
 - `id`, `title`
 - `events`: build a sequence of `message` (full bubbles) and `stream` (chunked text) events.
 
@@ -47,8 +44,9 @@ export const demoAssets = {
 4) Debates/compares: author similar `events` arrays with alternating roles (assistant/user) or left/right columns.
 
 ## Recommended workflow (semi-automated)
-- Use a dev-only recorder to capture real sessions (stream chunks, image/tool events, and delays), then curate and paste into the pack.
-- We can add this recorder for you in `scripts/demo/` if desired.
+- Use the dev-only recorder to capture real sessions (stream chunks, image/tool events, and delays).
+- Save the recording JSON under `scripts/demo/recordings/`.
+- Run `npm run demo:build-recordings` to regenerate `src/assets/demo/recordingsManifest.ts`.
 
 ## Authoring tips
 - Keep sessions concise and believable; aim for 5–12 assistant chunks per answer.
@@ -57,13 +55,12 @@ export const demoAssets = {
 - Avoid real PII or claims; you can neutralize provider/model names if needed.
 
 ## Validation
-- Static typecheck ensures JSON structure is correct (tsconfig resolves JSON modules).
-- Playback adapters use the events as-is to render streaming and attachments.
+- Static typecheck ensures the generated manifest imports valid JSON modules.
+- Playback adapters use the manifest recordings as-is to render streaming and attachments.
 
 ## Where it’s used
-- `DemoContentService.getPack()` returns the pack; playback adapters will read `chats`, `debates`, `compares` to drive UI.
+- `DemoContentService` reads `recordingsManifest.ts`; playback adapters route chat, debate, and compare samples from those recordings.
 
 ## Next steps (we can build for you)
 - Add a dev recorder and packer script (capture → curate → emit pack JSON + asset map).
 - Add a “Demo Samples” list on Chat/Compare screens to pick and replay samples.
-

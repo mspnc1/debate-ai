@@ -38,9 +38,13 @@ interface LoggerConfig {
 const DEFAULT_CONFIG: LoggerConfig = {
   minLevel: __DEV__ ? LogLevel.DEBUG : LogLevel.WARN,
   maxBufferSize: 500,
-  consoleOutput: __DEV__,
+  consoleOutput: __DEV__ && process.env.NODE_ENV !== 'test',
   crashlyticsEnabled: true,
 };
+
+const SENSITIVE_KEY_PATTERN = /(api[-_ ]?key|authorization|bearer|token|secret|password|receipt|email|user[-_ ]?id|uid|purchase)/i;
+const API_KEY_VALUE_PATTERN = /\b(sk-ant-[A-Za-z0-9_-]+|sk-[A-Za-z0-9_-]+|pplx-[A-Za-z0-9_-]+|AIza[A-Za-z0-9_-]+|gsk_[A-Za-z0-9_-]+|xai-[A-Za-z0-9_-]+)\b/g;
+const EMAIL_VALUE_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
 
 /**
  * Logger - Centralized logging service
@@ -69,6 +73,40 @@ export class Logger {
       Logger.instance = new Logger();
     }
     return Logger.instance;
+  }
+
+  static redactString(value: string): string {
+    return value
+      .replace(API_KEY_VALUE_PATTERN, '[REDACTED_API_KEY]')
+      .replace(EMAIL_VALUE_PATTERN, '[REDACTED_EMAIL]');
+  }
+
+  static redactValue(key: string, value: unknown): unknown {
+    if (value === undefined || value === null) {
+      return value;
+    }
+    if (SENSITIVE_KEY_PATTERN.test(key)) {
+      return '[REDACTED]';
+    }
+    if (typeof value === 'string') {
+      return Logger.redactString(value);
+    }
+    if (Array.isArray(value)) {
+      return value.map((item, index) => Logger.redactValue(String(index), item));
+    }
+    if (typeof value === 'object') {
+      return Logger.redactContext(value as Record<string, unknown>);
+    }
+    return value;
+  }
+
+  static redactContext(context?: Record<string, unknown>): Record<string, unknown> | undefined {
+    if (!context) {
+      return undefined;
+    }
+    return Object.fromEntries(
+      Object.entries(context).map(([key, value]) => [key, Logger.redactValue(key, value)])
+    );
   }
 
   /**
@@ -100,21 +138,28 @@ export class Logger {
     error?: Error,
     context?: Record<string, unknown>
   ): void {
-    const errorContext = error
+    const redactedError = error
+      ? Object.assign(new Error(Logger.redactString(error.message)), {
+          name: error.name,
+          stack: error.stack ? Logger.redactString(error.stack) : undefined,
+        })
+      : undefined;
+
+    const errorContext = redactedError
       ? {
           ...context,
-          errorName: error.name,
-          errorMessage: error.message,
-          errorStack: error.stack,
+          errorName: redactedError.name,
+          errorMessage: redactedError.message,
+          errorStack: redactedError.stack,
         }
       : context;
 
-    this.log(LogLevel.ERROR, message, errorContext);
+    this.log(LogLevel.ERROR, Logger.redactString(message), errorContext);
 
     // Send to Crashlytics if enabled and we have an Error object
-    if (this.config.crashlyticsEnabled && error) {
-      CrashlyticsService.recordError(error, {
-        logMessage: message,
+    if (this.config.crashlyticsEnabled && redactedError) {
+      CrashlyticsService.recordError(redactedError, {
+        logMessage: Logger.redactString(message),
         ...this.stringifyContext(context),
       });
     }
@@ -136,8 +181,8 @@ export class Logger {
     const entry: LogEntry = {
       timestamp: Date.now(),
       level,
-      message,
-      context,
+      message: Logger.redactString(message),
+      context: Logger.redactContext(context),
     };
 
     // Add to circular buffer
@@ -160,7 +205,7 @@ export class Logger {
       level >= LogLevel.INFO &&
       level < LogLevel.ERROR
     ) {
-      CrashlyticsService.log(`[${this.getLevelName(level)}] ${message}`);
+      CrashlyticsService.log(`[${this.getLevelName(level)}] ${entry.message}`);
     }
   }
 
@@ -222,7 +267,7 @@ export class Logger {
     const result: Record<string, string> = {};
     for (const [key, value] of Object.entries(context)) {
       result[key] =
-        typeof value === 'string' ? value : JSON.stringify(value);
+        typeof value === 'string' ? Logger.redactString(value) : JSON.stringify(Logger.redactValue(key, value));
     }
     return result;
   }

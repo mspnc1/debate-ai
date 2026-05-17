@@ -124,6 +124,13 @@ jest.mock('@/services/images/ImageService', () => ({
   },
 }));
 
+jest.mock('@/services/APIKeyService', () => ({
+  __esModule: true,
+  default: {
+    getKey: jest.fn().mockImplementation(async (provider: string) => `${provider}-key`),
+  },
+}));
+
 jest.mock('@/config/create/stylePresets', () => ({
   buildEnhancedPrompt: (prompt: string) => prompt,
 }));

@@ -109,7 +109,7 @@ describe('CompareRecordPickerModal', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockListCompareSamples.mockResolvedValue([
+    mockListCompareSamples.mockReturnValue([
       { id: 'sample-1', title: 'Sample One' },
     ]);
   });

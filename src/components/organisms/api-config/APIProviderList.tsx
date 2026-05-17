@@ -16,9 +16,9 @@ export interface APIProviderListProps {
     message?: string;
     model?: string;
   }>;
-  onKeyChange: (providerId: string, key: string) => void;
-  onTest: (providerId: string) => Promise<{ success: boolean; message?: string; model?: string; }>;
-  onSave: (providerId: string) => Promise<void>;
+  onKeyChange?: (providerId: string, key: string) => void;
+  onTest: (providerId: string, keyOverride?: string) => Promise<{ success: boolean; message?: string; model?: string; }>;
+  onSave: (providerId: string, keyOverride?: string) => Promise<void>;
   onToggleExpand: (providerId: string) => void;
   expandedProvider: string | null;
   expertModeConfigs: Record<string, { enabled: boolean; selectedModel?: string; parameters?: Record<string, number>; }>;
@@ -71,7 +71,6 @@ export const APIProviderList: React.FC<APIProviderListProps> = ({
           parameters: DEFAULT_PARAMETERS 
         };
         const isExpanded = expandedProvider === provider.id;
-        // const hasApiKey = !!(apiKeys[provider.id] && apiKeys[provider.id].trim().length > 0);
         
         return (
           <Box key={provider.id} style={[
@@ -81,9 +80,13 @@ export const APIProviderList: React.FC<APIProviderListProps> = ({
             <ProviderCard
               provider={provider}
               apiKey={apiKeys[provider.id] || ''}
-              onKeyChange={(key) => onKeyChange(provider.id, key)}
-              onTest={() => onTest(provider.id)}
-              onSave={() => onSave(provider.id)}
+              onKeyChange={onKeyChange ? (key) => onKeyChange(provider.id, key) : undefined}
+              onTest={(keyOverride) => (
+                keyOverride === undefined ? onTest(provider.id) : onTest(provider.id, keyOverride)
+              )}
+              onSave={(keyOverride) => (
+                keyOverride === undefined ? onSave(provider.id) : onSave(provider.id, keyOverride)
+              )}
               isExpanded={isExpanded}
               onToggleExpand={() => onToggleExpand(provider.id)}
               index={index}

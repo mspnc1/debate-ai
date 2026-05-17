@@ -5,13 +5,14 @@ import { useAPIKeys } from './useAPIKeys';
 import { useConnectionTest } from './useConnectionTest';
 import { useExpertMode } from './useExpertMode';
 import { useProviderVerification } from './useProviderVerification';
+import { isApiKeyConfigured } from '@/store';
 
 /**
  * Custom hook that handles data computation and transformation for API configuration
  * to reduce the main component complexity and improve performance with memoization.
  */
 export const useAPIConfigData = () => {
-  const { apiKeys } = useAPIKeys();
+  const { apiKeys, apiKeyStatuses = apiKeys } = useAPIKeys();
   const { testStatuses } = useConnectionTest();
   const { getConfig } = useExpertMode();
   const { verifiedProviders, getVerificationMessage, getVerificationModel } = useProviderVerification();
@@ -19,11 +20,11 @@ export const useAPIConfigData = () => {
   // Memoized provider lists to avoid unnecessary recalculations
   const enabledProviders = useMemo(() => getEnabledProviders(), []);
   const disabledProviders = useMemo(() => AI_PROVIDERS.filter(p => !p.enabled), []);
-  
+
   // Count of providers with valid API keys configured
-  const configuredCount = useMemo(() => 
-    enabledProviders.filter(p => !!apiKeys[p.id]).length, 
-    [enabledProviders, apiKeys]
+  const configuredCount = useMemo(() =>
+    enabledProviders.filter(p => isApiKeyConfigured(apiKeyStatuses[p.id])).length,
+    [enabledProviders, apiKeyStatuses]
   );
 
   /**
@@ -39,7 +40,7 @@ export const useAPIConfigData = () => {
     
     // First, check for verified providers from Redux
     enabledProviders.forEach(provider => {
-      const hasKey = !!apiKeys[provider.id];
+      const hasKey = isApiKeyConfigured(apiKeyStatuses[provider.id]);
       const isVerified = verifiedProviders.includes(provider.id);
       
       if (isVerified && hasKey) {
@@ -64,7 +65,7 @@ export const useAPIConfigData = () => {
     });
     
     return statusMap;
-  }, [testStatuses, verifiedProviders, enabledProviders, apiKeys, getVerificationMessage, getVerificationModel]);
+  }, [testStatuses, verifiedProviders, enabledProviders, apiKeyStatuses, getVerificationMessage, getVerificationModel]);
 
   /**
    * Convert expert mode configs for provider list, filtering only valid API key providers.

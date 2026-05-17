@@ -7,6 +7,8 @@ import { resolveProviderModelId } from '../config/modelConfigs';
 import { PersonalityOption } from '../config/personalities';
 import { AdapterFactory, BaseAdapter } from './ai';
 import type { AIAdapterConfig, ResumptionContext } from './ai';
+import APIKeyService from './APIKeyService';
+import { isDemoModeEnabled } from './demo/demoMode';
 
 // Re-export types for backwards compatibility
 export type { AIAdapterConfig, ResumptionContext } from './ai';
@@ -104,6 +106,50 @@ export class AIService {
   getAdapter(provider: string): BaseAdapter | undefined {
     return this.adapters.get(provider);
   }
+
+  async getApiKey(provider: string): Promise<string | null> {
+    if (isDemoModeEnabled()) {
+      return 'demo';
+    }
+    return APIKeyService.getKey(provider);
+  }
+
+  async ensureAdapter(
+    adapterId: string,
+    provider: string = adapterId,
+    model?: string,
+    apiKeyOverride?: string | null
+  ): Promise<BaseAdapter | undefined> {
+    const existing = this.adapters.get(adapterId);
+    if (existing) {
+      if (model) {
+        existing.config.model = model;
+      }
+      return existing;
+    }
+
+    const apiKey = apiKeyOverride || await this.getApiKey(provider);
+    if (!apiKey) {
+      return undefined;
+    }
+
+    try {
+      const config: AIAdapterConfig = {
+        provider: provider as AIProvider,
+        apiKey,
+        model,
+        personality: PERSONALITIES.neutral,
+      };
+      const adapter = model
+        ? AdapterFactory.createWithModel(config, model)
+        : AdapterFactory.create(config);
+      this.adapters.set(adapterId, adapter);
+      return adapter;
+    } catch (error) {
+      console.warn(`Failed to create adapter for ${provider}:`, error);
+      return undefined;
+    }
+  }
   
   getAllAdapters(): Map<string, BaseAdapter> {
     return this.adapters;
@@ -125,11 +171,6 @@ export class AIService {
     attachmentsOrParams?: MessageAttachment[] | ModelParameters,
     modelOrDebateMode?: string | boolean
   ): Promise<{ response: string; modelUsed?: string }> {
-    const adapter = this.adapters.get(provider);
-    if (!adapter) {
-      throw new Error(`No adapter found for provider: ${provider}`);
-    }
-    
     // Handle overloaded parameters based on type checking
     let isDebateMode: boolean | undefined;
     let personality: PersonalityConfig | undefined;
@@ -137,20 +178,20 @@ export class AIService {
     let model: string | undefined;
     let attachments: MessageAttachment[] | undefined;
     let parameters: ModelParameters | undefined;
-    
+
     // Parse the overloaded arguments
     if (typeof isDebateModeOrPersonality === 'boolean') {
       isDebateMode = isDebateModeOrPersonality;
     } else if (isDebateModeOrPersonality) {
       personality = isDebateModeOrPersonality;
     }
-    
+
     if (resumptionContextOrModel && typeof resumptionContextOrModel === 'object') {
       resumptionContext = resumptionContextOrModel;
     } else if (typeof resumptionContextOrModel === 'string') {
       model = resumptionContextOrModel;
     }
-    
+
     if (Array.isArray(attachmentsOrParams) && attachmentsOrParams.length > 0) {
       if (attachmentsOrParams[0].type === 'image' || attachmentsOrParams[0].type === 'document') {
         attachments = attachmentsOrParams as MessageAttachment[];
@@ -158,11 +199,17 @@ export class AIService {
     } else if (attachmentsOrParams && typeof attachmentsOrParams === 'object') {
       parameters = attachmentsOrParams as ModelParameters;
     }
-    
+
     if (typeof modelOrDebateMode === 'string') {
       model = modelOrDebateMode;
     } else if (typeof modelOrDebateMode === 'boolean') {
       isDebateMode = modelOrDebateMode;
+    }
+
+    const resolvedModel = model ? resolveProviderModelId(provider, model) : undefined;
+    const adapter = await this.ensureAdapter(provider, provider, resolvedModel);
+    if (!adapter) {
+      throw new Error(`No adapter found for provider: ${provider}`);
     }
     
     // Apply configurations
@@ -170,7 +217,6 @@ export class AIService {
       adapter.setTemporaryPersonality(personality);
     }
     
-    const resolvedModel = model ? resolveProviderModelId(provider, model) : undefined;
     if (model) {
       adapter.config.model = resolvedModel;
     }

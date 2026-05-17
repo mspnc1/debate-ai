@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState, setAIPersonality, setAIModel, preserveTopic, clearPreservedTopic, setGlobalStreaming, setStreamingSpeed } from '../store';
+import { RootState, setAIPersonality, setAIModel, preserveTopic, clearPreservedTopic, setGlobalStreaming, setStreamingSpeed, isApiKeyConfigured } from '../store';
 import { setProviderStreamingPreference } from '../store/streamingSlice';
 
 import { Box, ResponsiveContainer } from '../components/atoms';
@@ -76,7 +76,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     const isDemo = access.isDemo;
     const providers = isDemo
       ? AI_PROVIDERS.filter(p => p.enabled && DEMO_ALLOWED.has(p.id))
-      : AI_PROVIDERS.filter(provider => provider.enabled && apiKeys[provider.id as keyof typeof apiKeys]);
+      : AI_PROVIDERS.filter(provider => provider.enabled && isApiKeyConfigured(apiKeys[provider.id]));
 
     return providers.map(provider => {
       const iconData = getAIProviderIcon(provider.id);

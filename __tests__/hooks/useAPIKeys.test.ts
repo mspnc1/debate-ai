@@ -9,6 +9,7 @@ jest.mock('@/services/APIKeyService', () => ({
   default: {
     saveKey: jest.fn().mockResolvedValue(undefined),
     deleteKey: jest.fn().mockResolvedValue(undefined),
+    getKey: jest.fn().mockResolvedValue(null),
     loadKeys: jest.fn().mockResolvedValue({}),
     clearAllKeys: jest.fn().mockResolvedValue(undefined),
     validateKeyFormat: jest.fn().mockImplementation((_, key: string) => ({
@@ -42,6 +43,7 @@ describe('useAPIKeys', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedService.getKey.mockImplementation(async (provider: string) => existingKeys[provider] || null);
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
   });
 
@@ -54,7 +56,7 @@ describe('useAPIKeys', () => {
       preloadedState: createPreloadedState(existingKeys),
     });
 
-    expect(result.current.apiKeys.claude).toBe('anthropic-key');
+    expect(result.current.apiKeys.claude).toBe('anth•••••-key');
     expect(result.current.hasKey('claude')).toBe(true);
     expect(result.current.hasKey('google')).toBe(false);
     expect(result.current.getKeyCount()).toBeGreaterThanOrEqual(2);
@@ -72,8 +74,11 @@ describe('useAPIKeys', () => {
     });
 
     expect(mockedService.saveKey).toHaveBeenCalledWith('claude', 'new-key');
-    expect(store.getState().settings.apiKeys?.claude).toBe('new-key');
-    expect(result.current.apiKeys.claude).toBe('new-key');
+    expect(store.getState().settings.apiKeys?.claude).toEqual(expect.objectContaining({
+      configured: true,
+      maskedLabel: '••••••••',
+    }));
+    expect(result.current.apiKeys.claude).toBe('••••••••');
   });
 
   it('reverts optimistic update on update error', async () => {
@@ -93,7 +98,7 @@ describe('useAPIKeys', () => {
     });
 
     expect(caught?.message).toBe('save failed');
-    expect(result.current.apiKeys.claude).toBe('anthropic-key');
+    expect(result.current.apiKeys.claude).toBe('anth•••••-key');
     expect(result.current.error).toBe('Failed to update claude API key');
   });
 
@@ -120,7 +125,7 @@ describe('useAPIKeys', () => {
     });
 
     await act(async () => {});
-    expect(result.current.apiKeys.claude).toBe('anthropic-key');
+    expect(result.current.apiKeys.claude).toBe('anth•••••-key');
     expect(result.current.error).toBe('Failed to delete claude API key');
     expect(caught?.message).toBe('boom');
   });
@@ -137,8 +142,11 @@ describe('useAPIKeys', () => {
     });
 
     expect(mockedService.loadKeys).toHaveBeenCalled();
-    expect(result.current.apiKeys.claude).toBe('fresh');
-    expect(store.getState().settings.apiKeys?.google).toBe('ai-key');
+    expect(result.current.apiKeys.claude).toBe('••••••••');
+    expect(store.getState().settings.apiKeys?.google).toEqual(expect.objectContaining({
+      configured: true,
+      maskedLabel: '••••••••',
+    }));
     expect(result.current.isLoading).toBe(false);
   });
 
@@ -168,7 +176,7 @@ describe('useAPIKeys', () => {
 
     expect(caught?.message).toBe('clear failed');
     expect(mockedService.loadKeys).toHaveBeenCalled();
-    expect(result.current.apiKeys.claude).toBe('anthropic-key');
+    expect(result.current.apiKeys.claude).toBe('anth•••••-key');
   });
 
   it('validates using service and reports invalid states', () => {

@@ -6,7 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
-import { RootState } from '../store';
+import { RootState, isApiKeyConfigured } from '../store';
 import { RootStackParamList } from '../types';
 import { useTheme } from '../theme';
 import { SheetProvider } from '../contexts/SheetContext';
@@ -50,7 +50,7 @@ const MainTabs = () => {
 
   // Calculate configured AI count for badge
   const configuredCount = useMemo(() => {
-    return Object.values(apiKeys).filter(Boolean).length;
+    return Object.values(apiKeys).filter(isApiKeyConfigured).length;
   }, [apiKeys]);
 
   // Responsive tab bar sizing for iPad

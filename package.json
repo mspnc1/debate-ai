@@ -18,7 +18,11 @@
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm run lint && npm run test",
+    "check:app": "npm run typecheck && npm run lint && npm run test",
+    "check:functions": "npm --prefix functions run build && npm --prefix functions test",
+    "audit:all": "npm audit --audit-level=moderate && npm --prefix functions audit --audit-level=moderate",
+    "check:all": "npm run check:app && npm run check:functions && npm run audit:all",
+    "check": "npm run check:app",
     "discover:models": "node scripts/api-discovery/discover-all-models.js",
     "docs:providers": "node scripts/api-discovery/discover-all-models.js && echo 'Provider docs refreshed.'",
     "salesforce-docs:index": "npm --prefix functions run salesforce-docs:index --",
@@ -123,7 +127,9 @@
     "fast-xml-parser": "^5.7.0",
     "http-proxy-agent": "^7.0.2",
     "postcss": "^8.5.10",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.0",
+    "protobufjs": "^7.5.8",
+    "@protobufjs/utf8": "^1.1.1"
   },
   "private": true
 }

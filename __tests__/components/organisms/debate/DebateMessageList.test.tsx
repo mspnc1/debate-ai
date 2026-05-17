@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { fireEvent } from '@testing-library/react-native';
+import { act, fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { DebateMessageList } from '@/components/organisms/debate/DebateMessageList';
 import { Message } from '@/types';
@@ -71,6 +71,14 @@ describe('DebateMessageList', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+    jest.useRealTimers();
   });
 
   describe('Rendering', () => {

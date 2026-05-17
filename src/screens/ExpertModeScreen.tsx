@@ -9,7 +9,7 @@ import { AI_PROVIDERS } from '../config/aiProviders';
 import { useTheme } from '../theme';
 import { ProviderExpertSettings } from '../components/organisms';
 import { DEFAULT_PARAMETERS } from '../config/modelConfigs';
-import { RootState, updateExpertMode, showSheet } from '../store';
+import { RootState, updateExpertMode, showSheet, isApiKeyConfigured } from '../store';
 import { useDispatch } from 'react-redux';
 import Animated, { FadeInDown, FadeOutUp, Layout } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,7 +24,7 @@ const ExpertModeScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ na
   const expertMode = useSelector((state: RootState) => state.settings.expertMode || {});
   const { isDemo } = useFeatureAccess();
 
-  const providersWithKeys = AI_PROVIDERS.filter(p => p.enabled && !!apiKeys[p.id]);
+  const providersWithKeys = AI_PROVIDERS.filter(p => p.enabled && isApiKeyConfigured(apiKeys[p.id]));
   const [expanded, setExpanded] = useState<string | null>(providersWithKeys[0]?.id || null);
 
   const toggle = useCallback((id: string) => {

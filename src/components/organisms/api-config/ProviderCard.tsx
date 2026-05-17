@@ -54,9 +54,9 @@ const formatModelName = (modelId: string): string => {
 interface ProviderCardProps {
   provider: AIProvider;
   apiKey: string;
-  onKeyChange: (key: string) => void;
-  onTest: () => Promise<{ success: boolean; message?: string; model?: string }>;
-  onSave: () => Promise<void>;
+  onKeyChange?: (key: string) => void;
+  onTest: (keyOverride?: string) => Promise<{ success: boolean; message?: string; model?: string }>;
+  onSave: (keyOverride?: string) => Promise<void>;
   isExpanded: boolean;
   onToggleExpand: () => void;
   index: number;
@@ -95,29 +95,40 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
   const { theme, isDark } = useTheme();
   const [isEditing, setIsEditing] = useState(!apiKey);
   const [isTesting, setIsTesting] = useState(false);
-  const [localKey, setLocalKey] = useState(apiKey);
+  const [localKey, setLocalKey] = useState('');
 
-  // Sync localKey when apiKey prop changes (e.g., from clipboard paste)
+  const getMaskedKey = (key: string) => {
+    if (!key) return '';
+    if (key.includes('•')) return key;
+    if (key.length <= 10) return '•'.repeat(key.length);
+    return key.slice(0, 3) + '•'.repeat(key.length - 6) + key.slice(-3);
+  };
+
+  const displayApiKey = getMaskedKey(apiKey);
+
+  // Sync display state when the masked status changes. Raw keys are never
+  // copied from Redux into component state.
   useEffect(() => {
-    if (apiKey !== localKey) {
-      setLocalKey(apiKey);
-      // If a key was pasted, switch to editing mode to show the full key
-      if (apiKey && !localKey) {
-        setIsEditing(true);
-      }
+    if (!displayApiKey) {
+      setIsEditing(true);
+      return;
     }
-  }, [apiKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!isEditing) {
+      setLocalKey('');
+    }
+  }, [displayApiKey, isEditing]);
 
   const handleTest = async () => {
     setIsTesting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     try {
-      const result = await onTest();
+      const pendingKey = localKey.trim();
+      const result = await onTest(pendingKey || undefined);
       if (result.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        // Auto-save on successful test
-        await onSave();
+        await onSave(pendingKey || undefined);
+        setLocalKey('');
         setIsEditing(false);
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -125,12 +136,6 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
     } finally {
       setIsTesting(false);
     }
-  };
-
-  const getMaskedKey = (key: string) => {
-    if (!key) return '';
-    if (key.length <= 10) return '•'.repeat(key.length);
-    return key.slice(0, 3) + '•'.repeat(key.length - 6) + key.slice(-3);
   };
 
   const openURL = async (url: string) => {
@@ -209,7 +214,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
                   {provider.name}
                 </Typography>
                 {/* Connection status icon */}
-                {(testStatus === 'success' || testStatusMessage) && apiKey && (
+                {(testStatus === 'success' || testStatusMessage) && displayApiKey && (
                   <>
                     <Text style={{ fontSize: 16 }}>✅</Text>
                     {expertModeEnabled && (
@@ -233,7 +238,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
               </View>
               
               {/* Connection status and pricing */}
-              {(testStatus === 'success' || testStatusMessage) && apiKey ? (
+              {(testStatus === 'success' || testStatusMessage) && displayApiKey ? (
                 <View style={{ marginTop: 4 }}>
                   {/* Model and pricing info */}
                   {(() => {
@@ -457,33 +462,35 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
                 }}
                 placeholder={provider.apiKeyPlaceholder}
                 placeholderTextColor={theme.colors.text.disabled}
-                value={isEditing ? localKey : getMaskedKey(localKey)}
+                value={isEditing ? localKey : displayApiKey}
                 onChangeText={(text) => {
                   setLocalKey(text);
-                  onKeyChange(text);
+                  onKeyChange?.(text);
                 }}
                 autoCapitalize="none"
                 autoCorrect={false}
-                secureTextEntry={!isEditing && !!apiKey}
+                secureTextEntry={isEditing}
                 editable={isEditing}
                 accessibilityLabel={`${provider.name} API key input`}
                 accessibilityHint={`Enter your ${provider.name} API key. Current status: ${testStatus || 'not tested'}`}
               />
               
-              {apiKey && (
+              {displayApiKey && (
                 <TouchableOpacity
                   onPress={() => {
-                    setIsEditing(!isEditing);
-                    if (!isEditing) {
+                    const nextEditing = !isEditing;
+                    setIsEditing(nextEditing);
+                    setLocalKey('');
+                    if (nextEditing) {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     }
                   }}
                   style={{ padding: 8 }}
-                  accessibilityLabel={isEditing ? 'Hide API key' : 'Edit API key'}
-                  accessibilityHint={isEditing ? 'Tap to hide the API key for security' : 'Tap to reveal and edit the API key'}
+                  accessibilityLabel={isEditing ? 'Cancel API key edit' : 'Replace API key'}
+                  accessibilityHint={isEditing ? 'Tap to cancel editing this API key' : 'Tap to replace this API key'}
                   accessibilityRole="button"
                 >
-                  <Text>{isEditing ? '👁️' : '✏️'}</Text>
+                  <Text>{isEditing ? '✕' : '✏️'}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -493,7 +500,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
           <GradientButton
             title={isTesting ? 'Testing...' : 'Test Connection'}
             onPress={handleTest}
-            disabled={!localKey || isTesting}
+            disabled={(!localKey.trim() && !displayApiKey) || isTesting}
             gradient={provider.gradient}
             fullWidth
           />

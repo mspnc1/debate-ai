@@ -7,13 +7,13 @@ import { useAIService } from '../providers/AIServiceProvider';
 import { MessageAttachment } from '../types';
 import { getAttachmentSupport } from '../utils/attachmentUtils';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState, addMessage, updateMessage, setWebSearchPreferred } from '../store';
+import { RootState, addMessage, updateMessage, setWebSearchPreferred, isApiKeyConfigured } from '../store';
 import { ImageService } from '../services/images/ImageService';
 import { useMergedModalityAvailability } from '../hooks/multimodal/useModalityAvailability';
 import { ImageRefinementModal, RefinementProvider } from '../components/organisms/chat/ImageRefinementModal';
 import { getImageInputModels, getImageProviderDisplayName } from '../config/imageGenerationModels';
 import { loadBase64FromFileUri } from '../services/images/fileCache';
-// import APIKeyService from '../services/APIKeyService';
+import APIKeyService from '../services/APIKeyService';
 // import VideoService from '../services/videos/VideoService';
 
 // Chat-specific hooks
@@ -161,7 +161,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   const refinementProviders = React.useMemo((): RefinementProvider[] => {
     const allProviders: AIProvider[] = ['openai', 'google', 'grok', 'claude'];
     return allProviders.map(provider => {
-      const hasApiKey = Boolean(apiKeys[provider as keyof typeof apiKeys]);
+      const hasApiKey = isApiKeyConfigured(apiKeys[provider]);
       return {
         provider,
         name: getImageProviderDisplayName(provider),
@@ -193,7 +193,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     }
     setRefinementModalVisible(false);
 
-    const apiKey = apiKeys[opts.provider as keyof typeof apiKeys];
+    const apiKey = await APIKeyService.getKey(opts.provider);
     if (!apiKey) {
       ErrorService.handleWithToast(new Error(`${opts.provider} API key not configured`), { feature: 'chat', provider: opts.provider });
       return;
@@ -282,7 +282,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         metadata: { providerMetadata: { imageGenerating: false, imagePhase: 'error' } },
       }));
     }
-  }, [isDemo, apiKeys, dispatch, refinementImageUri, refinementOriginalPrompt, refinementMessageId]);
+  }, [isDemo, dispatch, refinementImageUri, refinementOriginalPrompt, refinementMessageId]);
 
   /* const handleGenerateVideo = async (opts: { prompt: string; resolution: '720p' | '1080p'; duration: 5 | 10 | 15 }) => {
     try {
@@ -341,9 +341,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     };
 
     // Trigger AI responses with attachments and web search if enabled
-    console.warn('[ChatScreen] Sending with webSearchEnabled:', webSearchEnabled, 'webSearchPreferred:', webSearchPreferred, 'webSearchAvailable:', webSearchAvailable);
     await aiResponses.sendAIResponses(userMessage, undefined, attachments, webSearchEnabled);
-  }, [dispatch, input, session.currentSession, mentions, messages, aiResponses, isDemo, webSearchEnabled, webSearchPreferred, webSearchAvailable]);
+  }, [dispatch, input, session.currentSession, mentions, messages, aiResponses, isDemo, webSearchEnabled]);
 
   // Auto-save session when it's created or messages change
   useEffect(() => {

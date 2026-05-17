@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { ScrollView, View, Alert, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState, setAIPersonality, setAIModel } from '../store';
+import { RootState, setAIPersonality, setAIModel, isApiKeyConfigured } from '../store';
 
 import { Box } from '../components/atoms';
 import { Typography, Button } from '../components/molecules';
@@ -50,7 +50,7 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
     const isDemo = access.isDemo;
     const providers = isDemo
       ? AI_PROVIDERS.filter(p => p.enabled && DEMO_ALLOWED.has(p.id))
-      : AI_PROVIDERS.filter(provider => provider.enabled && apiKeys[provider.id as keyof typeof apiKeys]);
+      : AI_PROVIDERS.filter(provider => provider.enabled && isApiKeyConfigured(apiKeys[provider.id]));
 
     return providers.map(provider => {
       const iconData = getAIProviderIcon(provider.id);

@@ -3,6 +3,7 @@ import { AI_PROVIDERS } from '../../config/aiProviders';
 import { getProviderDefaultModel } from '../../config/modelConfigs';
 import { getAIProviderIcon } from '../../utils/aiProviderAssets';
 import { isDemoModeEnabled } from '@/services/demo/demoMode';
+import { isApiKeyConfigured } from '@/store';
 // Type guards available for future validation needs
 
 /**
@@ -38,7 +39,7 @@ export class AIConfigurationService {
     provider: typeof AI_PROVIDERS[0],
     apiKeys: Record<string, unknown>
   ): boolean {
-    return provider.enabled && !!apiKeys[provider.id];
+    return provider.enabled && isApiKeyConfigured(apiKeys[provider.id]);
   }
 
   /**
@@ -98,7 +99,7 @@ export class AIConfigurationService {
    * @returns True if API key exists, false otherwise
    */
   static hasAPIKey(providerId: string, apiKeys: Record<string, unknown>): boolean {
-    return !!apiKeys[providerId];
+    return isApiKeyConfigured(apiKeys[providerId]);
   }
 
   /**

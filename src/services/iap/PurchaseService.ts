@@ -14,6 +14,7 @@ import { getIapModule, getLoadedIapModule } from '@/services/iap/nativeModule';
 import * as Crypto from 'expo-crypto';
 import Constants from 'expo-constants';
 import { ErrorService } from '@/services/errors/ErrorService';
+import { Logger } from '@/services/logging';
 
 type InitializeResult = { success: true } | { success: false; error?: unknown; skipped?: boolean };
 
@@ -37,25 +38,30 @@ async function logPurchaseError(
   errorMessage: string,
   details: Record<string, unknown>
 ): Promise<void> {
-  // Always log to console first as backup
-  console.warn('[IAP] LOGGING ERROR TO FIREBASE:', { action, errorCode, errorMessage, details });
-
   try {
     const db = getFirestore();
     const user = getAuth().currentUser;
+    const userIdHash = user?.uid
+      ? await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, user.uid)
+      : null;
     const docData = {
       timestamp: Date.now(),
       timestampISO: new Date().toISOString(),
       action,
       errorCode,
       errorMessage,
-      userId: user?.uid || 'anonymous',
-      userEmail: user?.email || 'anonymous',
+      userIdHash: userIdHash ? userIdHash.slice(0, 16) : 'anonymous',
+      userAuthenticated: Boolean(user),
       platform: Platform.OS,
       appVersion: Constants.expoConfig?.version ?? 'unknown',
-      details: JSON.stringify(details),
+      details: JSON.stringify(Logger.redactValue('details', details)),
     };
-    console.warn('[IAP] Attempting Firestore write with:', JSON.stringify(docData));
+    console.warn('[IAP] Logging purchase error to Firestore:', Logger.redactContext({
+      action,
+      errorCode,
+      errorMessage,
+      details,
+    }));
     const docRef = await addDoc(collection(db, 'purchase_errors'), docData);
     console.warn('[IAP] Successfully logged error to Firestore, docId:', docRef.id);
   } catch (e) {
@@ -375,7 +381,7 @@ export class PurchaseService {
 
       const user = getAuth().currentUser;
       if (!user) throw new Error('User must be authenticated');
-      console.warn('[IAP] User authenticated:', user.uid);
+      console.warn('[IAP] User authenticated');
 
       const sku = SUBSCRIPTION_PRODUCTS[plan];
       console.warn('[IAP] SKU:', sku);

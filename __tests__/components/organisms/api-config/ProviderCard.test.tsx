@@ -134,8 +134,8 @@ describe('ProviderCard', () => {
     fireEvent.press(getByText('✏️'));
     expect(Haptics.impactAsync).toHaveBeenCalledWith('light');
 
-    const revealedInput = getByDisplayValue('abcdef123456');
-    fireEvent.changeText(revealedInput, 'abcdef654321');
+    const replacementInput = getByDisplayValue('');
+    fireEvent.changeText(replacementInput, 'abcdef654321');
     expect(onKeyChange).toHaveBeenCalledWith('abcdef654321');
 
     fireEvent.press(getByText('Test Connection'));
@@ -148,7 +148,7 @@ describe('ProviderCard', () => {
     });
 
     expect(Haptics.notificationAsync).toHaveBeenCalledWith('success');
-    expect(getByDisplayValue('abc••••••321')).toBeTruthy();
+    expect(getByDisplayValue('abc••••••456')).toBeTruthy();
   });
 
   it('handles failed connection tests without saving', async () => {

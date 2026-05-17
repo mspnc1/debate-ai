@@ -6,7 +6,7 @@
 
 import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
-import { RootState } from '../../store';
+import { RootState, isApiKeyConfigured } from '../../store';
 import { useFeatureAccess } from '../useFeatureAccess';
 
 export interface UsePreDebateValidation {
@@ -20,7 +20,7 @@ export const usePreDebateValidation = (): UsePreDebateValidation => {
   const { isDemo } = useFeatureAccess();
 
   const configuredCount = useMemo(() => {
-    return Object.values(apiKeys).filter(Boolean).length;
+    return Object.values(apiKeys).filter(isApiKeyConfigured).length;
   }, [apiKeys]);
 
   return {

@@ -151,14 +151,138 @@ exports[`ChatTopicPickerModal Snapshot Tests matches snapshot with new sample op
             </Text>
           </View>
           <View
+            accessibilityState={
+              {
+                "busy": undefined,
+                "checked": undefined,
+                "disabled": undefined,
+                "expanded": undefined,
+                "selected": undefined,
+              }
+            }
+            accessibilityValue={
+              {
+                "max": undefined,
+                "min": undefined,
+                "now": undefined,
+                "text": undefined,
+              }
+            }
+            accessible={true}
+            collapsable={false}
+            focusable={true}
+            onClick={[Function]}
+            onResponderGrant={[Function]}
+            onResponderMove={[Function]}
+            onResponderRelease={[Function]}
+            onResponderTerminate={[Function]}
+            onResponderTerminationRequest={[Function]}
+            onStartShouldSetResponder={[Function]}
             style={
               {
-                "padding": 16,
+                "backgroundColor": "#FAFAFA",
+                "borderColor": "#EEEEEE",
+                "borderRadius": 12,
+                "borderWidth": 0.5,
+                "marginBottom": 8,
+                "opacity": 1,
+                "paddingHorizontal": 14,
+                "paddingVertical": 12,
               }
             }
           >
             <Text>
-              No topics available for this combination.
+              Philosophy Discussion
+            </Text>
+          </View>
+          <View
+            accessibilityState={
+              {
+                "busy": undefined,
+                "checked": undefined,
+                "disabled": undefined,
+                "expanded": undefined,
+                "selected": undefined,
+              }
+            }
+            accessibilityValue={
+              {
+                "max": undefined,
+                "min": undefined,
+                "now": undefined,
+                "text": undefined,
+              }
+            }
+            accessible={true}
+            collapsable={false}
+            focusable={true}
+            onClick={[Function]}
+            onResponderGrant={[Function]}
+            onResponderMove={[Function]}
+            onResponderRelease={[Function]}
+            onResponderTerminate={[Function]}
+            onResponderTerminationRequest={[Function]}
+            onStartShouldSetResponder={[Function]}
+            style={
+              {
+                "backgroundColor": "#FAFAFA",
+                "borderColor": "#EEEEEE",
+                "borderRadius": 12,
+                "borderWidth": 0.5,
+                "marginBottom": 8,
+                "opacity": 1,
+                "paddingHorizontal": 14,
+                "paddingVertical": 12,
+              }
+            }
+          >
+            <Text>
+              Tech Trends 2024
+            </Text>
+          </View>
+          <View
+            accessibilityState={
+              {
+                "busy": undefined,
+                "checked": undefined,
+                "disabled": undefined,
+                "expanded": undefined,
+                "selected": undefined,
+              }
+            }
+            accessibilityValue={
+              {
+                "max": undefined,
+                "min": undefined,
+                "now": undefined,
+                "text": undefined,
+              }
+            }
+            accessible={true}
+            collapsable={false}
+            focusable={true}
+            onClick={[Function]}
+            onResponderGrant={[Function]}
+            onResponderMove={[Function]}
+            onResponderRelease={[Function]}
+            onResponderTerminate={[Function]}
+            onResponderTerminationRequest={[Function]}
+            onStartShouldSetResponder={[Function]}
+            style={
+              {
+                "backgroundColor": "#FAFAFA",
+                "borderColor": "#EEEEEE",
+                "borderRadius": 12,
+                "borderWidth": 0.5,
+                "marginBottom": 8,
+                "opacity": 1,
+                "paddingHorizontal": 14,
+                "paddingVertical": 12,
+              }
+            }
+          >
+            <Text>
+              Creative Writing
             </Text>
           </View>
         </View>
@@ -271,14 +395,138 @@ exports[`ChatTopicPickerModal Snapshot Tests matches snapshot with topics 1`] = 
       >
         <View>
           <View
+            accessibilityState={
+              {
+                "busy": undefined,
+                "checked": undefined,
+                "disabled": undefined,
+                "expanded": undefined,
+                "selected": undefined,
+              }
+            }
+            accessibilityValue={
+              {
+                "max": undefined,
+                "min": undefined,
+                "now": undefined,
+                "text": undefined,
+              }
+            }
+            accessible={true}
+            collapsable={false}
+            focusable={true}
+            onClick={[Function]}
+            onResponderGrant={[Function]}
+            onResponderMove={[Function]}
+            onResponderRelease={[Function]}
+            onResponderTerminate={[Function]}
+            onResponderTerminationRequest={[Function]}
+            onStartShouldSetResponder={[Function]}
             style={
               {
-                "padding": 16,
+                "backgroundColor": "#FAFAFA",
+                "borderColor": "#EEEEEE",
+                "borderRadius": 12,
+                "borderWidth": 0.5,
+                "marginBottom": 8,
+                "opacity": 1,
+                "paddingHorizontal": 14,
+                "paddingVertical": 12,
               }
             }
           >
             <Text>
-              No topics available for this combination.
+              Philosophy Discussion
+            </Text>
+          </View>
+          <View
+            accessibilityState={
+              {
+                "busy": undefined,
+                "checked": undefined,
+                "disabled": undefined,
+                "expanded": undefined,
+                "selected": undefined,
+              }
+            }
+            accessibilityValue={
+              {
+                "max": undefined,
+                "min": undefined,
+                "now": undefined,
+                "text": undefined,
+              }
+            }
+            accessible={true}
+            collapsable={false}
+            focusable={true}
+            onClick={[Function]}
+            onResponderGrant={[Function]}
+            onResponderMove={[Function]}
+            onResponderRelease={[Function]}
+            onResponderTerminate={[Function]}
+            onResponderTerminationRequest={[Function]}
+            onStartShouldSetResponder={[Function]}
+            style={
+              {
+                "backgroundColor": "#FAFAFA",
+                "borderColor": "#EEEEEE",
+                "borderRadius": 12,
+                "borderWidth": 0.5,
+                "marginBottom": 8,
+                "opacity": 1,
+                "paddingHorizontal": 14,
+                "paddingVertical": 12,
+              }
+            }
+          >
+            <Text>
+              Tech Trends 2024
+            </Text>
+          </View>
+          <View
+            accessibilityState={
+              {
+                "busy": undefined,
+                "checked": undefined,
+                "disabled": undefined,
+                "expanded": undefined,
+                "selected": undefined,
+              }
+            }
+            accessibilityValue={
+              {
+                "max": undefined,
+                "min": undefined,
+                "now": undefined,
+                "text": undefined,
+              }
+            }
+            accessible={true}
+            collapsable={false}
+            focusable={true}
+            onClick={[Function]}
+            onResponderGrant={[Function]}
+            onResponderMove={[Function]}
+            onResponderRelease={[Function]}
+            onResponderTerminate={[Function]}
+            onResponderTerminationRequest={[Function]}
+            onStartShouldSetResponder={[Function]}
+            style={
+              {
+                "backgroundColor": "#FAFAFA",
+                "borderColor": "#EEEEEE",
+                "borderRadius": 12,
+                "borderWidth": 0.5,
+                "marginBottom": 8,
+                "opacity": 1,
+                "paddingHorizontal": 14,
+                "paddingVertical": 12,
+              }
+            }
+          >
+            <Text>
+              Creative Writing
             </Text>
           </View>
         </View>

@@ -82,7 +82,7 @@ describe('ChatTopicPickerModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSubscribe.mockReturnValue(mockUnsubscribe);
-    mockListChatSamples.mockResolvedValue(sampleTopics);
+    mockListChatSamples.mockReturnValue(sampleTopics);
   });
 
   describe('Rendering', () => {
@@ -173,7 +173,7 @@ describe('ChatTopicPickerModal', () => {
     });
 
     it('handles empty sample list', async () => {
-      mockListChatSamples.mockResolvedValue([]);
+      mockListChatSamples.mockReturnValue([]);
       const { getByText } = renderWithProviders(
         <ChatTopicPickerModal visible={true} providers={providers} onSelect={mockOnSelect} onClose={mockOnClose} />
       );
@@ -183,7 +183,9 @@ describe('ChatTopicPickerModal', () => {
     });
 
     it('handles service error gracefully', async () => {
-      mockListChatSamples.mockRejectedValue(new Error('Service error'));
+      mockListChatSamples.mockImplementation(() => {
+        throw new Error('Service error');
+      });
       const { getByText } = renderWithProviders(
         <ChatTopicPickerModal visible={true} providers={providers} onSelect={mockOnSelect} onClose={mockOnClose} />
       );
@@ -428,7 +430,7 @@ describe('ChatTopicPickerModal', () => {
     });
 
     it('handles topic with very long title', async () => {
-      mockListChatSamples.mockResolvedValue([
+      mockListChatSamples.mockReturnValue([
         { id: 'chat_long', title: 'This is a very long topic title that might wrap across multiple lines in the UI' },
       ]);
       const { getByText } = renderWithProviders(

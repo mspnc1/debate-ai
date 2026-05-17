@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState, setGlobalStreaming, setStreamingSpeed, setPremiumStatus, setRecordModeEnabled } from '../../../store';
+import { RootState, setGlobalStreaming, setStreamingSpeed, setPremiumStatus, setRecordModeEnabled, isApiKeyConfigured } from '../../../store';
 import { Typography, SheetHeader, SettingRow, Button } from '@/components/molecules';
 import { useTheme } from '../../../theme';
 import {
@@ -29,7 +29,7 @@ export const SettingsContent: React.FC<SettingsContentProps> = ({
   const streamingEnabled = useSelector((state: RootState) => state.streaming?.globalStreamingEnabled ?? true);
   const streamingSpeed = useSelector((state: RootState) => state.streaming?.streamingSpeed ?? 'natural');
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
-  const hasAnyApiKey = Object.values(apiKeys).some(Boolean);
+  const hasAnyApiKey = Object.values(apiKeys).some(isApiKeyConfigured);
   const recordModeEnabled = useSelector((state: RootState) => state.settings.recordModeEnabled ?? false);
   
   const themeSettings = useThemeSettings();

@@ -15,36 +15,19 @@ interface ChatTopicPickerModalProps {
 
 export const ChatTopicPickerModal: React.FC<ChatTopicPickerModalProps> = ({ visible, providers, personaId: _personaId, onSelect, onClose, allowNewSample = false }) => {
   const { theme } = useTheme();
-  const [items, setItems] = React.useState<Array<{ id: string; title: string }>>([]);
+  const [, refreshItems] = React.useReducer((version: number) => version + 1, 0);
   const [creatingNew, setCreatingNew] = React.useState(false);
   const [newId, setNewId] = React.useState('');
   const [newTitle, setNewTitle] = React.useState('');
 
-  const refreshItems = React.useCallback(() => {
-    let cancelled = false;
-    const run = async () => {
-      try {
-        const list = await DemoContentService.listChatSamples(providers);
-        if (!cancelled) {
-          setItems(list);
-        }
-      } catch {
-        if (!cancelled) setItems([]);
-      }
-    };
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [providers]);
-
-  React.useEffect(() => {
-    if (!visible) return;
-    const dispose = refreshItems();
-    return () => {
-      dispose?.();
-    };
-  }, [visible, refreshItems]);
+  let items: Array<{ id: string; title: string }> = [];
+  if (visible) {
+    try {
+      items = DemoContentService.listChatSamples(providers);
+    } catch {
+      items = [];
+    }
+  }
 
   React.useEffect(() => {
     if (!visible) return;

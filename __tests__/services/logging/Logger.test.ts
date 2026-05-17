@@ -109,7 +109,7 @@ describe('Logger', () => {
       logger.info('User action', { userId: '123', action: 'click' });
 
       const buffer = logger.getBuffer();
-      expect(buffer[0].context).toEqual({ userId: '123', action: 'click' });
+      expect(buffer[0].context).toEqual({ userId: '[REDACTED]', action: 'click' });
     });
   });
 

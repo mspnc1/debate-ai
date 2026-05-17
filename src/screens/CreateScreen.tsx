@@ -28,7 +28,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import { Typography } from '../components/molecules';
 import { ImageRefinementModal, RefinementProvider } from '../components/organisms/chat/ImageRefinementModal';
-import { RootState, AppDispatch } from '../store';
+import { RootState, AppDispatch, isApiKeyConfigured } from '../store';
 import {
   selectCreateState,
   selectGallery,
@@ -44,6 +44,7 @@ import {
 } from '../store/createSlice';
 import { RootStackParamList, AIProvider } from '../types';
 import { ImageService, GeneratedImage } from '../services/images/ImageService';
+import APIKeyService from '../services/APIKeyService';
 import { buildEnhancedPrompt } from '../config/create/stylePresets';
 import { mapSizeToProvider } from '../config/create/sizeOptions';
 import {
@@ -126,7 +127,7 @@ export default function CreateScreen() {
       provider,
       name: getImageProviderDisplayName(provider),
       supportsImg2Img: getImageInputModels(provider).length > 0,
-      hasApiKey: Boolean(apiKeys[provider]),
+      hasApiKey: isApiKeyConfigured(apiKeys[provider]),
     }));
   }, [apiKeys]);
 
@@ -166,7 +167,7 @@ export default function CreateScreen() {
     dispatch(updateGenerationProgress({ provider, progress: 'generating' }));
 
     try {
-      const apiKey = apiKeys[provider];
+      const apiKey = await APIKeyService.getKey(provider);
       if (!apiKey) {
         throw new Error(`No API key for ${provider}`);
       }
@@ -224,7 +225,6 @@ export default function CreateScreen() {
     selectedStyle,
     selectedSize,
     selectedQuality,
-    apiKeys,
     dispatch,
   ]);
 
@@ -248,7 +248,7 @@ export default function CreateScreen() {
         dispatch(updateGenerationProgress({ provider, progress: 'generating' }));
 
         try {
-          const apiKey = apiKeys[provider];
+          const apiKey = await APIKeyService.getKey(provider);
           if (!apiKey) {
             throw new Error(`No API key for ${provider}`);
           }
@@ -320,7 +320,6 @@ export default function CreateScreen() {
     selectedStyle,
     selectedSize,
     selectedQuality,
-    apiKeys,
     sourceImage,
     dispatch,
   ]);

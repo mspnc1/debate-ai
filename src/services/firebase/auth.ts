@@ -489,7 +489,7 @@ export const signInWithGoogle = async (): Promise<{ user: User; profile: UserPro
     // Sign in with Firebase
     const auth = getAuth();
     const userCredential = await signInWithCredential(auth, googleCredential);
-    console.warn('Firebase sign in successful:', userCredential.user.uid);
+    console.warn('Firebase sign in successful');
     
     // Get current Google user info
     const currentUser = await GoogleSignin.getCurrentUser();
@@ -623,4 +623,3 @@ const getOrCreateUserProfile = async (
     preferences: {},
   };
 };
-

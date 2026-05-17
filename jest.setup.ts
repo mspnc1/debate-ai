@@ -65,6 +65,24 @@ jest.mock('react-native-reanimated', () => {
   };
 });
 jest.mock('react-native-gesture-handler', () => require('react-native-gesture-handler/jestSetup'));
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
+
+  const createIcon = (family: string) => {
+    const Icon = ({ name, ...props }: { name?: string }) => (
+      React.createElement(Text, props, `${family}:${name || ''}`)
+    );
+    Icon.displayName = family;
+    return Icon;
+  };
+
+  return {
+    Ionicons: createIcon('Ionicons'),
+    MaterialIcons: createIcon('MaterialIcons'),
+    MaterialCommunityIcons: createIcon('MaterialCommunityIcons'),
+  };
+});
 jest.mock('react-native/Libraries/Modal/Modal', () => {
   const React = require('react');
 

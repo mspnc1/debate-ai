@@ -68,7 +68,6 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
   const expertModeConfigs = useSelector((state: RootState) => state.settings.expertMode || {});
   const currentUser = useSelector((state: RootState) => state.user.currentUser);
   const streamingState = useSelector((state: RootState) => state.streaming);
-  const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || ({} as Record<string, string | undefined>));
   const webSearchPreferred = useSelector((state: RootState) => state.chat.webSearchPreferred);
   
   // Check if we're resuming a session
@@ -254,18 +253,26 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     leftHistoryRef.current.push(userMessage);
     rightHistoryRef.current.push(userMessage);
     
+    // Compute effective models, expert params, and execution-time keys.
+    const leftEffModel = leftEffectiveModel;
+    const rightEffModel = rightEffectiveModel;
+    const leftExp = getExpertOverrides(expertModeConfigs as Record<string, unknown>, leftAI.provider);
+    const rightExp = getExpertOverrides(expertModeConfigs as Record<string, unknown>, rightAI.provider);
+    const leftApiKey = isDemo ? 'demo' : await aiService.getApiKey(leftAI.provider);
+    const rightApiKey = isDemo ? 'demo' : await aiService.getApiKey(rightAI.provider);
+    const leftAdapter = await aiService.ensureAdapter(leftAI.provider, leftAI.provider, leftEffModel, leftApiKey);
+    const rightAdapter = await aiService.ensureAdapter(rightAI.provider, rightAI.provider, rightEffModel, rightApiKey);
+
     // Determine streaming capability and preferences for each side
-    const leftAdapter = aiService.getAdapter(leftAI.provider);
-    const rightAdapter = aiService.getAdapter(rightAI.provider);
     const globalEnabled = streamingState?.globalStreamingEnabled ?? true;
     const leftEnabled = streamingState?.streamingPreferences?.[leftAI.id]?.enabled ?? true;
     const rightEnabled = streamingState?.streamingPreferences?.[rightAI.id]?.enabled ?? true;
     const leftBlocked = !!streamingState?.providerVerificationErrors?.[leftAI.id];
     const rightBlocked = !!streamingState?.providerVerificationErrors?.[rightAI.id];
-    const hasLeftKey = Boolean(apiKeys[leftAI.provider]);
-    const hasRightKey = Boolean(apiKeys[rightAI.provider]);
-    const shouldStreamLeft = globalEnabled && leftEnabled && !leftBlocked && (hasLeftKey || isDemo);
-    const shouldStreamRight = globalEnabled && rightEnabled && !rightBlocked && (hasRightKey || isDemo);
+    const hasLeftKey = Boolean(leftApiKey);
+    const hasRightKey = Boolean(rightApiKey);
+    const shouldStreamLeft = globalEnabled && leftEnabled && !leftBlocked && hasLeftKey;
+    const shouldStreamRight = globalEnabled && rightEnabled && !rightBlocked && hasRightKey;
     const streamSpeed = (streamingState?.streamingSpeed as 'instant' | 'natural' | 'slow') || 'natural';
 
     // Start typing indicators only for non-streaming sides
@@ -273,12 +280,6 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     const rightActive = (viewMode === 'split' && !continuedSide) || continuedSide === 'right' || viewMode === 'right-only' || viewMode === 'right-full';
     
     const pendingPromises: Promise<void>[] = [];
-
-    // Compute effective models and expert params at send time
-    const leftEffModel = leftEffectiveModel;
-    const rightEffModel = rightEffectiveModel;
-    const leftExp = getExpertOverrides(expertModeConfigs as Record<string, unknown>, leftAI.provider);
-    const rightExp = getExpertOverrides(expertModeConfigs as Record<string, unknown>, rightAI.provider);
 
     // Apply personalities (unless default) before sending - uses merged personalities from context
     // Personality tone modifiers are applied via adapter's system prompt
@@ -366,7 +367,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
             messageId: `cmp_left_${Date.now()}`,
             adapterConfig: {
               provider: leftAI.provider,
-              apiKey: isDemo ? 'demo' : (apiKeys[leftAI.provider] || ''),
+              apiKey: leftApiKey || '',
               model: leftEffModel,
               parameters: (leftExp && leftExp.enabled) ? (leftExp.parameters as never) : undefined,
               isDebateMode: false,
@@ -518,7 +519,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
             messageId: `cmp_right_${Date.now()}`,
             adapterConfig: {
               provider: rightAI.provider,
-              apiKey: isDemo ? 'demo' : (apiKeys[rightAI.provider] || ''),
+              apiKey: rightApiKey || '',
               model: rightEffModel,
               parameters: (rightExp && rightExp.enabled) ? (rightExp.parameters as never) : undefined,
               isDebateMode: false,
@@ -677,7 +678,6 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     saveComparisonSession,
     expertModeConfigs,
     isDemo,
-    apiKeys,
     streamingState?.globalStreamingEnabled,
     streamingState?.streamingPreferences,
     streamingState?.providerVerificationErrors,

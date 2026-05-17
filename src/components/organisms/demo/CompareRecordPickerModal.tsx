@@ -14,34 +14,19 @@ interface CompareRecordPickerModalProps {
 
 export const CompareRecordPickerModal: React.FC<CompareRecordPickerModalProps> = ({ visible, leftProvider, rightProvider, onSelect, onClose }) => {
   const { theme } = useTheme();
-  const [items, setItems] = React.useState<Array<{ id: string; title: string }>>([]);
+  const [, refreshItems] = React.useReducer((version: number) => version + 1, 0);
   const [creatingNew, setCreatingNew] = React.useState(false);
   const [newId, setNewId] = React.useState('');
   const [newTitle, setNewTitle] = React.useState('');
 
-  const refreshItems = React.useCallback(() => {
-    let cancelled = false;
-    const run = async () => {
-      try {
-        const list = await DemoContentService.listCompareSamples([leftProvider, rightProvider]);
-        if (!cancelled) setItems(list);
-      } catch {
-        if (!cancelled) setItems([]);
-      }
-    };
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [leftProvider, rightProvider]);
-
-  React.useEffect(() => {
-    if (!visible) return;
-    const dispose = refreshItems();
-    return () => {
-      dispose?.();
-    };
-  }, [visible, refreshItems]);
+  let items: Array<{ id: string; title: string }> = [];
+  if (visible) {
+    try {
+      items = DemoContentService.listCompareSamples([leftProvider, rightProvider]);
+    } catch {
+      items = [];
+    }
+  }
 
   React.useEffect(() => {
     if (!visible) return;

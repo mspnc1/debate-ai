@@ -36,7 +36,7 @@ import {
 } from '../components/molecules';
 import { Header, HeaderActions, DynamicAISelector, ImageRefinementModal } from '../components/organisms';
 import type { RefinementProvider } from '../components/organisms/chat/ImageRefinementModal';
-import { RootState, AppDispatch } from '../store';
+import { RootState, AppDispatch, isApiKeyConfigured } from '../store';
 import {
   setPrompt,
   setStyle,
@@ -127,7 +127,7 @@ export default function CreateSetupScreen() {
         if (!IMAGE_GEN_PROVIDERS.includes(provider.id)) return false;
         // Must have API key and be verified (or in demo mode)
         if (isDemo) return IMAGE_GEN_PROVIDERS.includes(provider.id);
-        const hasKey = Boolean(apiKeys[provider.id as keyof typeof apiKeys]);
+        const hasKey = isApiKeyConfigured(apiKeys[provider.id]);
         const isVerified = verifiedProviders.includes(provider.id);
         return hasKey && isVerified && supportsImageGeneration(provider.id as AIProvider);
       })
@@ -218,7 +218,7 @@ export default function CreateSetupScreen() {
       provider: providerId as AIProvider,
       name: getImageProviderDisplayName(providerId as AIProvider),
       supportsImg2Img: getImageInputModels(providerId as AIProvider).length > 0,
-      hasApiKey: Boolean(apiKeys[providerId as keyof typeof apiKeys]) || isDemo,
+      hasApiKey: isApiKeyConfigured(apiKeys[providerId]) || isDemo,
     }));
   }, [apiKeys, isDemo]);
 

@@ -5,13 +5,18 @@ import { useProviderVerification } from './useProviderVerification';
 import { useConnectionTest } from './useConnectionTest';
 import { useExpertMode } from './useExpertMode';
 import * as Haptics from 'expo-haptics';
+import APIKeyService from '@/services/APIKeyService';
 
 /**
  * Custom hook that encapsulates all API configuration event handlers
  * to reduce the main component complexity and improve maintainability.
  */
 export const useAPIConfigHandlers = () => {
-  const { apiKeys, updateKey } = useAPIKeys();
+  const {
+    apiKeys,
+    updateKey,
+    refreshKeyStatus = async (_providerId: string) => undefined,
+  } = useAPIKeys();
   const { verifyProvider, removeVerification } = useProviderVerification();
   const { testConnection } = useConnectionTest();
   const { toggleExpertMode, updateModel, updateParameter } = useExpertMode();
@@ -27,24 +32,32 @@ export const useAPIConfigHandlers = () => {
    * Complex connection test handler that:
    * 1. Validates API key exists
    * 2. Tests connection to provider API
-   * 3. On success: saves key and marks provider as verified
+   * 3. On success: refreshes safe key status and marks provider as verified
    * 4. Provides comprehensive error handling with user-friendly messages
    */
-  const handleTestConnection = useCallback(async (providerId: string): Promise<{ 
-    success: boolean; 
-    message?: string; 
-    model?: string; 
+  const handleTestConnection = useCallback(async (providerId: string, keyOverride?: string): Promise<{
+    success: boolean;
+    message?: string;
+    model?: string;
   }> => {
-    const key = apiKeys[providerId];
+    const pendingKey = keyOverride?.trim();
+    const legacyDisplayValue = apiKeys[providerId];
+    const legacyRawKey = legacyDisplayValue && !legacyDisplayValue.includes('•')
+      ? legacyDisplayValue
+      : undefined;
+    const key = pendingKey || await APIKeyService.getKey(providerId) || legacyRawKey;
     if (!key) return { success: false, message: 'No API key provided' };
 
     try {
+      if (pendingKey) {
+        await updateKey(providerId, pendingKey);
+      }
+
       // Test connection with real API call
       const result = await testConnection(providerId, key);
 
       if (result.success) {
-        // Atomically save key and mark as verified to maintain data consistency
-        await updateKey(providerId, key);
+        await refreshKeyStatus(providerId);
         await verifyProvider(providerId, {
           success: true,
           message: 'Verified just now',
@@ -65,12 +78,20 @@ export const useAPIConfigHandlers = () => {
         message: error instanceof Error ? error.message : 'Test failed'
       };
     }
-  }, [apiKeys, testConnection, updateKey, verifyProvider, removeVerification]);
+  }, [apiKeys, testConnection, updateKey, refreshKeyStatus, verifyProvider, removeVerification]);
 
-  const handleSaveKey = useCallback(async (providerId: string) => {
-    const key = apiKeys[providerId];
-    await updateKey(providerId, key);
-  }, [apiKeys, updateKey]);
+  const handleSaveKey = useCallback(async (providerId: string, keyOverride?: string) => {
+    if (keyOverride?.trim()) {
+      await updateKey(providerId, keyOverride.trim());
+      return;
+    }
+    const legacyDisplayValue = apiKeys[providerId];
+    if (legacyDisplayValue && !legacyDisplayValue.includes('•')) {
+      await updateKey(providerId, legacyDisplayValue);
+      return;
+    }
+    await refreshKeyStatus(providerId);
+  }, [apiKeys, updateKey, refreshKeyStatus]);
 
   /**
    * Toggle expand handler with haptic feedback.

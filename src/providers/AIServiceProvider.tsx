@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { useSelector } from 'react-redux';
 import { AIService } from '../services/aiAdapter';
-import { RootState } from '../store';
 import { setDemoModeEnabled } from '@/services/demo/demoMode';
 import { AI_PROVIDERS } from '@/config/aiProviders';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
@@ -27,7 +25,6 @@ export const AIServiceProvider: React.FC<AIServiceProviderProps> = ({ children }
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const apiKeys = useSelector((state: RootState) => state.settings.apiKeys);
   const { isDemo } = useFeatureAccess();
 
   const initializeService = useCallback(async () => {
@@ -41,7 +38,7 @@ export const AIServiceProvider: React.FC<AIServiceProviderProps> = ({ children }
       // Toggle demo mode flag for downstream factory
       setDemoModeEnabled(isDemo);
 
-      const service = new AIService(apiKeys || {});
+      const service = new AIService();
       // In demo mode, seed adapters for all enabled providers so capability checks work
       if (isDemo) {
         const map = service.getAllAdapters();
@@ -66,7 +63,7 @@ export const AIServiceProvider: React.FC<AIServiceProviderProps> = ({ children }
     } finally {
       setIsLoading(false);
     }
-  }, [apiKeys, isDemo]);
+  }, [isDemo]);
 
   const reinitialize = useCallback(() => {
     setIsInitialized(false);

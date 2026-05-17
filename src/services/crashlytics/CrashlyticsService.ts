@@ -9,6 +9,27 @@ import {
   setCrashlyticsCollectionEnabled,
 } from '@react-native-firebase/crashlytics';
 
+const SENSITIVE_KEY_PATTERN = /(api[-_ ]?key|authorization|bearer|token|secret|password|receipt|email|user[-_ ]?id|uid|purchase)/i;
+const API_KEY_VALUE_PATTERN = /\b(sk-ant-[A-Za-z0-9_-]+|sk-[A-Za-z0-9_-]+|pplx-[A-Za-z0-9_-]+|AIza[A-Za-z0-9_-]+|gsk_[A-Za-z0-9_-]+|xai-[A-Za-z0-9_-]+)\b/g;
+const EMAIL_VALUE_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
+
+const redactString = (value: string): string => value
+  .replace(API_KEY_VALUE_PATTERN, '[REDACTED_API_KEY]')
+  .replace(EMAIL_VALUE_PATTERN, '[REDACTED_EMAIL]');
+
+const redactAttribute = (key: string, value: string): string => (
+  SENSITIVE_KEY_PATTERN.test(key) ? '[REDACTED]' : redactString(value)
+);
+
+const anonymizeIdentifier = (value: string): string => {
+  let hash = 5381;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = ((hash << 5) + hash) + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return `user_${Math.abs(hash).toString(36)}`;
+};
+
 /**
  * CrashlyticsService - Centralized crash and error reporting
  *
@@ -57,13 +78,13 @@ export class CrashlyticsService {
   static log(message: string): void {
     if (!this.initialized) {
       if (__DEV__) {
-        console.warn('[Crashlytics] Not initialized, skipping log:', message);
+        console.warn('[Crashlytics] Not initialized, skipping log:', redactString(message));
       }
       return;
     }
 
     try {
-      crashlyticsLog(this.getCrashlyticsInstance(), message);
+      crashlyticsLog(this.getCrashlyticsInstance(), redactString(message));
     } catch (error) {
       console.error('[Crashlytics] Failed to log:', error);
     }
@@ -88,7 +109,7 @@ export class CrashlyticsService {
       // Log context as attributes if provided
       if (context) {
         Object.entries(context).forEach(([key, value]) => {
-          crashlyticsSetAttribute(this.getCrashlyticsInstance(), key, value);
+          crashlyticsSetAttribute(this.getCrashlyticsInstance(), key, redactAttribute(key, value));
         });
       }
 
@@ -96,7 +117,7 @@ export class CrashlyticsService {
       crashlyticsRecordError(this.getCrashlyticsInstance(), error);
 
       if (__DEV__) {
-        console.warn('[Crashlytics] Recorded error:', error.message);
+        console.warn('[Crashlytics] Recorded error:', redactString(error.message));
       }
     } catch (err) {
       console.error('[Crashlytics] Failed to record error:', err);
@@ -114,7 +135,7 @@ export class CrashlyticsService {
 
     try {
       if (userId) {
-        crashlyticsSetUserId(this.getCrashlyticsInstance(), userId);
+        crashlyticsSetUserId(this.getCrashlyticsInstance(), anonymizeIdentifier(userId));
       } else {
         // Clear user ID on sign out
         crashlyticsSetUserId(this.getCrashlyticsInstance(), '');
@@ -134,7 +155,10 @@ export class CrashlyticsService {
     }
 
     try {
-      crashlyticsSetAttributes(this.getCrashlyticsInstance(), attributes);
+      crashlyticsSetAttributes(
+        this.getCrashlyticsInstance(),
+        Object.fromEntries(Object.entries(attributes).map(([key, value]) => [key, redactAttribute(key, value)]))
+      );
     } catch (error) {
       console.error('[Crashlytics] Failed to set attributes:', error);
     }
@@ -149,7 +173,7 @@ export class CrashlyticsService {
     }
 
     try {
-      crashlyticsSetAttribute(this.getCrashlyticsInstance(), key, value);
+      crashlyticsSetAttribute(this.getCrashlyticsInstance(), key, redactAttribute(key, value));
     } catch (error) {
       console.error('[Crashlytics] Failed to set attribute:', error);
     }

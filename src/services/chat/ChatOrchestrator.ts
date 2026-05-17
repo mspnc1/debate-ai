@@ -38,7 +38,7 @@ export interface ProcessUserMessageParams {
   /** Optional pre-merged personalities from context (includes user customizations) */
   mergedPersonalities?: Record<string, PersonalityOption>;
   selectedModels: Record<string, string>;
-  apiKeys: Record<string, string | undefined>;
+  apiKeys: Record<string, unknown>;
   expertModeConfigs: Record<string, unknown>;
   streamingPreferences?: Record<string, StreamingPreferenceState | undefined>;
   globalStreamingEnabled?: boolean;
@@ -117,17 +117,18 @@ export class ChatOrchestrator {
     let conversationContext = ChatService.buildConversationContext(existingMessages, userMessage);
 
     for (const ai of responders) {
-      const adapter = this.aiService.getAdapter(ai.id);
-      if (!adapter) {
-        this.handleAdapterError(ai);
-        continue;
-      }
-
       const effectiveModel = resolveProviderModelId(
         ai.provider,
         selectedModels[ai.id] || ai.model
       ) || ai.model;
       const aiForTurn: AI = { ...ai, model: effectiveModel };
+      const adapter = typeof this.aiService.ensureAdapter === 'function'
+        ? await this.aiService.ensureAdapter(ai.id, ai.provider, effectiveModel)
+        : this.aiService.getAdapter(ai.id);
+      if (!adapter) {
+        this.handleAdapterError(ai);
+        continue;
+      }
 
       const providerPreference = streamingPreferences?.[ai.id];
       const providerStreamingEnabled = providerPreference?.enabled ?? true;
@@ -185,7 +186,7 @@ export class ChatOrchestrator {
               conversationContext,
               resumptionContext,
               attachments: aiAttachments,
-              apiKey: isDemo ? 'demo' : apiKeys[ai.provider],
+              apiKey: isDemo ? 'demo' : await this.getExecutionApiKey(ai.provider, apiKeys),
               expert,
               streamingSpeed,
               webSearchEnabled,
@@ -276,11 +277,6 @@ export class ChatOrchestrator {
     let streamedContent = '';
     let finalContent = '';
     let capturedCitations: Array<{ index: number; url: string; title?: string; snippet?: string }> | undefined;
-
-    // Debug: log webSearchEnabled value
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[ChatOrchestrator] webSearchEnabled:', webSearchEnabled);
-    }
 
     await this.streamingService.streamResponse(
       {
@@ -614,5 +610,17 @@ export class ChatOrchestrator {
 
   private async sleep(duration: number): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, duration));
+  }
+
+  private async getExecutionApiKey(
+    provider: string,
+    apiKeys: Record<string, unknown>
+  ): Promise<string | undefined> {
+    if (typeof this.aiService.getApiKey === 'function') {
+      return await this.aiService.getApiKey(provider) || undefined;
+    }
+
+    const legacyValue = apiKeys[provider];
+    return typeof legacyValue === 'string' ? legacyValue : undefined;
   }
 }
