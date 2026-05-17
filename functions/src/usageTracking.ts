@@ -38,6 +38,14 @@ interface ImageGenerationRecord {
   timestamp: number;
 }
 
+interface MediaGenerationRecord {
+  providerId: string;
+  modelId: string;
+  mediaType: 'video' | 'audio';
+  operation: string;
+  timestamp: number;
+}
+
 interface DailyProviderUsage {
   providerId: string;
   date: string;
@@ -51,6 +59,12 @@ interface ImageGenerationStats {
   totalImages: number;
   byDimensions: Record<string, number>;
   byQuality: Record<string, number>;
+}
+
+interface MediaGenerationStats {
+  totalGenerations: number;
+  byMediaType: Record<string, number>;
+  byOperation: Record<string, number>;
 }
 
 interface ModelUsageStats {
@@ -67,15 +81,18 @@ interface UsageSummary {
   totalTokensAllTime: number;
   totalRequestsAllTime: number;
   totalImagesAllTime: number;
+  totalMediaAllTime?: number;
   currentMonthTokens: number;
   currentMonthRequests: number;
   currentMonthImages: number;
+  currentMonthMedia?: number;
   currentMonth: string;
   byProvider: Record<string, {
     tokens: number;
     requests: number;
     lastUsed: number;
     images?: ImageGenerationStats;
+    media?: MediaGenerationStats;
   }>;
   byModel: Record<string, ModelUsageStats>;
 }
@@ -642,6 +659,154 @@ export const recordImageGeneration = onCall(
       imageCount,
       dimensions,
       quality,
+      timestamp: Date.now(),
+    });
+
+    return { success: true };
+  }
+);
+
+// ============================================================================
+// Record Media Generation (internal function)
+// ============================================================================
+
+/**
+ * Record media generation usage by provider/media type only.
+ * Cost estimates are intentionally excluded because usage is BYOK.
+ */
+export async function recordMediaGenerationInternal(
+  uid: string,
+  record: MediaGenerationRecord
+): Promise<void> {
+  const db = getFirestore();
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  const monthStr = dateStr.slice(0, 7);
+
+  const batch = db.batch();
+
+  const dailyRef = db.collection('users').doc(uid)
+    .collection('usage').doc('daily')
+    .collection('days').doc(dateStr);
+
+  const dailyDoc = await dailyRef.get();
+  const dailyData = dailyDoc.exists ? unflattenObject(dailyDoc.data() || {}) : {};
+
+  const currentProviders = (dailyData.providers || {}) as Record<string, Record<string, unknown>>;
+  const currentProvider = currentProviders[record.providerId] || {};
+  const currentMedia = (currentProvider.media as MediaGenerationStats) || {
+    totalGenerations: 0,
+    byMediaType: {},
+    byOperation: {},
+  };
+
+  const updatedMedia: MediaGenerationStats = {
+    totalGenerations: (currentMedia.totalGenerations || 0) + 1,
+    byMediaType: {
+      ...currentMedia.byMediaType,
+      [record.mediaType]: (currentMedia.byMediaType?.[record.mediaType] || 0) + 1,
+    },
+    byOperation: {
+      ...currentMedia.byOperation,
+      [record.operation]: (currentMedia.byOperation?.[record.operation] || 0) + 1,
+    },
+  };
+
+  batch.set(dailyRef, {
+    date: dateStr,
+    totalMedia: ((dailyData.totalMedia as number) || 0) + 1,
+    providers: {
+      ...currentProviders,
+      [record.providerId]: {
+        ...currentProvider,
+        media: updatedMedia,
+      },
+    },
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  const summaryRef = db.collection('users').doc(uid).collection('usage').doc('summary');
+  const summaryDoc = await summaryRef.get();
+  const summaryData = summaryDoc.exists ? unflattenObject(summaryDoc.data() || {}) as unknown as UsageSummary : null;
+  const isNewMonth = !summaryData?.currentMonth || summaryData.currentMonth !== monthStr;
+
+  const currentByProvider = summaryData?.byProvider || {};
+  const currentProviderStats = currentByProvider[record.providerId] || {
+    tokens: 0,
+    requests: 0,
+    lastUsed: 0,
+  };
+  const currentProviderMedia = currentProviderStats.media || {
+    totalGenerations: 0,
+    byMediaType: {},
+    byOperation: {},
+  };
+
+  const updatedProviderMedia: MediaGenerationStats = {
+    totalGenerations: (currentProviderMedia.totalGenerations || 0) + 1,
+    byMediaType: {
+      ...currentProviderMedia.byMediaType,
+      [record.mediaType]: (currentProviderMedia.byMediaType?.[record.mediaType] || 0) + 1,
+    },
+    byOperation: {
+      ...currentProviderMedia.byOperation,
+      [record.operation]: (currentProviderMedia.byOperation?.[record.operation] || 0) + 1,
+    },
+  };
+
+  batch.set(summaryRef, {
+    updatedAt: Date.now(),
+    totalTokensAllTime: summaryData?.totalTokensAllTime || 0,
+    totalRequestsAllTime: summaryData?.totalRequestsAllTime || 0,
+    totalImagesAllTime: summaryData?.totalImagesAllTime || 0,
+    totalMediaAllTime: (summaryData?.totalMediaAllTime || 0) + 1,
+    currentMonthTokens: isNewMonth ? 0 : (summaryData?.currentMonthTokens || 0),
+    currentMonthRequests: isNewMonth ? 0 : (summaryData?.currentMonthRequests || 0),
+    currentMonthImages: isNewMonth ? 0 : (summaryData?.currentMonthImages || 0),
+    currentMonthMedia: isNewMonth ? 1 : (summaryData?.currentMonthMedia || 0) + 1,
+    currentMonth: monthStr,
+    byProvider: {
+      ...currentByProvider,
+      [record.providerId]: {
+        ...currentProviderStats,
+        lastUsed: Date.now(),
+        media: updatedProviderMedia,
+      },
+    },
+    byModel: summaryData?.byModel || {},
+  });
+
+  await batch.commit();
+}
+
+export const recordMediaGeneration = onCall(
+  {
+    timeoutSeconds: 10,
+    memory: '256MiB',
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Must be authenticated');
+    }
+
+    const { providerId, mediaType, operation, modelId } = request.data || {};
+    if (!providerId || !mediaType || !operation || !modelId) {
+      throw new HttpsError('invalid-argument', 'Missing required fields');
+    }
+
+    if (!['runway', 'elevenlabs'].includes(providerId)) {
+      throw new HttpsError('invalid-argument', 'Invalid media provider');
+    }
+
+    if (!['video', 'audio'].includes(mediaType)) {
+      throw new HttpsError('invalid-argument', 'Invalid media type');
+    }
+
+    await recordMediaGenerationInternal(request.auth.uid, {
+      providerId,
+      mediaType,
+      operation,
+      modelId,
       timestamp: Date.now(),
     });
 

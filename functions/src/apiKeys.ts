@@ -50,7 +50,9 @@ const VALID_PROVIDERS = [
   'claude', 'openai', 'google', 'perplexity', 'mistral',
   'cohere', 'together', 'deepseek', 'grok',
   // Tool providers (for Analyze mode features)
-  'brave'
+  'brave',
+  // Media providers (for Create mode)
+  'runway', 'elevenlabs'
 ];
 
 /**

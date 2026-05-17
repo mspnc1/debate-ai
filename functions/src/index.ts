@@ -24,6 +24,13 @@ export { proxyAIRequestStreamV2 } from './aiProxyStreamV2';
 // Image Generation Proxy
 export { proxyImageGeneration } from './imageProxy';
 
+// Media Generation Proxy
+export {
+  proxyMediaGeneration,
+  getMediaTaskStatus,
+  listMediaProviderOptions,
+} from './mediaProxy';
+
 // Tool Execution (all server tools route through executeTool)
 export { executeTool } from './tools';
 export {
@@ -45,6 +52,7 @@ export {
   getUsageStats,
   recordFreeTierInteraction,
   recordImageGeneration,
+  recordMediaGeneration,
 } from './usageTracking';
 
 // GDPR User Data Export
