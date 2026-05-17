@@ -10,6 +10,15 @@ const appleKeyIdSecret = defineSecret('APPLE_KEY_ID');
 const appleServiceIdSecret = defineSecret('APPLE_SERVICE_ID');
 const applePrivateKeySecret = defineSecret('APPLE_PRIVATE_KEY');
 const appleRedirectUriSecret = defineSecret('APPLE_REDIRECT_URI');
+const APPLE_CALLBACK_REDIRECT_BASE = 'https://symposiumai.app/auth/apple/callback/';
+
+export function buildAppleCallbackRedirect(
+  params: URLSearchParams,
+  redirectBase = APPLE_CALLBACK_REDIRECT_BASE
+): string {
+  const serializedParams = params.toString();
+  return serializedParams ? `${redirectBase}#${serializedParams}` : redirectBase;
+}
 
 /**
  * Apple Sign In Callback Handler
@@ -52,11 +61,6 @@ export const appleAuthCallback = onRequest(
     const user = (body as Record<string, unknown>)?.user ?? null;
     const error = firstString((body as Record<string, unknown>)?.error) || null;
     const errorDescription = firstString((body as Record<string, unknown>)?.error_description) || null;
-    const redirectBase = 'https://symposiumai.app/auth/apple/callback/';
-    const buildCallbackRedirect = (params: URLSearchParams) => {
-      const serializedParams = params.toString();
-      return serializedParams ? `${redirectBase}#${serializedParams}` : redirectBase;
-    };
 
     // If Apple returned an error, redirect with the error
     if (error) {
@@ -64,7 +68,7 @@ export const appleAuthCallback = onRequest(
       params.set('error', error);
       if (errorDescription) params.set('error_description', errorDescription);
       if (state) params.set('state', state);
-      res.redirect(303, buildCallbackRedirect(params));
+      res.redirect(303, buildAppleCallbackRedirect(params));
       return;
     }
 
@@ -74,7 +78,7 @@ export const appleAuthCallback = onRequest(
       params.set('error', 'no_code');
       params.set('error_description', 'No authorization code received from Apple');
       if (state) params.set('state', state);
-      res.redirect(303, buildCallbackRedirect(params));
+      res.redirect(303, buildAppleCallbackRedirect(params));
       return;
     }
 
@@ -125,7 +129,7 @@ export const appleAuthCallback = onRequest(
         params.set('id_token', idToken);
         if (state) params.set('state', state);
         if (user) params.set('user', typeof user === 'string' ? user : JSON.stringify(user));
-        res.redirect(303, buildCallbackRedirect(params));
+        res.redirect(303, buildAppleCallbackRedirect(params));
       } else {
         // Token exchange failed
         const data = tokenResponse.data as Record<string, unknown> | undefined;
@@ -134,7 +138,7 @@ export const appleAuthCallback = onRequest(
         const params = new URLSearchParams();
         params.set('error', exchangeError);
         if (state) params.set('state', state);
-        res.redirect(303, buildCallbackRedirect(params));
+        res.redirect(303, buildAppleCallbackRedirect(params));
       }
     } catch (err) {
       console.error('[appleAuthCallback] Token exchange error:', err);
@@ -143,7 +147,7 @@ export const appleAuthCallback = onRequest(
       params.set('error', 'token_exchange_exception');
       params.set('error_description', err instanceof Error ? err.message : 'Unknown error');
       if (state) params.set('state', state);
-      res.redirect(303, buildCallbackRedirect(params));
+      res.redirect(303, buildAppleCallbackRedirect(params));
     }
   }
 );
