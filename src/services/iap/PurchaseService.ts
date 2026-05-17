@@ -6,6 +6,7 @@ import type {
   ProductSubscriptionAndroid,
   ProductSubscriptionAndroidOfferDetails,
   PricingPhaseAndroid,
+  SubscriptionOffer,
 } from 'react-native-iap';
 import { SUBSCRIPTION_PRODUCTS, type PlanType } from '@/services/iap/products';
 import { isAndroidEmulatorStoreUnavailable } from '@/services/iap/environment';
@@ -108,6 +109,33 @@ const VALIDATION_ERROR_MESSAGES: Record<string, string> = {
   'failed-precondition': 'Unable to process this purchase. Please try a different option.',
   'internal': 'Server error. Please try again in a few moments.',
 };
+
+function isStandardizedSubscriptionOffer(
+  offer: ProductSubscriptionAndroidOfferDetails | SubscriptionOffer
+): offer is SubscriptionOffer {
+  return 'offerTokenAndroid' in offer || 'pricingPhasesAndroid' in offer || 'paymentMode' in offer;
+}
+
+function hasFreeTrialPhase(offer: ProductSubscriptionAndroidOfferDetails | SubscriptionOffer): boolean {
+  if (isStandardizedSubscriptionOffer(offer)) {
+    return offer.paymentMode === 'free-trial'
+      || offer.pricingPhasesAndroid?.pricingPhaseList?.some((p: PricingPhaseAndroid) => p.priceAmountMicros === '0') === true;
+  }
+
+  return offer.pricingPhases.pricingPhaseList.some((p: PricingPhaseAndroid) => p.priceAmountMicros === '0');
+}
+
+function getAndroidSubscriptionOfferToken(product: ProductSubscriptionAndroid): string | null {
+  const standardizedOffers = product.subscriptionOffers ?? [];
+  const standardizedOffer = standardizedOffers.find(hasFreeTrialPhase) ?? standardizedOffers[0];
+  if (standardizedOffer?.offerTokenAndroid) {
+    return standardizedOffer.offerTokenAndroid;
+  }
+
+  const legacyOffers = product.subscriptionOfferDetailsAndroid ?? [];
+  const legacyOffer = legacyOffers.find(hasFreeTrialPhase) ?? legacyOffers[0];
+  return legacyOffer?.offerToken ?? null;
+}
 
 /** Extract user-friendly message from Firebase function error */
 function extractFirebaseErrorMessage(error: unknown): string {
@@ -245,6 +273,7 @@ export class PurchaseService {
     this.purchaseErrorSub = null;
     this.isInitialized = false;
     this.initializationInProgress = null;
+    this.pendingPurchaseSku = null;
     errorListeners.clear();
     const iapModule = getLoadedIapModule();
     if (iapModule) {
@@ -406,20 +435,35 @@ export class PurchaseService {
         const offerCount = product?.subscriptionOfferDetailsAndroid?.length || 0;
         console.warn('[IAP] Android: Product', sku, 'matched, has', offerCount, 'offers');
 
+        const isUnavailableProductStatus = product.productStatusAndroid === 'not-found'
+          || product.productStatusAndroid === 'no-offers-available';
+        if (isUnavailableProductStatus) {
+          await logPurchaseError('productUnavailable', 'E_ITEM_UNAVAILABLE', `Product ${sku} status: ${product.productStatusAndroid}`, {
+            plan,
+            sku,
+            productStatusAndroid: product.productStatusAndroid,
+          });
+          throw { code: 'E_ITEM_UNAVAILABLE', message: 'This subscription is not available for purchase at this time.' };
+        }
+
         // Log all offers for debugging
         product?.subscriptionOfferDetailsAndroid?.forEach((offer: ProductSubscriptionAndroidOfferDetails, idx: number) => {
           const phases = offer.pricingPhases.pricingPhaseList;
           const hasFreeTrial = phases.some((p: PricingPhaseAndroid) => p.priceAmountMicros === '0');
-          console.warn(`[IAP] Android: Offer ${idx}: hasFreeTrial=${hasFreeTrial}, phases=${phases.length}`);
+          console.warn(`[IAP] Android: Legacy offer ${idx}: hasFreeTrial=${hasFreeTrial}, phases=${phases.length}`);
+        });
+        product?.subscriptionOffers?.forEach((offer: SubscriptionOffer, idx: number) => {
+          const hasFreeTrial = hasFreeTrialPhase(offer);
+          console.warn(`[IAP] Android: Offer ${idx}: hasFreeTrial=${hasFreeTrial}, token=${offer.offerTokenAndroid ? 'present' : 'MISSING'}`);
         });
 
-        // Find offer with free trial first, fall back to first offer
-        const trialOffer = product?.subscriptionOfferDetailsAndroid?.find((o: ProductSubscriptionAndroidOfferDetails) =>
-          o.pricingPhases.pricingPhaseList.some((p: PricingPhaseAndroid) => p.priceAmountMicros === '0')
-        );
-        const offerToken = trialOffer?.offerToken || product?.subscriptionOfferDetailsAndroid?.[0]?.offerToken;
+        const hasTrialOffer = [
+          ...(product.subscriptionOffers ?? []),
+          ...(product.subscriptionOfferDetailsAndroid ?? []),
+        ].some(hasFreeTrialPhase);
+        const offerToken = getAndroidSubscriptionOfferToken(product);
 
-        console.warn('[IAP] Android: Selected offer for', sku, '- hasTrialOffer:', !!trialOffer, 'offerToken:', offerToken ? 'present' : 'MISSING');
+        console.warn('[IAP] Android: Selected offer for', sku, '- hasTrialOffer:', hasTrialOffer, 'offerToken:', offerToken ? 'present' : 'MISSING');
 
         if (!offerToken) {
           // Log this critical error to Firestore
@@ -433,9 +477,19 @@ export class PurchaseService {
         }
 
         console.warn('[IAP] Android: Calling requestSubscription for', sku);
+        const obfuscatedAccountId = await this.getOrCreateAppAccountToken(user.uid);
         this.pendingPurchaseSku = sku; // Mark that we're expecting this purchase
         // For Android, subscriptionOffers contains the sku and offerToken
-        await requestPurchase({ type: 'subs', request: { google: { skus: [sku], subscriptionOffers: [{ sku, offerToken }] } } });
+        await requestPurchase({
+          type: 'subs',
+          request: {
+            google: {
+              skus: [sku],
+              obfuscatedAccountId,
+              subscriptionOffers: [{ sku, offerToken }],
+            },
+          },
+        });
         console.warn('[IAP] Android: requestSubscription returned successfully for', sku);
       }
 
@@ -514,9 +568,21 @@ export class PurchaseService {
         await requestPurchase({ type: 'in-app', request: { apple: { sku, andDangerouslyFinishTransactionAutomatically: false, appAccountToken } } });
       } else {
         // For Android, verify the product exists before requesting purchase
-        await fetchProducts({ skus: [sku], type: 'in-app' });
+        const prods = await withTimeout(
+          fetchProducts({ skus: [sku], type: 'in-app' }),
+          10000,
+          'Store connection timed out. Please try again.'
+        );
+        if (!prods?.some((product) => product.id === sku)) {
+          await logPurchaseError('purchaseLifetime', 'E_ITEM_UNAVAILABLE', `Product ${sku} not found in store`, {
+            sku,
+            returnedProducts: prods?.map((product) => product.id) ?? [],
+          });
+          throw { code: 'E_ITEM_UNAVAILABLE', message: 'Lifetime purchase not found in store. Please ensure you have the latest app version.' };
+        }
+        const obfuscatedAccountId = await this.getOrCreateAppAccountToken(user.uid);
         this.pendingPurchaseSku = sku; // Mark that we're expecting this purchase
-        await requestPurchase({ type: 'in-app', request: { google: { skus: [sku] } } });
+        await requestPurchase({ type: 'in-app', request: { google: { skus: [sku], obfuscatedAccountId } } });
       }
 
       return { success: true } as const;
@@ -561,9 +627,19 @@ export class PurchaseService {
   }
 
   private static async handlePurchaseUpdate(purchase: Purchase) {
-    if (!purchase.purchaseToken) return;
-
     const { finishTransaction } = await getIapModule();
+
+    if (!purchase.purchaseToken) {
+      const message = `Missing purchase token for ${purchase.productId}`;
+      console.warn('[IAP] Purchase update missing token:', purchase.productId);
+      this.pendingPurchaseSku = null;
+      await logPurchaseError('handlePurchaseUpdate', 'MISSING_PURCHASE_TOKEN', message, {
+        productId: purchase.productId,
+        transactionId: purchase.transactionId,
+      });
+      this.notifyError('Purchase completed, but the receipt was missing. Please try Restore Purchases or contact support if you were charged.', true);
+      return;
+    }
 
     // CRITICAL: Only process purchases that we initiated
     // This prevents assigning purchases from a different Google Play account

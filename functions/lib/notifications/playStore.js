@@ -49,7 +49,7 @@ exports.handlePlayStoreNotification = (0, pubsub_1.onMessagePublished)('play-sto
             return;
         const userId = await findUserByPurchaseToken(purchaseToken);
         if (!userId) {
-            console.warn('RTDN: No user found for token', purchaseToken);
+            console.warn('RTDN: No user found for purchase token');
             return;
         }
         // Refresh status via Google API
@@ -82,6 +82,23 @@ async function findUserByPurchaseToken(token) {
         return snap.docs[0].id;
     return null;
 }
+function parseAndroidTimestampMillis(value) {
+    if (!value)
+        return undefined;
+    const millis = Date.parse(value);
+    return Number.isFinite(millis) ? String(millis) : undefined;
+}
+function getLatestSubscriptionLineItem(lineItems, subscriptionId) {
+    const matching = (lineItems ?? []).filter((item) => item.productId === subscriptionId);
+    const candidates = matching.length > 0 ? matching : (lineItems ?? []);
+    return candidates.reduce((latest, item) => {
+        if (!latest)
+            return item;
+        const latestExpiry = Date.parse(latest.expiryTime ?? '');
+        const itemExpiry = Date.parse(item.expiryTime ?? '');
+        return itemExpiry > latestExpiry ? item : latest;
+    }, undefined);
+}
 async function validateAndroidSubscription(packageName, subscriptionId, token) {
     const auth = new googleapis_1.google.auth.GoogleAuth({
         scopes: ['https://www.googleapis.com/auth/androidpublisher'],
@@ -89,10 +106,14 @@ async function validateAndroidSubscription(packageName, subscriptionId, token) {
     const authClient = await auth.getClient();
     googleapis_1.google.options({ auth: authClient });
     const publisher = googleapis_1.google.androidpublisher('v3');
-    const res = await publisher.purchases.subscriptions.get({
+    const res = await publisher.purchases.subscriptionsv2.get({
         packageName,
-        subscriptionId,
         token,
     });
-    return res.data;
+    const purchase = res.data;
+    const lineItem = getLatestSubscriptionLineItem(purchase.lineItems, subscriptionId);
+    return {
+        expiryTimeMillis: parseAndroidTimestampMillis(lineItem?.expiryTime),
+        autoRenewing: lineItem?.autoRenewingPlan?.autoRenewEnabled ?? false,
+    };
 }

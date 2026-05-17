@@ -379,7 +379,13 @@ describe('PurchaseService', () => {
 
         expect(mockRequestPurchase).toHaveBeenCalledWith({
           type: 'subs',
-          request: { google: { skus: [SUBSCRIPTION_PRODUCTS.monthly], subscriptionOffers: [{ sku: SUBSCRIPTION_PRODUCTS.monthly, offerToken: 'trial-offer-token' }] } },
+          request: {
+            google: {
+              skus: [SUBSCRIPTION_PRODUCTS.monthly],
+              obfuscatedAccountId: 'hashed-token-123',
+              subscriptionOffers: [{ sku: SUBSCRIPTION_PRODUCTS.monthly, offerToken: 'trial-offer-token' }],
+            },
+          },
         });
       });
 
@@ -415,7 +421,66 @@ describe('PurchaseService', () => {
 
         expect(mockRequestPurchase).toHaveBeenCalledWith({
           type: 'subs',
-          request: { google: { skus: [SUBSCRIPTION_PRODUCTS.annual], subscriptionOffers: [{ sku: SUBSCRIPTION_PRODUCTS.annual, offerToken: 'regular-offer-token' }] } },
+          request: {
+            google: {
+              skus: [SUBSCRIPTION_PRODUCTS.annual],
+              obfuscatedAccountId: 'hashed-token-123',
+              subscriptionOffers: [{ sku: SUBSCRIPTION_PRODUCTS.annual, offerToken: 'regular-offer-token' }],
+            },
+          },
+        });
+      });
+
+      it('should use standardized Android subscription offers when available', async () => {
+        const mockProduct = {
+          id: SUBSCRIPTION_PRODUCTS.monthly,
+          productId: SUBSCRIPTION_PRODUCTS.monthly,
+          productStatusAndroid: 'ok',
+          subscriptionOffers: [
+            {
+              id: 'standard-trial-offer',
+              displayPrice: 'Free',
+              price: 0,
+              type: 'introductory',
+              paymentMode: 'free-trial',
+              offerTokenAndroid: 'standard-trial-token',
+            },
+          ],
+          subscriptionOfferDetailsAndroid: [
+            {
+              offerToken: 'legacy-offer-token',
+              basePlanId: 'base-plan',
+              offerId: 'legacy-offer',
+              offerTags: [],
+              pricingPhases: {
+                pricingPhaseList: [
+                  {
+                    priceAmountMicros: '5990000',
+                    billingPeriod: 'P1M',
+                    recurrenceMode: 1,
+                    billingCycleCount: 0,
+                    formattedPrice: '$5.99',
+                    priceCurrencyCode: 'USD',
+                  },
+                ],
+              },
+            },
+          ],
+        } as Partial<ProductSubscriptionAndroid>;
+
+        mockFetchProducts.mockResolvedValue([mockProduct]);
+
+        await PurchaseService.purchaseSubscription('monthly');
+
+        expect(mockRequestPurchase).toHaveBeenCalledWith({
+          type: 'subs',
+          request: {
+            google: {
+              skus: [SUBSCRIPTION_PRODUCTS.monthly],
+              obfuscatedAccountId: 'hashed-token-123',
+              subscriptionOffers: [{ sku: SUBSCRIPTION_PRODUCTS.monthly, offerToken: 'standard-trial-token' }],
+            },
+          },
         });
       });
 
@@ -552,10 +617,15 @@ describe('PurchaseService', () => {
         await PurchaseService.purchaseLifetime();
 
         expect(mockFetchProducts).toHaveBeenCalledWith({ skus: [SUBSCRIPTION_PRODUCTS.lifetime], type: 'in-app' });
-        expect(mockRequestPurchase).toHaveBeenCalledWith({ type: 'in-app', request: { google: { skus: [SUBSCRIPTION_PRODUCTS.lifetime] } } });
+        expect(mockRequestPurchase).toHaveBeenCalledWith({
+          type: 'in-app',
+          request: { google: { skus: [SUBSCRIPTION_PRODUCTS.lifetime], obfuscatedAccountId: 'hashed-token-123' } },
+        });
       });
 
       it('should use requestPurchase on Android', async () => {
+        mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.lifetime }]);
+
         await PurchaseService.purchaseLifetime();
 
         expect(mockRequestPurchase).toHaveBeenCalled();
@@ -563,12 +633,15 @@ describe('PurchaseService', () => {
     });
 
     it('should return success when purchase completes', async () => {
+      mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.lifetime }]);
+
       const result = await PurchaseService.purchaseLifetime();
 
       expect(result).toEqual({ success: true });
     });
 
     it('should handle user cancellation', async () => {
+      mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.lifetime }]);
       mockRequestPurchase.mockRejectedValue({ code: 'E_USER_CANCELLED' });
 
       const result = await PurchaseService.purchaseLifetime();
@@ -847,10 +920,15 @@ describe('PurchaseService', () => {
 
   describe('onPurchaseError listener', () => {
     it('should register and call error listeners', async () => {
+      Platform.OS = 'ios';
       const listener = jest.fn();
       const unsubscribe = PurchaseService.onPurchaseError(listener);
 
       await PurchaseService.initialize();
+
+      // Must initiate a purchase first to set pendingPurchaseSku.
+      mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.monthly }]);
+      await PurchaseService.purchaseSubscription('monthly');
 
       // Trigger a purchase update with validation failure
       const purchaseUpdateHandler = mockPurchaseUpdatedListener.mock.calls[0][0];

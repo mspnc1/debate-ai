@@ -3,7 +3,7 @@ import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
 import axios from 'axios';
-import { google } from 'googleapis';
+import { google, androidpublisher_v3 } from 'googleapis';
 
 // Initialize Admin if not already
 try { admin.app(); } catch { admin.initializeApp(); }
@@ -20,6 +20,29 @@ type ValidateRequest = {
   platform: 'ios' | 'android';
   productId: string; // subscription or product id
   purchaseToken?: string; // Android purchase token
+};
+
+type AndroidSubscriptionState = {
+  expiryTimeMillis?: string;
+  startTimeMillis?: string;
+  autoRenewing?: boolean;
+  paymentState?: number;
+  productId?: string;
+  basePlanId?: string;
+};
+
+type AndroidProductState = {
+  purchaseState?: number;
+  productId?: string;
+};
+
+type ErrorSummary = {
+  name?: string;
+  message?: string;
+  code?: unknown;
+  status?: number;
+  googleStatus?: string;
+  googleMessage?: string;
 };
 
 // Lifetime product IDs
@@ -77,6 +100,49 @@ const recordTrialUsage = async (uid: string, email: string | undefined): Promise
     firstTrialDate: admin.firestore.FieldValue.serverTimestamp(),
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   });
+};
+
+const toStatusCode = (value: unknown): number | undefined => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+};
+
+const summarizeError = (error: unknown): ErrorSummary => {
+  const err = error as {
+    name?: string;
+    message?: string;
+    code?: unknown;
+    status?: unknown;
+    response?: {
+      status?: unknown;
+      data?: {
+        error?: {
+          status?: string;
+          message?: string;
+        };
+      };
+    };
+  };
+
+  return {
+    name: err?.name,
+    message: err?.message,
+    code: err?.code,
+    status: toStatusCode(err?.status) ?? toStatusCode(err?.response?.status),
+    googleStatus: err?.response?.data?.error?.status,
+    googleMessage: err?.response?.data?.error?.message,
+  };
+};
+
+const isGoogleInvalidValueError = (summary: ErrorSummary): boolean => {
+  if (summary.status !== 400) return false;
+  return summary.message === 'Invalid Value'
+    || summary.googleMessage === 'Invalid Value'
+    || summary.googleStatus === 'INVALID_ARGUMENT';
 };
 
 /**
@@ -147,7 +213,7 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
         // Android: Validate one-time product purchase
         if (!purchaseToken) throw new HttpsError('invalid-argument', 'Missing Android purchase token');
         const android = await validateAndroidProduct(PACKAGE_NAME_ANDROID, productId, purchaseToken);
-        if (!android || android.purchaseState !== 0) {
+        if (!android || android.purchaseState !== 0 || android.productId !== productId) {
           throw new HttpsError('invalid-argument', 'Invalid Android product purchase state');
         }
         // Lifetime purchases have no expiry
@@ -187,6 +253,9 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
         const android = await validateAndroidSubscription(PACKAGE_NAME_ANDROID, productId, purchaseToken);
         if (!android || !android.expiryTimeMillis) {
           throw new HttpsError('invalid-argument', 'Invalid Android subscription state');
+        }
+        if (android.productId && android.productId !== productId) {
+          throw new HttpsError('not-found', 'No matching Android subscription found');
         }
         expiresAt = new Date(parseInt(android.expiryTimeMillis, 10));
         autoRenewing = !!android.autoRenewing;
@@ -265,10 +334,17 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
       isLifetime,
     };
   } catch (err) {
-    console.error('validatePurchase error', err);
+    const errorSummary = summarizeError(err);
+    console.error('validatePurchase error', errorSummary);
     // Re-throw HttpsError as-is (e.g., "Trial already used" message)
     if (err instanceof HttpsError) {
       throw err;
+    }
+    if (platform === 'android' && isGoogleInvalidValueError(errorSummary)) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Google Play rejected this purchase token. Please restore purchases or contact support if you were charged.'
+      );
     }
     throw new HttpsError('internal', 'Validation failed');
   }
@@ -297,48 +373,86 @@ async function validateAppleReceipt(receiptData: string, sharedSecret: string) {
   return data;
 }
 
-async function validateAndroidSubscription(packageName: string, subscriptionId: string, token: string) {
+function getAndroidPublisherClient() {
   const auth = new google.auth.GoogleAuth({
     scopes: ['https://www.googleapis.com/auth/androidpublisher'],
   });
-  const authClient = await auth.getClient();
-  google.options({ auth: authClient as any });
-  const publisher = google.androidpublisher('v3');
-  const res = await publisher.purchases.subscriptions.get({
-    packageName,
-    subscriptionId,
-    token,
+  return auth.getClient().then((authClient) => {
+    google.options({ auth: authClient as any });
+    return google.androidpublisher('v3');
   });
-  // paymentState: 0 = Payment pending, 1 = Payment received, 2 = Free trial, 3 = Pending deferred upgrade/downgrade
-  return res.data as { expiryTimeMillis?: string; startTimeMillis?: string; autoRenewing?: boolean; paymentState?: number };
 }
 
-async function validateAndroidSubscriptionV2(packageName: string, productId: string, token: string) {
-  const auth = new google.auth.GoogleAuth({
-    scopes: ['https://www.googleapis.com/auth/androidpublisher'],
-  });
-  const authClient = await auth.getClient();
-  google.options({ auth: authClient as any });
-  const publisher = google.androidpublisher('v3');
+function parseAndroidTimestampMillis(value?: string | null): string | undefined {
+  if (!value) return undefined;
+  const millis = Date.parse(value);
+  return Number.isFinite(millis) ? String(millis) : undefined;
+}
+
+function isValidAndroidSubscriptionState(state?: string | null): boolean {
+  return state === 'SUBSCRIPTION_STATE_ACTIVE'
+    || state === 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD'
+    || state === 'SUBSCRIPTION_STATE_CANCELED';
+}
+
+function getLatestSubscriptionLineItem(
+  lineItems: androidpublisher_v3.Schema$SubscriptionPurchaseLineItem[] | undefined,
+  productId: string
+): androidpublisher_v3.Schema$SubscriptionPurchaseLineItem | undefined {
+  const matching = (lineItems ?? []).filter((item) => item.productId === productId);
+  const candidates = matching.length > 0 ? matching : (lineItems ?? []);
+  return candidates.reduce<androidpublisher_v3.Schema$SubscriptionPurchaseLineItem | undefined>((latest, item) => {
+    if (!latest) return item;
+    const latestExpiry = Date.parse(latest.expiryTime ?? '');
+    const itemExpiry = Date.parse(item.expiryTime ?? '');
+    return itemExpiry > latestExpiry ? item : latest;
+  }, undefined);
+}
+
+async function validateAndroidSubscription(
+  packageName: string,
+  productId: string,
+  token: string
+): Promise<AndroidSubscriptionState> {
+  const publisher = await getAndroidPublisherClient();
   const res = await publisher.purchases.subscriptionsv2.get({
     packageName,
     token,
   } as any);
-  return res.data as { lineItems?: Array<{ offerDetails?: { offerTags?: string[] } }> };
+  const purchase = res.data as androidpublisher_v3.Schema$SubscriptionPurchaseV2;
+  const lineItem = getLatestSubscriptionLineItem(purchase.lineItems, productId);
+
+  if (!isValidAndroidSubscriptionState(purchase.subscriptionState) || !lineItem?.expiryTime) {
+    return {};
+  }
+
+  return {
+    expiryTimeMillis: parseAndroidTimestampMillis(lineItem.expiryTime),
+    startTimeMillis: parseAndroidTimestampMillis(purchase.startTime),
+    autoRenewing: lineItem.autoRenewingPlan?.autoRenewEnabled ?? false,
+    paymentState: lineItem.offerPhase?.freeTrial ? 2 : 1,
+    productId: lineItem.productId ?? undefined,
+    basePlanId: lineItem.offerDetails?.basePlanId ?? undefined,
+  };
 }
 
-async function validateAndroidProduct(packageName: string, productId: string, token: string) {
-  const auth = new google.auth.GoogleAuth({
-    scopes: ['https://www.googleapis.com/auth/androidpublisher'],
-  });
-  const authClient = await auth.getClient();
-  google.options({ auth: authClient as any });
-  const publisher = google.androidpublisher('v3');
-  const res = await publisher.purchases.products.get({
+async function validateAndroidProduct(
+  packageName: string,
+  productId: string,
+  token: string
+): Promise<AndroidProductState> {
+  const publisher = await getAndroidPublisherClient();
+
+  const v2 = await publisher.purchases.productsv2.getproductpurchasev2({
     packageName,
-    productId,
     token,
   });
-  // purchaseState: 0 = Purchased, 1 = Canceled, 2 = Pending
-  return res.data as { purchaseState?: number; consumptionState?: number; purchaseTimeMillis?: string };
+  const data = v2.data as androidpublisher_v3.Schema$ProductPurchaseV2;
+  const lineItem = data.productLineItem?.find((item) => item.productId === productId);
+
+  return {
+    // Legacy code expects 0 = purchased.
+    purchaseState: data.purchaseStateContext?.purchaseState === 'PURCHASED' ? 0 : 1,
+    productId: lineItem?.productId ?? data.productLineItem?.[0]?.productId ?? undefined,
+  };
 }

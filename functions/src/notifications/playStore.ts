@@ -1,8 +1,13 @@
 import { onMessagePublished } from 'firebase-functions/v2/pubsub';
 import * as admin from 'firebase-admin';
-import { google } from 'googleapis';
+import { google, androidpublisher_v3 } from 'googleapis';
 
 const PACKAGE_NAME_ANDROID = 'com.braveheartinnovations.debateai';
+
+type AndroidSubscriptionState = {
+  expiryTimeMillis?: string;
+  autoRenewing?: boolean;
+};
 
 export const handlePlayStoreNotification = onMessagePublished(
   'play-store-notifications',
@@ -17,7 +22,7 @@ export const handlePlayStoreNotification = onMessagePublished(
 
       const userId = await findUserByPurchaseToken(purchaseToken);
       if (!userId) {
-        console.warn('RTDN: No user found for token', purchaseToken);
+        console.warn('RTDN: No user found for purchase token');
         return;
       }
 
@@ -52,18 +57,46 @@ async function findUserByPurchaseToken(token: string): Promise<string | null> {
   return null;
 }
 
-async function validateAndroidSubscription(packageName: string, subscriptionId: string, token: string) {
+function parseAndroidTimestampMillis(value?: string | null): string | undefined {
+  if (!value) return undefined;
+  const millis = Date.parse(value);
+  return Number.isFinite(millis) ? String(millis) : undefined;
+}
+
+function getLatestSubscriptionLineItem(
+  lineItems: androidpublisher_v3.Schema$SubscriptionPurchaseLineItem[] | undefined,
+  subscriptionId: string
+): androidpublisher_v3.Schema$SubscriptionPurchaseLineItem | undefined {
+  const matching = (lineItems ?? []).filter((item) => item.productId === subscriptionId);
+  const candidates = matching.length > 0 ? matching : (lineItems ?? []);
+  return candidates.reduce<androidpublisher_v3.Schema$SubscriptionPurchaseLineItem | undefined>((latest, item) => {
+    if (!latest) return item;
+    const latestExpiry = Date.parse(latest.expiryTime ?? '');
+    const itemExpiry = Date.parse(item.expiryTime ?? '');
+    return itemExpiry > latestExpiry ? item : latest;
+  }, undefined);
+}
+
+async function validateAndroidSubscription(
+  packageName: string,
+  subscriptionId: string,
+  token: string
+): Promise<AndroidSubscriptionState> {
   const auth = new google.auth.GoogleAuth({
     scopes: ['https://www.googleapis.com/auth/androidpublisher'],
   });
   const authClient = await auth.getClient();
   google.options({ auth: authClient as any });
   const publisher = google.androidpublisher('v3');
-  const res = await publisher.purchases.subscriptions.get({
+  const res = await publisher.purchases.subscriptionsv2.get({
     packageName,
-    subscriptionId,
     token,
-  });
-  return res.data as { expiryTimeMillis?: string; autoRenewing?: boolean };
-}
+  } as any);
+  const purchase = res.data as androidpublisher_v3.Schema$SubscriptionPurchaseV2;
+  const lineItem = getLatestSubscriptionLineItem(purchase.lineItems, subscriptionId);
 
+  return {
+    expiryTimeMillis: parseAndroidTimestampMillis(lineItem?.expiryTime),
+    autoRenewing: lineItem?.autoRenewingPlan?.autoRenewEnabled ?? false,
+  };
+}
