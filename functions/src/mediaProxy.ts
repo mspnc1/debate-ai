@@ -46,6 +46,11 @@ const ELEVENLABS_DEFAULT_SFX_MODEL = 'eleven_text_to_sound_v2';
 const ELEVENLABS_DEFAULT_VOICE_ID = 'JBFqnCBsd6RMkjVDRZzb';
 const ELEVENLABS_DEFAULT_OUTPUT_FORMAT = 'mp3_44100_128';
 
+export interface RunwayVideoTaskRequest {
+  endpoint: string;
+  body: Record<string, unknown>;
+}
+
 function assertAuthenticated(request: { auth?: { uid: string } | null }) {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Must be authenticated to generate media');
@@ -122,7 +127,7 @@ async function getUserApiKey(uid: string, providerId: MediaProviderId, keyValue:
   return apiKey;
 }
 
-async function createRunwayVideoTask(apiKey: string, input: ProxyMediaGenerationRequest, prompt: string): Promise<RunwayTask> {
+export function buildRunwayVideoTaskRequest(input: ProxyMediaGenerationRequest, prompt: string): RunwayVideoTaskRequest {
   if (input.mediaType !== 'video' || !['text_to_video', 'image_to_video'].includes(input.operation)) {
     throw new HttpsError('invalid-argument', 'Runway only supports video generation in Create mode');
   }
@@ -138,11 +143,20 @@ async function createRunwayVideoTask(apiKey: string, input: ProxyMediaGeneration
     duration: input.durationSeconds || RUNWAY_DEFAULT_DURATION,
   };
 
-  if (input.sourceImage) {
+  if (input.operation === 'image_to_video') {
     body.promptImage = input.sourceImage;
   }
 
-  const response = await fetch(`${RUNWAY_API_BASE}/image_to_video`, {
+  return {
+    endpoint: input.operation === 'text_to_video' ? 'text_to_video' : 'image_to_video',
+    body,
+  };
+}
+
+async function createRunwayVideoTask(apiKey: string, input: ProxyMediaGenerationRequest, prompt: string): Promise<RunwayTask> {
+  const { endpoint, body } = buildRunwayVideoTaskRequest(input, prompt);
+
+  const response = await fetch(`${RUNWAY_API_BASE}/${endpoint}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
