@@ -25,7 +25,7 @@
     "jose": "^5.9.3",
     "marked": "^17.0.1",
     "pdfjs-dist": "^5.4.530",
-    "puppeteer-core": "^24.37.2",
+    "puppeteer-core": "^25.0.2",
     "stripe": "^20.1.0",
     "vega": "^6.2.0",
     "vega-embed": "^7.1.0",
