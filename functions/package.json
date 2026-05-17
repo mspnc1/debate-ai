@@ -38,8 +38,6 @@
   },
   "overrides": {
     "fast-xml-parser": "^5.7.0",
-    "gaxios": "^7.1.4",
-    "google-gax": "^5.0.6",
     "http-proxy-agent": "^7.0.2",
     "retry-request": "^8.0.2",
     "teeny-request": "^10.1.2",
