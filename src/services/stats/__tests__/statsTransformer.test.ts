@@ -123,11 +123,10 @@ describe('statsTransformer', () => {
   });
 
   it('groupDebatesByPeriod groups by requested period', () => {
-    const base = new Date('2024-01-01T00:00:00Z').getTime();
     const history: DebateRound[] = [
-      { debateId: 'd1', topic: '', participants: [], roundWinners: {}, timestamp: base },
-      { debateId: 'd2', topic: '', participants: [], roundWinners: {}, timestamp: base + 2 * 24 * 60 * 60 * 1000 },
-      { debateId: 'd3', topic: '', participants: [], roundWinners: {}, timestamp: base + 8 * 24 * 60 * 60 * 1000 },
+      { debateId: 'd1', topic: '', participants: [], roundWinners: {}, timestamp: new Date(2024, 0, 31, 12).getTime() },
+      { debateId: 'd2', topic: '', participants: [], roundWinners: {}, timestamp: new Date(2024, 1, 2, 12).getTime() },
+      { debateId: 'd3', topic: '', participants: [], roundWinners: {}, timestamp: new Date(2024, 1, 8, 12).getTime() },
     ];
 
     const byDay = groupDebatesByPeriod(history, 'day');

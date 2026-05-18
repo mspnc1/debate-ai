@@ -167,12 +167,12 @@ describe('SessionFilterService', () => {
 
   it('filterByRecency filters relative to current time', () => {
     jest.useFakeTimers();
-    jest.setSystemTime(new Date('2024-04-10T00:00:00Z'));
+    jest.setSystemTime(new Date(2024, 3, 10, 12));
 
     const sessions = [
-      createSession({ createdAt: new Date('2024-04-09T12:00:00Z').getTime() }),
-      createSession({ createdAt: new Date('2024-03-01T00:00:00Z').getTime() }),
-      createSession({ createdAt: new Date('2023-06-01T00:00:00Z').getTime() }),
+      createSession({ createdAt: new Date(2024, 3, 10, 9).getTime() }),
+      createSession({ createdAt: new Date(2024, 2, 1, 12).getTime() }),
+      createSession({ createdAt: new Date(2023, 5, 1, 12).getTime() }),
     ];
 
     expect(service.filterByRecency(sessions, 'today')).toHaveLength(1);
