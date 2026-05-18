@@ -331,7 +331,7 @@ export const proxyMediaGeneration = onCall(
 export const getMediaTaskStatus = onCall(
   {
     timeoutSeconds: 60,
-    memory: '256MiB',
+    memory: '512MiB',
     secrets: [encryptionKey],
   },
   async (request) => {
