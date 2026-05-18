@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
-const { buildRunwayVideoTaskRequest } = require('../lib/mediaProxy');
+const { buildRunwayVideoTaskRequest, mapRunwayStatus } = require('../lib/mediaProxy');
 
 describe('buildRunwayVideoTaskRequest', () => {
   it('uses the text-to-video endpoint without promptImage for text-only Runway generations', () => {
@@ -50,5 +50,25 @@ describe('buildRunwayVideoTaskRequest', () => {
       duration: 5,
       promptImage: 'data:image/png;base64,abc123',
     });
+  });
+});
+
+describe('mapRunwayStatus', () => {
+  it('maps current Runway terminal statuses', () => {
+    assert.equal(mapRunwayStatus('SUCCEEDED'), 'succeeded');
+    assert.equal(mapRunwayStatus('FAILED'), 'failed');
+    assert.equal(mapRunwayStatus('CANCELED'), 'canceled');
+    assert.equal(mapRunwayStatus('CANCELLED'), 'canceled');
+  });
+
+  it('keeps throttled and pending tasks in the queued phase', () => {
+    assert.equal(mapRunwayStatus('PENDING'), 'queued');
+    assert.equal(mapRunwayStatus('THROTTLED'), 'queued');
+    assert.equal(mapRunwayStatus('QUEUED'), 'queued');
+  });
+
+  it('maps active processing states to running', () => {
+    assert.equal(mapRunwayStatus('RUNNING'), 'running');
+    assert.equal(mapRunwayStatus('PROCESSING'), 'running');
   });
 });

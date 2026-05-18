@@ -70,13 +70,17 @@ function validatePrompt(prompt: unknown, maxLength: number): string {
   return trimmed;
 }
 
-function mapRunwayStatus(status: string | undefined): CreateMediaAssetStatus {
+export function mapRunwayStatus(status: string | undefined): CreateMediaAssetStatus {
   const normalized = (status || '').toLowerCase();
   if (['succeeded', 'success', 'completed', 'complete'].includes(normalized)) return 'succeeded';
   if (['failed', 'error'].includes(normalized)) return 'failed';
   if (['canceled', 'cancelled'].includes(normalized)) return 'canceled';
-  if (['running', 'processing', 'throttled'].includes(normalized)) return 'running';
+  if (['running', 'processing'].includes(normalized)) return 'running';
   return 'queued';
+}
+
+function countRunwayOutputs(output: unknown): number {
+  return Array.isArray(output) ? output.length : 0;
 }
 
 function extractProviderError(error: unknown): string {
@@ -292,11 +296,24 @@ export const proxyMediaGeneration = onCall(
           throw new HttpsError('internal', 'Runway did not return a task ID');
         }
 
+        console.info('Runway video task created', {
+          providerId: 'runway',
+          mediaType: input.mediaType,
+          operation: input.operation,
+          modelId: input.modelId || RUNWAY_DEFAULT_MODEL,
+          durationSeconds: input.durationSeconds || RUNWAY_DEFAULT_DURATION,
+          aspectRatio: input.aspectRatio || RUNWAY_DEFAULT_RATIO,
+          providerTaskId: task.id,
+          providerStatus: task.status,
+          mappedStatus: mapRunwayStatus(task.status),
+        });
+
         return {
           success: true,
           task: {
             providerTaskId: task.id,
             status: mapRunwayStatus(task.status),
+            providerStatus: task.status,
             pollAfterMs: 5000,
           },
         };
@@ -342,9 +359,19 @@ export const getMediaTaskStatus = onCall(
         ? task.error
         : task.error?.message;
 
+      console.info('Runway task status', {
+        providerTaskId,
+        providerStatus: task.status,
+        mappedStatus: status,
+        outputCount: countRunwayOutputs(task.output),
+        failureCode: task.failureCode,
+        hasFailure: Boolean(providerError || task.failure || task.failureCode),
+      });
+
       return {
         success: true,
         status,
+        providerStatus: task.status,
         outputUrls: Array.isArray(task.output) ? task.output : undefined,
         error: providerError || task.failure || task.failureCode,
       };
