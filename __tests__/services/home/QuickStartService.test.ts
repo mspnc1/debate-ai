@@ -1,71 +1,57 @@
-jest.mock('@/config/quickStartTopics', () => ({
-  QUICK_START_TOPICS: [
-    { id: 'focus', emoji: '🎯', title: 'Focus Session', subtitle: 'Regain concentration' },
-    { id: 'relax', emoji: '🧘', title: 'Relaxation', subtitle: 'Wind down gently' },
-  ],
-  TOPIC_PROMPTS: {
-    focus: 'Help me focus on important tasks.',
-  },
-}));
-
+import { QUICK_START_TEMPLATES, type QuickStartTemplateId } from '@/config/quickStartTemplates';
 import { QuickStartService } from '@/services/home/QuickStartService';
-import { QUICK_START_TOPICS } from '@/config/quickStartTopics';
-
-const focusTopic = QUICK_START_TOPICS[0];
-const relaxTopic = QUICK_START_TOPICS[1];
 
 describe('QuickStartService', () => {
-  it('returns topics and validates selections', () => {
-    expect(QuickStartService.getTopics()).toEqual(QUICK_START_TOPICS);
-    expect(QuickStartService.validateTopicSelection(focusTopic)).toBe(true);
-    expect(QuickStartService.validateTopicSelection({ ...focusTopic, id: 'unknown' })).toBe(false);
-    expect(QuickStartService.validateTopicSelection(null)).toBe(false);
-  });
+  it('exposes valid unique templates', () => {
+    const templates = QuickStartService.getTemplates();
+    const ids = templates.map(template => template.id);
 
-  it('validates topic structure against home constants', () => {
-    expect(QuickStartService.validateTopicStructure(focusTopic)).toBe(true);
-
-    const invalid = { ...focusTopic, title: '' };
-    expect(QuickStartService.validateTopicStructure(invalid)).toBe(false);
-  });
-
-  it('provides prompts and prepares prompt data for wizard', () => {
-    expect(QuickStartService.getTopicPrompt('focus')).toBe('Help me focus on important tasks.');
-    expect(QuickStartService.getTopicPrompt('relax')).toContain("Let's have a conversation");
-
-    const data = QuickStartService.preparePromptData(focusTopic, 'Add breathing exercise');
-    expect(data).toEqual({
-      topicId: 'focus',
-      topicTitle: 'Focus Session',
-      basePrompt: 'Help me focus on important tasks.',
-      userInput: 'Add breathing exercise',
-      enrichedPrompt: 'Help me focus on important tasks. Add breathing exercise',
+    expect(templates).toHaveLength(6);
+    expect(new Set(ids).size).toBe(ids.length);
+    templates.forEach(template => {
+      expect(QuickStartService.validateTemplate(template)).toBe(true);
+      expect(template.title).toBeTruthy();
+      expect(template.subtitle).toBeTruthy();
+      expect(template.icon).toBeTruthy();
     });
   });
 
-  it('enriches user prompts and checks availability', () => {
-    expect(QuickStartService.enrichPromptForTopic('focus', 'Stay away from distractions')).toBe(
-      'Help me focus on important tasks. Specifically: Stay away from distractions'
+  it('builds non-empty prompt pairs for every template without personality injection', () => {
+    QUICK_START_TEMPLATES.forEach(template => {
+      const payload = QuickStartService.buildPrompt(template.id, '  help me understand this messy idea  ');
+
+      expect(payload.templateId).toBe(template.id);
+      expect(payload.userPrompt).toBe('help me understand this messy idea');
+      expect(payload.aiPrompt.length).toBeGreaterThan(payload.userPrompt.length);
+      expect(payload.userPrompt).not.toContain('[PERSONALITY:');
+      expect(payload.aiPrompt).not.toContain('[PERSONALITY:');
+      expect(payload.aiPrompt).not.toContain('systemPrompt');
+      expect(payload.aiPrompt).toContain('Chat mode');
+      expect(QuickStartService.validatePromptPayload(payload)).toBe(true);
+    });
+  });
+
+  it('uses the user-entered prompt as the visible first message', () => {
+    const payload = QuickStartService.buildPrompt('brainstorm', '  privacy-first   family calendar ideas  ');
+
+    expect(payload.userPrompt).toBe('privacy-first family calendar ideas');
+    expect(payload.aiPrompt).toContain('privacy-first family calendar ideas');
+  });
+
+  it('does not generate a default prompt when the input is empty', () => {
+    expect(() => QuickStartService.buildPrompt('brainstorm', '   ')).toThrow('Quick Start prompt is required');
+  });
+
+  it('validates prompt payloads and rejects unknown templates', () => {
+    expect(QuickStartService.validatePromptPayload(null)).toBe(false);
+    expect(QuickStartService.validatePromptPayload({
+      templateId: 'brainstorm',
+      userPrompt: '',
+      aiPrompt: 'Prompt',
+    })).toBe(false);
+
+    expect(() => QuickStartService.buildPrompt('missing' as QuickStartTemplateId)).toThrow(
+      'Unknown Quick Start template',
     );
-    expect(QuickStartService.enrichPromptForTopic('focus', '   ')).toBe('Help me focus on important tasks.');
-
-    expect(QuickStartService.isQuickStartAvailable(1)).toBe(true);
-    expect(QuickStartService.isQuickStartAvailable(0)).toBe(false);
-  });
-
-  it('finds topics by id, supports search, and counts topics', () => {
-    expect(QuickStartService.getTopicById('focus')).toEqual(focusTopic);
-    expect(QuickStartService.getTopicById('missing')).toBeNull();
-
-    expect(QuickStartService.searchTopics('relax')).toEqual([relaxTopic]);
-    expect(QuickStartService.searchTopics('')).toEqual(QUICK_START_TOPICS);
-
-    expect(QuickStartService.getTopicCount()).toBe(QUICK_START_TOPICS.length);
-  });
-
-  it('validates wizard completion data', () => {
-    expect(QuickStartService.validateWizardCompletion('user', 'enriched')).toBe(true);
-    expect(QuickStartService.validateWizardCompletion('', 'enriched')).toBe(false);
-    expect(QuickStartService.validateWizardCompletion('user', '')).toBe(false);
   });
 });

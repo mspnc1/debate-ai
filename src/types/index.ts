@@ -174,7 +174,12 @@ export type RootStackParamList = {
   Home: undefined;
   Chat: {
     sessionId: string;
+    resuming?: boolean;
+    searchTerm?: string;
     initialPrompt?: string;
+    userPrompt?: string;
+    autoSend?: boolean;
+    demoSampleId?: string;
     selectedAIs?: AIConfig[];
     initialMessages?: Message[];
     aiPersonalities?: { [aiId: string]: string };

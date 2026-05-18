@@ -4,7 +4,6 @@ import {
   TopicUtils,
   type SuggestedTopic,
 } from '@/config/debate/suggestedTopics';
-import { QUICK_START_TOPICS, TOPIC_PROMPTS } from '@/config/quickStartTopics';
 
 describe('Suggested topics catalog', () => {
   it('maps catalog entries into typed suggested topics with bounds', () => {
@@ -91,18 +90,5 @@ describe('Suggested topic helpers', () => {
     expect(
       related.every(topic => topic.category === current.category || topic.tags.some(tag => current.tags.includes(tag))),
     ).toBe(true);
-  });
-});
-
-describe('Quick start topics', () => {
-  it('exposes prompts for each quick start topic', () => {
-    const ids = QUICK_START_TOPICS.map(topic => topic.id);
-    expect(new Set(ids).size).toBe(ids.length);
-    for (const topic of QUICK_START_TOPICS) {
-      expect(topic.emoji).toBeTruthy();
-      expect(topic.title).toBeTruthy();
-      expect(topic.subtitle).toBeTruthy();
-      expect(TOPIC_PROMPTS[topic.id]).toBeTruthy();
-    }
   });
 });

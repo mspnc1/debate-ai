@@ -15,8 +15,7 @@ const mockUseFeatureAccess = jest.fn();
 let mockHeaderProps: any;
 let mockHeaderActionsProps: any;
 let mockDynamicAISelectorProps: any;
-let mockQuickStartTopicPickerProps: any;
-let mockPromptWizardProps: any;
+let mockQuickStartSheetProps: any;
 let mockDemoBannerProps: any;
 let mockChatTopicPickerProps: any;
 
@@ -67,13 +66,9 @@ jest.mock('@/components/organisms', () => {
       mockDynamicAISelectorProps = props;
       return React.createElement(Text, { testID: 'dynamic-ai-selector' }, 'selector');
     },
-    QuickStartTopicPicker: (props: any) => {
-      mockQuickStartTopicPickerProps = props;
-      return React.createElement(Text, { testID: 'quick-start-topic-picker' }, props.visible ? 'visible' : 'hidden');
-    },
-    PromptWizard: (props: any) => {
-      mockPromptWizardProps = props;
-      return React.createElement(Text, { testID: 'prompt-wizard' }, props.visible ? 'visible' : 'hidden');
+    QuickStartSheet: (props: any) => {
+      mockQuickStartSheetProps = props;
+      return React.createElement(Text, { testID: 'quick-start-sheet' }, props.visible ? 'visible' : 'hidden');
     },
   };
 });
@@ -145,24 +140,27 @@ const createAISelection = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const createQuickStart = (overrides: Record<string, unknown> = {}) => ({
-  topics: [
+  templates: [
     {
-      id: 'topic-1',
-      title: 'Topic One',
-      subtitle: 'Discuss topic one',
-      emoji: '💡',
+      id: 'brainstorm',
+      title: 'Brainstorm',
+      subtitle: 'Generate ideas',
+      icon: 'bulb-outline',
+      buildAIPrompt: jest.fn(),
     },
   ],
-  selectTopic: jest.fn(),
-  closeWizard: jest.fn(),
-  validateCompletion: jest.fn().mockReturnValue(true),
+  showSheet: false,
+  openSheet: jest.fn(),
+  closeSheet: jest.fn(),
+  reset: jest.fn(),
   isAvailable: jest.fn().mockReturnValue(true),
-  showWizard: false,
-  showTopicPicker: false,
-  selectedTopic: null,
-  openTopicPicker: jest.fn(),
-  closeTopicPicker: jest.fn(),
-  selectTopicFromPicker: jest.fn(),
+  buildPrompt: jest.fn().mockReturnValue({
+    templateId: 'brainstorm',
+    userPrompt: 'app ideas',
+    aiPrompt: 'Brainstorm app ideas with structure.',
+  }),
+  templateCount: 1,
+  getStatus: jest.fn(),
   ...overrides,
 });
 
@@ -172,8 +170,7 @@ describe('HomeScreen', () => {
     mockHeaderProps = undefined;
     mockHeaderActionsProps = undefined;
     mockDynamicAISelectorProps = undefined;
-    mockQuickStartTopicPickerProps = undefined;
-    mockPromptWizardProps = undefined;
+    mockQuickStartSheetProps = undefined;
     mockDemoBannerProps = undefined;
     mockChatTopicPickerProps = undefined;
   });
@@ -235,7 +232,7 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
     expect(mockHeaderActionsProps.variant).toBe('gradient');
     expect(mockHeaderActionsProps.helpCategoryId).toBe('chat');
     expect(mockDynamicAISelectorProps.maxAIs).toBe(aiSelection.maxAIs);
-    // Quick Start is now via onQuickStart callback on DynamicAISelector (not QuickStartsSection)
+    // Quick Start is exposed through the trailing lightbulb on the primary button.
     expect(mockDynamicAISelectorProps.onQuickStart).toBeDefined();
   });
 
@@ -331,7 +328,7 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
     expect(mockChatTopicPickerProps.personaId).toBeUndefined();
   });
 
-  it('opens topic picker when onQuickStart is called', async () => {
+  it('opens quick start sheet when onQuickStart is called', async () => {
     const selectedAIs = [createAIConfig()];
     const quickStart = createQuickStart();
     const aiSelection = createAISelection({
@@ -346,52 +343,35 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
       mockDynamicAISelectorProps.onQuickStart();
     });
 
-    expect(quickStart.openTopicPicker).toHaveBeenCalled();
+    expect(quickStart.openSheet).toHaveBeenCalled();
   });
 
-  it('passes topic picker props correctly', () => {
+  it('passes quick start sheet props correctly', () => {
     const quickStart = createQuickStart({
-      showTopicPicker: true,
-      topics: [{ id: 'topic-1', title: 'Topic One', subtitle: 'Sub', emoji: '💡' }],
+      showSheet: true,
     });
 
     renderHome({ quickStart });
 
-    expect(mockQuickStartTopicPickerProps.visible).toBe(true);
-    expect(mockQuickStartTopicPickerProps.topics).toEqual(quickStart.topics);
-    expect(mockQuickStartTopicPickerProps.onSelectTopic).toBeDefined();
-    expect(mockQuickStartTopicPickerProps.onClose).toBeDefined();
+    expect(mockQuickStartSheetProps.visible).toBe(true);
+    expect(mockQuickStartSheetProps.templates).toEqual(quickStart.templates);
+    expect(mockQuickStartSheetProps.onStart).toBeDefined();
+    expect(mockQuickStartSheetProps.onClose).toBeDefined();
   });
 
-  it('handles topic selection from picker', async () => {
+  it('closes quick start sheet when onClose is called', async () => {
     const quickStart = createQuickStart({
-      showTopicPicker: true,
-      selectTopicFromPicker: jest.fn(),
-    });
-
-    renderHome({ quickStart });
-
-    const topic = quickStart.topics[0];
-    await act(async () => {
-      mockQuickStartTopicPickerProps.onSelectTopic(topic);
-    });
-
-    expect(quickStart.selectTopicFromPicker).toHaveBeenCalledWith(topic);
-  });
-
-  it('closes topic picker when onClose is called', async () => {
-    const quickStart = createQuickStart({
-      showTopicPicker: true,
-      closeTopicPicker: jest.fn(),
+      showSheet: true,
+      closeSheet: jest.fn(),
     });
 
     renderHome({ quickStart });
 
     await act(async () => {
-      mockQuickStartTopicPickerProps.onClose();
+      mockQuickStartSheetProps.onClose();
     });
 
-    expect(quickStart.closeTopicPicker).toHaveBeenCalled();
+    expect(quickStart.closeSheet).toHaveBeenCalled();
   });
 
   it('does not show onQuickStart in demo mode', () => {
@@ -405,14 +385,12 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
     expect(mockDynamicAISelectorProps.onQuickStart).toBeUndefined();
   });
 
-  it('handles prompt wizard completion when validation succeeds', async () => {
+  it('handles quick start completion when selection exists', async () => {
     const selectedAIs = [createAIConfig({ id: 'anthropic' })];
     const session = { createSession: jest.fn().mockReturnValue('session-789') };
     const quickStart = createQuickStart({
-      validateCompletion: jest.fn().mockReturnValue(true),
-      showWizard: true,
-      selectedTopic: { id: 'topic-1' },
-      closeWizard: jest.fn(),
+      showSheet: true,
+      closeSheet: jest.fn(),
     });
     const aiSelection = createAISelection({
       hasSelection: true,
@@ -424,24 +402,27 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
     renderHome({ aiSelection, quickStart, session, navigation });
 
     await act(async () => {
-      mockPromptWizardProps.onComplete('user prompt', 'enriched prompt');
+      mockQuickStartSheetProps.onStart({
+        templateId: 'brainstorm',
+        userPrompt: 'user prompt',
+        aiPrompt: 'ai prompt',
+      });
     });
 
-    expect(quickStart.validateCompletion).toHaveBeenCalledWith('user prompt', 'enriched prompt');
     expect(session.createSession).toHaveBeenCalledWith(selectedAIs);
     expect(navigation.navigate).toHaveBeenCalledWith('Chat', {
       sessionId: 'session-789',
-      initialPrompt: 'enriched prompt',
+      initialPrompt: 'ai prompt',
       userPrompt: 'user prompt',
       autoSend: true,
     });
-    expect(quickStart.closeWizard).toHaveBeenCalled();
+    expect(quickStart.closeSheet).toHaveBeenCalled();
   });
 
-  it('closes prompt wizard without navigation when validation fails', async () => {
+  it('closes quick start sheet without navigation when no AI is selected', async () => {
     const quickStart = createQuickStart({
-      validateCompletion: jest.fn().mockReturnValue(false),
-      closeWizard: jest.fn(),
+      showSheet: true,
+      closeSheet: jest.fn(),
     });
     const session = { createSession: jest.fn() };
     const navigation = { navigate: jest.fn() };
@@ -449,12 +430,16 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
     renderHome({ quickStart, session, navigation });
 
     await act(async () => {
-      mockPromptWizardProps.onComplete('user prompt', 'enriched prompt');
+      mockQuickStartSheetProps.onStart({
+        templateId: 'brainstorm',
+        userPrompt: 'user prompt',
+        aiPrompt: 'ai prompt',
+      });
     });
 
     expect(session.createSession).not.toHaveBeenCalled();
     expect(navigation.navigate).not.toHaveBeenCalled();
-    expect(quickStart.closeWizard).toHaveBeenCalled();
+    expect(quickStart.closeSheet).toHaveBeenCalled();
   });
 
   it('dispatches subscription sheet when demo banner is pressed', async () => {

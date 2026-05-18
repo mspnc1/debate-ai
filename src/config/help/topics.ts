@@ -475,25 +475,21 @@ With multiple AIs, they can fact-check each other. If responses differ significa
 
 How It Works:
 1. Tap the lightbulb icon on the Start Chat button
-2. Select a topic category (Morning, Brainstorm, Learn, etc.)
-3. Choose a specific context within that category
-4. Optionally add your own details to refine the prompt
-5. A smart, contextual prompt is generated for you
-
-The Two-Step Wizard:
-- Step 1: Select a topic and context (e.g., "Brainstorming" + "Business Ideas")
-- Step 2: Add optional refinements (e.g., "for a mobile app startup")
+2. Enter what you want to talk through
+3. Choose how the first response should be shaped
+4. Review the exact first message that will be sent
+5. Tap Start Chat to create the chat and send that prompt
 
 Smart Prompts:
-The wizard creates AI-ready prompts that get better responses. Instead of asking "give me business ideas", it generates context-rich prompts that lead to more helpful conversations.
+Quick Start sends your own prompt as the first chat message. The selected response style only shapes the hidden first-response instruction, so Chat can answer directly, brainstorm, explain, plan, draft, or troubleshoot without switching modes.
 
-Available Categories:
-- Morning Check-in: Start your day right
-- Brainstorming: Generate fresh ideas
-- Learn Something: Explore new topics
-- Creative Writing: Collaborative storytelling
-- Problem Solving: Work through challenges
-- Just for Fun: Games and entertainment`,
+Available Response Styles:
+- Direct Answer: Clear, useful response
+- Brainstorm: Options and fresh angles
+- Explain: Teach with examples
+- Plan: Steps and priorities
+- Draft: Write or rewrite text
+- Troubleshoot: Diagnose and fix`,
     relatedTopics: ["multi-ai-chat", "round-robin"],
   },
 

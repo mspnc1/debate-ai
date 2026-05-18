@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ResponsiveContainer } from '../components/atoms';
 import { Header, HeaderActions } from '../components/organisms';
-import { DynamicAISelector, PromptWizard, QuickStartTopicPicker } from '../components/organisms';
+import { DynamicAISelector, QuickStartSheet } from '../components/organisms';
 import { ChatTopicPickerModal } from '@/components/organisms/demo/ChatTopicPickerModal';
 
 import { useTheme } from '../theme';
@@ -22,6 +22,7 @@ import { usePremiumFeatures } from '../hooks/home/usePremiumFeatures';
 import { useAISelection } from '../hooks/home/useAISelection';
 import { useSessionManagement } from '../hooks/home/useSessionManagement';
 import { useQuickStart } from '../hooks/home/useQuickStart';
+import type { QuickStartPromptPayload } from '@/services/home/QuickStartService';
 
 interface HomeScreenProps {
   navigation: {
@@ -56,19 +57,19 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     navigation.navigate(HOME_CONSTANTS.SCREENS.CHAT, { sessionId });
   };
   
-  // handleSelectTopic removed - now using FAB + TopicPicker flow
+  // Quick Start uses a single sheet and then the existing Chat auto-send route.
   
-  const handleCompleteWizard = (userPrompt: string, enrichedPrompt: string) => {
-    if (quickStart.validateCompletion(userPrompt, enrichedPrompt) && aiSelection.hasSelection) {
+  const handleCompleteQuickStart = (payload: QuickStartPromptPayload) => {
+    if (aiSelection.hasSelection) {
       const sessionId = session.createSession(aiSelection.selectedAIs);
       navigation.navigate(HOME_CONSTANTS.SCREENS.CHAT, {
         sessionId,
-        initialPrompt: enrichedPrompt,
-        userPrompt,
+        initialPrompt: payload.aiPrompt,
+        userPrompt: payload.userPrompt,
         autoSend: true,
       });
     }
-    quickStart.closeWizard();
+    quickStart.closeSheet();
   };
   
   const handleAddAI = () => {
@@ -122,28 +123,17 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               selectedModels={aiSelection.selectedModels}
               onPersonalityChange={aiSelection.changePersonality}
               onModelChange={aiSelection.changeModel}
-              onQuickStart={isDemo ? undefined : quickStart.openTopicPicker}
+              onQuickStart={isDemo ? undefined : quickStart.openSheet}
             />
           </View>
         </ResponsiveContainer>
       </ScrollView>
 
-      {/* Topic Picker Modal */}
-      <QuickStartTopicPicker
-        visible={quickStart.showTopicPicker}
-        topics={quickStart.topics}
-        onSelectTopic={quickStart.selectTopicFromPicker}
-        onClose={quickStart.closeTopicPicker}
-      />
-      
-      {/* Prompt Wizard Modal */}
-      <PromptWizard
-        visible={quickStart.showWizard}
-        topic={quickStart.selectedTopic}
-        onClose={quickStart.closeWizard}
-        onComplete={handleCompleteWizard}
-        selectedAIs={aiSelection.selectedAIs}
-        aiPersonalities={aiSelection.aiPersonalities}
+      <QuickStartSheet
+        visible={quickStart.showSheet}
+        templates={quickStart.templates}
+        onClose={quickStart.closeSheet}
+        onStart={handleCompleteQuickStart}
       />
 
       {/* Demo Mode: Chat Topic Picker */}

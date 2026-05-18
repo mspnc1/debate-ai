@@ -2,226 +2,92 @@ import { act } from '@testing-library/react-native';
 import { renderHookWithProviders } from '../../../test-utils/renderHookWithProviders';
 import { useQuickStart } from '@/hooks/home/useQuickStart';
 import { QuickStartService } from '@/services/home/QuickStartService';
-import type { QuickStartTopic } from '@/components/organisms';
+import type { QuickStartTemplate } from '@/config/quickStartTemplates';
 
 jest.mock('@/services/home/QuickStartService', () => ({
   QuickStartService: {
-    getTopics: jest.fn(),
-    validateTopicSelection: jest.fn(),
-    validateWizardCompletion: jest.fn(),
-    preparePromptData: jest.fn(),
-    enrichPromptForTopic: jest.fn(),
+    getTemplates: jest.fn(),
+    buildPrompt: jest.fn(),
     isQuickStartAvailable: jest.fn(),
-    getTopicById: jest.fn(),
-    searchTopics: jest.fn(),
-    getTopicPrompt: jest.fn(),
-    getTopicCount: jest.fn(),
+    getTemplateCount: jest.fn(),
   },
 }));
 
 describe('useQuickStart', () => {
-  const mockGetTopics = QuickStartService.getTopics as jest.MockedFunction<typeof QuickStartService.getTopics>;
-  const mockValidateTopicSelection = QuickStartService.validateTopicSelection as jest.MockedFunction<typeof QuickStartService.validateTopicSelection>;
-  const mockValidateWizardCompletion = QuickStartService.validateWizardCompletion as jest.MockedFunction<typeof QuickStartService.validateWizardCompletion>;
-  const mockPreparePromptData = QuickStartService.preparePromptData as jest.MockedFunction<typeof QuickStartService.preparePromptData>;
-  const mockEnrichPromptForTopic = QuickStartService.enrichPromptForTopic as jest.MockedFunction<typeof QuickStartService.enrichPromptForTopic>;
+  const mockGetTemplates = QuickStartService.getTemplates as jest.MockedFunction<typeof QuickStartService.getTemplates>;
+  const mockBuildPrompt = QuickStartService.buildPrompt as jest.MockedFunction<typeof QuickStartService.buildPrompt>;
   const mockIsQuickStartAvailable = QuickStartService.isQuickStartAvailable as jest.MockedFunction<typeof QuickStartService.isQuickStartAvailable>;
-  const mockGetTopicById = QuickStartService.getTopicById as jest.MockedFunction<typeof QuickStartService.getTopicById>;
-  const mockSearchTopics = QuickStartService.searchTopics as jest.MockedFunction<typeof QuickStartService.searchTopics>;
-  const mockGetTopicPrompt = QuickStartService.getTopicPrompt as jest.MockedFunction<typeof QuickStartService.getTopicPrompt>;
-  const mockGetTopicCount = QuickStartService.getTopicCount as jest.MockedFunction<typeof QuickStartService.getTopicCount>;
+  const mockGetTemplateCount = QuickStartService.getTemplateCount as jest.MockedFunction<typeof QuickStartService.getTemplateCount>;
 
-  const mockTopics: QuickStartTopic[] = [
-    { id: 'climate', title: 'Climate Debate', subtitle: 'Discuss policy ideas', emoji: '🌎' },
-    { id: 'ethics', title: 'AI Ethics', subtitle: 'Explore dilemmas', emoji: '🤖' },
+  const templates: QuickStartTemplate[] = [
+    {
+      id: 'brainstorm',
+      title: 'Brainstorm',
+      subtitle: 'Generate ideas',
+      icon: 'bulb-outline',
+      buildAIPrompt: jest.fn(),
+    },
   ];
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetTopics.mockReturnValue(mockTopics);
-    mockValidateTopicSelection.mockImplementation(topic => !!topic && topic.id === 'climate');
-    mockValidateWizardCompletion.mockReturnValue(true);
-    mockPreparePromptData.mockImplementation((topic, userInput) => ({
-      topicId: topic.id,
-      topicTitle: topic.title,
-      basePrompt: 'Base prompt',
-      userInput: userInput || '',
-      enrichedPrompt: userInput ? `Base prompt ${userInput}` : 'Base prompt',
-    }));
-    mockEnrichPromptForTopic.mockImplementation((_topicId, prompt) => `enriched::${prompt}`);
+    mockGetTemplates.mockReturnValue(templates);
+    mockGetTemplateCount.mockReturnValue(templates.length);
     mockIsQuickStartAvailable.mockReturnValue(true);
-    mockGetTopicById.mockImplementation(id => mockTopics.find(topic => topic.id === id) || null);
-    mockSearchTopics.mockReturnValue(mockTopics);
-    mockGetTopicPrompt.mockReturnValue('Base prompt');
-    mockGetTopicCount.mockReturnValue(mockTopics.length);
+    mockBuildPrompt.mockReturnValue({
+      templateId: 'brainstorm',
+      userPrompt: 'app ideas',
+      aiPrompt: 'Brainstorm app ideas with structure.',
+    });
   });
 
-  it('loads topics, validates selection, and exposes wizard controls', () => {
+  it('loads templates and controls sheet visibility', () => {
     const { result } = renderHookWithProviders(() => useQuickStart());
 
-    expect(result.current.topics).toEqual(mockTopics);
-    expect(result.current.topicCount).toBe(mockTopics.length);
-    expect(result.current.hasSelectedTopic).toBe(false);
-    expect(result.current.enrichPrompt('no topic')).toBe('no topic');
+    expect(result.current.templates).toEqual(templates);
+    expect(result.current.templateCount).toBe(1);
+    expect(result.current.showSheet).toBe(false);
 
     act(() => {
-      result.current.selectTopic(mockTopics[0]);
+      result.current.openSheet();
     });
-
-    expect(mockValidateTopicSelection).toHaveBeenCalledWith(mockTopics[0]);
-    expect(result.current.selectedTopic).toEqual(mockTopics[0]);
-    expect(result.current.showWizard).toBe(true);
-
-    const status = result.current.getStatus();
-    expect(status).toEqual({
-      hasSelectedTopic: true,
-      wizardVisible: true,
-      topicCount: mockTopics.length,
-      selectedTopicId: 'climate',
+    expect(result.current.showSheet).toBe(true);
+    expect(result.current.getStatus()).toEqual({
+      sheetVisible: true,
+      templateCount: 1,
     });
 
     act(() => {
-      result.current.closeWizard();
+      result.current.closeSheet();
     });
-
-    expect(result.current.showWizard).toBe(false);
-
-    act(() => {
-      result.current.reset();
-    });
-
-    expect(result.current.selectedTopic).toBeNull();
-    expect(result.current.hasSelectedTopic).toBe(false);
-    expect(result.current.getStatus().selectedTopicId).toBeNull();
+    expect(result.current.showSheet).toBe(false);
   });
 
-  it('delegates prompt preparation, enrichment, and availability helpers', () => {
+  it('delegates prompt generation and availability checks', () => {
     const { result } = renderHookWithProviders(() => useQuickStart());
-
-    act(() => {
-      result.current.selectTopic(mockTopics[0]);
-    });
-
-    expect(result.current.getCurrentTopicPrompt()).toBe('Base prompt');
-    expect(mockGetTopicPrompt).toHaveBeenCalledWith('climate');
-
-    expect(result.current.enrichPrompt('User input')).toBe('enriched::User input');
-    expect(mockEnrichPromptForTopic).toHaveBeenCalledWith('climate', 'User input');
-
-    expect(result.current.enrichPrompt('   ')).toBe('enriched::   ');
-    expect(mockEnrichPromptForTopic).toHaveBeenLastCalledWith('climate', '   ');
-
-    const prepared = result.current.preparePromptData(mockTopics[0], 'custom');
-    expect(prepared).toEqual({
-      topicId: 'climate',
-      topicTitle: 'Climate Debate',
-      basePrompt: 'Base prompt',
-      userInput: 'custom',
-      enrichedPrompt: 'Base prompt custom',
-    });
-    expect(mockPreparePromptData).toHaveBeenCalledWith(mockTopics[0], 'custom');
-
-    expect(result.current.validateCompletion('prompt', 'enriched')).toBe(true);
-    expect(mockValidateWizardCompletion).toHaveBeenCalledWith('prompt', 'enriched');
 
     expect(result.current.isAvailable(1)).toBe(true);
     expect(mockIsQuickStartAvailable).toHaveBeenCalledWith(1);
 
-    expect(result.current.getTopicById('ethics')).toEqual(mockTopics[1]);
-    expect(result.current.searchTopics('AI')).toEqual(mockTopics);
+    expect(result.current.buildPrompt('brainstorm', 'app ideas')).toEqual({
+      templateId: 'brainstorm',
+      userPrompt: 'app ideas',
+      aiPrompt: 'Brainstorm app ideas with structure.',
+    });
+    expect(mockBuildPrompt).toHaveBeenCalledWith('brainstorm', 'app ideas');
   });
 
-  it('ignores invalid topic selections', () => {
+  it('reset closes the sheet', () => {
     const { result } = renderHookWithProviders(() => useQuickStart());
-    const invalidTopic = { ...mockTopics[1], id: 'unknown' };
 
     act(() => {
-      result.current.selectTopic(invalidTopic);
+      result.current.openSheet();
     });
+    expect(result.current.showSheet).toBe(true);
 
-    expect(result.current.selectedTopic).toBeNull();
-    expect(result.current.showWizard).toBe(false);
-  });
-
-  describe('topic picker', () => {
-    it('showTopicPicker is initially false', () => {
-      const { result } = renderHookWithProviders(() => useQuickStart());
-
-      expect(result.current.showTopicPicker).toBe(false);
+    act(() => {
+      result.current.reset();
     });
-
-    it('openTopicPicker sets showTopicPicker to true', () => {
-      const { result } = renderHookWithProviders(() => useQuickStart());
-
-      act(() => {
-        result.current.openTopicPicker();
-      });
-
-      expect(result.current.showTopicPicker).toBe(true);
-    });
-
-    it('closeTopicPicker sets showTopicPicker to false', () => {
-      const { result } = renderHookWithProviders(() => useQuickStart());
-
-      act(() => {
-        result.current.openTopicPicker();
-      });
-      expect(result.current.showTopicPicker).toBe(true);
-
-      act(() => {
-        result.current.closeTopicPicker();
-      });
-      expect(result.current.showTopicPicker).toBe(false);
-    });
-
-    it('selectTopicFromPicker closes picker and opens wizard', () => {
-      const { result } = renderHookWithProviders(() => useQuickStart());
-
-      act(() => {
-        result.current.openTopicPicker();
-      });
-      expect(result.current.showTopicPicker).toBe(true);
-
-      act(() => {
-        result.current.selectTopicFromPicker(mockTopics[0]);
-      });
-
-      expect(result.current.showTopicPicker).toBe(false);
-      expect(result.current.selectedTopic).toEqual(mockTopics[0]);
-      expect(result.current.showWizard).toBe(true);
-    });
-
-    it('selectTopicFromPicker does not open wizard for invalid topic', () => {
-      const { result } = renderHookWithProviders(() => useQuickStart());
-      const invalidTopic = { ...mockTopics[1], id: 'unknown' };
-
-      act(() => {
-        result.current.openTopicPicker();
-        result.current.selectTopicFromPicker(invalidTopic);
-      });
-
-      expect(result.current.showTopicPicker).toBe(false);
-      expect(result.current.selectedTopic).toBeNull();
-      expect(result.current.showWizard).toBe(false);
-    });
-
-    it('reset clears showTopicPicker state', () => {
-      const { result } = renderHookWithProviders(() => useQuickStart());
-
-      act(() => {
-        result.current.openTopicPicker();
-        result.current.selectTopicFromPicker(mockTopics[0]);
-      });
-
-      expect(result.current.showWizard).toBe(true);
-
-      act(() => {
-        result.current.reset();
-      });
-
-      expect(result.current.showTopicPicker).toBe(false);
-      expect(result.current.showWizard).toBe(false);
-      expect(result.current.selectedTopic).toBeNull();
-    });
+    expect(result.current.showSheet).toBe(false);
   });
 });
