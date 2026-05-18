@@ -20,6 +20,21 @@ interface ProxyMediaGenerationRequest {
   promptInfluence?: number;
 }
 
+interface MediaProviderOptionsRequest {
+  providerId: MediaProviderId;
+  search?: string;
+  pageSize?: number;
+  nextPageToken?: string | null;
+  includeTotalCount?: boolean;
+  sort?: 'created_at_unix' | 'name';
+  sortDirection?: 'asc' | 'desc';
+  voiceType?: 'personal' | 'community' | 'default' | 'workspace' | 'non-default' | 'non-community' | 'saved';
+  category?: 'premade' | 'cloned' | 'generated' | 'professional';
+  fineTuningState?: 'draft' | 'not_verified' | 'not_started' | 'queued' | 'fine_tuning' | 'fine_tuned' | 'failed' | 'delayed';
+  collectionId?: string;
+  voiceIds?: string[];
+}
+
 interface RunwayTask {
   id?: string;
   status?: string;
@@ -45,6 +60,7 @@ const ELEVENLABS_DEFAULT_TTS_MODEL = 'eleven_multilingual_v2';
 const ELEVENLABS_DEFAULT_SFX_MODEL = 'eleven_text_to_sound_v2';
 const ELEVENLABS_DEFAULT_VOICE_ID = 'JBFqnCBsd6RMkjVDRZzb';
 const ELEVENLABS_DEFAULT_OUTPUT_FORMAT = 'mp3_44100_128';
+const ELEVENLABS_MAX_VOICE_PAGE_SIZE = 100;
 
 export interface RunwayVideoTaskRequest {
   endpoint: string;
@@ -200,6 +216,181 @@ function mimeTypeForOutputFormat(outputFormat: string): string {
   if (outputFormat.startsWith('pcm')) return 'audio/L16';
   if (outputFormat.startsWith('ulaw')) return 'audio/basic';
   return 'audio/mpeg';
+}
+
+function normalizePageSize(pageSize: unknown): number {
+  if (typeof pageSize !== 'number' || !Number.isFinite(pageSize)) return ELEVENLABS_MAX_VOICE_PAGE_SIZE;
+  return Math.max(1, Math.min(ELEVENLABS_MAX_VOICE_PAGE_SIZE, Math.floor(pageSize)));
+}
+
+function appendStringParam(params: URLSearchParams, name: string, value: unknown) {
+  if (typeof value === 'string' && value.trim()) {
+    params.set(name, value.trim());
+  }
+}
+
+export function buildElevenLabsVoiceSearchUrl(input: Partial<MediaProviderOptionsRequest> = {}): string {
+  const params = new URLSearchParams();
+  params.set('page_size', String(normalizePageSize(input.pageSize)));
+  if (typeof input.includeTotalCount === 'boolean') {
+    params.set('include_total_count', String(input.includeTotalCount));
+  }
+  appendStringParam(params, 'next_page_token', input.nextPageToken);
+  appendStringParam(params, 'search', input.search);
+  appendStringParam(params, 'sort', input.sort);
+  appendStringParam(params, 'sort_direction', input.sortDirection);
+  appendStringParam(params, 'voice_type', input.voiceType);
+  appendStringParam(params, 'category', input.category);
+  appendStringParam(params, 'fine_tuning_state', input.fineTuningState);
+  appendStringParam(params, 'collection_id', input.collectionId);
+
+  if (Array.isArray(input.voiceIds)) {
+    input.voiceIds
+      .filter((voiceId) => typeof voiceId === 'string' && voiceId.trim().length > 0)
+      .forEach((voiceId) => params.append('voice_ids', voiceId.trim()));
+  }
+
+  return `${ELEVENLABS_API_BASE}/v2/voices?${params.toString()}`;
+}
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    : [];
+}
+
+function isNonNull<T>(value: T | null | undefined): value is T {
+  return value != null;
+}
+
+function asRecord(value: unknown): Record<string, string> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter((entry): entry is [string, string] => typeof entry[1] === 'string');
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function readString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function readNumber(record: Record<string, unknown>, key: string): number | undefined {
+  const value = record[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function readBoolean(record: Record<string, unknown>, key: string): boolean | undefined {
+  const value = record[key];
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+export function mapElevenLabsVoiceOption(voice: unknown) {
+  if (!voice || typeof voice !== 'object' || Array.isArray(voice)) return null;
+  const record = voice as Record<string, unknown>;
+  const id = readString(record, 'voice_id');
+  const name = readString(record, 'name');
+  if (!id || !name) return null;
+
+  const verifiedLanguages = Array.isArray(record.verified_languages)
+    ? record.verified_languages
+        .filter((language): language is Record<string, unknown> => (
+          Boolean(language) && typeof language === 'object' && !Array.isArray(language)
+        ))
+        .map((language) => ({
+          language: readString(language, 'language') || '',
+          modelId: readString(language, 'model_id'),
+          accent: readString(language, 'accent') || null,
+          locale: readString(language, 'locale') || null,
+          previewUrl: readString(language, 'preview_url') || null,
+        }))
+        .filter((language) => language.language)
+    : [];
+
+  return {
+    id,
+    name,
+    category: readString(record, 'category') || null,
+    description: readString(record, 'description') || null,
+    previewUrl: readString(record, 'preview_url') || null,
+    labels: asRecord(record.labels),
+    availableForTiers: asStringArray(record.available_for_tiers),
+    highQualityBaseModelIds: asStringArray(record.high_quality_base_model_ids),
+    verifiedLanguages,
+    isOwner: readBoolean(record, 'is_owner') ?? null,
+    isLegacy: readBoolean(record, 'is_legacy') ?? null,
+    isMixed: readBoolean(record, 'is_mixed') ?? null,
+    createdAtUnix: readNumber(record, 'created_at_unix') ?? null,
+    isBookmarked: readBoolean(record, 'is_bookmarked') ?? null,
+    recordingQuality: readString(record, 'recording_quality') || null,
+    labellingStatus: readString(record, 'labelling_status') || null,
+  };
+}
+
+function getElevenLabsModelOperations(model: Record<string, unknown>): Extract<CreateMediaOperation, 'text_to_speech' | 'sound_effect'>[] {
+  const modelId = readString(model, 'model_id') || '';
+  const name = readString(model, 'name') || '';
+  const description = readString(model, 'description') || '';
+  const text = `${modelId} ${name} ${description}`.toLowerCase();
+  const operations: Extract<CreateMediaOperation, 'text_to_speech' | 'sound_effect'>[] = [];
+
+  if (model.can_do_text_to_speech === true) {
+    operations.push('text_to_speech');
+  }
+  if (modelId === ELEVENLABS_DEFAULT_SFX_MODEL || text.includes('text to sound') || text.includes('sound effect')) {
+    operations.push('sound_effect');
+  }
+
+  return operations;
+}
+
+function getElevenLabsMaxCharacters(model: Record<string, unknown>): number | undefined {
+  const subscribed = readNumber(model, 'max_characters_request_subscribed_user');
+  const free = readNumber(model, 'max_characters_request_free_user');
+  if (typeof subscribed === 'number' && typeof free === 'number') return Math.max(subscribed, free);
+  return subscribed ?? free;
+}
+
+export function mapElevenLabsModelOption(model: unknown) {
+  if (!model || typeof model !== 'object' || Array.isArray(model)) return null;
+  const record = model as Record<string, unknown>;
+  const id = readString(record, 'model_id');
+  if (!id) return null;
+
+  const operations = getElevenLabsModelOperations(record);
+  if (operations.length === 0) return null;
+
+  const languages = Array.isArray(record.languages)
+    ? record.languages
+        .filter((language): language is Record<string, unknown> => (
+          Boolean(language) && typeof language === 'object' && !Array.isArray(language)
+        ))
+        .map((language) => ({
+          id: readString(language, 'language_id') || readString(language, 'id'),
+          languageId: readString(language, 'language_id'),
+          name: readString(language, 'name') || readString(language, 'language') || 'Unknown',
+        }))
+    : undefined;
+
+  return {
+    id,
+    label: readString(record, 'name') || id,
+    description: readString(record, 'description'),
+    mediaType: 'audio',
+    operations,
+    maxInputCharacters: getElevenLabsMaxCharacters(record),
+    canBeFineTuned: readBoolean(record, 'can_be_finetuned'),
+    canDoTextToSpeech: readBoolean(record, 'can_do_text_to_speech'),
+    canDoVoiceConversion: readBoolean(record, 'can_do_voice_conversion'),
+    canUseStyle: readBoolean(record, 'can_use_style'),
+    canUseSpeakerBoost: readBoolean(record, 'can_use_speaker_boost'),
+    servesProVoices: readBoolean(record, 'serves_pro_voices'),
+    tokenCostFactor: readNumber(record, 'token_cost_factor'),
+    requiresAlphaAccess: readBoolean(record, 'requires_alpha_access'),
+    languages,
+    concurrencyGroup: readString(record, 'concurrency_group'),
+  };
 }
 
 async function generateElevenLabsAudio(
@@ -391,7 +582,8 @@ export const listMediaProviderOptions = onCall(
   async (request) => {
     assertAuthenticated(request);
 
-    const { providerId } = request.data || {};
+    const input = (request.data || {}) as Partial<MediaProviderOptionsRequest>;
+    const { providerId } = input;
     if (!providerId || !['runway', 'elevenlabs'].includes(providerId)) {
       throw new HttpsError('invalid-argument', 'Invalid media provider');
     }
@@ -419,40 +611,54 @@ export const listMediaProviderOptions = onCall(
     const apiKey = await getUserApiKey(request.auth!.uid, 'elevenlabs', keyValue);
 
     try {
-      const response = await fetch(`${ELEVENLABS_API_BASE}/v2/voices`, {
+      const voiceResponse = await fetch(buildElevenLabsVoiceSearchUrl(input), {
         method: 'GET',
         headers: {
           'xi-api-key': apiKey,
         },
       });
 
-      if (!response.ok) {
-        const error = await response.text();
-        throw { status: response.status, message: error };
+      if (!voiceResponse.ok) {
+        const error = await voiceResponse.text();
+        throw { status: voiceResponse.status, message: error };
       }
 
-      const data = await response.json() as {
-        voices?: Array<{
-          voice_id?: string;
-          name?: string;
-          category?: string;
-          preview_url?: string;
-          labels?: Record<string, string>;
-        }>;
+      const voiceData = await voiceResponse.json() as {
+        voices?: unknown[];
+        has_more?: boolean;
+        total_count?: number;
+        next_page_token?: string | null;
       };
+
+      let models: Array<NonNullable<ReturnType<typeof mapElevenLabsModelOption>>> = [];
+      try {
+        const modelResponse = await fetch(`${ELEVENLABS_API_BASE}/v1/models`, {
+          method: 'GET',
+          headers: {
+            'xi-api-key': apiKey,
+          },
+        });
+
+        if (!modelResponse.ok) {
+          const error = await modelResponse.text();
+          console.warn('ElevenLabs model list error:', { status: modelResponse.status, message: error });
+        } else {
+          const modelData = await modelResponse.json() as unknown;
+          const rawModels = Array.isArray(modelData) ? modelData : [];
+          models = rawModels.map(mapElevenLabsModelOption).filter(isNonNull);
+        }
+      } catch (error) {
+        console.warn('ElevenLabs model list failed:', error);
+      }
 
       return {
         success: true,
         providerId: 'elevenlabs',
-        voices: (data.voices || [])
-          .filter((voice) => voice.voice_id && voice.name)
-          .map((voice) => ({
-            id: voice.voice_id!,
-            name: voice.name!,
-            category: voice.category,
-            previewUrl: voice.preview_url,
-            labels: voice.labels,
-          })),
+        voices: (voiceData.voices || []).map(mapElevenLabsVoiceOption).filter(isNonNull),
+        voiceHasMore: Boolean(voiceData.has_more),
+        voiceTotalCount: typeof voiceData.total_count === 'number' ? voiceData.total_count : undefined,
+        voiceNextPageToken: voiceData.next_page_token || null,
+        models,
       };
     } catch (error: any) {
       console.error('ElevenLabs voice list error:', error);

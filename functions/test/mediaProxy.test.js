@@ -1,6 +1,12 @@
 const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
-const { buildRunwayVideoTaskRequest, mapRunwayStatus } = require('../lib/mediaProxy');
+const {
+  buildElevenLabsVoiceSearchUrl,
+  buildRunwayVideoTaskRequest,
+  mapElevenLabsModelOption,
+  mapElevenLabsVoiceOption,
+  mapRunwayStatus,
+} = require('../lib/mediaProxy');
 
 describe('buildRunwayVideoTaskRequest', () => {
   it('uses the text-to-video endpoint without promptImage for text-only Runway generations', () => {
@@ -70,5 +76,149 @@ describe('mapRunwayStatus', () => {
   it('maps active processing states to running', () => {
     assert.equal(mapRunwayStatus('RUNNING'), 'running');
     assert.equal(mapRunwayStatus('PROCESSING'), 'running');
+  });
+});
+
+describe('buildElevenLabsVoiceSearchUrl', () => {
+  it('uses the maximum documented voice page size and API filter names', () => {
+    const url = new URL(buildElevenLabsVoiceSearchUrl({
+      pageSize: 500,
+      includeTotalCount: true,
+      sort: 'name',
+      sortDirection: 'asc',
+      search: 'warm narrator',
+      category: 'professional',
+      voiceType: 'saved',
+      nextPageToken: 'next-token',
+      voiceIds: ['voice-a', 'voice-b'],
+    }));
+
+    assert.equal(url.origin + url.pathname, 'https://api.elevenlabs.io/v2/voices');
+    assert.equal(url.searchParams.get('page_size'), '100');
+    assert.equal(url.searchParams.get('include_total_count'), 'true');
+    assert.equal(url.searchParams.get('sort'), 'name');
+    assert.equal(url.searchParams.get('sort_direction'), 'asc');
+    assert.equal(url.searchParams.get('search'), 'warm narrator');
+    assert.equal(url.searchParams.get('category'), 'professional');
+    assert.equal(url.searchParams.get('voice_type'), 'saved');
+    assert.equal(url.searchParams.get('next_page_token'), 'next-token');
+    assert.deepEqual(url.searchParams.getAll('voice_ids'), ['voice-a', 'voice-b']);
+  });
+});
+
+describe('mapElevenLabsVoiceOption', () => {
+  it('preserves rich voice metadata from the ElevenLabs voices API', () => {
+    const voice = mapElevenLabsVoiceOption({
+      voice_id: 'bella',
+      name: 'Bella',
+      category: 'premade',
+      description: 'Professional, bright, warm narration.',
+      preview_url: 'https://example.com/bella.mp3',
+      labels: { accent: 'American', age: 'young adult', ignored: 12 },
+      available_for_tiers: ['creator', 'pro'],
+      high_quality_base_model_ids: ['eleven_multilingual_v2'],
+      verified_languages: [
+        {
+          language: 'English',
+          model_id: 'eleven_multilingual_v2',
+          accent: 'American',
+          locale: 'en-US',
+          preview_url: 'https://example.com/bella-en.mp3',
+        },
+      ],
+      is_owner: true,
+      is_legacy: false,
+      is_mixed: true,
+      created_at_unix: 1710000000,
+      is_bookmarked: true,
+      recording_quality: 'professional',
+      labelling_status: 'complete',
+    });
+
+    assert.deepEqual(voice, {
+      id: 'bella',
+      name: 'Bella',
+      category: 'premade',
+      description: 'Professional, bright, warm narration.',
+      previewUrl: 'https://example.com/bella.mp3',
+      labels: { accent: 'American', age: 'young adult' },
+      availableForTiers: ['creator', 'pro'],
+      highQualityBaseModelIds: ['eleven_multilingual_v2'],
+      verifiedLanguages: [
+        {
+          language: 'English',
+          modelId: 'eleven_multilingual_v2',
+          accent: 'American',
+          locale: 'en-US',
+          previewUrl: 'https://example.com/bella-en.mp3',
+        },
+      ],
+      isOwner: true,
+      isLegacy: false,
+      isMixed: true,
+      createdAtUnix: 1710000000,
+      isBookmarked: true,
+      recordingQuality: 'professional',
+      labellingStatus: 'complete',
+    });
+  });
+
+  it('drops incomplete voice entries', () => {
+    assert.equal(mapElevenLabsVoiceOption({ name: 'No ID' }), null);
+    assert.equal(mapElevenLabsVoiceOption({ voice_id: 'no-name' }), null);
+  });
+});
+
+describe('mapElevenLabsModelOption', () => {
+  it('maps current text-to-speech model capabilities', () => {
+    const model = mapElevenLabsModelOption({
+      model_id: 'eleven_multilingual_v2',
+      name: 'Eleven Multilingual v2',
+      description: 'Lifelike speech synthesis.',
+      can_be_finetuned: true,
+      can_do_text_to_speech: true,
+      can_do_voice_conversion: false,
+      can_use_style: true,
+      can_use_speaker_boost: true,
+      serves_pro_voices: true,
+      token_cost_factor: 1,
+      requires_alpha_access: false,
+      max_characters_request_free_user: 2500,
+      max_characters_request_subscribed_user: 10000,
+      languages: [{ language_id: 'en', name: 'English' }],
+      concurrency_group: 'tts',
+    });
+
+    assert.deepEqual(model, {
+      id: 'eleven_multilingual_v2',
+      label: 'Eleven Multilingual v2',
+      description: 'Lifelike speech synthesis.',
+      mediaType: 'audio',
+      operations: ['text_to_speech'],
+      maxInputCharacters: 10000,
+      canBeFineTuned: true,
+      canDoTextToSpeech: true,
+      canDoVoiceConversion: false,
+      canUseStyle: true,
+      canUseSpeakerBoost: true,
+      servesProVoices: true,
+      tokenCostFactor: 1,
+      requiresAlphaAccess: false,
+      languages: [{ id: 'en', languageId: 'en', name: 'English' }],
+      concurrencyGroup: 'tts',
+    });
+  });
+
+  it('recognizes the ElevenLabs text-to-sound model as sound effect capable', () => {
+    const model = mapElevenLabsModelOption({
+      model_id: 'eleven_text_to_sound_v2',
+      name: 'Eleven Text to Sound v2',
+      description: 'Create sound effects from text.',
+      can_do_text_to_speech: false,
+      max_characters_request_subscribed_user: 450,
+    });
+
+    assert.equal(model.id, 'eleven_text_to_sound_v2');
+    assert.deepEqual(model.operations, ['sound_effect']);
   });
 });
