@@ -101,24 +101,32 @@ function getPreferredResolution(model: ImageModelConfig, requestedResolution?: s
 
 export class ImageService {
   static async generateImage(opts: GenerateImageOptions): Promise<GeneratedImage[]> {
-    const model = getResolvedImageModel(opts.provider, opts.model);
+    const normalizedOpts = {
+      ...opts,
+      apiKey: opts.apiKey.trim(),
+    };
+    const model = getResolvedImageModel(normalizedOpts.provider, normalizedOpts.model);
     if (!model) {
-      throw new Error(`Image generation not implemented for provider: ${opts.provider}`);
+      throw new Error(`Image generation not implemented for provider: ${normalizedOpts.provider}`);
     }
 
-    if (opts.sourceImage && !model.supportsImageInput) {
-      throw new Error(`${getImageModelDisplayName(opts.provider, model.id)} does not support image refinement.`);
+    if (!normalizedOpts.apiKey) {
+      throw new Error(`No API key for ${normalizedOpts.provider}`);
+    }
+
+    if (normalizedOpts.sourceImage && !model.supportsImageInput) {
+      throw new Error(`${getImageModelDisplayName(normalizedOpts.provider, model.id)} does not support image refinement.`);
     }
 
     switch (model.apiFamily) {
       case 'openai-images':
-        return this.generateOpenAI(model, opts);
+        return this.generateOpenAI(model, normalizedOpts);
       case 'google-gemini-image':
-        return this.generateGoogleGemini(model, opts);
+        return this.generateGoogleGemini(model, normalizedOpts);
       case 'google-imagen':
-        return this.generateGoogleImagen(model, opts);
+        return this.generateGoogleImagen(model, normalizedOpts);
       case 'xai-images':
-        return this.generateXai(model, opts);
+        return this.generateXai(model, normalizedOpts);
       default:
         throw new Error(`Image generation not implemented for model: ${model.id}`);
     }
@@ -282,7 +290,7 @@ export class ImageService {
     model: ImageModelConfig,
     opts: GenerateImageOptions
   ): Promise<GeneratedImage[]> {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${opts.apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent`;
     const aspectRatio = normalizeAspectRatio(opts.size) || '1:1';
 
     const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [];
@@ -321,7 +329,10 @@ export class ImageService {
 
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': opts.apiKey,
+      },
       body: JSON.stringify(body),
       signal: opts.signal,
     });
@@ -339,7 +350,7 @@ export class ImageService {
     model: ImageModelConfig,
     opts: GenerateImageOptions
   ): Promise<GeneratedImage[]> {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model.id}:predict?key=${opts.apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model.id}:predict`;
     const aspectRatio = normalizeAspectRatio(opts.size) || '1:1';
 
     const parameters: Record<string, unknown> = {
@@ -359,7 +370,10 @@ export class ImageService {
 
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': opts.apiKey,
+      },
       body: JSON.stringify(body),
       signal: opts.signal,
     });
@@ -417,6 +431,16 @@ export class ImageService {
       }
     }
 
+    if (results.length === 0) {
+      const textPart = data.candidates
+        ?.flatMap((candidate) => candidate.content?.parts || [])
+        .find((part) => part.text);
+      if (textPart?.text) {
+        throw new Error(`Google returned text instead of image data: ${textPart.text.slice(0, 160)}`);
+      }
+      throw new Error('Google returned no image data.');
+    }
+
     return results;
   }
 
@@ -453,6 +477,10 @@ export class ImageService {
         b64: base64,
         mimeType,
       });
+    }
+
+    if (results.length === 0) {
+      throw new Error('Google returned no Imagen image data.');
     }
 
     return results;

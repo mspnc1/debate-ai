@@ -309,7 +309,7 @@ async function generateGemini(
 ): Promise<{ images: GeneratedImage[] }> {
   const { sourceImage, size, resolution } = options;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
   // Build content parts
   const parts: any[] = [];
@@ -341,7 +341,10 @@ async function generateGemini(
 
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey.trim(),
+    },
     body: JSON.stringify(body),
   });
 
@@ -395,10 +398,13 @@ async function generateImagen(
   const { n = 1, size, resolution } = options;
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey.trim(),
+      },
       body: JSON.stringify({
         instances: [{ prompt }],
         parameters: {

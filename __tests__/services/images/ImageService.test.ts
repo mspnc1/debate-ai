@@ -225,8 +225,10 @@ describe('ImageService', () => {
         expect.objectContaining({ method: 'POST' })
       );
       expect(mockedFetch).toHaveBeenCalledWith(
-        expect.stringContaining('key=google-key'),
-        expect.anything()
+        expect.not.stringContaining('key=google-key'),
+        expect.objectContaining({
+          headers: expect.objectContaining({ 'x-goog-api-key': 'google-key' }),
+        })
       );
       const body = JSON.parse((mockedFetch.mock.calls[0][1] as RequestInit).body as string);
       expect(body.contents[0].parts[0].text).toBe('a sunset');
@@ -302,8 +304,12 @@ describe('ImageService', () => {
 
       expect(mockedFetch).toHaveBeenCalledWith(
         expect.stringContaining('imagen-4.0-generate-001:predict'),
-        expect.objectContaining({ method: 'POST' })
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({ 'x-goog-api-key': 'key' }),
+        })
       );
+      expect(String(mockedFetch.mock.calls[0][0])).not.toContain('key=');
       const body = JSON.parse((mockedFetch.mock.calls[0][1] as RequestInit).body as string);
       expect(body).toMatchObject({
         instances: [{ prompt: 'clean product photo' }],
@@ -346,7 +352,7 @@ describe('ImageService', () => {
         .rejects.toThrow('Google Images error 400: invalid request');
     });
 
-    it('returns empty array when no image parts in response', async () => {
+    it('throws when no image parts are returned', async () => {
       mockedFetch.mockResolvedValue(jsonResponse({
         candidates: [{
           content: {
@@ -355,9 +361,28 @@ describe('ImageService', () => {
         }],
       }));
 
-      const result = await ImageService.generateImage({ provider: 'google', apiKey: 'key', prompt: 'test' });
+      await expect(ImageService.generateImage({ provider: 'google', apiKey: 'key', prompt: 'test' }))
+        .rejects.toThrow('Google returned text instead of image data');
+    });
 
-      expect(result).toEqual([]);
+    it('trims Google API keys before sending them in headers', async () => {
+      mockedFetch.mockResolvedValue(jsonResponse({
+        candidates: [{
+          content: {
+            parts: [{ inlineData: { data: 'dHJpbW1lZA==', mimeType: 'image/png' } }],
+          },
+        }],
+      }));
+      mockedSaveBase64Image.mockResolvedValue('/cache/images/trimmed.png');
+
+      await ImageService.generateImage({ provider: 'google', apiKey: '  google-key  ', prompt: 'test' });
+
+      expect(mockedFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({ 'x-goog-api-key': 'google-key' }),
+        })
+      );
     });
   });
 });

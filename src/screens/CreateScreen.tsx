@@ -37,6 +37,7 @@ import {
   startGeneration,
   updateGenerationProgress,
   completeGeneration,
+  generationError,
   removeFromGalleryWithCleanup,
   persistGallery,
   updateGalleryEntryUri,
@@ -298,7 +299,7 @@ export default function CreateScreen() {
 
     dispatch(completeGeneration());
 
-    // Show error toast if any providers failed
+    // Show error details if any providers failed
     const failedProviders = results.filter(r => r.images instanceof Error);
     if (failedProviders.length > 0) {
       const failedNames = failedProviders
@@ -307,6 +308,17 @@ export default function CreateScreen() {
           modelId: activeSelectedModels[r.provider],
         }))
         .join(', ');
+      const failureDetails = failedProviders
+        .map(r => {
+          const error = r.images as Error;
+          const providerName = getImageProviderDisplayName(r.provider, {
+            includeModel: true,
+            modelId: activeSelectedModels[r.provider],
+          });
+          return `${providerName}: ${error.message.slice(0, 260)}`;
+        })
+        .join('\n');
+      dispatch(generationError(failureDetails));
       ErrorService.showWarning(
         `Image generation failed for: ${failedNames}. ${failedProviders.length < providers.length ? 'Other providers succeeded.' : 'Please try again.'}`,
         'create'
