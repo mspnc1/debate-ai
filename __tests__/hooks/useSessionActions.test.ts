@@ -354,6 +354,7 @@ describe('useSessionActions', () => {
       await bulkPromise;
     });
 
+    await expect(bulkPromise).resolves.toBe(true);
     expect(mockDeleteSession).toHaveBeenNthCalledWith(1, 'a');
     expect(mockDeleteSession).toHaveBeenNthCalledWith(2, 'b');
     expect(onRefresh).toHaveBeenCalled();
@@ -388,9 +389,28 @@ describe('useSessionActions', () => {
       await bulkPromise;
     });
 
+    await expect(bulkPromise).resolves.toBe(false);
     expect(result.current.isProcessing).toBe(false);
 
     alertSpy.mockRestore();
     consoleSpy.mockRestore();
+  });
+
+  it('returns false when bulk delete confirmation is cancelled', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert');
+
+    const { result } = renderHookWithProviders(() => useSessionActions(navigation));
+
+    const bulkPromise = result.current.bulkDelete(['a', 'b']);
+    const [, , buttons] = alertSpy.mock.calls[0];
+
+    act(() => {
+      buttons?.find(btn => btn.text === 'Cancel')?.onPress?.();
+    });
+
+    await expect(bulkPromise).resolves.toBe(false);
+    expect(mockDeleteSession).not.toHaveBeenCalled();
+
+    alertSpy.mockRestore();
   });
 });

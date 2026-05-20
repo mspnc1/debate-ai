@@ -295,12 +295,12 @@ export const useSessionActions = (
   /**
    * Bulk delete multiple sessions
    */
-  const bulkDelete = useCallback(async (sessionIds: string[]): Promise<void> => {
-    if (sessionIds.length === 0) return;
+  const bulkDelete = useCallback(async (sessionIds: string[]): Promise<boolean> => {
+    if (sessionIds.length === 0) return false;
     
     const sessionWord = sessionIds.length === 1 ? 'conversation' : 'conversations';
     
-    return new Promise<void>((resolve) => {
+    return new Promise<boolean>((resolve) => {
       Alert.alert(
         'Delete Conversations',
         `Are you sure you want to delete ${sessionIds.length} ${sessionWord}?`,
@@ -308,7 +308,7 @@ export const useSessionActions = (
           { 
             text: 'Cancel', 
             style: 'cancel',
-            onPress: () => resolve()
+            onPress: () => resolve(false)
           },
           {
             text: 'Delete All',
@@ -327,11 +327,11 @@ export const useSessionActions = (
                   onRefresh();
                 }
                 
-                resolve();
+                resolve(true);
               } catch (error) {
                 console.error('Error in bulk delete:', error);
                 ErrorService.handleWithToast(new Error('Failed to delete some conversations. Please try again.'), { feature: 'history' });
-                resolve();
+                resolve(false);
               } finally {
                 setIsProcessing(false);
               }

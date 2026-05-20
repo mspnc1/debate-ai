@@ -20,6 +20,7 @@ const mockCollection = jest.fn();
 
 const mockHttpsCallable = jest.fn();
 const mockGetFunctions = jest.fn();
+const mockValidatePurchaseCallable = jest.fn();
 
 const mockAuthInstance: { currentUser: { uid: string } | null } = {
   currentUser: { uid: 'test-user-123' },
@@ -70,7 +71,10 @@ import { SUBSCRIPTION_PRODUCTS } from '../products';
 describe('PurchaseService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    Platform.OS = 'ios';
     mockAuthInstance.currentUser = { uid: 'test-user-123' };
+    mockHttpsCallable.mockReset();
+    mockValidatePurchaseCallable.mockReset();
 
     // Default successful responses
     mockInitConnection.mockResolvedValue(true);
@@ -87,10 +91,8 @@ describe('PurchaseService', () => {
     mockDoc.mockReturnValue('doc-ref');
     mockCollection.mockReturnValue('collection-ref');
     mockGetFunctions.mockReturnValue({});
-
-    // Setup httpsCallable to return a callable function
-    const defaultCallable = jest.fn().mockResolvedValue({ data: { valid: false } });
-    mockHttpsCallable.mockReturnValue(defaultCallable);
+    mockValidatePurchaseCallable.mockResolvedValue({ data: { valid: false } });
+    mockHttpsCallable.mockReturnValue(mockValidatePurchaseCallable);
   });
 
   afterEach(() => {
@@ -680,13 +682,19 @@ describe('PurchaseService', () => {
       };
 
       mockGetAvailablePurchases.mockResolvedValue([monthlyPurchase, lifetimePurchase]);
+      mockValidatePurchaseCallable.mockResolvedValueOnce({ data: { valid: true } });
 
       const result = await PurchaseService.restorePurchases();
 
-      // Note: Due to dynamic import limitations in Jest, validation will fail
-      // In a real environment, this would validate and return success
-      expect(result.success).toBe(false);
+      expect(result).toEqual({ success: true, restored: true, isLifetime: true });
       expect(mockGetAvailablePurchases).toHaveBeenCalled();
+      expect(mockHttpsCallable).toHaveBeenCalledWith(expect.anything(), 'validatePurchase');
+      expect(mockValidatePurchaseCallable).toHaveBeenCalledWith({
+        receipt: 'lifetime-receipt',
+        platform: 'ios',
+        productId: SUBSCRIPTION_PRODUCTS.lifetime,
+        purchaseToken: 'lifetime-receipt',
+      });
     });
 
     it('should restore active subscription if no lifetime purchase', async () => {
@@ -697,13 +705,18 @@ describe('PurchaseService', () => {
       };
 
       mockGetAvailablePurchases.mockResolvedValue([monthlyPurchase]);
+      mockValidatePurchaseCallable.mockResolvedValueOnce({ data: { valid: true } });
 
       const result = await PurchaseService.restorePurchases();
 
-      // Note: Due to dynamic import limitations in Jest, validation will fail
-      // In a real environment, this would validate and return success
-      expect(result.success).toBe(false);
+      expect(result).toEqual({ success: true, restored: true, isLifetime: false });
       expect(mockGetAvailablePurchases).toHaveBeenCalled();
+      expect(mockValidatePurchaseCallable).toHaveBeenCalledWith({
+        receipt: 'monthly-receipt',
+        platform: 'ios',
+        productId: SUBSCRIPTION_PRODUCTS.monthly,
+        purchaseToken: 'monthly-receipt',
+      });
     });
 
     it('should return restored false when no purchases found', async () => {
@@ -724,15 +737,17 @@ describe('PurchaseService', () => {
       };
 
       mockGetAvailablePurchases.mockResolvedValue([purchase]);
+      mockValidatePurchaseCallable.mockResolvedValueOnce({ data: { valid: true } });
 
       await PurchaseService.restorePurchases();
 
-      // Verify that getAvailablePurchases was called to fetch purchases
       expect(mockGetAvailablePurchases).toHaveBeenCalled();
-
-      // Note: Due to dynamic import limitations in Jest, the actual validation
-      // via Firebase Functions cannot be fully tested here. In integration tests
-      // or real environment, this would call validateAndSavePurchase successfully.
+      expect(mockValidatePurchaseCallable).toHaveBeenCalledWith({
+        receipt: 'annual-receipt',
+        platform: 'ios',
+        productId: SUBSCRIPTION_PRODUCTS.annual,
+        purchaseToken: 'annual-receipt',
+      });
     });
 
     it('should handle validation errors gracefully', async () => {
@@ -746,8 +761,6 @@ describe('PurchaseService', () => {
 
       const result = await PurchaseService.restorePurchases();
 
-      // Due to dynamic import limitations, this will fail with import error
-      // which is handled gracefully
       expect(result.success).toBe(false);
       expect(result).toHaveProperty('error');
     });
@@ -783,7 +796,10 @@ describe('PurchaseService', () => {
 
   describe('handlePurchaseUpdate (via listener)', () => {
     it('should attempt to validate and finish transaction on purchase update', async () => {
+      mockValidatePurchaseCallable.mockResolvedValueOnce({ data: { valid: true } });
+      mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.monthly }]);
       await PurchaseService.initialize();
+      await PurchaseService.purchaseSubscription('monthly');
 
       const purchaseUpdateHandler = mockPurchaseUpdatedListener.mock.calls[0][0];
       const purchase: Partial<Purchase> = {
@@ -796,10 +812,13 @@ describe('PurchaseService', () => {
 
       // Verify purchase update listener was set up
       expect(mockPurchaseUpdatedListener).toHaveBeenCalled();
-
-      // Note: Due to dynamic import limitations in Jest, the validation via
-      // Firebase Functions cannot be tested. finishTransaction would only
-      // be called after successful validation in a real environment.
+      expect(mockValidatePurchaseCallable).toHaveBeenCalledWith({
+        receipt: 'test-receipt',
+        platform: 'ios',
+        productId: SUBSCRIPTION_PRODUCTS.monthly,
+        purchaseToken: 'test-receipt',
+      });
+      expect(mockFinishTransaction).toHaveBeenCalledWith({ purchase, isConsumable: false });
     });
 
     it('should not process purchase update without receipt', async () => {
@@ -853,10 +872,32 @@ describe('PurchaseService', () => {
       expect(mockFinishTransaction).toHaveBeenCalled();
     });
 
-    // Note: Full integration tests for validateAndSavePurchase with Firebase Functions
-    // cannot be performed in unit tests due to dynamic import limitations in Jest.
-    // These should be tested in integration or E2E tests where the Firebase Functions
-    // module can be properly loaded. The tests above verify the error handling paths.
+    it('calls the validatePurchase function and finishes the transaction on valid receipt', async () => {
+      mockValidatePurchaseCallable.mockResolvedValueOnce({ data: { valid: true } });
+      mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.monthly }]);
+
+      await PurchaseService.initialize();
+      await PurchaseService.purchaseSubscription('monthly');
+
+      const purchaseUpdateHandler = mockPurchaseUpdatedListener.mock.calls[0][0];
+      const purchase: Partial<Purchase> = {
+        productId: SUBSCRIPTION_PRODUCTS.monthly,
+        purchaseToken: 'test-receipt',
+        transactionId: 'test-tx',
+      };
+
+      await purchaseUpdateHandler(purchase);
+
+      expect(mockGetFunctions).toHaveBeenCalled();
+      expect(mockHttpsCallable).toHaveBeenCalledWith(expect.anything(), 'validatePurchase');
+      expect(mockValidatePurchaseCallable).toHaveBeenCalledWith({
+        receipt: 'test-receipt',
+        platform: 'ios',
+        productId: SUBSCRIPTION_PRODUCTS.monthly,
+        purchaseToken: 'test-receipt',
+      });
+      expect(mockFinishTransaction).toHaveBeenCalledWith({ purchase, isConsumable: false });
+    });
   });
 
   describe('app account token generation (iOS - for lifetime purchases)', () => {

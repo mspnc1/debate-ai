@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { getAuth } from '@react-native-firebase/auth';
+import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
 import { getFirestore, collection, doc, getDoc, addDoc } from '@react-native-firebase/firestore';
 import type {
   Purchase,
@@ -712,10 +713,8 @@ export class PurchaseService {
     if (!user) throw new Error('User not authenticated');
 
     try {
-      // Lazy import to avoid bundling errors if functions isn’t installed yet
-      const functionsModule = await import('@react-native-firebase/functions');
-      const functions = functionsModule.getFunctions();
-      const validatePurchase = functionsModule.httpsCallable(functions, 'validatePurchase');
+      const functions = getFunctions();
+      const validatePurchase = httpsCallable(functions, 'validatePurchase');
 
       const result = await validatePurchase({
         receipt: purchase.purchaseToken,

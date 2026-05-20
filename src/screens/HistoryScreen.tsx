@@ -165,8 +165,10 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
   const handleDeleteSelected = useCallback(async () => {
     const ids = Array.from(selectedSessionIds);
     if (ids.length === 0) return;
-    await bulkDelete(ids);
-    clearSelection();
+    const deleted = await bulkDelete(ids);
+    if (deleted) {
+      clearSelection();
+    }
   }, [bulkDelete, clearSelection, selectedSessionIds]);
 
   // Reset pagination when search query or tab changes

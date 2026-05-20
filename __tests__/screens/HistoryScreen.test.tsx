@@ -460,7 +460,7 @@ describe('HistoryScreen', () => {
       createSession({ id: 'session-1' }),
       createSession({ id: 'session-2' }),
     ];
-    const bulkDelete = jest.fn().mockResolvedValue(undefined);
+    const bulkDelete = jest.fn().mockResolvedValue(true);
     renderHistoryScreen({
       history: { sessions },
       search: { filteredSessions: sessions },
@@ -481,6 +481,30 @@ describe('HistoryScreen', () => {
     await pressButton('Delete (2)');
     expect(bulkDelete).toHaveBeenCalledWith(['session-1', 'session-2']);
     expect(mockHistoryListProps.selectionMode).toBe(false);
+  });
+
+  it('preserves selected history rows when bulk delete is cancelled', async () => {
+    const sessions = [
+      createSession({ id: 'session-1' }),
+      createSession({ id: 'session-2' }),
+    ];
+    const bulkDelete = jest.fn().mockResolvedValue(false);
+    renderHistoryScreen({
+      history: { sessions },
+      search: { filteredSessions: sessions },
+      actions: { bulkDelete },
+    });
+
+    await act(async () => {
+      mockHistoryListProps.onSessionLongPress(sessions[0]);
+    });
+    await pressButton('Select Visible');
+    await pressButton('Delete (2)');
+
+    expect(bulkDelete).toHaveBeenCalledWith(['session-1', 'session-2']);
+    expect(mockHistoryListProps.selectionMode).toBe(true);
+    expect(mockHistoryListProps.selectedSessionIds.has('session-1')).toBe(true);
+    expect(mockHistoryListProps.selectedSessionIds.has('session-2')).toBe(true);
   });
 
   it('selects visible sessions from the management menu', async () => {

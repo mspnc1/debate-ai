@@ -211,7 +211,7 @@ export interface UseSessionActionsReturn {
   resumeSession: (session: ChatSession) => void;
   shareSession: (session: ChatSession) => Promise<void>;
   archiveSession: (sessionId: string) => Promise<void>;
-  bulkDelete: (sessionIds: string[]) => Promise<void>;
+  bulkDelete: (sessionIds: string[]) => Promise<boolean>;
   isProcessing: boolean;
 }
 
