@@ -391,30 +391,6 @@ export const MODEL_VERSIONS: ProviderVersions = {
       },
     ],
   },
-  together: {
-    llama: [
-      {
-        id: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
-        version: '3.3-70B',
-        releaseDate: '2024-12-01',
-        isLatest: true,
-      },
-      {
-        id: 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
-        version: '3.1-8B',
-        releaseDate: '2024-07-01',
-        isLatest: false,
-      },
-    ],
-    qwen: [
-      {
-        id: 'Qwen/Qwen2.5-7B-Instruct-Turbo',
-        version: '2.5-7B',
-        releaseDate: '2024-09-01',
-        isLatest: true,
-      },
-    ],
-  },
   deepseek: {
     chat: [
       {

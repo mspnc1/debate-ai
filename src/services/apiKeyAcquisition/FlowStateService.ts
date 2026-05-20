@@ -203,7 +203,6 @@ class FlowStateServiceClass {
       mistral: 'Mistral',
       grok: 'Grok',
       cohere: 'Cohere',
-      together: 'Together AI',
       deepseek: 'DeepSeek',
       runway: 'Runway',
       elevenlabs: 'ElevenLabs',

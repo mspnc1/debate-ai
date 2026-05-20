@@ -19,7 +19,6 @@ const PROVIDERS = [
   'perplexity',
   'mistral',
   'cohere',
-  'together',
   'deepseek',
   'grok',
 ];

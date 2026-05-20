@@ -21,7 +21,6 @@ export { GeminiAdapter } from './adapters/google/GeminiAdapter';
 export { PerplexityAdapter } from './adapters/perplexity/PerplexityAdapter';
 export { MistralAdapter } from './adapters/mistral/MistralAdapter';
 export { CohereAdapter } from './adapters/cohere/CohereAdapter';
-export { TogetherAdapter } from './adapters/together/TogetherAdapter';
 export { DeepSeekAdapter } from './adapters/deepseek/DeepSeekAdapter';
 export { GrokAdapter } from './adapters/grok/GrokAdapter';
 export { MockAdapter } from './adapters/mock/MockAdapter';

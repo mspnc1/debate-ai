@@ -1,7 +1,6 @@
 import { MistralAdapter } from '../mistral/MistralAdapter';
 import { DeepSeekAdapter } from '../deepseek/DeepSeekAdapter';
 import { GrokAdapter } from '../grok/GrokAdapter';
-import { TogetherAdapter } from '../together/TogetherAdapter';
 import type {
   AIAdapterConfig,
   AdapterCapabilities,
@@ -70,17 +69,6 @@ const cases: AdapterCase[] = [
     Adapter: GrokAdapter,
     config: { provider: 'grok', apiKey: 'test-key', model: 'grok-4.20-0309-non-reasoning', parameters: { temperature: 0.7, maxTokens: 2048 } },
     expectedUrl: 'https://api.x.ai/v1/chat/completions',
-  },
-  {
-    name: 'TogetherAdapter',
-    Adapter: TogetherAdapter,
-    config: {
-      provider: 'together',
-      apiKey: 'test-key',
-      model: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
-      parameters: { temperature: 0.7, maxTokens: 2048 },
-    },
-    expectedUrl: 'https://api.together.xyz/v1/chat/completions',
   },
 ];
 

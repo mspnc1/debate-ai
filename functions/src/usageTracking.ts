@@ -194,7 +194,7 @@ export const getProviderBalances = onCall(
     });
 
     // Other providers - no balance API
-    const noApiProviders = ['claude', 'google', 'perplexity', 'mistral', 'cohere', 'together', 'grok'];
+    const noApiProviders = ['claude', 'google', 'perplexity', 'mistral', 'cohere', 'grok'];
     for (const providerId of noApiProviders) {
       balances.push({
         providerId,

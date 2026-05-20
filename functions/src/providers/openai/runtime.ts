@@ -1,7 +1,7 @@
 /**
  * OpenAI Provider Runtime
  *
- * Handles OpenAI and OpenAI-compatible APIs (Mistral, Together, DeepSeek, Grok).
+ * Handles OpenAI and OpenAI-compatible APIs (Mistral, DeepSeek, Grok).
  *
  * Transformations:
  * - Canonical messages → OpenAI format
@@ -94,11 +94,6 @@ const OPENAI_COMPATIBLE_CONFIGS: Record<string, ProviderConfig> = {
   },
   mistral: {
     baseUrl: 'https://api.mistral.ai/v1/chat/completions',
-    authHeader: 'Authorization',
-    authPrefix: 'Bearer ',
-  },
-  together: {
-    baseUrl: 'https://api.together.xyz/v1/chat/completions',
     authHeader: 'Authorization',
     authPrefix: 'Bearer ',
   },

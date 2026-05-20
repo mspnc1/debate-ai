@@ -10,6 +10,14 @@ import { getDefaultModel } from '@/config/providers/modelRegistry';
 
 describe('Model selection contract', () => {
   const providerIds = Object.keys(AI_MODELS);
+  const removedProvider = ['to', 'gether'].join('');
+
+  it('keeps removed providers out of selectable model registries', () => {
+    expect(providerIds).not.toContain(removedProvider);
+    expect(getProviderModels(removedProvider)).toEqual([]);
+    expect(getProviderDefaultModel(removedProvider)).toBeUndefined();
+    expect(getDefaultModel(removedProvider)).toBe('');
+  });
 
   it.each(providerIds)('only exposes non-deprecated selectable models for %s', (providerId) => {
     const models = getProviderModels(providerId);
@@ -51,11 +59,6 @@ describe('Model selection contract', () => {
   it('formats audited context labels for provider picker display', () => {
     expect(getModelContextLabel(getModelById('openai', 'gpt-5.5')!)).toBe('1.05M context');
     expect(getModelContextLabel(getModelById('google', 'gemini-2.5-pro')!)).toBe('1M context');
-    expect(
-      getModelContextLabel(
-        getModelById('together', 'meta-llama/Llama-3.3-70B-Instruct-Turbo')!
-      )
-    ).toBe('128K context');
     expect(getModelContextLabel(getModelById('perplexity', 'sonar-pro')!)).toBe('Context unpublished');
   });
 

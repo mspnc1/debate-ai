@@ -12,10 +12,4 @@ describe('VideoService', () => {
       VideoService.generateVideo({ provider: 'google', apiKey: 'key', prompt: 'scene', resolution: '1080p', duration: 10 })
     ).rejects.toThrow('Google API not implemented');
   });
-
-  it('throws for together provider with specific message', async () => {
-    await expect(
-      VideoService.generateVideo({ provider: 'together', apiKey: 'key', prompt: 'scene', resolution: '1080p', duration: 10 })
-    ).rejects.toThrow('Together API not implemented');
-  });
 });

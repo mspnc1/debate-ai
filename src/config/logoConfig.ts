@@ -46,12 +46,6 @@ export const LOGO_CONFIGS: Record<string, LogoConfig> = {
     glowColor: '#8B5CF6',
     hasTransparency: true,
   },
-  together: {
-    providerId: 'together',
-    darkModeStrategy: 'glow',
-    glowColor: '#06B6D4',
-    hasTransparency: true,
-  },
   deepseek: {
     providerId: 'deepseek',
     darkModeStrategy: 'none', // DeepSeek logo works well on dark

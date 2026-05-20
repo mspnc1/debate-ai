@@ -220,7 +220,6 @@ describe('DebateMessageBubble', () => {
       { name: 'Perplexity', sender: 'Perplexity (Research)' },
       { name: 'Mistral', sender: 'Mistral (Fast)' },
       { name: 'Cohere', sender: 'Cohere (Precise)' },
-      { name: 'Together', sender: 'Together (Community)' },
       { name: 'DeepSeek', sender: 'DeepSeek (Deep)' },
       { name: 'Grok', sender: 'Grok (Witty)' },
       { name: 'Nomi', sender: 'Nomi (Friendly)' },

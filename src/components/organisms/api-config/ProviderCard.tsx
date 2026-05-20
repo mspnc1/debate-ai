@@ -24,10 +24,10 @@ import { ErrorService } from '@/services/errors/ErrorService';
  * Convert a raw model ID to a friendly display name
  * e.g., "mistral-medium-2505" → "Mistral Medium"
  *       "command-a-vision-07-2025" → "Command A Vision"
- *       "togethercomputer/Refuel-Llama" → "Refuel Llama"
+ *       "provider/model-name" → "Model Name"
  */
 const formatModelName = (modelId: string): string => {
-  // Handle Together.ai format: "org/model-name" - extract just the model name
+  // Handle provider format: "org/model-name" - extract just the model name
   if (modelId.includes('/')) {
     modelId = modelId.split('/').pop() || modelId;
   }
@@ -39,7 +39,7 @@ const formatModelName = (modelId: string): string => {
     .replace(/-\d{4,}$/, '')         // Remove numeric suffixes like -2505 or -0709
     .replace(/-latest$/, '')         // Remove -latest suffix
     .replace(/-preview$/, '')        // Remove -preview suffix
-    .replace(/-Instruct-Turbo$/, '') // Remove Together-specific suffix
+    .replace(/-Instruct-Turbo$/, '')
     .replace(/-Instruct$/, '');      // Remove -Instruct suffix
 
   // Convert to title case and replace dashes/underscores with spaces

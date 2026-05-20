@@ -1,6 +1,6 @@
 // Core type definitions for Symposium AI
 
-export type AIProvider = 'claude' | 'openai' | 'chatgpt' | 'google' | 'perplexity' | 'mistral' | 'cohere' | 'together' | 'deepseek' | 'grok';
+export type AIProvider = 'claude' | 'openai' | 'chatgpt' | 'google' | 'perplexity' | 'mistral' | 'cohere' | 'deepseek' | 'grok';
 export type UIMode = 'simple' | 'expert';
 export type SubscriptionTier = 'free' | 'pro' | 'business';
 

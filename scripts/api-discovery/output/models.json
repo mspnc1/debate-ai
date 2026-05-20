@@ -6535,10 +6535,6 @@
         }
       ]
     },
-    "together": {
-      "pricingSource": null,
-      "models": []
-    },
     "deepseek": {
       "pricingSource": "https://api-docs.deepseek.com/quick_start/pricing",
       "models": [

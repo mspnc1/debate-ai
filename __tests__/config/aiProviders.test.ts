@@ -5,9 +5,12 @@ import {
 } from '@/config/aiProviders';
 
 describe('AI provider directory', () => {
+  const removedProviderId = ['to', 'gether'].join('');
+
   it('exposes unique provider identifiers', () => {
     const ids = AI_PROVIDERS.map(provider => provider.id);
     expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).not.toContain(removedProviderId);
   });
 
   it('retrieves providers by identifier', () => {
@@ -18,6 +21,7 @@ describe('AI provider directory', () => {
       enabled: true,
     });
     expect(getProviderById('unknown-provider')).toBeUndefined();
+    expect(getProviderById(removedProviderId)).toBeUndefined();
   });
 
   it('filters to enabled providers only', () => {

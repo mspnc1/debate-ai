@@ -57,7 +57,7 @@ Add after DeepSeek entry (line 138):
 
 Update line 3:
 ```typescript
-export type AIProvider = 'claude' | 'openai' | 'chatgpt' | 'google' | 'perplexity' | 'mistral' | 'cohere' | 'together' | 'deepseek' | 'grok';
+export type AIProvider = 'claude' | 'openai' | 'chatgpt' | 'google' | 'perplexity' | 'mistral' | 'cohere' | 'deepseek' | 'grok';
 ```
 
 Update User interface apiKeys (line 21):
@@ -69,7 +69,6 @@ apiKeys?: {
   perplexity?: string;
   mistral?: string;
   cohere?: string;
-  together?: string;
   deepseek?: string;
   grok?: string;  // Add this line
 };

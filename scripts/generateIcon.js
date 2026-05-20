@@ -16,15 +16,15 @@ const aiColors = [
   '#20808D', // Perplexity
   '#FA520F', // Mistral
   '#FF7759', // Cohere
-  '#0F6FFF', // Together
   '#4D6BFE', // DeepSeek
   '#1DA1F2', // Grok
 ];
 
 // Generate circle positions
 const circles = [];
-for (let i = 0; i < 9; i++) {
-  const angle = (i * 40) * Math.PI / 180;
+const angleStep = 360 / aiColors.length;
+for (let i = 0; i < aiColors.length; i++) {
+  const angle = (i * angleStep) * Math.PI / 180;
   const x = centerX + Math.cos(angle) * orbitRadius;
   const y = centerY + Math.sin(angle) * orbitRadius;
   circles.push({ x, y, color: aiColors[i] });

@@ -16,7 +16,6 @@ const { discoverGoogle } = require('./providers/google');
 const { discoverPerplexity } = require('./providers/perplexity');
 const { discoverMistral } = require('./providers/mistral');
 const { discoverCohere } = require('./providers/cohere');
-const { discoverTogether } = require('./providers/together');
 const { discoverDeepseek } = require('./providers/deepseek');
 const { discoverGrok } = require('./providers/grok');
 
@@ -27,7 +26,6 @@ const PROVIDERS = [
   { id: 'perplexity', fn: discoverPerplexity },
   { id: 'mistral', fn: discoverMistral },
   { id: 'cohere', fn: discoverCohere },
-  { id: 'together', fn: discoverTogether },
   { id: 'deepseek', fn: discoverDeepseek },
   { id: 'grok', fn: discoverGrok },
 ];

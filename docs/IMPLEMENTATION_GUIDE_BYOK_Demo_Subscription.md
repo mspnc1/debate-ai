@@ -27,7 +27,7 @@
 - File: `src/config/aiProviders.ts`
 - Change: add a `tier: 'recommended' | 'beta'` field; mark:
   - `claude`, `openai`, `google`, `perplexity` → `tier: 'recommended'`
-  - `mistral`, `cohere`, `together`, `deepseek`, `grok` → `tier: 'beta'`
+  - `mistral`, `cohere`, `deepseek`, `grok` → `tier: 'beta'`
 - UI updates:
   - File: `src/components/organisms/APIProviderList.tsx`
   - Sort providers by `tier` first (`recommended` on top), then by name.
@@ -148,4 +148,3 @@ Minimal integration points in codebase
 
 **Appendix — Sample JSON Schemas**
 - See `docs/BYOK-IAP-Demo-Mode.md` for ready‑to‑use schema examples for Debate, Round‑Robin, and Compare.
-

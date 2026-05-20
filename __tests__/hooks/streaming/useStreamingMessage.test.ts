@@ -12,7 +12,6 @@ const buildStreamingState = (overrideMessages: RootState['streaming']['streaming
     mistral: { enabled: true, supported: true },
     perplexity: { enabled: true, supported: true },
     cohere: { enabled: true, supported: true },
-    together: { enabled: true, supported: true },
     deepseek: { enabled: true, supported: true },
     grok: { enabled: true, supported: true },
   },

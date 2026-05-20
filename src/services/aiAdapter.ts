@@ -23,7 +23,6 @@ export { GeminiAdapter } from './ai';
 export { PerplexityAdapter } from './ai';
 export { MistralAdapter } from './ai';
 export { CohereAdapter } from './ai';
-export { TogetherAdapter } from './ai';
 export { DeepSeekAdapter } from './ai';
 export { GrokAdapter } from './ai';
 export { MockAdapter as MockAIAdapter } from './ai';

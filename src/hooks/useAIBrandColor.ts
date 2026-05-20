@@ -33,7 +33,6 @@ const getAIBrandKey = (senderName: string): keyof typeof AI_BRAND_COLORS | null 
     perplexity: 'perplexity',
     mistral: 'mistral',
     cohere: 'cohere',
-    together: 'together',
     deepseek: 'deepseek',
     grok: 'grok',
     nomi: 'nomi',

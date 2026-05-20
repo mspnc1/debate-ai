@@ -14,6 +14,7 @@ import { useTheme } from '../theme';
 import { AIConfig } from '../types';
 import { AI_PROVIDERS } from '../config/aiProviders';
 import { getAIProviderIcon } from '../utils/aiProviderAssets';
+import { isValidProviderId } from '../utils/typeGuards';
 import { TrialBanner } from '@/components/molecules/subscription/TrialBanner';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { DemoBanner } from '@/components/molecules/subscription/DemoBanner';
@@ -76,12 +77,12 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
   
   // Separate states for left and right AI selection - initialize from route params if available
   const [leftAI, setLeftAI] = useState<AIConfig[]>(
-    route?.params?.preselectedLeftAI
+    route?.params?.preselectedLeftAI && isValidProviderId(route.params.preselectedLeftAI.provider)
       ? [{ ...route.params.preselectedLeftAI, personality: route.params.preselectedLeftAI.personality || 'default' }]
       : []
   );
   const [rightAI, setRightAI] = useState<AIConfig[]>(
-    route?.params?.preselectedRightAI
+    route?.params?.preselectedRightAI && isValidProviderId(route.params.preselectedRightAI.provider)
       ? [{ ...route.params.preselectedRightAI, personality: route.params.preselectedRightAI.personality || 'default' }]
       : []
   );

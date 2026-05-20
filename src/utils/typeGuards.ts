@@ -12,7 +12,6 @@ export const API_KEY_PROVIDER_IDS = [
   'perplexity',
   'mistral',
   'cohere',
-  'together',
   'deepseek',
   'grok',
 ] as const;

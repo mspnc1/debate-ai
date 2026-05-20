@@ -5,6 +5,7 @@ import { resolveProviderModelId } from '../../config/modelConfigs';
 import { AIConfigurationService } from '../../services/home/AIConfigurationService';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
 import { AIConfig } from '../../types';
+import { isValidProviderId } from '../../utils/typeGuards';
 
 /**
  * Custom hook for managing AI selection logic and state.
@@ -129,7 +130,7 @@ export const useAISelection = (maxAIs: number) => {
    * @param ais - Array of AI configurations to select
    */
   const selectAIs = (ais: AIConfig[]) => {
-    const limitedAIs = ais.slice(0, maxAIs);
+    const limitedAIs = ais.filter(ai => isValidProviderId(ai.provider)).slice(0, maxAIs);
     setSelectedAIs(limitedAIs);
   };
 

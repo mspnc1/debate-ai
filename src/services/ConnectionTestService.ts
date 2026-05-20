@@ -163,9 +163,6 @@ export class ConnectionTestService {
       case 'cohere':
         return await this.testCohere(apiKey, signal);
 
-      case 'together':
-        return await this.testTogether(apiKey, signal);
-
       case 'deepseek':
         return await this.testDeepSeek(apiKey, signal);
 
@@ -387,37 +384,6 @@ export class ConnectionTestService {
       || models[0];
 
     return { model: cohereModel?.name || getDefaultModel('cohere') };
-  }
-
-  /**
-   * Test Together API - uses /v1/models endpoint
-   */
-  private async testTogether(apiKey: string, signal: AbortSignal): Promise<{ model: string }> {
-    const response = await fetch('https://api.together.xyz/v1/models', {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      signal,
-    });
-
-    if (!response.ok) {
-      throw await this.createApiError(response, 'Together');
-    }
-
-    const data = await response.json();
-    // Together returns array directly
-    const models = Array.isArray(data) ? data : (data.data || []);
-
-    const preferredTogetherIds = [
-      'meta-llama/Llama-3.3-70B-Instruct-Turbo',
-      'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
-      'Qwen/Qwen2.5-7B-Instruct-Turbo',
-    ];
-    const preferredModel = preferredTogetherIds
-      .map((id) => models.find((m: { id: string }) => m.id === id))
-      .find(Boolean);
-
-    return { model: preferredModel?.id || models[0]?.id || getDefaultModel('together') };
   }
 
   /**
@@ -712,7 +678,7 @@ export class ConnectionTestService {
   isProviderSupported(providerId: string): boolean {
     const supportedProviders = [
       'openai', 'claude', 'google', 'grok',
-      'perplexity', 'mistral', 'cohere', 'together', 'deepseek',
+      'perplexity', 'mistral', 'cohere', 'deepseek',
       'runway', 'elevenlabs'
     ];
     return supportedProviders.includes(providerId);

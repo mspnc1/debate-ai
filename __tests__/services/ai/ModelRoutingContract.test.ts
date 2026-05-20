@@ -161,16 +161,6 @@ const ROUTING_CASES: RoutingCase[] = [
     },
   },
   {
-    provider: 'together',
-    model: pickSmokeModel('together'),
-    response: createOpenAICompatibleResponse(pickSmokeModel('together')),
-    assertRequest: (url, requestInit, model) => {
-      expect(url).toBe('https://api.together.xyz/v1/chat/completions');
-      const body = JSON.parse((requestInit?.body as string) || '{}');
-      expect(body.model).toBe(model);
-    },
-  },
-  {
     provider: 'deepseek',
     model: pickSmokeModel('deepseek'),
     response: createOpenAICompatibleResponse(pickSmokeModel('deepseek')),
@@ -193,6 +183,7 @@ const ROUTING_CASES: RoutingCase[] = [
 ];
 
 describe('Model routing contract', () => {
+  const removedProvider = ['to', 'gether'].join('');
   let fetchMock: jest.MockedFunction<typeof fetch>;
 
   beforeEach(() => {
@@ -225,5 +216,10 @@ describe('Model routing contract', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, requestInit] = fetchMock.mock.calls[0];
     assertRequest(url as string, requestInit, model);
+  });
+
+  it('does not expose removed providers through adapter support checks', () => {
+    expect(AdapterFactory.isProviderSupported(removedProvider)).toBe(false);
+    expect(AdapterFactory.getAvailableProviders()).not.toContain(removedProvider);
   });
 });

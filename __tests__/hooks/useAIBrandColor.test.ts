@@ -22,7 +22,6 @@ jest.mock('@/constants/aiColors', () => ({
     perplexity: { 50: '#E0F2F1', 500: '#20808D', 600: '#1A6B77' },
     mistral: { 50: '#FFF3E0', 500: '#FA520F', 600: '#E64A00' },
     cohere: { 50: '#FFF0ED', 500: '#FF7759', 600: '#E6604A' },
-    together: { 50: '#E8F1FF', 500: '#0F6FFF', 600: '#0052CC' },
     deepseek: { 50: '#EEF0FF', 500: '#4D6BFE', 600: '#3B5BDB' },
     grok: { 50: '#F5F5F5', 500: '#404040', 600: '#333333' },
     nomi: { 50: '#FFF8E6', 500: '#FFA500', 600: '#CC8400' },
@@ -155,6 +154,13 @@ describe('useAIBrandColor', () => {
 
     it('returns null for empty string', () => {
       const { result } = renderHook(() => useAIBrandColor(''));
+
+      expect(result.current).toBeNull();
+    });
+
+    it('returns null for removed provider names', () => {
+      const removedProviderName = ['To', 'gether'].join('');
+      const { result } = renderHook(() => useAIBrandColor(removedProviderName));
 
       expect(result.current).toBeNull();
     });

@@ -27,6 +27,7 @@ import { FormatModal } from '../components/organisms/debate/FormatModal';
 import { TopicService } from '../services/debate/TopicService';
 import { getProviderDefaultModel, resolveProviderModelId } from '@/config/modelConfigs';
 import { getAIProviderIcon } from '../utils/aiProviderAssets';
+import { isValidProviderId } from '../utils/typeGuards';
 // import { DEBATE_TOPICS } from '../constants/debateTopics';
 import { usePreDebateValidation } from '../hooks/debate';
 import { Card } from '@/components/molecules';
@@ -103,10 +104,12 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
 
   const [currentStep, setCurrentStep] = useState<'topic' | 'ai' | 'personality'>('topic');
   const [selectedAIs, setSelectedAIs] = useState<AIConfig[]>(
-    (route?.params?.preselectedAIs || []).map(ai => ({
-      ...ai,
-      personality: ai.personality || 'default',
-    }))
+    (route?.params?.preselectedAIs || [])
+      .filter(ai => isValidProviderId(ai.provider))
+      .map(ai => ({
+        ...ai,
+        personality: ai.personality || 'default',
+      }))
   );
   const [selectedTopic, setSelectedTopic] = useState<string>(route?.params?.prefilledTopic || preservedTopic || '');
   const [customTopic, setCustomTopic] = useState(

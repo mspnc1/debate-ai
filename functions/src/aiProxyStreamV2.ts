@@ -174,7 +174,6 @@ const PROVIDER_NAMES: Record<string, string> = {
   claude: 'Claude',
   openai: 'ChatGPT',
   mistral: 'Mistral',
-  together: 'Together',
   deepseek: 'DeepSeek',
   grok: 'Grok',
 };

@@ -9,6 +9,7 @@ import compareReducer from './compareSlice';
 import errorReducer from './errorSlice';
 import createReducer from './createSlice';
 import pricesReducer from './pricesSlice';
+import { isValidProviderId } from '../utils/typeGuards';
 
 // User slice
 interface UserState {
@@ -72,6 +73,14 @@ const initialChatState: ChatState = {
   webSearchPreferred: false,
 };
 
+const filterSupportedSelectedAIs = (selectedAIs: AIConfig[] = []): AIConfig[] =>
+  selectedAIs.filter(ai => ai?.provider && isValidProviderId(ai.provider));
+
+const sanitizeSession = (session: ChatSession): ChatSession => ({
+  ...session,
+  selectedAIs: filterSupportedSelectedAIs(session.selectedAIs),
+});
+
 const chatSlice = createSlice({
   name: 'chat',
   initialState: initialChatState,
@@ -84,7 +93,7 @@ const chatSlice = createSlice({
     }>) => {
       const newSession: ChatSession = {
         id: `session_${Date.now()}`,
-        selectedAIs: action.payload.selectedAIs,
+        selectedAIs: filterSupportedSelectedAIs(action.payload.selectedAIs),
         messages: [],
         isActive: true,
         createdAt: Date.now(),
@@ -135,13 +144,13 @@ const chatSlice = createSlice({
       }
     },
     loadSession: (state, action: PayloadAction<ChatSession>) => {
-      state.currentSession = action.payload;
+      state.currentSession = sanitizeSession(action.payload);
       state.currentSession.isActive = true;
       const existingIndex = state.sessions.findIndex(s => s.id === action.payload.id);
       if (existingIndex >= 0) {
-        state.sessions[existingIndex] = action.payload;
+        state.sessions[existingIndex] = state.currentSession;
       } else {
-        state.sessions.push(action.payload);
+        state.sessions.push(state.currentSession);
       }
     },
     setLoading: (state, action: PayloadAction<boolean>) => {

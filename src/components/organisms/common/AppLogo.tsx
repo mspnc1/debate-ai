@@ -24,7 +24,7 @@ const AppLogo: React.FC<AppLogoProps> = ({ size = 120 }) => {
   const floatAnimation = useSharedValue(0);
   const scaleAnimation = useSharedValue(0);
 
-  // All 9 AI providers with their brand colors
+  // AI providers with their brand colors
   const aiNodes = [
     { color: '#C15F3C', name: 'Claude' },     // Anthropic orange
     { color: '#10A37F', name: 'ChatGPT' },    // OpenAI green
@@ -32,7 +32,6 @@ const AppLogo: React.FC<AppLogoProps> = ({ size = 120 }) => {
     { color: '#20808D', name: 'Perplexity' }, // Perplexity teal
     { color: '#FA520F', name: 'Mistral' },    // Mistral orange-red
     { color: '#FF7759', name: 'Cohere' },     // Cohere coral
-    { color: '#0F6FFF', name: 'Together' },   // Together bright blue
     { color: '#4D6BFE', name: 'DeepSeek' },   // DeepSeek indigo
     { color: '#1DA1F2', name: 'Grok' },       // Grok X/Twitter blue
   ];
@@ -103,9 +102,9 @@ const AppLogo: React.FC<AppLogoProps> = ({ size = 120 }) => {
       {/* Orbiting colored nodes */}
       <Animated.View style={[StyleSheet.absoluteFillObject, orbitAnimatedStyle]}>
         {aiNodes.map((node, index) => {
-          const nodeSize = size * 0.12;  // Slightly smaller for 9 dots
-          const angle = (index * 40) * Math.PI / 180;  // 360/9 = 40 degrees per dot
-          const radius = size * 0.35;  // Slightly larger radius for 9 dots
+          const nodeSize = size * 0.12;
+          const angle = (index * (360 / aiNodes.length)) * Math.PI / 180;
+          const radius = size * 0.35;
           const x = size / 2 + Math.cos(angle) * radius - nodeSize / 2;
           const y = size / 2 + Math.sin(angle) * radius - nodeSize / 2;
           

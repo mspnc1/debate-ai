@@ -252,10 +252,6 @@ This bundle consolidates curated entries to update:
       supportsFunctions: true,
     },
 ```
-### Provider: together
-```ts
-// together: no curated entries
-```
 ### Provider: deepseek
 ```ts
 // Curated ModelConfig entries for AI_MODELS['deepseek'] (default + recommended)
@@ -320,10 +316,6 @@ This bundle consolidates curated entries to update:
 // Insert into getProviderCapabilities('openai') imageGeneration models/sizes
 imageGeneration: { supported: true, models: ["gpt-image-2-2026-04-21","dall-e-3","dall-e-2","gpt-image-1","gpt-image-1-mini","gpt-image-1.5","chatgpt-image-latest","gpt-image-2"], sizes: ["auto","1024x1024","1024x1536","1536x1024"], maxPromptLength: 4000 },
 ```
-### Provider: together
-```ts
-// together: no image generation models discovered
-```
 ### Provider: grok
 ```ts
 // Insert into getProviderCapabilities('grok') imageGeneration models/sizes
@@ -340,10 +332,6 @@ videoGeneration: { supported: true, models: ["sora-2","sora-2-pro"], resolutions
 ```ts
 // Insert into getProviderCapabilities('google') videoGeneration block (if/when added)
 videoGeneration: { supported: true, models: ["veo-2.0-generate-001","veo-3.0-generate-001","veo-3.0-fast-generate-001","veo-3.1-generate-preview","veo-3.1-fast-generate-preview"], resolutions: ["480p","720p","1080p"], maxPromptLength: 4000 },
-```
-### Provider: together
-```ts
-// together: no video generation models discovered
 ```
 ### Provider: grok
 ```ts

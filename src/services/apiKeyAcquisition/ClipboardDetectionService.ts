@@ -15,7 +15,6 @@ export type ProviderId =
   | 'mistral'
   | 'grok'
   | 'cohere'
-  | 'together'
   | 'deepseek'
   | 'runway'
   | 'elevenlabs';
@@ -45,7 +44,6 @@ const API_KEY_PATTERNS: Record<ProviderId, RegExp> = {
   mistral: /^[a-zA-Z0-9]{32}$/,
   grok: /^xai-[a-zA-Z0-9]{40,}$/,
   cohere: /^[a-zA-Z0-9]{40}$/,
-  together: /^[a-zA-Z0-9]{64}$/,
   deepseek: /^sk-[a-zA-Z0-9]{48}$/,
   runway: /^[A-Za-z0-9._-]{20,}$/,
   elevenlabs: /^[A-Za-z0-9_-]{20,}$/,
@@ -74,7 +72,6 @@ const MIN_KEY_LENGTHS: Record<ProviderId, number> = {
   mistral: 32,
   grok: 43,
   cohere: 40,
-  together: 64,
   deepseek: 50,
   runway: 20,
   elevenlabs: 20,

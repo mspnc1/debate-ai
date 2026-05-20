@@ -11,7 +11,7 @@ const path = require('path');
 const OUTPUT_DIR = path.join(__dirname, 'output');
 const REGISTRY_PATH = path.join(__dirname, 'known-models-registry.json');
 
-const PROVIDERS = ['openai', 'claude', 'google', 'perplexity', 'mistral', 'cohere', 'together', 'deepseek', 'grok'];
+const PROVIDERS = ['openai', 'claude', 'google', 'perplexity', 'mistral', 'cohere', 'deepseek', 'grok'];
 
 function loadJson(p) {
   if (!fs.existsSync(p)) return null;

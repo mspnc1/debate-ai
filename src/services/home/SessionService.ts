@@ -1,6 +1,7 @@
 import { AIConfig } from '../../types';
 import { generateSimpleSessionId } from '../../utils/home/sessionIdGenerator';
 import { HOME_CONSTANTS } from '../../config/homeConstants';
+import { isValidProviderId } from '../../utils/typeGuards';
 
 /**
  * Session management service for handling session creation, validation, and lifecycle.
@@ -55,6 +56,9 @@ export class SessionService {
     selectedAIs.forEach((ai, index) => {
       if (!ai.id || !ai.provider || !ai.name) {
         throw new Error(`AI at index ${index} is missing required fields (id, provider, name)`);
+      }
+      if (!isValidProviderId(ai.provider)) {
+        throw new Error(`AI at index ${index} uses an unsupported provider: ${ai.provider}`);
       }
     });
   }

@@ -32,10 +32,6 @@ const PROVIDER_CONFIGS: Record<string, {
     baseUrl: 'https://api.cohere.ai/v1/chat',
     authHeader: 'Authorization',
   },
-  together: {
-    baseUrl: 'https://api.together.xyz/v1/chat/completions',
-    authHeader: 'Authorization',
-  },
   deepseek: {
     baseUrl: 'https://api.deepseek.com/v1/chat/completions',
     authHeader: 'Authorization',
@@ -184,7 +180,6 @@ const PROVIDER_NAMES: Record<string, string> = {
   perplexity: 'Perplexity',
   mistral: 'Mistral',
   cohere: 'Cohere',
-  together: 'Together',
   deepseek: 'DeepSeek',
   grok: 'Grok',
 };
@@ -214,7 +209,7 @@ function parseProviderError(
 
   // Extract the actual error message from various provider formats
   const errorMessage =
-    parsedError?.error?.message ||  // OpenAI, Mistral, Together, Perplexity, Grok
+    parsedError?.error?.message ||  // OpenAI, Mistral, Perplexity, Grok
     parsedError?.message ||          // Generic
     parsedError?.error ||            // Some providers
     error.message ||
@@ -369,7 +364,7 @@ export const proxyAIRequest = onCall(
         // Perplexity has built-in web search with citations
         result = await callPerplexity(apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, searchOptions, attachments);
       } else {
-        // OpenAI-compatible providers (OpenAI, Mistral, Together, DeepSeek, Grok)
+        // OpenAI-compatible providers (OpenAI, Mistral, DeepSeek, Grok)
         result = await callOpenAICompatible(apiKey, config.baseUrl, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, providerId, searchOptions, attachments);
       }
 
@@ -1271,12 +1266,6 @@ function modelSupportsVision(providerId: string, model: string): boolean {
              modelLower.includes('mistral-large') ||
              modelLower.includes('mistral-medium') ||
              modelLower.includes('mistral-small');
-    case 'together':
-      // Llama Vision models (3.2, 4) and other vision models
-      return modelLower.includes('vision') ||
-             modelLower.includes('llama-4') ||
-             modelLower.includes('llava') ||
-             modelLower.includes('qwen-vl');
     case 'perplexity':
       // Sonar and sonar-pro support vision
       return modelLower.includes('sonar');
@@ -1292,7 +1281,7 @@ function modelSupportsVision(providerId: string, model: string): boolean {
 
 /**
  * OpenAI-compatible API handler for various providers
- * Supports: OpenAI, Mistral, Together, DeepSeek, Grok
+ * Supports: OpenAI, Mistral, DeepSeek, Grok
  */
 async function callOpenAICompatible(
   apiKey: string,

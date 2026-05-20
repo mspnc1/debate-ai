@@ -104,19 +104,6 @@ export const AI_BRAND_COLORS = {
     900: '#994735',
   },
   
-  together: {
-    50: '#E6F0FF',
-    100: '#BFD6FF',
-    200: '#99BDFF',
-    300: '#73A3FF',
-    400: '#4D8AFF',
-    500: '#0F6FFF', // Together's blue
-    600: '#0D63E6',
-    700: '#0B57CC',
-    800: '#0A4BB3',
-    900: '#083F99',
-  },
-  
   deepseek: {
     50: '#EEF2FF',
     100: '#D4DBFF',

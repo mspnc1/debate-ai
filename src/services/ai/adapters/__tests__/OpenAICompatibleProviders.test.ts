@@ -1,7 +1,6 @@
 import { DeepSeekAdapter } from '../deepseek/DeepSeekAdapter';
 import { GrokAdapter } from '../grok/GrokAdapter';
 import { MistralAdapter } from '../mistral/MistralAdapter';
-import { TogetherAdapter } from '../together/TogetherAdapter';
 import type { OpenAICompatibleAdapter } from '../../base/OpenAICompatibleAdapter';
 import type { AIAdapterConfig, AdapterCapabilities } from '../../types/adapter.types';
 import type { AIProvider, MessageAttachment } from '../../../../types';
@@ -82,23 +81,6 @@ const ADAPTER_MATRIX: AdapterEntry[] = [
       systemPrompt: true,
       maxTokens: 32768,
       contextWindow: 262144,
-    },
-  },
-  {
-    name: 'Together',
-    provider: 'together',
-    AdapterCtor: TogetherAdapter,
-    baseUrl: 'https://api.together.xyz/v1',
-    defaultModel: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
-    capabilities: {
-      streaming: true,
-      attachments: false,  // Llama 3.1 models don't support vision
-      supportsImages: false,
-      supportsDocuments: false,
-      functionCalling: false,
-      systemPrompt: true,
-      maxTokens: 4096,
-      contextWindow: 128000,
     },
   },
 ];

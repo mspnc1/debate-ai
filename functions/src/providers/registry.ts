@@ -19,7 +19,6 @@ export type SupportedProvider =
   | 'openai'
   | 'google'
   | 'mistral'
-  | 'together'
   | 'deepseek'
   | 'grok'
   | 'cohere';
@@ -33,7 +32,6 @@ export function isV2Supported(providerId: string): providerId is SupportedProvid
     'openai',
     'google',
     'mistral',
-    'together',
     'deepseek',
     'grok',
     'cohere',
@@ -70,9 +68,6 @@ export class ProviderRegistry {
       case 'mistral':
         return getOpenAIRuntime('mistral');
 
-      case 'together':
-        return getOpenAIRuntime('together');
-
       case 'deepseek':
         return getOpenAIRuntime('deepseek');
 
@@ -100,6 +95,6 @@ export class ProviderRegistry {
    * Get all supported provider IDs
    */
   static getSupportedProviders(): SupportedProvider[] {
-    return ['claude', 'openai', 'google', 'mistral', 'together', 'deepseek', 'grok', 'cohere'];
+    return ['claude', 'openai', 'google', 'mistral', 'deepseek', 'grok', 'cohere'];
   }
 }

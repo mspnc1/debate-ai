@@ -1,5 +1,5 @@
 export interface GenerateVideoParams {
-  provider: 'openai' | 'google' | 'together' | string;
+  provider: 'openai' | 'google' | string;
   apiKey: string;
   prompt: string;
   resolution: '720p' | '1080p';
@@ -17,8 +17,6 @@ export class VideoService {
     switch (provider) {
       case 'google':
         throw new Error('Video generation via Google API not implemented yet');
-      case 'together':
-        throw new Error('Video generation via Together API not implemented yet');
       case 'openai':
       default:
         throw new Error('Video generation is not supported for the selected provider');
@@ -27,4 +25,3 @@ export class VideoService {
 }
 
 export default VideoService;
-

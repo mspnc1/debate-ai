@@ -160,11 +160,6 @@ export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
     authHeader: 'Authorization',
     authPrefix: 'Bearer ',
   },
-  together: {
-    baseUrl: 'https://api.together.xyz/v1/chat/completions',
-    authHeader: 'Authorization',
-    authPrefix: 'Bearer ',
-  },
   deepseek: {
     baseUrl: 'https://api.deepseek.com/v1/chat/completions',
     authHeader: 'Authorization',

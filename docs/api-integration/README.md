@@ -20,7 +20,6 @@ api-integration/
 │   ├── perplexity/
 │   ├── mistral/
 │   ├── cohere/
-│   ├── together/
 │   └── deepseek/
 └── integration-guides/
     ├── debate-optimization.md   # Provider-specific debate strategies
@@ -41,8 +40,7 @@ api-integration/
 - **Mistral** - European alternative with strong multilingual support
 - **Cohere** - RAG and document processing specialists
 
-### Tier 3 - Open Source & Alternative
-- **Together** - Access to open source models
+### Tier 3 - Alternative
 - **DeepSeek** - Chinese provider with competitive pricing
 
 ## Integration Priority

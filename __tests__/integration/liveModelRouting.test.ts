@@ -44,7 +44,6 @@ const ALL_PROVIDERS: AIProvider[] = [
   'perplexity',
   'mistral',
   'cohere',
-  'together',
   'deepseek',
   'grok',
 ];
@@ -56,7 +55,6 @@ const PROVIDER_KEY_ENV_VARS: Record<AIProvider, string[]> = {
   perplexity: ['PERPLEXITY_API_KEY'],
   mistral: ['MISTRAL_API_KEY'],
   cohere: ['COHERE_API_KEY'],
-  together: ['TOGETHER_API_KEY'],
   deepseek: ['DEEPSEEK_API_KEY'],
   grok: ['GROK_API_KEY', 'XAI_API_KEY'],
 };

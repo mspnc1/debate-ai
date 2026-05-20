@@ -114,12 +114,6 @@ export const MODEL_ALIASES: Record<string, string> = {
   'command-r-latest': 'command-r-08-2024',
   'command-light-latest': 'command-r7b-12-2024',
 
-  // Together aliases
-  'llama-405b-latest': 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
-  'llama-70b-latest': 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
-  'llama-8b-latest': 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
-  'qwen-72b-latest': 'Qwen/Qwen2.5-7B-Instruct-Turbo',
-
   // DeepSeek aliases
   'deepseek-chat': 'deepseek-v4-flash',
   'deepseek-reasoner': 'deepseek-v4-flash',
@@ -143,7 +137,6 @@ export const getDefaultModel = (providerId: string): string => {
     perplexity: 'sonar-pro',
     mistral: 'mistral-large-2512',
     cohere: 'command-a-reasoning-08-2025',
-    together: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
     deepseek: 'deepseek-v4-flash',
   };
 

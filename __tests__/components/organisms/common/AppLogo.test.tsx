@@ -2,6 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { AppLogo } from '@/components/organisms/common/AppLogo';
+import { AI_PROVIDERS } from '@/config/aiProviders';
 
 const mockGradientCalls: any[] = [];
 const mockIconCalls: any[] = [];
@@ -51,7 +52,7 @@ describe('AppLogo', () => {
       );
     });
 
-    expect(orbitNodes).toHaveLength(9);
+    expect(orbitNodes).toHaveLength(AI_PROVIDERS.length);
   });
 
   it('passes gradient colors and icon sizing based on the provided size', () => {

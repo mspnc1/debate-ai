@@ -90,7 +90,6 @@ Contains version tracking:
 - **Perplexity**: Updated to Llama 3.1 Sonar models
 - **Mistral**: Latest 2407 models with function calling
 - **Cohere**: Command R+ 08-2024 models
-- **Together**: Full Llama 3.1 family (405B, 70B, 8B)
 - **DeepSeek**: Added reasoning model, updated pricing
 
 ## Usage Examples

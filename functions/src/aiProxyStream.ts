@@ -53,11 +53,6 @@ const PROVIDER_CONFIGS: Record<string, {
     authHeader: 'Authorization',
     streamParam: 'stream',
   },
-  together: {
-    baseUrl: 'https://api.together.xyz/v1/chat/completions',
-    authHeader: 'Authorization',
-    streamParam: 'stream',
-  },
   deepseek: {
     baseUrl: 'https://api.deepseek.com/v1/chat/completions',
     authHeader: 'Authorization',
@@ -655,7 +650,7 @@ async function streamGemini(
 }
 
 /**
- * Stream OpenAI-compatible API response (OpenAI, Mistral, Together, DeepSeek, Grok)
+ * Stream OpenAI-compatible API response (OpenAI, Mistral, DeepSeek, Grok)
  */
 async function streamOpenAICompatible(
   res: any,
@@ -1266,11 +1261,6 @@ function modelSupportsVision(providerId: string, model: string): boolean {
              modelLower.includes('mistral-large') ||
              modelLower.includes('mistral-medium') ||
              modelLower.includes('mistral-small');
-    case 'together':
-      return modelLower.includes('vision') ||
-             modelLower.includes('llama-4') ||
-             modelLower.includes('llava') ||
-             modelLower.includes('qwen-vl');
     case 'perplexity':
       return modelLower.includes('sonar');
     case 'cohere':
@@ -1291,7 +1281,6 @@ const PROVIDER_NAMES: Record<string, string> = {
   perplexity: 'Perplexity',
   mistral: 'Mistral',
   cohere: 'Cohere',
-  together: 'Together',
   deepseek: 'DeepSeek',
   grok: 'Grok',
 };
@@ -1401,7 +1390,7 @@ export const proxyAIRequestStream = onRequest(
       } else if (providerId === 'perplexity') {
         result = await streamPerplexity(res, apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, searchOptions, attachments);
       } else {
-        // OpenAI-compatible providers (OpenAI, Mistral, Together, DeepSeek, Grok)
+        // OpenAI-compatible providers (OpenAI, Mistral, DeepSeek, Grok)
         result = await streamOpenAICompatible(res, apiKey, config.baseUrl, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, providerId, attachments, tools, toolChoice);
       }
 

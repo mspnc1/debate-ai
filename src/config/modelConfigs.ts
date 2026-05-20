@@ -625,28 +625,6 @@ export const AI_MODELS: ProviderModels = {
       supportsFunctions: true,
     },
   ],
-  together: [
-    {
-      id: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-      name: "Llama 3.3 70B",
-      description: "Current Together serverless default for high-capability general chat",
-      contextLength: 131072,
-      isDefault: true,
-    },
-    {
-      id: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
-      name: "Llama 3.1 8B",
-      description: "Retired Together serverless model that now requires a dedicated endpoint",
-      contextLength: 131072,
-      isDeprecated: true,
-    },
-    {
-      id: "Qwen/Qwen2.5-7B-Instruct-Turbo",
-      name: "Qwen 2.5 7B",
-      description: "Fast multilingual Together serverless model",
-      contextLength: 32768,
-    },
-  ],
   deepseek: [
     {
       id: "deepseek-v4-flash",
@@ -813,10 +791,6 @@ export const CURATED_MODEL_IDS: { [providerId: string]: string[] } = {
     "command-r-08-2024",
     "command-r7b-12-2024",
   ],
-  together: [
-    "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-    "Qwen/Qwen2.5-7B-Instruct-Turbo",
-  ],
   deepseek: ["deepseek-v4-flash", "deepseek-v4-pro"],
   grok: [
     "grok-4.20-0309-non-reasoning",
@@ -909,14 +883,6 @@ export const PROVIDER_SUPPORTED_PARAMS: {
   ],
   mistral: ["temperature", "maxTokens", "topP", "stopSequences", "seed"],
   cohere: ["temperature", "maxTokens", "topP", "topK", "stopSequences"],
-  together: [
-    "temperature",
-    "maxTokens",
-    "topP",
-    "topK",
-    "frequencyPenalty",
-    "stopSequences",
-  ],
   deepseek: [
     "temperature",
     "maxTokens",

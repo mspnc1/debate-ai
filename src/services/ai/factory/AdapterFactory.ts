@@ -11,7 +11,6 @@ import { GeminiAdapter } from '../adapters/google/GeminiAdapter';
 import { PerplexityAdapter } from '../adapters/perplexity/PerplexityAdapter';
 import { MistralAdapter } from '../adapters/mistral/MistralAdapter';
 import { CohereAdapter } from '../adapters/cohere/CohereAdapter';
-import { TogetherAdapter } from '../adapters/together/TogetherAdapter';
 import { DeepSeekAdapter } from '../adapters/deepseek/DeepSeekAdapter';
 import { GrokAdapter } from '../adapters/grok/GrokAdapter';
 import { MockAdapter } from '../adapters/mock/MockAdapter';
@@ -25,7 +24,6 @@ const ADAPTER_REGISTRY: Record<string, new (config: AIAdapterConfig) => BaseAdap
   perplexity: PerplexityAdapter,
   mistral: MistralAdapter,
   cohere: CohereAdapter,
-  together: TogetherAdapter,
   deepseek: DeepSeekAdapter,
   grok: GrokAdapter,
   mock: MockAdapter,

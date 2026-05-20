@@ -272,46 +272,6 @@ export const AI_PROVIDERS: AIProvider[] = [
     },
   },
   {
-    id: 'together',
-    name: 'Together',
-    company: 'Together AI',
-    color: '#0F6FFF',
-    gradient: ['#0F6FFF', '#133B76'],
-    apiKeyPrefix: '',
-    apiKeyPlaceholder: 'Your Together API key',
-    docsUrl: 'https://docs.together.ai',
-    getKeyUrl: 'https://api.together.xyz/settings/api-keys',
-    description: 'Access to open-source models',
-    features: ['Llama models', 'Mixtral', 'Many open models'],
-    testEndpoint: 'https://api.together.xyz/v1/chat/completions',
-    enabled: true,
-    guidance: {
-      difficulty: 'easy',
-      estimatedTime: '~2 min',
-      steps: [
-        {
-          urlPattern: 'together.xyz',
-          title: 'Log in to Together AI',
-          instruction: 'Sign in or create a Together AI account.',
-        },
-        {
-          urlPattern: '/settings/api-keys',
-          title: 'Access API Keys',
-          instruction: 'Navigate to Settings > API Keys.',
-        },
-        {
-          urlPattern: '/settings/api-keys',
-          title: 'Copy your key',
-          instruction: 'Copy your API key from the dashboard.',
-        },
-      ],
-      tips: [
-        'New accounts get free credits to start',
-        'Access to many open-source models like Llama',
-      ],
-    },
-  },
-  {
     id: 'deepseek',
     name: 'DeepSeek',
     company: 'DeepSeek',

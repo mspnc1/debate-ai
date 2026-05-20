@@ -1,7 +1,7 @@
 # App Icon Generation Guide
 
 ## Overview
-The Symposium AI app uses the Forum Circle design as its app icon - a pattern of 9 overlapping colored circles representing different AI providers on a dark background.
+The Symposium AI app uses the Forum Circle design as its app icon - a pattern of overlapping colored circles representing different AI providers on a dark background.
 
 ## Icon Component
 The icon is generated programmatically using the `AppIconGenerator` component located at:
@@ -60,7 +60,7 @@ expo export:web
 
 ### Forum Circle Design
 - **Background**: Dark (#1A1A1A)
-- **Elements**: 9 overlapping circles in AI provider colors
+- **Elements**: Overlapping circles in AI provider colors
 - **Layout**: Circular arrangement with tight spacing
 - **Center**: Small dark circle matching background
 - **Effects**: Subtle glow (15% opacity) around each circle
@@ -72,7 +72,6 @@ expo export:web
 - Perplexity: #20808D
 - Mistral: #FA520F
 - Cohere: #FF7759
-- Together: #0F6FFF
 - DeepSeek: #4D6BFE
 - Grok: #1DA1F2
 

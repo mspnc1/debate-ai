@@ -4,7 +4,7 @@
 Replace the current "open external browser" flow with an in-app WebView that keeps users in context, plus smart clipboard detection and guided walkthroughs.
 
 ## Key Finding
-OAuth is NOT available for API key generation from any major AI provider. All 9 providers require manual key creation through their developer portals.
+OAuth is NOT available for API key generation from any major AI provider. Supported AI providers require manual key creation through their developer portals.
 
 ---
 
@@ -25,7 +25,6 @@ const API_KEY_PATTERNS = {
   mistral: /^[a-zA-Z0-9]{32}$/,
   grok: /^xai-[a-zA-Z0-9]{40,}$/,
   cohere: /^[a-zA-Z0-9]{40}$/,
-  together: /^[a-zA-Z0-9]{64}$/,
   deepseek: /^sk-[a-zA-Z0-9]{48}$/,
 };
 
@@ -203,7 +202,6 @@ If WebView doesn't work for a provider (blocking, auth issues):
 |----------|------------|-----------|-------|
 | Google (Gemini) | Easy | ~1 min | One-click in AI Studio |
 | Cohere | Easy | ~1 min | Simple dashboard |
-| Together AI | Easy | ~2 min | Straightforward |
 | DeepSeek | Easy | ~2 min | Clean interface |
 | OpenAI | Medium | ~3 min | May need org setup |
 | Anthropic | Medium | ~3 min | Requires billing |

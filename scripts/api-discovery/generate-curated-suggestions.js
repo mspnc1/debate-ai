@@ -12,7 +12,7 @@ const path = require('path');
 const OUTPUT_DIR = path.join(__dirname, 'output');
 const MODEL_CONFIG_PATH = path.resolve(process.cwd(), 'src', 'config', 'modelConfigs.ts');
 
-const PROVIDERS = ['openai','claude','google','perplexity','mistral','cohere','together','deepseek','grok'];
+const PROVIDERS = ['openai','claude','google','perplexity','mistral','cohere','deepseek','grok'];
 
 function readFileSafe(p){ try { return fs.readFileSync(p,'utf8'); } catch { return ''; } }
 function load(provider){ const p = path.join(OUTPUT_DIR, `${provider}-models.json`); if (!fs.existsSync(p)) return null; return JSON.parse(fs.readFileSync(p,'utf8')); }
@@ -117,12 +117,6 @@ function classifyFamily(provider, id) {
       if (/pro/.test(lower)) return 'sonar-pro';
       return 'sonar';
     }
-    case 'together': {
-      if (/llama.*70b/i.test(lower)) return 'llama-70b';
-      if (/llama.*8b/i.test(lower)) return 'llama-8b';
-      if (/qwen/i.test(lower)) return 'qwen';
-      return 'together-other';
-    }
     case 'deepseek': {
       if (/v4.*flash/.test(lower)) return 'deepseek-v4-flash';
       if (/v4.*pro/.test(lower)) return 'deepseek-v4-pro';
@@ -145,7 +139,6 @@ const PROVIDER_FAMILIES = {
   perplexity: ['sonar-pro', 'sonar', 'sonar-reasoning-pro', 'sonar-reasoning'],
   mistral: ['mistral-large', 'mistral-medium', 'mistral-small', 'codestral', 'pixtral'],
   cohere: ['command-reasoning', 'command-vision', 'command-r', 'command-light'],
-  together: ['llama-70b', 'llama-8b', 'qwen'],
   deepseek: ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-chat', 'deepseek-reasoner'],
   grok: ['grok-full', 'grok-mini', 'grok-fast'],
 };

@@ -93,7 +93,6 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
                        aiName === 'perplexity' ? 'perplexity' :
                        aiName === 'mistral' ? 'mistral' :
                        aiName === 'cohere' ? 'cohere' :
-                       aiName === 'together' ? 'together' :
                        aiName === 'deepseek' ? 'deepseek' :
                        aiName === 'grok' ? 'grok' :
                        aiName === 'nomi' ? 'nomi' :

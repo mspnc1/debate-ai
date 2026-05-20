@@ -12,7 +12,6 @@ const aiProviderLogos: { [key: string]: number } = {
   mistral: require('../../assets/ai-providers/mistral/logo.png'),
   grok: require('../../assets/ai-providers/grok/logo.png'),
   cohere: require('../../assets/ai-providers/cohere/logo.png'),
-  together: require('../../assets/ai-providers/together/logo.png'),
   deepseek: require('../../assets/ai-providers/deepseek/logo.png'),
 };
 /* eslint-enable @typescript-eslint/no-require-imports */
@@ -34,7 +33,6 @@ export function getAIProviderIcon(providerId: string) {
     perplexity: 'P',
     mistral: 'M',
     cohere: 'Co',
-    together: 'T',
     deepseek: 'DS',
     grok: 'X',
     runway: 'R',
