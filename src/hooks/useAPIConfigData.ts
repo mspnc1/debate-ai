@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { AI_PROVIDERS, getEnabledProviders } from '../config/aiProviders';
+import { AI_PROVIDERS } from '../config/aiProviders';
+import { getEnabledAPIConfigProviders } from '../config/apiConfigProviders';
 import { validateAPIKeyProvider } from '../utils/typeGuards';
 import { useAPIKeys } from './useAPIKeys';
 import { useConnectionTest } from './useConnectionTest';
@@ -18,7 +19,7 @@ export const useAPIConfigData = () => {
   const { verifiedProviders, getVerificationMessage, getVerificationModel } = useProviderVerification();
 
   // Memoized provider lists to avoid unnecessary recalculations
-  const enabledProviders = useMemo(() => getEnabledProviders(), []);
+  const enabledProviders = useMemo(() => getEnabledAPIConfigProviders(), []);
   const disabledProviders = useMemo(() => AI_PROVIDERS.filter(p => !p.enabled), []);
 
   // Count of providers with valid API keys configured

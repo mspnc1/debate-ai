@@ -84,7 +84,7 @@ export interface MessageMetadata {
 }
 
 export interface MessageAttachment {
-  type: 'image' | 'document' | 'video';
+  type: 'image' | 'document' | 'video' | 'audio';
   uri: string;
   mimeType: string;
   // NOTE: base64 should only be set for user-uploaded images (temporary, for API calls)

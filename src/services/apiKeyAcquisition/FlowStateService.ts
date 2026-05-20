@@ -205,6 +205,8 @@ class FlowStateServiceClass {
       cohere: 'Cohere',
       together: 'Together AI',
       deepseek: 'DeepSeek',
+      runway: 'Runway',
+      elevenlabs: 'ElevenLabs',
     };
     return names[providerId] || providerId;
   }

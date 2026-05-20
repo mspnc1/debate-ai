@@ -120,7 +120,32 @@ jest.mock('expo-clipboard', () => ({
 jest.mock('expo-file-system/legacy', () => ({
   writeAsStringAsync: jest.fn(),
   readAsStringAsync: jest.fn(),
+  getInfoAsync: jest.fn().mockResolvedValue({ exists: true }),
+  makeDirectoryAsync: jest.fn().mockResolvedValue(undefined),
+  deleteAsync: jest.fn().mockResolvedValue(undefined),
+  downloadAsync: jest.fn(async (_from: string, to: string) => ({ uri: to, status: 200 })),
   documentDirectory: '/tmp',
+  cacheDirectory: '/tmp/',
+  EncodingType: { Base64: 'base64' },
+}));
+
+jest.mock('expo-image-manipulator', () => ({
+  SaveFormat: { JPEG: 'jpeg', PNG: 'png', WEBP: 'webp' },
+  manipulateAsync: jest.fn().mockResolvedValue({ uri: '/tmp/optimized.jpg', base64: 'b3B0aW1pemVk' }),
+}));
+
+jest.mock('expo-video', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    VideoView: (props: Record<string, unknown>) => React.createElement(View, props),
+    useVideoPlayer: jest.fn(() => ({ play: jest.fn(), pause: jest.fn(), playing: false })),
+  };
+});
+
+jest.mock('expo-audio', () => ({
+  useAudioPlayer: jest.fn(() => ({ play: jest.fn(), pause: jest.fn(), seekTo: jest.fn() })),
+  useAudioPlayerStatus: jest.fn(() => ({ playing: false, duration: 0, currentTime: 0, isLoaded: true })),
 }));
 
 jest.mock('expo-sharing', () => ({

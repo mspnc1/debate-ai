@@ -16,7 +16,9 @@ export type ProviderId =
   | 'grok'
   | 'cohere'
   | 'together'
-  | 'deepseek';
+  | 'deepseek'
+  | 'runway'
+  | 'elevenlabs';
 
 export interface DetectionResult {
   detected: boolean;
@@ -45,6 +47,8 @@ const API_KEY_PATTERNS: Record<ProviderId, RegExp> = {
   cohere: /^[a-zA-Z0-9]{40}$/,
   together: /^[a-zA-Z0-9]{64}$/,
   deepseek: /^sk-[a-zA-Z0-9]{48}$/,
+  runway: /^[A-Za-z0-9._-]{20,}$/,
+  elevenlabs: /^[A-Za-z0-9_-]{20,}$/,
 };
 
 /**
@@ -72,6 +76,8 @@ const MIN_KEY_LENGTHS: Record<ProviderId, number> = {
   cohere: 40,
   together: 64,
   deepseek: 50,
+  runway: 20,
+  elevenlabs: 20,
 };
 
 class ClipboardDetectionServiceClass {

@@ -21,6 +21,7 @@ import { useAPIConfigData } from '../hooks/useAPIConfigData';
 import { useAPIKeyClipboardDetection } from '../hooks/apiKeyAcquisition/useAPIKeyClipboardDetection';
 import { useAPIKeyFlowState } from '../hooks/apiKeyAcquisition/useAPIKeyFlowState';
 import { AIProvider, getProviderById } from '../config/aiProviders';
+import { getAPIConfigProviderById } from '../config/apiConfigProviders';
 import { ProviderId } from '../services/apiKeyAcquisition';
 import { useTheme } from '../theme';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
@@ -75,7 +76,7 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
 
   // Handle "Get API Key" button press - show guidance modal
   const handleGetApiKey = useCallback((providerId: string) => {
-    const provider = getProviderById(providerId);
+    const provider = getProviderById(providerId) || getAPIConfigProviderById(providerId);
     if (provider) {
       setGuidanceModalProvider(provider);
       startFlow(providerId as ProviderId);

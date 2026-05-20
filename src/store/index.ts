@@ -483,6 +483,8 @@ export type { ErrorEntry, ErrorState } from './errorSlice';
 
 // Create mode exports
 export {
+  setActiveCreateTab,
+  markCreateActivitySeen,
   setSelectedProviders,
   toggleProvider,
   setMode,
@@ -511,11 +513,25 @@ export {
   resetCreateState,
   hydrateGallery,
   persistGallery,
+  hydrateMediaGallery,
+  persistMediaGallery,
+  addToMediaGallery,
+  addToMediaGalleryWithCleanup,
+  removeFromMediaGallery,
+  removeFromMediaGalleryWithCleanup,
+  clearMediaGallery,
+  clearMediaGalleryWithCleanup,
+  generateCreateVideo,
+  generateCreateAudio,
+  resumeCreateMediaTasks,
   selectCreateState,
   selectGallery,
+  selectMediaGallery,
   selectIsGenerating,
   selectSelectedProviders,
   selectGenerationProgress,
+  selectCreateActivity,
+  selectMediaGeneration,
 } from './createSlice';
 export type {
   StylePreset,
@@ -523,6 +539,10 @@ export type {
   QualityOption,
   GenerationProgress,
   GeneratedImageEntry,
+  GeneratedMediaEntry,
+  MediaGenerationState,
+  ActiveRunwayTask,
+  CreateActivityState,
   CreateState,
 } from './createSlice';
 

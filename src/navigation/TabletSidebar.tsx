@@ -10,6 +10,7 @@ interface TabletSidebarProps {
   onTabPress: (tabName: string) => void;
   configuredCount: number;
   isDemo: boolean;
+  createBadge?: string;
 }
 
 interface SidebarItem {
@@ -29,6 +30,7 @@ export const TabletSidebar: React.FC<TabletSidebarProps> = ({
   onTabPress,
   configuredCount,
   isDemo,
+  createBadge,
 }) => {
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
@@ -52,6 +54,13 @@ export const TabletSidebar: React.FC<TabletSidebarProps> = ({
       label: 'Compare',
       icon: <Ionicons name="git-compare-outline" size={24} color={theme.colors.text.secondary} />,
       activeIcon: <Ionicons name="git-compare" size={24} color={theme.colors.primary[500]} />,
+    },
+    {
+      name: 'CreateTab',
+      label: 'Create',
+      icon: <Ionicons name="sparkles-outline" size={24} color={theme.colors.text.secondary} />,
+      activeIcon: <Ionicons name="sparkles" size={24} color={theme.colors.primary[500]} />,
+      badge: createBadge,
     },
     {
       name: 'History',

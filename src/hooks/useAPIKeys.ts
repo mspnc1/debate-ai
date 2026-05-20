@@ -8,7 +8,7 @@ import {
   ApiKeyStatus,
 } from '@/store';
 import APIKeyService from '@/services/APIKeyService';
-import { AI_PROVIDERS } from '@/config/aiProviders';
+import { API_CONFIG_PROVIDERS } from '@/config/apiConfigProviders';
 // Type guards imported for future validation needs
 
 export interface UseAPIKeysReturn {
@@ -35,7 +35,7 @@ export const useAPIKeys = (): UseAPIKeysReturn => {
   // never raw provider keys.
   const [localKeys, setLocalKeys] = useState<Record<string, string>>(() => {
     const keys: Record<string, string> = {};
-    AI_PROVIDERS.forEach(provider => {
+    API_CONFIG_PROVIDERS.forEach(provider => {
       keys[provider.id] = getApiKeyMaskedLabel(existingStatuses?.[provider.id]);
     });
     return keys;
@@ -49,7 +49,7 @@ export const useAPIKeys = (): UseAPIKeysReturn => {
    */
   useEffect(() => {
     const keys: Record<string, string> = {};
-    AI_PROVIDERS.forEach(provider => {
+    API_CONFIG_PROVIDERS.forEach(provider => {
       keys[provider.id] = getApiKeyMaskedLabel(existingStatuses?.[provider.id]);
     });
     setLocalKeys(keys);
@@ -122,7 +122,7 @@ export const useAPIKeys = (): UseAPIKeysReturn => {
       
       // Update local state with all providers
       const updatedKeys: Record<string, string> = {};
-      AI_PROVIDERS.forEach(provider => {
+      API_CONFIG_PROVIDERS.forEach(provider => {
         updatedKeys[provider.id] = getApiKeyMaskedLabel(keys[provider.id]);
       });
       
@@ -147,7 +147,7 @@ export const useAPIKeys = (): UseAPIKeysReturn => {
       setIsLoading(true);
 
       const emptyKeys: Record<string, string> = {};
-      AI_PROVIDERS.forEach(provider => {
+      API_CONFIG_PROVIDERS.forEach(provider => {
         emptyKeys[provider.id] = '';
       });
       setLocalKeys(emptyKeys);

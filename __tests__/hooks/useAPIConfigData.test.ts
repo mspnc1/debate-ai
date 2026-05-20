@@ -61,7 +61,12 @@ describe('useAPIConfigData', () => {
   it('splits providers into enabled and disabled groups', () => {
     const { result } = renderHook(() => useAPIConfigData());
 
-    expect(result.current.enabledProviders).toEqual([enabledProvider, secondProvider]);
+    expect(result.current.enabledProviders.map(provider => provider.id)).toEqual([
+      enabledProvider.id,
+      secondProvider.id,
+      'runway',
+      'elevenlabs',
+    ]);
     expect(result.current.disabledProviders).toEqual([{ id: 'perplexity', enabled: false }]);
     expect(result.current.configuredCount).toBe(2);
   });

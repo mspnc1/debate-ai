@@ -12,6 +12,9 @@ import {
   TouchableOpacity,
   Alert,
   Keyboard,
+  TextInput,
+  ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -44,11 +47,30 @@ import {
   setQuality,
   setSelectedModel,
   setSelectedProviders,
+  setActiveCreateTab,
+  markCreateActivitySeen,
   hydrateGallery,
+  hydrateMediaGallery,
+  generateCreateVideo,
+  generateCreateAudio,
   selectCreateState,
 } from '../store/createSlice';
 import { RootStackParamList, AIProvider, AIConfig } from '../types';
+import type { CreateMediaOperation, MediaProviderModelOption, MediaProviderVoiceOption } from '../types/media';
 import { STYLE_PRESETS } from '../config/create/stylePresets';
+import {
+  ELEVENLABS_DEFAULT_OUTPUT_FORMAT,
+  ELEVENLABS_DEFAULT_SFX_MODEL,
+  ELEVENLABS_DEFAULT_TTS_MODEL,
+  ELEVENLABS_DEFAULT_VOICE_ID,
+  ELEVENLABS_OUTPUT_FORMATS,
+  RUNWAY_DEFAULT_ASPECT_RATIO,
+  RUNWAY_DEFAULT_DURATION_SECONDS,
+  RUNWAY_DEFAULT_VIDEO_MODEL,
+  getMediaModels,
+  getRunwayAspectRatios,
+  getRunwayVideoDurations,
+} from '../config/mediaProviders';
 import {
   getImageInputModels,
   getImageProviderDisplayName,
@@ -58,6 +80,9 @@ import {
 } from '../config/imageGenerationModels';
 import { AI_PROVIDERS } from '../config/aiProviders';
 import { getAIProviderIcon } from '../utils/aiProviderAssets';
+import APIKeyService from '../services/APIKeyService';
+import MediaGenerationService from '../services/media/MediaGenerationService';
+import { ErrorService } from '../services/errors/ErrorService';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -78,6 +103,7 @@ export default function CreateSetupScreen() {
   const verifiedProviders = useSelector((state: RootState) => state.settings.verifiedProviders || []);
 
   const {
+    activeTab = 'image',
     selectedProviders,
     selectedModels = {},
     currentPrompt,
@@ -86,13 +112,42 @@ export default function CreateSetupScreen() {
     selectedQuality,
     galleryHydrated,
     gallery,
+    mediaGalleryHydrated = false,
+    mediaGallery = [],
+    mediaGeneration = { video: null, audio: null },
+    lastMediaGenerationResult,
   } = createState;
 
-  const galleryCount = gallery.length;
+  const galleryCount = gallery.length + mediaGallery.length;
   const [selectedAIs, setSelectedAIs] = useState<AIConfig[]>([]);
   const [uploadedImageUri, setUploadedImageUri] = useState<string | null>(null);
+  const [videoSourceUri, setVideoSourceUri] = useState<string | undefined>();
+  const [videoPrompt, setVideoPrompt] = useState('');
+  const [videoModelId, setVideoModelId] = useState(RUNWAY_DEFAULT_VIDEO_MODEL);
+  const [videoDuration, setVideoDuration] = useState(RUNWAY_DEFAULT_DURATION_SECONDS);
+  const [videoAspectRatio, setVideoAspectRatio] = useState(RUNWAY_DEFAULT_ASPECT_RATIO);
+  const [audioPrompt, setAudioPrompt] = useState('');
+  const [audioOperation, setAudioOperation] = useState<Extract<CreateMediaOperation, 'text_to_speech' | 'sound_effect'>>('text_to_speech');
+  const [audioTtsModelId, setAudioTtsModelId] = useState(ELEVENLABS_DEFAULT_TTS_MODEL);
+  const [audioSfxModelId, setAudioSfxModelId] = useState(ELEVENLABS_DEFAULT_SFX_MODEL);
+  const [audioVoiceId, setAudioVoiceId] = useState(ELEVENLABS_DEFAULT_VOICE_ID);
+  const [audioOutputFormat, setAudioOutputFormat] = useState(ELEVENLABS_DEFAULT_OUTPUT_FORMAT);
+  const [audioDuration, setAudioDuration] = useState<number | undefined>(undefined);
+  const [promptInfluence, setPromptInfluence] = useState(0.3);
+  const [audioVoices, setAudioVoices] = useState<MediaProviderVoiceOption[]>([]);
+  const [audioModels, setAudioModels] = useState<MediaProviderModelOption[]>([]);
+  const [loadingAudioOptions, setLoadingAudioOptions] = useState(false);
   const [showRefinementModal, setShowRefinementModal] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const videoOperation: Extract<CreateMediaOperation, 'text_to_video' | 'image_to_video'> = videoSourceUri
+    ? 'image_to_video'
+    : 'text_to_video';
+  const runwayModels = getMediaModels('runway', videoOperation);
+  const videoDurations = getRunwayVideoDurations(videoModelId, videoOperation);
+  const videoAspectRatios = getRunwayAspectRatios(videoModelId, videoOperation);
+  const hasRunwayKey = isApiKeyConfigured(apiKeys.runway);
+  const hasElevenLabsKey = isApiKeyConfigured(apiKeys.elevenlabs);
+  const activeAudioModelId = audioOperation === 'text_to_speech' ? audioTtsModelId : audioSfxModelId;
 
   // Listen for keyboard show/hide to toggle Generate button visibility
   useEffect(() => {
@@ -117,7 +172,46 @@ export default function CreateSetupScreen() {
     if (!galleryHydrated && !isDemo) {
       dispatch(hydrateGallery());
     }
-  }, [dispatch, galleryHydrated, isDemo]);
+    if (!mediaGalleryHydrated && !isDemo) {
+      dispatch(hydrateMediaGallery());
+    }
+  }, [dispatch, galleryHydrated, isDemo, mediaGalleryHydrated]);
+
+  useEffect(() => {
+    dispatch(markCreateActivitySeen());
+  }, [dispatch]);
+
+  useEffect(() => {
+    const loadAudioOptions = async () => {
+      if (activeTab !== 'audio' || !hasElevenLabsKey || loadingAudioOptions || audioVoices.length > 0) {
+        return;
+      }
+
+      setLoadingAudioOptions(true);
+      try {
+        const key = await APIKeyService.getKey('elevenlabs');
+        if (!key) return;
+        const options = await MediaGenerationService.listElevenLabsOptions(key, {
+          pageSize: 100,
+          includeTotalCount: true,
+          sort: 'name',
+          sortDirection: 'asc',
+        });
+        setAudioVoices(options.voices || []);
+        setAudioModels(options.models || []);
+        const firstVoice = options.voices?.[0]?.id;
+        if (firstVoice) {
+          setAudioVoiceId(firstVoice);
+        }
+      } catch (error) {
+        ErrorService.handleWithToast(error, { feature: 'create', provider: 'elevenlabs' });
+      } finally {
+        setLoadingAudioOptions(false);
+      }
+    };
+
+    loadAudioOptions();
+  }, [activeTab, audioVoices.length, hasElevenLabsKey, loadingAudioOptions]);
 
   // Build AIConfig objects for image-capable providers
   const configuredImageAIs = useMemo(() => {
@@ -292,6 +386,104 @@ export default function CreateSetupScreen() {
     navigation.navigate('CreateSession', {});
   }, [navigation, isDemo]);
 
+  const handleTabChange = useCallback((tab: typeof activeTab) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    dispatch(setActiveCreateTab(tab));
+  }, [dispatch]);
+
+  const handlePickVideoSource = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      ErrorService.showWarning('Please allow photo access to use a source image.', 'create');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.9,
+    });
+
+    if (!result.canceled && result.assets[0]?.uri) {
+      setVideoSourceUri(result.assets[0].uri);
+    }
+  }, []);
+
+  const handleUseLatestImageAsVideoSource = useCallback(() => {
+    const latest = gallery[0];
+    if (!latest?.uri) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setVideoSourceUri(latest.uri);
+  }, [gallery]);
+
+  const handleGenerateVideo = useCallback(async () => {
+    if (!hasRunwayKey) {
+      navigation.navigate('APIConfig');
+      return;
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      await dispatch(generateCreateVideo({
+        prompt: videoPrompt,
+        modelId: videoModelId,
+        durationSeconds: videoDuration,
+        aspectRatio: videoAspectRatio,
+        sourceImageUri: videoSourceUri,
+      })).unwrap();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      ErrorService.handleWithToast(error, { feature: 'create', provider: 'runway' });
+    }
+  }, [
+    dispatch,
+    hasRunwayKey,
+    navigation,
+    videoAspectRatio,
+    videoDuration,
+    videoModelId,
+    videoPrompt,
+    videoSourceUri,
+  ]);
+
+  const handleGenerateAudio = useCallback(async () => {
+    if (!hasElevenLabsKey) {
+      navigation.navigate('APIConfig');
+      return;
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      await dispatch(generateCreateAudio({
+        prompt: audioPrompt,
+        operation: audioOperation,
+        modelId: activeAudioModelId,
+        voiceId: audioOperation === 'text_to_speech' ? audioVoiceId : undefined,
+        outputFormat: audioOutputFormat,
+        durationSeconds: audioOperation === 'sound_effect' ? audioDuration : undefined,
+        promptInfluence: audioOperation === 'sound_effect' ? promptInfluence : undefined,
+      })).unwrap();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      ErrorService.handleWithToast(error, { feature: 'create', provider: 'elevenlabs' });
+    }
+  }, [
+    activeAudioModelId,
+    audioDuration,
+    audioOperation,
+    audioOutputFormat,
+    audioPrompt,
+    audioVoiceId,
+    dispatch,
+    hasElevenLabsKey,
+    navigation,
+    promptInfluence,
+  ]);
+
   const handleAddAI = useCallback(() => {
     navigation.navigate('APIConfig');
   }, [navigation]);
@@ -310,6 +502,328 @@ export default function CreateSetupScreen() {
       <HeaderActions variant="gradient" helpCategoryId="create" />
     </View>
   );
+
+  const renderCreateTabs = () => (
+    <View style={[styles.tabRow, { backgroundColor: theme.colors.surface }]}>
+      {(['image', 'video', 'audio'] as const).map((tab) => {
+        const isSelected = activeTab === tab;
+        const label = tab === 'image' ? 'Image' : tab === 'video' ? 'Video' : 'Audio';
+        const icon = tab === 'image' ? 'image-outline' : tab === 'video' ? 'videocam-outline' : 'musical-notes-outline';
+        return (
+          <TouchableOpacity
+            key={tab}
+            style={[
+              styles.tabButton,
+              {
+                backgroundColor: isSelected ? theme.colors.primary[500] : 'transparent',
+              },
+            ]}
+            onPress={() => handleTabChange(tab)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isSelected }}
+          >
+            <Ionicons
+              name={icon as keyof typeof Ionicons.glyphMap}
+              size={18}
+              color={isSelected ? '#FFFFFF' : theme.colors.text.secondary}
+            />
+            <Typography
+              variant="caption"
+              weight="semibold"
+              style={{ color: isSelected ? '#FFFFFF' : theme.colors.text.primary }}
+            >
+              {label}
+            </Typography>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
+  const renderChip = (
+    label: string,
+    selected: boolean,
+    onPress: () => void,
+    key?: string
+  ) => (
+    <TouchableOpacity
+      key={key || label}
+      style={[
+        styles.optionChip,
+        {
+          backgroundColor: selected ? theme.colors.primary[500] : theme.colors.surface,
+          borderColor: selected ? theme.colors.primary[500] : theme.colors.border,
+        },
+      ]}
+      onPress={onPress}
+    >
+      <Typography
+        variant="caption"
+        weight="semibold"
+        style={{ color: selected ? '#FFFFFF' : theme.colors.text.primary }}
+      >
+        {label}
+      </Typography>
+    </TouchableOpacity>
+  );
+
+  const renderMediaStatus = (mediaType: 'video' | 'audio') => {
+    const current = mediaGeneration[mediaType];
+    if (!current && lastMediaGenerationResult?.mediaType !== mediaType) {
+      return null;
+    }
+
+    const result = lastMediaGenerationResult?.mediaType === mediaType ? lastMediaGenerationResult : undefined;
+    const message = current?.message || result?.message;
+    const isRunning = Boolean(current);
+    return (
+      <View style={[styles.mediaStatus, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        {isRunning ? (
+          <ActivityIndicator size="small" color={theme.colors.primary[500]} />
+        ) : (
+          <Ionicons
+            name={result?.status === 'failed' ? 'alert-circle-outline' : 'checkmark-circle-outline'}
+            size={20}
+            color={result?.status === 'failed' ? theme.colors.error[500] : theme.colors.success[500]}
+          />
+        )}
+        <Typography variant="caption" color="secondary" style={styles.mediaStatusText}>
+          {message || (isRunning ? 'Generating...' : 'Ready')}
+        </Typography>
+      </View>
+    );
+  };
+
+  const renderProviderSetup = (providerName: string) => (
+    <View style={[styles.setupCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+      <Ionicons name="key-outline" size={24} color={theme.colors.primary[500]} />
+      <View style={styles.setupCardText}>
+        <Typography variant="body" weight="semibold">
+          Add {providerName} key
+        </Typography>
+        <Typography variant="caption" color="secondary">
+          Mobile media keys stay in secure local storage and are sent directly to the provider.
+        </Typography>
+      </View>
+      <TouchableOpacity
+        style={[styles.setupButton, { backgroundColor: theme.colors.primary[500] }]}
+        onPress={() => navigation.navigate('APIConfig')}
+      >
+        <Typography variant="caption" weight="semibold" style={{ color: '#FFFFFF' }}>
+          Connect
+        </Typography>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderVideoTab = () => {
+    const canGenerateVideo = hasRunwayKey && (videoPrompt.trim().length > 0 || Boolean(videoSourceUri));
+    return (
+      <>
+        {!hasRunwayKey && renderProviderSetup('Runway')}
+        {renderMediaStatus('video')}
+
+        <View style={styles.section}>
+          <SectionHeader
+            title="Video Prompt"
+            subtitle={videoSourceUri ? 'Describe how the image should move' : 'Describe the video to generate'}
+            icon="🎬"
+          />
+          <TextInput
+            value={videoPrompt}
+            onChangeText={setVideoPrompt}
+            placeholder="A cinematic tracking shot of..."
+            placeholderTextColor={theme.colors.text.disabled}
+            multiline
+            maxLength={1000}
+            style={[
+              styles.mediaInput,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+                color: theme.colors.text.primary,
+              },
+            ]}
+            testID="create-video-prompt-input"
+          />
+        </View>
+
+        <View style={styles.section}>
+          <SectionHeader title="Source" subtitle="Optional image-to-video input" icon="🖼️" />
+          {videoSourceUri && (
+            <View style={styles.sourcePreviewRow}>
+              <Image source={{ uri: videoSourceUri }} style={styles.sourcePreview} />
+              <TouchableOpacity onPress={() => setVideoSourceUri(undefined)} style={styles.clearSourceButton}>
+                <Ionicons name="close-circle" size={24} color={theme.colors.error[500]} />
+              </TouchableOpacity>
+            </View>
+          )}
+          <View style={styles.inlineActions}>
+            {gallery.length > 0 && renderChip('Use latest image', false, handleUseLatestImageAsVideoSource)}
+            {renderChip(videoSourceUri ? 'Replace image' : 'Upload image', false, handlePickVideoSource)}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <SectionHeader title="Model" subtitle={videoOperation === 'image_to_video' ? 'Image-to-video capable models' : 'Text-to-video capable models'} icon="⚙️" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+            {runwayModels.map((model) => renderChip(
+              model.label,
+              videoModelId === model.id,
+              () => {
+                setVideoModelId(model.id);
+                const nextDurations = getRunwayVideoDurations(model.id, videoOperation);
+                const nextRatios = getRunwayAspectRatios(model.id, videoOperation);
+                setVideoDuration(nextDurations.includes(videoDuration) ? videoDuration : nextDurations[0] || RUNWAY_DEFAULT_DURATION_SECONDS);
+                setVideoAspectRatio(nextRatios.some((ratio) => ratio.id === videoAspectRatio) ? videoAspectRatio : nextRatios[0]?.id || RUNWAY_DEFAULT_ASPECT_RATIO);
+              },
+              model.id
+            ))}
+          </ScrollView>
+        </View>
+
+        <View style={styles.section}>
+          <SectionHeader title="Duration" subtitle="Clip length" icon="⏱️" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+            {videoDurations.map((duration) => renderChip(`${duration}s`, videoDuration === duration, () => setVideoDuration(duration), String(duration)))}
+          </ScrollView>
+        </View>
+
+        <View style={styles.section}>
+          <SectionHeader title="Frame" subtitle="Aspect ratio" icon="▣" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+            {videoAspectRatios.map((ratio) => renderChip(ratio.label, videoAspectRatio === ratio.id, () => setVideoAspectRatio(ratio.id), ratio.id))}
+          </ScrollView>
+        </View>
+
+        {!isKeyboardVisible && (
+          <View style={styles.mediaGenerateSpacer}>
+            <GradientButton
+              title={mediaGeneration.video ? 'Generating Video...' : hasRunwayKey ? 'Generate Video' : 'Connect Runway'}
+              onPress={handleGenerateVideo}
+              disabled={Boolean(mediaGeneration.video) || !canGenerateVideo}
+              fullWidth
+            />
+          </View>
+        )}
+      </>
+    );
+  };
+
+  const renderAudioTab = () => {
+    const fallbackModels = getMediaModels('elevenlabs', audioOperation);
+    const modelsForOperation = (audioModels.length > 0 ? audioModels : fallbackModels)
+      .filter((model) => model.operations.includes(audioOperation));
+    const canGenerateAudio = hasElevenLabsKey && audioPrompt.trim().length > 0;
+
+    return (
+      <>
+        {!hasElevenLabsKey && renderProviderSetup('ElevenLabs')}
+        {renderMediaStatus('audio')}
+
+        <View style={styles.section}>
+          <SectionHeader title="Audio Mode" subtitle="Voiceover or generated sound" icon="🎧" />
+          <View style={styles.inlineActions}>
+            {renderChip('Voiceover', audioOperation === 'text_to_speech', () => setAudioOperation('text_to_speech'))}
+            {renderChip('Sound effect', audioOperation === 'sound_effect', () => setAudioOperation('sound_effect'))}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <SectionHeader
+            title={audioOperation === 'text_to_speech' ? 'Script' : 'Sound Prompt'}
+            subtitle={audioOperation === 'text_to_speech' ? 'Text to speak' : 'Describe the sound to create'}
+            icon="✍️"
+          />
+          <TextInput
+            value={audioPrompt}
+            onChangeText={setAudioPrompt}
+            placeholder={audioOperation === 'text_to_speech' ? 'Read this in a warm, clear voice...' : 'Soft rain on a window with distant thunder...'}
+            placeholderTextColor={theme.colors.text.disabled}
+            multiline
+            maxLength={audioOperation === 'text_to_speech' ? 5000 : 450}
+            style={[
+              styles.mediaInput,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+                color: theme.colors.text.primary,
+              },
+            ]}
+            testID="create-audio-prompt-input"
+          />
+        </View>
+
+        {audioOperation === 'text_to_speech' && (
+          <View style={styles.section}>
+            <SectionHeader title="Voice" subtitle={loadingAudioOptions ? 'Loading voices...' : 'Choose a voice'} icon="🗣️" />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+              {(audioVoices.length > 0 ? audioVoices.slice(0, 20) : [{ id: ELEVENLABS_DEFAULT_VOICE_ID, name: 'Default voice' }]).map((voice) => renderChip(
+                voice.name,
+                audioVoiceId === voice.id,
+                () => setAudioVoiceId(voice.id),
+                voice.id
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        <View style={styles.section}>
+          <SectionHeader title="Model" subtitle="Generation model" icon="⚙️" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+            {modelsForOperation.map((model) => renderChip(
+              model.label,
+              activeAudioModelId === model.id,
+              () => {
+                if (audioOperation === 'text_to_speech') {
+                  setAudioTtsModelId(model.id);
+                } else {
+                  setAudioSfxModelId(model.id);
+                }
+              },
+              model.id
+            ))}
+          </ScrollView>
+        </View>
+
+        <View style={styles.section}>
+          <SectionHeader title="Format" subtitle="Saved audio format" icon="💾" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+            {ELEVENLABS_OUTPUT_FORMATS.map((format) => renderChip(
+              format.label,
+              audioOutputFormat === format.id,
+              () => setAudioOutputFormat(format.id),
+              format.id
+            ))}
+          </ScrollView>
+        </View>
+
+        {audioOperation === 'sound_effect' && (
+          <View style={styles.section}>
+            <SectionHeader title="Sound Controls" subtitle="Optional duration and prompt influence" icon="🎚️" />
+            <View style={styles.inlineActions}>
+              {renderChip('Auto', audioDuration === undefined, () => setAudioDuration(undefined))}
+              {[1, 3, 5, 8, 10, 15, 20].map((duration) => renderChip(`${duration}s`, audioDuration === duration, () => setAudioDuration(duration), String(duration)))}
+            </View>
+            <View style={styles.inlineActions}>
+              {[0.2, 0.3, 0.5, 0.7].map((value) => renderChip(`Influence ${value}`, promptInfluence === value, () => setPromptInfluence(value), String(value)))}
+            </View>
+          </View>
+        )}
+
+        {!isKeyboardVisible && (
+          <View style={styles.mediaGenerateSpacer}>
+            <GradientButton
+              title={mediaGeneration.audio ? 'Generating Audio...' : hasElevenLabsKey ? 'Generate Audio' : 'Connect ElevenLabs'}
+              onPress={handleGenerateAudio}
+              disabled={Boolean(mediaGeneration.audio) || !canGenerateAudio}
+              fullWidth
+            />
+          </View>
+        )}
+      </>
+    );
+  };
 
   // Demo mode gate - only demo users should be blocked
   if (isDemo) {
@@ -379,6 +893,13 @@ export default function CreateSetupScreen() {
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           showsVerticalScrollIndicator={false}
         >
+          {renderCreateTabs()}
+
+          {activeTab === 'video' && renderVideoTab()}
+          {activeTab === 'audio' && renderAudioTab()}
+
+          {activeTab === 'image' && (
+            <>
           {/* AI Provider Selection using tiles */}
           <View style={styles.section}>
             <DynamicAISelector
@@ -488,10 +1009,12 @@ export default function CreateSetupScreen() {
             onUploadImage={handlePickImage}
             testID="create-advanced-options"
           />
+            </>
+          )}
         </ScrollView>
 
         {/* Generate Button - hidden when keyboard is visible */}
-        {!isKeyboardVisible && (
+        {!isKeyboardVisible && activeTab === 'image' && (
           <View
             style={[
               styles.generateContainer,
@@ -551,6 +1074,89 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   section: {
+    marginBottom: 24,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 20,
+  },
+  tabButton: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  chipRow: {
+    paddingRight: 16,
+    gap: 8,
+  },
+  inlineActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  optionChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  mediaInput: {
+    minHeight: 118,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 16,
+    textAlignVertical: 'top',
+  },
+  mediaStatus: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  mediaStatusText: {
+    flex: 1,
+  },
+  setupCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  setupCardText: {
+    flex: 1,
+  },
+  setupButton: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  sourcePreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sourcePreview: {
+    width: 96,
+    height: 72,
+    borderRadius: 8,
+  },
+  clearSourceButton: {
+    padding: 8,
+  },
+  mediaGenerateSpacer: {
     marginBottom: 24,
   },
   legendRow: {

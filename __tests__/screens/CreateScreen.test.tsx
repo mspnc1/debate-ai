@@ -26,6 +26,11 @@ type MockRootState = {
     generationError?: string;
     isGenerating: boolean;
     gallery: Array<Record<string, unknown>>;
+    galleryHydrated?: boolean;
+    mediaGallery?: Array<Record<string, unknown>>;
+    mediaGalleryHydrated?: boolean;
+    mediaGeneration?: { video: null; audio: null };
+    createActivity?: { status: string; hasUnseenActivity: boolean };
   };
 };
 
@@ -189,12 +194,16 @@ jest.mock('@/store/createSlice', () => ({
   selectCreateState: (state: MockRootState) => state.create,
   selectGallery: (state: MockRootState) => state.create.gallery,
   selectIsGenerating: (state: MockRootState) => state.create.isGenerating,
+  hydrateMediaGallery: jest.fn(() => ({ type: 'create/hydrateMediaGallery' })),
+  markCreateActivitySeen: jest.fn(() => ({ type: 'create/markCreateActivitySeen' })),
   startGeneration: jest.fn((providers) => ({ type: 'create/startGeneration', payload: providers })),
   updateGenerationProgress: jest.fn((payload) => ({ type: 'create/updateGenerationProgress', payload })),
   completeGeneration: jest.fn(() => ({ type: 'create/completeGeneration' })),
   addToGalleryWithCleanup: jest.fn((entry) => ({ type: 'create/addToGalleryWithCleanup', payload: entry })),
   removeFromGalleryWithCleanup: jest.fn((id) => ({ type: 'create/removeFromGalleryWithCleanup', payload: id })),
+  removeFromMediaGalleryWithCleanup: jest.fn((id) => ({ type: 'create/removeFromMediaGalleryWithCleanup', payload: id })),
   persistGallery: jest.fn((gallery) => ({ type: 'create/persistGallery', payload: gallery })),
+  persistMediaGallery: jest.fn((gallery) => ({ type: 'create/persistMediaGallery', payload: gallery })),
   updateGalleryEntryUri: jest.fn((payload) => ({ type: 'create/updateGalleryEntryUri', payload })),
 }));
 const mockedSharing = Sharing as jest.Mocked<typeof Sharing>;
@@ -230,6 +239,11 @@ describe('CreateScreen', () => {
       generationError: undefined,
       isGenerating: false,
       gallery: [mockGalleryImage],
+      galleryHydrated: true,
+      mediaGallery: [],
+      mediaGalleryHydrated: true,
+      mediaGeneration: { video: null, audio: null },
+      createActivity: { status: 'idle', hasUnseenActivity: false },
     },
   };
 
@@ -276,7 +290,7 @@ describe('CreateScreen', () => {
       );
 
       const { getByText } = renderWithProviders(<CreateScreen />);
-      expect(getByText('No images generated yet')).toBeTruthy();
+      expect(getByText('No generated media yet')).toBeTruthy();
     });
   });
 

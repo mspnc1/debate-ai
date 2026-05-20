@@ -192,7 +192,12 @@ jest.mock('@/store/createSlice', () => ({
   setSize: jest.fn((size) => ({ type: 'create/setSize', payload: size })),
   setQuality: jest.fn((quality) => ({ type: 'create/setQuality', payload: quality })),
   setSelectedProviders: jest.fn((providers) => ({ type: 'create/setSelectedProviders', payload: providers })),
+  setActiveCreateTab: jest.fn((tab) => ({ type: 'create/setActiveCreateTab', payload: tab })),
+  markCreateActivitySeen: jest.fn(() => ({ type: 'create/markCreateActivitySeen' })),
   hydrateGallery: jest.fn(() => ({ type: 'create/hydrateGallery' })),
+  hydrateMediaGallery: jest.fn(() => ({ type: 'create/hydrateMediaGallery' })),
+  generateCreateVideo: jest.fn((payload) => ({ type: 'create/generateCreateVideo', payload, unwrap: jest.fn() })),
+  generateCreateAudio: jest.fn((payload) => ({ type: 'create/generateCreateAudio', payload, unwrap: jest.fn() })),
   selectCreateState: (state: any) => state.create,
 }));
 
@@ -212,6 +217,11 @@ describe('CreateSetupScreen', () => {
       selectedQuality: 'standard',
       gallery: [],
       galleryHydrated: true,
+      mediaGallery: [],
+      mediaGalleryHydrated: true,
+      mediaGeneration: { video: null, audio: null },
+      activeTab: 'image',
+      createActivity: { status: 'idle', hasUnseenActivity: false },
     },
   };
 

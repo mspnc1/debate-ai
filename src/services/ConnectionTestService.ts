@@ -111,7 +111,7 @@ export class ConnectionTestService {
 
         return {
           success: true,
-          message: 'Connection verified',
+          message: result.message || 'Connection verified',
           model: result.model,
           responseTime
         };
@@ -140,7 +140,7 @@ export class ConnectionTestService {
     providerId: string,
     apiKey: string,
     signal: AbortSignal
-  ): Promise<{ model: string }> {
+  ): Promise<{ model: string; message?: string }> {
     switch (providerId) {
       case 'openai':
         return await this.testOpenAI(apiKey, signal);
@@ -168,6 +168,15 @@ export class ConnectionTestService {
 
       case 'deepseek':
         return await this.testDeepSeek(apiKey, signal);
+
+      case 'runway':
+        return {
+          model: 'Runway media',
+          message: 'Key format saved. Runway validates it when video generation starts.',
+        };
+
+      case 'elevenlabs':
+        return await this.testElevenLabs(apiKey, signal);
 
       default:
         // For unknown providers, try a generic OpenAI-compatible test
@@ -435,6 +444,24 @@ export class ConnectionTestService {
   }
 
   /**
+   * Test ElevenLabs API with a non-generation metadata request.
+   */
+  private async testElevenLabs(apiKey: string, signal: AbortSignal): Promise<{ model: string }> {
+    const response = await fetch('https://api.elevenlabs.io/v2/voices?page_size=1', {
+      headers: {
+        'xi-api-key': apiKey,
+      },
+      signal,
+    });
+
+    if (!response.ok) {
+      throw await this.createApiError(response, 'ElevenLabs');
+    }
+
+    return { model: 'ElevenLabs voices' };
+  }
+
+  /**
    * Generic test for OpenAI-compatible APIs
    */
   private async testGenericOpenAICompatible(
@@ -536,6 +563,24 @@ export class ConnectionTestService {
           return this.createErrorResult(
             'INVALID_FORMAT',
             'Grok API keys should start with "xai-"'
+          );
+        }
+        break;
+
+      case 'runway':
+        if (!/^[A-Za-z0-9._-]{20,}$/.test(apiKey)) {
+          return this.createErrorResult(
+            'INVALID_FORMAT',
+            'Runway API keys should be long token strings'
+          );
+        }
+        break;
+
+      case 'elevenlabs':
+        if (!/^[A-Za-z0-9_-]{20,}$/.test(apiKey)) {
+          return this.createErrorResult(
+            'INVALID_FORMAT',
+            'ElevenLabs API keys should be long token strings'
           );
         }
         break;
@@ -667,7 +712,8 @@ export class ConnectionTestService {
   isProviderSupported(providerId: string): boolean {
     const supportedProviders = [
       'openai', 'claude', 'google', 'grok',
-      'perplexity', 'mistral', 'cohere', 'together', 'deepseek'
+      'perplexity', 'mistral', 'cohere', 'together', 'deepseek',
+      'runway', 'elevenlabs'
     ];
     return supportedProviders.includes(providerId);
   }

@@ -31,7 +31,7 @@
         ],
         "NSCameraUsageDescription": "Symposium AI uses your camera to capture images for AI analysis.",
         "NSPhotoLibraryUsageDescription": "Symposium AI accesses your photos to share images with AI assistants.",
-        "NSPhotoLibraryAddUsageDescription": "Symposium AI saves generated images to your photo library."
+        "NSPhotoLibraryAddUsageDescription": "Symposium AI saves generated images and media to your photo library."
       },
       "associatedDomains": [
         "applinks:symposium-ai.firebaseapp.com",
@@ -75,7 +75,9 @@
       ],
       "@react-native-firebase/crashlytics",
       "./plugins/withPlayStoreIAP",
-      "./plugins/withFirebaseClang"
+      "./plugins/withFirebaseClang",
+      "expo-video",
+      "expo-audio"
     ],
     "extra": {
       "eas": {

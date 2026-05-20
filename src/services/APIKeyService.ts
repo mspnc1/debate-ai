@@ -194,6 +194,22 @@ export class APIKeyService {
           };
         }
         break;
+      case 'runway':
+        if (!/^[A-Za-z0-9._-]{20,}$/.test(key)) {
+          return {
+            isValid: false,
+            message: 'Runway API keys should be long token strings'
+          };
+        }
+        break;
+      case 'elevenlabs':
+        if (!/^[A-Za-z0-9_-]{20,}$/.test(key)) {
+          return {
+            isValid: false,
+            message: 'ElevenLabs API keys should be long token strings'
+          };
+        }
+        break;
     }
 
     return {

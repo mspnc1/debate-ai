@@ -14,12 +14,25 @@ import reducer, {
   completeGeneration,
   generationError,
   clearGenerationError,
+  setActiveCreateTab,
+  markCreateActivitySeen,
+  startMediaGeneration,
+  updateMediaGeneration,
+  completeMediaGeneration,
+  failMediaGeneration,
   addToGallery,
   addToGalleryWithCleanup,
   removeFromGallery,
   removeFromGalleryWithCleanup,
   clearGallery,
   clearGalleryWithCleanup,
+  addToMediaGallery,
+  addToMediaGalleryWithCleanup,
+  removeFromMediaGallery,
+  removeFromMediaGalleryWithCleanup,
+  clearMediaGallery,
+  clearMediaGalleryWithCleanup,
+  setActiveRunwayTask,
   startRefinement,
   setRefinementPrompt,
   cancelRefinement,
@@ -35,7 +48,11 @@ import reducer, {
   selectGenerationProgress,
   hydrateGallery,
   persistGallery,
+  hydrateMediaGallery,
+  persistMediaGallery,
   type GeneratedImageEntry,
+  type GeneratedMediaEntry,
+  type ActiveRunwayTask,
 } from '@/store/createSlice';
 import { configureStore } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -61,6 +78,22 @@ jest.mock('expo-file-system/legacy', () => ({
 const initialState = reducer(undefined, { type: 'init' });
 
 describe('createSlice', () => {
+  const mockMedia: GeneratedMediaEntry = {
+    id: 'media_1',
+    mediaType: 'video',
+    providerId: 'runway',
+    modelId: 'gen4.5',
+    operation: 'text_to_video',
+    prompt: 'A cinematic orbital shot',
+    uri: 'file:///test/video.mp4',
+    remoteUrl: 'https://example.com/video.mp4',
+    mimeType: 'video/mp4',
+    durationSeconds: 5,
+    providerTaskId: 'task_1',
+    status: 'succeeded',
+    createdAt: 123456,
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -226,6 +259,114 @@ describe('createSlice', () => {
     });
   });
 
+  describe('media generation state', () => {
+    it('sets active Create tab without changing image state', () => {
+      const state = reducer(initialState, setActiveCreateTab('video'));
+
+      expect(state.activeTab).toBe('video');
+      expect(state.currentPrompt).toBe('');
+      expect(state.mediaGeneration.video).toBeNull();
+    });
+
+    it('tracks video generation lifecycle and unseen activity', () => {
+      let state = reducer(initialState, startMediaGeneration({
+        id: 'generation_1',
+        mediaType: 'video',
+        providerId: 'runway',
+        operation: 'text_to_video',
+        modelId: 'gen4.5',
+        prompt: 'A city at sunrise',
+        message: 'Starting video generation...',
+      }));
+
+      expect(state.mediaGeneration.video).toMatchObject({
+        id: 'generation_1',
+        mediaType: 'video',
+        providerId: 'runway',
+        status: 'queued',
+        phase: 'queued',
+      });
+      expect(state.createActivity.status).toBe('running');
+      expect(state.createActivity.hasUnseenActivity).toBe(false);
+
+      state = reducer(state, updateMediaGeneration({
+        mediaType: 'video',
+        status: 'processing',
+        phase: 'rendering',
+        providerTaskId: 'task_1',
+        message: 'Rendering video...',
+      }));
+
+      expect(state.mediaGeneration.video).toMatchObject({
+        status: 'processing',
+        phase: 'rendering',
+        providerTaskId: 'task_1',
+        message: 'Rendering video...',
+      });
+
+      state = reducer(state, completeMediaGeneration({
+        mediaType: 'video',
+        status: 'succeeded',
+        message: 'Video generation complete.',
+        resultId: mockMedia.id,
+      }));
+
+      expect(state.mediaGeneration.video).toBeNull();
+      expect(state.lastMediaGenerationResult).toMatchObject({
+        id: mockMedia.id,
+        mediaType: 'video',
+        status: 'succeeded',
+        message: 'Video generation complete.',
+      });
+      expect(state.createActivity).toMatchObject({
+        status: 'completed',
+        hasUnseenActivity: true,
+        lastEventId: mockMedia.id,
+      });
+    });
+
+    it('tracks failed audio generation and clears unseen activity', () => {
+      let state = reducer(initialState, startMediaGeneration({
+        id: 'audio_generation_1',
+        mediaType: 'audio',
+        providerId: 'elevenlabs',
+        operation: 'text_to_speech',
+        modelId: 'eleven_multilingual_v2',
+        prompt: 'Read this line',
+      }));
+
+      state = reducer(state, failMediaGeneration({
+        mediaType: 'audio',
+        message: 'ElevenLabs request failed.',
+      }));
+
+      expect(state.mediaGeneration.audio).toBeNull();
+      expect(state.lastMediaGenerationResult).toMatchObject({
+        id: 'audio_generation_1',
+        mediaType: 'audio',
+        status: 'failed',
+        message: 'ElevenLabs request failed.',
+      });
+      expect(state.createActivity.status).toBe('failed');
+      expect(state.createActivity.hasUnseenActivity).toBe(true);
+
+      state = reducer(state, markCreateActivitySeen());
+      expect(state.createActivity.hasUnseenActivity).toBe(false);
+    });
+
+    it('marks completed image generation as unseen create activity too', () => {
+      let state = reducer(initialState, startGeneration(['openai']));
+      expect(state.createActivity.status).toBe('running');
+
+      state = reducer(state, completeGeneration());
+      expect(state.createActivity).toMatchObject({
+        status: 'completed',
+        hasUnseenActivity: true,
+        lastMessage: 'Image generation complete.',
+      });
+    });
+  });
+
   describe('gallery management', () => {
     const mockImage: GeneratedImageEntry = {
       id: 'img_1',
@@ -320,6 +461,69 @@ describe('createSlice', () => {
       }
 
       expect(FileSystem.deleteAsync).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('media gallery management', () => {
+    it('adds media to gallery at the beginning', () => {
+      const state = reducer(initialState, addToMediaGallery(mockMedia));
+
+      expect(state.mediaGallery).toHaveLength(1);
+      expect(state.mediaGallery[0]).toEqual(mockMedia);
+    });
+
+    it('removes media from gallery by id', () => {
+      let state = reducer(initialState, addToMediaGallery(mockMedia));
+      state = reducer(state, removeFromMediaGallery(mockMedia.id));
+
+      expect(state.mediaGallery).toEqual([]);
+    });
+
+    it('clears media gallery', () => {
+      let state = reducer(initialState, addToMediaGallery(mockMedia));
+      state = reducer(state, addToMediaGallery({
+        ...mockMedia,
+        id: 'media_2',
+        mediaType: 'audio',
+        providerId: 'elevenlabs',
+        operation: 'text_to_speech',
+        uri: 'file:///test/audio.mp3',
+        mimeType: 'audio/mpeg',
+      }));
+      state = reducer(state, clearMediaGallery());
+
+      expect(state.mediaGallery).toEqual([]);
+    });
+
+    it('auto-prunes media gallery when exceeding max size', () => {
+      let state = initialState;
+
+      for (let i = 0; i < 51; i++) {
+        state = reducer(state, addToMediaGallery({
+          ...mockMedia,
+          id: `media_${i}`,
+          uri: `file:///test/media_${i}.mp4`,
+        }));
+      }
+
+      expect(state.mediaGallery).toHaveLength(50);
+      expect(state.mediaGallery.find(entry => entry.id === 'media_0')).toBeUndefined();
+    });
+
+    it('sets active Runway task metadata for resume', () => {
+      const task: ActiveRunwayTask = {
+        id: 'generation_1',
+        providerTaskId: 'task_1',
+        prompt: 'A city at sunrise',
+        operation: 'text_to_video',
+        modelId: 'gen4.5',
+        durationSeconds: 5,
+        aspectRatio: '1280:720',
+        startedAt: 123456,
+      };
+
+      const state = reducer(initialState, setActiveRunwayTask(task));
+      expect(state.activeRunwayTask).toEqual(task);
     });
   });
 
@@ -651,6 +855,127 @@ describe('createSlice', () => {
       expect(FileSystem.deleteAsync).toHaveBeenCalledWith(thunkImage.uri, { idempotent: true });
       expect(FileSystem.deleteAsync).toHaveBeenCalledWith(secondImage.uri, { idempotent: true });
     });
+
+    it('hydrateMediaGallery loads media entries and resumable Runway task metadata', async () => {
+      const activeTask: ActiveRunwayTask = {
+        id: 'generation_1',
+        providerTaskId: 'task_1',
+        prompt: 'A city at sunrise',
+        operation: 'text_to_video',
+        modelId: 'gen4.5',
+        durationSeconds: 5,
+        aspectRatio: '1280:720',
+        startedAt: 123456,
+      };
+
+      (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
+        if (key === 'create_media_gallery') {
+          return Promise.resolve(JSON.stringify([mockMedia]));
+        }
+        if (key === 'create_active_media_task') {
+          return Promise.resolve(JSON.stringify(activeTask));
+        }
+        return Promise.resolve(null);
+      });
+
+      const store = configureStore({
+        reducer: { create: reducer },
+      });
+
+      await store.dispatch(hydrateMediaGallery());
+      const state = store.getState().create;
+
+      expect(state.mediaGalleryHydrated).toBe(true);
+      expect(state.mediaGallery).toEqual([mockMedia]);
+      expect(state.activeRunwayTask).toEqual(activeTask);
+    });
+
+    it('persistMediaGallery saves media entries to storage', async () => {
+      (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+
+      const store = configureStore({
+        reducer: { create: reducer },
+      });
+
+      await store.dispatch(persistMediaGallery([mockMedia]));
+
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'create_media_gallery',
+        JSON.stringify([mockMedia])
+      );
+    });
+
+    it('addToMediaGalleryWithCleanup deletes pruned local media outside the reducer', async () => {
+      const store = configureStore({
+        reducer: { create: reducer },
+        preloadedState: {
+          create: {
+            ...initialState,
+            mediaGallery: Array.from({ length: 50 }, (_, index) => 49 - index).map((index) => ({
+              ...mockMedia,
+              id: `media_${index}`,
+              uri: `file:///test/media_${index}.mp4`,
+            })),
+          },
+        },
+      });
+
+      await store.dispatch(addToMediaGalleryWithCleanup({
+        ...mockMedia,
+        id: 'media_new',
+        uri: 'file:///test/new-media.mp4',
+      }));
+
+      expect(store.getState().create.mediaGallery).toHaveLength(50);
+      expect(FileSystem.deleteAsync).toHaveBeenCalledWith('file:///test/media_0.mp4', { idempotent: true });
+      expect(store.getState().create.mediaGallery[0].id).toBe('media_new');
+      expect(store.getState().create.mediaGallery.find((entry) => entry.id === 'media_0')).toBeUndefined();
+    });
+
+    it('removeFromMediaGalleryWithCleanup deletes removed local media outside the reducer', async () => {
+      const store = configureStore({
+        reducer: { create: reducer },
+        preloadedState: {
+          create: {
+            ...initialState,
+            mediaGallery: [mockMedia],
+          },
+        },
+      });
+
+      await store.dispatch(removeFromMediaGalleryWithCleanup(mockMedia.id));
+
+      expect(store.getState().create.mediaGallery).toEqual([]);
+      expect(FileSystem.deleteAsync).toHaveBeenCalledWith(mockMedia.uri, { idempotent: true });
+    });
+
+    it('clearMediaGalleryWithCleanup deletes all local media files outside the reducer', async () => {
+      const audioMedia: GeneratedMediaEntry = {
+        ...mockMedia,
+        id: 'media_audio',
+        mediaType: 'audio',
+        providerId: 'elevenlabs',
+        operation: 'text_to_speech',
+        uri: 'file:///test/audio.mp3',
+        mimeType: 'audio/mpeg',
+      };
+      const store = configureStore({
+        reducer: { create: reducer },
+        preloadedState: {
+          create: {
+            ...initialState,
+            mediaGallery: [mockMedia, audioMedia],
+          },
+        },
+      });
+
+      await store.dispatch(clearMediaGalleryWithCleanup());
+
+      expect(store.getState().create.mediaGallery).toEqual([]);
+      expect(FileSystem.deleteAsync).toHaveBeenCalledWith(mockMedia.uri, { idempotent: true });
+      expect(FileSystem.deleteAsync).toHaveBeenCalledWith(audioMedia.uri, { idempotent: true });
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith('create_media_gallery', JSON.stringify([]));
+    });
   });
 
   describe('initial state', () => {
@@ -665,6 +990,16 @@ describe('createSlice', () => {
       expect(initialState.selectedQuality).toBe('standard');
       expect(initialState.gallery).toEqual([]);
       expect(initialState.galleryHydrated).toBe(false);
+      expect(initialState.activeTab).toBe('image');
+      expect(initialState.mediaGallery).toEqual([]);
+      expect(initialState.mediaGalleryHydrated).toBe(false);
+      expect(initialState.mediaGeneration).toEqual({ video: null, audio: null });
+      expect(initialState.activeRunwayTask).toBeUndefined();
+      expect(initialState.lastMediaGenerationResult).toBeUndefined();
+      expect(initialState.createActivity).toEqual({
+        status: 'idle',
+        hasUnseenActivity: false,
+      });
       expect(initialState.isRefining).toBe(false);
       expect(initialState.refinementPrompt).toBe('');
     });

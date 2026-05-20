@@ -37,6 +37,8 @@ export function getAIProviderIcon(providerId: string) {
     together: 'T',
     deepseek: 'DS',
     grok: 'X',
+    runway: 'R',
+    elevenlabs: '11',
   };
   
   return {

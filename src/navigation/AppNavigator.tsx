@@ -1,12 +1,12 @@
-import React, { useMemo } from 'react';
-import { Platform, View, ActivityIndicator } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { Platform, View, ActivityIndicator, AppState } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSelector } from 'react-redux';
-import { RootState, isApiKeyConfigured } from '../store';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState, hydrateMediaGallery, isApiKeyConfigured, resumeCreateMediaTasks } from '../store';
 import { RootStackParamList } from '../types';
 import { useTheme } from '../theme';
 import { SheetProvider } from '../contexts/SheetContext';
@@ -40,11 +40,42 @@ import PersonalitySystemScreen from '../screens/PersonalitySystemScreen';
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
 
+const CreateActivityBridge = () => {
+  const dispatch = useDispatch<AppDispatch>();
+  const mediaGalleryHydrated = useSelector((state: RootState) => state.create.mediaGalleryHydrated);
+  const activeRunwayTask = useSelector((state: RootState) => state.create.activeRunwayTask);
+
+  useEffect(() => {
+    if (!mediaGalleryHydrated) {
+      dispatch(hydrateMediaGallery());
+    }
+  }, [dispatch, mediaGalleryHydrated]);
+
+  useEffect(() => {
+    if (mediaGalleryHydrated && activeRunwayTask) {
+      dispatch(resumeCreateMediaTasks());
+    }
+  }, [activeRunwayTask, dispatch, mediaGalleryHydrated]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        dispatch(resumeCreateMediaTasks());
+      }
+    });
+    return () => subscription.remove();
+  }, [dispatch]);
+
+  return null;
+};
+
 // Main Tab Navigator
 const MainTabs = () => {
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
+  const createActivity = useSelector((state: RootState) => state.create.createActivity);
+  const mediaGeneration = useSelector((state: RootState) => state.create.mediaGeneration);
   const { isDemo } = useFeatureAccess();
   const { responsive } = useResponsive();
 
@@ -58,8 +89,13 @@ const MainTabs = () => {
   const iconSize = responsive(24, 28);
   const labelFontSize = responsive(12, 14);
   const totalHeight = tabBarHeight + insets.bottom;
+  const createBadge = createActivity.hasUnseenActivity
+    ? '•'
+    : (mediaGeneration.video || mediaGeneration.audio || createActivity.status === 'running') ? '…' : undefined;
 
   return (
+    <>
+    <CreateActivityBridge />
     <Tab.Navigator
         screenOptions={{
           headerShown: false,
@@ -141,6 +177,16 @@ const MainTabs = () => {
               color={color}
             />
           ),
+          tabBarBadge: createBadge,
+          tabBarBadgeStyle: {
+            backgroundColor: createActivity.hasUnseenActivity
+              ? theme.colors.primary[500]
+              : theme.colors.warning[500],
+            fontSize: 10,
+            minWidth: 16,
+            height: 16,
+            borderRadius: 8,
+          },
         }}
       />
       <Tab.Screen
@@ -158,6 +204,7 @@ const MainTabs = () => {
         }}
       />
       </Tab.Navigator>
+    </>
   );
 };
 
