@@ -5,6 +5,11 @@
 
 import type { Citation } from '@/types';
 
+export type CitationBackedContent = {
+  content: string;
+  citations?: Citation[];
+};
+
 /**
  * Extract domain from a URL
  * @param url - The full URL to extract domain from
@@ -84,6 +89,25 @@ export function normalizeCitations(citations: Citation[]): Citation[] {
     ...citation,
     domain: citation.domain || extractDomain(citation.url),
   }));
+}
+
+/**
+ * Avoid persisting citation-only responses as blank assistant messages.
+ */
+export function ensureAnswerContent(
+  content: string | undefined | null,
+  citations: Citation[] | undefined,
+  providerName: string
+): CitationBackedContent {
+  const normalizedContent = content ?? '';
+  if (normalizedContent.trim().length > 0 || !citations || citations.length === 0) {
+    return { content: normalizedContent, citations };
+  }
+
+  return {
+    content: `${providerName} returned source citations but no answer text. Please retry the request.`,
+    citations: undefined,
+  };
 }
 
 /**

@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import { getAuth } from '@react-native-firebase/auth';
-import { getFirestore, collection, doc, getDoc, setDoc, addDoc } from '@react-native-firebase/firestore';
+import { getFirestore, collection, doc, getDoc, addDoc } from '@react-native-firebase/firestore';
 import type {
   Purchase,
   ProductSubscriptionAndroid,
@@ -398,8 +398,9 @@ export class PurchaseService {
         if (!subs || subs.length === 0) {
           throw { code: 'E_ITEM_UNAVAILABLE', message: 'Subscription not found in store' };
         }
-        // Generate appAccountToken so Apple can link this user in server notifications
-        const appAccountToken = await this.getOrCreateAppAccountToken(user.uid);
+        // Generate appAccountToken so Apple can link this user in server notifications.
+        // The validatePurchase callable persists the token after store validation succeeds.
+        const appAccountToken = await this.deriveAppAccountToken(user.uid);
         console.warn('[IAP] Requesting subscription with appAccountToken...');
         this.pendingPurchaseSku = sku; // Mark that we're expecting this purchase
         await requestPurchase({ type: 'subs', request: { apple: { sku, appAccountToken } } });
@@ -483,7 +484,7 @@ export class PurchaseService {
         }
 
         console.warn('[IAP] Android: Calling requestSubscription for', sku);
-        const obfuscatedAccountId = await this.getOrCreateAppAccountToken(user.uid);
+        const obfuscatedAccountId = await this.deriveAppAccountToken(user.uid);
         this.pendingPurchaseSku = sku; // Mark that we're expecting this purchase
         // For Android, subscriptionOffers contains the sku and offerToken
         await requestPurchase({
@@ -569,7 +570,7 @@ export class PurchaseService {
         if (!prods || prods.length === 0) {
           throw { code: 'E_ITEM_UNAVAILABLE', message: 'Product not found in store' };
         }
-        const appAccountToken = await this.getOrCreateAppAccountToken(user.uid);
+        const appAccountToken = await this.deriveAppAccountToken(user.uid);
         this.pendingPurchaseSku = sku; // Mark that we're expecting this purchase
         await requestPurchase({ type: 'in-app', request: { apple: { sku, andDangerouslyFinishTransactionAutomatically: false, appAccountToken } } });
       } else {
@@ -586,7 +587,7 @@ export class PurchaseService {
           });
           throw { code: 'E_ITEM_UNAVAILABLE', message: 'Lifetime purchase not found in store. Please ensure you have the latest app version.' };
         }
-        const obfuscatedAccountId = await this.getOrCreateAppAccountToken(user.uid);
+        const obfuscatedAccountId = await this.deriveAppAccountToken(user.uid);
         this.pendingPurchaseSku = sku; // Mark that we're expecting this purchase
         await requestPurchase({ type: 'in-app', request: { google: { skus: [sku], obfuscatedAccountId } } });
       }
@@ -621,15 +622,8 @@ export class PurchaseService {
     }
   }
 
-  private static async getOrCreateAppAccountToken(uid: string): Promise<string> {
-    const db = getFirestore();
-    const ref = doc(collection(db, 'users'), uid);
-    const snap = await getDoc(ref);
-    const existing = (snap.data() as { appAccountToken?: string } | undefined)?.appAccountToken;
-    if (existing && typeof existing === 'string') return existing;
-    const token = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, uid);
-    await setDoc(ref, { appAccountToken: token }, { merge: true });
-    return token;
+  private static async deriveAppAccountToken(uid: string): Promise<string> {
+    return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, uid);
   }
 
   private static async handlePurchaseUpdate(purchase: Purchase) {
@@ -732,43 +726,8 @@ export class PurchaseService {
 
       const data = (result?.data || {}) as Partial<{
         valid: boolean;
-        membershipStatus: 'trial' | 'premium';
-        expiryDate: unknown;
-        trialStartDate?: unknown;
-        trialEndDate?: unknown;
-        autoRenewing?: boolean;
-        productId?: 'monthly' | 'annual' | 'lifetime';
-        hasUsedTrial?: boolean;
-        androidPurchaseToken?: string;
-        isLifetime?: boolean;
       }>;
-      if (data.valid) {
-        const update: Record<string, unknown> = {
-          membershipStatus: data.membershipStatus, // 'trial' | 'premium'
-          isPremium: true, // Both trial and premium users have premium access
-          subscriptionId: purchase.transactionId,
-          subscriptionExpiryDate: data.expiryDate ?? null,
-          trialStartDate: data.trialStartDate ?? null,
-          trialEndDate: data.trialEndDate ?? null,
-          autoRenewing: !!data.autoRenewing,
-          lastReceiptData: purchase.purchaseToken,
-          paymentPlatform: Platform.OS,
-          productId: data.productId,
-          hasUsedTrial: data.hasUsedTrial ?? true,
-        };
-        if (Platform.OS === 'android') {
-          const androidToken = (purchase as Purchase & { purchaseToken?: string }).purchaseToken || data.androidPurchaseToken || null;
-          (update as { androidPurchaseToken?: string | null }).androidPurchaseToken = androidToken;
-        }
-        // For iOS: generate/save appAccountToken for Apple Server-to-Server notifications
-        // This ensures existing users get the token backfilled on restore
-        if (Platform.OS === 'ios') {
-          const appAccountToken = await this.getOrCreateAppAccountToken(user.uid);
-          (update as { appAccountToken?: string }).appAccountToken = appAccountToken;
-        }
-        const db = getFirestore();
-        await setDoc(doc(collection(db, 'users'), user.uid), update, { merge: true });
-      } else {
+      if (!data.valid) {
         throw new Error('Invalid receipt');
       }
     } catch (e) {

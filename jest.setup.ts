@@ -227,6 +227,7 @@ jest.mock('react-native-iap', () => ({
 jest.mock('expo-crypto', () => ({
   CryptoDigestAlgorithm: { SHA256: 'SHA256' },
   digestStringAsync: jest.fn().mockResolvedValue('hash'),
+  getRandomBytes: jest.fn((byteCount: number) => Uint8Array.from({ length: byteCount }, (_, index) => index % 256)),
 }));
 
 jest.mock('expo-media-library', () => ({

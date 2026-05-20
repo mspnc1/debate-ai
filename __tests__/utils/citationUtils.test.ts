@@ -4,6 +4,7 @@ import {
   buildCitationUrlMap,
   processMessageContentWithCitations,
   normalizeCitations,
+  ensureAnswerContent,
   truncateText,
   findCitationByUrl,
 } from '@/utils/citationUtils';
@@ -119,6 +120,22 @@ describe('citationUtils', () => {
       expect(normalized[0].index).toBe(5);
       expect(normalized[0].title).toBe('Title');
       expect(normalized[0].snippet).toBe('Snippet text');
+    });
+  });
+
+  describe('ensureAnswerContent', () => {
+    it('preserves normal citation-backed answers', () => {
+      expect(ensureAnswerContent('Answer with sources [1].', mockCitations, 'Claude')).toEqual({
+        content: 'Answer with sources [1].',
+        citations: mockCitations,
+      });
+    });
+
+    it('replaces citation-only empty answers with a retryable message and drops citations', () => {
+      expect(ensureAnswerContent('  ', mockCitations, 'Claude')).toEqual({
+        content: 'Claude returned source citations but no answer text. Please retry the request.',
+        citations: undefined,
+      });
     });
   });
 

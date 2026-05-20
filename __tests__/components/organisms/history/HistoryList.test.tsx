@@ -25,9 +25,13 @@ jest.mock('react-native-gesture-handler', () => {
   };
 });
 
-const mockSessionCard = jest.fn(({ session, onPress, testID }: any) => (
-  <TouchableOpacity testID={testID} onPress={() => onPress(session)}>
-    <Text>{session.id}</Text>
+const mockSessionCard = jest.fn(({ session, onPress, onLongPress, isSelected, selectionMode, testID }: any) => (
+  <TouchableOpacity
+    testID={testID}
+    onPress={() => onPress(session)}
+    onLongPress={() => onLongPress?.(session)}
+  >
+    <Text>{`${session.id}:${selectionMode ? 'selecting' : 'normal'}:${isSelected ? 'selected' : 'unselected'}`}</Text>
   </TouchableOpacity>
 ));
 
@@ -125,5 +129,32 @@ describe('HistoryList', () => {
 
     fireEvent(getByTestId('history-list'), 'onEndReached');
     expect(onLoadMore).toHaveBeenCalledTimes(2);
+  });
+
+  it('passes selection state and disables swipe actions in selection mode', () => {
+    const onLongPress = jest.fn();
+
+    const { getByTestId, queryAllByTestId } = renderWithProviders(
+      <HistoryList
+        sessions={sessions}
+        onSessionPress={jest.fn()}
+        onSessionLongPress={onLongPress}
+        onSessionDelete={jest.fn()}
+        selectedSessionIds={new Set(['session-2'])}
+        selectionMode
+        searchTerm=""
+        testID="history-list"
+      />
+    );
+
+    expect(queryAllByTestId('swipe-delete')).toHaveLength(0);
+    expect(mockSessionCard).toHaveBeenCalledWith(expect.objectContaining({
+      session: sessions[1],
+      isSelected: true,
+      selectionMode: true,
+    }));
+
+    fireEvent(getByTestId('session-card-session-1'), 'longPress');
+    expect(onLongPress).toHaveBeenCalledWith(sessions[0]);
   });
 });

@@ -21,6 +21,7 @@ import { ErrorService } from '@/services/errors/ErrorService';
 import { AppError } from '@/errors/types/AppError';
 import { ErrorCode } from '@/errors/codes/ErrorCodes';
 import { mergeAvailabilitiesStrict } from '@/hooks/multimodal/useModalityAvailability';
+import { ensureAnswerContent } from '@/utils/citationUtils';
 
 export interface DebateSession {
   id: string;
@@ -457,8 +458,10 @@ export class DebateOrchestrator {
             this.emitEvent({ type: 'stream_chunk', data: { messageId, chunk, aiProvider: currentAI.id }, timestamp: Date.now() });
           },
           (completeText: string) => {
-            finalContent = completeText;
-            this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: completeText, modelUsed: currentAI.model, aiProvider: currentAI.id, citations: capturedCitations }, timestamp: Date.now() });
+            const normalizedAnswer = ensureAnswerContent(completeText, capturedCitations, currentAI.name);
+            finalContent = normalizedAnswer.content;
+            capturedCitations = normalizedAnswer.citations;
+            this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, aiProvider: currentAI.id, citations: normalizedAnswer.citations }, timestamp: Date.now() });
           },
           (err: Error) => {
             hadError = true;
@@ -529,10 +532,18 @@ export class DebateOrchestrator {
                 currentAI.model
               );
               const { response: text } = typeof fallback === 'string' ? { response: fallback } : fallback;
-              finalContent = text;
+              const fallbackMetadata = typeof fallback === 'string'
+                ? undefined
+                : (fallback as { metadata?: { citations?: Array<{ index: number; url: string; title?: string; snippet?: string }> } }).metadata;
+              const normalizedAnswer = ensureAnswerContent(text, fallbackMetadata?.citations, currentAI.name);
+              finalContent = normalizedAnswer.content;
               // Emit completion to update the placeholder message and end stream state in UI
-              this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: text, modelUsed: currentAI.model }, timestamp: Date.now() });
-              const updated = { ...placeholderMessage, content: text };
+              this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, citations: normalizedAnswer.citations }, timestamp: Date.now() });
+              const updated = {
+                ...placeholderMessage,
+                content: normalizedAnswer.content,
+                metadata: { ...placeholderMessage.metadata, citations: normalizedAnswer.citations },
+              };
               this.currentMessages = [...existingMessages, updated];
             } catch {
               // As last resort, append a host error message so the flow continues
@@ -668,13 +679,15 @@ export class DebateOrchestrator {
 
         const personalityName = UNIVERSAL_PERSONALITIES.find(p => p.id === personalityId)?.name || 'Default';
         const { response: responseText, modelUsed } = response;
+        const responseMetadata = (response as { metadata?: { citations?: Array<{ index: number; url: string; title?: string; snippet?: string }> } }).metadata;
+        const normalizedAnswer = ensureAnswerContent(responseText, responseMetadata?.citations, currentAI.name);
         const aiMessage: Message = {
           id: `msg_${Date.now()}_${currentAI.id}`,
           sender: `${currentAI.name} (${personalityName})`,
           senderType: 'ai',
-          content: responseText,
+          content: normalizedAnswer.content,
           timestamp: Date.now(),
-          metadata: { ...(modelUsed ? { modelUsed } : {}), providerId: currentAI.id },
+          metadata: { ...(modelUsed ? { modelUsed } : {}), providerId: currentAI.id, citations: normalizedAnswer.citations },
         };
         this.currentMessages = [...existingMessages, aiMessage];
         this.emitEvent({ type: 'message_added', data: { message: aiMessage }, timestamp: Date.now() });

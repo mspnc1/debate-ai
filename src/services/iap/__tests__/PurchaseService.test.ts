@@ -581,7 +581,6 @@ describe('PurchaseService', () => {
       });
 
       it('should fetch products and use requestPurchase on iOS', async () => {
-        mockGetDoc.mockResolvedValue({ data: () => ({ appAccountToken: 'existing-token' }) });
         mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.lifetime }]);
 
         await PurchaseService.purchaseLifetime();
@@ -589,20 +588,23 @@ describe('PurchaseService', () => {
         expect(mockFetchProducts).toHaveBeenCalledWith({ skus: [SUBSCRIPTION_PRODUCTS.lifetime], type: 'in-app' });
         expect(mockRequestPurchase).toHaveBeenCalledWith({
           type: 'in-app',
-          request: { apple: { sku: SUBSCRIPTION_PRODUCTS.lifetime, andDangerouslyFinishTransactionAutomatically: false, appAccountToken: 'existing-token' } },
+          request: { apple: { sku: SUBSCRIPTION_PRODUCTS.lifetime, andDangerouslyFinishTransactionAutomatically: false, appAccountToken: 'hashed-token-123' } },
         });
       });
 
-      it('should create app account token if needed', async () => {
-        mockGetDoc.mockResolvedValue({ data: () => ({}) });
+      it('should derive app account token without client Firestore writes', async () => {
         mockDigestStringAsync.mockResolvedValue('new-token-hash');
         mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.lifetime }]);
 
         await PurchaseService.purchaseLifetime();
 
         expect(mockFetchProducts).toHaveBeenCalledWith({ skus: [SUBSCRIPTION_PRODUCTS.lifetime], type: 'in-app' });
-        expect(mockDigestStringAsync).toHaveBeenCalled();
-        expect(mockSetDoc).toHaveBeenCalled();
+        expect(mockDigestStringAsync).toHaveBeenCalledWith('SHA-256', 'test-user-123');
+        expect(mockSetDoc).not.toHaveBeenCalled();
+        expect(mockRequestPurchase).toHaveBeenCalledWith({
+          type: 'in-app',
+          request: { apple: { sku: SUBSCRIPTION_PRODUCTS.lifetime, andDangerouslyFinishTransactionAutomatically: false, appAccountToken: 'new-token-hash' } },
+        });
       });
     });
 
@@ -857,45 +859,38 @@ describe('PurchaseService', () => {
     // module can be properly loaded. The tests above verify the error handling paths.
   });
 
-  describe('getOrCreateAppAccountToken (iOS - for lifetime purchases)', () => {
+  describe('app account token generation (iOS - for lifetime purchases)', () => {
     beforeEach(() => {
       Platform.OS = 'ios';
     });
 
-    it('should return existing token from Firestore for lifetime purchases', async () => {
-      mockGetDoc.mockResolvedValue({
-        data: () => ({ appAccountToken: 'existing-token-xyz' })
-      });
+    it('should derive token locally for lifetime purchases', async () => {
+      mockDigestStringAsync.mockResolvedValue('derived-token-xyz');
       mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.lifetime }]);
 
       await PurchaseService.purchaseLifetime();
 
-      expect(mockDigestStringAsync).not.toHaveBeenCalled();
+      expect(mockGetDoc).not.toHaveBeenCalled();
       expect(mockRequestPurchase).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'in-app',
           request: expect.objectContaining({
             apple: expect.objectContaining({
-              appAccountToken: 'existing-token-xyz',
+              appAccountToken: 'derived-token-xyz',
             }),
           }),
         })
       );
     });
 
-    it('should create and save new token if not exists for lifetime', async () => {
-      mockGetDoc.mockResolvedValue({ data: () => ({}) });
+    it('should not write app account token from the client', async () => {
       mockDigestStringAsync.mockResolvedValue('new-hashed-token-abc');
       mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.lifetime }]);
 
       await PurchaseService.purchaseLifetime();
 
       expect(mockDigestStringAsync).toHaveBeenCalledWith('SHA-256', 'test-user-123');
-      expect(mockSetDoc).toHaveBeenCalledWith(
-        'doc-ref',
-        { appAccountToken: 'new-hashed-token-abc' },
-        { merge: true }
-      );
+      expect(mockSetDoc).not.toHaveBeenCalled();
       expect(mockRequestPurchase).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'in-app',

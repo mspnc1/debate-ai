@@ -8,7 +8,10 @@ import { HistoryListProps } from '../../../types/history';
 export const HistoryList: React.FC<HistoryListProps> = ({
   sessions,
   onSessionPress,
+  onSessionLongPress,
   onSessionDelete,
+  selectedSessionIds,
+  selectionMode = false,
   searchTerm,
   refreshing = false,
   onRefresh,
@@ -25,6 +28,24 @@ export const HistoryList: React.FC<HistoryListProps> = ({
       onSessionDelete(item.id);
     };
 
+    const card = (
+      <SessionCard
+        session={item}
+        onPress={onSessionPress}
+        onLongPress={onSessionLongPress}
+        searchTerm={searchTerm}
+        isHighlighted={false}
+        isSelected={selectedSessionIds?.has(item.id) ?? false}
+        selectionMode={selectionMode}
+        index={index}
+        testID={`session-card-${item.id}`}
+      />
+    );
+
+    if (selectionMode) {
+      return card;
+    }
+
     return (
       <Swipeable
         renderRightActions={() => (
@@ -36,17 +57,10 @@ export const HistoryList: React.FC<HistoryListProps> = ({
         enableTrackpadTwoFingerGesture={false} // Disable for better performance
         shouldCancelWhenOutside={true} // Cancel swipe when scrolling
       >
-        <SessionCard
-          session={item}
-          onPress={onSessionPress}
-          searchTerm={searchTerm}
-          isHighlighted={false}
-          index={index}
-          testID={`session-card-${item.id}`}
-        />
+        {card}
       </Swipeable>
     );
-  }, [onSessionPress, onSessionDelete, searchTerm]);
+  }, [onSessionPress, onSessionLongPress, onSessionDelete, searchTerm, selectedSessionIds, selectionMode]);
 
   const keyExtractor = useCallback((item: ChatSession) => item.id, []);
 

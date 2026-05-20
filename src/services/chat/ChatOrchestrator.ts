@@ -13,6 +13,7 @@ import { HOME_CONSTANTS } from '@/config/homeConstants';
 import { getPersonality, PersonalityOption } from '@/config/personalities';
 import { resolveProviderModelId } from '@/config/modelConfigs';
 import { getExpertOverrides } from '@/utils/expertMode';
+import { ensureAnswerContent } from '@/utils/citationUtils';
 import { getStreamingService } from '@/services/streaming/StreamingService';
 import { RecordController } from '@/services/demo/RecordController';
 import { getCurrentTurnProviders, markProviderComplete } from '@/services/demo/DemoPlaybackRouter';
@@ -385,23 +386,28 @@ export class ChatOrchestrator {
       }
     );
 
-    const resolvedContent = finalContent || streamedContent;
+    const normalizedAnswer = ensureAnswerContent(
+      finalContent || streamedContent,
+      capturedCitations,
+      ai.name
+    );
     const completedMessage: Message = {
       ...aiMessage,
-      content: resolvedContent,
+      content: normalizedAnswer.content,
       metadata: {
         ...aiMessage.metadata,
         webSearchEnabled,
-        citations: capturedCitations,
+        citations: normalizedAnswer.citations,
       },
     };
 
     // Update the message in Redux store with citations if we have them
-    if (capturedCitations && capturedCitations.length > 0) {
+    if (normalizedAnswer.content !== (finalContent || streamedContent)
+      || (normalizedAnswer.citations && normalizedAnswer.citations.length > 0)) {
       this.dispatch(updateMessage({
         id: aiMessage.id,
-        content: resolvedContent,
-        metadata: { ...aiMessage.metadata, webSearchEnabled, citations: capturedCitations },
+        content: normalizedAnswer.content,
+        metadata: { ...aiMessage.metadata, webSearchEnabled, citations: normalizedAnswer.citations },
       }));
     }
 
@@ -446,18 +452,19 @@ export class ChatOrchestrator {
     const response = typeof result === 'string' ? result : result.response;
     const modelUsed = typeof result === 'string' ? ai.model : (result.modelUsed || ai.model);
     const metadata = typeof result === 'string' ? undefined : (result as Record<string, unknown>).metadata as { citations?: Array<{ index: number; url: string; title?: string; snippet?: string }> } | undefined;
+    const normalizedAnswer = ensureAnswerContent(response, metadata?.citations, ai.name);
 
-    const aiMessage = ChatService.createAIMessage(ai, response, {
+    const aiMessage = ChatService.createAIMessage(ai, normalizedAnswer.content, {
       modelUsed,
       responseTime,
       webSearchEnabled,
-      citations: metadata?.citations,
+      citations: normalizedAnswer.citations,
     });
     this.dispatch(addMessage(aiMessage));
 
     try {
       if (RecordController.isActive()) {
-        RecordController.recordAssistantMessage(ai.provider, response);
+            RecordController.recordAssistantMessage(ai.provider, normalizedAnswer.content);
       }
     } catch {
       /* noop */

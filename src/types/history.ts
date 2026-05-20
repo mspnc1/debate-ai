@@ -85,8 +85,11 @@ export interface SessionValidationResult {
 export interface SessionCardProps {
   session: ChatSession;
   onPress: (session: ChatSession) => void;
+  onLongPress?: (session: ChatSession) => void;
   searchTerm?: string;
   isHighlighted: boolean;
+  isSelected?: boolean;
+  selectionMode?: boolean;
   index: number;
   testID?: string;
 }
@@ -136,7 +139,10 @@ export interface HistorySearchBarProps {
 export interface HistoryListProps {
   sessions: ChatSession[];
   onSessionPress: (session: ChatSession) => void;
+  onSessionLongPress?: (session: ChatSession) => void;
   onSessionDelete: (sessionId: string) => void;
+  selectedSessionIds?: Set<string>;
+  selectionMode?: boolean;
   searchTerm?: string;
   refreshing?: boolean;
   onRefresh?: () => void;

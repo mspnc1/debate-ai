@@ -54,8 +54,12 @@ const LIFETIME_PRODUCT_IDS = [
 /**
  * Hash email for privacy-preserving trial tracking
  */
+const sha256 = (value: string): string => {
+  return crypto.createHash('sha256').update(value).digest('hex');
+};
+
 const hashEmail = (email: string): string => {
-  return crypto.createHash('sha256').update(email.toLowerCase().trim()).digest('hex');
+  return sha256(email.toLowerCase().trim());
 };
 
 /**
@@ -285,6 +289,7 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
       membershipStatus: inTrial ? 'trial' : 'premium',
       isPremium: true, // Both trial and premium users have premium access
       subscriptionSource: platform === 'ios' ? 'apple_iap' : 'google_play',
+      subscriptionId: productId,
       subscriptionExpiryDate: expiresAt ? admin.firestore.Timestamp.fromDate(expiresAt) : null,
       trialStartDate: trialStart ? admin.firestore.Timestamp.fromDate(trialStart) : null,
       trialEndDate: trialEnd ? admin.firestore.Timestamp.fromDate(trialEnd) : null,
@@ -293,6 +298,16 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
       isLifetime,
       lastValidated: admin.firestore.FieldValue.serverTimestamp(),
     };
+
+    if (platform === 'ios') {
+      updateData.appAccountToken = sha256(userId);
+      updateData.lastReceiptData = receipt ?? null;
+    }
+
+    if (platform === 'android') {
+      updateData.androidPurchaseToken = purchaseToken ?? null;
+      updateData.lastReceiptData = purchaseToken ?? null;
+    }
 
     // Check and record trial usage to prevent abuse after account deletion
     if (inTrial) {

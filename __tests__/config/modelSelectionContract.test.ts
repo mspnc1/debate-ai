@@ -31,6 +31,12 @@ describe('Model selection contract', () => {
     expect(resolveProviderModelId('google', 'gemini-pro-latest')).toBe('gemini-3.1-pro-preview');
   });
 
+  it('looks up persisted alias IDs with the resolved model capabilities', () => {
+    expect(getModelById('openai', 'gpt-latest')?.id).toBe('gpt-5.5');
+    expect(getModelById('claude', 'claude-latest')?.id).toBe('claude-sonnet-4-6');
+    expect(getModelById('google', 'gemini-pro-latest')?.supportsThinking).toBe(true);
+  });
+
   it('falls back to provider default for deprecated, invalid, or cross-provider models', () => {
     expect(resolveProviderModelId('claude', 'claude-3-7-sonnet-20250219')).toBe('claude-sonnet-4-6');
     expect(resolveProviderModelId('claude', 'gpt-5')).toBe('claude-sonnet-4-6');

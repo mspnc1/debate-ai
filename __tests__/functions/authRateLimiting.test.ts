@@ -383,4 +383,19 @@ describe('auth rate limiting callables', () => {
 
     expect(loginAttemptsBlock?.[1]).toContain('allow read, write: if false;');
   });
+
+  it('keeps entitlement and purchase fields server-owned in Firestore rules', () => {
+    const rules = readFileSync(path.join(process.cwd(), 'firestore.rules'), 'utf8');
+
+    expect(rules).toContain('function serverOwnedUserFields()');
+    expect(rules).toContain("'membershipStatus'");
+    expect(rules).toContain("'isPremium'");
+    expect(rules).toContain("'androidPurchaseToken'");
+    expect(rules).toContain("'appAccountToken'");
+    expect(rules).toContain("'lastReceiptData'");
+    expect(rules).toContain('allow create: if isOwner(userId) && isClientOwnedUserCreate();');
+    expect(rules).toContain('allow update: if isOwner(userId) && isClientOwnedUserUpdate();');
+    expect(rules).toContain("match /usage/{docId}");
+    expect(rules).toContain("match /billing/{docId}");
+  });
 });

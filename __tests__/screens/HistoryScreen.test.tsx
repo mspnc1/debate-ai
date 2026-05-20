@@ -78,10 +78,11 @@ const makeActionsState = (overrides: Record<string, unknown> = {}) => {
   const {
     deleteSession = jest.fn(),
     resumeSession = jest.fn(),
+    bulkDelete = jest.fn(),
     ...rest
   } = overrides;
 
-  return { deleteSession, resumeSession, ...rest };
+  return { deleteSession, resumeSession, bulkDelete, ...rest };
 };
 
 const makePaginationState = (
@@ -262,6 +263,7 @@ jest.mock('@/components/molecules', () => {
       mockButtonRegistry.set(props.title, props);
       return React.createElement(Text, { testID: `history-button-${props.title}`, onPress: props.onPress }, props.title);
     },
+    Typography: ({ children }: any) => React.createElement(Text, null, children),
   };
 });
 
@@ -330,7 +332,9 @@ describe('HistoryScreen', () => {
 
     expect(mockHistoryListProps.sessions).toEqual(sessionSearchState.filteredSessions);
     expect(typeof mockHistoryListProps.onSessionPress).toBe('function');
+    expect(typeof mockHistoryListProps.onSessionLongPress).toBe('function');
     expect(typeof mockHistoryListProps.onSessionDelete).toBe('function');
+    expect(mockHistoryListProps.selectionMode).toBe(false);
     expect(mockHistoryListProps.searchTerm).toBe(sessionSearchState.searchQuery);
     expect(mockHistoryListProps.refreshing).toBe(sessionHistoryState.isLoading);
     expect(mockHistoryListProps.onRefresh).toBe(sessionHistoryState.refresh);
@@ -395,16 +399,24 @@ describe('HistoryScreen', () => {
     expect(sessionHistoryState.refresh).toHaveBeenCalledTimes(1);
   });
 
-  it('clears all storage via header action and shows success toast', async () => {
+  it('clears all storage from the management menu and shows success toast', async () => {
     mockClearAllSessions.mockResolvedValueOnce(undefined);
     renderHistoryScreen();
 
+    expect(mockHeaderProps.actionButton.label).toBe('Manage');
     await act(async () => {
       mockHeaderProps.actionButton.onPress();
     });
 
     const [, , buttons] = alertSpy.mock.calls[0];
-    const destructiveButton = buttons.find((btn: any) => btn.style === 'destructive');
+    const clearAllButton = buttons.find((btn: any) => btn.text === 'Clear All');
+
+    await act(async () => {
+      clearAllButton.onPress();
+    });
+
+    const [, , confirmButtons] = alertSpy.mock.calls[1];
+    const destructiveButton = confirmButtons.find((btn: any) => btn.style === 'destructive');
 
     await act(async () => {
       await destructiveButton.onPress();
@@ -424,7 +436,14 @@ describe('HistoryScreen', () => {
     });
 
     const [, , buttons] = alertSpy.mock.calls[0];
-    const destructiveButton = buttons.find((btn: any) => btn.style === 'destructive');
+    const clearAllButton = buttons.find((btn: any) => btn.text === 'Clear All');
+
+    await act(async () => {
+      clearAllButton.onPress();
+    });
+
+    const [, , confirmButtons] = alertSpy.mock.calls[1];
+    const destructiveButton = confirmButtons.find((btn: any) => btn.style === 'destructive');
 
     await act(async () => {
       await destructiveButton.onPress();
@@ -434,6 +453,60 @@ describe('HistoryScreen', () => {
       expect.any(Error),
       expect.objectContaining({ feature: 'history' })
     );
+  });
+
+  it('supports selecting visible history rows and bulk deleting them', async () => {
+    const sessions = [
+      createSession({ id: 'session-1' }),
+      createSession({ id: 'session-2' }),
+    ];
+    const bulkDelete = jest.fn().mockResolvedValue(undefined);
+    renderHistoryScreen({
+      history: { sessions },
+      search: { filteredSessions: sessions },
+      actions: { bulkDelete },
+    });
+
+    await act(async () => {
+      mockHistoryListProps.onSessionLongPress(sessions[0]);
+    });
+
+    expect(mockHistoryListProps.selectionMode).toBe(true);
+    expect(mockHistoryListProps.selectedSessionIds.has('session-1')).toBe(true);
+    expect(mockHistoryStatsProps.visible).toBe(false);
+
+    await pressButton('Select Visible');
+    expect(mockHistoryListProps.selectedSessionIds.has('session-2')).toBe(true);
+
+    await pressButton('Delete (2)');
+    expect(bulkDelete).toHaveBeenCalledWith(['session-1', 'session-2']);
+    expect(mockHistoryListProps.selectionMode).toBe(false);
+  });
+
+  it('selects visible sessions from the management menu', async () => {
+    const sessions = [
+      createSession({ id: 'session-1' }),
+      createSession({ id: 'session-2' }),
+    ];
+    renderHistoryScreen({
+      history: { sessions },
+      search: { filteredSessions: sessions },
+    });
+
+    await act(async () => {
+      mockHeaderProps.actionButton.onPress();
+    });
+
+    const [, , buttons] = alertSpy.mock.calls[0];
+    const selectVisibleButton = buttons.find((btn: any) => btn.text === 'Select Visible');
+
+    await act(async () => {
+      selectVisibleButton.onPress();
+    });
+
+    expect(mockHistoryListProps.selectionMode).toBe(true);
+    expect(mockHistoryListProps.selectedSessionIds.has('session-1')).toBe(true);
+    expect(mockHistoryListProps.selectedSessionIds.has('session-2')).toBe(true);
   });
 
   it('shows demo indicators and dispatches subscription sheet', async () => {
@@ -481,10 +554,14 @@ describe('HistoryScreen', () => {
   it('clears search from search bar and empty state controls', () => {
     renderHistoryScreen();
 
-    mockHistorySearchProps.onClear();
+    act(() => {
+      mockHistorySearchProps.onClear();
+    });
     expect(sessionSearchState.clearSearch).toHaveBeenCalledTimes(1);
 
-    mockEmptyStateProps.onClearSearch();
+    act(() => {
+      mockEmptyStateProps.onClearSearch();
+    });
     expect(sessionSearchState.clearSearch).toHaveBeenCalledTimes(2);
   });
 

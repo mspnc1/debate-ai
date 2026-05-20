@@ -178,6 +178,35 @@ describe('ChatOrchestrator', () => {
     expect(dispatchMock).not.toHaveBeenCalledWith(expect.objectContaining({ type: startStreaming.type }));
   });
 
+  it('does not persist citation-only empty non-streaming answers', async () => {
+    const { adapter, service } = mockAIService();
+    adapter.getCapabilities.mockReturnValue({ streaming: false });
+    (service.sendMessage as jest.Mock).mockResolvedValue({
+      response: '  ',
+      metadata: {
+        citations: [{ index: 1, url: 'https://example.com' }],
+      },
+    });
+
+    const orchestrator = new ChatOrchestrator(service, dispatch);
+    orchestrator.updateSession(session);
+    jest.spyOn(ChatOrchestrator.prototype as unknown as { sleep: (ms: number) => Promise<void> }, 'sleep').mockResolvedValue(undefined);
+
+    await orchestrator.processUserMessage(
+      buildParams({ allowStreaming: false, streamingPreferences: { claude: { enabled: false } }, apiKeys: {} })
+    );
+
+    expect(dispatchMock).toHaveBeenCalledWith(expect.objectContaining({
+      type: addMessage.type,
+      payload: expect.objectContaining({
+        content: 'Claude returned source citations but no answer text. Please retry the request.',
+        metadata: expect.objectContaining({
+          citations: undefined,
+        }),
+      }),
+    }));
+  });
+
   it('uses demo api key when isDemo is true, ignoring stored api keys', async () => {
     const { service } = mockAIService();
     mockStreamingService.streamResponse.mockImplementation(async (_config, onChunk, onComplete) => {

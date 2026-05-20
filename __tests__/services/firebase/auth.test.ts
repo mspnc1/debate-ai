@@ -8,10 +8,10 @@ import {
   signInWithCredential as mockSignInWithCredential,
   getIdToken as mockFirebaseGetIdToken,
   updateProfile as mockUpdateProfile,
-  sendPasswordResetEmail as mockFirebaseSendPasswordResetEmail,
   GoogleAuthProvider,
   AppleAuthProvider,
 } from '@react-native-firebase/auth';
+import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
 import {
   getFirestore,
   collection,
@@ -41,9 +41,19 @@ const mockAuthModule = {
   signInWithCredential: mockSignInWithCredential as jest.MockedFunction<typeof mockSignInWithCredential>,
   getIdToken: mockFirebaseGetIdToken as jest.MockedFunction<typeof mockFirebaseGetIdToken>,
   updateProfile: mockUpdateProfile as jest.MockedFunction<typeof mockUpdateProfile>,
-  sendPasswordResetEmail: mockFirebaseSendPasswordResetEmail as jest.MockedFunction<typeof mockFirebaseSendPasswordResetEmail>,
   GoogleAuthProvider,
   AppleAuthProvider,
+};
+
+const mockFunctionsModule = {
+  getFunctions: getFunctions as jest.MockedFunction<typeof getFunctions>,
+  httpsCallable: httpsCallable as jest.MockedFunction<typeof httpsCallable>,
+};
+
+const mockCallables: Record<string, jest.Mock> = {
+  verifyEmailPasswordSignIn: jest.fn(),
+  clearLoginAttempts: jest.fn(),
+  requestPasswordResetEmail: jest.fn(),
 };
 
 const mockFirestoreModule = {
@@ -115,8 +125,10 @@ import {
   sendPasswordResetEmail,
 } from '@/services/firebase/auth';
 
-import type { MembershipStatus } from '@/types/subscription';
 import { Platform } from 'react-native';
+import * as Crypto from 'expo-crypto';
+
+const mockCryptoModule = Crypto as jest.Mocked<typeof Crypto>;
 
 const resetMocks = () => {
   jest.clearAllMocks();
@@ -142,13 +154,29 @@ const resetMocks = () => {
     user: { email: 'user@example.com', name: 'User Name', photo: 'photo.png' },
   }));
   mockAppleAuthModule.isAvailableAsync.mockImplementation(async () => true);
+  mockCryptoModule.getRandomBytes.mockImplementation((byteCount: number) => (
+    Uint8Array.from({ length: byteCount }, (_, index) => index % 256)
+  ));
+  mockCryptoModule.digestStringAsync.mockResolvedValue('hashed-nonce');
   mockAppleAuthModule.signInAsync.mockReset();
-  mockAppleAuthModule.signInAsync.mockResolvedValue({
+  mockAppleAuthModule.signInAsync.mockImplementation(async (options?: { state?: string }) => ({
     identityToken: 'token',
     email: 'apple@example.com',
     fullName: { givenName: 'Apple', familyName: 'User' },
-  });
+    state: options?.state,
+  }));
   mockFirestoreModule.onSnapshot.mockImplementation(() => jest.fn());
+  mockFunctionsModule.getFunctions.mockReturnValue({} as never);
+  mockFunctionsModule.httpsCallable.mockImplementation((_functions, name) => {
+    const callable = mockCallables[String(name)];
+    if (!callable) {
+      throw new Error(`Unexpected callable: ${String(name)}`);
+    }
+    return callable as never;
+  });
+  mockCallables.verifyEmailPasswordSignIn.mockResolvedValue({ data: { credentialAllowed: true } });
+  mockCallables.clearLoginAttempts.mockResolvedValue({ data: { success: true } });
+  mockCallables.requestPasswordResetEmail.mockResolvedValue({ data: { emailSent: true } });
 };
 
 const futureTs = (days: number) => ({ toMillis: () => Date.now() + days * 24 * 60 * 60 * 1000 });
@@ -177,6 +205,11 @@ describe('firebase auth service', () => {
     const user = { uid: 'user' };
     mockAuthModule.signInWithEmailAndPassword.mockResolvedValue({ user });
     await expect(signInWithEmail('user@example.com', 'pw')).resolves.toBe(user);
+    expect(mockCallables.verifyEmailPasswordSignIn).toHaveBeenCalledWith({
+      email: 'user@example.com',
+      password: 'pw',
+    });
+    expect(mockCallables.clearLoginAttempts).toHaveBeenCalledWith({ email: 'user@example.com' });
 
     mockAuthModule.signInWithEmailAndPassword.mockRejectedValue({ code: 'auth/user-not-found' });
     await expect(signInWithEmail('missing@example.com', 'pw')).rejects.toThrow('No account found');
@@ -185,12 +218,31 @@ describe('firebase auth service', () => {
     await expect(signInWithEmail('user@example.com', 'bad')).rejects.toThrow('Invalid email or password');
   });
 
+  it('blocks direct email sign-in when the auth callable rejects credentials', async () => {
+    mockCallables.verifyEmailPasswordSignIn.mockResolvedValueOnce({
+      data: {
+        credentialAllowed: false,
+        errorMessage: 'Too many attempts. Please try again later.',
+      },
+    });
+
+    await expect(signInWithEmail('user@example.com', 'bad')).rejects.toThrow('Too many attempts');
+    expect(mockAuthModule.signInWithEmailAndPassword).not.toHaveBeenCalled();
+  });
+
   it('creates user on signup and writes Firestore doc', async () => {
     const user = { uid: 'new', email: 'new@example.com' };
     mockAuthModule.createUserWithEmailAndPassword.mockResolvedValue({ user });
     mockFirestoreModule.setDoc.mockResolvedValue(undefined);
     await expect(signUpWithEmail('new@example.com', 'secretpw')).resolves.toBe(user);
     expect(mockFirestoreModule.setDoc).toHaveBeenCalled();
+    const [, userDoc] = mockFirestoreModule.setDoc.mock.calls[0];
+    expect(userDoc).toEqual(expect.objectContaining({
+      email: 'new@example.com',
+      preferences: {},
+    }));
+    expect(userDoc).not.toHaveProperty('membershipStatus');
+    expect(userDoc).not.toHaveProperty('isPremium');
 
     mockAuthModule.createUserWithEmailAndPassword.mockRejectedValue({ code: 'auth/email-already-in-use' });
     await expect(signUpWithEmail('new@example.com', 'secretpw')).rejects.toThrow('Email is already in use');
@@ -260,14 +312,23 @@ describe('firebase auth service', () => {
     Platform.OS = 'ios';
     setUser(null);
     setDocData({ displayName: 'Existing', createdAt: { toDate: () => new Date() }, membershipStatus: 'free' });
-    mockAppleAuthModule.signInAsync.mockResolvedValue({
+    mockAppleAuthModule.signInAsync.mockImplementation(async (options?: { state?: string }) => ({
       identityToken: 'token',
       email: 'apple@example.com',
       fullName: { givenName: 'Apple', familyName: 'User' },
-    });
+      state: options?.state,
+    }));
     mockAuthModule.signInWithCredential.mockResolvedValue({ user: { uid: 'appleUser', displayName: null } });
 
     const result = await signInWithApple();
+    expect(mockAppleAuthModule.signInAsync).toHaveBeenCalledWith(expect.objectContaining({
+      nonce: 'hashed-nonce',
+      state: expect.any(String),
+    }));
+    expect(mockAuthModule.AppleAuthProvider.credential).toHaveBeenCalledWith(
+      'token',
+      '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f'
+    );
     expect(mockAuthModule.signInWithCredential).toHaveBeenCalled();
     expect(result.user.uid).toBe('appleUser');
     // The implementation uses existing Firestore doc displayName if available
@@ -276,10 +337,7 @@ describe('firebase auth service', () => {
 
   it('throws when Apple Sign-In unavailable or cancelled', async () => {
     Platform.OS = 'ios';
-    // When isAvailableAsync returns false, the error is caught and code continues to signInAsync
-    // So we also need to make signInAsync fail
     mockAppleAuthModule.isAvailableAsync.mockResolvedValue(false);
-    mockAppleAuthModule.signInAsync.mockRejectedValue(new Error('Apple Sign-In unavailable'));
     await expect(signInWithApple()).rejects.toThrow();
 
     // Test user cancellation
@@ -310,31 +368,20 @@ describe('firebase auth service', () => {
   });
 
   describe('sendPasswordResetEmail', () => {
-    it('sends password reset email successfully', async () => {
-      mockAuthModule.sendPasswordResetEmail.mockResolvedValue(undefined);
+    it('sends password reset email through the rate-limited callable', async () => {
       await expect(sendPasswordResetEmail('user@example.com')).resolves.toBeUndefined();
-      expect(mockAuthModule.sendPasswordResetEmail).toHaveBeenCalledWith(mockAuthState, 'user@example.com');
+      expect(mockCallables.requestPasswordResetEmail).toHaveBeenCalledWith({ email: 'user@example.com' });
     });
 
-    it('throws error when user not found', async () => {
-      mockAuthModule.sendPasswordResetEmail.mockRejectedValue({ code: 'auth/user-not-found' });
-      await expect(sendPasswordResetEmail('missing@example.com')).rejects.toThrow('No account found');
-    });
+    it('surfaces password reset rate-limit failures', async () => {
+      mockCallables.requestPasswordResetEmail.mockResolvedValueOnce({
+        data: {
+          emailSent: false,
+          message: 'Too many reset requests. Please try again later.',
+        },
+      });
 
-    it('throws error for invalid email', async () => {
-      mockAuthModule.sendPasswordResetEmail.mockRejectedValue({ code: 'auth/invalid-email' });
-      await expect(sendPasswordResetEmail('invalid')).rejects.toThrow('Invalid email format');
-    });
-
-    it('throws error for network failure', async () => {
-      mockAuthModule.sendPasswordResetEmail.mockRejectedValue({ code: 'auth/network-request-failed' });
-      await expect(sendPasswordResetEmail('user@example.com')).rejects.toThrow('Network error');
-    });
-
-    it('propagates unknown errors', async () => {
-      const unknownError = new Error('Unknown error');
-      mockAuthModule.sendPasswordResetEmail.mockRejectedValue(unknownError);
-      await expect(sendPasswordResetEmail('user@example.com')).rejects.toThrow('Unknown error');
+      await expect(sendPasswordResetEmail('user@example.com')).rejects.toThrow('Too many reset requests');
     });
   });
 });

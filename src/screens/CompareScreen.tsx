@@ -17,7 +17,7 @@ import { ImageLightboxModal } from '../components/organisms/chat/ImageLightboxMo
 
 import { useTheme } from '../theme';
 import { useAIService } from '../providers/AIServiceProvider';
-import { AIConfig, Message, ChatSession, MessageAttachment } from '../types';
+import { AIConfig, Message, ChatSession, MessageAttachment, Citation } from '../types';
 import { StorageService } from '../services/chat/StorageService';
 import { getExpertOverrides } from '../utils/expertMode';
 import { resolveProviderModelId } from '@/config/modelConfigs';
@@ -37,6 +37,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { CompareRecordPickerModal } from '@/components/organisms/demo/CompareRecordPickerModal';
 import AppendToPackService from '@/services/demo/AppendToPackService';
+import { ensureAnswerContent } from '@/utils/citationUtils';
 
 interface CompareScreenProps {
   navigation: {
@@ -55,6 +56,26 @@ interface CompareScreenProps {
 }
 
 type ViewMode = 'split' | 'left-full' | 'right-full' | 'left-only' | 'right-only';
+
+type AIResponseResult = string | {
+  response: string;
+  modelUsed?: string;
+  metadata?: {
+    citations?: Citation[];
+  };
+};
+
+const getResponseContent = (response: AIResponseResult): string => (
+  typeof response === 'string' ? response : response.response
+);
+
+const getResponseModel = (response: AIResponseResult, fallbackModel: string): string => (
+  typeof response === 'string' ? fallbackModel : response.modelUsed || fallbackModel
+);
+
+const getResponseCitations = (response: AIResponseResult): Citation[] | undefined => (
+  typeof response === 'string' ? undefined : response.metadata?.citations
+);
 
 const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
   const { theme } = useTheme();
@@ -315,34 +336,36 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
             setRightStreamingContent(prev => prev + content);
           },
           onLeftComplete: (finalContent: string) => {
+            const normalizedAnswer = ensureAnswerContent(finalContent, leftCitationsRef.current, leftAI.name);
             const leftMessage: Message = {
               id: `msg_left_${Date.now()}`,
               sender: leftAI.name,
               senderType: 'ai',
-              content: finalContent,
+              content: normalizedAnswer.content,
               timestamp: Date.now(),
-              metadata: { modelUsed: leftEffModel, providerId: leftAI.provider, citations: leftCitationsRef.current },
+              metadata: { modelUsed: leftEffModel, providerId: leftAI.provider, citations: normalizedAnswer.citations },
             };
             setLeftMessages(prev => [...prev, leftMessage]);
             leftHistoryRef.current.push(leftMessage);
             setLeftStreamingContent('');
             setLeftTyping(false);
-            try { if (RecordController.isActive()) { RecordController.recordAssistantMessage(leftAI.provider, finalContent); } } catch (_e) { console.warn('compare left sync final record failed', _e); }
+            try { if (RecordController.isActive()) { RecordController.recordAssistantMessage(leftAI.provider, normalizedAnswer.content); } } catch (_e) { console.warn('compare left sync final record failed', _e); }
           },
           onRightComplete: (finalContent: string) => {
+            const normalizedAnswer = ensureAnswerContent(finalContent, rightCitationsRef.current, rightAI.name);
             const rightMessage: Message = {
               id: `msg_right_${Date.now()}`,
               sender: rightAI.name,
               senderType: 'ai',
-              content: finalContent,
+              content: normalizedAnswer.content,
               timestamp: Date.now(),
-              metadata: { modelUsed: rightEffModel, providerId: rightAI.provider, citations: rightCitationsRef.current },
+              metadata: { modelUsed: rightEffModel, providerId: rightAI.provider, citations: normalizedAnswer.citations },
             };
             setRightMessages(prev => [...prev, rightMessage]);
             rightHistoryRef.current.push(rightMessage);
             setRightStreamingContent('');
             setRightTyping(false);
-            try { if (RecordController.isActive()) { RecordController.recordAssistantMessage(rightAI.provider, finalContent); } } catch (_e) { console.warn('compare right sync final record failed', _e); }
+            try { if (RecordController.isActive()) { RecordController.recordAssistantMessage(rightAI.provider, normalizedAnswer.content); } } catch (_e) { console.warn('compare right sync final record failed', _e); }
           },
         }
       );
@@ -392,19 +415,20 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
             if (useSynchronizedStreaming && synchronizerRef.current) {
               synchronizerRef.current.completeLeft(finalContent);
             } else {
+              const normalizedAnswer = ensureAnswerContent(finalContent, leftCitationsRef.current, leftAI.name);
               const leftMessage: Message = {
                 id: `msg_left_${Date.now()}`,
                 sender: leftAI.name,
                 senderType: 'ai',
-                content: finalContent,
+                content: normalizedAnswer.content,
                 timestamp: Date.now(),
-                metadata: { modelUsed: leftEffModel, providerId: leftAI.provider, citations: leftCitationsRef.current },
+                metadata: { modelUsed: leftEffModel, providerId: leftAI.provider, citations: normalizedAnswer.citations },
               };
               setLeftMessages(prev => [...prev, leftMessage]);
               leftHistoryRef.current.push(leftMessage);
               setLeftStreamingContent('');
               setLeftTyping(false);
-              try { if (RecordController.isActive()) { RecordController.recordAssistantMessage(leftAI.provider, finalContent); } } catch (_e) { console.warn('compare left final record failed', _e); }
+              try { if (RecordController.isActive()) { RecordController.recordAssistantMessage(leftAI.provider, normalizedAnswer.content); } } catch (_e) { console.warn('compare left final record failed', _e); }
             }
           },
           async (err: Error) => {
@@ -413,15 +437,21 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
             const isOverload = msg.toLowerCase().includes('overload') || msg.toLowerCase().includes('rate limit');
             try {
               const response = await aiService.sendMessage(leftAI.provider, messageText, leftHistoryRef.current, false, undefined, attachments, leftEffModel);
+              const normalizedAnswer = ensureAnswerContent(
+                getResponseContent(response as AIResponseResult),
+                getResponseCitations(response as AIResponseResult),
+                leftAI.name
+              );
               const leftMessage: Message = {
                 id: `msg_left_${Date.now()}`,
                 sender: leftAI.name,
                 senderType: 'ai',
-                content: typeof response === 'string' ? response : response.response,
+                content: normalizedAnswer.content,
                 timestamp: Date.now(),
                 metadata: {
-                  modelUsed: typeof response === 'string' ? leftEffModel : response.modelUsed || leftEffModel,
+                  modelUsed: getResponseModel(response as AIResponseResult, leftEffModel),
                   providerId: leftAI.provider,
+                  citations: normalizedAnswer.citations,
                 },
               };
               setLeftMessages(prev => [...prev, leftMessage]);
@@ -474,15 +504,21 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
         const leftCompletion = aiService
           .sendMessage(leftAI.provider, messageText, leftHistoryRef.current, false, undefined, attachments, leftEffModel)
           .then(response => {
+            const normalizedAnswer = ensureAnswerContent(
+              getResponseContent(response as AIResponseResult),
+              getResponseCitations(response as AIResponseResult),
+              leftAI.name
+            );
             const leftMessage: Message = {
               id: `msg_left_${Date.now()}`,
               sender: leftAI.name,
               senderType: 'ai',
-              content: typeof response === 'string' ? response : response.response,
+              content: normalizedAnswer.content,
               timestamp: Date.now(),
               metadata: {
-                modelUsed: typeof response === 'string' ? leftEffModel : response.modelUsed || leftEffModel,
+                modelUsed: getResponseModel(response as AIResponseResult, leftEffModel),
                 providerId: leftAI.provider,
+                citations: normalizedAnswer.citations,
               },
             };
             setLeftMessages(prev => [...prev, leftMessage]);
@@ -544,19 +580,20 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
             if (useSynchronizedStreaming && synchronizerRef.current) {
               synchronizerRef.current.completeRight(finalContent);
             } else {
+              const normalizedAnswer = ensureAnswerContent(finalContent, rightCitationsRef.current, rightAI.name);
               const rightMessage: Message = {
                 id: `msg_right_${Date.now()}`,
                 sender: rightAI.name,
                 senderType: 'ai',
-                content: finalContent,
+                content: normalizedAnswer.content,
                 timestamp: Date.now(),
-                metadata: { modelUsed: rightEffModel, providerId: rightAI.provider, citations: rightCitationsRef.current },
+                metadata: { modelUsed: rightEffModel, providerId: rightAI.provider, citations: normalizedAnswer.citations },
               };
               setRightMessages(prev => [...prev, rightMessage]);
               rightHistoryRef.current.push(rightMessage);
               setRightStreamingContent('');
               setRightTyping(false);
-              try { if (RecordController.isActive()) { RecordController.recordAssistantMessage(rightAI.provider, finalContent); } } catch (_e) { console.warn('compare right final record failed', _e); }
+              try { if (RecordController.isActive()) { RecordController.recordAssistantMessage(rightAI.provider, normalizedAnswer.content); } } catch (_e) { console.warn('compare right final record failed', _e); }
             }
           },
           async (err: Error) => {
@@ -565,15 +602,21 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
             const isOverload = msg.toLowerCase().includes('overload') || msg.toLowerCase().includes('rate limit');
             try {
               const response = await aiService.sendMessage(rightAI.provider, messageText, rightHistoryRef.current, false, undefined, attachments, rightEffModel);
+              const normalizedAnswer = ensureAnswerContent(
+                getResponseContent(response as AIResponseResult),
+                getResponseCitations(response as AIResponseResult),
+                rightAI.name
+              );
               const rightMessage: Message = {
                 id: `msg_right_${Date.now()}`,
                 sender: rightAI.name,
                 senderType: 'ai',
-                content: typeof response === 'string' ? response : response.response,
+                content: normalizedAnswer.content,
                 timestamp: Date.now(),
                 metadata: {
-                  modelUsed: typeof response === 'string' ? rightEffModel : response.modelUsed || rightEffModel,
+                  modelUsed: getResponseModel(response as AIResponseResult, rightEffModel),
                   providerId: rightAI.provider,
+                  citations: normalizedAnswer.citations,
                 },
               };
               setRightMessages(prev => [...prev, rightMessage]);
@@ -626,15 +669,21 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
         const rightCompletion = aiService
           .sendMessage(rightAI.provider, messageText, rightHistoryRef.current, false, undefined, attachments, rightEffModel)
           .then(response => {
+            const normalizedAnswer = ensureAnswerContent(
+              getResponseContent(response as AIResponseResult),
+              getResponseCitations(response as AIResponseResult),
+              rightAI.name
+            );
             const rightMessage: Message = {
               id: `msg_right_${Date.now()}`,
               sender: rightAI.name,
               senderType: 'ai',
-              content: typeof response === 'string' ? response : response.response,
+              content: normalizedAnswer.content,
               timestamp: Date.now(),
               metadata: {
-                modelUsed: typeof response === 'string' ? rightEffModel : response.modelUsed || rightEffModel,
+                modelUsed: getResponseModel(response as AIResponseResult, rightEffModel),
                 providerId: rightAI.provider,
+                citations: normalizedAnswer.citations,
               },
             };
             setRightMessages(prev => [...prev, rightMessage]);
@@ -713,15 +762,21 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
 
     const leftPromise = aiService.sendMessage(leftAI.provider, messageText, leftHistoryRef.current, false, undefined, undefined, leftEffModel)
       .then(response => {
+        const normalizedAnswer = ensureAnswerContent(
+          getResponseContent(response as AIResponseResult),
+          getResponseCitations(response as AIResponseResult),
+          leftAI.name
+        );
         const leftMessage: Message = {
           id: `msg_left_${Date.now()}`,
           sender: leftAI.name,
           senderType: 'ai',
-          content: typeof response === 'string' ? response : response.response,
+          content: normalizedAnswer.content,
           timestamp: Date.now(),
           metadata: {
-            modelUsed: typeof response === 'string' ? leftEffModel : response.modelUsed || leftEffModel,
+            modelUsed: getResponseModel(response as AIResponseResult, leftEffModel),
             providerId: leftAI.provider,
+            citations: normalizedAnswer.citations,
           },
         };
         setLeftMessages(prev => [...prev, leftMessage]);
@@ -737,15 +792,21 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
 
     const rightPromise = aiService.sendMessage(rightAI.provider, messageText, rightHistoryRef.current, false, undefined, undefined, rightEffModel)
       .then(response => {
+        const normalizedAnswer = ensureAnswerContent(
+          getResponseContent(response as AIResponseResult),
+          getResponseCitations(response as AIResponseResult),
+          rightAI.name
+        );
         const rightMessage: Message = {
           id: `msg_right_${Date.now()}`,
           sender: rightAI.name,
           senderType: 'ai',
-          content: typeof response === 'string' ? response : response.response,
+          content: normalizedAnswer.content,
           timestamp: Date.now(),
           metadata: {
-            modelUsed: typeof response === 'string' ? rightEffModel : response.modelUsed || rightEffModel,
+            modelUsed: getResponseModel(response as AIResponseResult, rightEffModel),
             providerId: rightAI.provider,
+            citations: normalizedAnswer.citations,
           },
         };
         setRightMessages(prev => [...prev, rightMessage]);

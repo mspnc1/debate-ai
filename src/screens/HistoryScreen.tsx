@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScrollView, View, Alert, StyleSheet } from 'react-native';
 import { Box } from '../components/atoms';
-import { Button } from '../components/molecules';
+import { Button, Typography } from '../components/molecules';
 import { useTheme } from '../theme';
 import { useGreeting } from '../hooks/useGreeting';
 import { useFocusEffect } from '@react-navigation/native';
@@ -44,6 +44,8 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
   const greeting = useGreeting({ screenCategory: 'history' });
   const [activeTab, setActiveTab] = useState<'all' | 'chat' | 'comparison' | 'debate'>('all');
   const [selectedSession, setSelectedSession] = useState<ChatSession | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
 
   // Show split view on iPad landscape with sufficient width
   const showSplitView = isTablet && isLandscape && width > 1024;
@@ -51,7 +53,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
   // Compose hooks for different concerns
   const { sessions, isLoading, error, refresh } = useSessionHistory();
   const { searchQuery, setSearchQuery, filteredSessions, clearSearch } = useSessionSearch(sessions);
-  const { deleteSession, resumeSession } = useSessionActions(navigation, refresh);
+  const { deleteSession, resumeSession, bulkDelete } = useSessionActions(navigation, refresh);
   useSessionStats(sessions); // For future analytics features
   
   // Filter sessions by type
@@ -97,10 +99,93 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
   // Use paginated sessions if pagination is enabled, otherwise use all filtered sessions
   const displaySessions = shouldUsePagination ? currentPageSessions : typeFilteredSessions;
 
+  const selectedCount = selectedSessionIds.size;
+  const allVisibleSelected = displaySessions.length > 0
+    && displaySessions.every(session => selectedSessionIds.has(session.id));
+  const allMatchingSelected = typeFilteredSessions.length > 0
+    && typeFilteredSessions.every(session => selectedSessionIds.has(session.id));
+
+  const clearSelection = useCallback(() => {
+    setSelectedSessionIds(new Set());
+    setSelectionMode(false);
+  }, []);
+
+  const selectSessions = useCallback((targetSessions: ChatSession[]) => {
+    if (targetSessions.length === 0) return;
+    setSelectionMode(true);
+    setSelectedSessionIds(new Set(targetSessions.map(session => session.id)));
+  }, []);
+
+  const toggleSessionSelection = useCallback((session: ChatSession) => {
+    setSelectedSessionIds(previous => {
+      const next = new Set(previous);
+      if (next.has(session.id)) {
+        next.delete(session.id);
+      } else {
+        next.add(session.id);
+      }
+      if (next.size === 0) {
+        setSelectionMode(false);
+      } else {
+        setSelectionMode(true);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSelectVisible = useCallback(() => {
+    if (displaySessions.length === 0) return;
+    if (allVisibleSelected) {
+      setSelectedSessionIds(previous => {
+        const next = new Set(previous);
+        displaySessions.forEach(session => next.delete(session.id));
+        if (next.size === 0) {
+          setSelectionMode(false);
+        }
+        return next;
+      });
+    } else {
+      setSelectionMode(true);
+      setSelectedSessionIds(previous => {
+        const next = new Set(previous);
+        displaySessions.forEach(session => next.add(session.id));
+        return next;
+      });
+    }
+  }, [allVisibleSelected, displaySessions]);
+
+  const handleSelectAllMatching = useCallback(() => {
+    if (allMatchingSelected) {
+      clearSelection();
+    } else {
+      selectSessions(typeFilteredSessions);
+    }
+  }, [allMatchingSelected, clearSelection, selectSessions, typeFilteredSessions]);
+
+  const handleDeleteSelected = useCallback(async () => {
+    const ids = Array.from(selectedSessionIds);
+    if (ids.length === 0) return;
+    await bulkDelete(ids);
+    clearSelection();
+  }, [bulkDelete, clearSelection, selectedSessionIds]);
+
   // Reset pagination when search query or tab changes
   useEffect(() => {
     resetPagination();
-  }, [searchQuery, activeTab, resetPagination]);
+    clearSelection();
+  }, [searchQuery, activeTab, resetPagination, clearSelection]);
+
+  useEffect(() => {
+    setSelectedSessionIds(previous => {
+      if (previous.size === 0) return previous;
+      const validIds = new Set(typeFilteredSessions.map(session => session.id));
+      const next = new Set(Array.from(previous).filter(id => validIds.has(id)));
+      if (next.size === 0) {
+        setSelectionMode(false);
+      }
+      return next;
+    });
+  }, [typeFilteredSessions]);
 
   // Clear all storage function (for debugging)
   const handleClearAllStorage = () => {
@@ -122,6 +207,29 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
             }
           }
         }
+      ]
+    );
+  };
+
+  const handleHistoryActions = () => {
+    Alert.alert(
+      'History Actions',
+      'Choose how to manage the current history view.',
+      [
+        {
+          text: 'Select Visible',
+          onPress: () => selectSessions(displaySessions),
+        },
+        {
+          text: 'Select All Matching',
+          onPress: () => selectSessions(typeFilteredSessions),
+        },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: handleClearAllStorage,
+        },
+        { text: 'Cancel', style: 'cancel' },
       ]
     );
   };
@@ -204,15 +312,24 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
   // Handle clear search
   const handleClearSearch = () => {
     clearSearch();
+    clearSelection();
   };
 
   // Handle session press - preview in split view, navigate otherwise
   const handleSessionPress = (session: ChatSession) => {
+    if (selectionMode) {
+      toggleSessionSelection(session);
+      return;
+    }
     if (showSplitView) {
       setSelectedSession(session);
     } else {
       resumeSession(session);
     }
+  };
+
+  const handleSessionLongPress = (session: ChatSession) => {
+    toggleSessionSelection(session);
   };
 
   // Handle opening session from detail pane
@@ -226,7 +343,10 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
       <HistoryList
         sessions={displaySessions}
         onSessionPress={handleSessionPress}
+        onSessionLongPress={handleSessionLongPress}
         onSessionDelete={deleteSession}
+        selectedSessionIds={selectedSessionIds}
+        selectionMode={selectionMode}
         searchTerm={searchQuery}
         refreshing={isLoading}
         onRefresh={refresh}
@@ -266,11 +386,49 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
           />
         }
       />
+      {selectionMode && (
+        <View style={[styles.selectionToolbar, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border }]}>
+          <Typography variant="caption" weight="semibold" color="secondary">
+            {selectedCount} selected
+          </Typography>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.selectionActions}
+          >
+            <Button
+              title={allVisibleSelected ? 'Unselect Visible' : 'Select Visible'}
+              onPress={handleSelectVisible}
+              variant="secondary"
+              size="small"
+            />
+            <Button
+              title={allMatchingSelected ? 'Unselect Matching' : 'Select Matching'}
+              onPress={handleSelectAllMatching}
+              variant="secondary"
+              size="small"
+            />
+            <Button
+              title={`Delete (${selectedCount})`}
+              onPress={handleDeleteSelected}
+              variant="danger"
+              size="small"
+              disabled={selectedCount === 0}
+            />
+            <Button
+              title="Cancel"
+              onPress={clearSelection}
+              variant="ghost"
+              size="small"
+            />
+          </ScrollView>
+        </View>
+      )}
       {/* Stats bar - only show when there are sessions and no search */}
       <HistoryStats
         sessionCount={sessions.length}
         messageCount={totalMessageCount}
-        visible={!searchQuery && sessions.length > 0}
+        visible={!selectionMode && !searchQuery && sessions.length > 0}
       />
     </>
   );
@@ -290,9 +448,9 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
             rightElement={<HeaderActions variant="gradient" helpTopicId="history" />}
             showDemoBadge={isDemo}
             actionButton={{
-              label: 'Clear All',
-              onPress: handleClearAllStorage,
-              variant: 'danger'
+              label: 'Manage',
+              onPress: handleHistoryActions,
+              variant: 'ghost'
             }}
           />
 
@@ -372,6 +530,20 @@ const iPadStyles = StyleSheet.create({
   },
   detailPane: {
     flex: 1,
+  },
+});
+
+const styles = StyleSheet.create({
+  selectionToolbar: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+    gap: 8,
+  },
+  selectionActions: {
+    gap: 8,
+    paddingRight: 16,
   },
 });
 

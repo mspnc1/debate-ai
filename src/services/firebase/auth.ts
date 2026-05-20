@@ -9,8 +9,7 @@ import {
   GoogleAuthProvider,
   AppleAuthProvider,
   updateProfile as fbUpdateProfile,
-  getIdToken as firebaseGetIdToken,
-  sendPasswordResetEmail as firebaseSendPasswordResetEmail
+  getIdToken as firebaseGetIdToken
 } from '@react-native-firebase/auth';
 import {
   getFirestore,
@@ -20,7 +19,9 @@ import {
   getDoc,
   serverTimestamp
 } from '@react-native-firebase/firestore';
+import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
@@ -45,6 +46,68 @@ export const toAuthUser = (user: FirebaseAuthTypes.User): AuthUser => ({
   emailVerified: !!user.emailVerified,
   providerId: user.providerId ?? null,
 });
+
+type RateLimitStatus = {
+  isLocked?: boolean;
+  attemptsRemaining?: number;
+  lockoutEndsAtMs?: number | null;
+  lockoutDurationMs?: number;
+  message?: string;
+};
+
+type EmailPasswordSignInStatus = RateLimitStatus & {
+  credentialAllowed?: boolean;
+  errorMessage?: string;
+};
+
+type PasswordResetStatus = RateLimitStatus & {
+  emailSent?: boolean;
+};
+
+async function callAuthFunction<T>(
+  name: 'verifyEmailPasswordSignIn' | 'clearLoginAttempts' | 'requestPasswordResetEmail',
+  data: Record<string, unknown>
+): Promise<T> {
+  const functions = getFunctions();
+  const callable = httpsCallable(functions, name);
+  const result = await callable(data);
+  return (result?.data || {}) as T;
+}
+
+function rateLimitMessage(status: RateLimitStatus, fallback: string): string {
+  if (status.message) return status.message;
+  if (status.lockoutEndsAtMs) {
+    return 'Too many attempts. Please try again later.';
+  }
+  return fallback;
+}
+
+async function verifyEmailPasswordAllowed(email: string, password: string): Promise<void> {
+  const status = await callAuthFunction<EmailPasswordSignInStatus>('verifyEmailPasswordSignIn', {
+    email,
+    password,
+  });
+
+  if (!status.credentialAllowed) {
+    throw new Error(
+      status.errorMessage || rateLimitMessage(status, 'Invalid email or password.')
+    );
+  }
+}
+
+async function clearEmailLoginAttempts(email: string): Promise<void> {
+  try {
+    await callAuthFunction('clearLoginAttempts', { email });
+  } catch (error) {
+    ErrorService.handleSilent(error, { action: 'clearLoginAttempts' });
+  }
+}
+
+function randomHex(byteCount: number): string {
+  return Array.from(Crypto.getRandomBytes(byteCount))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 /**
  * Unified User Document Schema
@@ -126,22 +189,6 @@ function buildNewUserDocument(
     authProviderUid: user.providerData?.[0]?.uid || null,
     createdOnPlatform: platform,
 
-    // Subscription - mobile users start in 'demo' status
-    membershipStatus: 'demo',
-    isPremium: false,
-    hasUsedTrial: false,
-    trialStartedAt: null,
-    trialEndsAt: null,
-    subscriptionStartedAt: null,
-    subscriptionEndsAt: null,
-    subscriptionPlan: null,
-    subscriptionSource: null,
-
-    // Free tier limits - null for mobile (not applicable)
-    freeDebatesRemaining: null,
-    freeComparesRemaining: null,
-    freeChatsRemaining: null,
-
     // Preferences
     preferences: {},
 
@@ -161,7 +208,9 @@ export const signInWithEmail = async (
 ): Promise<FirebaseAuthTypes.User> => {
   try {
     const auth = getAuth();
+    await verifyEmailPasswordAllowed(email, password);
     const credential = await signInWithEmailAndPassword(auth, email, password);
+    await clearEmailLoginAttempts(email);
     return credential.user;
   } catch (error) {
     const authError = error as { code?: string; message?: string };
@@ -243,8 +292,10 @@ export const signOut = async (): Promise<void> => {
  */
 export const sendPasswordResetEmail = async (email: string): Promise<void> => {
   try {
-    const auth = getAuth();
-    await firebaseSendPasswordResetEmail(auth, email);
+    const status = await callAuthFunction<PasswordResetStatus>('requestPasswordResetEmail', { email });
+    if (!status.emailSent) {
+      throw new Error(rateLimitMessage(status, 'Unable to send password reset email.'));
+    }
   } catch (error) {
     const authError = error as { code?: string; message?: string };
     const appError = AuthError.fromFirebaseCode(
@@ -368,20 +419,22 @@ export const signInWithApple = async (): Promise<{ user: User; profile: UserProf
   }
 
   try {
-    // Additional availability guard and simulator messaging
-    try {
-      const available = await AppleAuthentication.isAvailableAsync();
-      if (!available) {
-        const sim = !Device.isDevice;
-        throw new Error(
-          sim
-            ? 'Apple Sign-In is not supported in the iOS Simulator. Please test on a real device.'
-            : 'Apple Sign-In is unavailable on this device.'
-        );
-      }
-    } catch {
-      // If availability check itself fails, continue to attempt sign-in; will be caught below
+    const available = await AppleAuthentication.isAvailableAsync();
+    if (!available) {
+      const sim = !Device.isDevice;
+      throw new Error(
+        sim
+          ? 'Apple Sign-In is not supported in the iOS Simulator. Please test on a real device.'
+          : 'Apple Sign-In is unavailable on this device.'
+      );
     }
+
+    const rawNonce = randomHex(32);
+    const hashedNonce = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      rawNonce
+    );
+    const state = randomHex(16);
 
     // Start Apple authentication
     const credential = await AppleAuthentication.signInAsync({
@@ -389,13 +442,23 @@ export const signInWithApple = async (): Promise<{ user: User; profile: UserProf
         AppleAuthentication.AppleAuthenticationScope.EMAIL,
         AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
       ],
+      nonce: hashedNonce,
+      state,
     });
 
-    // Build Apple credential (use AppleAuthProvider; provider.credential() is undefined)
+    if (credential.state !== state) {
+      throw new Error('Apple Sign-In state verification failed.');
+    }
+
+    if (!credential.identityToken) {
+      throw new Error('No identity token received from Apple Sign-In');
+    }
+
+    // Build Apple credential with the raw nonce that matches the hashed nonce sent to Apple
     const auth = getAuth();
     const appleCredential = AppleAuthProvider.credential(
-      credential.identityToken as string,
-      undefined as unknown as string // nonce not used here
+      credential.identityToken,
+      rawNonce
     );
 
     // Sign in with Firebase
@@ -599,7 +662,7 @@ const getOrCreateUserProfile = async (
       displayName: updates.displayName as string || data?.displayName || 'User',
       photoURL: updates.photoURL as string || data?.photoURL || null,
       createdAt: createdAtMs,
-      membershipStatus: data?.membershipStatus || 'free',
+      membershipStatus: data?.membershipStatus || 'demo',
       isPremium: data?.isPremium || false,
       authProvider: data?.authProvider || additionalData?.authProvider || 'unknown',
       preferences: data?.preferences || {},
@@ -617,7 +680,7 @@ const getOrCreateUserProfile = async (
     displayName: additionalData?.displayName || user.displayName || 'User',
     photoURL: additionalData?.photoURL || user.photoURL || null,
     createdAt: Date.now(),
-    membershipStatus: 'free',
+    membershipStatus: 'demo',
     isPremium: false,
     authProvider,
     preferences: {},

@@ -989,7 +989,7 @@ export const resolveProviderModelId = (
   modelId?: string
 ): string | undefined => {
   if (modelId) {
-    const requestedModel = getModelById(providerId, resolveModelAlias(modelId));
+    const requestedModel = getModelById(providerId, modelId);
     if (
       requestedModel &&
       !requestedModel.isDeprecated &&
@@ -1009,5 +1009,7 @@ export const getModelById = (
   modelId: string
 ): ModelConfig | undefined => {
   const models = AI_MODELS[providerId] || [];
-  return models.find((model) => model.id === modelId);
+  const resolvedModelId = resolveModelAlias(modelId);
+  return models.find((model) => model.id === resolvedModelId)
+    || models.find((model) => model.id === modelId);
 };

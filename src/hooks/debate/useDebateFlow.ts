@@ -15,6 +15,7 @@ import {
 } from '../../store/streamingSlice';
 import { DebateOrchestrator, DebateEvent, DebateStatus } from '../../services/debate';
 import { RecordController } from '@/services/demo/RecordController';
+import { ensureAnswerContent } from '@/utils/citationUtils';
 import { Message } from '../../types';
 
 export interface UseDebateFlowReturn {
@@ -121,13 +122,14 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
         const finalContent = String((event.data as { finalContent?: string }).finalContent || '');
         const modelUsed = (event.data as { modelUsed?: string }).modelUsed;
         const citations = (event.data as { citations?: Array<{ index: number; url: string; title?: string; snippet?: string }> }).citations;
+        const normalizedAnswer = ensureAnswerContent(finalContent, citations, 'The AI');
         if (messageId) {
-          dispatch(endStreaming({ messageId, finalContent }));
+          dispatch(endStreaming({ messageId, finalContent: normalizedAnswer.content }));
           // Persist final content to the chat store, including citations if present
           dispatch(updateMessage({
             id: messageId,
-            content: finalContent,
-            metadata: { ...(modelUsed ? { modelUsed } : {}), ...(citations ? { citations } : {}) },
+            content: normalizedAnswer.content,
+            metadata: { ...(modelUsed ? { modelUsed } : {}), ...(normalizedAnswer.citations ? { citations: normalizedAnswer.citations } : {}) },
           }));
         }
         break;

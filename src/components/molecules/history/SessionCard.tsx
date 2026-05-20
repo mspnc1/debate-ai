@@ -12,7 +12,10 @@ import { HighlightedText } from './HighlightedText';
 export const SessionCard: React.FC<SessionCardProps> = ({
   session,
   onPress,
+  onLongPress,
   searchTerm,
+  isSelected = false,
+  selectionMode = false,
   index,
   testID
 }) => {
@@ -66,17 +69,27 @@ export const SessionCard: React.FC<SessionCardProps> = ({
     onPress(session);
   };
 
+  const handleLongPress = () => {
+    onLongPress?.(session);
+  };
+
   return (
     <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
       <TouchableOpacity
         onPress={handlePress}
+        onLongPress={handleLongPress}
         testID={testID}
+        accessibilityState={{ selected: isSelected }}
         style={[
           styles.container,
           {
             backgroundColor: theme.colors.card,
-            borderColor: containsSearchTerm ? theme.colors.primary[500] : theme.colors.border,
-            borderWidth: containsSearchTerm ? 2 : 1,
+            borderColor: isSelected
+              ? theme.colors.primary[500]
+              : containsSearchTerm
+                ? theme.colors.primary[500]
+                : theme.colors.border,
+            borderWidth: isSelected || containsSearchTerm ? 2 : 1,
             shadowColor: theme.colors.shadow,
           }
         ]}
@@ -84,6 +97,26 @@ export const SessionCard: React.FC<SessionCardProps> = ({
         <Box style={styles.content}>
           {/* Header */}
           <Box style={styles.header}>
+            {selectionMode && (
+              <Box
+                style={[
+                  styles.selectionIndicator,
+                  {
+                    borderColor: isSelected ? theme.colors.primary[500] : theme.colors.border,
+                    backgroundColor: isSelected ? theme.colors.primary[500] : 'transparent',
+                  },
+                ]}
+              >
+                {isSelected && (
+                  <Box
+                    style={[
+                      styles.selectionDot,
+                      { backgroundColor: theme.colors.text.inverse },
+                    ]}
+                  />
+                )}
+              </Box>
+            )}
             <Box style={{ flex: 1 }}>
               {searchTerm ? (
                 <HighlightedText
@@ -167,6 +200,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+    gap: 10,
   },
   preview: {
     marginBottom: 8,
@@ -186,5 +220,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     flex: 1,
+  },
+  selectionIndicator: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 });

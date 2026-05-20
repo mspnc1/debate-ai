@@ -1,34 +1,142 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can only read/write their own data
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function clientOwnedUserFields() {
+      return [
+        'email',
+        'emailVerified',
+        'displayName',
+        'photoURL',
+        'phoneNumber',
+        'authProvider',
+        'authProviderUid',
+        'createdOnPlatform',
+        'preferences',
+        'createdAt',
+        'lastSignInAt',
+        'updatedAt'
+      ];
+    }
+
+    function serverOwnedUserFields() {
+      return [
+        'membershipStatus',
+        'isPremium',
+        'hasUsedTrial',
+        'trialStartedAt',
+        'trialEndsAt',
+        'trialStartDate',
+        'trialEndDate',
+        'subscriptionStartedAt',
+        'subscriptionEndsAt',
+        'subscriptionPlan',
+        'subscriptionSource',
+        'subscriptionId',
+        'subscriptionExpiryDate',
+        'freeDebatesRemaining',
+        'freeComparesRemaining',
+        'freeChatsRemaining',
+        'usage',
+        'trialHistory',
+        'loginAttempts',
+        'autoRenewing',
+        'lastReceiptData',
+        'paymentPlatform',
+        'productId',
+        'androidPurchaseToken',
+        'appAccountToken',
+        'isLifetime',
+        'lastValidated'
+      ];
+    }
+
+    function isClientOwnedUserCreate() {
+      return request.resource.data.keys().hasOnly(clientOwnedUserFields())
+        && !request.resource.data.keys().hasAny(serverOwnedUserFields());
+    }
+
+    function isClientOwnedUserUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(clientOwnedUserFields())
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(serverOwnedUserFields());
+    }
+
+    function isClientWritableUserSubcollection(subcollection) {
+      return !(subcollection in [
+        'apiKeys',
+        'usage',
+        'billing',
+        'subscription',
+        'subscriptions',
+        'receipts'
+      ]);
+    }
+
+    // Users can read their own profile and only write client-owned profile fields.
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isClientOwnedUserCreate();
+      allow update: if isOwner(userId) && isClientOwnedUserUpdate();
+      allow delete: if false;
 
       // API Keys - ONLY accessible via Cloud Functions (admin SDK)
       match /apiKeys/{providerId} {
         allow read, write: if false;
       }
 
-      // Usage collection - explicit rules for deeply nested structure
+      // Usage collection is function-owned. Clients may read their own counters.
       match /usage/{docId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if isOwner(userId);
+        allow write: if false;
 
         // Daily usage: usage/daily/days/{date}
         match /days/{date} {
-          allow read, write: if request.auth != null && request.auth.uid == userId;
+          allow read: if isOwner(userId);
+          allow write: if false;
         }
       }
 
-      // Allow all other subcollections (billing, sessions, etc.) EXCEPT apiKeys
+      // Billing/subscription state is function-owned.
+      match /billing/{docId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+
+        match /{nestedDoc=**} {
+          allow read: if isOwner(userId);
+          allow write: if false;
+        }
+      }
+
+      match /subscription/{docId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
+      match /subscriptions/{docId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
+      match /receipts/{docId} {
+        allow read, write: if false;
+      }
+
+      // Allow other client-owned subcollections (sessions, preferences, etc.).
       match /{subcollection}/{docId} {
-        allow read, write: if request.auth != null
-          && request.auth.uid == userId
-          && subcollection != 'apiKeys';
+        allow read, write: if isOwner(userId)
+          && isClientWritableUserSubcollection(subcollection);
 
         // Nested subcollections (e.g., sessions/messages)
         match /{nestedDoc=**} {
-          allow read, write: if request.auth != null && request.auth.uid == userId;
+          allow read, write: if isOwner(userId)
+            && isClientWritableUserSubcollection(subcollection);
         }
       }
     }
