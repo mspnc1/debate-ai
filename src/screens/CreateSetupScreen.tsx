@@ -15,6 +15,8 @@ import {
   TextInput,
   ActivityIndicator,
   Image,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -38,6 +40,7 @@ import {
   AdvancedOptionsSection,
   ImageModelSelector,
   SegmentedControl,
+  SheetHeader,
 } from '../components/molecules';
 import { Header, HeaderActions, DynamicAISelector, ImageRefinementModal } from '../components/organisms';
 import type { RefinementProvider } from '../components/organisms/chat/ImageRefinementModal';
@@ -87,11 +90,23 @@ import MediaGenerationService from '../services/media/MediaGenerationService';
 import { ErrorService } from '../services/errors/ErrorService';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
+type AudioPickerType = 'voice' | 'model' | 'format';
 
 const MAX_PROMPT_LENGTH = 4000;
 
 // Image generation capable providers
 const IMAGE_GEN_PROVIDERS = ['openai', 'google', 'grok'];
+
+function mergeAudioVoices(
+  existing: MediaProviderVoiceOption[],
+  incoming: MediaProviderVoiceOption[]
+): MediaProviderVoiceOption[] {
+  const voicesById = new Map(existing.map((voice) => [voice.id, voice]));
+  incoming.forEach((voice) => {
+    voicesById.set(voice.id, voice);
+  });
+  return Array.from(voicesById.values());
+}
 
 export default function CreateSetupScreen() {
   const { theme } = useTheme();
@@ -139,6 +154,13 @@ export default function CreateSetupScreen() {
   const [audioVoices, setAudioVoices] = useState<MediaProviderVoiceOption[]>([]);
   const [audioModels, setAudioModels] = useState<MediaProviderModelOption[]>([]);
   const [loadingAudioOptions, setLoadingAudioOptions] = useState(false);
+  const [loadingMoreAudioVoices, setLoadingMoreAudioVoices] = useState(false);
+  const [audioVoiceHasMore, setAudioVoiceHasMore] = useState(false);
+  const [audioVoiceNextPageToken, setAudioVoiceNextPageToken] = useState<string | null>(null);
+  const [audioVoiceTotalCount, setAudioVoiceTotalCount] = useState<number | undefined>();
+  const [audioVoiceSearch, setAudioVoiceSearch] = useState('');
+  const [isAudioSettingsExpanded, setIsAudioSettingsExpanded] = useState(false);
+  const [audioPicker, setAudioPicker] = useState<AudioPickerType | null>(null);
   const [showRefinementModal, setShowRefinementModal] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const videoOperation: Extract<CreateMediaOperation, 'text_to_video' | 'image_to_video'> = videoSourceUri
@@ -224,6 +246,9 @@ export default function CreateSetupScreen() {
         });
         setAudioVoices(options.voices || []);
         setAudioModels(options.models || []);
+        setAudioVoiceHasMore(Boolean(options.voiceHasMore));
+        setAudioVoiceNextPageToken(options.voiceNextPageToken || null);
+        setAudioVoiceTotalCount(options.voiceTotalCount);
         const firstVoice = options.voices?.[0]?.id;
         if (firstVoice) {
           setAudioVoiceId(firstVoice);
@@ -416,6 +441,20 @@ export default function CreateSetupScreen() {
     dispatch(setActiveCreateTab(tab));
   }, [dispatch]);
 
+  const handleAudioOperationChange = useCallback((operation: typeof audioOperation) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setAudioOperation(operation);
+    setAudioPicker(null);
+  }, []);
+
+  const handleOpenAudioPicker = useCallback((picker: AudioPickerType) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (picker === 'voice') {
+      setAudioVoiceSearch('');
+    }
+    setAudioPicker(picker);
+  }, []);
+
   const handlePickVideoSource = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -516,6 +555,38 @@ export default function CreateSetupScreen() {
     navigation,
     promptInfluence,
   ]);
+
+  const handleLoadMoreAudioVoices = useCallback(async () => {
+    if (!hasElevenLabsKey || !audioVoiceNextPageToken || loadingMoreAudioVoices) {
+      return;
+    }
+
+    setLoadingMoreAudioVoices(true);
+    try {
+      const key = await APIKeyService.getKey('elevenlabs');
+      if (!key) return;
+
+      const options = await MediaGenerationService.listElevenLabsOptions(key, {
+        pageSize: 100,
+        includeTotalCount: true,
+        sort: 'name',
+        sortDirection: 'asc',
+        nextPageToken: audioVoiceNextPageToken,
+      });
+
+      setAudioVoices((current) => mergeAudioVoices(current, options.voices || []));
+      if (options.models?.length) {
+        setAudioModels(options.models);
+      }
+      setAudioVoiceHasMore(Boolean(options.voiceHasMore));
+      setAudioVoiceNextPageToken(options.voiceNextPageToken || null);
+      setAudioVoiceTotalCount(options.voiceTotalCount);
+    } catch (error) {
+      ErrorService.handleWithToast(error, { feature: 'create', provider: 'elevenlabs' });
+    } finally {
+      setLoadingMoreAudioVoices(false);
+    }
+  }, [audioVoiceNextPageToken, hasElevenLabsKey, loadingMoreAudioVoices]);
 
   const handleAddAI = useCallback(() => {
     navigation.navigate('APIConfig');
@@ -667,6 +738,171 @@ export default function CreateSetupScreen() {
     </View>
   );
 
+  const renderSelectorRow = ({
+    label,
+    value,
+    description,
+    onPress,
+    testID,
+  }: {
+    label: string;
+    value: string;
+    description?: string;
+    onPress: () => void;
+    testID: string;
+  }) => (
+    <TouchableOpacity
+      style={[
+        styles.selectorRow,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.border,
+        },
+      ]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      testID={testID}
+    >
+      <View style={styles.selectorText}>
+        <Typography variant="caption" color="secondary" style={styles.selectorLabel}>
+          {label}
+        </Typography>
+        <Typography variant="body" weight="semibold">
+          {value}
+        </Typography>
+        {description && (
+          <Typography variant="caption" color="secondary" numberOfLines={2} style={styles.selectorDescription}>
+            {description}
+          </Typography>
+        )}
+      </View>
+      <Ionicons name="chevron-forward" size={20} color={theme.colors.text.secondary} />
+    </TouchableOpacity>
+  );
+
+  const renderAudioPickerModal = ({
+    visible,
+    title,
+    options,
+    selectedId,
+    onSelect,
+    searchValue,
+    onSearchChange,
+    searchPlaceholder,
+    emptyMessage = 'No options available.',
+    footer,
+  }: {
+    visible: boolean;
+    title: string;
+    options: Array<{ id: string; label: string; description?: string }>;
+    selectedId: string;
+    onSelect: (id: string) => void;
+    searchValue?: string;
+    onSearchChange?: (value: string) => void;
+    searchPlaceholder?: string;
+    emptyMessage?: string;
+    footer?: React.ReactNode;
+  }) => {
+    if (!visible) return null;
+
+    return (
+      <Modal
+        visible={visible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setAudioPicker(null)}
+      >
+        <View style={styles.pickerOverlay} testID="create-audio-picker-modal">
+          <TouchableOpacity
+            style={styles.pickerBackdrop}
+            activeOpacity={1}
+            onPress={() => setAudioPicker(null)}
+            accessibilityRole="button"
+            accessibilityLabel="Close picker"
+          />
+          <View style={[styles.pickerSheet, { backgroundColor: theme.colors.background }]}>
+            <SheetHeader
+              title={title}
+              onClose={() => setAudioPicker(null)}
+              showHandle
+            />
+            {onSearchChange && (
+              <View style={[styles.pickerSearchRow, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                <Ionicons name="search-outline" size={18} color={theme.colors.text.secondary} />
+                <TextInput
+                  value={searchValue}
+                  onChangeText={onSearchChange}
+                  placeholder={searchPlaceholder || 'Search'}
+                  placeholderTextColor={theme.colors.text.disabled}
+                  style={[styles.pickerSearchInput, { color: theme.colors.text.primary }]}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  testID="create-audio-voice-search-input"
+                />
+              </View>
+            )}
+            <FlatList
+              data={options}
+              keyExtractor={(option) => option.id}
+              style={styles.pickerList}
+              contentContainerStyle={styles.pickerListContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              initialNumToRender={24}
+              windowSize={8}
+              ListEmptyComponent={
+                <View style={styles.pickerEmpty}>
+                  <Typography variant="body" color="secondary" style={{ textAlign: 'center' }}>
+                    {emptyMessage}
+                  </Typography>
+                </View>
+              }
+              ListFooterComponent={footer ? <View style={styles.pickerFooter}>{footer}</View> : null}
+              renderItem={({ item: option }) => {
+                const selected = option.id === selectedId;
+                return (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[
+                      styles.pickerOption,
+                      {
+                        backgroundColor: selected ? theme.colors.primary[50] : theme.colors.surface,
+                        borderColor: selected ? theme.colors.primary[500] : theme.colors.border,
+                      },
+                    ]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      onSelect(option.id);
+                      setAudioPicker(null);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    testID={`create-audio-picker-option-${option.id}`}
+                  >
+                    <View style={styles.pickerOptionText}>
+                      <Typography variant="body" weight="semibold">
+                        {option.label}
+                      </Typography>
+                      {option.description && (
+                        <Typography variant="caption" color="secondary" numberOfLines={2}>
+                          {option.description}
+                        </Typography>
+                      )}
+                    </View>
+                    {selected && (
+                      <Ionicons name="checkmark-circle" size={22} color={theme.colors.primary[500]} />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   const renderDiscreteSlider = <T extends string | number | undefined,>({
     options,
     value,
@@ -794,7 +1030,7 @@ export default function CreateSetupScreen() {
 
   const renderMediaActionRail = (mediaType: 'video' | 'audio') => {
     const isVideo = mediaType === 'video';
-    const label = isVideo ? 'Video' : 'Audio';
+    const label = isVideo ? 'Video' : audioOperation === 'text_to_speech' ? 'Voiceover' : 'Sound Effect';
     const providerName = isVideo ? 'Runway' : 'ElevenLabs';
     const current = mediaGeneration[mediaType];
     const result = lastMediaGenerationResult?.mediaType === mediaType ? lastMediaGenerationResult : undefined;
@@ -966,15 +1202,32 @@ export default function CreateSetupScreen() {
     const fallbackModels = getMediaModels('elevenlabs', audioOperation);
     const modelsForOperation = (audioModels.length > 0 ? audioModels : fallbackModels)
       .filter((model) => model.operations.includes(audioOperation));
-    const voiceOptions = audioVoices.length > 0
-      ? audioVoices.slice(0, 12).map((voice) => ({
+    const voiceOptions: Array<{ id: string; label: string; description?: string }> = audioVoices.length > 0
+      ? audioVoices.map((voice) => ({
           id: voice.id,
           label: voice.name,
           description: voice.description || voice.category || undefined,
         }))
       : [{ id: ELEVENLABS_DEFAULT_VOICE_ID, label: 'Default voice' }];
+    const normalizedVoiceSearch = audioVoiceSearch.trim().toLowerCase();
+    const filteredVoiceOptions = normalizedVoiceSearch
+      ? voiceOptions.filter((voice) => (
+          voice.label.toLowerCase().includes(normalizedVoiceSearch) ||
+          voice.description?.toLowerCase().includes(normalizedVoiceSearch)
+        ))
+      : voiceOptions;
+    const loadedVoiceCount = audioVoices.length || voiceOptions.length;
+    const voiceCountLabel = audioVoiceTotalCount
+      ? `${loadedVoiceCount} of ${audioVoiceTotalCount} voices loaded`
+      : `${loadedVoiceCount} voice${loadedVoiceCount === 1 ? '' : 's'} loaded`;
     const audioDurationOptions = [undefined, 1, 3, 5, 8, 10, 15, 20] as const;
     const promptInfluenceOptions = [0.2, 0.3, 0.5, 0.7] as const;
+    const selectedVoice = voiceOptions.find((voice) => voice.id === audioVoiceId) || voiceOptions[0];
+    const selectedAudioModel = modelsForOperation.find((model) => model.id === activeAudioModelId) || modelsForOperation[0];
+    const selectedOutputFormat = ELEVENLABS_OUTPUT_FORMATS.find((format) => format.id === audioOutputFormat) || ELEVENLABS_OUTPUT_FORMATS[0];
+    const audioSettingsSummary = audioOperation === 'text_to_speech'
+      ? `${selectedAudioModel?.label || 'Default model'} • ${selectedOutputFormat.label}`
+      : `${selectedAudioModel?.label || 'Default model'} • ${audioDuration === undefined ? 'Auto duration' : `${audioDuration}s`}`;
 
     return (
       <>
@@ -989,7 +1242,7 @@ export default function CreateSetupScreen() {
               { label: 'Sound effect', value: 'sound_effect' },
             ]}
             value={audioOperation}
-            onChange={setAudioOperation}
+            onChange={handleAudioOperationChange}
           />
         </View>
 
@@ -1020,68 +1273,163 @@ export default function CreateSetupScreen() {
 
         {audioOperation === 'text_to_speech' && (
           <View style={styles.section}>
-            <SectionHeader title="Voice" subtitle={loadingAudioOptions ? 'Loading voices...' : 'Choose a voice'} icon="🗣️" />
-            {renderOptionGrid(voiceOptions, audioVoiceId, setAudioVoiceId, 'create-audio-voice-grid')}
-            {audioVoices.length > voiceOptions.length && (
-              <Typography variant="caption" color="secondary" style={styles.optionNote}>
-                Showing first {voiceOptions.length} voices
-              </Typography>
+            <SectionHeader
+              title="Voice"
+              subtitle={loadingAudioOptions ? 'Loading voices...' : voiceCountLabel}
+              icon="🗣️"
+            />
+            {renderSelectorRow({
+              label: 'Voice',
+              value: selectedVoice?.label || 'Default voice',
+              description: selectedVoice?.description || (audioVoiceHasMore ? 'More voices available in the picker' : undefined),
+              onPress: () => handleOpenAudioPicker('voice'),
+              testID: 'create-audio-voice-selector',
+            })}
+          </View>
+        )}
+
+        <View style={styles.section}>
+          <View
+            style={[
+              styles.audioSettingsCard,
+              { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.audioSettingsHeader}
+              onPress={() => setIsAudioSettingsExpanded((expanded) => !expanded)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: isAudioSettingsExpanded }}
+              accessibilityLabel="Audio settings"
+              testID="create-audio-settings-toggle"
+            >
+              <View style={styles.audioSettingsText}>
+                <Typography variant="body" weight="semibold">
+                  Audio Settings
+                </Typography>
+                <Typography variant="caption" color="secondary" numberOfLines={1}>
+                  {audioSettingsSummary}
+                </Typography>
+              </View>
+              <Ionicons
+                name={isAudioSettingsExpanded ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color={theme.colors.text.secondary}
+              />
+            </TouchableOpacity>
+
+            {isAudioSettingsExpanded && (
+              <View style={[styles.audioSettingsContent, { borderTopColor: theme.colors.border }]} testID="create-audio-settings-content">
+                {renderSelectorRow({
+                  label: 'Model',
+                  value: selectedAudioModel?.label || 'Default model',
+                  description: selectedAudioModel?.description,
+                  onPress: () => handleOpenAudioPicker('model'),
+                  testID: 'create-audio-model-selector',
+                })}
+
+                {renderSelectorRow({
+                  label: 'Format',
+                  value: selectedOutputFormat.label,
+                  onPress: () => handleOpenAudioPicker('format'),
+                  testID: 'create-audio-format-selector',
+                })}
+
+                {audioOperation === 'sound_effect' && (
+                  <View style={styles.soundControls}>
+                    {renderDiscreteSlider({
+                      options: audioDurationOptions,
+                      value: audioDuration,
+                      getLabel: (duration) => (duration === undefined ? 'Auto duration' : `${duration}s`),
+                      onChange: setAudioDuration,
+                      testID: 'create-audio-duration-slider',
+                    })}
+                    {renderDiscreteSlider({
+                      options: promptInfluenceOptions,
+                      value: promptInfluence,
+                      getLabel: (value) => `Influence ${value}`,
+                      onChange: setPromptInfluence,
+                      testID: 'create-audio-influence-slider',
+                    })}
+                  </View>
+                )}
+              </View>
             )}
           </View>
-        )}
-
-        <View style={styles.section}>
-          <SectionHeader title="Model" subtitle="Generation model" icon="⚙️" />
-          {renderOptionGrid(
-            modelsForOperation.map((model) => ({
-              id: model.id,
-              label: model.label,
-              description: model.description,
-            })),
-            activeAudioModelId,
-            (modelId) => {
-              if (audioOperation === 'text_to_speech') {
-                setAudioTtsModelId(modelId);
-              } else {
-                setAudioSfxModelId(modelId);
-              }
-            },
-            'create-audio-model-grid'
-          )}
         </View>
 
-        <View style={styles.section}>
-          <SectionHeader title="Format" subtitle="Saved audio format" icon="💾" />
-          {renderOptionGrid(
-            ELEVENLABS_OUTPUT_FORMATS.map((format) => ({
-              id: format.id,
-              label: format.label,
-            })),
-            audioOutputFormat,
-            setAudioOutputFormat,
-            'create-audio-format-grid'
-          )}
-        </View>
-
-        {audioOperation === 'sound_effect' && (
-          <View style={styles.section}>
-            <SectionHeader title="Sound Controls" subtitle="Optional duration and prompt influence" icon="🎚️" />
-            {renderDiscreteSlider({
-              options: audioDurationOptions,
-              value: audioDuration,
-              getLabel: (duration) => (duration === undefined ? 'Auto duration' : `${duration}s`),
-              onChange: setAudioDuration,
-              testID: 'create-audio-duration-slider',
-            })}
-            {renderDiscreteSlider({
-              options: promptInfluenceOptions,
-              value: promptInfluence,
-              getLabel: (value) => `Influence ${value}`,
-              onChange: setPromptInfluence,
-              testID: 'create-audio-influence-slider',
-            })}
-          </View>
-        )}
+        {renderAudioPickerModal({
+          visible: audioPicker === 'voice',
+          title: 'Select Voice',
+          options: filteredVoiceOptions,
+          selectedId: audioVoiceId,
+          onSelect: setAudioVoiceId,
+          searchValue: audioVoiceSearch,
+          onSearchChange: setAudioVoiceSearch,
+          searchPlaceholder: 'Search voices',
+          emptyMessage: audioVoiceSearch.trim()
+            ? 'No loaded voices match this search.'
+            : 'No voices available.',
+          footer: audioVoices.length > 0 ? (
+            audioVoiceHasMore ? (
+              <TouchableOpacity
+                style={[
+                  styles.loadMoreVoicesButton,
+                  {
+                    backgroundColor: theme.colors.primary[50],
+                    borderColor: theme.colors.primary[500],
+                    opacity: loadingMoreAudioVoices ? 0.7 : 1,
+                  },
+                ]}
+                onPress={handleLoadMoreAudioVoices}
+                disabled={loadingMoreAudioVoices}
+                accessibilityRole="button"
+                accessibilityLabel="Load more voices"
+                testID="create-audio-load-more-voices"
+              >
+                {loadingMoreAudioVoices ? (
+                  <ActivityIndicator size="small" color={theme.colors.primary[500]} />
+                ) : (
+                  <Ionicons name="add-circle-outline" size={18} color={theme.colors.primary[600]} />
+                )}
+                <Typography variant="button" weight="semibold" style={{ color: theme.colors.primary[600] }}>
+                  Load More Voices
+                </Typography>
+              </TouchableOpacity>
+            ) : (
+              <Typography variant="caption" color="secondary" style={{ textAlign: 'center' }}>
+                Showing all loaded voices
+              </Typography>
+            )
+          ) : null,
+        })}
+        {renderAudioPickerModal({
+          visible: audioPicker === 'model',
+          title: 'Select Model',
+          options: modelsForOperation.map((model) => ({
+            id: model.id,
+            label: model.label,
+            description: model.description,
+          })),
+          selectedId: activeAudioModelId,
+          onSelect: (modelId) => {
+            if (audioOperation === 'text_to_speech') {
+              setAudioTtsModelId(modelId);
+            } else {
+              setAudioSfxModelId(modelId);
+            }
+          },
+        })}
+        {renderAudioPickerModal({
+          visible: audioPicker === 'format',
+          title: 'Select Format',
+          options: ELEVENLABS_OUTPUT_FORMATS.map((format) => ({
+            id: format.id,
+            label: format.label,
+          })),
+          selectedId: audioOutputFormat,
+          onSelect: setAudioOutputFormat,
+        })}
       </>
     );
   };
@@ -1392,6 +1740,123 @@ const styles = StyleSheet.create({
   },
   optionNote: {
     marginTop: 8,
+  },
+  selectorRow: {
+    minHeight: 64,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  selectorText: {
+    flex: 1,
+    gap: 2,
+  },
+  selectorLabel: {
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  selectorDescription: {
+    marginTop: 2,
+  },
+  audioSettingsCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  audioSettingsHeader: {
+    minHeight: 64,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  audioSettingsText: {
+    flex: 1,
+    gap: 2,
+  },
+  audioSettingsContent: {
+    borderTopWidth: 1,
+    padding: 12,
+    gap: 12,
+  },
+  soundControls: {
+    gap: 12,
+  },
+  pickerOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  pickerBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  pickerSheet: {
+    maxHeight: '76%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
+  },
+  pickerSearchRow: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginTop: 14,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pickerSearchInput: {
+    flex: 1,
+    minHeight: 42,
+    fontSize: 16,
+    paddingVertical: 0,
+  },
+  pickerList: {
+    maxHeight: 420,
+  },
+  pickerListContent: {
+    padding: 16,
+    paddingBottom: 32,
+    gap: 10,
+  },
+  pickerEmpty: {
+    minHeight: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  pickerFooter: {
+    paddingTop: 4,
+  },
+  pickerOption: {
+    minHeight: 64,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  pickerOptionText: {
+    flex: 1,
+    gap: 4,
+  },
+  loadMoreVoicesButton: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   discreteSlider: {
     borderWidth: 1,

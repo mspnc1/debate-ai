@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { Alert } from 'react-native';
-import { fireEvent } from '@testing-library/react-native';
+import { fireEvent, waitFor } from '@testing-library/react-native';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
 
 // Mock dispatch and selector
@@ -11,6 +11,8 @@ const mockDispatch = jest.fn();
 const mockUseSelector = jest.fn();
 const mockUseFeatureAccess = jest.fn();
 const mockNavigate = jest.fn();
+const mockGetApiKey = jest.fn();
+const mockListElevenLabsOptions = jest.fn();
 let mockDynamicAISelectorProps: any;
 let mockGradientButtonProps: any;
 
@@ -56,7 +58,9 @@ jest.mock('@/hooks/useFeatureAccess', () => ({
 
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),
+  notificationAsync: jest.fn(),
   ImpactFeedbackStyle: { Light: 'light', Medium: 'medium' },
+  NotificationFeedbackType: { Success: 'success', Error: 'error' },
 }));
 
 jest.mock('@expo/vector-icons', () => {
@@ -122,6 +126,13 @@ jest.mock('@/components/molecules', () => {
       React.createElement(TouchableOpacity, { testID: props.testID, onPress: props.onPress }),
     SectionHeader: (props: any) =>
       React.createElement(Text, { testID: 'section-header' }, props.title),
+    SheetHeader: (props: any) =>
+      React.createElement(
+        View,
+        { testID: 'sheet-header' },
+        React.createElement(Text, null, props.title),
+        React.createElement(TouchableOpacity, { testID: 'sheet-header-close', onPress: props.onClose })
+      ),
     PromptHeroInput: (props: any) => {
       mockPromptHeroInputProps = props;
       return React.createElement(TextInput, {
@@ -222,6 +233,20 @@ jest.mock('@/store/createSlice', () => ({
   selectCreateState: (state: any) => state.create,
 }));
 
+jest.mock('@/services/APIKeyService', () => ({
+  __esModule: true,
+  default: {
+    getKey: (...args: unknown[]) => mockGetApiKey(...args),
+  },
+}));
+
+jest.mock('@/services/media/MediaGenerationService', () => ({
+  __esModule: true,
+  default: {
+    listElevenLabsOptions: (...args: unknown[]) => mockListElevenLabsOptions(...args),
+  },
+}));
+
 const CreateSetupScreen = require('@/screens/CreateSetupScreen').default;
 
 describe('CreateSetupScreen', () => {
@@ -257,6 +282,39 @@ describe('CreateSetupScreen', () => {
     mockDispatch.mockImplementation((action) => action);
     mockUseSelector.mockImplementation((selector) => selector(baseState));
     mockUseFeatureAccess.mockReturnValue({ membershipStatus: 'premium', isDemo: false, isPremium: true });
+    mockGetApiKey.mockResolvedValue('eleven-key');
+    mockListElevenLabsOptions.mockResolvedValue({
+      voices: [
+        { id: 'voice_a', name: 'Narrator A', description: 'Warm narration' },
+        { id: 'voice_b', name: 'Narrator B', description: 'Bright narration' },
+      ],
+      voiceHasMore: false,
+      voiceNextPageToken: null,
+      voiceTotalCount: 2,
+      models: [
+        {
+          id: 'eleven_v3',
+          label: 'Eleven v3',
+          description: 'Expressive TTS model',
+          mediaType: 'audio',
+          operations: ['text_to_speech'],
+        },
+        {
+          id: 'eleven_multilingual_v2',
+          label: 'Multilingual v2',
+          description: 'Default high-quality TTS model',
+          mediaType: 'audio',
+          operations: ['text_to_speech'],
+        },
+        {
+          id: 'eleven_text_to_sound_v2',
+          label: 'Text to Sound v2',
+          description: 'Default sound effects model',
+          mediaType: 'audio',
+          operations: ['sound_effect'],
+        },
+      ],
+    });
   });
 
   describe('rendering', () => {
@@ -443,6 +501,226 @@ describe('CreateSetupScreen', () => {
   });
 
   describe('media generation rail', () => {
+    it('keeps audio model and format controls collapsed by default', () => {
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          create: {
+            ...baseState.create,
+            activeTab: 'audio',
+          },
+        })
+      );
+
+      const { getByTestId, queryByTestId } = renderWithProviders(<CreateSetupScreen />);
+
+      expect(getByTestId('create-audio-voice-selector')).toBeTruthy();
+      expect(getByTestId('create-audio-settings-toggle')).toBeTruthy();
+      expect(queryByTestId('create-audio-model-grid')).toBeNull();
+      expect(queryByTestId('create-audio-format-grid')).toBeNull();
+      expect(queryByTestId('create-audio-model-selector')).toBeNull();
+      expect(queryByTestId('create-audio-format-selector')).toBeNull();
+    });
+
+    it('opens audio settings and updates model and format through picker rows', () => {
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          create: {
+            ...baseState.create,
+            activeTab: 'audio',
+          },
+        })
+      );
+
+      const { getByTestId, getByText, queryByTestId } = renderWithProviders(<CreateSetupScreen />);
+
+      fireEvent.press(getByTestId('create-audio-settings-toggle'));
+      expect(getByTestId('create-audio-settings-content')).toBeTruthy();
+      expect(getByTestId('create-audio-model-selector')).toBeTruthy();
+      expect(getByTestId('create-audio-format-selector')).toBeTruthy();
+
+      fireEvent.press(getByTestId('create-audio-model-selector'));
+      expect(getByText('Select Model')).toBeTruthy();
+      fireEvent.press(getByTestId('create-audio-picker-option-eleven_v3'));
+      expect(queryByTestId('create-audio-picker-modal')).toBeNull();
+      expect(getByText('Eleven v3')).toBeTruthy();
+
+      fireEvent.press(getByTestId('create-audio-format-selector'));
+      expect(getByText('Select Format')).toBeTruthy();
+      fireEvent.press(getByTestId('create-audio-picker-option-wav_44100'));
+      expect(queryByTestId('create-audio-picker-modal')).toBeNull();
+      expect(getByText('WAV 44.1 kHz')).toBeTruthy();
+    });
+
+    it('selects a loaded ElevenLabs voice from the compact voice picker', async () => {
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          settings: {
+            ...baseState.settings,
+            apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
+          },
+          create: {
+            ...baseState.create,
+            activeTab: 'audio',
+          },
+        })
+      );
+
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+
+      await waitFor(() => expect(getByText('Narrator A')).toBeTruthy());
+      fireEvent.press(getByTestId('create-audio-voice-selector'));
+      fireEvent.press(getByTestId('create-audio-picker-option-voice_b'));
+
+      expect(getByText('Narrator B')).toBeTruthy();
+    });
+
+    it('does not truncate the loaded ElevenLabs voice list to the first twelve voices', async () => {
+      mockListElevenLabsOptions.mockResolvedValueOnce({
+        voices: Array.from({ length: 14 }, (_, index) => ({
+          id: `voice_${index + 1}`,
+          name: `Voice ${index + 1}`,
+          description: `Voice option ${index + 1}`,
+        })),
+        voiceHasMore: false,
+        voiceNextPageToken: null,
+        voiceTotalCount: 14,
+        models: [],
+      });
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          settings: {
+            ...baseState.settings,
+            apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
+          },
+          create: {
+            ...baseState.create,
+            activeTab: 'audio',
+          },
+        })
+      );
+
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+
+      await waitFor(() => expect(getByText('Voice 1')).toBeTruthy());
+      fireEvent.press(getByTestId('create-audio-voice-selector'));
+      fireEvent.changeText(getByTestId('create-audio-voice-search-input'), 'Voice 14');
+
+      expect(getByText('Voice 14')).toBeTruthy();
+    });
+
+    it('loads the next ElevenLabs voice page from the picker', async () => {
+      mockListElevenLabsOptions
+        .mockResolvedValueOnce({
+          voices: [{ id: 'voice_a', name: 'Narrator A', description: 'Warm narration' }],
+          voiceHasMore: true,
+          voiceNextPageToken: 'next-page',
+          voiceTotalCount: 2,
+          models: [],
+        })
+        .mockResolvedValueOnce({
+          voices: [{ id: 'voice_c', name: 'Narrator C', description: 'Low narration' }],
+          voiceHasMore: false,
+          voiceNextPageToken: null,
+          voiceTotalCount: 2,
+          models: [],
+        });
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          settings: {
+            ...baseState.settings,
+            apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
+          },
+          create: {
+            ...baseState.create,
+            activeTab: 'audio',
+          },
+        })
+      );
+
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+
+      await waitFor(() => expect(getByText('Narrator A')).toBeTruthy());
+      fireEvent.press(getByTestId('create-audio-voice-selector'));
+      fireEvent.press(getByTestId('create-audio-load-more-voices'));
+
+      await waitFor(() => expect(getByText('Narrator C')).toBeTruthy());
+      expect(mockListElevenLabsOptions).toHaveBeenLastCalledWith('eleven-key', expect.objectContaining({
+        nextPageToken: 'next-page',
+      }));
+    });
+
+    it('keeps sound effect controls inside audio settings', () => {
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          create: {
+            ...baseState.create,
+            activeTab: 'audio',
+          },
+        })
+      );
+
+      const { getByTestId, getByText, queryByTestId } = renderWithProviders(<CreateSetupScreen />);
+
+      fireEvent.press(getByTestId('segment-sound_effect'));
+      expect(queryByTestId('create-audio-voice-selector')).toBeNull();
+      expect(queryByTestId('create-audio-duration-slider')).toBeNull();
+
+      fireEvent.press(getByTestId('create-audio-settings-toggle'));
+      fireEvent(getByTestId('create-audio-duration-slider'), 'valueChange', 5);
+      fireEvent(getByTestId('create-audio-influence-slider'), 'valueChange', 3);
+
+      expect(getByText('10s')).toBeTruthy();
+      expect(getByText('Influence 0.7')).toBeTruthy();
+    });
+
+    it('dispatches the existing audio generation payload after picker selections', async () => {
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          settings: {
+            ...baseState.settings,
+            apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
+          },
+          create: {
+            ...baseState.create,
+            activeTab: 'audio',
+          },
+        })
+      );
+
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+
+      await waitFor(() => expect(getByText('Narrator A')).toBeTruthy());
+      fireEvent.changeText(getByTestId('create-audio-prompt-input'), 'Read this line');
+
+      fireEvent.press(getByTestId('create-audio-settings-toggle'));
+      fireEvent.press(getByTestId('create-audio-model-selector'));
+      fireEvent.press(getByTestId('create-audio-picker-option-eleven_v3'));
+      fireEvent.press(getByTestId('create-audio-format-selector'));
+      fireEvent.press(getByTestId('create-audio-picker-option-wav_44100'));
+
+      fireEvent.press(getByTestId('gradient-button'));
+
+      expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'create/generateCreateAudio',
+        payload: {
+          prompt: 'Read this line',
+          operation: 'text_to_speech',
+          modelId: 'eleven_v3',
+          voiceId: 'voice_a',
+          outputFormat: 'wav_44100',
+          durationSeconds: undefined,
+          promptInfluence: undefined,
+        },
+      }));
+    });
+
     it('shows the sticky video running rail from media generation state', () => {
       mockUseSelector.mockImplementation((selector) =>
         selector({
