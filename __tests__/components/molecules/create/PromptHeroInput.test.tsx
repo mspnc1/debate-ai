@@ -6,7 +6,6 @@ import { fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 
 jest.mock('react-native-reanimated', () => {
-  const React = require('react');
   const { View } = require('react-native');
   return {
     __esModule: true,

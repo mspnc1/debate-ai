@@ -5,7 +5,6 @@ import {
   SIZE_OPTIONS,
   mapSizeToProvider,
   getSizeOption,
-  SizeOptionConfig,
 } from '@/config/create/sizeOptions';
 import type { SizeOption } from '@/store/createSlice';
 import type { AIProvider } from '@/types';

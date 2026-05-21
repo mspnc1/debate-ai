@@ -11,7 +11,6 @@ const mockHeaderIcon = jest.fn(({ testID, onPress, color }: any) => (
 ));
 
 jest.mock('@/components/molecules', () => {
-  const { Text } = require('react-native');
   return {
     HeaderIcon: (props: any) => mockHeaderIcon(props),
   };

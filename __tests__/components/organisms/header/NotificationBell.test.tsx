@@ -5,7 +5,6 @@ import { NotificationBell } from '@/components/organisms/header/NotificationBell
 const mockHeaderIcon = jest.fn(() => null);
 
 jest.mock('@/components/molecules', () => {
-  const { Text, View, TouchableOpacity } = require('react-native');
   return {
     HeaderIcon: (props: any) => mockHeaderIcon(props),
   };

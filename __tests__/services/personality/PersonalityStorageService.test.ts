@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PersonalityStorageService } from '@/services/personality/PersonalityStorageService';
-import { PersonalityCustomization, UserPersonalitySettings, EMPTY_PERSONALITY_SETTINGS } from '@/types/personality';
+import { PersonalityCustomization, UserPersonalitySettings } from '@/types/personality';
 
 // Use the globally mocked AsyncStorage from jest.setup.ts
 

@@ -67,7 +67,7 @@ describe('compareSlice', () => {
   });
 
   it('handles streaming lifecycle for both sides', () => {
-    let state = reducer(initialState, startCompareStreaming({ promptId: 'p3', side: 'both' }));
+    const state = reducer(initialState, startCompareStreaming({ promptId: 'p3', side: 'both' }));
     expect(state.leftStreaming).toBe(true);
     expect(state.rightStreaming).toBe(true);
     expect(state.leftContent).toBe('');

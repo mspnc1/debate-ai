@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert } from 'react-native';
-import { act, fireEvent } from '@testing-library/react-native';
+import { act } from '@testing-library/react-native';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
 import { createAppStore, showSheet } from '@/store';
 import type { AI, Message } from '@/types';

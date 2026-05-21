@@ -3,7 +3,6 @@ import { Alert } from 'react-native';
 import { act, fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
 import {
-  showSheet,
   setAIPersonality,
   setAIModel,
   setGlobalStreaming,
@@ -134,15 +133,12 @@ jest.mock('@/components/molecules/subscription/TrialBanner', () => ({
   },
 }));
 
-let demoBannerProps: any;
 jest.mock('@/components/molecules/subscription/DemoBanner', () => ({
-  DemoBanner: (props: any) => {
-    demoBannerProps = props;
+  DemoBanner: () => {
     return null;
   },
   __esModule: true,
-  default: (props: any) => {
-    demoBannerProps = props;
+  default: () => {
     return null;
   },
 }));

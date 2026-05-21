@@ -104,17 +104,19 @@ export const AICard: React.FC<AICardProps> = ({
           <Box style={{ position: 'relative', overflow: 'visible' }}>
             <SelectionIndicator isSelected={isSelected} color={ai.color} />
 
-            {/* Badge (e.g., img2img) */}
+            {/* Badge (e.g., img2img, Live Search) */}
             {badge && (
-              <View
-                style={[
-                  styles.badge,
-                  { backgroundColor: badge.color || theme.colors.success[500] },
-                ]}
-              >
-                <Typography variant="caption" style={styles.badgeText}>
-                  {badge.text}
-                </Typography>
+              <View style={styles.badgeRow}>
+                <View
+                  style={[
+                    styles.badge,
+                    { backgroundColor: badge.color || theme.colors.success[500] },
+                  ]}
+                >
+                  <Typography variant="caption" style={styles.badgeText}>
+                    {badge.text}
+                  </Typography>
+                </View>
               </View>
             )}
 
@@ -166,14 +168,16 @@ export const AICard: React.FC<AICardProps> = ({
 };
 
 const styles = StyleSheet.create({
+  badgeRow: {
+    alignItems: 'flex-start',
+    marginBottom: 6,
+    minHeight: 18,
+    paddingRight: 28,
+  },
   badge: {
-    position: 'absolute',
-    bottom: -4,
-    right: -4,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
-    zIndex: 10,
   },
   badgeText: {
     color: '#FFFFFF',

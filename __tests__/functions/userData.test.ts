@@ -8,7 +8,6 @@
 
 // Mock firebase-admin before importing the function
 const mockGetUser = jest.fn();
-const mockGetDoc = jest.fn();
 const mockCollection = jest.fn();
 
 jest.mock('firebase-admin', () => ({

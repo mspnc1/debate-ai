@@ -12,7 +12,6 @@ jest.mock('expo-linear-gradient', () => {
 });
 
 jest.mock('@expo/vector-icons', () => {
-  const React = require('react');
   const { Text } = require('react-native');
   return {
     Ionicons: () => <Text>Ionicon</Text>,
@@ -28,7 +27,6 @@ const mockGradientButton = jest.fn(({ title, onPress }: { title: string; onPress
 ));
 
 jest.mock('@/components/molecules', () => {
-  const React = require('react');
   const { Text } = require('react-native');
   return {
     GradientButton: (props: any) => mockGradientButton(props),

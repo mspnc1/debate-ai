@@ -4,7 +4,7 @@ import { renderWithProviders } from '../../../../test-utils/renderWithProviders'
 import { ModelSelector } from '@/components/organisms/home/ModelSelector';
 import type { ModelConfig } from '@/config/modelConfigs';
 
-const mockActualPricing = jest.fn((props: any) => null);
+const mockActualPricing = jest.fn(() => null);
 
 jest.mock('@/components/organisms/subscription/ActualPricing', () => ({
   ActualPricing: (props: any) => {

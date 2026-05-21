@@ -1,4 +1,4 @@
-import { act } from '@testing-library/react-native';
+import { act, waitFor } from '@testing-library/react-native';
 import type { DebateSession } from '@/services/debate';
 import { DebateStatus } from '@/services/debate';
 import type { AI } from '@/types';
@@ -83,6 +83,8 @@ describe('useDebateSession', () => {
     const { result, store } = renderHookWithProviders(() => require('@/hooks/debate/useDebateSession').useDebateSession(participants), {
       preloadedState: baseState,
     });
+
+    await waitFor(() => expect(result.current.orchestrator).not.toBeNull());
 
     await act(async () => {
       await result.current.initializeSession('AI in education', participants);

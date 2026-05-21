@@ -1,5 +1,4 @@
 import React from 'react';
-import { Text } from 'react-native';
 import { fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { EmptyHistoryState } from '@/components/organisms/history/EmptyHistoryState';

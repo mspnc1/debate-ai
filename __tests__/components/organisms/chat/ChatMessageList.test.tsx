@@ -12,7 +12,7 @@ jest.mock('../../../../src/theme', () => ({
 
 jest.mock('../../../../src/components/molecules', () => {
   const React = require('react');
-  const { Text, View } = require('react-native');
+  const { Text } = require('react-native');
   return {
     Typography: ({ children }: { children: React.ReactNode }) =>
       React.createElement(Text, null, children),

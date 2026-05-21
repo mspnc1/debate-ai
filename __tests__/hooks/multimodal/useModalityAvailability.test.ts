@@ -1,10 +1,7 @@
 import {
   getModalityAvailability,
   mergeAvailabilities,
-  mergeAvailabilitiesStrict,
   useModalityAvailability,
-  useMergedModalityAvailability,
-  useMergedModalityAvailabilityStrict,
 } from '@/hooks/multimodal/useModalityAvailability';
 import * as modelConfigs from '@/config/modelConfigs';
 import * as providerCapabilities from '@/config/providerCapabilities';

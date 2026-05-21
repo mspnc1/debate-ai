@@ -46,6 +46,23 @@ describe('Model selection contract', () => {
     expect(getModelById('google', 'gemini-pro-latest')?.supportsThinking).toBe(true);
   });
 
+  it('keeps OpenAI live-search support model-driven', () => {
+    expect(getModelById('openai', 'gpt-5.5')?.supportsWebSearch).toBe(true);
+    expect(getModelById('openai', 'gpt-5.4')?.supportsWebSearch).toBe(true);
+    expect(getModelById('openai', 'gpt-5.4-mini')?.supportsWebSearch).toBe(true);
+    expect(getModelById('openai', 'gpt-5.4-nano')?.supportsWebSearch).toBe(true);
+    expect(getModelById('openai', 'gpt-5')?.supportsWebSearch).toBe(true);
+    expect(getModelById('openai', 'gpt-5-mini')?.supportsWebSearch).toBe(true);
+    expect(getModelById('openai', 'gpt-5-nano')?.supportsWebSearch).toBe(true);
+    expect(getModelById('openai', 'gpt-4.1')?.supportsWebSearch).toBe(true);
+    expect(getModelById('openai', 'gpt-4.1-mini')?.supportsWebSearch).toBe(true);
+    expect(getModelById('openai', 'o4-mini')?.supportsWebSearch).toBe(true);
+
+    expect(getModelById('openai', 'gpt-5.2')?.supportsWebSearch).not.toBe(true);
+    expect(getModelById('openai', 'gpt-4o')?.supportsWebSearch).not.toBe(true);
+    expect(getModelById('openai', 'gpt-4o-mini')?.supportsWebSearch).not.toBe(true);
+  });
+
   it('falls back to provider default for deprecated, invalid, or cross-provider models', () => {
     expect(resolveProviderModelId('claude', 'claude-3-7-sonnet-20250219')).toBe('claude-sonnet-4-6');
     expect(resolveProviderModelId('claude', 'gpt-5')).toBe('claude-sonnet-4-6');

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, TouchableOpacity, Alert } from 'react-native';
+import {  Alert } from 'react-native';
 import { fireEvent, waitFor, act } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { ProfileContent } from '@/components/organisms/profile/ProfileContent';

@@ -27,7 +27,7 @@ describe('DebaterSelectionService', () => {
   });
 
   it('flags invalid selections with too few debaters and duplicates', () => {
-    const [first, second] = [buildDebater(), buildDebater({ id: 'claude-1-copy' })];
+    const first = buildDebater();
     const result = DebaterSelectionService.validateSelection([first]);
     expect(result.isValid).toBe(false);
     expect(result.errors).toEqual(

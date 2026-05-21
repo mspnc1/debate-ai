@@ -379,7 +379,7 @@ describe('auth rate limiting callables', () => {
 
   it('keeps loginAttempts closed in Firestore rules', () => {
     const rules = readFileSync(path.join(process.cwd(), 'firestore.rules'), 'utf8');
-    const loginAttemptsBlock = rules.match(/match \/loginAttempts\/\{docId\} \{([\s\S]*?)\n    \}/);
+    const loginAttemptsBlock = rules.match(/match \/loginAttempts\/\{docId\} \{([\s\S]*?)\n {4}\}/);
 
     expect(loginAttemptsBlock?.[1]).toContain('allow read, write: if false;');
   });

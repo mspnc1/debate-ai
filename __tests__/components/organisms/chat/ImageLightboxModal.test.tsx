@@ -17,7 +17,6 @@ jest.mock('@/services/media/MediaSaveService', () => ({
 }));
 
 jest.mock('@expo/vector-icons', () => {
-  const { Text } = require('react-native');
   return {
   Ionicons: () => null,
 };

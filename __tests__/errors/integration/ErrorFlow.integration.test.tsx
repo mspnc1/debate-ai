@@ -9,8 +9,7 @@
  */
 
 import React from 'react';
-import { Text } from 'react-native';
-import { fireEvent, waitFor, act } from '@testing-library/react-native';
+import { fireEvent, act } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../test-utils/renderWithProviders';
 import { ErrorCode } from '@/errors/codes/ErrorCodes';
 import { AppError } from '@/errors/types/AppError';
@@ -40,7 +39,7 @@ jest.mock('react-native', () => {
   RN.Animated.parallel = jest.fn((animations) => ({
     start: jest.fn((callback) => {
       animations.forEach((anim: any) => anim.start());
-      callback && callback();
+      callback?.();
     }),
   }));
   return RN;

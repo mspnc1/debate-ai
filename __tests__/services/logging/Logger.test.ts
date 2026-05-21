@@ -1,4 +1,4 @@
-import { Logger, LogLevel, LogEntry } from '@/services/logging';
+import { Logger, LogLevel } from '@/services/logging';
 
 // Mock CrashlyticsService
 const mockRecordError = jest.fn();

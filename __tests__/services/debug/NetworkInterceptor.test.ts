@@ -1,4 +1,4 @@
-import { NetworkInterceptor, NetworkRequest } from '@/services/debug/NetworkInterceptor';
+import { NetworkInterceptor } from '@/services/debug/NetworkInterceptor';
 
 describe('NetworkInterceptor', () => {
   const originalFetch = global.fetch;

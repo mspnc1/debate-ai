@@ -1,4 +1,3 @@
-import { act } from '@testing-library/react-native';
 import { renderHookWithProviders } from '../../../test-utils/renderHookWithProviders';
 import { resolveProviderModelId } from '@/config/modelConfigs';
 import { useSessionManagement } from '@/hooks/home/useSessionManagement';

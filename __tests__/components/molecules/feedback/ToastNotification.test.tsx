@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, act, waitFor } from '@testing-library/react-native';
+import { fireEvent, act } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 
 // Mock dependencies
@@ -25,7 +25,7 @@ jest.mock('react-native', () => {
   RN.Animated.parallel = jest.fn((animations) => ({
     start: jest.fn((callback) => {
       animations.forEach((anim: any) => anim.start());
-      callback && callback();
+      callback?.();
     }),
   }));
   return RN;

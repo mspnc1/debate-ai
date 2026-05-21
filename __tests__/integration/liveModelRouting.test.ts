@@ -316,6 +316,7 @@ describeLive('Live model routing smoke', () => {
 
   afterAll(() => {
     if (successfulRuns.length > 0) {
+      // eslint-disable-next-line no-console
       console.table(successfulRuns);
     }
   });

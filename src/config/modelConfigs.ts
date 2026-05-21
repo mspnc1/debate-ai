@@ -11,7 +11,7 @@ export interface ModelConfig {
   supportsVision?: boolean;
   supportsDocuments?: boolean; // Specifically for PDF/document support
   supportsFunctions?: boolean;
-  supportsWebSearch?: boolean; // For Perplexity models with web search
+  supportsWebSearch?: boolean; // Model supports provider-backed live web search with citations
   supportsThinking?: boolean; // For reasoning models (O1/O3, DeepSeek-R1, etc.)
   requiresTemperature1?: boolean; // For GPT-5 and O1/O3 models
   useMaxCompletionTokens?: boolean; // For GPT-5 and reasoning models that use max_completion_tokens
@@ -189,6 +189,7 @@ export const AI_MODELS: ProviderModels = {
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      supportsWebSearch: true,
       supportsThinking: true,
       requiresTemperature1: true,
       useMaxCompletionTokens: true,
@@ -203,6 +204,7 @@ export const AI_MODELS: ProviderModels = {
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      supportsWebSearch: true,
       supportsThinking: true,
       requiresTemperature1: true,
       useMaxCompletionTokens: true,
@@ -217,6 +219,7 @@ export const AI_MODELS: ProviderModels = {
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      supportsWebSearch: true,
       supportsThinking: true,
       requiresTemperature1: true,
       useMaxCompletionTokens: true,
@@ -245,6 +248,7 @@ export const AI_MODELS: ProviderModels = {
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      supportsWebSearch: true,
       supportsThinking: true,
       requiresTemperature1: true,
       useMaxCompletionTokens: true,
@@ -259,6 +263,7 @@ export const AI_MODELS: ProviderModels = {
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      supportsWebSearch: true,
       supportsThinking: true,
       requiresTemperature1: true,
       useMaxCompletionTokens: true,
@@ -273,6 +278,7 @@ export const AI_MODELS: ProviderModels = {
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      supportsWebSearch: true,
       supportsThinking: true,
       requiresTemperature1: true,
       useMaxCompletionTokens: true,
@@ -287,6 +293,7 @@ export const AI_MODELS: ProviderModels = {
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      supportsWebSearch: true,
       useMaxCompletionTokens: true,
     },
     {
@@ -299,6 +306,7 @@ export const AI_MODELS: ProviderModels = {
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      supportsWebSearch: true,
       useMaxCompletionTokens: true,
     },
     {
@@ -359,6 +367,7 @@ export const AI_MODELS: ProviderModels = {
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      supportsWebSearch: true,
       supportsThinking: true,
       requiresTemperature1: true,
       useMaxCompletionTokens: true,

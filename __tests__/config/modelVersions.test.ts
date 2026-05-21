@@ -8,8 +8,8 @@ import {
 
 describe('Model version registry', () => {
   it('exposes at least one latest model per provider family', () => {
-    for (const [providerId, families] of Object.entries(MODEL_VERSIONS)) {
-      for (const [family, versions] of Object.entries(families)) {
+    for (const [, families] of Object.entries(MODEL_VERSIONS)) {
+      for (const [, versions] of Object.entries(families)) {
         expect(versions.length).toBeGreaterThan(0);
         const latestCount = versions.filter(version => version.isLatest).length;
         expect(latestCount).toBeGreaterThanOrEqual(1);

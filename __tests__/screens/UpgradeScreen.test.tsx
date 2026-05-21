@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, Alert } from 'react-native';
+import { Text } from 'react-native';
 import { fireEvent, waitFor } from '@testing-library/react-native';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
 

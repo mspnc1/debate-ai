@@ -13,12 +13,24 @@ import { ErrorCode } from '../codes/ErrorCodes';
 describe('RetryUtils', () => {
   describe('sleep', () => {
     it('resolves after specified time', async () => {
-      const start = Date.now();
-      await sleep(50);
-      const elapsed = Date.now() - start;
+      jest.useFakeTimers();
 
-      expect(elapsed).toBeGreaterThanOrEqual(45);
-      expect(elapsed).toBeLessThan(100);
+      try {
+        let resolved = false;
+        const promise = sleep(50).then(() => {
+          resolved = true;
+        });
+
+        jest.advanceTimersByTime(49);
+        await Promise.resolve();
+        expect(resolved).toBe(false);
+
+        jest.advanceTimersByTime(1);
+        await promise;
+        expect(resolved).toBe(true);
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 

@@ -19,13 +19,13 @@ class TestAdapter extends BaseAdapter {
 
   format(history: Message[], resumption?: ResumptionContext): FormattedMessage[] {
     // Access the protected helper for assertions
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     return (this as any).formatHistory(history, resumption);
   }
 
   // Expose getSystemPrompt for testing
   getSystemPromptPublic(): string {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     return (this as any).getSystemPrompt();
   }
 }
@@ -242,7 +242,7 @@ describe('BaseAdapter.getSystemPrompt', () => {
   it('applies debate profile guidance in debate mode when debateProfile is present', () => {
     const adapter = new TestAdapter({ provider: 'claude', apiKey: 'key', model: 'opus', isDebateMode: true });
     // Directly set personality with debateProfile (setTemporaryPersonality converts to PersonalityConfig)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     (adapter.config as any).personality = {
       id: 'aggressive-debater',
       name: 'Aggressive Debater',

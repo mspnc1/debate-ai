@@ -1,5 +1,3 @@
-import React from 'react';
-import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 
 // TODO: Implement comprehensive tests for VictoryCelebration
 // This is a complex component requiring testing for:

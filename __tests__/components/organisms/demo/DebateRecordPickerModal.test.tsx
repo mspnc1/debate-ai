@@ -12,10 +12,10 @@ jest.mock('react-native/Libraries/Modal/Modal', () => {
 
   MockModal.displayName = 'MockModal';
   // Support both default and named import patterns React Native may use
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   (MockModal as any).default = MockModal;
   // Mark as ES module to satisfy downstream interop expectations
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   (MockModal as any).__esModule = true;
 
   return MockModal;

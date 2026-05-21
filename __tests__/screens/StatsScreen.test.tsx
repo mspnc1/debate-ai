@@ -30,7 +30,6 @@ const mockHeader = jest.fn(({ title, onBack }: { title: string; onBack?: () => v
 ));
 
 jest.mock('react-native-safe-area-context', () => {
-  const React = require('react');
   const { View } = require('react-native');
   return {
     SafeAreaView: ({ children, style }: { children: React.ReactNode; style?: any }) => (

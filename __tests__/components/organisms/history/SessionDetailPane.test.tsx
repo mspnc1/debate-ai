@@ -13,11 +13,11 @@ jest.mock('@/services/history', () => ({
 
 // Mock atoms
 jest.mock('@/components/atoms', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   Box: ({ children, style, testID }: any) => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+
     const React = require('react');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+
     const { View } = require('react-native');
     return React.createElement(View, { testID, style }, children);
   },
@@ -25,19 +25,19 @@ jest.mock('@/components/atoms', () => ({
 
 // Mock molecules
 jest.mock('@/components/molecules', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   Typography: ({ children, testID }: any) => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+
     const React = require('react');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+
     const { Text } = require('react-native');
     return React.createElement(Text, { testID }, children);
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   Button: ({ title, onPress, testID }: any) => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+
     const React = require('react');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+
     const { TouchableOpacity, Text } = require('react-native');
     return React.createElement(
       TouchableOpacity,
@@ -45,11 +45,11 @@ jest.mock('@/components/molecules', () => ({
       React.createElement(Text, null, title)
     );
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   Card: ({ children, testID }: any) => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+
     const React = require('react');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+
     const { View } = require('react-native');
     return React.createElement(View, { testID: testID || 'card' }, children);
   },

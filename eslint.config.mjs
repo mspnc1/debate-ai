@@ -35,6 +35,13 @@ export default tseslint.config(
     },
   },
   {
+    files: ['__tests__/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+  {
     ignores: ['node_modules/', 'dist/', '.expo/', 'babel.config.js', 'metro.config.js'],
   }
 );

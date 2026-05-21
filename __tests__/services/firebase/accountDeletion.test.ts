@@ -59,7 +59,7 @@ jest.mock('@/services/settings/SettingsService', () => ({
 let deleteAccount: typeof import('@/services/firebase/accountDeletion').deleteAccount;
 
 beforeAll(() => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+
   deleteAccount = require('@/services/firebase/accountDeletion').deleteAccount;
 });
 

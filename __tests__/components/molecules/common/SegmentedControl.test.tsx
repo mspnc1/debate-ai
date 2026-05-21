@@ -100,7 +100,7 @@ describe('SegmentedControl', () => {
 
   it('handles changing selection', () => {
     const onChange = jest.fn();
-    const { getByText, rerender } = renderWithProviders(
+    const { getByText } = renderWithProviders(
       <SegmentedControl
         options={stringOptions}
         value="opt1"

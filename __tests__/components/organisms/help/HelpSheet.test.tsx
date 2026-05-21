@@ -155,7 +155,7 @@ describe('HelpSheet', () => {
 
   describe('category context', () => {
     it('filters to correct category when opened with categoryId', async () => {
-      const { queryByTestId, getByTestId } = renderHelpSheet({
+      const { getByTestId } = renderHelpSheet({
         sheetData: { categoryId: 'expert-mode' },
       });
 

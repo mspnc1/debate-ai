@@ -84,7 +84,7 @@ describe('DemoEmptyState', () => {
 
   describe('combined props', () => {
     it('renders with all custom props', () => {
-      const { getByText, queryByText } = renderWithProviders(
+      const { getByText } = renderWithProviders(
         <DemoEmptyState
           title="Welcome to Demo"
           subtitle="Try out the features"

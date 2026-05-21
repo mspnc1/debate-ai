@@ -4,10 +4,9 @@ import {
   PersonalityProvider,
   usePersonality,
   usePersonalityById,
-  MergedPersonality,
 } from '@/contexts/PersonalityContext';
 import { PersonalityStorageService } from '@/services/personality';
-import { UserPersonalitySettings, EMPTY_PERSONALITY_SETTINGS } from '@/types/personality';
+import { UserPersonalitySettings } from '@/types/personality';
 import { UNIVERSAL_PERSONALITIES } from '@/config/personalities';
 
 // Mock PersonalityStorageService

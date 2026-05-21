@@ -222,7 +222,7 @@ jest.mock('@/components/organisms/history', () => {
       return React.createElement(Text, { testID: 'history-empty' }, 'empty');
     },
     HistoryListSkeleton: () => React.createElement(Text, { testID: 'history-skeleton' }, 'skeleton'),
-    SessionDetailPane: (props: any) => React.createElement(Text, { testID: 'session-detail-pane' }, 'detail-pane'),
+    SessionDetailPane: (_props: any) => React.createElement(Text, { testID: 'session-detail-pane' }, 'detail-pane'),
   };
 });
 

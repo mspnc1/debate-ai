@@ -4,7 +4,6 @@ import { renderWithProviders } from '../../../../test-utils/renderWithProviders'
 import { AIAvatar } from '@/components/organisms/common/AIAvatar';
 
 jest.mock('@/components/molecules', () => {
-  const { Text, View, TouchableOpacity } = require('react-native');
   return {
     // Ensure molecules index isn't pulled in while rendering tests for shared atoms
   };

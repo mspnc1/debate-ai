@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { TextStyle, Text, View } from 'react-native';
+import { TextStyle } from 'react-native';
 import Linking from 'react-native/Libraries/Linking/Linking';
 
 // Mock CodeBlock to avoid ThemeProvider dependency

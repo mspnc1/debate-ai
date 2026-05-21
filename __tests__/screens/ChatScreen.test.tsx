@@ -53,7 +53,6 @@ let mockChatInputBarProps: any;
 let mockMessageListProps: any;
 let mockTypingIndicatorsProps: any;
 let mockMentionSuggestionsProps: any;
-let mockDemoBannerProps: any;
 let mockTopicPickerProps: any;
 
 jest.mock('@/components/organisms', () => {

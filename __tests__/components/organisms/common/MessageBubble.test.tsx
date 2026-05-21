@@ -1,6 +1,4 @@
 import React from 'react';
-import { Text, View } from 'react-native';
-import { fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { MessageBubble } from '@/components/organisms/common/MessageBubble';
 import type { Message } from '@/types';
@@ -12,7 +10,6 @@ jest.mock('expo-clipboard', () => ({
 }));
 
 jest.mock('@expo/vector-icons', () => {
-  const { Text } = require('react-native');
   return {
   __esModule: true,
   Ionicons: () => null,

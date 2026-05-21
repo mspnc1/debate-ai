@@ -1,5 +1,4 @@
 import React from 'react';
-import { Text, View } from 'react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { UnlockEverythingBanner } from '@/components/organisms/subscription/UnlockEverythingBanner';
 

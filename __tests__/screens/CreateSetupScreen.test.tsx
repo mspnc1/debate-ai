@@ -2,7 +2,6 @@
  * Tests for CreateSetupScreen - Setup screen for AI image generation
  */
 import React from 'react';
-import { Alert } from 'react-native';
 import { fireEvent, waitFor } from '@testing-library/react-native';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
 

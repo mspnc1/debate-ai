@@ -16,7 +16,6 @@ const mockAiCard = jest.fn(({ ai, onPress }: any) => (
 ));
 
 jest.mock('@/components/molecules', () => {
-  const { Text, View, TouchableOpacity } = require('react-native');
   return {
     SectionHeader: (props: any) => mockSectionHeader(props),
     GradientButton: (props: any) => mockGradientButton(props),

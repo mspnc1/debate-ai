@@ -6,7 +6,6 @@ import {
   getStylePreset,
   getStylePromptSuffix,
   buildEnhancedPrompt,
-  StylePresetConfig,
 } from '@/config/create/stylePresets';
 import type { StylePreset } from '@/store/createSlice';
 

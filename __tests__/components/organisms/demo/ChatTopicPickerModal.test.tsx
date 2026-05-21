@@ -21,7 +21,6 @@ jest.mock('expo-linear-gradient', () => ({
 }));
 
 jest.mock('@expo/vector-icons', () => {
-  const { Text } = require('react-native');
   return {
   MaterialIcons: () => null,
   MaterialCommunityIcons: () => null,
@@ -442,7 +441,7 @@ describe('ChatTopicPickerModal', () => {
     });
 
     it('handles single provider', async () => {
-      const { getByText } = renderWithProviders(
+      renderWithProviders(
         <ChatTopicPickerModal visible={true} providers={['openai']} onSelect={mockOnSelect} onClose={mockOnClose} />
       );
       await waitFor(() => {

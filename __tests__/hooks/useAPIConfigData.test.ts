@@ -2,7 +2,6 @@ import { renderHook } from '@testing-library/react-native';
 
 const enabledProvider = { id: 'claude', enabled: true } as any;
 const secondProvider = { id: 'openai', enabled: true } as any;
-const disabledProvider = { id: 'perplexity', enabled: false } as any;
 
 const mockGetEnabledProviders = jest.fn(() => [enabledProvider, secondProvider]);
 

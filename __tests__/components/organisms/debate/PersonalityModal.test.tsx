@@ -5,7 +5,7 @@ import { PersonalityModal } from '@/components/organisms/debate/PersonalityModal
 
 jest.mock('@/components/molecules', () => {
   const React = require('react');
-  const { View, TouchableOpacity, Text } = require('react-native');
+  const { TouchableOpacity, Text } = require('react-native');
   return {
     Typography: ({ children }: { children: React.ReactNode }) => React.createElement(Text, null, children),
     SheetHeader: ({ onClose }: { onClose: () => void }) =>

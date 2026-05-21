@@ -1,6 +1,5 @@
 import React from 'react';
 import { fireEvent } from '@testing-library/react-native';
-import { View, Text } from 'react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { Header } from '@/components/organisms/common/Header';
 import * as Haptics from 'expo-haptics';

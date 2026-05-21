@@ -19,12 +19,15 @@ const mockGlassCard = jest.fn(({ children, onPress, disabled }: any) => (
 const mockAiAvatar = jest.fn(() => null);
 const mockPersonalityPicker = jest.fn(() => null);
 const mockModelSelector = jest.fn(() => null);
+const mockCreateElement = React.createElement;
 
 jest.mock('@/components/molecules', () => {
-  const { Text, View, TouchableOpacity } = require('react-native');
+  const { Text } = require('react-native');
   return {
     GlassCard: (props: any) => mockGlassCard(props),
     SelectionIndicator: (props: any) => mockSelectionIndicator(props),
+    Typography: ({ children, style }: { children?: React.ReactNode; style?: unknown }) =>
+      mockCreateElement(Text, { style }, children),
   };
 });
 
@@ -106,5 +109,26 @@ describe('AICard', () => {
     expect(mockSelectionIndicator).toHaveBeenCalledWith(expect.objectContaining({ isSelected: true, color: '#ff6600' }));
     expect(mockPersonalityPicker).toHaveBeenCalledWith(expect.objectContaining({ currentPersonalityId: 'persona-1' }));
     expect(mockModelSelector).toHaveBeenCalledWith(expect.objectContaining({ compactMode: true, selectedModel: 'opus' }));
+  });
+
+  it('renders badges without replacing selected controls', () => {
+    const onModelChange = jest.fn();
+
+    const { getByText } = renderWithProviders(
+      <AICard
+        ai={{ ...ai, model: 'haiku' }}
+        isSelected
+        isDisabled={false}
+        onPress={jest.fn()}
+        index={3}
+        onModelChange={onModelChange}
+        badge={{ text: 'Live Search', color: '#16803c' }}
+      />
+    );
+
+    expect(getByText('Live Search')).toBeTruthy();
+    expect(mockModelSelector).toHaveBeenCalledWith(
+      expect.objectContaining({ compactMode: true, selectedModel: 'haiku' })
+    );
   });
 });

@@ -1,5 +1,4 @@
 import React from 'react';
-import { Text } from 'react-native';
 import { renderWithProviders } from '../../../test-utils/renderWithProviders';
 import { VotingInterface } from '@/components/organisms/debate/VotingInterface';
 import type { AI } from '@/types';

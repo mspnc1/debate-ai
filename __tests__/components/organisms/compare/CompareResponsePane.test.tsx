@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity } from 'react-native';
 import { fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { CompareResponsePane } from '@/components/organisms/compare/CompareResponsePane';

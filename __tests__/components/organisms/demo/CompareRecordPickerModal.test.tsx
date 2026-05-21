@@ -1,6 +1,5 @@
 import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
-import { Text } from 'react-native';
 import { CompareRecordPickerModal } from '@/components/organisms/demo/CompareRecordPickerModal';
 
 const mockTheme = {

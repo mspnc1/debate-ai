@@ -2,7 +2,7 @@ import React from 'react';
 import { fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { ImageMessageRow } from '@/components/organisms/chat/ImageMessageRow';
-import type { Message, AIProvider } from '@/types';
+import type { Message } from '@/types';
 
 jest.mock('expo-sharing', () => ({
   isAvailableAsync: jest.fn(() => Promise.resolve(true)),

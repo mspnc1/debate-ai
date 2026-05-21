@@ -13,7 +13,7 @@ jest.mock('react-native-svg', () => {
 
 jest.mock('@/hooks/stats/useChartData', () => ({
   useChartData: () => ({
-    getDonutSegments: (aiId: string) => [
+    getDonutSegments: (_aiId: string) => [
       { value: 6, color: '#4CAF50', label: 'Wins' },
       { value: 4, color: '#F44336', label: 'Losses' },
     ],
@@ -41,7 +41,7 @@ jest.mock('@/hooks/stats', () => ({
 
 jest.mock('@/components/molecules', () => {
   const React = require('react');
-  const { Text, View } = require('react-native');
+  const { Text } = require('react-native');
   return {
     Typography: ({ children }: any) => React.createElement(Text, null, children),
   };

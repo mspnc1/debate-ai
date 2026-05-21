@@ -394,7 +394,7 @@ describe('DebateMessageBubble', () => {
     it('shows checkmark after successful copy', async () => {
       jest.useFakeTimers();
 
-      const { getByText, queryByText } = renderWithProviders(
+      const { getByText } = renderWithProviders(
         <DebateMessageBubble {...defaultProps} />
       );
 

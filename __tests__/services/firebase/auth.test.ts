@@ -179,9 +179,6 @@ const resetMocks = () => {
   mockCallables.requestPasswordResetEmail.mockResolvedValue({ data: { emailSent: true } });
 };
 
-const futureTs = (days: number) => ({ toMillis: () => Date.now() + days * 24 * 60 * 60 * 1000 });
-const pastTs = (days: number) => ({ toMillis: () => Date.now() - days * 24 * 60 * 60 * 1000 });
-
 const setUser = (uid: string | null) => {
   mockAuthState.currentUser = uid ? { uid } : null;
 };

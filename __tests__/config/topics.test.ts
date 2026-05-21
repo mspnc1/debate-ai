@@ -32,7 +32,7 @@ describe('Suggested topics catalog', () => {
         },
       }));
 
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+
       const module = require('@/config/debate/suggestedTopics') as typeof import('@/config/debate/suggestedTopics');
       const [topic] = module.SUGGESTED_TOPICS;
       expect(topic).toMatchObject({

@@ -9,7 +9,6 @@ jest.mock('expo-linear-gradient', () => ({
 }));
 
 jest.mock('@expo/vector-icons', () => {
-  const { Text } = require('react-native');
   return {
   MaterialIcons: () => null,
   MaterialCommunityIcons: () => null,

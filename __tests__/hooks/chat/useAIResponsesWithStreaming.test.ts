@@ -3,7 +3,6 @@ import type { Message } from '@/types';
 import type { RootState } from '@/store';
 import { useAIResponsesWithStreaming } from '@/hooks/chat/useAIResponsesWithStreaming';
 import { renderHookWithProviders } from '../../../test-utils/renderHookWithProviders';
-import { ChatService } from '@/services/chat/ChatService';
 import { ChatOrchestrator } from '@/services/chat';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
 import { useAIService } from '@/providers/AIServiceProvider';
