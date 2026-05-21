@@ -167,7 +167,7 @@ export class AIService {
     conversationHistory?: Message[],
     isDebateModeOrPersonality?: boolean | PersonalityConfig,
     resumptionContextOrModel?: ResumptionContext | string,
-    attachmentsOrParams?: MessageAttachment[] | ModelParameters,
+    attachmentsOrParams?: MessageAttachment[] | Partial<ModelParameters>,
     modelOrDebateMode?: string | boolean
   ): Promise<{ response: string; modelUsed?: string }> {
     // Handle overloaded parameters based on type checking
@@ -176,7 +176,7 @@ export class AIService {
     let resumptionContext: ResumptionContext | undefined;
     let model: string | undefined;
     let attachments: MessageAttachment[] | undefined;
-    let parameters: ModelParameters | undefined;
+    let parameters: Partial<ModelParameters> | undefined;
 
     // Parse the overloaded arguments
     if (typeof isDebateModeOrPersonality === 'boolean') {
@@ -196,7 +196,7 @@ export class AIService {
         attachments = attachmentsOrParams as MessageAttachment[];
       }
     } else if (attachmentsOrParams && typeof attachmentsOrParams === 'object') {
-      parameters = attachmentsOrParams as ModelParameters;
+      parameters = attachmentsOrParams as Partial<ModelParameters>;
     }
 
     if (typeof modelOrDebateMode === 'string') {

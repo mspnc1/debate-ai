@@ -273,7 +273,7 @@ Available Personalities (8):
 - Bestie: Empathetic co-pilot focused on next steps
 - Brody: High-energy coach with direct, action-first advice
 - Devlin: Respectful devil's advocate who stress-tests ideas
-- George: Satirical mirror with sharp, PG-rated wit
+- George: PG-13 satirical mirror with sharp, sarcastic wit
 - Kai: Staff engineer mindset; structured and detail-focused
 - Prof. Sage: Socratic scholar; precise and citation-friendly
 - Scout: Narrative strategist who uses scenes and analogies

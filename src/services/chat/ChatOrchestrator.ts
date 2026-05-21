@@ -18,10 +18,11 @@ import { getStreamingService } from '@/services/streaming/StreamingService';
 import { RecordController } from '@/services/demo/RecordController';
 import { getCurrentTurnProviders, markProviderComplete } from '@/services/demo/DemoPlaybackRouter';
 import { ErrorService } from '@/services/errors/ErrorService';
+import { buildPersonalityRuntime, mergeRuntimeModelParameters, type PersonalityRuntime } from '@/services/personality';
 import { AppError } from '@/errors/types/AppError';
 import { ErrorCode } from '@/errors/codes/ErrorCodes';
 import type { AIService, ResumptionContext } from '@/services/aiAdapter';
-import type { AI, ChatSession, Message, MessageAttachment, ModelParameters, PersonalityConfig } from '@/types';
+import type { AI, ChatSession, Message, MessageAttachment, ModelParameters } from '@/types';
 
 interface StreamingPreferenceState {
   enabled?: boolean;
@@ -145,13 +146,15 @@ export class ChatOrchestrator {
         await this.sleep(ChatService.calculateTypingDelay());
 
         const personalityId = aiPersonalities[ai.id] || 'default';
-        // Use pre-merged personality from context if available, otherwise fall back to base
-        const personality = personalityId !== 'default'
-          ? (mergedPersonalities?.[personalityId] || getPersonality(personalityId))
-          : undefined;
-        if (personality) {
-          this.aiService.setPersonality(ai.id, personality);
-        }
+        // Use pre-merged personality from context if available, otherwise fall back to base.
+        // Default intentionally resolves to undefined runtime config so reused adapters are cleared.
+        const personality = mergedPersonalities?.[personalityId] || getPersonality(personalityId);
+        const runtime = buildPersonalityRuntime({
+          mode: 'chat',
+          personality,
+          ai: aiForTurn,
+        });
+        this.aiService.setPersonality(ai.id, runtime.personalityConfig);
 
         const promptContext = {
           isFirstAI: ChatService.isFirstAIInRound(conversationContext),
@@ -174,7 +177,20 @@ export class ChatOrchestrator {
         const expert = getExpertOverrides(
           expertModeConfigs as unknown as Record<string, { enabled?: boolean; parameters?: ModelParameters; model?: string }> ,
           ai.provider
-        ) as { enabled?: boolean; parameters?: ModelParameters; model?: string } | undefined;
+        ) as { enabled?: boolean; parameters?: Partial<ModelParameters>; model?: string } | undefined;
+        const runtimeParameters = mergeRuntimeModelParameters(
+          expert?.enabled,
+          expert?.parameters,
+          runtime.modelParameters
+        );
+
+        await this.logPromptDebug('chat-turn', {
+          ai: aiForTurn,
+          personalityId,
+          runtime,
+          adapter,
+          prompt: promptForAI,
+        });
 
         // Send attachments to ALL AIs so each has full context
         const aiAttachments = attachments;
@@ -182,24 +198,26 @@ export class ChatOrchestrator {
         const aiMessage = shouldStream
           ? await this.handleStreamingResponse({
               ai: aiForTurn,
-              personality,
+              runtime,
               prompt: promptForAI,
               conversationContext,
               resumptionContext,
               attachments: aiAttachments,
               apiKey: isDemo ? 'demo' : await this.getExecutionApiKey(ai.provider, apiKeys),
               expert,
+              runtimeParameters,
               streamingSpeed,
               webSearchEnabled,
             })
           : await this.handleNonStreamingResponse({
               ai: aiForTurn,
-              personality,
+              runtime,
               prompt: promptForAI,
               conversationContext,
               resumptionContext,
               attachments: aiAttachments,
               expert,
+              runtimeParameters,
               webSearchEnabled,
             });
 
@@ -234,25 +252,27 @@ export class ChatOrchestrator {
 
   private async handleStreamingResponse(options: {
     ai: AI;
-    personality?: PersonalityOption | undefined;
+    runtime: PersonalityRuntime;
     prompt: string;
     conversationContext: ReturnType<typeof ChatService.buildConversationContext>;
     resumptionContext?: ResumptionContext;
     attachments?: MessageAttachment[];
     apiKey?: string;
-    expert?: { enabled?: boolean; parameters?: ModelParameters } | undefined;
+    expert?: { enabled?: boolean; parameters?: Partial<ModelParameters> } | undefined;
+    runtimeParameters?: Partial<ModelParameters> | undefined;
     streamingSpeed?: 'instant' | 'natural' | 'slow';
     webSearchEnabled?: boolean;
   }): Promise<Message> {
     const {
       ai,
-      personality,
+      runtime,
       prompt,
       conversationContext,
       resumptionContext,
       attachments,
       apiKey,
       expert,
+      runtimeParameters,
       streamingSpeed,
       webSearchEnabled,
     } = options;
@@ -286,8 +306,8 @@ export class ChatOrchestrator {
           provider: ai.provider,
           apiKey,
           model: ai.model,
-          personality: personality as PersonalityConfig | undefined,
-          parameters: expert?.enabled ? expert.parameters : undefined,
+          personality: runtime.personalityConfig,
+          parameters: runtimeParameters,
           isDebateMode: conversationContext.isDebateMode,
           webSearchEnabled,
         },
@@ -323,6 +343,7 @@ export class ChatOrchestrator {
           resumptionContext,
           attachments,
           expert,
+          runtimeParameters,
           aiMessageId: aiMessage.id,
           originalError: error,
           updateStreamContent: (content: string) => {
@@ -416,21 +437,22 @@ export class ChatOrchestrator {
 
   private async handleNonStreamingResponse(options: {
     ai: AI;
-    personality?: PersonalityOption | undefined;
+    runtime: PersonalityRuntime;
     prompt: string;
     conversationContext: ReturnType<typeof ChatService.buildConversationContext>;
     resumptionContext?: ResumptionContext;
     attachments?: MessageAttachment[];
-    expert?: { enabled?: boolean; parameters?: ModelParameters } | undefined;
+    expert?: { enabled?: boolean; parameters?: Partial<ModelParameters> } | undefined;
+    runtimeParameters?: Partial<ModelParameters> | undefined;
     webSearchEnabled?: boolean;
   }): Promise<Message> {
-    const { ai, prompt, conversationContext, resumptionContext, attachments, expert, webSearchEnabled } = options;
+    const { ai, runtime, prompt, conversationContext, resumptionContext, attachments, runtimeParameters, webSearchEnabled } = options;
 
-    if (expert?.enabled && expert.parameters) {
+    if (runtimeParameters) {
       try {
         const adapter = this.aiService.getAdapter(ai.id);
         if (adapter) {
-          adapter.config.parameters = expert.parameters;
+          adapter.config.parameters = runtimeParameters;
         }
       } catch {
         /* noop */
@@ -442,7 +464,7 @@ export class ChatOrchestrator {
       ai.id,
       prompt,
       conversationContext.messages.slice(0, -1),
-      conversationContext.isDebateMode,
+      runtime.personalityConfig || conversationContext.isDebateMode,
       resumptionContext,
       attachments,
       ai.model
@@ -478,12 +500,13 @@ export class ChatOrchestrator {
     conversationContext: ReturnType<typeof ChatService.buildConversationContext>;
     resumptionContext?: ResumptionContext;
     attachments?: MessageAttachment[];
-    expert?: { enabled?: boolean; parameters?: ModelParameters } | undefined;
+    expert?: { enabled?: boolean; parameters?: Partial<ModelParameters> } | undefined;
+    runtimeParameters?: Partial<ModelParameters> | undefined;
     aiMessageId: string;
     originalError: Error;
     updateStreamContent: (content: string) => void;
   }): Promise<string | null> {
-    const { ai, prompt, conversationContext, resumptionContext, attachments, expert, aiMessageId, originalError, updateStreamContent } = options;
+    const { ai, prompt, conversationContext, resumptionContext, attachments, runtimeParameters, aiMessageId, originalError, updateStreamContent } = options;
 
     const message = originalError.message || '';
     const requiresVerification = message.includes('organization must be verified')
@@ -503,11 +526,11 @@ export class ChatOrchestrator {
     }
 
     try {
-      if (expert?.enabled && expert.parameters) {
+      if (runtimeParameters) {
         try {
           const fallbackAdapter = this.aiService.getAdapter(ai.id);
           if (fallbackAdapter) {
-            fallbackAdapter.config.parameters = expert.parameters;
+            fallbackAdapter.config.parameters = runtimeParameters;
           }
         } catch {
           /* noop */
@@ -617,6 +640,33 @@ export class ChatOrchestrator {
 
   private async sleep(duration: number): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, duration));
+  }
+
+  private async logPromptDebug(
+    label: string,
+    options: {
+      ai: AI;
+      personalityId: string;
+      runtime: PersonalityRuntime;
+      adapter?: { debugGetSystemPrompt?: () => string };
+      prompt: string;
+    }
+  ): Promise<void> {
+    try {
+      const { PromptDebugLogger } = await import('../debug/PromptDebugLogger');
+      PromptDebugLogger.logTurn(label, {
+        aiId: options.ai.id,
+        aiName: options.ai.name,
+        model: options.ai.model,
+        personalityId: options.personalityId,
+        personalityName: options.runtime.debug.personalityName,
+        systemPromptApplied: options.runtime.systemPrompt,
+        systemPromptAdapter: options.adapter?.debugGetSystemPrompt?.(),
+        userPrompt: options.prompt,
+      });
+    } catch {
+      /* ignore debug log errors */
+    }
   }
 
   private async getExecutionApiKey(

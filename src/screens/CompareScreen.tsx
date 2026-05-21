@@ -21,6 +21,9 @@ import { AIConfig, Message, ChatSession, MessageAttachment, Citation } from '../
 import { StorageService } from '../services/chat/StorageService';
 import { getExpertOverrides } from '../utils/expertMode';
 import { resolveProviderModelId } from '@/config/modelConfigs';
+import { getPersonality } from '@/config/personalities';
+import { buildPersonalityRuntime, mergeRuntimeModelParameters } from '@/services/personality';
+import { PromptDebugLogger } from '@/services/debug/PromptDebugLogger';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
 import { usePersonality } from '@/hooks/usePersonality';
 import { DemoBanner } from '@/components/molecules/subscription/DemoBanner';
@@ -199,6 +202,36 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
   const webSearchAvailable = availability.webSearch.supported;
   const webSearchEnabled = webSearchPreferred && webSearchAvailable;
 
+  const buildCompareRuntime = useCallback((ai: AIConfig) => {
+    const personalityId = ai.personality || 'default';
+    const personality = getMergedPersonality(personalityId) || getPersonality(personalityId);
+    return buildPersonalityRuntime({
+      mode: 'compare',
+      personality,
+      ai,
+    });
+  }, [getMergedPersonality]);
+
+  const logComparePrompt = useCallback((
+    side: 'left' | 'right',
+    ai: AIConfig,
+    personalityId: string,
+    runtime: ReturnType<typeof buildPersonalityRuntime>,
+    adapter: { debugGetSystemPrompt?: () => string } | undefined,
+    prompt: string
+  ) => {
+    PromptDebugLogger.logTurn(`compare-${side}`, {
+      aiId: ai.id,
+      aiName: ai.name,
+      model: ai.model,
+      personalityId,
+      personalityName: runtime.debug.personalityName,
+      systemPromptApplied: runtime.systemPrompt,
+      systemPromptAdapter: adapter?.debugGetSystemPrompt?.(),
+      userPrompt: prompt,
+    });
+  }, []);
+
   const saveComparisonSession = useCallback(async () => {
     if (userMessages.length === 0) return; // Don't save empty sessions
     
@@ -283,6 +316,18 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     const rightApiKey = isDemo ? 'demo' : await aiService.getApiKey(rightAI.provider);
     const leftAdapter = await aiService.ensureAdapter(leftAI.provider, leftAI.provider, leftEffModel, leftApiKey);
     const rightAdapter = await aiService.ensureAdapter(rightAI.provider, rightAI.provider, rightEffModel, rightApiKey);
+    const leftRuntime = buildCompareRuntime({ ...leftAI, model: leftEffModel });
+    const rightRuntime = buildCompareRuntime({ ...rightAI, model: rightEffModel });
+    const leftRuntimeParameters = mergeRuntimeModelParameters(
+      leftExp?.enabled,
+      leftExp?.parameters,
+      leftRuntime.modelParameters
+    );
+    const rightRuntimeParameters = mergeRuntimeModelParameters(
+      rightExp?.enabled,
+      rightExp?.parameters,
+      rightRuntime.modelParameters
+    );
 
     // Determine streaming capability and preferences for each side
     const globalEnabled = streamingState?.globalStreamingEnabled ?? true;
@@ -302,22 +347,14 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     
     const pendingPromises: Promise<void>[] = [];
 
-    // Apply personalities (unless default) before sending - uses merged personalities from context
-    // Personality tone modifiers are applied via adapter's system prompt
+    // Apply personalities before sending. Default intentionally clears reused adapters.
     try {
-      if (leftAI?.personality && leftAI.personality !== 'default') {
-        const p = getMergedPersonality(leftAI.personality);
-        if (p) {
-          aiService.setPersonality(leftAI.provider, p);
-        }
-      }
-      if (rightAI?.personality && rightAI.personality !== 'default') {
-        const p = getMergedPersonality(rightAI.personality);
-        if (p) {
-          aiService.setPersonality(rightAI.provider, p);
-        }
-      }
+      aiService.setPersonality(leftAI.provider, leftRuntime.personalityConfig);
+      aiService.setPersonality(rightAI.provider, rightRuntime.personalityConfig);
     } catch (_e) { console.warn('compare apply personality failed', _e); }
+
+    logComparePrompt('left', { ...leftAI, model: leftEffModel }, leftAI.personality || 'default', leftRuntime, leftAdapter, messageText);
+    logComparePrompt('right', { ...rightAI, model: rightEffModel }, rightAI.personality || 'default', rightRuntime, rightAdapter, messageText);
 
     // Determine if we should use synchronized streaming (both AIs active and both streaming)
     const useSynchronizedStreaming = leftActive && rightActive && shouldStreamLeft && shouldStreamRight;
@@ -376,9 +413,8 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
       setLeftTyping(true);
       try {
         const adapter = leftAdapter;
-        const leftParams = leftExp && leftExp.parameters;
-        if (adapter && leftExp.enabled && leftParams) {
-          adapter.config.parameters = leftParams as never;
+        if (adapter && leftRuntimeParameters) {
+          adapter.config.parameters = leftRuntimeParameters;
         }
       } catch (_e) { console.warn('compare left expert params failed', _e); }
 
@@ -392,7 +428,8 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
               provider: leftAI.provider,
               apiKey: leftApiKey || '',
               model: leftEffModel,
-              parameters: (leftExp && leftExp.enabled) ? (leftExp.parameters as never) : undefined,
+              personality: leftRuntime.personalityConfig,
+              parameters: leftRuntimeParameters,
               isDebateMode: false,
               webSearchEnabled,
             },
@@ -436,7 +473,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
             const isVerification = msg.toLowerCase().includes('verification');
             const isOverload = msg.toLowerCase().includes('overload') || msg.toLowerCase().includes('rate limit');
             try {
-              const response = await aiService.sendMessage(leftAI.provider, messageText, leftHistoryRef.current, false, undefined, attachments, leftEffModel);
+              const response = await aiService.sendMessage(leftAI.provider, messageText, leftHistoryRef.current, leftRuntime.personalityConfig || false, undefined, attachments, leftEffModel);
               const normalizedAnswer = ensureAnswerContent(
                 getResponseContent(response as AIResponseResult),
                 getResponseCitations(response as AIResponseResult),
@@ -502,7 +539,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
         pendingPromises.push(leftStreamPromise);
       } else {
         const leftCompletion = aiService
-          .sendMessage(leftAI.provider, messageText, leftHistoryRef.current, false, undefined, attachments, leftEffModel)
+          .sendMessage(leftAI.provider, messageText, leftHistoryRef.current, leftRuntime.personalityConfig || false, undefined, attachments, leftEffModel)
           .then(response => {
             const normalizedAnswer = ensureAnswerContent(
               getResponseContent(response as AIResponseResult),
@@ -541,9 +578,8 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
       setRightTyping(true);
       try {
         const adapter = rightAdapter;
-        const rightParams = rightExp && rightExp.parameters;
-        if (adapter && rightExp.enabled && rightParams) {
-          adapter.config.parameters = rightParams as never;
+        if (adapter && rightRuntimeParameters) {
+          adapter.config.parameters = rightRuntimeParameters;
         }
       } catch (_e) { console.warn('compare right expert params failed', _e); }
 
@@ -557,7 +593,8 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
               provider: rightAI.provider,
               apiKey: rightApiKey || '',
               model: rightEffModel,
-              parameters: (rightExp && rightExp.enabled) ? (rightExp.parameters as never) : undefined,
+              personality: rightRuntime.personalityConfig,
+              parameters: rightRuntimeParameters,
               isDebateMode: false,
               webSearchEnabled,
             },
@@ -601,7 +638,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
             const isVerification = msg.toLowerCase().includes('verification');
             const isOverload = msg.toLowerCase().includes('overload') || msg.toLowerCase().includes('rate limit');
             try {
-              const response = await aiService.sendMessage(rightAI.provider, messageText, rightHistoryRef.current, false, undefined, attachments, rightEffModel);
+              const response = await aiService.sendMessage(rightAI.provider, messageText, rightHistoryRef.current, rightRuntime.personalityConfig || false, undefined, attachments, rightEffModel);
               const normalizedAnswer = ensureAnswerContent(
                 getResponseContent(response as AIResponseResult),
                 getResponseCitations(response as AIResponseResult),
@@ -667,7 +704,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
         pendingPromises.push(rightStreamPromise);
       } else {
         const rightCompletion = aiService
-          .sendMessage(rightAI.provider, messageText, rightHistoryRef.current, false, undefined, attachments, rightEffModel)
+          .sendMessage(rightAI.provider, messageText, rightHistoryRef.current, rightRuntime.personalityConfig || false, undefined, attachments, rightEffModel)
           .then(response => {
             const normalizedAnswer = ensureAnswerContent(
               getResponseContent(response as AIResponseResult),
@@ -731,7 +768,8 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     streamingState?.streamingPreferences,
     streamingState?.providerVerificationErrors,
     streamingState?.streamingSpeed,
-    getMergedPersonality,
+    buildCompareRuntime,
+    logComparePrompt,
     leftEffectiveModel,
     rightEffectiveModel,
     webSearchEnabled,
@@ -759,8 +797,16 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
 
     const leftEffModel = leftEffectiveModel;
     const rightEffModel = rightEffectiveModel;
+    const leftRuntime = buildCompareRuntime({ ...leftAI, model: leftEffModel });
+    const rightRuntime = buildCompareRuntime({ ...rightAI, model: rightEffModel });
+    try {
+      aiService.setPersonality(leftAI.provider, leftRuntime.personalityConfig);
+      aiService.setPersonality(rightAI.provider, rightRuntime.personalityConfig);
+    } catch (err) {
+      console.warn('compare scripted personality failed', err);
+    }
 
-    const leftPromise = aiService.sendMessage(leftAI.provider, messageText, leftHistoryRef.current, false, undefined, undefined, leftEffModel)
+    const leftPromise = aiService.sendMessage(leftAI.provider, messageText, leftHistoryRef.current, leftRuntime.personalityConfig || false, undefined, undefined, leftEffModel)
       .then(response => {
         const normalizedAnswer = ensureAnswerContent(
           getResponseContent(response as AIResponseResult),
@@ -790,7 +836,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
         setLeftTyping(false);
       });
 
-    const rightPromise = aiService.sendMessage(rightAI.provider, messageText, rightHistoryRef.current, false, undefined, undefined, rightEffModel)
+    const rightPromise = aiService.sendMessage(rightAI.provider, messageText, rightHistoryRef.current, rightRuntime.personalityConfig || false, undefined, undefined, rightEffModel)
       .then(response => {
         const normalizedAnswer = ensureAnswerContent(
           getResponseContent(response as AIResponseResult),
@@ -836,7 +882,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     }).catch(() => {
       // ignore individual rejection handling above
     });
-  }, [aiService, isDemo, leftAI, leftEffectiveModel, rightAI, rightEffectiveModel]);
+  }, [aiService, buildCompareRuntime, isDemo, leftAI, leftEffectiveModel, rightAI, rightEffectiveModel]);
 
   // Demo Mode: auto-start playback when both AIs are selected and no messages yet
   React.useEffect(() => {

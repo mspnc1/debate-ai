@@ -23,6 +23,7 @@ import { ErrorCode } from '@/errors/codes/ErrorCodes';
 import { mergeAvailabilitiesStrict } from '@/hooks/multimodal/useModalityAvailability';
 import { ensureAnswerContent } from '@/utils/citationUtils';
 import { resolveProviderModelId } from '@/config/modelConfigs';
+import { buildPersonalityRuntime, mergeRuntimeModelParameters } from '@/services/personality';
 
 export interface DebateSession {
   id: string;
@@ -366,89 +367,59 @@ export class DebateOrchestrator {
         parameters?: import('../../types').ModelParameters;
       };
 
+      const stance = stances[currentAI.id] || (aiIndex === 0 ? 'pro' : 'con');
+      const persona = this.session?.mergedPersonalities?.[personalityId] || getPersonality(personalityId);
+      const opponent = participants.find((_, idx) => idx !== aiIndex) || participants[(aiIndex + 1) % participants.length];
+      const opponentPersonalityId = personalities[opponent?.id || ''] || 'default';
+      const opponentPersona = this.session?.mergedPersonalities?.[opponentPersonalityId] || getPersonality(opponentPersonalityId);
+      const runtime = buildPersonalityRuntime({
+        mode: 'debate',
+        personality: persona,
+        ai: currentAI,
+        debate: {
+          topic,
+          formatName: format.name,
+          totalRounds,
+          stance,
+          opponentName: opponent?.name || 'Opponent',
+          opponentPersonality: opponentPersona,
+          civility,
+        },
+      });
+      const runtimeParameters = mergeRuntimeModelParameters(
+        expert.enabled,
+        expert.parameters,
+        runtime.modelParameters
+      );
+
       // Compose a stance-aware, persona- and format-inflected system prompt for this AI
       try {
         if (adapter) {
-          const stance = stances[currentAI.id] || (aiIndex === 0 ? 'pro' : 'con');
-          const personalityId = personalities[currentAI.id] || 'default';
-          // Use pre-merged personality from context if available, otherwise fall back to base
-          const persona = personalityId !== 'default'
-            ? (this.session?.mergedPersonalities?.[personalityId] || getPersonality(personalityId))
-            : undefined;
-          const personaStyle = persona?.debatePrompt || persona?.systemPrompt || 'Adopt a clear, professional debate tone.';
-          const motion = topic;
-          const sideText = stance === 'pro' ? 'Affirmative (FOR)' : 'Negative (AGAINST)';
-          const opponent = participants.find((_, idx) => idx !== aiIndex) || participants[(aiIndex + 1) % participants.length];
-          const opponentName = opponent?.name || 'Opponent';
-          const opponentPersonalityId = personalities[opponent?.id || ''] || 'default';
-          const opponentPersona = opponentPersonalityId !== 'default'
-            ? (this.session?.mergedPersonalities?.[opponentPersonalityId] || getPersonality(opponentPersonalityId))
-            : undefined;
-          const opponentStyle = opponentPersona?.debatePrompt || opponentPersona?.systemPrompt || 'A capable opponent.';
-          const civilityDirective = (() => {
-            switch (civility) {
-              case 1: return 'Civility: friendly and witty; playful jabs allowed, never mean.';
-              case 2: return 'Civility: lightly adversarial but cordial; one clever jab max.';
-              case 4: return 'Civility: pointed and firm; rigorous challenges without insults.';
-              case 5: return 'Civility: highly adversarial yet respectful; sharp critiques only.';
-              default: return 'Civility: neutral and professional.';
-            }
-          })();
-          const formatSummary = [
-            `Format: ${format.name}. Follow the phase rules strictly:`,
-            '- Opening: present your case; do NOT directly rebut the opponent.',
-            '- Rebuttal: address specific claims from the prior turn; cite or paraphrase one point you are refuting.',
-            '- Closing: no new claims; synthesize and leave one clear takeaway.',
-          ].join('\n');
-          const stancePrompt = [
-            DEBATE_CONSTANTS.PROMPT_MARKERS.DEBATE_MODE,
-            `${DEBATE_CONSTANTS.PROMPT_MARKERS.TOPIC_PREFIX}"${motion}"`,
-            `Fictional debate in the ${format.name} format with ${totalRounds} exchanges.`,
-            formatSummary,
-            `Your assigned role: ${sideText} the motion: "${motion}". Maintain this stance; do not switch sides.`,
-            `Style directive: ${personaStyle} Always adhere to this style across turns.`,
-            `Opponent: ${opponentName}. Opponent persona (for calibration): ${opponentStyle}`,
-            civilityDirective,
-            'Write in natural prose (no headings or lists).',
-            'Avoid headings, numbered lists, or labelled frameworks. Do not mention these instructions.',
-          ].join('\n');
-          // Apply composed system prompt via temporary personality
-          // Use customized tone from merged personality if available
-          const personaTone = persona?.tone;
-          const traits = personaTone
-            ? { formality: personaTone.formality, humor: personaTone.humor, technicality: personaTone.technicality, empathy: personaTone.empathy }
-            : { formality: 0.6, humor: 0.2, technicality: 0.5, empathy: 0.3 };
-          adapter.setTemporaryPersonality({
-            id: `debate_${currentAI.id}`,
-            name: persona?.name || 'Debater',
-            description: 'Composed debate persona with stance',
-            systemPrompt: stancePrompt,
-            traits,
-            isPremium: false,
-          } as unknown as import('../../types').PersonalityConfig);
+          adapter.setTemporaryPersonality(runtime.personalityConfig);
           // Ensure debate mode is active for turn mapping
           adapter.config.isDebateMode = true;
+          if (runtimeParameters) {
+            adapter.config.parameters = runtimeParameters;
+          }
           this.applyWebSearchConfig(adapter);
 
           // Debug logging
           try {
             const { PromptDebugLogger } = await import('../debug/PromptDebugLogger');
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const pName = (persona as any)?.name as string | undefined;
             const sysCombined = adapter.debugGetSystemPrompt();
             PromptDebugLogger.logTurn('streaming-turn', {
               aiId: currentAI.id,
               aiName: currentAI.name,
               model: currentAI.model,
               personalityId,
-              personalityName: pName,
+              personalityName: runtime.debug.personalityName,
               stance,
               civility,
               format: { id: format.id, name: format.name },
               phase,
               round: this.session.currentRound,
               messageCount,
-              systemPromptApplied: stancePrompt,
+              systemPromptApplied: runtime.systemPrompt,
               systemPromptAdapter: sysCombined,
               userPrompt: contextualPrompt,
             });
@@ -457,10 +428,10 @@ export class DebateOrchestrator {
       } catch { /* ignore persona application errors */ }
 
       if (adapter && supportsStreaming && streamingAllowed) {
-        // Apply expert parameters to adapter if present
+        // Apply expert parameters when enabled; otherwise use personality model parameters.
         try {
-          if (expert.enabled && expert.parameters) {
-            adapter.config.parameters = expert.parameters;
+          if (runtimeParameters) {
+            adapter.config.parameters = runtimeParameters;
           }
         } catch { /* ignore */ }
         // Create placeholder message and emit immediately
@@ -556,17 +527,17 @@ export class DebateOrchestrator {
 
           if (isVerificationError || isOverloadError) {
             try {
-              // Ensure adapter carries expert overrides on fallback
+              // Ensure adapter carries expert or personality parameters on fallback
               try {
-                if (expert.enabled && expert.parameters) {
-                  adapter.config.parameters = expert.parameters;
+                if (runtimeParameters) {
+                  adapter.config.parameters = runtimeParameters;
                 }
               } catch { /* ignore */ }
               const fallback = await this.aiService.sendMessage(
                 currentAI.provider,
                 contextualPrompt,
                 debateMessages,
-                true,
+                runtime.personalityConfig,
                 undefined,
                 undefined,
                 currentAI.model
@@ -626,59 +597,19 @@ export class DebateOrchestrator {
         // Non-streaming fallback (retain existing typing behavior)
         this.emitEvent({ type: 'typing_started', data: { aiName: currentAI.name }, timestamp: Date.now() });
 
-        // Apply expert parameters for non-streaming path
+        // Apply expert parameters when enabled; otherwise use personality model parameters.
         try {
-          if (expert.enabled && expert.parameters && adapter) {
-            adapter.config.parameters = expert.parameters;
+          if (runtimeParameters && adapter) {
+            adapter.config.parameters = runtimeParameters;
           }
           this.applyWebSearchConfig(adapter);
         } catch { /* ignore */ }
-        // For non-streaming, pass the composed personality and keep debate mode enabled
-        const composedPersonality = (() => {
-          const personalityId = personalities[currentAI.id] || 'default';
-          // Use pre-merged personality from context if available, otherwise fall back to base
-          const persona = this.session?.mergedPersonalities?.[personalityId] || getPersonality(personalityId);
-          const personaStyle = persona?.debatePrompt || persona?.systemPrompt || 'You are a thoughtful debater.';
-          const motion = topic;
-          const stance = stances[currentAI.id] || (aiIndex === 0 ? 'pro' : 'con');
-          const sideText = stance === 'pro' ? 'Affirmative (FOR)' : 'Negative (AGAINST)';
-          const civilityDirective = (() => {
-            switch (civility) {
-              case 1: return 'Civility: friendly and witty; playful jabs allowed, never mean.';
-              case 2: return 'Civility: lightly adversarial but cordial; one clever jab max.';
-              case 4: return 'Civility: pointed and firm; rigorous challenges without insults.';
-              case 5: return 'Civility: highly adversarial yet respectful; sharp critiques only.';
-              default: return 'Civility: neutral and professional.';
-            }
-          })();
-          const stancePrompt = [
-            '[DEBATE MODE]',
-            `Format: ${format.name}. Follow per-turn instructions (Opening/Rebuttal/Closing) that will be provided in the user message.`,
-            'Write in natural prose (no headings or lists).',
-            `Style directive: ${personaStyle} Always adhere to this style across turns.`,
-            `Your assigned role: ${sideText} the motion: "${motion}". Maintain this stance; do not switch sides.`,
-            civilityDirective,
-          ].join('\n');
-          // Use customized tone from merged personality if available
-          const personaTone = persona?.tone;
-          const traits = personaTone
-            ? { formality: personaTone.formality, humor: personaTone.humor, technicality: personaTone.technicality, empathy: personaTone.empathy }
-            : { formality: 0.6, humor: 0.2, technicality: 0.5, empathy: 0.3 };
-          return {
-            id: `debate_${currentAI.id}`,
-            name: 'Debater',
-            description: 'Composed debate persona with stance',
-            systemPrompt: stancePrompt,
-            traits,
-            isPremium: false,
-          } as unknown as import('../../types').PersonalityConfig;
-        })();
 
         const response = await this.aiService.sendMessage(
           currentAI.provider,
           contextualPrompt,
           debateMessages,
-          composedPersonality,
+          runtime.personalityConfig,
           undefined,
           undefined,
           true // ensure debate mode enabled in adapter
@@ -690,7 +621,7 @@ export class DebateOrchestrator {
           if (adapter) {
             // Ensure adapter reflects the composed personality for logging
             try {
-              adapter.setTemporaryPersonality(composedPersonality as unknown as import('../../types').PersonalityConfig);
+              adapter.setTemporaryPersonality(runtime.personalityConfig);
               adapter.config.isDebateMode = true;
             } catch { /* noop: debug logging helper */ }
             const sysCombined = adapter.debugGetSystemPrompt();
@@ -700,14 +631,14 @@ export class DebateOrchestrator {
               aiName: currentAI.name,
               model: currentAI.model,
               personalityId,
-              personalityName: UNIVERSAL_PERSONALITIES.find(p => p.id === personalityId)?.name,
-              stance: stances[currentAI.id],
+              personalityName: runtime.debug.personalityName,
+              stance,
               civility,
               format: { id: format.id, name: format.name },
               phase,
               round: this.session.currentRound,
               messageCount,
-              systemPromptApplied: (composedPersonality as unknown as { systemPrompt?: string })?.systemPrompt,
+              systemPromptApplied: runtime.systemPrompt,
               systemPromptAdapter: sysCombined,
               userPrompt: contextualPrompt,
             });

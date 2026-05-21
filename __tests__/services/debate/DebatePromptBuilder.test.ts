@@ -23,7 +23,9 @@ describe('DebatePromptBuilder', () => {
     expect(prompt).toContain('Turn: Rebuttal');
     expect(prompt).toContain('Directly refute');
     expect(prompt).toContain('AI should assist in education.');
-    expect(prompt).toContain('Use observational, PG humor');
+    expect(prompt).toContain('Use PG-13 observational satire');
+    expect(prompt).toContain('mild profanity is allowed sparingly');
+    expect(prompt).not.toContain('PG humor');
     expect(prompt).toContain('Tone: neutral and professional');
     expect(prompt).toContain(DEBATE_CONSTANTS.PROMPT_MARKERS.PREVIOUS_SPEAKER);
   });

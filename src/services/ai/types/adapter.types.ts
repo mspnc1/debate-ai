@@ -5,7 +5,7 @@ export interface AIAdapterConfig {
   apiKey: string;
   model?: string;
   personality?: PersonalityConfig;
-  parameters?: ModelParameters;
+  parameters?: Partial<ModelParameters>;
   isDebateMode?: boolean;
   webSearchEnabled?: boolean;
 }

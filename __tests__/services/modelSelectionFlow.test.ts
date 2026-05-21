@@ -151,6 +151,10 @@ describe('Model selection flow hardening', () => {
       expect.objectContaining({
         adapterConfig: expect.objectContaining({
           model: 'claude-sonnet-4-6',
+          personality: expect.objectContaining({
+            id: 'persona',
+            systemPrompt: expect.stringContaining('Chat mode contract'),
+          }),
         }),
         modelOverride: 'claude-sonnet-4-6',
       }),
@@ -183,7 +187,10 @@ describe('Model selection flow hardening', () => {
       'claude',
       expect.any(String),
       expect.any(Array),
-      false,
+      expect.objectContaining({
+        id: 'persona',
+        systemPrompt: expect.stringContaining('Chat mode contract'),
+      }),
       undefined,
       undefined,
       'claude-sonnet-4-6'

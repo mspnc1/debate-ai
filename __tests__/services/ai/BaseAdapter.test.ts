@@ -162,6 +162,32 @@ describe('BaseAdapter.getSystemPrompt', () => {
     expect(prompt).toContain('You are a witty assistant.');
   });
 
+  it('clears a previous temporary personality when default is selected', () => {
+    const adapter = new TestAdapter({ provider: 'claude', apiKey: 'key', model: 'opus' });
+    adapter.setTemporaryPersonality({
+      id: 'test',
+      name: 'Test Persona',
+      description: 'A test persona',
+      systemPrompt: 'You are a witty assistant.',
+      traits: { formality: 0.5, humor: 0.5, technicality: 0.5, empathy: 0.5 },
+      isPremium: false,
+    } as PersonalityConfig);
+    expect(adapter.getSystemPromptPublic()).toContain('witty assistant');
+
+    adapter.setTemporaryPersonality({
+      id: 'default',
+      name: 'Default',
+      emoji: 'bot',
+      tagline: 'Default',
+      description: 'Default',
+      bio: 'Default',
+      systemPrompt: 'Default assistant',
+      signatureMoves: [],
+    });
+
+    expect(adapter.getSystemPromptPublic()).toBe('You are a helpful AI assistant.');
+  });
+
   it('applies tone modifiers for non-neutral tone values', () => {
     const adapter = new TestAdapter({ provider: 'claude', apiKey: 'key', model: 'opus' });
     // Set a personality with extreme tone values

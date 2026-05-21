@@ -43,4 +43,18 @@ describe('Universal personalities catalog', () => {
       }
     }
   });
+
+  it('keeps George sharp and PG-13 without old tame constraints', () => {
+    const george = UNIVERSAL_PERSONALITIES.find(personality => personality.id === 'george');
+    expect(george).toBeDefined();
+    expect(george?.systemPrompt).toContain('PG-13 observational satirist');
+    expect(george?.systemPrompt).toContain('Mild profanity is allowed sparingly');
+    expect(george?.systemPrompt).toContain('sarcastic');
+    expect(george?.systemPrompt).not.toContain('avoid profanity by default');
+    expect(george?.systemPrompt).not.toContain('PG-rated');
+    expect(george?.tone?.humor).toBeGreaterThanOrEqual(0.95);
+    expect(george?.tone?.energy).toBeGreaterThan(0.65);
+    expect(george?.tone?.formality).toBeLessThan(0.35);
+    expect(george?.debateProfile?.aggression).toBeGreaterThan(0.75);
+  });
 });

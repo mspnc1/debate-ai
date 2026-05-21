@@ -28,6 +28,8 @@ const mockFindCompareById = jest.fn();
 const mockLoadCompareScript = jest.fn();
 const mockPrimeNextCompareTurn = jest.fn();
 const mockHasNextCompareTurn = jest.fn();
+const mockStreamResponse = jest.fn();
+const mockGetMergedPersonality = jest.fn();
 
 let mockHeaderProps: any;
 let mockCompareSplitViewProps: any;
@@ -105,7 +107,7 @@ jest.mock('@/hooks/usePersonality', () => ({
   usePersonality: () => ({
     isLoading: false,
     settings: { customizations: {}, lastSyncedAt: 0, version: 1 },
-    getPersonality: jest.fn().mockReturnValue(null),
+    getPersonality: (...args: unknown[]) => mockGetMergedPersonality(...args),
     getAllPersonalities: jest.fn().mockReturnValue([]),
     isCustomized: jest.fn().mockReturnValue(false),
     getCustomization: jest.fn().mockReturnValue(null),
@@ -123,7 +125,7 @@ jest.mock('@/hooks/usePersonality', () => ({
 
 jest.mock('@/services/streaming/StreamingService', () => ({
   getStreamingService: () => ({
-    streamResponse: jest.fn(),
+    streamResponse: (...args: unknown[]) => mockStreamResponse(...args),
     cancelAllStreams: jest.fn(),
   }),
 }));
@@ -221,6 +223,8 @@ type RenderOptions = {
   preloadedState?: Partial<RootState>;
   aiServiceOverrides?: Partial<{
     getAdapter: jest.Mock;
+    ensureAdapter: jest.Mock;
+    getApiKey: jest.Mock;
     setPersonality: jest.Mock;
     sendMessage: jest.Mock;
   }>;
@@ -247,7 +251,9 @@ const renderScreen = (options: RenderOptions = {}) => {
   const { params, isDemo = false, preloadedState, aiServiceOverrides, store: providedStore } = options;
 
   const aiService = {
-    getAdapter: jest.fn().mockReturnValue({ config: {} }),
+    getAdapter: jest.fn().mockReturnValue({ config: {}, debugGetSystemPrompt: jest.fn(() => 'adapter prompt') }),
+    ensureAdapter: jest.fn().mockResolvedValue({ config: {}, debugGetSystemPrompt: jest.fn(() => 'adapter prompt') }),
+    getApiKey: jest.fn().mockResolvedValue('api-key'),
     setPersonality: jest.fn(),
     sendMessage: jest.fn().mockResolvedValue({ response: 'response', modelUsed: 'model' }),
     ...aiServiceOverrides,
@@ -316,6 +322,10 @@ beforeEach(() => {
   mockLoadCompareScript.mockReset();
   mockPrimeNextCompareTurn.mockReset().mockReturnValue({ user: 'Next message' });
   mockHasNextCompareTurn.mockReset().mockReturnValue(false);
+  mockStreamResponse.mockReset().mockImplementation(async (_config, _onChunk, onComplete) => {
+    onComplete?.('streamed response');
+  });
+  mockGetMergedPersonality.mockReset().mockReturnValue(null);
   mockUseMergedAvailability.mockImplementation(() => ({
     imageUpload: { supported: true },
     documentUpload: { supported: false },
@@ -408,6 +418,63 @@ describe('CompareScreen', () => {
         undefined,
         undefined,
         resolveProviderModelId(rightAI.provider, rightAI.model) || rightAI.model
+      );
+    });
+  });
+
+  it('passes selected personality into compare streaming adapter configs', async () => {
+    const georgeLeft = { ...leftAI, personality: 'george' };
+    const { aiService } = renderScreen({ params: { leftAI: georgeLeft, rightAI } });
+
+    await act(async () => {
+      await mockChatInputProps.onSend('Compare these options');
+    });
+
+    await waitFor(() => expect(mockStreamResponse).toHaveBeenCalled());
+
+    expect(aiService.setPersonality).toHaveBeenCalledWith(
+      georgeLeft.provider,
+      expect.objectContaining({ id: 'george' })
+    );
+    expect(aiService.setPersonality).toHaveBeenCalledWith(rightAI.provider, undefined);
+    expect(mockStreamResponse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adapterConfig: expect.objectContaining({
+          provider: georgeLeft.provider,
+          personality: expect.objectContaining({
+            id: 'george',
+            systemPrompt: expect.stringContaining('PG-13 observational satirist'),
+          }),
+          parameters: expect.objectContaining({ temperature: 0.9 }),
+        }),
+      }),
+      expect.any(Function),
+      expect.any(Function),
+      expect.any(Function),
+      expect.any(Function),
+    );
+  });
+
+  it('passes compare personality into streaming fallback sendMessage calls', async () => {
+    mockStreamResponse.mockImplementation(async (_config, _onChunk, _onComplete, onError) => {
+      onError?.(new Error('overload'));
+    });
+    const georgeLeft = { ...leftAI, personality: 'george' };
+    const { aiService } = renderScreen({ params: { leftAI: georgeLeft, rightAI } });
+
+    await act(async () => {
+      await mockChatInputProps.onSend('Compare these options');
+    });
+
+    await waitFor(() => {
+      expect(aiService.sendMessage).toHaveBeenCalledWith(
+        georgeLeft.provider,
+        expect.any(String),
+        expect.any(Array),
+        expect.objectContaining({ id: 'george' }),
+        undefined,
+        undefined,
+        resolveProviderModelId(georgeLeft.provider, georgeLeft.model) || georgeLeft.model
       );
     });
   });

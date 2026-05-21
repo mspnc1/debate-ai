@@ -42,12 +42,12 @@ export class DebatePromptBuilder {
     const tone = civilityLevel
       ? `Tone: ${civilityLevel <= 2 ? 'friendly wit' : civilityLevel >= 5 ? 'sharp but respectful' : 'neutral and professional'}. Avoid insults or stereotyping.`
       : '';
-    // Generate style nudge from customized personality data, or fall back to hardcoded george behavior
+    // Generate a compact per-turn style nudge from customized personality data.
     let styleNudge = '';
     if (customizedTone || customizedDebateProfile) {
       styleNudge = generateStyleNudge(customizedTone, customizedDebateProfile);
     } else if (personalityId === 'george') {
-      styleNudge = 'Use observational, PG humor: include one clever, respectful zinger.';
+      styleNudge = 'Use PG-13 observational satire: expose contradictions with sarcasm; mild profanity is allowed sparingly, never slurs or personal attacks.';
     }
     const prevGuarded = phase === 'opening' ? '' : prev;
     // Human-friendly phase labels (format-aware for Socratic)

@@ -26,13 +26,26 @@ jest.mock('@/services/demo/DemoPlaybackRouter', () => ({
 }));
 
 jest.mock('@/config/personalities', () => ({
-  getPersonality: jest.fn(() => ({
-    id: 'persona',
-    name: 'Persona',
-    systemPrompt: 'Stay helpful',
-    debatePrompt: 'Debate politely',
-    chatGuidance: 'Be concise',
-  })),
+  getPersonality: jest.fn((id: string) => (
+    id === 'default'
+      ? {
+          id: 'default',
+          name: 'Default',
+          systemPrompt: 'Default assistant',
+          signatureMoves: [],
+        }
+      : {
+          id: 'persona',
+          name: 'Persona',
+          systemPrompt: 'Stay helpful',
+          debatePrompt: 'Debate politely',
+          chatGuidance: 'Be concise',
+          compareGuidance: 'Compare clearly',
+          signatureMoves: ['Stay useful.'],
+          tone: { formality: 0.3, humor: 0.8, energy: 0.7, empathy: 0.5, technicality: 0.4 },
+          modelParameters: { temperature: 0.91 },
+        }
+  )),
 }));
 
 jest.mock('@/utils/expertMode', () => ({
@@ -94,6 +107,7 @@ describe('ChatOrchestrator', () => {
     config: {},
     getCapabilities: jest.fn(() => ({ streaming: true })),
     setTemporaryPersonality: jest.fn(),
+    debugGetSystemPrompt: jest.fn(() => 'adapter prompt'),
   });
 
   const mockAIService = () => {
@@ -138,6 +152,53 @@ describe('ChatOrchestrator', () => {
     expect(dispatchMock).toHaveBeenCalledWith(expect.objectContaining({ type: endStreaming.type }));
     expect(service.sendMessage).not.toHaveBeenCalled();
     expect(adapter.getCapabilities).toHaveBeenCalled();
+    expect(service.setPersonality).toHaveBeenCalledWith('claude', expect.objectContaining({
+      id: 'persona',
+      systemPrompt: expect.stringContaining('Stay helpful'),
+    }));
+    expect(mockStreamingService.streamResponse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adapterConfig: expect.objectContaining({
+          personality: expect.objectContaining({
+            id: 'persona',
+            systemPrompt: expect.stringContaining('Stay helpful'),
+          }),
+          parameters: { temperature: 0.91 },
+        }),
+      }),
+      expect.any(Function),
+      expect.any(Function),
+      expect.any(Function),
+      expect.any(Function),
+    );
+  });
+
+  it('clears a reused adapter personality when default is selected', async () => {
+    const { service } = mockAIService();
+    mockStreamingService.streamResponse.mockImplementation(async (_config, onChunk, onComplete) => {
+      onChunk?.('chunk');
+      onComplete?.('final');
+    });
+
+    const orchestrator = new ChatOrchestrator(service, dispatch);
+    orchestrator.updateSession(session);
+    jest.spyOn(ChatOrchestrator.prototype as unknown as { sleep: (ms: number) => Promise<void> }, 'sleep').mockResolvedValue(undefined);
+
+    await orchestrator.processUserMessage(buildParams({ aiPersonalities: { claude: 'default' } }));
+
+    expect(service.setPersonality).toHaveBeenCalledWith('claude', undefined);
+    expect(mockStreamingService.streamResponse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adapterConfig: expect.objectContaining({
+          personality: undefined,
+          parameters: undefined,
+        }),
+      }),
+      expect.any(Function),
+      expect.any(Function),
+      expect.any(Function),
+      expect.any(Function),
+    );
   });
 
   it('falls back to non-streaming when streaming throws verification error', async () => {

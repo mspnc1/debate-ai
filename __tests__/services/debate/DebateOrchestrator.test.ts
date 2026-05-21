@@ -169,6 +169,41 @@ describe('DebateOrchestrator', () => {
     jest.useRealTimers();
   });
 
+  it('passes selected debate personality and model parameters into the adapter', async () => {
+    jest.useFakeTimers();
+    const adapter = {
+      config: {} as Record<string, unknown>,
+      getCapabilities: jest.fn(() => ({ streaming: true })),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => 'adapter prompt'),
+    };
+
+    const aiService = {
+      getAdapter: jest.fn(() => adapter),
+      sendMessage: jest.fn(),
+    };
+
+    mockStreamingService.streamResponse.mockImplementation(async (_config, _onChunk, onComplete) => {
+      onComplete?.('finalized');
+    });
+
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    await orchestrator.initializeDebate('AI regulation should be stricter.', participants, { claude: 'george' }, { rounds: 1, civility: 5 });
+    await orchestrator.startDebate([]);
+
+    expect(adapter.setTemporaryPersonality).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'george',
+      systemPrompt: expect.stringContaining('PG-13 observational satirist'),
+    }));
+    expect(adapter.setTemporaryPersonality).toHaveBeenCalledWith(expect.objectContaining({
+      systemPrompt: expect.stringContaining('Affirmative (FOR)'),
+    }));
+    expect(adapter.config.parameters).toEqual(expect.objectContaining({ temperature: 0.9 }));
+
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
   describe('web search support', () => {
     it('enables webSearchEnabled when both participants support web search', async () => {
       mockMergeAvailabilitiesStrict.mockReturnValue({
@@ -377,14 +412,17 @@ describe('DebateOrchestrator', () => {
       await orchestrator.initializeDebate('AI ethics', participants, {}, { rounds: 1 });
       await orchestrator.startDebate([]);
 
-      expect(aiService.sendMessage).toHaveBeenCalledWith(
-        'claude',
-        expect.any(String),
-        expect.any(Array),
-        true,
-        undefined,
-        undefined,
-        'claude-sonnet-4-6'
+    expect(aiService.sendMessage).toHaveBeenCalledWith(
+      'claude',
+      expect.any(String),
+      expect.any(Array),
+      expect.objectContaining({
+        id: 'debate_default',
+        systemPrompt: expect.stringContaining('[DEBATE MODE]'),
+      }),
+      undefined,
+      undefined,
+      'claude-sonnet-4-6'
       );
       expect(completedEvents[0]).toEqual(expect.objectContaining({
         webSearchEnabled: true,
