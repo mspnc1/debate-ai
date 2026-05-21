@@ -200,6 +200,7 @@ export type RootStackParamList = {
     initialPrompt?: string;
     sourceImage?: string;
     refinementInstructions?: string;
+    focusMediaId?: string;
   };
   Stats: undefined;
   PrivacyPolicy: undefined;

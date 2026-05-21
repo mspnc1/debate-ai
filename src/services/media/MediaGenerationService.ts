@@ -21,6 +21,7 @@ import { bytesToBase64 } from './mediaFileCache';
 const RUNWAY_API_BASE = 'https://api.dev.runwayml.com/v1';
 const RUNWAY_API_VERSION = '2024-11-06';
 const ELEVENLABS_API_BASE = 'https://api.elevenlabs.io';
+const RUNWAY_API_KEY_PATTERN = /^key_[0-9a-f]{128}$/;
 
 export interface StartRunwayVideoRequest {
   apiKey: string;
@@ -79,14 +80,63 @@ function mimeTypeForOutputFormat(outputFormat: string): string {
   return 'audio/mpeg';
 }
 
-async function parseErrorResponse(response: Response, provider: string): Promise<Error> {
+function readProviderErrorMessage(parsed: unknown): string | undefined {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+  const record = parsed as Record<string, unknown>;
+  const error = record.error;
+
+  if (typeof error === 'string' && error.trim()) return error.trim();
+  if (error && typeof error === 'object' && !Array.isArray(error)) {
+    const errorRecord = error as Record<string, unknown>;
+    const errorMessage = readString(errorRecord, 'message')
+      || readString(errorRecord, 'detail')
+      || readString(errorRecord, 'description');
+    if (errorMessage) return errorMessage;
+  }
+
+  return readString(record, 'message')
+    || readString(record, 'detail')
+    || readString(record, 'error_description');
+}
+
+function normalizeApiKey(apiKey: string): string {
+  return apiKey.trim();
+}
+
+function normalizeRunwayApiKey(apiKey: string): string {
+  const normalized = normalizeApiKey(apiKey);
+  return normalized.startsWith('Key_') ? `key_${normalized.slice(4)}` : normalized;
+}
+
+function describeApiKey(apiKey: string): { length: number; prefix: string; suffix: string } {
+  return {
+    length: apiKey.length,
+    prefix: apiKey.slice(0, 4),
+    suffix: apiKey.slice(-4),
+  };
+}
+
+function formatRunwayKeyFingerprint(apiKey: string): string {
+  const fingerprint = describeApiKey(apiKey);
+  return `${fingerprint.prefix}...${fingerprint.suffix} (${fingerprint.length} chars)`;
+}
+
+function validateRunwayApiKey(apiKey: string): void {
+  if (!RUNWAY_API_KEY_PATTERN.test(apiKey)) {
+    throw new Error(
+      `Runway API key format is invalid. Expected key_ or Key_ followed by 128 lowercase hex characters; mobile has ${formatRunwayKeyFingerprint(apiKey)}.`
+    );
+  }
+}
+
+async function parseErrorResponse(response: Response, provider: string, credentialFingerprint?: string): Promise<Error> {
   let message = `${provider} API error (${response.status})`;
   try {
     const text = await response.text();
     if (text) {
       try {
         const parsed = JSON.parse(text);
-        message = parsed.error?.message || parsed.message || text.slice(0, 260);
+        message = readProviderErrorMessage(parsed) || text.slice(0, 260);
       } catch {
         message = text.slice(0, 260);
       }
@@ -96,14 +146,35 @@ async function parseErrorResponse(response: Response, provider: string): Promise
   }
 
   const lower = message.toLowerCase();
-  if (response.status === 401 || response.status === 403 || lower.includes('unauthorized') || lower.includes('forbidden')) {
-    message = `Invalid ${provider} API key.`;
-  } else if (response.status === 402 || lower.includes('credit') || lower.includes('quota')) {
-    message = `${provider} credits or quota are exhausted.`;
-  } else if (response.status === 429 || lower.includes('rate limit')) {
-    message = `${provider} rate limit exceeded. Please try again later.`;
-  } else if (lower.includes('safety') || lower.includes('content policy') || lower.includes('moderation')) {
-    message = 'Content policy violation. Please revise your prompt.';
+  if (provider === 'Runway' && response.status === 401) {
+    message = `Runway API request failed with HTTP 401. Mobile stored key is ${credentialFingerprint || 'unavailable'}. Provider response: ${message}`;
+  } else {
+    const mentionsCredential = lower.includes('api key')
+      || lower.includes('token')
+      || lower.includes('credential')
+      || lower.includes('bearer')
+      || lower.includes('authentication')
+      || lower.includes('authorization');
+    const credentialRejected = response.status === 401
+      || lower.includes('unauthorized')
+      || (mentionsCredential && (
+        lower.includes('invalid')
+        || lower.includes('expired')
+        || lower.includes('missing')
+        || lower.includes('not provided')
+      ));
+
+    if (credentialRejected) {
+      message = `Invalid ${provider} API key.`;
+    } else if (response.status === 402 || lower.includes('credit') || lower.includes('quota')) {
+      message = `${provider} credits or quota are exhausted.`;
+    } else if (response.status === 429 || lower.includes('rate limit')) {
+      message = `${provider} rate limit exceeded. Please try again later.`;
+    } else if (lower.includes('safety') || lower.includes('content policy') || lower.includes('moderation')) {
+      message = 'Content policy violation. Please revise your prompt.';
+    } else if (response.status === 403 || lower.includes('forbidden')) {
+      message = `${provider} access denied: ${message}`;
+    }
   }
 
   const error = new Error(message);
@@ -123,6 +194,10 @@ function buildRunwayBody(request: StartRunwayVideoRequest): Record<string, unkno
     duration: request.durationSeconds || RUNWAY_DEFAULT_DURATION_SECONDS,
     ...(request.operation === 'image_to_video' ? { promptImage: request.sourceImage } : {}),
   };
+}
+
+function getRunwayVideoEndpoint(request: StartRunwayVideoRequest): 'text_to_video' | 'image_to_video' {
+  return request.operation === 'text_to_video' ? 'text_to_video' : 'image_to_video';
 }
 
 function buildElevenLabsVoiceSearchUrl(input: {
@@ -218,23 +293,40 @@ async function recordMediaGeneration(input: {
 export class MediaGenerationService {
   static mapRunwayStatus = mapRunwayStatus;
   static buildRunwayBody = buildRunwayBody;
+  static getRunwayVideoEndpoint = getRunwayVideoEndpoint;
   static mimeTypeForOutputFormat = mimeTypeForOutputFormat;
   static buildElevenLabsVoiceSearchUrl = buildElevenLabsVoiceSearchUrl;
 
   static async startRunwayVideo(request: StartRunwayVideoRequest): Promise<RunwayVideoTask> {
-    const endpoint = request.operation === 'text_to_video' ? 'text_to_video' : 'image_to_video';
+    const apiKey = normalizeRunwayApiKey(request.apiKey);
+    validateRunwayApiKey(apiKey);
+    const endpoint = getRunwayVideoEndpoint(request);
+    const body = buildRunwayBody(request);
     const response = await fetch(`${RUNWAY_API_BASE}/${endpoint}`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${request.apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         'X-Runway-Version': RUNWAY_API_VERSION,
       },
-      body: JSON.stringify(buildRunwayBody(request)),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
-      throw await parseErrorResponse(response, 'Runway');
+      if (__DEV__ && (typeof process === 'undefined' || process.env.NODE_ENV !== 'test')) {
+        console.warn('[Runway] Video task request failed', {
+          status: response.status,
+          endpoint,
+          operation: request.operation,
+          modelId: request.modelId || RUNWAY_DEFAULT_VIDEO_MODEL,
+          durationSeconds: request.durationSeconds || RUNWAY_DEFAULT_DURATION_SECONDS,
+          aspectRatio: request.aspectRatio || RUNWAY_DEFAULT_ASPECT_RATIO,
+          hasSourceImage: Boolean(request.sourceImage),
+          credential: describeApiKey(apiKey),
+          bodyKeys: Object.keys(body),
+        });
+      }
+      throw await parseErrorResponse(response, 'Runway', formatRunwayKeyFingerprint(apiKey));
     }
 
     const data = await response.json() as { id?: string; status?: string };
@@ -250,16 +342,18 @@ export class MediaGenerationService {
   }
 
   static async getRunwayTaskStatus(apiKey: string, providerTaskId: string): Promise<RunwayTaskStatus> {
+    const normalizedApiKey = normalizeRunwayApiKey(apiKey);
+    validateRunwayApiKey(normalizedApiKey);
     const response = await fetch(`${RUNWAY_API_BASE}/tasks/${encodeURIComponent(providerTaskId)}`, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${normalizedApiKey}`,
         'X-Runway-Version': RUNWAY_API_VERSION,
       },
     });
 
     if (!response.ok) {
-      throw await parseErrorResponse(response, 'Runway');
+      throw await parseErrorResponse(response, 'Runway', formatRunwayKeyFingerprint(normalizedApiKey));
     }
 
     const data = await response.json() as {
@@ -303,7 +397,7 @@ export class MediaGenerationService {
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'xi-api-key': request.apiKey,
+        'xi-api-key': normalizeApiKey(request.apiKey),
         'Content-Type': 'application/json',
         Accept: mimeType,
       },
@@ -331,7 +425,7 @@ export class MediaGenerationService {
   ): Promise<MediaProviderOptionsResponse> {
     const voiceResponse = await fetch(buildElevenLabsVoiceSearchUrl(input), {
       method: 'GET',
-      headers: { 'xi-api-key': apiKey },
+      headers: { 'xi-api-key': normalizeApiKey(apiKey) },
     });
 
     if (!voiceResponse.ok) {
@@ -349,7 +443,7 @@ export class MediaGenerationService {
     try {
       const modelResponse = await fetch(`${ELEVENLABS_API_BASE}/v1/models`, {
         method: 'GET',
-        headers: { 'xi-api-key': apiKey },
+        headers: { 'xi-api-key': normalizeApiKey(apiKey) },
       });
       if (modelResponse.ok) {
         const rawModels = await modelResponse.json() as unknown;

@@ -137,9 +137,68 @@ jest.mock('expo-image-manipulator', () => ({
 jest.mock('expo-video', () => {
   const React = require('react');
   const { View } = require('react-native');
+  const createPlayer = () => {
+    const listeners: Record<string, Array<(payload?: unknown) => void>> = {};
+    const player = {
+      playing: false,
+      currentTime: 0,
+      duration: 5,
+      play: jest.fn(() => {
+        if (player.currentTime >= player.duration) {
+          return;
+        }
+        player.playing = true;
+        player.__emit('playingChange', { isPlaying: true });
+      }),
+      pause: jest.fn(() => {
+        player.playing = false;
+        player.__emit('playingChange', { isPlaying: false });
+      }),
+      replay: jest.fn(),
+      addListener: jest.fn((eventName: string, listener: (payload?: unknown) => void) => {
+        listeners[eventName] = listeners[eventName] || [];
+        listeners[eventName].push(listener);
+
+        return {
+          remove: jest.fn(() => {
+            listeners[eventName] = (listeners[eventName] || []).filter(
+              (candidate) => candidate !== listener
+            );
+          }),
+        };
+      }),
+      __emit: jest.fn((eventName: string, payload?: unknown) => {
+        if (eventName === 'playingChange' && typeof payload === 'object' && payload && 'isPlaying' in payload) {
+          player.playing = Boolean((payload as { isPlaying?: boolean }).isPlaying);
+        }
+        if (eventName === 'playToEnd') {
+          player.playing = false;
+          player.currentTime = player.duration;
+        }
+
+        (listeners[eventName] || []).forEach((listener) => {
+          if (eventName === 'playToEnd') {
+            listener();
+          } else {
+            listener(payload);
+          }
+        });
+      }),
+    };
+
+    return player;
+  };
   return {
     VideoView: (props: Record<string, unknown>) => React.createElement(View, props),
-    useVideoPlayer: jest.fn(() => ({ play: jest.fn(), pause: jest.fn(), playing: false })),
+    useVideoPlayer: jest.fn((_source: unknown, setup?: (player: ReturnType<typeof createPlayer>) => void) => {
+      const playerRef = React.useRef<ReturnType<typeof createPlayer> | null>(null);
+      if (!playerRef.current) {
+        playerRef.current = createPlayer();
+        setup?.(playerRef.current);
+      }
+
+      return playerRef.current;
+    }),
   };
 });
 

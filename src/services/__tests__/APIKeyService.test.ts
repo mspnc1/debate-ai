@@ -12,6 +12,8 @@ const mockedStorage = secureStorage as jest.Mocked<typeof secureStorage>;
 
 describe('APIKeyService', () => {
   let service: APIKeyService;
+  const validRunwayKey = `key_${'a'.repeat(128)}`;
+  const capitalizedRunwayKey = `Key_${'a'.repeat(128)}`;
 
   beforeEach(() => {
     service = new APIKeyService();
@@ -29,6 +31,30 @@ describe('APIKeyService', () => {
     });
   });
 
+  it('trims keys before saving and preserves trimmed existing keys', async () => {
+    mockedStorage.getApiKeys.mockResolvedValueOnce({ openai: ' old-key ' });
+
+    await service.saveKey('runway', ' runway-key-with-whitespace ');
+
+    expect(mockedStorage.saveApiKeys).toHaveBeenCalledWith({
+      openai: 'old-key',
+      runway: 'runway-key-with-whitespace',
+    });
+  });
+
+  it('normalizes Runway keys to the lowercase API prefix before saving and reading them', async () => {
+    mockedStorage.getApiKeys.mockResolvedValueOnce({ runway: capitalizedRunwayKey });
+
+    await service.saveKey('runway', capitalizedRunwayKey);
+
+    expect(mockedStorage.saveApiKeys).toHaveBeenCalledWith({
+      runway: validRunwayKey,
+    });
+
+    mockedStorage.getApiKeys.mockResolvedValueOnce({ runway: capitalizedRunwayKey });
+    await expect(service.getKey('runway')).resolves.toBe(validRunwayKey);
+  });
+
   it('deletes key when empty string provided', async () => {
     const deleteSpy = jest.spyOn(service, 'deleteKey').mockResolvedValue();
     await service.saveKey('openai', '');
@@ -37,7 +63,7 @@ describe('APIKeyService', () => {
   });
 
   it('loadKeys returns stored keys or empty object on error', async () => {
-    mockedStorage.getApiKeys.mockResolvedValueOnce({ openai: 'key' });
+    mockedStorage.getApiKeys.mockResolvedValueOnce({ openai: ' key ' });
     expect(await service.loadKeys()).toEqual({ openai: 'key' });
 
     mockedStorage.getApiKeys.mockRejectedValueOnce(new Error('fail'));
@@ -66,7 +92,7 @@ describe('APIKeyService', () => {
   });
 
   it('getKey returns stored key or null', async () => {
-    mockedStorage.getApiKeys.mockResolvedValueOnce({ openai: 'key' });
+    mockedStorage.getApiKeys.mockResolvedValueOnce({ openai: ' key ' });
     expect(await service.getKey('openai')).toBe('key');
 
     mockedStorage.getApiKeys.mockResolvedValueOnce({});
@@ -105,6 +131,12 @@ describe('APIKeyService', () => {
       expect(service.validateKeyFormat('claude', '12345678901234567890').isValid).toBe(false);
       expect(service.validateKeyFormat('google', 'short').isValid).toBe(false);
       expect(service.validateKeyFormat('google', 'abcdefghijklmnopqrst').isValid).toBe(true);
+      expect(service.validateKeyFormat('runway', validRunwayKey).isValid).toBe(true);
+      expect(service.validateKeyFormat('runway', capitalizedRunwayKey).isValid).toBe(true);
+      expect(service.validateKeyFormat('runway', 'rw_abcdefghijklmnopqrstuvwxyz123456')).toEqual({
+        isValid: false,
+        message: 'Runway API keys should start with "key_" or "Key_" followed by 128 lowercase hex characters',
+      });
     });
   });
 });

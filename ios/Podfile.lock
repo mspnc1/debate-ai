@@ -1246,6 +1246,8 @@ PODS:
     - ExpoModulesCore
   - ExpoAsset (55.0.16):
     - ExpoModulesCore
+  - ExpoAudio (55.0.14):
+    - ExpoModulesCore
   - ExpoBlur (55.0.9):
     - ExpoModulesCore
   - ExpoClipboard (55.0.8):
@@ -1315,6 +1317,8 @@ PODS:
   - ExpoSecureStore (55.0.8):
     - ExpoModulesCore
   - ExpoSharing (55.0.18):
+    - ExpoModulesCore
+  - ExpoVideo (55.0.17):
     - ExpoModulesCore
   - ExpoWebBrowser (55.0.9):
     - ExpoModulesCore
@@ -4016,6 +4020,7 @@ DEPENDENCIES:
   - "ExpoAdapterGoogleSignIn (from `../node_modules/@react-native-google-signin/google-signin/expo/ios`)"
   - ExpoAppleAuthentication (from `../node_modules/expo-apple-authentication/ios`)
   - ExpoAsset (from `../node_modules/expo-asset/ios`)
+  - ExpoAudio (from `../node_modules/expo-audio/ios`)
   - ExpoBlur (from `../node_modules/expo-blur/ios`)
   - ExpoClipboard (from `../node_modules/expo-clipboard/ios`)
   - ExpoCrypto (from `../node_modules/expo-crypto/ios`)
@@ -4037,6 +4042,7 @@ DEPENDENCIES:
   - ExpoPrint (from `../node_modules/expo-print/ios`)
   - ExpoSecureStore (from `../node_modules/expo-secure-store/ios`)
   - ExpoSharing (from `../node_modules/expo-sharing/ios`)
+  - ExpoVideo (from `../node_modules/expo-video/ios`)
   - ExpoWebBrowser (from `../node_modules/expo-web-browser/ios`)
   - EXStructuredHeaders (from `../node_modules/expo-structured-headers/ios`)
   - EXUpdates (from `../node_modules/expo-updates/ios`)
@@ -4193,6 +4199,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-apple-authentication/ios"
   ExpoAsset:
     :path: "../node_modules/expo-asset/ios"
+  ExpoAudio:
+    :path: "../node_modules/expo-audio/ios"
   ExpoBlur:
     :path: "../node_modules/expo-blur/ios"
   ExpoClipboard:
@@ -4235,6 +4243,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-secure-store/ios"
   ExpoSharing:
     :path: "../node_modules/expo-sharing/ios"
+  ExpoVideo:
+    :path: "../node_modules/expo-video/ios"
   ExpoWebBrowser:
     :path: "../node_modules/expo-web-browser/ios"
   EXStructuredHeaders:
@@ -4441,6 +4451,7 @@ SPEC CHECKSUMS:
   ExpoAdapterGoogleSignIn: 3332ac2d96d803350f53f84047244b35e2efc994
   ExpoAppleAuthentication: b1ca252ee1d79888720df7af6bbb559b3ca57a77
   ExpoAsset: e5a93c1082e763fb7b59a0b3a16c38224ba07f8a
+  ExpoAudio: bb9b02133e7ed48b18a58a5fad9a7a90289fa94d
   ExpoBlur: 3982ec03e89c0d9a2f2b8f35b48fe12e3155c6ed
   ExpoClipboard: ea1c19f29543c3f84abcbc500c6f1a62d954fd5c
   ExpoCrypto: 5aec33091f8b9cd1d0b2ef6824de03097b022f0a
@@ -4462,6 +4473,7 @@ SPEC CHECKSUMS:
   ExpoPrint: 744a2ca8033698b749389290d96f4ec836027aed
   ExpoSecureStore: 7837b892a89ad8d28b64d9302b657e8b6ebae250
   ExpoSharing: 7bc7b17aaaab37a933a012a14aa776562999feaa
+  ExpoVideo: ea84566ae0ad3766b3fd7266529febafd80ebc38
   ExpoWebBrowser: 19c5d250e0c101027677970a5f2fc635d9df2e73
   EXStructuredHeaders: aa49a5557fa24aa61dda4ac665f3987bf3e9e35d
   EXUpdates: cff456af58056bf254ed4e2bc46a8da53ab8a28b

@@ -67,6 +67,13 @@ jest.mock('@expo/vector-icons', () => {
   };
 });
 
+jest.mock('@react-native-community/slider', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const Slider = (props: any) => React.createElement(View, props);
+  return { __esModule: true, default: Slider };
+});
+
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -131,6 +138,20 @@ jest.mock('@/components/molecules', () => {
         React.createElement(Text, null, 'Advanced Options')
       );
     },
+    SegmentedControl: (props: any) =>
+      React.createElement(View, { testID: 'segmented-control' },
+        props.options.map((option: any) =>
+          React.createElement(
+            TouchableOpacity,
+            {
+              key: option.value,
+              testID: `segment-${option.value}`,
+              onPress: () => props.onChange(option.value),
+            },
+            React.createElement(Text, null, option.label)
+          )
+        )
+      ),
   };
 });
 
@@ -233,6 +254,7 @@ describe('CreateSetupScreen', () => {
     mockGradientButtonProps = undefined;
     mockPromptHeroInputProps = undefined;
     mockAdvancedOptionsSectionProps = undefined;
+    mockDispatch.mockImplementation((action) => action);
     mockUseSelector.mockImplementation((selector) => selector(baseState));
     mockUseFeatureAccess.mockReturnValue({ membershipStatus: 'premium', isDemo: false, isPremium: true });
   });
@@ -417,6 +439,130 @@ describe('CreateSetupScreen', () => {
         },
         initialPrompt: 'A beautiful sunset',
       });
+    });
+  });
+
+  describe('media generation rail', () => {
+    it('shows the sticky video running rail from media generation state', () => {
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          settings: {
+            ...baseState.settings,
+            apiKeys: { ...baseState.settings.apiKeys, runway: 'runway-key' },
+            verifiedProviders: [...baseState.settings.verifiedProviders, 'runway'],
+          },
+          create: {
+            ...baseState.create,
+            activeTab: 'video',
+            mediaGeneration: {
+              video: {
+                id: 'media_running',
+                mediaType: 'video',
+                providerId: 'runway',
+                operation: 'text_to_video',
+                modelId: 'gen4.5',
+                prompt: 'A city timelapse',
+                status: 'running',
+                phase: 'rendering',
+                startedAt: Date.now(),
+                message: 'Rendering video...',
+              },
+              audio: null,
+            },
+          },
+        })
+      );
+
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+
+      expect(getByTestId('create-video-rail')).toBeTruthy();
+      expect(getByTestId('create-video-status')).toBeTruthy();
+      expect(getByText('Rendering video...')).toBeTruthy();
+      expect(getByText('Generating Video...')).toBeTruthy();
+    });
+
+    it('shows a video completion CTA that opens Gallery focused on the result', () => {
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          settings: {
+            ...baseState.settings,
+            apiKeys: { ...baseState.settings.apiKeys, runway: 'runway-key' },
+            verifiedProviders: [...baseState.settings.verifiedProviders, 'runway'],
+          },
+          create: {
+            ...baseState.create,
+            activeTab: 'video',
+            mediaGeneration: { video: null, audio: null },
+            lastMediaGenerationResult: {
+              id: 'media_video_done',
+              mediaType: 'video',
+              status: 'succeeded',
+              message: 'Video generation complete.',
+              completedAt: Date.now(),
+            },
+          },
+        })
+      );
+
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+
+      expect(getByText('Video generation complete.')).toBeTruthy();
+      fireEvent.press(getByTestId('create-video-gallery-cta'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('CreateSession', { focusMediaId: 'media_video_done' });
+    });
+
+    it('uses the same sticky rail pattern for audio completion', () => {
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          create: {
+            ...baseState.create,
+            activeTab: 'audio',
+            mediaGeneration: { video: null, audio: null },
+            lastMediaGenerationResult: {
+              id: 'media_audio_done',
+              mediaType: 'audio',
+              status: 'succeeded',
+              message: 'Audio generation complete.',
+              completedAt: Date.now(),
+            },
+          },
+        })
+      );
+
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+
+      expect(getByTestId('create-audio-rail')).toBeTruthy();
+      expect(getByText('Audio generation complete.')).toBeTruthy();
+      fireEvent.press(getByTestId('create-audio-gallery-cta'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('CreateSession', { focusMediaId: 'media_audio_done' });
+    });
+
+    it('maps the video duration slider index to allowed duration values', () => {
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          settings: {
+            ...baseState.settings,
+            apiKeys: { ...baseState.settings.apiKeys, runway: 'runway-key' },
+            verifiedProviders: [...baseState.settings.verifiedProviders, 'runway'],
+          },
+          create: {
+            ...baseState.create,
+            activeTab: 'video',
+          },
+        })
+      );
+
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+
+      fireEvent(getByTestId('create-video-duration-slider'), 'valueChange', 8);
+
+      expect(getByText('10s')).toBeTruthy();
     });
   });
 

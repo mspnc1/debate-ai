@@ -43,7 +43,7 @@ const DEFAULT_CONFIG: LoggerConfig = {
 };
 
 const SENSITIVE_KEY_PATTERN = /(api[-_ ]?key|authorization|bearer|token|secret|password|receipt|email|user[-_ ]?id|uid|purchase)/i;
-const API_KEY_VALUE_PATTERN = /\b(sk-ant-[A-Za-z0-9_-]+|sk-[A-Za-z0-9_-]+|pplx-[A-Za-z0-9_-]+|AIza[A-Za-z0-9_-]+|gsk_[A-Za-z0-9_-]+|xai-[A-Za-z0-9_-]+)\b/g;
+const API_KEY_VALUE_PATTERN = /\b(sk-ant-[A-Za-z0-9_-]+|sk-[A-Za-z0-9_-]+|pplx-[A-Za-z0-9_-]+|AIza[A-Za-z0-9_-]+|gsk_[A-Za-z0-9_-]+|xai-[A-Za-z0-9_-]+|[Kk]ey_[0-9a-f]{128})\b/g;
 const EMAIL_VALUE_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
 
 /**

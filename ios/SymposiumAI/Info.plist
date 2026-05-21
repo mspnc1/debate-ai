@@ -61,11 +61,15 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Allow $(PRODUCT_NAME) to access your microphone</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Symposium AI saves generated images to your photo library.</string>
+	<string>Symposium AI saves generated images and media to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Symposium AI accesses your photos to share images with AI assistants.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>SplashScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>

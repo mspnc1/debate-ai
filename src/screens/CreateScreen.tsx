@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   Platform,
   Share,
+  Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErrorService } from '@/services/errors/ErrorService';
@@ -23,7 +24,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import * as Haptics from 'expo-haptics';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
-import { VideoView, useVideoPlayer } from 'expo-video';
+import { VideoView, useVideoPlayer, type PlayingChangeEventPayload } from 'expo-video';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -83,15 +84,84 @@ type GalleryListItem =
   | { kind: 'image'; entry: GeneratedImageEntry }
   | { kind: 'media'; entry: GeneratedMediaEntry };
 
-function VideoPreview({ uri, style }: { uri: string; style: object }) {
+type VideoPlaybackState = {
+  isPlaying: boolean;
+  hasEnded: boolean;
+};
+
+function VideoPreview({
+  mediaId,
+  uri,
+  style,
+  onPlaybackStateChange,
+}: {
+  mediaId: string;
+  uri: string;
+  style: object;
+  onPlaybackStateChange?: (mediaId: string, state: VideoPlaybackState) => void;
+}) {
   const player = useVideoPlayer(uri);
+  const [isPlaying, setIsPlaying] = useState(Boolean(player.playing));
+  const [nativeControlsVisible, setNativeControlsVisible] = useState(!player.playing);
+
+  const notifyPlaybackState = useCallback((state: VideoPlaybackState) => {
+    setIsPlaying(state.isPlaying);
+    setNativeControlsVisible(!state.isPlaying);
+    onPlaybackStateChange?.(mediaId, state);
+  }, [mediaId, onPlaybackStateChange]);
+
+  useEffect(() => {
+    notifyPlaybackState({ isPlaying: Boolean(player.playing), hasEnded: false });
+  }, [notifyPlaybackState, player]);
+
+  useEffect(() => {
+    const playingSubscription = player.addListener('playingChange', ({ isPlaying }: PlayingChangeEventPayload) => {
+      notifyPlaybackState({ isPlaying, hasEnded: false });
+    });
+    const endSubscription = player.addListener('playToEnd', () => {
+      notifyPlaybackState({ isPlaying: false, hasEnded: true });
+    });
+
+    return () => {
+      playingSubscription.remove();
+      endSubscription.remove();
+    };
+  }, [notifyPlaybackState, player]);
+
+  const handleHiddenControlsPress = useCallback(() => {
+    player.pause();
+    notifyPlaybackState({ isPlaying: false, hasEnded: false });
+  }, [notifyPlaybackState, player]);
+
   return (
-    <VideoView
-      player={player}
-      style={style}
-      nativeControls
-      contentFit="cover"
-    />
+    <View style={style}>
+      <VideoView
+        player={player}
+        style={styles.videoPlayerSurface}
+        nativeControls={nativeControlsVisible}
+        contentFit="cover"
+        fullscreenOptions={{ enable: false }}
+        showsTimecodes={false}
+        buttonOptions={{
+          showBottomBar: false,
+          showSeekBackward: false,
+          showSeekForward: false,
+          showSettings: false,
+          showNext: false,
+          showPrevious: false,
+          showSubtitles: false,
+        }}
+        testID={`gallery-video-surface-${mediaId}`}
+      />
+      {isPlaying && !nativeControlsVisible && (
+        <Pressable
+          style={styles.videoPressSurface}
+          onPress={handleHiddenControlsPress}
+          accessibilityRole="button"
+          accessibilityLabel="Pause video"
+        />
+      )}
+    </View>
   );
 }
 
@@ -154,6 +224,7 @@ export default function CreateScreen() {
     initialPrompt,
     sourceImage,
     refinementInstructions,
+    focusMediaId,
   } = route.params || {};
 
   const createState = useSelector(selectCreateState);
@@ -182,7 +253,9 @@ export default function CreateScreen() {
   const [sharingImageId, setSharingImageId] = useState<string | null>(null);
   const [sharingMediaId, setSharingMediaId] = useState<string | null>(null);
   const [refiningImage, setRefiningImage] = useState<GeneratedImageEntry | null>(null);
+  const [videoPlaybackStates, setVideoPlaybackStates] = useState<Record<string, VideoPlaybackState>>({});
   const longPressHandledRef = useRef<string | null>(null);
+  const focusedMediaRef = useRef<string | undefined>(undefined);
 
   const activeSelectedModels = useMemo(() => {
     return providers.reduce((acc, provider) => {
@@ -647,6 +720,22 @@ export default function CreateScreen() {
     );
   }, [dispatch]);
 
+  const handleVideoPlaybackStateChange = useCallback((mediaId: string, playbackState: VideoPlaybackState) => {
+    setVideoPlaybackStates((current) => {
+      if (
+        current[mediaId]?.isPlaying === playbackState.isPlaying &&
+        current[mediaId]?.hasEnded === playbackState.hasEnded
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [mediaId]: playbackState,
+      };
+    });
+  }, []);
+
   const handleImagePress = useCallback((imageId: string) => {
     if (longPressHandledRef.current === imageId) {
       longPressHandledRef.current = null;
@@ -800,100 +889,120 @@ export default function CreateScreen() {
     const isVideo = item.mediaType === 'video';
     const isSharing = sharingMediaId === item.id;
     const isSaving = savingMediaId === item.id;
+    const isVideoPlaying = isVideo && Boolean(videoPlaybackStates[item.id]?.isPlaying);
+    const shouldShowActions = isSelected && !isVideoPlaying;
+    const mediaActionButtons = (
+      <View style={styles.actionButtons}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => handleSaveMediaToPhotos(item.id)}
+          disabled={isSaving}
+          accessibilityRole="button"
+          accessibilityLabel={`Save ${item.mediaType}`}
+        >
+          {isSaving ? (
+            <ActivityIndicator color={isVideo ? theme.colors.primary[500] : '#FFFFFF'} size="small" />
+          ) : (
+            <Ionicons name="download-outline" size={24} color={isVideo ? theme.colors.text.primary : '#FFFFFF'} />
+          )}
+          <Typography variant="caption" style={{ color: isVideo ? theme.colors.text.primary : '#FFFFFF', marginTop: 4 }}>
+            Save
+          </Typography>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => handleShareMedia(item.id)}
+          disabled={isSharing}
+          accessibilityRole="button"
+          accessibilityLabel={`Share ${item.mediaType}`}
+        >
+          {isSharing ? (
+            <ActivityIndicator color={isVideo ? theme.colors.primary[500] : '#FFFFFF'} size="small" />
+          ) : (
+            <Ionicons name="share-outline" size={24} color={isVideo ? theme.colors.text.primary : '#FFFFFF'} />
+          )}
+          <Typography variant="caption" style={{ color: isVideo ? theme.colors.text.primary : '#FFFFFF', marginTop: 4 }}>
+            Share
+          </Typography>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => handleDeleteMedia(item.id)}
+          accessibilityRole="button"
+          accessibilityLabel={`Delete ${item.mediaType}`}
+        >
+          <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
+          <Typography variant="caption" style={{ color: '#FF6B6B', marginTop: 4 }}>
+            Delete
+          </Typography>
+        </TouchableOpacity>
+      </View>
+    );
 
     return (
-      <TouchableOpacity
-        style={[styles.imageCard, { backgroundColor: theme.colors.surface }]}
-        onPress={() => setSelectedMediaId((current) => (current === item.id ? null : item.id))}
-        onLongPress={() => handleDeleteMedia(item.id)}
-        delayLongPress={350}
-        activeOpacity={0.9}
-        accessibilityRole="button"
-        accessibilityLabel={`${isVideo ? 'Video' : 'Audio'} generated by ${item.providerId}`}
-        accessibilityHint={isSelected ? 'Tap to hide actions or long press to delete' : 'Tap to show save and share actions, or long press to delete'}
-        accessibilityState={{ selected: isSelected }}
-      >
-        {isVideo ? (
-          <VideoPreview uri={item.uri} style={styles.videoPreview} />
-        ) : (
-          <AudioPreview uri={item.uri} theme={theme} />
-        )}
+      <View>
+        <TouchableOpacity
+          style={[styles.imageCard, { backgroundColor: theme.colors.surface }]}
+          onPress={() => setSelectedMediaId((current) => (current === item.id ? null : item.id))}
+          onLongPress={() => handleDeleteMedia(item.id)}
+          delayLongPress={350}
+          activeOpacity={0.9}
+          accessibilityRole="button"
+          accessibilityLabel={`${isVideo ? 'Video' : 'Audio'} generated by ${item.providerId}`}
+          accessibilityHint={isSelected ? 'Tap to hide actions or long press to delete' : 'Tap to show save and share actions, or long press to delete'}
+          accessibilityState={{ selected: isSelected }}
+        >
+          {isVideo ? (
+            <VideoPreview
+              mediaId={item.id}
+              uri={item.uri}
+              style={styles.videoPreview}
+              onPlaybackStateChange={handleVideoPlaybackStateChange}
+            />
+          ) : (
+            <AudioPreview uri={item.uri} theme={theme} />
+          )}
 
-        <View style={[styles.providerBadge, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
-          <Typography variant="caption" style={{ color: '#FFFFFF' }}>
-            {isVideo ? 'Runway' : 'ElevenLabs'} • {item.modelId}
-          </Typography>
-        </View>
-
-        {item.expiresAt && item.uri.startsWith('http') && (
-          <View style={[styles.expiryBadge, { backgroundColor: theme.colors.warning[500] }]}>
-            <Typography variant="caption" style={{ color: '#FFFFFF', fontSize: 10 }}>
-              Link expires
+          <View style={[styles.providerBadge, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
+            <Typography variant="caption" style={{ color: '#FFFFFF' }}>
+              {isVideo ? 'Runway' : 'ElevenLabs'} • {item.modelId}
             </Typography>
           </View>
-        )}
 
-        {isSelected && (
-          <View style={[styles.actionsOverlay, { backgroundColor: 'rgba(0,0,0,0.45)' }]}>
-            <View style={styles.actionButtons}>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => handleSaveMediaToPhotos(item.id)}
-                disabled={isSaving}
-                accessibilityRole="button"
-                accessibilityLabel={`Save ${item.mediaType}`}
-              >
-                {isSaving ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Ionicons name="download-outline" size={24} color="#FFFFFF" />
-                )}
-                <Typography variant="caption" style={{ color: '#FFFFFF', marginTop: 4 }}>
-                  Save
-                </Typography>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => handleShareMedia(item.id)}
-                disabled={isSharing}
-                accessibilityRole="button"
-                accessibilityLabel={`Share ${item.mediaType}`}
-              >
-                {isSharing ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Ionicons name="share-outline" size={24} color="#FFFFFF" />
-                )}
-                <Typography variant="caption" style={{ color: '#FFFFFF', marginTop: 4 }}>
-                  Share
-                </Typography>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => handleDeleteMedia(item.id)}
-                accessibilityRole="button"
-                accessibilityLabel={`Delete ${item.mediaType}`}
-              >
-                <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
-                <Typography variant="caption" style={{ color: '#FF6B6B', marginTop: 4 }}>
-                  Delete
-                </Typography>
-              </TouchableOpacity>
+          {item.expiresAt && item.uri.startsWith('http') && (
+            <View style={[styles.expiryBadge, { backgroundColor: theme.colors.warning[500] }]}>
+              <Typography variant="caption" style={{ color: '#FFFFFF', fontSize: 10 }}>
+                Link expires
+              </Typography>
             </View>
+          )}
+
+          {shouldShowActions && !isVideo && (
+            <View style={[styles.actionsOverlay, { backgroundColor: 'rgba(0,0,0,0.45)' }]}>
+              {mediaActionButtons}
+            </View>
+          )}
+        </TouchableOpacity>
+
+        {shouldShowActions && isVideo && (
+          <View style={[styles.mediaActionsPanel, { backgroundColor: theme.colors.surface }]}>
+            {mediaActionButtons}
           </View>
         )}
-      </TouchableOpacity>
+      </View>
     );
   }, [
     handleDeleteMedia,
     handleSaveMediaToPhotos,
     handleShareMedia,
+    handleVideoPlaybackStateChange,
     savingMediaId,
     selectedMediaId,
     sharingMediaId,
     theme,
+    videoPlaybackStates,
   ]);
 
   const renderGalleryItem = useCallback(({ item }: { item: GalleryListItem }) => (
@@ -917,6 +1026,33 @@ export default function CreateScreen() {
     ...mediaGallery.map((entry) => ({ kind: 'media' as const, entry })),
   ].sort((a, b) => b.entry.createdAt - a.entry.createdAt);
   const hasActiveMediaGeneration = Boolean(mediaGeneration.video || mediaGeneration.audio);
+
+  useEffect(() => {
+    if (!focusMediaId || focusedMediaRef.current === focusMediaId) {
+      return;
+    }
+
+    const focusIndex = galleryItems.findIndex((item) => (
+      item.kind === 'media' && item.entry.id === focusMediaId
+    ));
+    if (focusIndex < 0) {
+      return;
+    }
+
+    focusedMediaRef.current = focusMediaId;
+    setSelectedImageId(null);
+    setSelectedMediaId(focusMediaId);
+
+    try {
+      flatListRef.current?.scrollToIndex({
+        index: focusIndex,
+        animated: true,
+        viewPosition: 0.08,
+      });
+    } catch {
+      // The selection still gives the user a clear target if layout is not ready yet.
+    }
+  }, [focusMediaId, galleryItems]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -1015,6 +1151,12 @@ export default function CreateScreen() {
           { paddingBottom: insets.bottom + 16 },
         ]}
         showsVerticalScrollIndicator={false}
+        onScrollToIndexFailed={({ averageItemLength, index }) => {
+          flatListRef.current?.scrollToOffset({
+            offset: Math.max(0, averageItemLength * index),
+            animated: true,
+          });
+        }}
         ListEmptyComponent={
           !isGenerating && !hasActiveMediaGeneration ? (
             <View style={styles.emptyState}>
@@ -1105,6 +1247,12 @@ const styles = StyleSheet.create({
     height: Math.round(IMAGE_SIZE * 9 / 16),
     backgroundColor: '#000000',
   },
+  videoPlayerSurface: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  videoPressSurface: {
+    ...StyleSheet.absoluteFillObject,
+  },
   audioPreview: {
     width: IMAGE_SIZE,
     height: 180,
@@ -1166,10 +1314,16 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     gap: 24,
+    justifyContent: 'center',
   },
   actionButton: {
     alignItems: 'center',
     padding: 12,
+  },
+  mediaActionsPanel: {
+    marginTop: 8,
+    borderRadius: 12,
+    alignItems: 'center',
   },
   emptyState: {
     flex: 1,

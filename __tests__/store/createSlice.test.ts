@@ -50,6 +50,8 @@ import reducer, {
   persistGallery,
   hydrateMediaGallery,
   persistMediaGallery,
+  generateCreateVideo,
+  generateCreateAudio,
   type GeneratedImageEntry,
   type GeneratedMediaEntry,
   type ActiveRunwayTask,
@@ -57,11 +59,20 @@ import reducer, {
 import { configureStore } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
+import APIKeyService from '@/services/APIKeyService';
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(),
   setItem: jest.fn(),
+  removeItem: jest.fn(),
+}));
+
+jest.mock('@/services/APIKeyService', () => ({
+  __esModule: true,
+  default: {
+    getKey: jest.fn(),
+  },
 }));
 
 // Mock expo-file-system
@@ -96,6 +107,7 @@ describe('createSlice', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (APIKeyService.getKey as jest.Mock).mockResolvedValue(null);
   });
 
   describe('provider selection', () => {
@@ -354,6 +366,63 @@ describe('createSlice', () => {
       expect(state.createActivity.hasUnseenActivity).toBe(false);
     });
 
+    it('enters video running state before async key lookup resolves', async () => {
+      let resolveKey!: (value: string | null) => void;
+      const keyPromise = new Promise<string | null>((resolve) => {
+        resolveKey = resolve;
+      });
+      (APIKeyService.getKey as jest.Mock).mockReturnValueOnce(keyPromise);
+      const store = configureStore({
+        reducer: { create: reducer },
+      });
+
+      const resultPromise = store.dispatch(generateCreateVideo({
+        prompt: 'A city timelapse',
+        modelId: 'gen4.5',
+        durationSeconds: 5,
+        aspectRatio: '1280:720',
+      }));
+
+      expect(store.getState().create.mediaGeneration.video).toMatchObject({
+        mediaType: 'video',
+        providerId: 'runway',
+        status: 'queued',
+        message: 'Starting Runway video task...',
+      });
+      expect(store.getState().create.createActivity.status).toBe('running');
+
+      resolveKey(null);
+      await resultPromise;
+    });
+
+    it('enters audio running state before async key lookup resolves', async () => {
+      let resolveKey!: (value: string | null) => void;
+      const keyPromise = new Promise<string | null>((resolve) => {
+        resolveKey = resolve;
+      });
+      (APIKeyService.getKey as jest.Mock).mockReturnValueOnce(keyPromise);
+      const store = configureStore({
+        reducer: { create: reducer },
+      });
+
+      const resultPromise = store.dispatch(generateCreateAudio({
+        prompt: 'Read this line',
+        operation: 'text_to_speech',
+        modelId: 'eleven_multilingual_v2',
+      }));
+
+      expect(store.getState().create.mediaGeneration.audio).toMatchObject({
+        mediaType: 'audio',
+        providerId: 'elevenlabs',
+        status: 'queued',
+        message: 'Generating audio with ElevenLabs...',
+      });
+      expect(store.getState().create.createActivity.status).toBe('running');
+
+      resolveKey(null);
+      await resultPromise;
+    });
+
     it('marks completed image generation as unseen create activity too', () => {
       let state = reducer(initialState, startGeneration(['openai']));
       expect(state.createActivity.status).toBe('running');
@@ -470,6 +539,22 @@ describe('createSlice', () => {
 
       expect(state.mediaGallery).toHaveLength(1);
       expect(state.mediaGallery[0]).toEqual(mockMedia);
+    });
+
+    it('replaces existing media gallery entries with the same id', () => {
+      let state = reducer(initialState, addToMediaGallery(mockMedia));
+      state = reducer(state, addToMediaGallery({
+        ...mockMedia,
+        uri: 'file:///test/replacement-video.mp4',
+        createdAt: 456789,
+      }));
+
+      expect(state.mediaGallery).toHaveLength(1);
+      expect(state.mediaGallery[0]).toMatchObject({
+        id: mockMedia.id,
+        uri: 'file:///test/replacement-video.mp4',
+        createdAt: 456789,
+      });
     });
 
     it('removes media from gallery by id', () => {
@@ -890,6 +975,29 @@ describe('createSlice', () => {
       expect(state.activeRunwayTask).toEqual(activeTask);
     });
 
+    it('hydrateMediaGallery removes duplicate media ids from persisted data', async () => {
+      const duplicateMedia = {
+        ...mockMedia,
+        uri: 'file:///test/duplicate-video.mp4',
+        createdAt: mockMedia.createdAt - 1,
+      };
+
+      (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
+        if (key === 'create_media_gallery') {
+          return Promise.resolve(JSON.stringify([mockMedia, duplicateMedia]));
+        }
+        return Promise.resolve(null);
+      });
+
+      const store = configureStore({
+        reducer: { create: reducer },
+      });
+
+      await store.dispatch(hydrateMediaGallery());
+
+      expect(store.getState().create.mediaGallery).toEqual([mockMedia]);
+    });
+
     it('persistMediaGallery saves media entries to storage', async () => {
       (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
 
@@ -898,6 +1006,24 @@ describe('createSlice', () => {
       });
 
       await store.dispatch(persistMediaGallery([mockMedia]));
+
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'create_media_gallery',
+        JSON.stringify([mockMedia])
+      );
+    });
+
+    it('persistMediaGallery deduplicates media entries before writing storage', async () => {
+      (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+
+      const store = configureStore({
+        reducer: { create: reducer },
+      });
+
+      await store.dispatch(persistMediaGallery([
+        mockMedia,
+        { ...mockMedia, uri: 'file:///test/duplicate-video.mp4' },
+      ]));
 
       expect(AsyncStorage.setItem).toHaveBeenCalledWith(
         'create_media_gallery',
@@ -930,6 +1056,33 @@ describe('createSlice', () => {
       expect(FileSystem.deleteAsync).toHaveBeenCalledWith('file:///test/media_0.mp4', { idempotent: true });
       expect(store.getState().create.mediaGallery[0].id).toBe('media_new');
       expect(store.getState().create.mediaGallery.find((entry) => entry.id === 'media_0')).toBeUndefined();
+    });
+
+    it('addToMediaGalleryWithCleanup does not duplicate completed media tasks', async () => {
+      const store = configureStore({
+        reducer: { create: reducer },
+        preloadedState: {
+          create: {
+            ...initialState,
+            mediaGallery: [mockMedia],
+          },
+        },
+      });
+
+      const replacement = {
+        ...mockMedia,
+        uri: 'file:///test/replacement-video.mp4',
+        createdAt: 456789,
+      };
+
+      await store.dispatch(addToMediaGalleryWithCleanup(replacement));
+
+      expect(store.getState().create.mediaGallery).toEqual([replacement]);
+      expect(FileSystem.deleteAsync).toHaveBeenCalledWith(mockMedia.uri, { idempotent: true });
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'create_media_gallery',
+        JSON.stringify([replacement])
+      );
     });
 
     it('removeFromMediaGalleryWithCleanup deletes removed local media outside the reducer', async () => {

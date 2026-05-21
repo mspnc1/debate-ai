@@ -23,6 +23,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import Slider from '@react-native-community/slider';
 
 import { useTheme } from '../theme';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
@@ -36,6 +37,7 @@ import {
   PromptHeroInput,
   AdvancedOptionsSection,
   ImageModelSelector,
+  SegmentedControl,
 } from '../components/molecules';
 import { Header, HeaderActions, DynamicAISelector, ImageRefinementModal } from '../components/organisms';
 import type { RefinementProvider } from '../components/organisms/chat/ImageRefinementModal';
@@ -142,12 +144,35 @@ export default function CreateSetupScreen() {
   const videoOperation: Extract<CreateMediaOperation, 'text_to_video' | 'image_to_video'> = videoSourceUri
     ? 'image_to_video'
     : 'text_to_video';
-  const runwayModels = getMediaModels('runway', videoOperation);
-  const videoDurations = getRunwayVideoDurations(videoModelId, videoOperation);
-  const videoAspectRatios = getRunwayAspectRatios(videoModelId, videoOperation);
+  const runwayModels = useMemo(() => getMediaModels('runway', videoOperation), [videoOperation]);
+  const videoDurations = useMemo(
+    () => getRunwayVideoDurations(videoModelId, videoOperation),
+    [videoModelId, videoOperation]
+  );
+  const videoAspectRatios = useMemo(
+    () => getRunwayAspectRatios(videoModelId, videoOperation),
+    [videoModelId, videoOperation]
+  );
   const hasRunwayKey = isApiKeyConfigured(apiKeys.runway);
   const hasElevenLabsKey = isApiKeyConfigured(apiKeys.elevenlabs);
   const activeAudioModelId = audioOperation === 'text_to_speech' ? audioTtsModelId : audioSfxModelId;
+  const canGenerateVideoInput = videoPrompt.trim().length > 0 || Boolean(videoSourceUri);
+  const canGenerateVideo = hasRunwayKey && canGenerateVideoInput;
+  const canGenerateAudioInput = audioPrompt.trim().length > 0;
+  const canGenerateAudio = hasElevenLabsKey && canGenerateAudioInput;
+
+  useEffect(() => {
+    if (runwayModels.some((model) => model.id === videoModelId)) {
+      return;
+    }
+
+    const nextModelId = runwayModels[0]?.id || RUNWAY_DEFAULT_VIDEO_MODEL;
+    setVideoModelId(nextModelId);
+    const nextDurations = getRunwayVideoDurations(nextModelId, videoOperation);
+    const nextRatios = getRunwayAspectRatios(nextModelId, videoOperation);
+    setVideoDuration(nextDurations[0] || RUNWAY_DEFAULT_DURATION_SECONDS);
+    setVideoAspectRatio(nextRatios[0]?.id || RUNWAY_DEFAULT_ASPECT_RATIO);
+  }, [runwayModels, videoModelId, videoOperation]);
 
   // Listen for keyboard show/hide to toggle Generate button visibility
   useEffect(() => {
@@ -423,6 +448,9 @@ export default function CreateSetupScreen() {
       navigation.navigate('APIConfig');
       return;
     }
+    if (!canGenerateVideoInput) {
+      return;
+    }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
@@ -439,6 +467,7 @@ export default function CreateSetupScreen() {
       ErrorService.handleWithToast(error, { feature: 'create', provider: 'runway' });
     }
   }, [
+    canGenerateVideoInput,
     dispatch,
     hasRunwayKey,
     navigation,
@@ -452,6 +481,9 @@ export default function CreateSetupScreen() {
   const handleGenerateAudio = useCallback(async () => {
     if (!hasElevenLabsKey) {
       navigation.navigate('APIConfig');
+      return;
+    }
+    if (!canGenerateAudioInput) {
       return;
     }
 
@@ -478,6 +510,7 @@ export default function CreateSetupScreen() {
     audioOutputFormat,
     audioPrompt,
     audioVoiceId,
+    canGenerateAudioInput,
     dispatch,
     hasElevenLabsKey,
     navigation,
@@ -567,33 +600,6 @@ export default function CreateSetupScreen() {
     </TouchableOpacity>
   );
 
-  const renderMediaStatus = (mediaType: 'video' | 'audio') => {
-    const current = mediaGeneration[mediaType];
-    if (!current && lastMediaGenerationResult?.mediaType !== mediaType) {
-      return null;
-    }
-
-    const result = lastMediaGenerationResult?.mediaType === mediaType ? lastMediaGenerationResult : undefined;
-    const message = current?.message || result?.message;
-    const isRunning = Boolean(current);
-    return (
-      <View style={[styles.mediaStatus, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        {isRunning ? (
-          <ActivityIndicator size="small" color={theme.colors.primary[500]} />
-        ) : (
-          <Ionicons
-            name={result?.status === 'failed' ? 'alert-circle-outline' : 'checkmark-circle-outline'}
-            size={20}
-            color={result?.status === 'failed' ? theme.colors.error[500] : theme.colors.success[500]}
-          />
-        )}
-        <Typography variant="caption" color="secondary" style={styles.mediaStatusText}>
-          {message || (isRunning ? 'Generating...' : 'Ready')}
-        </Typography>
-      </View>
-    );
-  };
-
   const renderProviderSetup = (providerName: string) => (
     <View style={[styles.setupCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
       <Ionicons name="key-outline" size={24} color={theme.colors.primary[500]} />
@@ -616,12 +622,265 @@ export default function CreateSetupScreen() {
     </View>
   );
 
+  const handleViewMediaInGallery = useCallback((mediaId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    navigation.navigate('CreateSession', { focusMediaId: mediaId });
+  }, [navigation]);
+
+  const renderOptionGrid = <T extends string,>(
+    options: Array<{ id: T; label: string; description?: string }>,
+    selectedId: T,
+    onSelect: (id: T) => void,
+    testID?: string
+  ) => (
+    <View style={styles.optionGrid} testID={testID}>
+      {options.map((option) => {
+        const selected = option.id === selectedId;
+        return (
+          <TouchableOpacity
+            key={option.id}
+            style={[
+              styles.optionTile,
+              {
+                backgroundColor: selected ? theme.colors.primary[50] : theme.colors.surface,
+                borderColor: selected ? theme.colors.primary[500] : theme.colors.border,
+              },
+            ]}
+            onPress={() => onSelect(option.id)}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+          >
+            <View style={styles.optionTileHeader}>
+              <Typography variant="caption" weight="semibold" style={{ color: theme.colors.text.primary }}>
+                {option.label}
+              </Typography>
+              {selected && <Ionicons name="checkmark-circle" size={18} color={theme.colors.primary[500]} />}
+            </View>
+            {option.description && (
+              <Typography variant="caption" color="secondary" numberOfLines={2}>
+                {option.description}
+              </Typography>
+            )}
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
+  const renderDiscreteSlider = <T extends string | number | undefined,>({
+    options,
+    value,
+    getLabel,
+    onChange,
+    testID,
+  }: {
+    options: readonly T[];
+    value: T;
+    getLabel: (value: T) => string;
+    onChange: (value: T) => void;
+    testID: string;
+  }) => {
+    const currentIndex = Math.max(0, options.findIndex((option) => option === value));
+    const maxIndex = Math.max(0, options.length - 1);
+    const selectedValue = options[currentIndex] as T;
+    const canDecrease = currentIndex > 0;
+    const canIncrease = currentIndex < maxIndex;
+    const sliderDisabled = options.length <= 1;
+    const updateByIndex = (rawIndex: number) => {
+      const nextIndex = Math.min(maxIndex, Math.max(0, Math.round(rawIndex)));
+      onChange(options[nextIndex] as T);
+    };
+
+    return (
+      <View style={[styles.discreteSlider, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <View style={styles.discreteSliderHeader}>
+          <Typography variant="body" weight="semibold">
+            {getLabel(selectedValue)}
+          </Typography>
+          <View style={styles.sliderStepper}>
+            <TouchableOpacity
+              testID={`${testID}-decrement`}
+              style={[
+                styles.stepperButton,
+                {
+                  borderColor: theme.colors.border,
+                  opacity: canDecrease ? 1 : 0.4,
+                },
+              ]}
+              onPress={() => updateByIndex(currentIndex - 1)}
+              disabled={!canDecrease}
+              accessibilityRole="button"
+              accessibilityLabel="Decrease value"
+            >
+              <Ionicons name="remove" size={18} color={theme.colors.text.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              testID={`${testID}-increment`}
+              style={[
+                styles.stepperButton,
+                {
+                  borderColor: theme.colors.border,
+                  opacity: canIncrease ? 1 : 0.4,
+                },
+              ]}
+              onPress={() => updateByIndex(currentIndex + 1)}
+              disabled={!canIncrease}
+              accessibilityRole="button"
+              accessibilityLabel="Increase value"
+            >
+              <Ionicons name="add" size={18} color={theme.colors.text.primary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+        <Slider
+          testID={testID}
+          value={currentIndex}
+          minimumValue={0}
+          maximumValue={maxIndex}
+          step={1}
+          disabled={sliderDisabled}
+          onValueChange={updateByIndex}
+          minimumTrackTintColor={theme.colors.primary[500]}
+          maximumTrackTintColor={theme.colors.border}
+          thumbTintColor={theme.colors.primary[500]}
+        />
+      </View>
+    );
+  };
+
+  const renderAspectRatioGrid = () => (
+    <View style={styles.aspectGrid} testID="create-video-aspect-grid">
+      {videoAspectRatios.map((ratio) => {
+        const selected = videoAspectRatio === ratio.id;
+        const [widthValue, heightValue] = ratio.id.split(':').map((part) => Number(part));
+        const isPortrait = heightValue > widthValue;
+        const isSquare = heightValue === widthValue;
+        return (
+          <TouchableOpacity
+            key={ratio.id}
+            style={[
+              styles.aspectTile,
+              {
+                backgroundColor: selected ? theme.colors.primary[50] : theme.colors.surface,
+                borderColor: selected ? theme.colors.primary[500] : theme.colors.border,
+              },
+            ]}
+            onPress={() => setVideoAspectRatio(ratio.id)}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+          >
+            <View
+              style={[
+                styles.aspectPreview,
+                {
+                  width: isSquare ? 24 : isPortrait ? 18 : 30,
+                  height: isSquare ? 24 : isPortrait ? 30 : 18,
+                  borderColor: selected ? theme.colors.primary[500] : theme.colors.text.secondary,
+                  backgroundColor: selected ? theme.colors.primary[100] : 'transparent',
+                },
+              ]}
+            />
+            <Typography variant="caption" weight="semibold" style={{ color: theme.colors.text.primary, textAlign: 'center' }}>
+              {ratio.label}
+            </Typography>
+            <Typography variant="caption" color="secondary" style={{ textAlign: 'center' }}>
+              {ratio.description}
+            </Typography>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
+  const renderMediaActionRail = (mediaType: 'video' | 'audio') => {
+    const isVideo = mediaType === 'video';
+    const label = isVideo ? 'Video' : 'Audio';
+    const providerName = isVideo ? 'Runway' : 'ElevenLabs';
+    const current = mediaGeneration[mediaType];
+    const result = lastMediaGenerationResult?.mediaType === mediaType ? lastMediaGenerationResult : undefined;
+    const isRunning = Boolean(current);
+    const isSuccess = !isRunning && result?.status === 'succeeded';
+    const isFailed = !isRunning && result?.status === 'failed';
+    const hasProviderKey = isVideo ? hasRunwayKey : hasElevenLabsKey;
+    const canGenerate = isVideo ? canGenerateVideo : canGenerateAudio;
+    const handleGeneratePress = isVideo ? handleGenerateVideo : handleGenerateAudio;
+    const message = current?.message || result?.message;
+    const primaryTitle = isRunning
+      ? `Generating ${label}...`
+      : !hasProviderKey
+        ? `Connect ${providerName}`
+        : isSuccess
+          ? `Generate Another ${label}`
+          : isFailed
+            ? `Retry ${label}`
+            : `Generate ${label}`;
+
+    return (
+      <View
+        style={[
+          styles.mediaRail,
+          {
+            backgroundColor: theme.colors.background,
+            borderTopColor: theme.colors.border,
+          },
+        ]}
+        testID={`create-${mediaType}-rail`}
+      >
+        {(current || result) && (
+          <View
+            style={[
+              styles.railStatus,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: isFailed ? theme.colors.error[500] : isSuccess ? theme.colors.success[500] : theme.colors.border,
+              },
+            ]}
+            testID={`create-${mediaType}-status`}
+          >
+            {isRunning ? (
+              <ActivityIndicator size="small" color={theme.colors.primary[500]} />
+            ) : (
+              <Ionicons
+                name={isFailed ? 'alert-circle-outline' : 'checkmark-circle-outline'}
+                size={20}
+                color={isFailed ? theme.colors.error[500] : theme.colors.success[500]}
+              />
+            )}
+            <Typography variant="caption" color="secondary" style={styles.railStatusText}>
+              {message || (isRunning ? `Generating ${label.toLowerCase()}...` : `${label} ready.`)}
+            </Typography>
+          </View>
+        )}
+
+        {isSuccess && result?.id && (
+          <TouchableOpacity
+            style={[styles.galleryCta, { borderColor: theme.colors.primary[500], backgroundColor: theme.colors.primary[50] }]}
+            onPress={() => handleViewMediaInGallery(result.id)}
+            accessibilityRole="button"
+            accessibilityLabel={`View ${label.toLowerCase()} in Gallery`}
+            testID={`create-${mediaType}-gallery-cta`}
+          >
+            <Ionicons name="images-outline" size={18} color={theme.colors.primary[600]} />
+            <Typography variant="button" weight="semibold" style={{ color: theme.colors.primary[600] }}>
+              View in Gallery
+            </Typography>
+          </TouchableOpacity>
+        )}
+
+        <GradientButton
+          title={primaryTitle}
+          onPress={handleGeneratePress}
+          disabled={isRunning || (hasProviderKey && !canGenerate)}
+          fullWidth
+        />
+      </View>
+    );
+  };
+
   const renderVideoTab = () => {
-    const canGenerateVideo = hasRunwayKey && (videoPrompt.trim().length > 0 || Boolean(videoSourceUri));
     return (
       <>
         {!hasRunwayKey && renderProviderSetup('Runway')}
-        {renderMediaStatus('video')}
 
         <View style={styles.section}>
           <SectionHeader
@@ -666,46 +925,39 @@ export default function CreateSetupScreen() {
 
         <View style={styles.section}>
           <SectionHeader title="Model" subtitle={videoOperation === 'image_to_video' ? 'Image-to-video capable models' : 'Text-to-video capable models'} icon="⚙️" />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {runwayModels.map((model) => renderChip(
-              model.label,
-              videoModelId === model.id,
-              () => {
-                setVideoModelId(model.id);
-                const nextDurations = getRunwayVideoDurations(model.id, videoOperation);
-                const nextRatios = getRunwayAspectRatios(model.id, videoOperation);
-                setVideoDuration(nextDurations.includes(videoDuration) ? videoDuration : nextDurations[0] || RUNWAY_DEFAULT_DURATION_SECONDS);
-                setVideoAspectRatio(nextRatios.some((ratio) => ratio.id === videoAspectRatio) ? videoAspectRatio : nextRatios[0]?.id || RUNWAY_DEFAULT_ASPECT_RATIO);
-              },
-              model.id
-            ))}
-          </ScrollView>
+          {renderOptionGrid(
+            runwayModels.map((model) => ({
+              id: model.id,
+              label: model.label,
+              description: model.description,
+            })),
+            videoModelId,
+            (modelId) => {
+              setVideoModelId(modelId);
+              const nextDurations = getRunwayVideoDurations(modelId, videoOperation);
+              const nextRatios = getRunwayAspectRatios(modelId, videoOperation);
+              setVideoDuration(nextDurations.includes(videoDuration) ? videoDuration : nextDurations[0] || RUNWAY_DEFAULT_DURATION_SECONDS);
+              setVideoAspectRatio(nextRatios.some((ratio) => ratio.id === videoAspectRatio) ? videoAspectRatio : nextRatios[0]?.id || RUNWAY_DEFAULT_ASPECT_RATIO);
+            },
+            'create-video-model-grid'
+          )}
         </View>
 
         <View style={styles.section}>
           <SectionHeader title="Duration" subtitle="Clip length" icon="⏱️" />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {videoDurations.map((duration) => renderChip(`${duration}s`, videoDuration === duration, () => setVideoDuration(duration), String(duration)))}
-          </ScrollView>
+          {renderDiscreteSlider({
+            options: videoDurations,
+            value: videoDuration,
+            getLabel: (duration) => `${duration}s`,
+            onChange: setVideoDuration,
+            testID: 'create-video-duration-slider',
+          })}
         </View>
 
         <View style={styles.section}>
           <SectionHeader title="Frame" subtitle="Aspect ratio" icon="▣" />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {videoAspectRatios.map((ratio) => renderChip(ratio.label, videoAspectRatio === ratio.id, () => setVideoAspectRatio(ratio.id), ratio.id))}
-          </ScrollView>
+          {renderAspectRatioGrid()}
         </View>
-
-        {!isKeyboardVisible && (
-          <View style={styles.mediaGenerateSpacer}>
-            <GradientButton
-              title={mediaGeneration.video ? 'Generating Video...' : hasRunwayKey ? 'Generate Video' : 'Connect Runway'}
-              onPress={handleGenerateVideo}
-              disabled={Boolean(mediaGeneration.video) || !canGenerateVideo}
-              fullWidth
-            />
-          </View>
-        )}
       </>
     );
   };
@@ -714,19 +966,31 @@ export default function CreateSetupScreen() {
     const fallbackModels = getMediaModels('elevenlabs', audioOperation);
     const modelsForOperation = (audioModels.length > 0 ? audioModels : fallbackModels)
       .filter((model) => model.operations.includes(audioOperation));
-    const canGenerateAudio = hasElevenLabsKey && audioPrompt.trim().length > 0;
+    const voiceOptions = audioVoices.length > 0
+      ? audioVoices.slice(0, 12).map((voice) => ({
+          id: voice.id,
+          label: voice.name,
+          description: voice.description || voice.category || undefined,
+        }))
+      : [{ id: ELEVENLABS_DEFAULT_VOICE_ID, label: 'Default voice' }];
+    const audioDurationOptions = [undefined, 1, 3, 5, 8, 10, 15, 20] as const;
+    const promptInfluenceOptions = [0.2, 0.3, 0.5, 0.7] as const;
 
     return (
       <>
         {!hasElevenLabsKey && renderProviderSetup('ElevenLabs')}
-        {renderMediaStatus('audio')}
 
         <View style={styles.section}>
           <SectionHeader title="Audio Mode" subtitle="Voiceover or generated sound" icon="🎧" />
-          <View style={styles.inlineActions}>
-            {renderChip('Voiceover', audioOperation === 'text_to_speech', () => setAudioOperation('text_to_speech'))}
-            {renderChip('Sound effect', audioOperation === 'sound_effect', () => setAudioOperation('sound_effect'))}
-          </View>
+          <SegmentedControl
+            fullWidth
+            options={[
+              { label: 'Voiceover', value: 'text_to_speech' },
+              { label: 'Sound effect', value: 'sound_effect' },
+            ]}
+            value={audioOperation}
+            onChange={setAudioOperation}
+          />
         </View>
 
         <View style={styles.section}>
@@ -757,68 +1021,65 @@ export default function CreateSetupScreen() {
         {audioOperation === 'text_to_speech' && (
           <View style={styles.section}>
             <SectionHeader title="Voice" subtitle={loadingAudioOptions ? 'Loading voices...' : 'Choose a voice'} icon="🗣️" />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-              {(audioVoices.length > 0 ? audioVoices.slice(0, 20) : [{ id: ELEVENLABS_DEFAULT_VOICE_ID, name: 'Default voice' }]).map((voice) => renderChip(
-                voice.name,
-                audioVoiceId === voice.id,
-                () => setAudioVoiceId(voice.id),
-                voice.id
-              ))}
-            </ScrollView>
+            {renderOptionGrid(voiceOptions, audioVoiceId, setAudioVoiceId, 'create-audio-voice-grid')}
+            {audioVoices.length > voiceOptions.length && (
+              <Typography variant="caption" color="secondary" style={styles.optionNote}>
+                Showing first {voiceOptions.length} voices
+              </Typography>
+            )}
           </View>
         )}
 
         <View style={styles.section}>
           <SectionHeader title="Model" subtitle="Generation model" icon="⚙️" />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {modelsForOperation.map((model) => renderChip(
-              model.label,
-              activeAudioModelId === model.id,
-              () => {
-                if (audioOperation === 'text_to_speech') {
-                  setAudioTtsModelId(model.id);
-                } else {
-                  setAudioSfxModelId(model.id);
-                }
-              },
-              model.id
-            ))}
-          </ScrollView>
+          {renderOptionGrid(
+            modelsForOperation.map((model) => ({
+              id: model.id,
+              label: model.label,
+              description: model.description,
+            })),
+            activeAudioModelId,
+            (modelId) => {
+              if (audioOperation === 'text_to_speech') {
+                setAudioTtsModelId(modelId);
+              } else {
+                setAudioSfxModelId(modelId);
+              }
+            },
+            'create-audio-model-grid'
+          )}
         </View>
 
         <View style={styles.section}>
           <SectionHeader title="Format" subtitle="Saved audio format" icon="💾" />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {ELEVENLABS_OUTPUT_FORMATS.map((format) => renderChip(
-              format.label,
-              audioOutputFormat === format.id,
-              () => setAudioOutputFormat(format.id),
-              format.id
-            ))}
-          </ScrollView>
+          {renderOptionGrid(
+            ELEVENLABS_OUTPUT_FORMATS.map((format) => ({
+              id: format.id,
+              label: format.label,
+            })),
+            audioOutputFormat,
+            setAudioOutputFormat,
+            'create-audio-format-grid'
+          )}
         </View>
 
         {audioOperation === 'sound_effect' && (
           <View style={styles.section}>
             <SectionHeader title="Sound Controls" subtitle="Optional duration and prompt influence" icon="🎚️" />
-            <View style={styles.inlineActions}>
-              {renderChip('Auto', audioDuration === undefined, () => setAudioDuration(undefined))}
-              {[1, 3, 5, 8, 10, 15, 20].map((duration) => renderChip(`${duration}s`, audioDuration === duration, () => setAudioDuration(duration), String(duration)))}
-            </View>
-            <View style={styles.inlineActions}>
-              {[0.2, 0.3, 0.5, 0.7].map((value) => renderChip(`Influence ${value}`, promptInfluence === value, () => setPromptInfluence(value), String(value)))}
-            </View>
-          </View>
-        )}
-
-        {!isKeyboardVisible && (
-          <View style={styles.mediaGenerateSpacer}>
-            <GradientButton
-              title={mediaGeneration.audio ? 'Generating Audio...' : hasElevenLabsKey ? 'Generate Audio' : 'Connect ElevenLabs'}
-              onPress={handleGenerateAudio}
-              disabled={Boolean(mediaGeneration.audio) || !canGenerateAudio}
-              fullWidth
-            />
+            {renderDiscreteSlider({
+              options: audioDurationOptions,
+              value: audioDuration,
+              getLabel: (duration) => (duration === undefined ? 'Auto duration' : `${duration}s`),
+              onChange: setAudioDuration,
+              testID: 'create-audio-duration-slider',
+            })}
+            {renderDiscreteSlider({
+              options: promptInfluenceOptions,
+              value: promptInfluence,
+              getLabel: (value) => `Influence ${value}`,
+              onChange: setPromptInfluence,
+              testID: 'create-audio-influence-slider',
+            })}
           </View>
         )}
       </>
@@ -1038,6 +1299,9 @@ export default function CreateSetupScreen() {
             />
           </View>
         )}
+
+        {!isKeyboardVisible && activeTab === 'video' && renderMediaActionRail('video')}
+        {!isKeyboardVisible && activeTab === 'audio' && renderMediaActionRail('audio')}
       </KeyboardAvoidingView>
 
       {/* Image Refinement Modal - only render when we have an image */}
@@ -1106,6 +1370,74 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
+  optionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  optionTile: {
+    flexGrow: 1,
+    flexBasis: '47%',
+    minHeight: 76,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    gap: 6,
+  },
+  optionTileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  optionNote: {
+    marginTop: 8,
+  },
+  discreteSlider: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  discreteSliderHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 4,
+  },
+  sliderStepper: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  stepperButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aspectGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  aspectTile: {
+    flexGrow: 1,
+    flexBasis: '30%',
+    minHeight: 106,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  aspectPreview: {
+    borderWidth: 2,
+    borderRadius: 4,
+  },
   mediaInput: {
     minHeight: 118,
     borderWidth: 1,
@@ -1158,6 +1490,35 @@ const styles = StyleSheet.create({
   },
   mediaGenerateSpacer: {
     marginBottom: 24,
+  },
+  mediaRail: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+    borderTopWidth: 1,
+    gap: 10,
+  },
+  railStatus: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  railStatusText: {
+    flex: 1,
+  },
+  galleryCta: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   legendRow: {
     flexDirection: 'row',

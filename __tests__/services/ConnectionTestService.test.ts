@@ -3,6 +3,9 @@ import type { TestResult } from '@/services/ConnectionTestService';
 
 describe('ConnectionTestService', () => {
   let service: ConnectionTestService;
+  const originalFetch = global.fetch;
+  const validRunwayKey = `key_${'a'.repeat(128)}`;
+  const capitalizedRunwayKey = `Key_${'a'.repeat(128)}`;
 
   const resetSingleton = () => {
     (ConnectionTestService as unknown as { instance?: ConnectionTestService }).instance = undefined;
@@ -16,6 +19,7 @@ describe('ConnectionTestService', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    global.fetch = originalFetch;
   });
 
   it('returns error when API key is missing', async () => {
@@ -46,6 +50,61 @@ describe('ConnectionTestService', () => {
     expect(realTestSpy).toHaveBeenCalledWith('openai', apiKey, expect.any(Number));
     expect(result.success).toBe(true);
     expect(result.model).toBe('gpt-5.5');
+  });
+
+  it('rejects malformed Runway keys before making a network request', async () => {
+    global.fetch = jest.fn();
+
+    const result = await service.testProvider('runway', 'rw_abcdefghijklmnopqrstuvwxyz123456');
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe('INVALID_FORMAT');
+    expect(result.message).toContain('key_');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('tests Runway keys against the non-generation organization endpoint', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockResolvedValue({ name: 'Test Org' }),
+    } as unknown as Response);
+
+    const result = await service.testProvider('runway', ` ${validRunwayKey} `, { retries: 0 });
+
+    expect(result.success).toBe(true);
+    expect(result.model).toBe('Runway organization');
+    expect(result.message).toBe('Connected to Test Org');
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.dev.runwayml.com/v1/organization',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: `Bearer ${validRunwayKey}`,
+          'X-Runway-Version': '2024-11-06',
+        }),
+      })
+    );
+  });
+
+  it('normalizes a capitalized Runway key prefix when testing the organization endpoint', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockResolvedValue({}),
+    } as unknown as Response);
+
+    const result = await service.testProvider('runway', capitalizedRunwayKey, { retries: 0 });
+
+    expect(result.success).toBe(true);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.dev.runwayml.com/v1/organization',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: `Bearer ${validRunwayKey}`,
+        }),
+      })
+    );
   });
 
   it('stops retrying on auth errors', async () => {

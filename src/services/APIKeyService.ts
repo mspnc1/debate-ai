@@ -6,9 +6,31 @@
 import secureStorage from './secureStorage';
 import { ErrorService } from '@/services/errors/ErrorService';
 
+const RUNWAY_API_KEY_PATTERN = /^[Kk]ey_[0-9a-f]{128}$/;
+
 export interface APIKeyValidationResult {
   isValid: boolean;
   message: string;
+}
+
+function normalizeRunwayKeyPrefix(key: string): string {
+  return key.startsWith('Key_') ? `key_${key.slice(4)}` : key;
+}
+
+function normalizeStoredKey(providerId: string, key: string): string {
+  const trimmed = key.trim();
+  return providerId === 'runway' ? normalizeRunwayKeyPrefix(trimmed) : trimmed;
+}
+
+function cleanKeyRecord(keys: Record<string, string>): Record<string, string> {
+  const cleanedKeys: Record<string, string> = {};
+  Object.entries(keys).forEach(([providerId, key]) => {
+    const normalizedKey = normalizeStoredKey(providerId, key);
+    if (normalizedKey) {
+      cleanedKeys[providerId] = normalizedKey;
+    }
+  });
+  return cleanedKeys;
 }
 
 export class APIKeyService {
@@ -26,7 +48,8 @@ export class APIKeyService {
    */
   async saveKey(providerId: string, key: string): Promise<void> {
     try {
-      if (!key) {
+      const normalizedKey = normalizeStoredKey(providerId, key);
+      if (!normalizedKey) {
         // If key is empty, remove it
         await this.deleteKey(providerId);
         return;
@@ -34,13 +57,7 @@ export class APIKeyService {
 
       // Get existing keys
       const existingKeys = await this.loadKeys();
-      const updatedKeys = { ...existingKeys, [providerId]: key };
-
-      // Filter out undefined values for secureStorage
-      const cleanedKeys: Record<string, string> = {};
-      Object.entries(updatedKeys).forEach(([k, v]) => {
-        if (v) cleanedKeys[k] = v;
-      });
+      const cleanedKeys = cleanKeyRecord({ ...existingKeys, [providerId]: normalizedKey });
 
       await secureStorage.saveApiKeys(cleanedKeys);
     } catch (error) {
@@ -55,7 +72,7 @@ export class APIKeyService {
   async loadKeys(): Promise<Record<string, string>> {
     try {
       const keys = await secureStorage.getApiKeys();
-      return keys || {};
+      return keys ? cleanKeyRecord(keys) : {};
     } catch (error) {
       ErrorService.handleSilent(error, { action: 'loadKeys' });
       return {};
@@ -71,13 +88,7 @@ export class APIKeyService {
       const updatedKeys = { ...existingKeys };
       delete updatedKeys[providerId];
 
-      // Filter out undefined values for secureStorage
-      const cleanedKeys: Record<string, string> = {};
-      Object.entries(updatedKeys).forEach(([k, v]) => {
-        if (v) cleanedKeys[k] = v;
-      });
-
-      await secureStorage.saveApiKeys(cleanedKeys);
+      await secureStorage.saveApiKeys(cleanKeyRecord(updatedKeys));
     } catch (error) {
       ErrorService.handleSilent(error, { action: 'deleteKey', providerId });
       throw error;
@@ -102,7 +113,7 @@ export class APIKeyService {
   async hasKey(providerId: string): Promise<boolean> {
     try {
       const keys = await this.loadKeys();
-      return !!keys[providerId];
+      return Boolean(keys[providerId]);
     } catch (error) {
       ErrorService.handleSilent(error, { action: 'hasKey', providerId });
       return false;
@@ -151,7 +162,8 @@ export class APIKeyService {
    * Validate API key format (basic validation)
    */
   validateKeyFormat(providerId: string, key: string): APIKeyValidationResult {
-    if (!key || key.trim().length === 0) {
+    const normalizedKey = normalizeStoredKey(providerId, key);
+    if (!normalizedKey) {
       return {
         isValid: false,
         message: 'API key cannot be empty'
@@ -159,7 +171,7 @@ export class APIKeyService {
     }
 
     // Basic length validation
-    if (key.length < 10) {
+    if (normalizedKey.length < 10) {
       return {
         isValid: false,
         message: 'API key seems too short'
@@ -169,7 +181,7 @@ export class APIKeyService {
     // Provider-specific validation could be added here
     switch (providerId) {
       case 'openai':
-        if (!key.startsWith('sk-')) {
+        if (!normalizedKey.startsWith('sk-')) {
           return {
             isValid: false,
             message: 'OpenAI API keys should start with "sk-"'
@@ -178,7 +190,7 @@ export class APIKeyService {
         break;
       case 'claude':
         // Anthropic keys typically have a specific format
-        if (key.length < 40) {
+        if (normalizedKey.length < 40) {
           return {
             isValid: false,
             message: 'Claude API key seems too short'
@@ -187,7 +199,7 @@ export class APIKeyService {
         break;
       case 'google':
         // Google API keys have different format
-        if (key.length < 20) {
+        if (normalizedKey.length < 20) {
           return {
             isValid: false,
             message: 'Google API key seems too short'
@@ -195,15 +207,15 @@ export class APIKeyService {
         }
         break;
       case 'runway':
-        if (!/^[A-Za-z0-9._-]{20,}$/.test(key)) {
+        if (!RUNWAY_API_KEY_PATTERN.test(normalizedKey)) {
           return {
             isValid: false,
-            message: 'Runway API keys should be long token strings'
+            message: 'Runway API keys should start with "key_" or "Key_" followed by 128 lowercase hex characters'
           };
         }
         break;
       case 'elevenlabs':
-        if (!/^[A-Za-z0-9_-]{20,}$/.test(key)) {
+        if (!/^[A-Za-z0-9_-]{20,}$/.test(normalizedKey)) {
           return {
             isValid: false,
             message: 'ElevenLabs API keys should be long token strings'
@@ -252,15 +264,7 @@ export class APIKeyService {
   async updateMultipleKeys(keys: Record<string, string>): Promise<void> {
     try {
       const existingKeys = await this.loadKeys();
-      const updatedKeys = { ...existingKeys, ...keys };
-
-      // Filter out undefined/empty values
-      const cleanedKeys: Record<string, string> = {};
-      Object.entries(updatedKeys).forEach(([k, v]) => {
-        if (v && v.trim().length > 0) {
-          cleanedKeys[k] = v;
-        }
-      });
+      const cleanedKeys = cleanKeyRecord({ ...existingKeys, ...keys });
 
       await secureStorage.saveApiKeys(cleanedKeys);
     } catch (error) {

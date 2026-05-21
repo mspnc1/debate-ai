@@ -5,6 +5,18 @@
 
 import { getDefaultModel } from '../config/providers/modelRegistry';
 
+const RUNWAY_API_BASE = 'https://api.dev.runwayml.com/v1';
+const RUNWAY_API_VERSION = '2024-11-06';
+const RUNWAY_API_KEY_PATTERN = /^key_[0-9a-f]{128}$/;
+
+function normalizeProviderApiKey(providerId: string, apiKey: string): string {
+  const normalized = apiKey.trim();
+  if (providerId === 'runway' && normalized.startsWith('Key_')) {
+    return `key_${normalized.slice(4)}`;
+  }
+  return normalized;
+}
+
 export interface TestResult {
   success: boolean;
   message: string;
@@ -52,12 +64,14 @@ export class ConnectionTestService {
       retries = this.DEFAULT_RETRIES
     } = options;
 
-    if (!apiKey || apiKey.trim().length === 0) {
+    const normalizedApiKey = normalizeProviderApiKey(providerId, apiKey);
+
+    if (!normalizedApiKey) {
       return this.createErrorResult('INVALID_KEY', 'No API key provided');
     }
 
     // Basic format validation
-    const validationResult = this.validateApiKey(providerId, apiKey);
+    const validationResult = this.validateApiKey(providerId, normalizedApiKey);
     if (!validationResult.success) {
       return validationResult;
     }
@@ -67,7 +81,7 @@ export class ConnectionTestService {
     // Retry logic
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        return await this.realTest(providerId, apiKey, timeout);
+        return await this.realTest(providerId, normalizedApiKey, timeout);
       } catch (error) {
         lastError = this.parseError(error);
 
@@ -167,10 +181,7 @@ export class ConnectionTestService {
         return await this.testDeepSeek(apiKey, signal);
 
       case 'runway':
-        return {
-          model: 'Runway media',
-          message: 'Key format saved. Runway validates it when video generation starts.',
-        };
+        return await this.testRunway(apiKey, signal);
 
       case 'elevenlabs':
         return await this.testElevenLabs(apiKey, signal);
@@ -428,6 +439,42 @@ export class ConnectionTestService {
   }
 
   /**
+   * Test Runway API with a non-generation organization metadata request.
+   */
+  private async testRunway(apiKey: string, signal: AbortSignal): Promise<{ model: string; message?: string }> {
+    const response = await fetch(`${RUNWAY_API_BASE}/organization`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Accept': 'application/json',
+        'X-Runway-Version': RUNWAY_API_VERSION,
+      },
+      signal,
+    });
+
+    if (!response.ok) {
+      throw await this.createApiError(response, 'Runway');
+    }
+
+    let organizationName: string | undefined;
+    try {
+      const data = await response.json() as { name?: unknown; organizationName?: unknown };
+      organizationName = typeof data.name === 'string'
+        ? data.name
+        : typeof data.organizationName === 'string'
+          ? data.organizationName
+          : undefined;
+    } catch {
+      // A 2xx response is enough to prove the key was accepted.
+    }
+
+    return {
+      model: 'Runway organization',
+      message: organizationName ? `Connected to ${organizationName}` : 'Runway API key verified',
+    };
+  }
+
+  /**
    * Generic test for OpenAI-compatible APIs
    */
   private async testGenericOpenAICompatible(
@@ -534,10 +581,10 @@ export class ConnectionTestService {
         break;
 
       case 'runway':
-        if (!/^[A-Za-z0-9._-]{20,}$/.test(apiKey)) {
+        if (!RUNWAY_API_KEY_PATTERN.test(apiKey)) {
           return this.createErrorResult(
             'INVALID_FORMAT',
-            'Runway API keys should be long token strings'
+            'Runway API keys should start with "key_" or "Key_" followed by 128 lowercase hex characters'
           );
         }
         break;

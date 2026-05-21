@@ -111,6 +111,17 @@ describe('Logger', () => {
       const buffer = logger.getBuffer();
       expect(buffer[0].context).toEqual({ userId: '[REDACTED]', action: 'click' });
     });
+
+    it('redacts Runway API key values in messages and context strings', () => {
+      logger.setMinLevel(LogLevel.DEBUG);
+      const runwayKey = `Key_${'a'.repeat(128)}`;
+
+      logger.info(`Testing ${runwayKey}`, { note: `Bearer ${runwayKey}` });
+
+      const buffer = logger.getBuffer();
+      expect(buffer[0].message).toBe('Testing [REDACTED_API_KEY]');
+      expect(buffer[0].context).toEqual({ note: 'Bearer [REDACTED_API_KEY]' });
+    });
   });
 
   describe('error logging', () => {

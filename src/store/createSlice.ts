@@ -230,10 +230,21 @@ async function persistActiveRunwayTask(task?: ActiveRunwayTask): Promise<void> {
 
 async function persistMediaGalleryEntries(mediaGallery: GeneratedMediaEntry[]): Promise<void> {
   try {
-    await AsyncStorage.setItem(MEDIA_GALLERY_STORAGE_KEY, JSON.stringify(mediaGallery));
+    await AsyncStorage.setItem(MEDIA_GALLERY_STORAGE_KEY, JSON.stringify(dedupeMediaGalleryEntries(mediaGallery)));
   } catch (error) {
     console.warn('[createSlice] Failed to persist media gallery:', error);
   }
+}
+
+function dedupeMediaGalleryEntries(entries: GeneratedMediaEntry[]): GeneratedMediaEntry[] {
+  const seen = new Set<string>();
+  const deduped: GeneratedMediaEntry[] = [];
+  entries.forEach((entry) => {
+    if (!entry.uri || seen.has(entry.id)) return;
+    seen.add(entry.id);
+    deduped.push(entry);
+  });
+  return deduped;
 }
 
 async function deleteGeneratedMediaFile(entry?: GeneratedMediaEntry): Promise<void> {
@@ -315,7 +326,7 @@ export const hydrateMediaGallery = createAsyncThunk(
         AsyncStorage.getItem(ACTIVE_MEDIA_TASK_STORAGE_KEY),
       ]);
       const mediaGallery = storedGallery
-        ? (JSON.parse(storedGallery) as GeneratedMediaEntry[]).filter((entry) => Boolean(entry.uri))
+        ? dedupeMediaGalleryEntries(JSON.parse(storedGallery) as GeneratedMediaEntry[])
         : [];
       const activeRunwayTask = storedTask
         ? JSON.parse(storedTask) as ActiveRunwayTask
@@ -339,12 +350,16 @@ export const addToMediaGalleryWithCleanup = createAsyncThunk(
   'create/addToMediaGalleryWithCleanup',
   async (entry: GeneratedMediaEntry, { dispatch, getState }) => {
     const state = getState() as { create: CreateState };
-    const removed = state.create.mediaGallery.length >= MAX_MEDIA_GALLERY_SIZE
+    const existing = state.create.mediaGallery.find((item) => item.id === entry.id);
+    const removed = !existing && state.create.mediaGallery.length >= MAX_MEDIA_GALLERY_SIZE
       ? state.create.mediaGallery[state.create.mediaGallery.length - 1]
       : undefined;
 
     dispatch(addToMediaGallery(entry));
 
+    if (existing && existing.uri !== entry.uri) {
+      await deleteGeneratedMediaFile(existing);
+    }
     if (removed) {
       await deleteGeneratedMediaFile(removed);
     }
@@ -537,11 +552,6 @@ export const generateCreateVideo = createAsyncThunk(
       throw new Error('A prompt is required for this Runway model.');
     }
 
-    const apiKey = await getStoredProviderKey('runway');
-    if (!apiKey) {
-      throw new Error('Add a Runway API key before generating video.');
-    }
-
     const id = buildMediaGenerationId('runway');
     dispatch(startMediaGeneration({
       id,
@@ -554,9 +564,26 @@ export const generateCreateVideo = createAsyncThunk(
     }));
 
     try {
+      const apiKey = await getStoredProviderKey('runway');
+      if (!apiKey) {
+        throw new Error('Add a Runway API key before generating video.');
+      }
+
+      if (payload.sourceImageUri) {
+        dispatch(updateMediaGeneration({
+          mediaType: 'video',
+          message: 'Preparing source image...',
+        }));
+      }
+
       const preparedSource = payload.sourceImageUri
         ? (await prepareRunwaySourceImage(payload.sourceImageUri)).sourceImage
         : undefined;
+
+      dispatch(updateMediaGeneration({
+        mediaType: 'video',
+        message: 'Submitting to Runway...',
+      }));
 
       const task = await MediaGenerationService.startRunwayVideo({
         apiKey,
@@ -685,11 +712,6 @@ export const generateCreateAudio = createAsyncThunk(
       throw new Error('Enter audio text or a sound prompt first.');
     }
 
-    const apiKey = await getStoredProviderKey('elevenlabs');
-    if (!apiKey) {
-      throw new Error('Add an ElevenLabs API key before generating audio.');
-    }
-
     const id = buildMediaGenerationId('elevenlabs');
     const modelId = payload.modelId || (payload.operation === 'text_to_speech'
       ? ELEVENLABS_DEFAULT_TTS_MODEL
@@ -706,6 +728,11 @@ export const generateCreateAudio = createAsyncThunk(
     }));
 
     try {
+      const apiKey = await getStoredProviderKey('elevenlabs');
+      if (!apiKey) {
+        throw new Error('Add an ElevenLabs API key before generating audio.');
+      }
+
       const audio = await MediaGenerationService.generateElevenLabsAudio({
         apiKey,
         operation: payload.operation,
@@ -910,7 +937,10 @@ const createSlice_ = createSlice({
       if (action.payload.status) current.status = action.payload.status;
       if (action.payload.phase) current.phase = action.payload.phase;
       if (action.payload.providerTaskId) current.providerTaskId = action.payload.providerTaskId;
-      if (action.payload.message) current.message = action.payload.message;
+      if (action.payload.message) {
+        current.message = action.payload.message;
+        state.createActivity.lastMessage = action.payload.message;
+      }
       if (action.payload.error) current.error = action.payload.error;
     },
     completeMediaGeneration: (state, action: PayloadAction<{
@@ -967,6 +997,10 @@ const createSlice_ = createSlice({
       state.createActivity.lastMessage = action.payload.message;
     },
     addToMediaGallery: (state, action: PayloadAction<GeneratedMediaEntry>) => {
+      const existingIndex = state.mediaGallery.findIndex((entry) => entry.id === action.payload.id);
+      if (existingIndex >= 0) {
+        state.mediaGallery.splice(existingIndex, 1);
+      }
       state.mediaGallery.unshift(action.payload);
       if (state.mediaGallery.length > MAX_MEDIA_GALLERY_SIZE) {
         state.mediaGallery.pop();
