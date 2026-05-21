@@ -1,10 +1,10 @@
 /**
  * VictoryCelebration Component
- * Professional victory celebration with animations and confetti
+ * Professional victory summary with clear next actions
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Dimensions, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import Animated, {
   FadeIn,
   ZoomIn,
@@ -14,10 +14,10 @@ import Animated, {
   withDelay,
   useSharedValue,
 } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Typography } from '../../molecules';
-import { GradientButton, Button } from '../../molecules';
 import { useTheme } from '../../../theme';
 import { AI_BRAND_COLORS } from '../../../constants/aiColors';
 import { AI, Message } from '../../../types';
@@ -25,8 +25,6 @@ import { ScoreBoard } from '../../../services/debate';
 import ShareModal from './ShareModal';
 import { analytics } from '../../../services/analytics';
 import { shareIncentives } from '../../../services/shareIncentives';
-
-const { width } = Dimensions.get('window');
 
 export interface RoundResult {
   round: number;
@@ -39,6 +37,8 @@ export interface VictoryCelebrationProps {
   scores: ScoreBoard;
   rounds: RoundResult[];
   onViewTranscript: () => void;
+  onRematch: () => void;
+  onStartOver: () => void;
   topic?: string;
   participants?: AI[];
   messages?: Message[];
@@ -49,6 +49,8 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
   scores,
   rounds,
   onViewTranscript,
+  onRematch,
+  onStartOver,
   topic,
   participants,
   messages,
@@ -101,6 +103,12 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
   };
   
   const winnerColors = getWinnerColors();
+  const scoreEntries = Object.entries(scores);
+  const totalScoredRounds = Math.max(
+    rounds.length,
+    ...scoreEntries.map(([, score]) => score.roundWins),
+    1
+  );
   
   const dynamicCardStyles = {
     ...styles.card,
@@ -124,22 +132,20 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
               flexGrow: 1,
               justifyContent: 'center',
               alignItems: 'center',
-              paddingBottom: 40,
-              paddingHorizontal: 20,
+              paddingVertical: 24,
+              paddingHorizontal: 16,
             }}
           >
             <Animated.View entering={ZoomIn.springify()} style={dynamicCardStyles}>
               <Animated.View style={[styles.trophyContainer, trophyStyle]}>
-                <Typography variant="title" style={styles.trophy}>
-                  🏆
-                </Typography>
+                <Ionicons name="trophy" size={64} color={winnerColors[500]} />
                 <View style={[
                   styles.glowEffect, 
                   { backgroundColor: `${winnerColors[400]}40` }
                 ]} />
               </Animated.View>
               
-              <Animated.View style={contentStyle}>
+              <Animated.View style={[styles.content, contentStyle]}>
                 <Typography 
                   variant="caption" 
                   weight="semibold" 
@@ -181,7 +187,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                   </Typography>
                   
                   <View style={styles.scoresWrapper}>
-                    {Object.entries(scores).map(([aiId, score]) => {
+                    {scoreEntries.map(([aiId, score]) => {
                       const aiColors = aiId === winner.id ? winnerColors : theme.colors.gray;
                       const isWinner = aiId === winner.id;
                       
@@ -196,19 +202,16 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                           }
                         ]}>
                           <View style={styles.scoreItemHeader}>
-                            <Typography 
-                              variant="body" 
+                            <Typography
+                              variant="body"
                               weight={isWinner ? "bold" : "semibold"}
-                              align="center"
-                              style={{ color: isWinner ? winnerColors[600] : theme.colors.text.primary, marginBottom: 4 }}
+                              style={{ color: isWinner ? winnerColors[600] : theme.colors.text.primary }}
                             >
-                              {score.name}
-                              {isWinner && " 👑"}
+                              {score.name}{isWinner ? ' wins' : ''}
                             </Typography>
-                            <Typography 
-                              variant="subtitle" 
+                            <Typography
+                              variant="body"
                               weight="bold"
-                              align="center"
                               style={{ color: isWinner ? winnerColors[600] : theme.colors.text.primary }}
                             >
                               {score.roundWins} {score.roundWins === 1 ? 'round' : 'rounds'}
@@ -221,7 +224,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                               style={[
                                 styles.scoreBarFill,
                                 {
-                                  width: `${Math.max((score.roundWins / Math.max(rounds.length, 1)) * 100, 5)}%`,
+                                  width: `${Math.max((score.roundWins / totalScoredRounds) * 100, 5)}%`,
                                   backgroundColor: aiColors[500] || theme.colors.primary[500],
                                 },
                               ]}
@@ -234,28 +237,41 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                 </View>
                 
                 <View style={styles.actions}>
-                  <GradientButton
-                    title="📸 Share Results"
-                    onPress={() => setShowShareCard(true)}
-                    gradient={[winnerColors[400], winnerColors[600]]}
-                    fullWidth
-                    style={styles.primaryAction}
+                  <VictoryActionButton
+                    title="Rematch"
+                    icon="refresh"
+                    onPress={onRematch}
+                    variant="primary"
+                    colors={[winnerColors[400], winnerColors[600]]}
+                    testID="victory-rematch"
                   />
-                  
-                  <Button
-                    title="📄 View Transcript"
-                    onPress={onViewTranscript}
+                  <View style={styles.secondaryActions}>
+                    <VictoryActionButton
+                      title="Transcript"
+                      icon="document-text-outline"
+                      onPress={onViewTranscript}
+                      variant="secondary"
+                      testID="victory-transcript"
+                    />
+                    <VictoryActionButton
+                      title="Share"
+                      icon="share-social-outline"
+                      onPress={() => setShowShareCard(true)}
+                      variant="secondary"
+                      testID="victory-share"
+                    />
+                  </View>
+                  <VictoryActionButton
+                    title="Start Over"
+                    icon="arrow-back-circle-outline"
+                    onPress={onStartOver}
                     variant="ghost"
-                    size="medium"
-                    fullWidth
+                    testID="victory-start-over"
                   />
                 </View>
               </Animated.View>
             </Animated.View>
           </ScrollView>
-          
-          {/* Confetti effect */}
-          <ConfettiEffect colors={[winnerColors[400], winnerColors[600], winnerColors[500]]} />
         </LinearGradient>
       </BlurView>
       
@@ -290,67 +306,88 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
   );
 };
 
-// Simple confetti effect component
-const Particle: React.FC<{ color: string; delay: number }> = ({ color, delay }) => {
-  const translateY = useSharedValue(0);
-  const translateX = useSharedValue(0);
-  const rotation = useSharedValue(0);
-  const opacity = useSharedValue(1);
-  
-  React.useEffect(() => {
-    translateY.value = withDelay(
-      delay,
-      withSpring(-800, { duration: 3000 })
-    );
-    translateX.value = withSequence(
-      withSpring(Math.random() * 100 - 50, { duration: 1000 }),
-      withSpring(Math.random() * 100 - 50, { duration: 1000 }),
-      withSpring(Math.random() * 100 - 50, { duration: 1000 })
-    );
-    rotation.value = withSpring(360 * 3, { duration: 3000 });
-    opacity.value = withDelay(2500, withSpring(0, { duration: 500 }));
-  }, [translateY, translateX, rotation, opacity, delay]);
-  
-  const style = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: translateY.value },
-      { translateX: translateX.value },
-      { rotate: `${rotation.value}deg` },
-    ],
-    opacity: opacity.value,
-  }));
-  
-  return (
-    <Animated.View
-      style={[
-        {
-          position: 'absolute',
-          top: 100,
-          left: width / 2,
-          width: 10,
-          height: 10,
-          backgroundColor: color,
-          borderRadius: 2,
-        },
-        style,
-      ]}
-    />
-  );
+type VictoryActionButtonProps = {
+  title: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+  variant: 'primary' | 'secondary' | 'ghost';
+  colors?: readonly string[];
+  testID: string;
 };
 
-const ConfettiEffect: React.FC<{ colors: string[] }> = ({ colors }) => {
-  const particles = Array.from({ length: 20 }, (_, i) => ({
-    id: i,
-    color: colors[i % colors.length],
-    delay: i * 50,
-  }));
-  
+const VictoryActionButton: React.FC<VictoryActionButtonProps> = ({
+  title,
+  icon,
+  onPress,
+  variant,
+  colors,
+  testID,
+}) => {
+  const { theme, isDark } = useTheme();
+  const isPrimary = variant === 'primary';
+  const isGhost = variant === 'ghost';
+  const contentColor = isPrimary
+    ? theme.colors.text.white
+    : isGhost
+      ? theme.colors.text.secondary
+      : theme.colors.text.primary;
+
+  const content = (
+    <>
+      <Ionicons name={icon} size={18} color={contentColor} />
+      <Typography
+        variant="button"
+        weight="semibold"
+        style={{ color: contentColor }}
+      >
+        {title}
+      </Typography>
+    </>
+  );
+
+  if (isPrimary) {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={title}
+        testID={testID}
+        style={styles.actionTouchable}
+      >
+        <LinearGradient
+          colors={(colors || theme.colors.gradients.primary) as readonly [string, string, ...string[]]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.actionButton, styles.fullAction, styles.primaryAction]}
+        >
+          {content}
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }
+
   return (
-    <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-      {particles.map((particle) => (
-        <Particle key={particle.id} color={particle.color} delay={particle.delay} />
-      ))}
-    </View>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.75}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      testID={testID}
+      style={[
+        styles.actionButton,
+        isGhost ? styles.ghostAction : styles.secondaryAction,
+        isGhost && styles.fullAction,
+        {
+          backgroundColor: isGhost
+            ? 'transparent'
+            : isDark ? theme.colors.overlays.medium : theme.colors.surface,
+          borderColor: isGhost ? theme.colors.border : theme.colors.border,
+        },
+      ]}
+    >
+      {content}
+    </TouchableOpacity>
   );
 };
 
@@ -364,28 +401,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   card: {
-    borderRadius: 24,
-    padding: 32,
+    borderRadius: 20,
+    padding: 24,
     alignItems: 'center',
     width: '100%',
-    maxWidth: 400, // Fixed max width for larger screens
+    maxWidth: 400,
   },
   trophyContainer: {
     position: 'relative',
     alignItems: 'center',
     marginBottom: 24,
   },
-  trophy: {
-    fontSize: 80,
-    lineHeight: 90,
+  content: {
+    width: '100%',
   },
   glowEffect: {
     position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    opacity: 0.3,
-    top: -10,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    opacity: 0.25,
+    top: -16,
+    zIndex: -1,
   },
   championLabel: {
     fontSize: 12,
@@ -394,17 +431,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   winnerNameContainer: {
-    borderRadius: 16,
+    borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 24,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   winnerName: {
     fontSize: 24,
   },
   scoreContainer: {
     width: '100%',
-    marginBottom: 32,
+    marginBottom: 24,
     alignItems: 'center',
   },
   finalScoreLabel: {
@@ -412,21 +449,23 @@ const styles = StyleSheet.create({
   },
   scoresWrapper: {
     width: '100%',
-    maxWidth: 280,
+    maxWidth: 320,
     alignItems: 'stretch',
   },
   scoreItem: {
     marginBottom: 12,
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 10,
     minWidth: 240,
   },
   winnerScoreItem: {
     borderWidth: 1,
   },
   scoreItemHeader: {
-    flexDirection: 'column',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
     marginBottom: 8,
   },
   scoreBar: {
@@ -440,11 +479,38 @@ const styles = StyleSheet.create({
   },
   actions: {
     width: '100%',
-    gap: 16,
+    gap: 10,
     alignItems: 'center',
-    paddingHorizontal: 20,
+  },
+  actionTouchable: {
+    width: '100%',
+  },
+  actionButton: {
+    minHeight: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  fullAction: {
+    width: '100%',
   },
   primaryAction: {
-    marginBottom: 8,
+    borderWidth: 0,
+  },
+  secondaryActions: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  secondaryAction: {
+    flex: 1,
+  },
+  ghostAction: {
+    minHeight: 44,
   },
 });

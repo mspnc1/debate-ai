@@ -189,7 +189,18 @@ export type RootStackParamList = {
   APIConfig: undefined;
   Subscription: undefined;
   ExpertMode: undefined;
-  Debate: { selectedAIs: AI[]; topic?: string; personalities?: { [key: string]: string } };
+  Debate: {
+    selectedAIs: AI[];
+    topic?: string;
+    personalities?: { [key: string]: string };
+    formatId?: 'oxford' | 'lincoln_douglas' | 'policy' | 'socratic';
+    rounds?: number;
+    exchanges?: number;
+    civility?: 1 | 2 | 3 | 4 | 5;
+    demoDebateId?: string;
+    demoSample?: import('@/types/demo').DemoDebate;
+    rematchKey?: string;
+  };
   DebateTranscript: { session: ChatSession };
   Compare?: undefined;
   CompareSession: { leftAI: AIConfig; rightAI: AIConfig; sessionId?: string; resuming?: boolean };

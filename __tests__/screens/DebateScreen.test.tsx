@@ -324,6 +324,7 @@ const renderScreen = (options: RenderOptions = {}) => {
   const navigation = {
     goBack: jest.fn(),
     navigate: jest.fn(),
+    replace: jest.fn(),
   };
 
   const defaultRoute = {
@@ -538,6 +539,91 @@ describe('DebateScreen', () => {
     expect(mockTranscriptModalProps.visible).toBe(true);
   });
 
+  it('starts a rematch with the same debate configuration', async () => {
+    const resetSession = jest.fn();
+    const personalities = { left: 'sage', right: 'default' };
+    const { navigation } = renderScreen({
+      flow: { isDebateEnded: true },
+      messages: {
+        messages: [
+          { id: '1', sender: 'Host', senderType: 'ai', content: 'Summary', timestamp: 1 } as Message,
+        ],
+      },
+      session: {
+        isInitialized: true,
+        session: { topic: 'Resolved: AI should be regulated.' },
+        orchestrator: {},
+        resetSession,
+      },
+      voting: {
+        scores: {
+          left: { name: 'Claude', roundWins: 2, roundsWon: [1, 2], isOverallWinner: true },
+          right: { name: 'GPT-4', roundWins: 1, roundsWon: [3], isOverallWinner: false },
+        },
+        isOverallVote: true,
+        isVoting: false,
+      },
+      routeParams: {
+        topic: 'Resolved: AI should be regulated.',
+        personalities,
+        formatId: 'policy',
+        rounds: 5,
+        exchanges: 5,
+        civility: 3,
+      },
+    });
+
+    await flushMicrotasks();
+
+    act(() => {
+      mockVictoryProps.onRematch();
+    });
+
+    expect(mockStreamingService.cancelAllStreams).toHaveBeenCalled();
+    expect(resetSession).toHaveBeenCalled();
+    expect(navigation.replace).toHaveBeenCalledWith('Debate', expect.objectContaining({
+      selectedAIs: baseAIs,
+      topic: 'Resolved: AI should be regulated.',
+      personalities,
+      formatId: 'policy',
+      rounds: 5,
+      exchanges: 5,
+      civility: 3,
+      rematchKey: expect.any(String),
+    }));
+  });
+
+  it('starts over from the victory screen by returning to debate setup', async () => {
+    const resetSession = jest.fn();
+    const { navigation } = renderScreen({
+      flow: { isDebateEnded: true },
+      session: { isInitialized: true, session: { topic: 'Topic' }, orchestrator: {}, resetSession },
+      voting: {
+        scores: {
+          left: { name: 'Claude', roundWins: 1, roundsWon: [1], isOverallWinner: true },
+        },
+        isOverallVote: true,
+        isVoting: false,
+      },
+    });
+
+    await flushMicrotasks();
+
+    act(() => {
+      mockVictoryProps.onStartOver();
+    });
+
+    expect(mockStreamingService.cancelAllStreams).toHaveBeenCalled();
+    expect(resetSession).toHaveBeenCalled();
+    expect(navigation.navigate).toHaveBeenCalledWith('MainTabs', {
+      screen: 'DebateTab',
+      params: expect.objectContaining({
+        resetDebateSetup: true,
+        resetKey: expect.any(String),
+      }),
+    });
+  });
+
   it('alerts when viewing transcript without messages', async () => {
     renderScreen({
       flow: { isDebateEnded: true },
@@ -578,6 +664,12 @@ describe('DebateScreen', () => {
     const startOverButton = buttons.find((btn) => btn.text === 'Start Over');
 
     startOverButton?.onPress?.();
-    expect(navigation.navigate).toHaveBeenCalledWith('MainTabs', { screen: 'DebateTab' });
+    expect(navigation.navigate).toHaveBeenCalledWith('MainTabs', {
+      screen: 'DebateTab',
+      params: expect.objectContaining({
+        resetDebateSetup: true,
+        resetKey: expect.any(String),
+      }),
+    });
   });
 });

@@ -21,10 +21,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Typography } from '../../molecules';
 import { GradientButton } from '../../molecules';
 import { SheetHeader } from '@/components/molecules';
+import { CitationSources } from '@/components/organisms/common/CitationSources';
 import { useTheme } from '../../../theme';
-import { Message } from '../../../types';
+import type { Citation, Message } from '../../../types';
 import { AI_BRAND_COLORS } from '../../../constants/aiColors';
 import { ErrorService } from '@/services/errors/ErrorService';
+import { normalizeCitations } from '@/utils/citationUtils';
 
 export interface TranscriptModalProps {
   visible: boolean;
@@ -35,6 +37,20 @@ export interface TranscriptModalProps {
   winner?: { id: string; name: string };
   scores?: Record<string, { name: string; roundWins: number }>;
 }
+
+const escapeHTML = (value: string): string =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const getMessageCitations = (message: Message): Citation[] =>
+  normalizeCitations(message.metadata?.citations ?? []);
+
+const getParticipantClassName = (name: string): string =>
+  name.toLowerCase().replace(/[^a-z0-9_-]+/g, '');
 
 export const TranscriptModal: React.FC<TranscriptModalProps> = ({
   visible,
@@ -106,7 +122,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
     // Generate AI-specific styles
     const aiStyles = participants.map(p => {
       const color = getAIPDFColor(p.name);
-      const className = p.name.toLowerCase().replace(/\s+/g, '');
+      const className = getParticipantClassName(p.name);
       return `
     .message.${className} {
       border-left-color: ${color};
@@ -193,6 +209,63 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
       line-height: 1.7;
       white-space: pre-wrap;
     }
+
+    .citations {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid ${pdfColors.border};
+    }
+
+    .citations-title {
+      color: ${pdfColors.text.tertiary};
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .citation-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .citation-item {
+      margin-bottom: 10px;
+      padding-left: 28px;
+      position: relative;
+      font-size: 12px;
+      line-height: 1.5;
+      color: ${pdfColors.text.secondary};
+      overflow-wrap: anywhere;
+    }
+
+    .citation-index {
+      color: ${pdfColors.primary};
+      font-weight: 700;
+      left: 0;
+      position: absolute;
+      top: 0;
+    }
+
+    .citation-link {
+      color: ${pdfColors.primary};
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .citation-url {
+      color: ${pdfColors.text.secondary};
+      font-size: 11px;
+      margin-top: 2px;
+    }
+
+    .citation-snippet {
+      color: ${pdfColors.text.secondary};
+      font-size: 11px;
+      margin-top: 4px;
+    }
     
     .winner-section {
       margin-top: 40px;
@@ -273,21 +346,43 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
 <body>
   <div class="header">
     <h1>Symposium AI Transcript</h1>
-    <div class="meta"><strong>Motion:</strong> ${topic}</div>
+    <div class="meta"><strong>Motion:</strong> ${escapeHTML(topic)}</div>
     <div class="meta"><strong>Date:</strong> ${formattedDate}</div>
     <div class="participants">
-      <strong>Participants:</strong> ${participants.map(p => p.name).join(' vs ')}
+      <strong>Participants:</strong> ${participants.map(p => escapeHTML(p.name)).join(' vs ')}
     </div>
   </div>
   
   <div class="messages">
     ${debateMessages
       .map((msg) => {
-        const aiClass = msg.sender.toLowerCase().replace(/\s+/g, '');
+        const aiClass = getParticipantClassName(msg.sender);
+        const citations = getMessageCitations(msg);
+        const citationsHTML = citations.length > 0
+          ? `
+        <div class="citations">
+          <div class="citations-title">Sources (${citations.length})</div>
+          <ol class="citation-list">
+            ${citations
+              .map((citation) => {
+                const label = citation.title || citation.domain || citation.url;
+                return `
+            <li class="citation-item">
+              <span class="citation-index">[${citation.index}]</span>
+              <a class="citation-link" href="${escapeHTML(citation.url)}">${escapeHTML(label)}</a>
+              <div class="citation-url">${escapeHTML(citation.url)}</div>
+              ${citation.snippet ? `<div class="citation-snippet">${escapeHTML(citation.snippet)}</div>` : ''}
+            </li>`;
+              })
+              .join('')}
+          </ol>
+        </div>`
+          : '';
         return `
       <div class="message ${aiClass}">
-        <div class="participant ${aiClass}">${msg.sender}</div>
-        <div class="content">${msg.content}</div>
+        <div class="participant ${aiClass}">${escapeHTML(msg.sender)}</div>
+        <div class="content">${escapeHTML(msg.content)}</div>
+        ${citationsHTML}
       </div>
     `;
       })
@@ -299,13 +394,13 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
       ? `
   <div class="winner-section">
     <div class="winner-title">🏆 DEBATE CHAMPION 🏆</div>
-    <div class="winner-name">${winner.name}</div>
+    <div class="winner-name">${escapeHTML(winner.name)}</div>
     <div class="scores">
       ${Object.entries(scores)
         .map(
           ([_, score]) => `
         <div class="score-item">
-          <div class="score-name">${score.name}</div>
+          <div class="score-name">${escapeHTML(score.name)}</div>
           <div class="score-value">${score.roundWins}</div>
         </div>
       `
@@ -441,31 +536,47 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
 
         {/* Messages */}
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {debateMessages.map((msg, index) => (
-            <View
-              key={index}
-              style={[
-                styles.messageCard,
-                {
-                  backgroundColor: isDark
-                    ? theme.colors.overlays.soft
-                    : theme.colors.overlays.soft,
-                  borderLeftColor: getAIColor(msg.sender),
-                },
-              ]}
-            >
-              <Typography
-                variant="subtitle"
-                weight="bold"
-                style={{ color: getAIColor(msg.sender), marginBottom: 8 }}
+          {debateMessages.map((msg, index) => {
+            const citations = getMessageCitations(msg);
+
+            return (
+              <View
+                key={index}
+                style={[
+                  styles.messageCard,
+                  {
+                    backgroundColor: isDark
+                      ? theme.colors.overlays.soft
+                      : theme.colors.overlays.soft,
+                    borderLeftColor: getAIColor(msg.sender),
+                  },
+                ]}
               >
-                {msg.sender}
-              </Typography>
-              <Typography variant="body" style={{ lineHeight: 24 }}>
-                {msg.content}
-              </Typography>
-            </View>
-          ))}
+                <Typography
+                  variant="subtitle"
+                  weight="bold"
+                  style={{ color: getAIColor(msg.sender), marginBottom: 8 }}
+                >
+                  {msg.sender}
+                </Typography>
+                <Typography variant="body" style={{ lineHeight: 24 }}>
+                  {msg.content}
+                </Typography>
+                {citations.length > 0 && (
+                  <CitationSources
+                    citations={citations}
+                    variant="expanded"
+                    initialVisible={3}
+                    brandColor={getAIColor(msg.sender)}
+                    style={[
+                      styles.citationSources,
+                      { borderTopColor: theme.colors.border },
+                    ]}
+                  />
+                )}
+              </View>
+            );
+          })}
 
           {/* Winner section if available */}
           {winner && scores && (
@@ -571,6 +682,11 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderLeftWidth: 4,
+  },
+  citationSources: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   winnerCard: {
     marginVertical: 24,

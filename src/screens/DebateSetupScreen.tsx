@@ -48,6 +48,8 @@ interface DebateSetupScreenProps {
     params?: {
       preselectedAIs?: AIConfig[];
       prefilledTopic?: string;
+      resetDebateSetup?: boolean;
+      resetKey?: string;
     };
   };
 }
@@ -70,6 +72,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   
   // Pre-debate validation (no side effects - just state)
   const validation = usePreDebateValidation();
+  const routeParams = route?.params;
   
   // Get configured AIs based on which ones have API keys
   const configuredAIs = useMemo(() => {
@@ -104,16 +107,16 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
 
   const [currentStep, setCurrentStep] = useState<'topic' | 'ai' | 'personality'>('topic');
   const [selectedAIs, setSelectedAIs] = useState<AIConfig[]>(
-    (route?.params?.preselectedAIs || [])
+    (routeParams?.preselectedAIs || [])
       .filter(ai => isValidProviderId(ai.provider))
       .map(ai => ({
         ...ai,
         personality: ai.personality || 'default',
       }))
   );
-  const [selectedTopic, setSelectedTopic] = useState<string>(route?.params?.prefilledTopic || preservedTopic || '');
+  const [selectedTopic, setSelectedTopic] = useState<string>(routeParams?.prefilledTopic || preservedTopic || '');
   const [customTopic, setCustomTopic] = useState(
-    route?.params?.prefilledTopic || (preservedTopicMode === 'custom' ? (preservedTopic || '') : '')
+    routeParams?.prefilledTopic || (preservedTopicMode === 'custom' ? (preservedTopic || '') : '')
   );
   const [topicMode, setTopicMode] = useState<'preset' | 'custom' | 'surprise'>(preservedTopicMode || 'preset');
   const [selectedModels, setSelectedModels] = useState<Record<string, string>>(selectedModelsFromStore || {});
@@ -157,6 +160,51 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   const clearPreservedData = () => {
     dispatch(clearPreservedTopic());
   };
+
+  useEffect(() => {
+    const params = routeParams;
+    if (!params) return;
+
+    if (params.resetDebateSetup) {
+      setCurrentStep('topic');
+      setSelectedAIs([]);
+      setSelectedTopic('');
+      setCustomTopic('');
+      setTopicMode('preset');
+      setSelectedModels(selectedModelsFromStore || {});
+      setFormatId('oxford');
+      setExchanges(3);
+      setCivility(1);
+      dispatch(clearPreservedTopic());
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+      return;
+    }
+
+    if (params.preselectedAIs || typeof params.prefilledTopic === 'string') {
+      const validPreselectedAIs = (params.preselectedAIs || [])
+        .filter(ai => isValidProviderId(ai.provider))
+        .map(ai => ({
+          ...ai,
+          personality: ai.personality || 'default',
+        }));
+
+      if (validPreselectedAIs.length > 0) {
+        setSelectedAIs(validPreselectedAIs);
+      }
+
+      if (typeof params.prefilledTopic === 'string') {
+        setSelectedTopic(params.prefilledTopic);
+        setCustomTopic(params.prefilledTopic);
+      }
+
+      setCurrentStep('topic');
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    }
+  }, [
+    dispatch,
+    routeParams,
+    selectedModelsFromStore,
+  ]);
   
   const handleToggleAI = (ai: AIConfig) => {
     setSelectedAIs(prev => {

@@ -502,6 +502,30 @@ describe('DebateSetupScreen', () => {
     expect(Alert.alert).toHaveBeenCalledWith('Select 2 AIs', expect.any(String));
   });
 
+  it('resets setup state when returning from a completed debate', async () => {
+    renderScreen({
+      featureAccess: { isDemo: false },
+      route: {
+        resetDebateSetup: true,
+        resetKey: 'reset-1',
+      },
+      state: {
+        debateStats: {
+          preservedTopic: 'Old Motion',
+          preservedTopicMode: 'custom',
+        } as any,
+      },
+    });
+
+    await flush();
+
+    expect(stepIndicatorProps.currentStep).toBe('topic');
+    expect(topicSelectorProps.selectedTopic).toBe('');
+    expect(topicSelectorProps.customTopic).toBe('');
+    expect(topicSelectorProps.topicMode).toBe('preset');
+    expect(mockDispatch).toHaveBeenCalledWith(clearPreservedTopic());
+  });
+
   it('preserves topic on unmount and clears when starting debate', async () => {
     const firstRender = renderScreen({
       featureAccess: { isDemo: false },

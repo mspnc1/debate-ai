@@ -49,13 +49,13 @@ jest.mock('@/components/molecules', () => {
   const React = require('react');
   const { Text, TouchableOpacity } = require('react-native');
   return {
-    Typography: ({ children, ...props }: any) =>
-      React.createElement(Text, { testID: props.testID || 'typography' }, children),
-    SheetHeader: ({ title, onClose }: any) =>
+    Typography: ({ children, testID }: { children?: unknown; testID?: string }) =>
+      React.createElement(Text, { testID: testID || 'typography' }, children),
+    SheetHeader: ({ title, onClose }: { title: string; onClose: () => void }) =>
       React.createElement(TouchableOpacity, { testID: 'sheet-header', onPress: onClose },
         React.createElement(Text, null, title)
       ),
-    GradientButton: ({ title, onPress, disabled }: any) =>
+    GradientButton: ({ title, onPress, disabled }: { title: string; onPress: () => void; disabled?: boolean }) =>
       React.createElement(TouchableOpacity, {
         testID: title.includes('Save') ? 'save-button' : 'share-button',
         onPress,
@@ -136,6 +136,34 @@ describe('TranscriptModal', () => {
 
       expect(getByText('Opening argument')).toBeTruthy();
       expect(getByText('Counter argument')).toBeTruthy();
+    });
+
+    it('renders citations for cited debate messages', () => {
+      const citedMessages: Message[] = [
+        {
+          ...mockMessages[0],
+          content: 'Opening argument with evidence [1]',
+          metadata: {
+            citations: [
+              {
+                index: 1,
+                url: 'https://example.com/source',
+                title: 'Example Source',
+                snippet: 'Evidence summary',
+              },
+            ],
+          },
+        },
+      ];
+
+      const { getByTestId, getByText } = renderWithProviders(
+        <TranscriptModal {...defaultProps} messages={citedMessages} />
+      );
+
+      expect(getByText('Opening argument with evidence [1]')).toBeTruthy();
+      expect(getByText('Sources (1)')).toBeTruthy();
+      expect(getByText('Example Source')).toBeTruthy();
+      expect(getByTestId('citation-sources')).toBeTruthy();
     });
 
     it('renders winner section when winner is provided', () => {
@@ -259,6 +287,42 @@ describe('TranscriptModal', () => {
           })
         );
       });
+    });
+
+    it('includes citations in generated PDF HTML', async () => {
+      const Print = require('expo-print') as { printToFileAsync: jest.Mock };
+      const citedMessages: Message[] = [
+        {
+          ...mockMessages[0],
+          content: 'Opening argument with evidence [1]',
+          metadata: {
+            citations: [
+              {
+                index: 1,
+                url: 'https://example.com/source',
+                title: 'Example Source',
+                snippet: 'Evidence summary',
+              },
+            ],
+          },
+        },
+      ];
+
+      const { getByTestId } = renderWithProviders(
+        <TranscriptModal {...defaultProps} messages={citedMessages} />
+      );
+
+      fireEvent.press(getByTestId('save-button'));
+
+      await waitFor(() => {
+        expect(Print.printToFileAsync).toHaveBeenCalled();
+      });
+
+      const html = Print.printToFileAsync.mock.calls[0][0].html;
+      expect(html).toContain('Sources (1)');
+      expect(html).toContain('Example Source');
+      expect(html).toContain('https://example.com/source');
+      expect(html).toContain('Evidence summary');
     });
 
     it('shows error toast when save fails', async () => {

@@ -54,6 +54,7 @@ interface DebateScreenProps {
   navigation: {
     goBack: () => void;
     navigate: (screen: string, params?: Record<string, unknown>) => void;
+    replace: (screen: string, params?: Record<string, unknown>) => void;
   };
   route: {
     params: {
@@ -66,6 +67,7 @@ interface DebateScreenProps {
       civility?: 1|2|3|4|5;
       demoDebateId?: string;
       demoSample?: DemoDebate;
+      rematchKey?: string;
     };
   };
 }
@@ -249,11 +251,21 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   };
   
   // Handle Start Over with confirmation
-  const stopDebateNow = () => {
+  const stopDebateNow = useCallback(() => {
     // Cancel any active streaming and scheduled turns immediately
     try { getStreamingService().cancelAllStreams(); } catch { /* ignore cancel errors */ }
     try { session.resetSession(); } catch { /* ignore reset errors */ }
-  };
+  }, [session]);
+
+  const navigateToDebateSetup = useCallback(() => {
+    navigation.navigate('MainTabs', {
+      screen: 'DebateTab',
+      params: {
+        resetDebateSetup: true,
+        resetKey: Date.now().toString(),
+      },
+    });
+  }, [navigation]);
 
   const handleStartOver = () => {
     // Stop all activity immediately upon pressing Go Back/Start Over
@@ -272,12 +284,60 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
           style: 'destructive',
           onPress: () => {
             // Navigate back to the Debate tab (DebateSetupScreen)
-            navigation.navigate('MainTabs', { screen: 'DebateTab' });
+            navigateToDebateSetup();
           },
         },
       ]
     );
   };
+
+  const handleVictoryStartOver = useCallback(() => {
+    stopDebateNow();
+    setShowTranscript(false);
+    navigateToDebateSetup();
+  }, [navigateToDebateSetup, stopDebateNow]);
+
+  const handleRematch = useCallback(() => {
+    const rematchTopic = session.session?.topic || topicSelection.finalTopic || initialTopic;
+    if (!rematchTopic) {
+      ErrorService.showWarning('No debate motion is available for a rematch.', 'debate');
+      return;
+    }
+
+    stopDebateNow();
+    setShowTranscript(false);
+
+    const rematchParams = {
+      ...route.params,
+      selectedAIs,
+      topic: rematchTopic,
+      personalities: initialPersonalities,
+      formatId: formatId || 'oxford',
+      rounds,
+      exchanges,
+      civility,
+      demoDebateId,
+      demoSample,
+      rematchKey: Date.now().toString(),
+    };
+
+    navigation.replace('Debate', rematchParams);
+  }, [
+    civility,
+    demoDebateId,
+    demoSample,
+    exchanges,
+    formatId,
+    initialPersonalities,
+    initialTopic,
+    navigation,
+    route.params,
+    rounds,
+    selectedAIs,
+    session.session?.topic,
+    stopDebateNow,
+    topicSelection.finalTopic,
+  ]);
   
   // Handle view transcript
   const handleViewTranscript = () => {
@@ -390,6 +450,8 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
               { round: 2, winner: winner[1].name, topic: topicSelection.finalTopic || 'Debate Topic' }
             ]}
             onViewTranscript={handleViewTranscript}
+            onRematch={handleRematch}
+            onStartOver={handleVictoryStartOver}
             topic={topicSelection.finalTopic}
             participants={selectedAIs}
             messages={messages.messages}
