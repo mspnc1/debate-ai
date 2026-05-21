@@ -56,7 +56,7 @@ export class AIConfigurationService {
     // Find the default model for this provider
     // Demo-specific default models
     const DEMO_MODEL_OVERRIDES: Record<string, string> = {
-      google: 'gemini-2.5-pro',
+      google: 'gemini-3.5-flash',
       openai: 'gpt-5',
       claude: 'opus-4.1',
     };

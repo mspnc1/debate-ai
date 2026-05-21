@@ -89,9 +89,9 @@ This bundle consolidates curated entries to update:
 ```ts
 // Curated ModelConfig entries for AI_MODELS['google'] (default + recommended)
 {
-      id: 'gemini-3.1-pro-preview',
-      name: 'Gemini 3.1 Pro Preview',
-      description: 'Gemini 3.1 Pro Preview',
+      id: 'gemini-3.5-flash',
+      name: 'Gemini 3.5 Flash',
+      description: 'Gemini 3.5 Flash',
       contextLength: 1048576,
       maxOutputTokens: 65536,
       supportsVision: true,
@@ -102,9 +102,9 @@ This bundle consolidates curated entries to update:
       isDefault: true,
     },
 {
-      id: 'gemini-3-flash-preview',
-      name: 'Gemini 3 Flash Preview',
-      description: 'Gemini 3 Flash Preview',
+      id: 'gemini-3.1-pro-preview',
+      name: 'Gemini 3.1 Pro Preview',
+      description: 'Gemini 3.1 Pro Preview',
       contextLength: 1048576,
       maxOutputTokens: 65536,
       supportsVision: true,
@@ -114,9 +114,9 @@ This bundle consolidates curated entries to update:
       supportsThinking: true,
     },
 {
-      id: 'gemini-3.1-flash-lite-preview',
-      name: 'Gemini 3.1 Flash Lite Preview',
-      description: 'Gemini 3.1 Flash Lite Preview',
+      id: 'gemini-3.1-flash-lite',
+      name: 'Gemini 3.1 Flash Lite',
+      description: 'Gemini 3.1 Flash Lite',
       contextLength: 1048576,
       maxOutputTokens: 65536,
       supportsVision: true,
@@ -331,7 +331,7 @@ videoGeneration: { supported: true, models: ["sora-2","sora-2-pro"], resolutions
 ### Provider: google
 ```ts
 // Insert into getProviderCapabilities('google') videoGeneration block (if/when added)
-videoGeneration: { supported: true, models: ["veo-2.0-generate-001","veo-3.0-generate-001","veo-3.0-fast-generate-001","veo-3.1-generate-preview","veo-3.1-fast-generate-preview"], resolutions: ["480p","720p","1080p"], maxPromptLength: 4000 },
+videoGeneration: { supported: true, models: ["veo-2.0-generate-001","veo-3.0-generate-001","veo-3.0-fast-generate-001","veo-3.1-generate-preview","veo-3.1-fast-generate-preview","veo-3.1-lite-generate-preview"], resolutions: ["480p","720p","1080p"], maxPromptLength: 4000 },
 ```
 ### Provider: grok
 ```ts

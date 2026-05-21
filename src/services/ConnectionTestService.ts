@@ -268,6 +268,9 @@ export class ConnectionTestService {
     const data = await response.json();
     const models = data.models || [];
     const preferredGeminiIds = [
+      'models/gemini-3.5-flash',
+      'models/gemini-3.1-flash-lite',
+      'models/gemini-3.1-pro-preview',
       'models/gemini-2.5-flash',
       'models/gemini-2.5-pro',
       'models/gemini-2.0-flash',

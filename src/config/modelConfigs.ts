@@ -26,7 +26,7 @@ export interface ProviderModels {
   [providerId: string]: ModelConfig[];
 }
 
-// Updated April 2026 using verified live model IDs plus current provider docs.
+// Updated May 2026 using verified live model IDs plus current provider docs.
 export const AI_MODELS: ProviderModels = {
   claude: [
     {
@@ -417,21 +417,9 @@ export const AI_MODELS: ProviderModels = {
   ],
   google: [
     {
-      id: "gemini-3.1-pro-preview",
-      name: "Gemini 3.1 Pro",
-      description: "Latest Gemini flagship with advanced reasoning and multimodal",
-      contextLength: 1048576,
-      maxOutputTokens: 65536,
-      supportsVision: true,
-      supportsImageInput: true,
-      supportsDocuments: true,
-      supportsFunctions: true,
-      supportsThinking: true,
-    },
-    {
-      id: "gemini-3-flash-preview",
-      name: "Gemini 3 Flash",
-      description: "Fast next-gen Gemini for general-purpose multimodal chat",
+      id: "gemini-3.5-flash",
+      name: "Gemini 3.5 Flash",
+      description: "GA Gemini 3.5 model optimized for agentic tasks, coding, and fast multimodal chat",
       contextLength: 1048576,
       maxOutputTokens: 65536,
       isDefault: true,
@@ -439,18 +427,46 @@ export const AI_MODELS: ProviderModels = {
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      supportsWebSearch: true,
       supportsThinking: true,
     },
     {
-      id: "gemini-3.1-flash-lite-preview",
-      name: "Gemini 3.1 Flash Lite",
-      description: "Most cost-effective Gemini 3.x model",
+      id: "gemini-3.1-pro-preview",
+      name: "Gemini 3.1 Pro Preview",
+      description: "Preview Gemini flagship with advanced reasoning and multimodal",
       contextLength: 1048576,
       maxOutputTokens: 65536,
       supportsVision: true,
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      supportsWebSearch: true,
+      supportsThinking: true,
+    },
+    {
+      id: "gemini-3-flash-preview",
+      name: "Gemini 3 Flash Preview",
+      description: "Previous Gemini 3 preview model retained for compatibility",
+      contextLength: 1048576,
+      maxOutputTokens: 65536,
+      supportsVision: true,
+      supportsImageInput: true,
+      supportsDocuments: true,
+      supportsFunctions: true,
+      supportsWebSearch: true,
+      supportsThinking: true,
+    },
+    {
+      id: "gemini-3.1-flash-lite",
+      name: "Gemini 3.1 Flash Lite",
+      description: "GA cost-effective Gemini 3.1 model for high-volume lightweight chat",
+      contextLength: 1048576,
+      maxOutputTokens: 65536,
+      supportsVision: true,
+      supportsImageInput: true,
+      supportsDocuments: true,
+      supportsFunctions: true,
+      supportsWebSearch: true,
       supportsThinking: true,
     },
     {
@@ -463,6 +479,7 @@ export const AI_MODELS: ProviderModels = {
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      supportsWebSearch: true,
       supportsThinking: true,
     },
     {
@@ -475,6 +492,7 @@ export const AI_MODELS: ProviderModels = {
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      supportsWebSearch: true,
       supportsThinking: true,
     },
     {
@@ -487,6 +505,7 @@ export const AI_MODELS: ProviderModels = {
       supportsImageInput: true,
       supportsDocuments: true,
       supportsFunctions: true,
+      supportsWebSearch: true,
       supportsThinking: true,
     },
     {
@@ -784,9 +803,9 @@ export const CURATED_MODEL_IDS: { [providerId: string]: string[] } = {
     "gpt-5.4-nano",
   ],
   google: [
-    "gemini-3-flash-preview",
+    "gemini-3.5-flash",
     "gemini-3.1-pro-preview",
-    "gemini-3.1-flash-lite-preview",
+    "gemini-3.1-flash-lite",
     "gemini-2.5-pro",
     "gemini-2.5-flash",
   ],

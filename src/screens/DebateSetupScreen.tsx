@@ -82,7 +82,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     return providers.map(provider => {
       const iconData = getAIProviderIcon(provider.id);
       const providerDefault = isDemo
-        ? ({ google: 'gemini-2.5-pro', openai: 'gpt-5', claude: 'opus-4.1' } as Record<string, string>)[provider.id] || ''
+        ? ({ google: 'gemini-3.5-flash', openai: 'gpt-5', claude: 'opus-4.1' } as Record<string, string>)[provider.id] || ''
         : (getProviderDefaultModel(provider.id)?.id || '');
       const expertCfg = (expertMode as Record<string, { enabled?: boolean; selectedModel?: string }>)[provider.id];
       const defaultModel = (!isDemo && expertCfg?.enabled && expertCfg.selectedModel)

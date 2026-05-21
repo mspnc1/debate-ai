@@ -37,11 +37,15 @@ export const MODEL_ALIASES: Record<string, string> = {
   'o3-mini-latest': 'o3-mini',
 
   // Google aliases
-  'gemini-latest': 'gemini-3-flash-preview',
+  'gemini-latest': 'gemini-3.5-flash',
   'gemini-pro-latest': 'gemini-3.1-pro-preview',
-  'gemini-flash-latest': 'gemini-3-flash-preview',
-  'gemini-3-latest': 'gemini-3-flash-preview',
+  'gemini-flash-latest': 'gemini-3.5-flash',
+  'gemini-flash-lite-latest': 'gemini-3.1-flash-lite',
+  'gemini-3-latest': 'gemini-3.5-flash',
+  'gemini-3.5-latest': 'gemini-3.5-flash',
   'gemini-3.1-latest': 'gemini-3.1-pro-preview',
+  'gemini-3.1-flash-lite-latest': 'gemini-3.1-flash-lite',
+  'gemini-3.1-flash-lite-preview': 'gemini-3.1-flash-lite',
   'gemini-2.5-latest': 'gemini-2.5-flash',
 
   // Grok aliases
@@ -97,7 +101,7 @@ export const MODEL_ALIASES: Record<string, string> = {
 export const DEFAULT_PROVIDER_MODELS: Record<string, string> = {
   claude: 'claude-sonnet-4-6',
   openai: 'gpt-5.5',
-  google: 'gemini-3-flash-preview',
+  google: 'gemini-3.5-flash',
   perplexity: 'sonar-pro',
   mistral: 'mistral-large-2512',
   cohere: 'command-a-plus-05-2026',

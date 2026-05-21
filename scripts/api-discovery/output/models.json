@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-26T06:57:36.032Z",
+  "generatedAt": "2026-05-21T17:46:13.700Z",
   "providers": {
     "openai": {
       "pricingSource": "https://openai.com/api/pricing/",
@@ -3276,7 +3276,7 @@
       ]
     },
     "google": {
-      "pricingSource": "https://ai.google.dev/pricing",
+      "pricingSource": "https://ai.google.dev/gemini-api/docs/pricing",
       "models": [
         {
           "id": "gemini-2.5-flash",
@@ -3461,150 +3461,6 @@
             "videoGeneration": false,
             "voiceInput": false,
             "voiceOutput": true,
-            "realtime": false,
-            "functions": true,
-            "webSearch": false,
-            "thinking": false,
-            "jsonMode": false
-          },
-          "isDeprecated": false,
-          "_source": "api"
-        },
-        {
-          "id": "gemma-3-1b-it",
-          "name": "Gemma 3 1B",
-          "description": null,
-          "contextLength": 32768,
-          "maxOutputTokens": 8192,
-          "pricing": null,
-          "capabilities": {
-            "vision": true,
-            "documents": true,
-            "imageInput": true,
-            "imageGeneration": false,
-            "videoGeneration": false,
-            "voiceInput": false,
-            "voiceOutput": false,
-            "realtime": false,
-            "functions": true,
-            "webSearch": false,
-            "thinking": false,
-            "jsonMode": false
-          },
-          "isDeprecated": false,
-          "_source": "api"
-        },
-        {
-          "id": "gemma-3-4b-it",
-          "name": "Gemma 3 4B",
-          "description": null,
-          "contextLength": 32768,
-          "maxOutputTokens": 8192,
-          "pricing": null,
-          "capabilities": {
-            "vision": true,
-            "documents": true,
-            "imageInput": true,
-            "imageGeneration": false,
-            "videoGeneration": false,
-            "voiceInput": false,
-            "voiceOutput": false,
-            "realtime": false,
-            "functions": true,
-            "webSearch": false,
-            "thinking": false,
-            "jsonMode": false
-          },
-          "isDeprecated": false,
-          "_source": "api"
-        },
-        {
-          "id": "gemma-3-12b-it",
-          "name": "Gemma 3 12B",
-          "description": null,
-          "contextLength": 32768,
-          "maxOutputTokens": 8192,
-          "pricing": null,
-          "capabilities": {
-            "vision": true,
-            "documents": true,
-            "imageInput": true,
-            "imageGeneration": false,
-            "videoGeneration": false,
-            "voiceInput": false,
-            "voiceOutput": false,
-            "realtime": false,
-            "functions": true,
-            "webSearch": false,
-            "thinking": false,
-            "jsonMode": false
-          },
-          "isDeprecated": false,
-          "_source": "api"
-        },
-        {
-          "id": "gemma-3-27b-it",
-          "name": "Gemma 3 27B",
-          "description": null,
-          "contextLength": 131072,
-          "maxOutputTokens": 8192,
-          "pricing": null,
-          "capabilities": {
-            "vision": true,
-            "documents": true,
-            "imageInput": true,
-            "imageGeneration": false,
-            "videoGeneration": false,
-            "voiceInput": false,
-            "voiceOutput": false,
-            "realtime": false,
-            "functions": true,
-            "webSearch": false,
-            "thinking": false,
-            "jsonMode": false
-          },
-          "isDeprecated": false,
-          "_source": "api"
-        },
-        {
-          "id": "gemma-3n-e4b-it",
-          "name": "Gemma 3n E4B",
-          "description": null,
-          "contextLength": 8192,
-          "maxOutputTokens": 2048,
-          "pricing": null,
-          "capabilities": {
-            "vision": true,
-            "documents": true,
-            "imageInput": true,
-            "imageGeneration": false,
-            "videoGeneration": false,
-            "voiceInput": false,
-            "voiceOutput": false,
-            "realtime": false,
-            "functions": true,
-            "webSearch": false,
-            "thinking": false,
-            "jsonMode": false
-          },
-          "isDeprecated": false,
-          "_source": "api"
-        },
-        {
-          "id": "gemma-3n-e2b-it",
-          "name": "Gemma 3n E2B",
-          "description": null,
-          "contextLength": 8192,
-          "maxOutputTokens": 2048,
-          "pricing": null,
-          "capabilities": {
-            "vision": true,
-            "documents": true,
-            "imageInput": true,
-            "imageGeneration": false,
-            "videoGeneration": false,
-            "voiceInput": false,
-            "voiceOutput": false,
             "realtime": false,
             "functions": true,
             "webSearch": false,
@@ -3903,6 +3759,30 @@
           "_source": "api"
         },
         {
+          "id": "gemini-3.1-flash-lite",
+          "name": "Gemini 3.1 Flash Lite",
+          "description": "Gemini 3.1 Flash Lite",
+          "contextLength": 1048576,
+          "maxOutputTokens": 65536,
+          "pricing": null,
+          "capabilities": {
+            "vision": true,
+            "documents": true,
+            "imageInput": true,
+            "imageGeneration": false,
+            "videoGeneration": false,
+            "voiceInput": false,
+            "voiceOutput": false,
+            "realtime": false,
+            "functions": true,
+            "webSearch": false,
+            "thinking": true,
+            "jsonMode": false
+          },
+          "isDeprecated": false,
+          "_source": "api"
+        },
+        {
           "id": "gemini-3-pro-image-preview",
           "name": "Nano Banana Pro",
           "description": "Gemini 3 Pro Image Preview",
@@ -3955,6 +3835,30 @@
           "name": "Nano Banana 2",
           "description": "Gemini 3.1 Flash Image Preview.",
           "contextLength": 65536,
+          "maxOutputTokens": 65536,
+          "pricing": null,
+          "capabilities": {
+            "vision": true,
+            "documents": true,
+            "imageInput": true,
+            "imageGeneration": false,
+            "videoGeneration": false,
+            "voiceInput": false,
+            "voiceOutput": false,
+            "realtime": false,
+            "functions": true,
+            "webSearch": false,
+            "thinking": true,
+            "jsonMode": false
+          },
+          "isDeprecated": false,
+          "_source": "api"
+        },
+        {
+          "id": "gemini-3.5-flash",
+          "name": "Gemini 3.5 Flash",
+          "description": "Gemini 3.5 Flash",
+          "contextLength": 1048576,
           "maxOutputTokens": 65536,
           "pricing": null,
           "capabilities": {
@@ -4113,6 +4017,30 @@
             "functions": true,
             "webSearch": false,
             "thinking": true,
+            "jsonMode": false
+          },
+          "isDeprecated": false,
+          "_source": "api"
+        },
+        {
+          "id": "antigravity-preview-05-2026",
+          "name": "Antigravity Agent Preview",
+          "description": "Preview release of Antigravity Agent (05-2026)",
+          "contextLength": 131072,
+          "maxOutputTokens": 65536,
+          "pricing": null,
+          "capabilities": {
+            "vision": true,
+            "documents": true,
+            "imageInput": true,
+            "imageGeneration": false,
+            "videoGeneration": false,
+            "voiceInput": false,
+            "voiceOutput": false,
+            "realtime": false,
+            "functions": true,
+            "webSearch": false,
+            "thinking": false,
             "jsonMode": false
           },
           "isDeprecated": false,
@@ -4473,6 +4401,78 @@
             "functions": false,
             "webSearch": false,
             "thinking": false,
+            "jsonMode": false
+          },
+          "isDeprecated": false,
+          "_source": "api"
+        },
+        {
+          "id": "veo-3.1-lite-generate-preview",
+          "name": "Veo 3.1 lite",
+          "description": "Veo 3.1 lite",
+          "contextLength": 480,
+          "maxOutputTokens": 8192,
+          "pricing": null,
+          "capabilities": {
+            "vision": false,
+            "documents": false,
+            "imageInput": false,
+            "imageGeneration": false,
+            "videoGeneration": true,
+            "voiceInput": false,
+            "voiceOutput": false,
+            "realtime": false,
+            "functions": false,
+            "webSearch": false,
+            "thinking": false,
+            "jsonMode": false
+          },
+          "isDeprecated": false,
+          "_source": "api"
+        },
+        {
+          "id": "gemini-2.5-flash-native-audio-latest",
+          "name": "Gemini 2.5 Flash Native Audio Latest",
+          "description": "Latest release of Gemini 2.5 Flash Native Audio",
+          "contextLength": 131072,
+          "maxOutputTokens": 8192,
+          "pricing": null,
+          "capabilities": {
+            "vision": false,
+            "documents": false,
+            "imageInput": false,
+            "imageGeneration": false,
+            "videoGeneration": false,
+            "voiceInput": true,
+            "voiceOutput": true,
+            "realtime": false,
+            "functions": false,
+            "webSearch": false,
+            "thinking": true,
+            "jsonMode": false
+          },
+          "isDeprecated": false,
+          "_source": "api"
+        },
+        {
+          "id": "gemini-2.5-flash-native-audio-preview-09-2025",
+          "name": "Gemini 2.5 Flash Native Audio Preview 09-2025",
+          "description": "Gemini 2.5 Flash Native Audio Preview 09-2025",
+          "contextLength": 131072,
+          "maxOutputTokens": 8192,
+          "pricing": null,
+          "capabilities": {
+            "vision": false,
+            "documents": false,
+            "imageInput": false,
+            "imageGeneration": false,
+            "videoGeneration": false,
+            "voiceInput": true,
+            "voiceOutput": true,
+            "realtime": false,
+            "functions": false,
+            "webSearch": false,
+            "thinking": true,
             "jsonMode": false
           },
           "isDeprecated": false,

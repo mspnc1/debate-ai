@@ -4,7 +4,7 @@
  * This file contains mappings for model versioning and easy updates.
  * Update this file when new model versions are released.
  * 
- * Last updated: April 2026
+ * Last updated: May 2026
  */
 
 export interface ModelVersionInfo {
@@ -216,16 +216,31 @@ export const MODEL_VERSIONS: ProviderVersions = {
     ],
     fast: [
       {
+        id: 'gemini-3.5-flash',
+        version: '3.5-flash',
+        releaseDate: '2026-05-19',
+        isLatest: true,
+      },
+      {
         id: 'gemini-3-flash-preview',
         version: '3-flash-preview',
         releaseDate: '2026-03-01',
-        isLatest: true,
+        isLatest: false,
+      },
+      {
+        id: 'gemini-3.1-flash-lite',
+        version: '3.1-flash-lite',
+        releaseDate: '2026-05-19',
+        isLatest: false,
       },
       {
         id: 'gemini-3.1-flash-lite-preview',
         version: '3.1-flash-lite-preview',
         releaseDate: '2026-03-01',
         isLatest: false,
+        isDeprecated: true,
+        deprecationDate: '2026-05-25',
+        replacedBy: 'gemini-3.1-flash-lite',
       },
       {
         id: 'gemini-2.5-flash',

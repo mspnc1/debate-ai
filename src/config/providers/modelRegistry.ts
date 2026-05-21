@@ -67,11 +67,15 @@ export const MODEL_ALIASES: Record<string, string> = {
   'o3-mini-latest': 'o3-mini',
 
   // Google aliases
-  'gemini-latest': 'gemini-3-flash-preview',
+  'gemini-latest': 'gemini-3.5-flash',
   'gemini-pro-latest': 'gemini-3.1-pro-preview',
-  'gemini-flash-latest': 'gemini-3-flash-preview',
-  'gemini-3-latest': 'gemini-3-flash-preview',
+  'gemini-flash-latest': 'gemini-3.5-flash',
+  'gemini-flash-lite-latest': 'gemini-3.1-flash-lite',
+  'gemini-3-latest': 'gemini-3.5-flash',
+  'gemini-3.5-latest': 'gemini-3.5-flash',
   'gemini-3.1-latest': 'gemini-3.1-pro-preview',
+  'gemini-3.1-flash-lite-latest': 'gemini-3.1-flash-lite',
+  'gemini-3.1-flash-lite-preview': 'gemini-3.1-flash-lite',
   'gemini-2.5-latest': 'gemini-2.5-flash',
 
   // Grok aliases
@@ -129,12 +133,12 @@ export const resolveModelAlias = (modelId: string): string => {
 };
 
 // Helper function to get default model for a provider
-// Updated April 2026 - defaults point at verified live model IDs
+// Updated May 2026 - defaults point at verified live model IDs
 export const getDefaultModel = (providerId: string): string => {
   const defaults: Record<string, string> = {
     claude: 'claude-sonnet-4-6',
     openai: 'gpt-5.5',
-    google: 'gemini-3-flash-preview',
+    google: 'gemini-3.5-flash',
     grok: 'grok-4.20-0309-non-reasoning',
     perplexity: 'sonar-pro',
     mistral: 'mistral-large-2512',

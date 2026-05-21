@@ -135,7 +135,7 @@ function classifyFamily(provider, id) {
 const PROVIDER_FAMILIES = {
   openai: ['gpt-full', 'gpt-mini', 'gpt-nano', 'o-full', 'o-mini', 'gpt-image'],
   claude: ['claude-opus', 'claude-sonnet', 'claude-haiku'],
-  google: ['gemini-pro', 'gemini-flash', 'gemini-flash-lite', 'imagen'],
+  google: ['gemini-flash', 'gemini-pro', 'gemini-flash-lite', 'imagen'],
   perplexity: ['sonar-pro', 'sonar', 'sonar-reasoning-pro', 'sonar-reasoning'],
   mistral: ['mistral-large', 'mistral-medium', 'mistral-small', 'codestral', 'pixtral'],
   cohere: ['command-reasoning', 'command-vision', 'command-r', 'command-light'],
@@ -157,6 +157,11 @@ function pickCurated(provider, models) {
     }
     // Exclude -customtools variants
     if (/customtools/.test(id)) return true;
+    // Exclude preview variants when the GA base model is present.
+    if (/-preview\b/.test(id)) {
+      const base = id.replace(/-preview\b.*$/, '');
+      if (models.some(other => (other.id || '').toLowerCase() === base)) return true;
+    }
     return false;
   };
 

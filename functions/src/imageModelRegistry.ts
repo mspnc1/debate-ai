@@ -25,6 +25,7 @@ const IMAGE_MODEL_ALIASES: Partial<Record<ImageProviderId, Record<string, string
   },
   google: {
     'gemini-3-pro-image': 'gemini-3-pro-image-preview',
+    'nano-banana-pro-preview': 'gemini-3-pro-image-preview',
   },
   grok: {
     'grok-2-image-1212': 'grok-imagine-image',
