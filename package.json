@@ -1,6 +1,6 @@
 {
   "name": "symposium-ai",
-  "version": "1.5.8",
+  "version": "1.7.0",
   "main": "index.ts",
   "scripts": {
     "start": "expo start --dev-client",
