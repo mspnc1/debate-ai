@@ -5,6 +5,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, Linking, LayoutAnimation, Platform, UIManager } from 'react-native';
+import type { StyleProp, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CitationBadge, CitationCard } from '@/components/molecules/citations';
 import { Typography } from '@/components/molecules/common/Typography';
@@ -34,6 +35,7 @@ export interface CitationListProps {
   onCitationPress?: (citation: Citation) => void;
   brandColor?: string;
   showHeader?: boolean;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const CitationList: React.FC<CitationListProps> = React.memo(({
@@ -43,6 +45,7 @@ export const CitationList: React.FC<CitationListProps> = React.memo(({
   onCitationPress,
   brandColor,
   showHeader = true,
+  style,
 }) => {
   const { theme } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -124,7 +127,7 @@ export const CitationList: React.FC<CitationListProps> = React.memo(({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]} testID="citation-sources">
       {/* Header */}
       {showHeader && (
         <View style={styles.header}>

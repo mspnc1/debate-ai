@@ -108,5 +108,6 @@ describe('MessageBubble', () => {
     );
 
     expect(getByTestId('markdown').props.children).toContain('[[1]](https://example.com)');
+    expect(getByTestId('citation-sources')).toBeTruthy();
   });
 });

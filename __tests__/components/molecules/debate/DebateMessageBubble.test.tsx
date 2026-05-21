@@ -127,6 +127,22 @@ describe('DebateMessageBubble', () => {
       );
       expect(getByText('Claude (Analytical)')).toBeTruthy();
     });
+
+    it('renders citation sources for cited AI messages', () => {
+      const message = createMessage({
+        content: 'See [1] for details.',
+        metadata: {
+          citations: [{ index: 1, url: 'https://example.com/source' }],
+        },
+      });
+
+      const { getByTestId, getByText } = renderWithProviders(
+        <DebateMessageBubble message={message} index={0} />
+      );
+
+      expect(getByText('See [[1]](https://example.com/source) for details.')).toBeTruthy();
+      expect(getByTestId('citation-sources')).toBeTruthy();
+    });
   });
 
   describe('Responsive Width', () => {

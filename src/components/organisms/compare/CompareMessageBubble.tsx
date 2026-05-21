@@ -1,19 +1,19 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, Linking, Image, Dimensions } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import Animated from 'react-native-reanimated';
 import Markdown from 'react-native-markdown-display';
 import { Typography } from '../../molecules';
 import { LazyMarkdownRenderer, createMarkdownStyles } from '../../molecules/common/LazyMarkdownRenderer';
 import { CompareImageDisplay } from './CompareImageDisplay';
-import { CitationList } from '../common/CitationList';
+import { CitationSources } from '../common/CitationSources';
 import { Message, AIConfig } from '../../../types';
 import { useTheme } from '../../../theme';
 import { sanitizeMarkdown, shouldLazyRender } from '@/utils/markdown';
-import { processMessageContentWithCitations, findCitationByUrl } from '@/utils/citationUtils';
-import { useCitationPreview } from '@/providers/CitationPreviewProvider';
+import { processMessageContentWithCitations } from '@/utils/citationUtils';
 import { selectableMarkdownRules } from '@/utils/markdownSelectable';
 import { useStreamingMessage } from '@/hooks/streaming';
 import { useMessageBubbleAnimation } from '@/hooks/useMessageBubbleAnimation';
+import { useCitationInteractions } from '@/hooks/useCitationInteractions';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
@@ -38,7 +38,6 @@ export const CompareMessageBubble: React.FC<CompareMessageBubbleProps> = ({
   const { theme, isDark } = useTheme();
   const [copied, setCopied] = useState(false);
   const { isDemo } = useFeatureAccess();
-  const { showPreview } = useCitationPreview();
 
   // Unified animation hook - fade-in for Compare mode
   const { animatedStyle } = useMessageBubbleAnimation({
@@ -129,25 +128,12 @@ export const CompareMessageBubble: React.FC<CompareMessageBubbleProps> = ({
 
   // Get brand color for citation preview
   const citationBrandColor = resolvedPalette ? resolvedPalette[500] : undefined;
+  const { handleCitationLinkPress } = useCitationInteractions(citationBrandColor);
 
   // Handle link press - check if it's a citation first
   const handleLinkPress = useCallback((url: string): boolean => {
-    // Check if this URL matches a citation
-    const citations = message.metadata?.citations;
-    if (citations && citations.length > 0) {
-      const citation = findCitationByUrl(url, citations);
-      if (citation) {
-        // Show citation preview tooltip at center of screen
-        const screenWidth = Dimensions.get('window').width;
-        const screenHeight = Dimensions.get('window').height;
-        showPreview(citation, { x: screenWidth / 2, y: screenHeight / 3 }, citationBrandColor);
-        return false; // Prevent default link behavior
-      }
-    }
-    // Not a citation - open in browser
-    Linking.openURL(url).catch(err => console.error('Failed to open URL:', err));
-    return false;
-  }, [message.metadata?.citations, showPreview, citationBrandColor]);
+    return handleCitationLinkPress(url, message.metadata?.citations);
+  }, [handleCitationLinkPress, message.metadata?.citations]);
 
   return (
     <Animated.View style={[
@@ -155,7 +141,8 @@ export const CompareMessageBubble: React.FC<CompareMessageBubbleProps> = ({
       side === 'left' ? styles.alignStart : styles.alignEnd,
       animatedStyle,
     ]}>
-      <View style={[styles.container, bubbleStyle]}>
+      <View style={styles.stack}>
+        <View style={[styles.container, bubbleStyle]}>
         {isDemo && (
           <View style={{ position: 'absolute', top: 6, left: 6, transform: [{ rotate: '-18deg' }], pointerEvents: 'none' }}>
             <Typography variant="caption" style={{ fontSize: 18, fontWeight: '800', letterSpacing: 1, color: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
@@ -243,21 +230,6 @@ export const CompareMessageBubble: React.FC<CompareMessageBubbleProps> = ({
             ))}
           </View>
         )}
-        {/* Citations section for messages with sources */}
-        {message.metadata?.citations && message.metadata.citations.length > 0 && (
-          <CitationList
-            citations={message.metadata.citations}
-            variant="compact"
-            initialVisible={3}
-            brandColor={citationBrandColor}
-            onCitationPress={(citation) => {
-              // Show citation preview tooltip at center of screen
-              const screenWidth = Dimensions.get('window').width;
-              const screenHeight = Dimensions.get('window').height;
-              showPreview(citation, { x: screenWidth / 2, y: screenHeight / 3 }, citationBrandColor);
-            }}
-          />
-        )}
         {/* Copy button */}
         <TouchableOpacity
           onPress={async () => {
@@ -282,6 +254,12 @@ export const CompareMessageBubble: React.FC<CompareMessageBubbleProps> = ({
             color={copyIconColor}
           />
         </TouchableOpacity>
+        </View>
+        <CitationSources
+          citations={message.metadata?.citations}
+          initialVisible={3}
+          brandColor={citationBrandColor}
+        />
       </View>
     </Animated.View>
   );
@@ -298,6 +276,9 @@ const styles = StyleSheet.create({
   },
   alignEnd: {
     justifyContent: 'flex-end',
+  },
+  stack: {
+    width: '100%',
   },
   container: {
     borderRadius: 12,

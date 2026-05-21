@@ -148,6 +148,27 @@ describe('CompareMessageBubble', () => {
     expect(getByTestId('lazy-markdown').props.children).toBe('sanitized:partial stream');
   });
 
+  it('renders citation sources outside the message content container', () => {
+    const message: Message = {
+      ...baseMessage,
+      content: 'See [1] for details.',
+      metadata: {
+        citations: [{ index: 1, url: 'https://example.com/source' }],
+      },
+    };
+
+    const { getByTestId } = renderWithProviders(
+      <CompareMessageBubble
+        message={message}
+        side="left"
+        onOpenLightbox={jest.fn()}
+      />
+    );
+
+    expect(getByTestId('markdown').props.children).toContain('[[1]](https://example.com/source)');
+    expect(getByTestId('citation-sources')).toBeTruthy();
+  });
+
   it('accepts onOpenLightbox prop for image attachments', () => {
     const onOpenLightbox = jest.fn();
 

@@ -16,7 +16,7 @@ import {
   Image,
   StyleSheet,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, WebViewNavigation } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme';
@@ -95,32 +95,29 @@ export const CitationWebViewModal: React.FC<CitationWebViewModalProps> = ({
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <SafeAreaView
-        style={{
-          flex: 1,
-          backgroundColor: theme.colors.background,
-        }}
-      >
-        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <View style={[styles.modalRoot, { backgroundColor: theme.colors.background }]}>
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={theme.colors.background}
+        />
+
+        <View style={{ height: insets.top, backgroundColor: theme.colors.background }} />
 
         {/* Header */}
         <Box
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.colors.border,
-            backgroundColor: theme.colors.background,
-            gap: 12,
-          }}
+          style={[
+            styles.header,
+            {
+              borderBottomColor: theme.colors.border,
+              backgroundColor: theme.colors.background,
+            },
+          ]}
         >
           {/* Close Button */}
           <TouchableOpacity
             onPress={onClose}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={styles.closeButton}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={styles.headerIconButton}
             accessibilityLabel="Close"
             accessibilityRole="button"
           >
@@ -175,7 +172,8 @@ export const CitationWebViewModal: React.FC<CitationWebViewModalProps> = ({
           {/* Open in Browser Button */}
           <TouchableOpacity
             onPress={handleOpenInBrowser}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={styles.headerIconButton}
             accessibilityLabel="Open in Browser"
             accessibilityRole="button"
           >
@@ -315,14 +313,30 @@ export const CitationWebViewModal: React.FC<CitationWebViewModalProps> = ({
             backgroundColor: theme.colors.background,
           }}
         />
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  closeButton: {
-    padding: 4,
+  modalRoot: {
+    flex: 1,
+  },
+  header: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    gap: 8,
+  },
+  headerIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   faviconContainer: {
     width: 24,

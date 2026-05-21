@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, Linking, Image, Dimensions } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, Linking, Image } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { ContinueButton } from './ContinueButton';
 import { CompareTypingIndicator } from './CompareTypingIndicator';
@@ -7,16 +7,16 @@ import { CompareImageGeneratingPane } from './CompareImageGeneratingPane';
 import { CompareImageDisplay } from './CompareImageDisplay';
 import { Typography } from '../../molecules';
 import { LazyMarkdownRenderer, createMarkdownStyles } from '../../molecules/common/LazyMarkdownRenderer';
-import { CitationList } from '../common/CitationList';
+import { CitationSources } from '../common/CitationSources';
 import { Message, AIConfig } from '../../../types';
 import { useTheme } from '../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import type { BrandColor } from '@/constants/aiColors';
 import { getBrandPalette } from '@/utils/aiBrandColors';
 import { sanitizeMarkdown, shouldLazyRender } from '@/utils/markdown';
-import { processMessageContentWithCitations, findCitationByUrl } from '@/utils/citationUtils';
+import { processMessageContentWithCitations } from '@/utils/citationUtils';
 import { selectableMarkdownRules } from '@/utils/markdownSelectable';
-import { useCitationPreview } from '@/providers/CitationPreviewProvider';
+import { useCitationInteractions } from '@/hooks/useCitationInteractions';
 import * as Clipboard from 'expo-clipboard';
 import type { ImageGenState } from './CompareSplitView';
 
@@ -54,7 +54,6 @@ export const CompareResponsePane: React.FC<CompareResponsePaneProps> = ({
 }) => {
   const { theme, isDark } = useTheme();
   const [copied, setCopied] = useState(false);
-  const { showPreview } = useCitationPreview();
 
   const brandPalette: BrandColor | null = useMemo(
     () => getBrandPalette(ai.provider, ai.name),
@@ -70,6 +69,7 @@ export const CompareResponsePane: React.FC<CompareResponsePaneProps> = ({
   const accentColor = brandPalette
     ? brandPalette[500]
     : (side === 'left' ? theme.colors.warning[500] : theme.colors.info[500]);
+  const { handleCitationLinkPress } = useCitationInteractions(accentColor);
 
   const paneStyle = {
     backgroundColor: paneBackgroundColor,
@@ -83,20 +83,9 @@ export const CompareResponsePane: React.FC<CompareResponsePaneProps> = ({
   // Create link press handler for a message (checks for citations)
   const createLinkPressHandler = useCallback((message: Message) => {
     return (url: string): boolean => {
-      const citations = message.metadata?.citations;
-      if (citations && citations.length > 0) {
-        const citation = findCitationByUrl(url, citations);
-        if (citation) {
-          const screenWidth = Dimensions.get('window').width;
-          const screenHeight = Dimensions.get('window').height;
-          showPreview(citation, { x: screenWidth / 2, y: screenHeight / 3 }, accentColor);
-          return false;
-        }
-      }
-      Linking.openURL(url).catch(err => console.error('Failed to open URL:', err));
-      return false;
+      return handleCitationLinkPress(url, message.metadata?.citations);
     };
-  }, [showPreview, accentColor]);
+  }, [handleCitationLinkPress]);
 
   // Get all content for copy functionality
   const allContent = useMemo(() => {
@@ -184,16 +173,10 @@ export const CompareResponsePane: React.FC<CompareResponsePaneProps> = ({
         )}
         {/* Citations */}
         {hasCitations && (
-          <CitationList
+          <CitationSources
             citations={message.metadata!.citations!}
-            variant="compact"
             initialVisible={2}
             brandColor={accentColor}
-            onCitationPress={(citation) => {
-              const screenWidth = Dimensions.get('window').width;
-              const screenHeight = Dimensions.get('window').height;
-              showPreview(citation, { x: screenWidth / 2, y: screenHeight / 3 }, accentColor);
-            }}
           />
         )}
       </View>

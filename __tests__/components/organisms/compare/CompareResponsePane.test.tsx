@@ -213,6 +213,36 @@ describe('CompareResponsePane', () => {
     );
   });
 
+  it('renders citation sources for cited messages', () => {
+    const citedMessages: Message[] = [
+      {
+        id: 'm1',
+        sender: 'Claude',
+        senderType: 'ai',
+        content: 'See [1] for details.',
+        timestamp: 1,
+        metadata: {
+          citations: [{ index: 1, url: 'https://example.com/source' }],
+        },
+      },
+    ];
+
+    const { getByTestId } = renderWithProviders(
+      <CompareResponsePane
+        ai={ai}
+        messages={citedMessages}
+        isTyping={false}
+        onContinueWithAI={jest.fn()}
+        side="left"
+        imageState={defaultImageState}
+        onCancelImage={jest.fn()}
+        onOpenLightbox={jest.fn()}
+      />
+    );
+
+    expect(getByTestId('citation-sources')).toBeTruthy();
+  });
+
   it('passes onOpenLightbox to image display when message has image attachments', () => {
     const onOpenLightbox = jest.fn();
     const messagesWithImage: Message[] = [

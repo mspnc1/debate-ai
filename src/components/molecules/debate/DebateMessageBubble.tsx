@@ -6,13 +6,12 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import Animated from 'react-native-reanimated';
-import { StyleSheet, Linking, TouchableOpacity, Dimensions } from 'react-native';
+import { StyleSheet, TouchableOpacity } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { sanitizeMarkdown, shouldLazyRender } from '@/utils/markdown';
-import { processMessageContentWithCitations, findCitationByUrl } from '@/utils/citationUtils';
-import { useCitationPreview } from '@/providers/CitationPreviewProvider';
+import { processMessageContentWithCitations } from '@/utils/citationUtils';
 import { LazyMarkdownRenderer, createMarkdownStyles } from '@/components/molecules/common/LazyMarkdownRenderer';
-import { CitationList } from '@/components/organisms/common/CitationList';
+import { CitationSources } from '@/components/organisms/common/CitationSources';
 import { Box } from '@/components/atoms';
 import { Typography } from '../common/Typography';
 import { StreamingIndicator } from '@/components/organisms/common/StreamingIndicator';
@@ -22,6 +21,7 @@ import { useMessageBubbleAnimation } from '@/hooks/useMessageBubbleAnimation';
 import { Message } from '@/types';
 import { AI_BRAND_COLORS } from '@/constants/aiColors';
 import { useStreamingMessage } from '@/hooks/streaming/useStreamingMessage';
+import { useCitationInteractions } from '@/hooks/useCitationInteractions';
 import { selectableMarkdownRules } from '@/utils/markdownSelectable';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
@@ -116,23 +116,12 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
   };
   
   const aiColor = getAIColor();
-  const { showPreview } = useCitationPreview();
+  const { handleCitationLinkPress } = useCitationInteractions(aiColor?.border);
 
   // Handle link press - check for citations first
   const handleLinkPress = useCallback((url: string): boolean => {
-    const citations = message.metadata?.citations;
-    if (citations && citations.length > 0) {
-      const citation = findCitationByUrl(url, citations);
-      if (citation) {
-        const screenWidth = Dimensions.get('window').width;
-        const screenHeight = Dimensions.get('window').height;
-        showPreview(citation, { x: screenWidth / 2, y: screenHeight / 3 }, aiColor?.border);
-        return false;
-      }
-    }
-    Linking.openURL(url).catch(err => console.error('Failed to open URL:', err));
-    return false;
-  }, [message.metadata?.citations, showPreview, aiColor?.border]);
+    return handleCitationLinkPress(url, message.metadata?.citations);
+  }, [handleCitationLinkPress, message.metadata?.citations]);
 
   // Unified animation hook - fade-in for Debate mode
   const { animatedStyle } = useMessageBubbleAnimation({
@@ -263,20 +252,6 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
             </Typography>
           </Box>
         )}
-        {/* Citations */}
-        {hasCitations && message.metadata?.citations && (
-          <CitationList
-            citations={message.metadata.citations}
-            variant="compact"
-            initialVisible={3}
-            brandColor={aiColor?.border}
-            onCitationPress={(citation) => {
-              const screenWidth = Dimensions.get('window').width;
-              const screenHeight = Dimensions.get('window').height;
-              showPreview(citation, { x: screenWidth / 2, y: screenHeight / 3 }, aiColor?.border);
-            }}
-          />
-        )}
         {/* Copy button */}
         <TouchableOpacity
           onPress={async () => {
@@ -307,6 +282,14 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
           />
         </TouchableOpacity>
       </Box>
+      {hasCitations && (
+        <CitationSources
+          citations={message.metadata?.citations}
+          initialVisible={3}
+          brandColor={aiColor?.border}
+          style={styles.citationSources}
+        />
+      )}
       </Box>
     </Animated.View>
   );
@@ -388,5 +371,8 @@ const styles = StyleSheet.create({
     bottom: 8,
     borderRadius: 12,
     padding: 6,
+  },
+  citationSources: {
+    marginTop: 0,
   },
 });

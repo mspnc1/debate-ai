@@ -1,11 +1,10 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Text, StyleSheet, Linking, TouchableOpacity, Dimensions } from 'react-native';
+import { Text, StyleSheet, TouchableOpacity } from 'react-native';
 import type { TextStyle } from 'react-native';
 import Animated from 'react-native-reanimated';
 import Markdown from 'react-native-markdown-display';
 import { sanitizeMarkdown, shouldLazyRender } from '@/utils/markdown';
-import { processMessageContentWithCitations, findCitationByUrl } from '@/utils/citationUtils';
-import { useCitationPreview } from '@/providers/CitationPreviewProvider';
+import { processMessageContentWithCitations } from '@/utils/citationUtils';
 import { Image, View } from 'react-native';
 import { ImageBubble } from '../chat/ImageBubble';
 import { Box } from '@/components/atoms';
@@ -13,12 +12,13 @@ import IconStopOctagon from '@/components/atoms/icons/IconStopOctagon';
 import { Typography } from '@/components/molecules';
 import { LazyMarkdownRenderer, createMarkdownStyles } from '@/components/molecules/common/LazyMarkdownRenderer';
 import { StreamingIndicator } from './StreamingIndicator';
-import { CitationList } from './CitationList';
+import { CitationSources } from './CitationSources';
 import { useTheme } from '@/theme';
 import { Message } from '@/types';
 import { AI_BRAND_COLORS } from '@/constants/aiColors';
 import { useStreamingMessage } from '@/hooks/streaming';
 import { useMessageBubbleAnimation } from '@/hooks/useMessageBubbleAnimation';
+import { useCitationInteractions } from '@/hooks/useCitationInteractions';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { selectableMarkdownRules } from '@/utils/markdownSelectable';
@@ -93,7 +93,6 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLast, s
   const [copied, setCopied] = useState(false);
   const { isDemo } = useFeatureAccess();
   const { responsive } = useResponsive();
-  const { showPreview } = useCitationPreview();
 
   // Narrower bubbles on tablet for better readability
   const bubbleMaxWidth = responsive('88%', '70%');
@@ -194,25 +193,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLast, s
 
   // Get AI brand color for citation preview
   const citationBrandColor = aiColor?.border;
+  const { handleCitationLinkPress } = useCitationInteractions(citationBrandColor);
 
   // Handle link press - check if it's a citation first
   const handleLinkPress = useCallback((url: string): boolean => {
-    // Check if this URL matches a citation
-    const citations = message.metadata?.citations;
-    if (citations && citations.length > 0) {
-      const citation = findCitationByUrl(url, citations);
-      if (citation) {
-        // Show citation preview tooltip at center of screen
-        const screenWidth = Dimensions.get('window').width;
-        const screenHeight = Dimensions.get('window').height;
-        showPreview(citation, { x: screenWidth / 2, y: screenHeight / 3 }, citationBrandColor);
-        return false; // Prevent default link behavior
-      }
-    }
-    // Not a citation - open in browser
-    Linking.openURL(url).catch(err => console.error('Failed to open URL:', err));
-    return false;
-  }, [message.metadata?.citations, showPreview, citationBrandColor]);
+    return handleCitationLinkPress(url, message.metadata?.citations);
+  }, [handleCitationLinkPress, message.metadata?.citations]);
 
   return (
     <Animated.View
@@ -408,18 +394,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLast, s
         )}
         
         {/* Citations section for messages with sources */}
-        {!isUser && message.metadata?.citations && message.metadata.citations.length > 0 && (
-          <CitationList
-            citations={message.metadata.citations}
-            variant="compact"
+        {!isUser && (
+          <CitationSources
+            citations={message.metadata?.citations}
             initialVisible={3}
             brandColor={aiColor?.border}
-            onCitationPress={(citation) => {
-              // Show citation preview tooltip at center of screen (matching inline link behavior)
-              const screenWidth = Dimensions.get('window').width;
-              const screenHeight = Dimensions.get('window').height;
-              showPreview(citation, { x: screenWidth / 2, y: screenHeight / 3 }, citationBrandColor);
-            }}
           />
         )}
         
