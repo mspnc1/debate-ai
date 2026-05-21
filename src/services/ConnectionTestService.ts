@@ -391,7 +391,8 @@ export class ConnectionTestService {
 
     const data = await response.json();
     const models = data.models || [];
-    const cohereModel = models.find((m: { name: string }) => m.name?.includes('command'))
+    const cohereModel = models.find((m: { name: string }) => m.name === 'command-a-plus-05-2026')
+      || models.find((m: { name: string }) => m.name?.includes('command'))
       || models[0];
 
     return { model: cohereModel?.name || getDefaultModel('cohere') };

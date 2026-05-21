@@ -366,10 +366,16 @@ export const MODEL_VERSIONS: ProviderVersions = {
   cohere: {
     command: [
       {
+        id: 'command-a-plus-05-2026',
+        version: 'a-plus-05-2026',
+        releaseDate: '2026-05-20',
+        isLatest: true,
+      },
+      {
         id: 'command-a-reasoning-08-2025',
         version: 'a-reasoning-08-2025',
         releaseDate: '2025-08-01',
-        isLatest: true,
+        isLatest: false,
       },
       {
         id: 'command-a-vision-07-2025',

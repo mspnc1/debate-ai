@@ -176,6 +176,7 @@ const PROVIDER_NAMES: Record<string, string> = {
   mistral: 'Mistral',
   deepseek: 'DeepSeek',
   grok: 'Grok',
+  cohere: 'Cohere',
 };
 
 // ============================================================================

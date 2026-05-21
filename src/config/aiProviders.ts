@@ -241,8 +241,8 @@ export const AI_PROVIDERS: AIProvider[] = [
     apiKeyPlaceholder: 'Your Cohere API key',
     docsUrl: 'https://docs.cohere.com',
     getKeyUrl: 'https://dashboard.cohere.com/api-keys',
-    description: 'Excellent for RAG and search',
-    features: ['Semantic search', 'RAG optimization', 'Generation'],
+    description: 'Reasoning, RAG, and multilingual AI',
+    features: ['Command A+ reasoning', 'Vision input', 'Translation & RAG'],
     testEndpoint: 'https://api.cohere.ai/v1/chat',
     enabled: true,
     guidance: {

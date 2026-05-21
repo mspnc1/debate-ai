@@ -813,10 +813,10 @@ async function callCohere(
   const supportsVision = modelSupportsVision('cohere', model);
 
   // Cohere v2 Chat API with vision support
-  // Format: { type: "image", url: "data:..." } or { type: "text", text: "..." }
+  // Format: { type: "image_url", image_url: { url: "data:..." } } or { type: "text", text: "..." }
   type CohereContentPart =
     | { type: 'text'; text: string }
-    | { type: 'image'; url: string };
+    | { type: 'image_url'; image_url: { url: string } };
 
   type CohereMessage = {
     role: 'user' | 'assistant' | 'system';
@@ -840,8 +840,10 @@ async function callCohere(
           if (!base64) continue;
 
           contentParts.push({
-            type: 'image',
-            url: `data:${att.mimeType || 'image/jpeg'};base64,${base64}`,
+            type: 'image_url',
+            image_url: {
+              url: `data:${att.mimeType || 'image/jpeg'};base64,${base64}`,
+            },
           });
         }
 
@@ -851,8 +853,10 @@ async function callCohere(
           if (!base64) continue;
 
           contentParts.push({
-            type: 'image',
-            url: `data:${att.mimeType || 'application/pdf'};base64,${base64}`,
+            type: 'image_url',
+            image_url: {
+              url: `data:${att.mimeType || 'application/pdf'};base64,${base64}`,
+            },
           });
         }
 
@@ -879,7 +883,7 @@ async function callCohere(
 
   // Build request body - only include max_tokens if explicitly set
   const cohereRequest: Record<string, unknown> = {
-    model: model || 'command-r-plus',
+    model: model || 'command-a-plus-05-2026',
     messages: formattedMessages,
     temperature,
   };

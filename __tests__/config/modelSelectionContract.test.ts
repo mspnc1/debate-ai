@@ -37,6 +37,7 @@ describe('Model selection contract', () => {
     expect(resolveProviderModelId('claude', 'claude-latest')).toBe('claude-sonnet-4-6');
     expect(resolveProviderModelId('openai', 'gpt-latest')).toBe('gpt-5.5');
     expect(resolveProviderModelId('google', 'gemini-pro-latest')).toBe('gemini-3.1-pro-preview');
+    expect(resolveProviderModelId('cohere', 'command-a-latest')).toBe('command-a-plus-05-2026');
   });
 
   it('looks up persisted alias IDs with the resolved model capabilities', () => {
@@ -59,6 +60,7 @@ describe('Model selection contract', () => {
   it('formats audited context labels for provider picker display', () => {
     expect(getModelContextLabel(getModelById('openai', 'gpt-5.5')!)).toBe('1.05M context');
     expect(getModelContextLabel(getModelById('google', 'gemini-2.5-pro')!)).toBe('1M context');
+    expect(getModelContextLabel(getModelById('cohere', 'command-a-plus-05-2026')!)).toBe('128K context');
     expect(getModelContextLabel(getModelById('perplexity', 'sonar-pro')!)).toBe('Context unpublished');
   });
 

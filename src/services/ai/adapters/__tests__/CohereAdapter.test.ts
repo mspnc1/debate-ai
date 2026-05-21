@@ -1,6 +1,6 @@
 import { CohereAdapter } from '../cohere/CohereAdapter';
 import type { AIAdapterConfig, AdapterResponse } from '../../types/adapter.types';
-import type { Message } from '../../../../types';
+import type { Message, MessageAttachment } from '../../../../types';
 
 // Mock v2 API response format
 const createResponse = () => ({
@@ -30,7 +30,7 @@ afterEach(() => {
 const makeConfig = (overrides: Partial<AIAdapterConfig> = {}): AIAdapterConfig => ({
   provider: 'cohere',
   apiKey: 'test-key',
-  model: 'command-a-reasoning-08-2025',
+  model: 'command-a-plus-05-2026',
   parameters: { temperature: 0.7, maxTokens: 2048 },
   ...overrides,
 });
@@ -44,10 +44,11 @@ describe('CohereAdapter', () => {
       expect(capabilities.streaming).toBe(true);
       expect(capabilities.systemPrompt).toBe(true);
       expect(capabilities.functionCalling).toBe(true);
-      expect(capabilities.attachments).toBe(false);
-      expect(capabilities.supportsImages).toBe(false);
+      expect(capabilities.attachments).toBe(true);
+      expect(capabilities.supportsImages).toBe(true);
       expect(capabilities.supportsDocuments).toBe(false);
-      expect(capabilities.contextWindow).toBe(288768);
+      expect(capabilities.maxTokens).toBe(64000);
+      expect(capabilities.contextWindow).toBe(128000);
     });
   });
 
@@ -97,7 +98,7 @@ describe('CohereAdapter', () => {
       });
 
       // Check other parameters
-      expect(body.model).toBe('command-a-reasoning-08-2025');
+      expect(body.model).toBe('command-a-plus-05-2026');
       expect(body.temperature).toBe(0.7);
       expect(body.max_tokens).toBe(2048);
     });
@@ -107,7 +108,7 @@ describe('CohereAdapter', () => {
       const result = await adapter.sendMessage('Hello') as AdapterResponse;
 
       expect(result.response).toBe('Cohere output');
-      expect(result.modelUsed).toBe('command-a-reasoning-08-2025');
+      expect(result.modelUsed).toBe('command-a-plus-05-2026');
       expect(result.usage).toEqual({
         promptTokens: 10,
         completionTokens: 20,
@@ -115,7 +116,7 @@ describe('CohereAdapter', () => {
       });
     });
 
-    it('extracts the first text content when reasoning appears before it', async () => {
+    it('extracts text content when reasoning appears before it', async () => {
       fetchMock.mockImplementationOnce(async () => ({
         ok: true,
         json: async () => ({
@@ -123,7 +124,8 @@ describe('CohereAdapter', () => {
             role: 'assistant',
             content: [
               { type: 'thinking', thinking: 'Internal reasoning' },
-              { type: 'text', text: 'OK' },
+              { type: 'text', text: 'O' },
+              { type: 'text', text: 'K' },
             ],
           },
         }),
@@ -133,6 +135,33 @@ describe('CohereAdapter', () => {
       const result = await adapter.sendMessage('Hello') as AdapterResponse;
 
       expect(result.response).toBe('OK');
+    });
+
+    it('formats image attachments with the Cohere v2 image_url shape', async () => {
+      const adapter = new CohereAdapter(makeConfig());
+      const attachments: MessageAttachment[] = [
+        {
+          type: 'image',
+          uri: 'file://image.png',
+          mimeType: 'image/png',
+          base64: 'imagepayload',
+        },
+      ];
+
+      await adapter.sendMessage('Describe this image', [], undefined, attachments);
+
+      const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+      const lastMessage = body.messages[body.messages.length - 1];
+      expect(lastMessage).toEqual({
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Describe this image' },
+          {
+            type: 'image_url',
+            image_url: { url: 'data:image/png;base64,imagepayload' },
+          },
+        ],
+      });
     });
 
     it('preserves explicit zero temperature values', async () => {

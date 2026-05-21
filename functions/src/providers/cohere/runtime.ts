@@ -32,7 +32,7 @@ import {
 
 type CohereContentPart =
   | { type: 'text'; text: string }
-  | { type: 'image'; url: string };
+  | { type: 'image_url'; image_url: { url: string } };
 
 interface CohereMessage {
   role: 'user' | 'assistant' | 'system' | 'tool';
@@ -99,6 +99,13 @@ function mapCohereFinishReason(
   }
 }
 
+function getCohereMaxOutputTokens(model: string | undefined): number {
+  if (model === 'command-a-plus-05-2026') return 64000;
+  if (model === 'command-a-reasoning-08-2025') return 32000;
+  if (model === 'command-a-vision-07-2025') return 8000;
+  return 4096;
+}
+
 // ============================================================================
 // Cohere Runtime Implementation
 // ============================================================================
@@ -114,15 +121,14 @@ export class CohereRuntime implements ProviderRuntime {
     const cohereMessages = this.transformMessages(request);
 
     const body: Record<string, unknown> = {
-      model: request.model || 'command-r-plus',
+      model: request.model || 'command-a-plus-05-2026',
       messages: cohereMessages,
       temperature: request.temperature ?? 0.7,
       stream: true,
     };
 
     if (request.maxTokens !== undefined) {
-      // Cohere models have a 4096 max output token limit
-      body.max_tokens = Math.min(request.maxTokens, 4096);
+      body.max_tokens = Math.min(request.maxTokens, getCohereMaxOutputTokens(request.model));
     }
 
     // Add tools if provided
@@ -349,10 +355,11 @@ export class CohereRuntime implements ProviderRuntime {
           const base64 = getBase64Data(att);
           if (!base64) continue;
 
-          // Cohere uses { type: 'image', url: ... } not { type: 'image_url', image_url: { url: ... } }
           contentParts.push({
-            type: 'image',
-            url: `data:${att.mimeType || 'image/jpeg'};base64,${base64}`,
+            type: 'image_url',
+            image_url: {
+              url: `data:${att.mimeType || 'image/jpeg'};base64,${base64}`,
+            },
           });
         }
 

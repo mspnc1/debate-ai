@@ -1,4 +1,6 @@
 import { Message, MessageAttachment } from '../../../../types';
+import { getModelById } from '../../../../config/modelConfigs';
+import { getDefaultModel, resolveModelAlias } from '../../../../config/providers/modelRegistry';
 import { BaseAdapter } from '../../base/BaseAdapter';
 import {
   ResumptionContext,
@@ -11,6 +13,9 @@ import { extractSSEErrorMessage } from '../../utils/extractSSEErrorMessage';
 // Define Cohere's SSE event types
 type CohereEventTypes = 'message-start' | 'content-start' | 'content-delta' | 'content-end' | 'message-end' | 'message';
 type CohereContentPart = { type?: string; text?: string };
+type CohereRequestContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
 type CohereChatResponse = {
   message?: {
     content?: CohereContentPart[];
@@ -22,36 +27,88 @@ export class CohereAdapter extends BaseAdapter {
   private extractResponseText(data: CohereChatResponse): string {
     const content = data.message?.content;
     if (Array.isArray(content)) {
-      const textPart = content.find(
-        (part) => typeof part?.text === 'string'
-      );
-      if (textPart?.text) {
-        return textPart.text;
-      }
+      return content
+        .filter((part) => typeof part?.text === 'string')
+        .map((part) => part.text)
+        .join('');
     }
 
     return data.text || '';
   }
 
+  private resolveModel(modelOverride?: string): string {
+    return modelOverride || resolveModelAlias(this.config.model || getDefaultModel('cohere'));
+  }
+
+  private modelSupportsImageInput(model: string): boolean {
+    const modelConfig = getModelById('cohere', model);
+    return Boolean(modelConfig?.supportsImageInput || modelConfig?.supportsVision);
+  }
+
+  private formatImageUrl(attachment: MessageAttachment): string | null {
+    if (attachment.uri?.startsWith('data:') || attachment.uri?.startsWith('http')) {
+      return attachment.uri;
+    }
+
+    if (attachment.base64) {
+      return `data:${attachment.mimeType || 'image/jpeg'};base64,${attachment.base64}`;
+    }
+
+    return null;
+  }
+
+  private formatUserContent(
+    message: string,
+    attachments: MessageAttachment[] | undefined,
+    model: string
+  ): string | CohereRequestContentPart[] {
+    if (!attachments?.length || !this.modelSupportsImageInput(model)) {
+      return message;
+    }
+
+    const imageParts = attachments
+      .filter((attachment) => attachment.type === 'image')
+      .map((attachment) => {
+        const url = this.formatImageUrl(attachment);
+        return url ? ({ type: 'image_url' as const, image_url: { url } }) : null;
+      })
+      .filter((part): part is { type: 'image_url'; image_url: { url: string } } => part !== null);
+
+    if (imageParts.length === 0) {
+      return message;
+    }
+
+    return [
+      { type: 'text', text: message },
+      ...imageParts,
+    ];
+  }
+
   getCapabilities(): AdapterCapabilities {
+    const model = this.resolveModel();
+    const modelConfig = getModelById('cohere', model);
+    const supportsImages = this.modelSupportsImageInput(model);
+
     return {
       streaming: true,
-      attachments: false,  // Cohere v2 chat doesn't support attachments yet
-      supportsImages: false,
+      attachments: supportsImages,
+      supportsImages,
       supportsDocuments: false,
       functionCalling: true,  // Cohere supports tool use
       systemPrompt: true,
-      maxTokens: 4096,
-      contextWindow: 288768,
+      maxTokens: modelConfig?.maxOutputTokens || 4096,
+      contextWindow: modelConfig?.contextLength || 128000,
     };
   }
 
   private formatMessagesV2(
     message: string,
     history: Message[],
-    resumptionContext?: ResumptionContext
-  ): Array<{ role: string; content: string }> {
-    const messages: Array<{ role: string; content: string }> = [];
+    resumptionContext: ResumptionContext | undefined,
+    attachments: MessageAttachment[] | undefined,
+    model: string
+  ): Array<{ role: string; content: string | CohereRequestContentPart[] }> {
+    const messages: Array<{ role: string; content: string | CohereRequestContentPart[] }> = [];
 
     // Add system message
     const systemPrompt = this.getSystemPrompt();
@@ -69,7 +126,7 @@ export class CohereAdapter extends BaseAdapter {
     }
 
     // Add current user message
-    messages.push({ role: 'user', content: message });
+    messages.push({ role: 'user', content: this.formatUserContent(message, attachments, model) });
 
     return messages;
   }
@@ -78,11 +135,11 @@ export class CohereAdapter extends BaseAdapter {
     message: string,
     conversationHistory: Message[] = [],
     resumptionContext?: ResumptionContext,
-    _attachments?: MessageAttachment[],
+    attachments?: MessageAttachment[],
     modelOverride?: string
   ): Promise<SendMessageResponse> {
-    const model = modelOverride || this.config.model || 'command-a-reasoning-08-2025';
-    const messages = this.formatMessagesV2(message, conversationHistory, resumptionContext);
+    const model = this.resolveModel(modelOverride);
+    const messages = this.formatMessagesV2(message, conversationHistory, resumptionContext, attachments, model);
 
     try {
       const response = await fetch('https://api.cohere.com/v2/chat', {
@@ -126,14 +183,14 @@ export class CohereAdapter extends BaseAdapter {
   async *streamMessage(
     message: string,
     conversationHistory: Message[] = [],
-    _attachments?: MessageAttachment[],
+    attachments?: MessageAttachment[],
     resumptionContext?: ResumptionContext,
     modelOverride?: string,
     abortSignal?: AbortSignal,
     onEvent?: (event: unknown) => void
   ): AsyncGenerator<string, void, unknown> {
-    const model = modelOverride || this.config.model || 'command-a-reasoning-08-2025';
-    const messages = this.formatMessagesV2(message, conversationHistory, resumptionContext);
+    const model = this.resolveModel(modelOverride);
+    const messages = this.formatMessagesV2(message, conversationHistory, resumptionContext, attachments, model);
 
     const requestBody = JSON.stringify({
       model,

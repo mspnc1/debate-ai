@@ -76,9 +76,11 @@ export const MODEL_ALIASES: Record<string, string> = {
   'codestral-latest': 'codestral-2508',
 
   // Cohere aliases
+  'command-a-plus-latest': 'command-a-plus-05-2026',
+  'command-a-plus': 'command-a-plus-05-2026',
   'command-a-reasoning-latest': 'command-a-reasoning-08-2025',
   'command-a-vision-latest': 'command-a-vision-07-2025',
-  'command-a-latest': 'command-a-03-2025',
+  'command-a-latest': 'command-a-plus-05-2026',
   'command-a-translate-latest': 'command-a-translate-08-2025',
   'command-r-plus-latest': 'command-a-reasoning-08-2025',
   'command-r-latest': 'command-r-08-2024',
@@ -98,7 +100,7 @@ export const DEFAULT_PROVIDER_MODELS: Record<string, string> = {
   google: 'gemini-3-flash-preview',
   perplexity: 'sonar-pro',
   mistral: 'mistral-large-2512',
-  cohere: 'command-a-reasoning-08-2025',
+  cohere: 'command-a-plus-05-2026',
   deepseek: 'deepseek-v4-flash',
   grok: 'grok-4.20-0309-non-reasoning',
 };

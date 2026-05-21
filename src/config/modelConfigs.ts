@@ -587,11 +587,23 @@ export const AI_MODELS: ProviderModels = {
   ],
   cohere: [
     {
+      id: "command-a-plus-05-2026",
+      name: "Command A+",
+      description: "Cohere's current MoE flagship for reasoning, vision, multilingual translation, and tool-using chat",
+      contextLength: 128000,
+      contextLabel: "128K context",
+      maxOutputTokens: 64000,
+      isDefault: true,
+      supportsVision: true,
+      supportsImageInput: true,
+      supportsFunctions: true,
+      supportsThinking: true,
+    },
+    {
       id: "command-a-reasoning-08-2025",
       name: "Command A Reasoning",
       description: "Current Cohere reasoning model with extended context",
       contextLength: 288768,
-      isDefault: true,
       supportsDocuments: true,
       supportsFunctions: true,
       supportsThinking: true,
@@ -786,6 +798,7 @@ export const CURATED_MODEL_IDS: { [providerId: string]: string[] } = {
     "codestral-2508",
   ],
   cohere: [
+    "command-a-plus-05-2026",
     "command-a-reasoning-08-2025",
     "command-a-vision-07-2025",
     "command-r-08-2024",
