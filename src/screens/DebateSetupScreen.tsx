@@ -300,7 +300,6 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['top', 'left', 'right']}>
-      <TrialBanner />
       <Header
         variant="gradient"
         title={greeting.timeBasedGreeting}
@@ -316,6 +315,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
           variant: 'ghost'
         }}
       />
+      <TrialBanner />
 
       {access.isDemo && (
         <DemoBanner

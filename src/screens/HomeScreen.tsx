@@ -92,6 +92,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         showDemoBadge={isDemo}
       />
 
+      <TrialBanner />
+
       {isDemo && (
         <DemoBanner
           subtitle="Simulated chat preview. Start a free trial to chat for real."
@@ -108,7 +110,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
       >
         <ResponsiveContainer maxWidth="xl" center>
-          <TrialBanner />
           {/* Primary: AI Selection & Chat */}
           <View style={{ marginBottom: rs('xl') }}>
             <DynamicAISelector

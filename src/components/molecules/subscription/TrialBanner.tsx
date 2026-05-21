@@ -3,11 +3,14 @@ import { TouchableOpacity, StyleSheet } from 'react-native';
 import { Typography } from '../common/Typography';
 import { useTheme } from '@/theme';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
-import { useProfileSheet } from '@/contexts/SheetContext';
+import { openSubscriptionManagement } from '@/services/subscription/subscriptionManagement';
 
-export const TrialBanner: React.FC = () => {
+interface TrialBannerProps {
+  testID?: string;
+}
+
+export const TrialBanner: React.FC<TrialBannerProps> = ({ testID }) => {
   const { theme } = useTheme();
-  const profileSheet = useProfileSheet();
   const { isInTrial, trialDaysRemaining } = useFeatureAccess();
 
   if (!isInTrial || trialDaysRemaining == null) return null;
@@ -17,8 +20,13 @@ export const TrialBanner: React.FC = () => {
   return (
     <TouchableOpacity
       style={[styles.banner, { backgroundColor: color }]}
-      onPress={() => profileSheet.show()}
+      onPress={() => {
+        void openSubscriptionManagement();
+      }}
       activeOpacity={0.9}
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel="Manage subscription"
     >
       <Typography variant="caption" style={styles.text}>
         {trialDaysRemaining === 1 ? 'Trial ends tomorrow' : `${trialDaysRemaining} days left in trial`}

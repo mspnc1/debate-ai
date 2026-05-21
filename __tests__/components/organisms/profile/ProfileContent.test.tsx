@@ -12,6 +12,7 @@ jest.spyOn(Alert, 'alert');
 const mockShowSuccess = jest.fn();
 const mockShowInfo = jest.fn();
 const mockHandleWithToast = jest.fn();
+const mockOpenSubscriptionManagement = jest.fn();
 
 jest.mock('@/services/errors/ErrorService', () => ({
   ErrorService: {
@@ -19,6 +20,10 @@ jest.mock('@/services/errors/ErrorService', () => ({
     showInfo: (...args: unknown[]) => mockShowInfo(...args),
     handleWithToast: (...args: unknown[]) => mockHandleWithToast(...args),
   },
+}));
+
+jest.mock('@/services/subscription/subscriptionManagement', () => ({
+  openSubscriptionManagement: (...args: unknown[]) => mockOpenSubscriptionManagement(...args),
 }));
 
 jest.mock('expo-linear-gradient', () => ({
@@ -49,7 +54,12 @@ jest.mock('@/components/molecules', () => {
         { onPress },
         React.createElement(Text, null, title)
       ),
-    SettingRow: ({ title }: { title: string }) => React.createElement(Text, null, title),
+    SettingRow: ({ title, onPress }: { title: string; onPress?: () => void }) =>
+      React.createElement(
+        TouchableOpacity,
+        { onPress },
+        React.createElement(Text, null, title)
+      ),
     SheetHeader: () => null,
   };
 });
@@ -122,6 +132,22 @@ const baseAuthState = {
   socialAuthError: null,
 };
 
+const authenticatedState = {
+  auth: {
+    ...baseAuthState,
+    isAuthenticated: true,
+    user: { uid: 'test-user-id', email: 'test@example.com' },
+    userProfile: {
+      email: 'test@example.com',
+      displayName: 'Test User',
+      photoURL: null,
+      createdAt: Date.now(),
+      membershipStatus: 'premium',
+      preferences: {},
+    },
+  },
+} as Partial<RootState>;
+
 describe('ProfileContent', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -129,6 +155,14 @@ describe('ProfileContent', () => {
     mockShowSuccess.mockClear();
     mockShowInfo.mockClear();
     mockHandleWithToast.mockClear();
+    mockOpenSubscriptionManagement.mockClear();
+    mockUseFeatureAccess.mockReturnValue({
+      isPremium: false,
+      isInTrial: false,
+      trialDaysRemaining: 0,
+      isDemo: true,
+      refresh: jest.fn(),
+    });
   });
 
   it('renders signed-out view and opens email auth form', async () => {
@@ -147,23 +181,26 @@ describe('ProfileContent', () => {
     await waitFor(() => expect(queryByTestId('email-auth-form')).toBeTruthy());
   });
 
-  describe('Delete Account', () => {
-    const authenticatedState = {
-      auth: {
-        ...baseAuthState,
-        isAuthenticated: true,
-        user: { uid: 'test-user-id', email: 'test@example.com' },
-        userProfile: {
-          email: 'test@example.com',
-          displayName: 'Test User',
-          photoURL: null,
-          createdAt: Date.now(),
-          membershipStatus: 'free',
-          preferences: {},
-        },
-      },
-    } as Partial<RootState>;
+  it('opens platform subscription management from the manage row', () => {
+    mockUseFeatureAccess.mockReturnValue({
+      isPremium: true,
+      isInTrial: false,
+      trialDaysRemaining: null,
+      isDemo: false,
+      refresh: jest.fn(),
+    });
 
+    const { getByText } = renderWithProviders(
+      <ProfileContent onClose={jest.fn()} />,
+      { preloadedState: authenticatedState as RootState }
+    );
+
+    fireEvent.press(getByText('Manage Subscription'));
+
+    expect(mockOpenSubscriptionManagement).toHaveBeenCalledTimes(1);
+  });
+
+  describe('Delete Account', () => {
     it('shows delete account button for authenticated users', () => {
       const { getByText } = renderWithProviders(
         <ProfileContent onClose={jest.fn()} />,

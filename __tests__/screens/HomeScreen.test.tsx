@@ -164,6 +164,19 @@ const createQuickStart = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+const collectTestIds = (node: any, ids: string[] = []): string[] => {
+  if (!node) return ids;
+  if (Array.isArray(node)) {
+    node.forEach((child) => collectTestIds(child, ids));
+    return ids;
+  }
+  if (node.props?.testID) {
+    ids.push(node.props.testID);
+  }
+  node.children?.forEach((child: any) => collectTestIds(child, ids));
+  return ids;
+};
+
 describe('HomeScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -234,6 +247,19 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
     expect(mockDynamicAISelectorProps.maxAIs).toBe(aiSelection.maxAIs);
     // Quick Start is exposed through the trailing lightbulb on the primary button.
     expect(mockDynamicAISelectorProps.onQuickStart).toBeDefined();
+  });
+
+  it('places the trial banner below the header surface', () => {
+    const { renderResult } = renderHome({
+      featureAccess: { isDemo: false, isInTrial: true, trialDaysRemaining: 1 },
+    });
+
+    const testIds = collectTestIds(renderResult.toJSON());
+
+    expect(testIds.indexOf('header')).toBeGreaterThanOrEqual(0);
+    expect(testIds.indexOf('trial-banner')).toBeGreaterThanOrEqual(0);
+    expect(testIds.indexOf('header')).toBeLessThan(testIds.indexOf('trial-banner'));
+    expect(testIds.indexOf('trial-banner')).toBeLessThan(testIds.indexOf('dynamic-ai-selector'));
   });
 
   it('does not start chat when no AI is selected', async () => {

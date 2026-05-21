@@ -46,7 +46,11 @@ jest.mock('@/hooks/useGreeting', () => ({
 }));
 
 jest.mock('@/components/molecules/subscription/TrialBanner', () => ({
-  TrialBanner: () => null,
+  TrialBanner: () => {
+    const React = require('react');
+    const { Text } = require('react-native');
+    return React.createElement(Text, { testID: 'trial-banner' }, 'trial-banner');
+  },
 }));
 
 jest.mock('@/components/molecules/subscription/DemoBanner', () => ({
@@ -73,7 +77,7 @@ jest.mock('@/components/organisms', () => {
   const React = require('react');
   const { Text } = require('react-native');
   return {
-    Header: (props: any) => React.createElement(Text, null, props.title),
+    Header: (props: any) => React.createElement(Text, { testID: 'header' }, props.title),
     HeaderActions: () => React.createElement(Text, null, 'actions'),
     DynamicAISelector: (props: any) => {
       mockSelectorStore.selectors.push(props);
@@ -126,6 +130,19 @@ jest.mock('@/components/molecules', () => {
 });
 
 const CompareSetupScreen = require('@/screens/CompareSetupScreen').default;
+
+const collectTestIds = (node: any, ids: string[] = []): string[] => {
+  if (!node) return ids;
+  if (Array.isArray(node)) {
+    node.forEach((child) => collectTestIds(child, ids));
+    return ids;
+  }
+  if (node.props?.testID) {
+    ids.push(node.props.testID);
+  }
+  node.children?.forEach((child: any) => collectTestIds(child, ids));
+  return ids;
+};
 
 describe('CompareSetupScreen', () => {
   const navigation = { navigate: jest.fn() };
@@ -182,6 +199,19 @@ describe('CompareSetupScreen', () => {
       leftAI: expect.objectContaining({ id: leftAI.id }),
       rightAI: expect.objectContaining({ id: rightAI.id }),
     }));
+  });
+
+  it('places the trial banner below the header surface', () => {
+    const renderResult = renderWithProviders(
+      <CompareSetupScreen navigation={navigation as any} />
+    );
+
+    const testIds = collectTestIds(renderResult.toJSON());
+
+    expect(testIds.indexOf('header')).toBeGreaterThanOrEqual(0);
+    expect(testIds.indexOf('trial-banner')).toBeGreaterThanOrEqual(0);
+    expect(testIds.indexOf('header')).toBeLessThan(testIds.indexOf('trial-banner'));
+    expect(testIds.indexOf('trial-banner')).toBeLessThan(testIds.indexOf('selector-1'));
   });
 
   it('shows demo gating and routes through sample picker', async () => {

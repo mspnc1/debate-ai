@@ -153,7 +153,6 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
       style={{ flex: 1, backgroundColor: theme.colors.background }}
       edges={['top', 'left', 'right']}
     >
-      <TrialBanner />
       <Header
         variant="gradient"
         title={greeting.timeBasedGreeting}
@@ -164,6 +163,7 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
         rightElement={<HeaderActions variant="gradient" helpTopicId="compare-mode" />}
         showDemoBadge={access.isDemo}
       />
+      <TrialBanner />
       {access.isDemo && (
         <DemoBanner
           subtitle="Sample comparisons only in Demo. Start a free trial for live comparisons."

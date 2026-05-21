@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Linking, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store';
@@ -22,6 +22,7 @@ import { useStorePrices } from '@/hooks/useStorePrices';
 import PurchaseService from '@/services/iap/PurchaseService';
 import { deleteAccount } from '@/services/firebase/accountDeletion';
 import { ErrorService } from '@/services/errors/ErrorService';
+import { openSubscriptionManagement } from '@/services/subscription/subscriptionManagement';
 
 interface ProfileContentProps {
   onClose: () => void;
@@ -468,11 +469,7 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
               subtitle={Platform.OS === 'ios' ? 'Open App Store subscriptions' : 'Open Play Store subscriptions'}
               icon="open-outline"
               onPress={() => {
-                if (Platform.OS === 'ios') {
-                  Linking.openURL('https://apps.apple.com/account/subscriptions');
-                } else {
-                  Linking.openURL('https://play.google.com/store/account/subscriptions?package=com.braveheartinnovations.debateai');
-                }
+                void openSubscriptionManagement();
               }}
             />
           )}

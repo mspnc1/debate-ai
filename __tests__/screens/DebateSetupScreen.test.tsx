@@ -127,7 +127,11 @@ jest.mock('@/hooks/useFeatureAccess', () => ({
 }));
 
 jest.mock('@/components/molecules/subscription/TrialBanner', () => ({
-  TrialBanner: () => null,
+  TrialBanner: () => {
+    const React = require('react');
+    const { Text } = require('react-native');
+    return React.createElement(Text, { testID: 'trial-banner' }, 'trial-banner');
+  },
 }));
 
 let demoBannerProps: any;
@@ -196,6 +200,15 @@ jest.mock('@/components/organisms/debate/FormatModal', () => ({
   FormatModal: () => null,
 }));
 
+jest.mock('@/components/organisms', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
+  return {
+    Header: (props: any) => React.createElement(Text, { testID: 'header' }, props.title),
+    HeaderActions: () => React.createElement(Text, null, 'actions'),
+  };
+});
+
 jest.mock('@/components/molecules', () => {
   const React = require('react');
   const { Text, View } = require('react-native');
@@ -239,6 +252,19 @@ jest.mock('@/services/demo/RecordController', () => ({
 }));
 
 const DebateSetupScreen = require('@/screens/DebateSetupScreen').default;
+
+const collectTestIds = (node: any, ids: string[] = []): string[] => {
+  if (!node) return ids;
+  if (Array.isArray(node)) {
+    node.forEach((child) => collectTestIds(child, ids));
+    return ids;
+  }
+  if (node.props?.testID) {
+    ids.push(node.props.testID);
+  }
+  node.children?.forEach((child: any) => collectTestIds(child, ids));
+  return ids;
+};
 
 const renderScreen = (options: {
   featureAccess?: Record<string, unknown>;
@@ -289,6 +315,16 @@ beforeEach(() => {
 });
 
 describe('DebateSetupScreen', () => {
+  it('places the trial banner below the header surface', () => {
+    const { renderResult } = renderScreen({ featureAccess: { isInTrial: true, trialDaysRemaining: 1 } });
+
+    const testIds = collectTestIds(renderResult.toJSON());
+
+    expect(testIds.indexOf('header')).toBeGreaterThanOrEqual(0);
+    expect(testIds.indexOf('trial-banner')).toBeGreaterThanOrEqual(0);
+    expect(testIds.indexOf('header')).toBeLessThan(testIds.indexOf('trial-banner'));
+  });
+
   it('progresses from topic to AI step with valid selection', async () => {
     const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
 
