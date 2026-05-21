@@ -4,7 +4,7 @@
  * Coordinates between all other debate services and manages state transitions
  */
 
-import { AI, Message, ChatSession } from '../../types';
+import { AI, Message, ChatSession, Citation } from '../../types';
 import { AIService } from '../aiAdapter';
 import { DebateRulesEngine } from './DebateRulesEngine';
 import { VotingService } from './VotingService';
@@ -22,6 +22,7 @@ import { AppError } from '@/errors/types/AppError';
 import { ErrorCode } from '@/errors/codes/ErrorCodes';
 import { mergeAvailabilitiesStrict } from '@/hooks/multimodal/useModalityAvailability';
 import { ensureAnswerContent } from '@/utils/citationUtils';
+import { resolveProviderModelId } from '@/config/modelConfigs';
 
 export interface DebateSession {
   id: string;
@@ -95,6 +96,37 @@ export class DebateOrchestrator {
     this.rulesEngine = new DebateRulesEngine();
     this.promptBuilder = new DebatePromptBuilder();
   }
+
+  private getWebSearchEnabled(): boolean {
+    return Boolean(this.session?.webSearchEnabled);
+  }
+
+  private applyWebSearchConfig(adapter?: { config?: { webSearchEnabled?: boolean } }): void {
+    if (adapter?.config) {
+      adapter.config.webSearchEnabled = this.getWebSearchEnabled();
+    }
+  }
+
+  private buildAIResponseMetadata(
+    ai: AI,
+    modelUsed?: string,
+    citations?: Citation[]
+  ): Message['metadata'] {
+    const metadata: Message['metadata'] = {
+      providerId: ai.id,
+      webSearchEnabled: this.getWebSearchEnabled(),
+    };
+
+    if (modelUsed) {
+      metadata.modelUsed = modelUsed;
+    }
+
+    if (citations && citations.length > 0) {
+      metadata.citations = citations;
+    }
+
+    return metadata;
+  }
   
   /**
    * Initialize a new debate session
@@ -123,6 +155,11 @@ export class DebateOrchestrator {
       });
     }
     
+    const resolvedParticipants = participants.map(participant => ({
+      ...participant,
+      model: resolveProviderModelId(participant.provider, participant.model) || participant.model,
+    }));
+
     // Resolve configuration
     const format = getFormat(options?.formatId || 'oxford');
     // Allow 3–7 rounds only; default to provided format default (usually 3)
@@ -130,12 +167,12 @@ export class DebateOrchestrator {
     const totalRounds = Math.max(3, Math.min(desired, 7));
     const civility = (options?.civility as 1|2|3|4|5) || 1;
     const stances: { [aiId: string]: 'pro' | 'con' } = {};
-    if (participants[0]) stances[participants[0].id] = options?.stances?.[participants[0].id] || 'pro';
-    if (participants[1]) stances[participants[1].id] = options?.stances?.[participants[1].id] || 'con';
+    if (resolvedParticipants[0]) stances[resolvedParticipants[0].id] = options?.stances?.[resolvedParticipants[0].id] || 'pro';
+    if (resolvedParticipants[1]) stances[resolvedParticipants[1].id] = options?.stances?.[resolvedParticipants[1].id] || 'con';
 
-    // Check if both participants support web search
+    // Require both resolved debater models to support web search.
     const webSearchAvailability = mergeAvailabilitiesStrict(
-      participants.map(p => ({ provider: p.provider, model: p.model }))
+      resolvedParticipants.map(p => ({ provider: p.provider, model: p.model }))
     );
     const webSearchEnabled = webSearchAvailability.webSearch.supported;
 
@@ -143,7 +180,7 @@ export class DebateOrchestrator {
     const session: DebateSession = {
       id: `debate_${Date.now()}`,
       topic,
-      participants,
+      participants: resolvedParticipants,
       personalities,
       mergedPersonalities: options?.mergedPersonalities,
       startTime: Date.now(),
@@ -161,7 +198,7 @@ export class DebateOrchestrator {
     this.session = session;
     
     // Initialize services
-    this.votingService = new VotingService(participants, format, totalRounds);
+    this.votingService = new VotingService(resolvedParticipants, format, totalRounds);
     // Apply custom round rules
     this.rulesEngine = new DebateRulesEngine({ maxRounds: totalRounds });
     
@@ -304,7 +341,14 @@ export class DebateOrchestrator {
       const debateMessages = existingMessages.filter(msg => msg.timestamp >= (this.session?.startTime || 0));
 
       // Prefer streaming if adapter supports it
-      const adapter = this.aiService.getAdapter(currentAI.provider);
+      let adapter = this.aiService.getAdapter(currentAI.provider);
+      if (!adapter) {
+        const ensureAdapter = (this.aiService as { ensureAdapter?: AIService['ensureAdapter'] }).ensureAdapter;
+        if (ensureAdapter) {
+          adapter = await ensureAdapter.call(this.aiService, currentAI.provider, currentAI.provider, currentAI.model);
+        }
+      }
+      this.applyWebSearchConfig(adapter);
       const supportsStreaming = !!adapter?.getCapabilities()?.streaming;
       // Respect global/provider streaming preferences
       const streamingState = store.getState().streaming;
@@ -384,11 +428,7 @@ export class DebateOrchestrator {
           } as unknown as import('../../types').PersonalityConfig);
           // Ensure debate mode is active for turn mapping
           adapter.config.isDebateMode = true;
-
-          // Apply web search enabled flag to adapter config
-          if (this.session?.webSearchEnabled) {
-            adapter.config.webSearchEnabled = true;
-          }
+          this.applyWebSearchConfig(adapter);
 
           // Debug logging
           try {
@@ -431,18 +471,18 @@ export class DebateOrchestrator {
           senderType: 'ai',
           content: '',
           timestamp: Date.now(),
-          metadata: { modelUsed: currentAI.model, providerId: currentAI.id },
+          metadata: this.buildAIResponseMetadata(currentAI, currentAI.model),
         };
 
         const messageId = placeholderMessage.id;
         this.currentMessages = [...existingMessages, placeholderMessage];
         this.emitEvent({ type: 'message_added', data: { message: placeholderMessage }, timestamp: Date.now() });
-        this.emitEvent({ type: 'stream_started', data: { messageId, aiProvider: currentAI.id }, timestamp: Date.now() });
+        this.emitEvent({ type: 'stream_started', data: { messageId, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled() }, timestamp: Date.now() });
 
         const streamingService = getStreamingService();
         let finalContent = '';
         let hadError = false;
-        let capturedCitations: Array<{ index: number; url: string; title?: string; snippet?: string }> | undefined;
+        let capturedCitations: Citation[] | undefined;
 
         let errorForFallback: string | null = null;
         await streamingService.streamResponse(
@@ -461,7 +501,7 @@ export class DebateOrchestrator {
             const normalizedAnswer = ensureAnswerContent(completeText, capturedCitations, currentAI.name);
             finalContent = normalizedAnswer.content;
             capturedCitations = normalizedAnswer.citations;
-            this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, aiProvider: currentAI.id, citations: normalizedAnswer.citations }, timestamp: Date.now() });
+            this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), citations: normalizedAnswer.citations }, timestamp: Date.now() });
           },
           (err: Error) => {
             hadError = true;
@@ -475,7 +515,7 @@ export class DebateOrchestrator {
               const e = event as Record<string, unknown>;
               const type = String(e?.type || '');
               if (type === 'citations') {
-                const citations = (e as { citations?: Array<{ index: number; url: string; title?: string; snippet?: string }> }).citations;
+                const citations = (e as { citations?: Citation[] }).citations;
                 if (citations && citations.length > 0) {
                   capturedCitations = citations;
                 }
@@ -489,7 +529,7 @@ export class DebateOrchestrator {
           const updated = {
             ...placeholderMessage,
             content: finalContent,
-            metadata: { ...placeholderMessage.metadata, citations: capturedCitations },
+            metadata: this.buildAIResponseMetadata(currentAI, currentAI.model, capturedCitations),
           };
           this.currentMessages = [...existingMessages, updated];
         } else {
@@ -523,7 +563,7 @@ export class DebateOrchestrator {
                 }
               } catch { /* ignore */ }
               const fallback = await this.aiService.sendMessage(
-                currentAI.id,
+                currentAI.provider,
                 contextualPrompt,
                 debateMessages,
                 true,
@@ -534,15 +574,15 @@ export class DebateOrchestrator {
               const { response: text } = typeof fallback === 'string' ? { response: fallback } : fallback;
               const fallbackMetadata = typeof fallback === 'string'
                 ? undefined
-                : (fallback as { metadata?: { citations?: Array<{ index: number; url: string; title?: string; snippet?: string }> } }).metadata;
+                : (fallback as { metadata?: { citations?: Citation[] } }).metadata;
               const normalizedAnswer = ensureAnswerContent(text, fallbackMetadata?.citations, currentAI.name);
               finalContent = normalizedAnswer.content;
               // Emit completion to update the placeholder message and end stream state in UI
-              this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, citations: normalizedAnswer.citations }, timestamp: Date.now() });
+              this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), citations: normalizedAnswer.citations }, timestamp: Date.now() });
               const updated = {
                 ...placeholderMessage,
                 content: normalizedAnswer.content,
-                metadata: { ...placeholderMessage.metadata, citations: normalizedAnswer.citations },
+                metadata: this.buildAIResponseMetadata(currentAI, currentAI.model, normalizedAnswer.citations),
               };
               this.currentMessages = [...existingMessages, updated];
             } catch {
@@ -591,10 +631,7 @@ export class DebateOrchestrator {
           if (expert.enabled && expert.parameters && adapter) {
             adapter.config.parameters = expert.parameters;
           }
-          // Apply web search enabled flag for non-streaming path
-          if (this.session?.webSearchEnabled && adapter) {
-            adapter.config.webSearchEnabled = true;
-          }
+          this.applyWebSearchConfig(adapter);
         } catch { /* ignore */ }
         // For non-streaming, pass the composed personality and keep debate mode enabled
         const composedPersonality = (() => {
@@ -679,7 +716,7 @@ export class DebateOrchestrator {
 
         const personalityName = UNIVERSAL_PERSONALITIES.find(p => p.id === personalityId)?.name || 'Default';
         const { response: responseText, modelUsed } = response;
-        const responseMetadata = (response as { metadata?: { citations?: Array<{ index: number; url: string; title?: string; snippet?: string }> } }).metadata;
+        const responseMetadata = (response as { metadata?: { citations?: Citation[] } }).metadata;
         const normalizedAnswer = ensureAnswerContent(responseText, responseMetadata?.citations, currentAI.name);
         const aiMessage: Message = {
           id: `msg_${Date.now()}_${currentAI.id}`,
@@ -687,7 +724,7 @@ export class DebateOrchestrator {
           senderType: 'ai',
           content: normalizedAnswer.content,
           timestamp: Date.now(),
-          metadata: { ...(modelUsed ? { modelUsed } : {}), providerId: currentAI.id, citations: normalizedAnswer.citations },
+          metadata: this.buildAIResponseMetadata(currentAI, modelUsed, normalizedAnswer.citations),
         };
         this.currentMessages = [...existingMessages, aiMessage];
         this.emitEvent({ type: 'message_added', data: { message: aiMessage }, timestamp: Date.now() });

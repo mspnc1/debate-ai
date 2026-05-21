@@ -121,6 +121,7 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
         const messageId = String((event.data as { messageId?: string }).messageId || '');
         const finalContent = String((event.data as { finalContent?: string }).finalContent || '');
         const modelUsed = (event.data as { modelUsed?: string }).modelUsed;
+        const webSearchEnabled = Boolean((event.data as { webSearchEnabled?: boolean }).webSearchEnabled);
         const citations = (event.data as { citations?: Array<{ index: number; url: string; title?: string; snippet?: string }> }).citations;
         const normalizedAnswer = ensureAnswerContent(finalContent, citations, 'The AI');
         if (messageId) {
@@ -129,7 +130,11 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
           dispatch(updateMessage({
             id: messageId,
             content: normalizedAnswer.content,
-            metadata: { ...(modelUsed ? { modelUsed } : {}), ...(normalizedAnswer.citations ? { citations: normalizedAnswer.citations } : {}) },
+            metadata: {
+              ...(modelUsed ? { modelUsed } : {}),
+              webSearchEnabled,
+              ...(normalizedAnswer.citations ? { citations: normalizedAnswer.citations } : {}),
+            },
           }));
         }
         break;

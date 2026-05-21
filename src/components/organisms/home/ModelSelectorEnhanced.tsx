@@ -171,7 +171,7 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
                     >
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
                             <Typography 
                               variant="subtitle" 
                               weight="semibold"
@@ -184,6 +184,9 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
                             </Typography>
                             {model.isDefault && (
                               <Badge label="Default" type="default" />
+                            )}
+                            {model.supportsWebSearch && (
+                              <Badge label="Live Search" type="new" />
                             )}
                           </View>
                           
@@ -299,9 +302,14 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
                 {model.name}
               </Typography>
               
-              {model.isDefault && (
-                <Badge label="Default" type="default" />
-              )}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
+                {model.isDefault && (
+                  <Badge label="Default" type="default" />
+                )}
+                {model.supportsWebSearch && (
+                  <Badge label="Live Search" type="new" />
+                )}
+              </View>
               
               {showPricing && pricing && (
                 <Typography 

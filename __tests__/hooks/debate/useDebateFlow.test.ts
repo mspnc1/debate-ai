@@ -210,7 +210,7 @@ describe('useDebateFlow', () => {
     act(() => {
       orchestrator.emit({
         type: 'stream_completed',
-        data: { messageId: 'ai-1', finalContent: 'Final rebuttal', modelUsed: 'claude-3' },
+        data: { messageId: 'ai-1', finalContent: 'Final rebuttal', modelUsed: 'claude-3', webSearchEnabled: true },
         timestamp: Date.now(),
       });
     });
@@ -218,6 +218,7 @@ describe('useDebateFlow', () => {
     const updatedMessage = store.getState().chat.currentSession?.messages.find(m => m.id === 'ai-1');
     expect(updatedMessage?.content).toBe('Final rebuttal');
     expect(updatedMessage?.metadata?.modelUsed).toBe('claude-3');
+    expect(updatedMessage?.metadata?.webSearchEnabled).toBe(true);
     expect(store.getState().streaming.streamingMessages['ai-1'].isStreaming).toBe(false);
 
     act(() => {

@@ -69,6 +69,15 @@ const getIcon = (type: string): string => {
   }
 };
 
+const getCitationMetadataKey = (message: Message): string => {
+  const citations = message.metadata?.citations || [];
+  return [
+    message.metadata?.webSearchEnabled ? 'search' : 'no-search',
+    citations.length,
+    citations.map(citation => `${citation.index}:${citation.url}`).join('|'),
+  ].join(':');
+};
+
 // Memoized message item component - optimized
 const MessageItem = memo<{ message: Message; index: number; alignment: 'left' | 'right' | 'center' }>(({ message, index, alignment }) => {
   const systemType = detectType(message);
@@ -99,6 +108,7 @@ const MessageItem = memo<{ message: Message; index: number; alignment: 'left' | 
   if (prevProps.message.content !== nextProps.message.content) return false;
   if (prevProps.message.sender !== nextProps.message.sender) return false;
   if (prevProps.message.timestamp !== nextProps.message.timestamp) return false;
+  if (getCitationMetadataKey(prevProps.message) !== getCitationMetadataKey(nextProps.message)) return false;
   if (prevProps.alignment !== nextProps.alignment) return false;
   return true;
 });

@@ -53,6 +53,33 @@ const createFetchResponse = () => ({
   }),
 }) as unknown as Response;
 
+const createResponsesFetchResponse = (text = 'Mock response') => ({
+  ok: true,
+  json: async () => ({
+    output_text: text,
+    output: [
+      {
+        type: 'message',
+        content: [
+          {
+            type: 'output_text',
+            text,
+            annotations: [
+              { type: 'url_citation', url: 'https://example.com/source', title: 'Example Source' },
+            ],
+          },
+        ],
+      },
+    ],
+    model: 'gpt-5',
+    usage: {
+      input_tokens: 11,
+      output_tokens: 7,
+      total_tokens: 18,
+    },
+  }),
+}) as unknown as Response;
+
 let fetchMock: jest.MockedFunction<typeof fetch>;
 const originalEnv = process.env.NODE_ENV;
 
@@ -190,6 +217,46 @@ describe('ChatGPTAdapter', () => {
     const adapter = new ChatGPTAdapter(baseConfig);
 
     await expect(adapter.sendMessage('Hello')).rejects.toThrow('OpenAI error (429): Too many requests');
+  });
+
+  it('uses Responses API with web_search and extracts citations for non-streaming web search', async () => {
+    fetchMock.mockResolvedValueOnce(createResponsesFetchResponse('Current answer [1]'));
+    const adapter = new ChatGPTAdapter({ ...baseConfig, webSearchEnabled: true });
+
+    const result = await adapter.sendMessage('What happened today?');
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, requestInit] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/responses');
+    const body = JSON.parse(requestInit?.body as string);
+    expect(body.tools).toEqual([{ type: 'web_search' }]);
+    expect(body.stream).toBe(false);
+    expect(result).toEqual(expect.objectContaining({
+      response: 'Current answer [1]',
+      metadata: {
+        citations: [
+          { index: 1, url: 'https://example.com/source', title: 'Example Source' },
+        ],
+      },
+    }));
+  });
+
+  it('simulates streaming for OpenAI web search and emits citations', async () => {
+    fetchMock.mockResolvedValueOnce(createResponsesFetchResponse('Short'));
+    const adapter = new ChatGPTAdapter({ ...baseConfig, webSearchEnabled: true });
+    const onEvent = jest.fn();
+
+    const chunks: string[] = [];
+    for await (const chunk of adapter.streamMessage('Latest update', [], undefined, undefined, undefined, undefined, onEvent)) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks).toEqual(['Short']);
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'citations',
+      citations: [{ index: 1, url: 'https://example.com/source', title: 'Example Source' }],
+    });
+    expect(mockEventSourceInstances).toHaveLength(0);
   });
 
   it('streams SSE deltas and completion events', async () => {

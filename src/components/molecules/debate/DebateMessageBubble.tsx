@@ -34,6 +34,15 @@ export interface DebateMessageBubbleProps {
   side?: 'left' | 'right' | 'center';
 }
 
+const getCitationMetadataKey = (message: Message): string => {
+  const citations = message.metadata?.citations || [];
+  return [
+    message.metadata?.webSearchEnabled ? 'search' : 'no-search',
+    citations.length,
+    citations.map(citation => `${citation.index}:${citation.url}`).join('|'),
+  ].join(':');
+};
+
 export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.memo(({
   message,
   participants: _participants,
@@ -307,7 +316,8 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
     prevProps.message.id === nextProps.message.id &&
     prevProps.message.content === nextProps.message.content &&
     prevProps.message.sender === nextProps.message.sender &&
-    prevProps.message.timestamp === nextProps.message.timestamp
+    prevProps.message.timestamp === nextProps.message.timestamp &&
+    getCitationMetadataKey(prevProps.message) === getCitationMetadataKey(nextProps.message)
   );
 });
 

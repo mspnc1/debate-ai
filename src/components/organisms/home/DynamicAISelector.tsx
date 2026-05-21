@@ -148,7 +148,7 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
                       onPersonalityChange={isSelected && onPersonalityChange ? (personalityId) => onPersonalityChange(ai.id, personalityId) : undefined}
                       onModelChange={isSelected && onModelChange ? (modelId) => onModelChange(ai.id, modelId) : undefined}
                       modelSelector={isSelected && renderModelSelector ? renderModelSelector({ ...ai, model: selectedModel }, selectedModel) : undefined}
-                      badge={getBadge?.(ai)}
+                      badge={getBadge?.({ ...ai, model: selectedModel })}
                     />
                   </View>
                 );

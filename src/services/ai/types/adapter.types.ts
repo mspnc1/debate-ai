@@ -10,6 +10,8 @@ export interface AIAdapterConfig {
   webSearchEnabled?: boolean;
 }
 
+export type AdapterConfig = AIAdapterConfig;
+
 export interface ResumptionContext {
   originalPrompt: Message;
   isResuming: boolean;

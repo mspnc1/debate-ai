@@ -22,6 +22,32 @@ describe('ChatGPTAdapter - Web Search & Citations', () => {
     jest.clearAllMocks();
   });
 
+  const mockResponsesFetch = (text = 'Mock response') => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        output_text: text,
+        output: [
+          {
+            type: 'message',
+            content: [
+              {
+                type: 'output_text',
+                text,
+                annotations: [
+                  { type: 'url_citation', url: 'https://example.com/source', title: 'Example Source' },
+                ],
+              },
+            ],
+          },
+        ],
+        model: 'gpt-5',
+      }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    return fetchMock;
+  };
+
   describe('extractCitationsFromText', () => {
     it('should extract citations from inline markdown links', () => {
       const config = { ...baseConfig };
@@ -147,30 +173,17 @@ describe('ChatGPTAdapter - Web Search & Citations', () => {
   });
 
   describe('Web Search Tool Integration', () => {
-    it('should add web_search tool to request body when webSearchEnabled is true', () => {
+    it('should add web_search tool to Responses request body when webSearchEnabled is true', async () => {
       const config = { ...baseConfig, webSearchEnabled: true };
       adapter = new ChatGPTAdapter(config);
+      const fetchMock = mockResponsesFetch();
 
-      // Mock the EventSource to verify the request body
-      const EventSource = require('react-native-sse');
+      await adapter.sendMessage('Test message', []);
 
-      EventSource.mockImplementationOnce((url: string, options: unknown) => {
-        // Capture and verify the request
-        const body = (options as { body: string }).body;
-        const requestBody = JSON.parse(body);
-
-        // Verify tools are included
-        expect(requestBody).toHaveProperty('tools');
-        expect(requestBody.tools).toEqual([{ type: 'web_search' }]);
-
-        return {
-          addEventListener: jest.fn(),
-          close: jest.fn(),
-        };
-      });
-
-      // Trigger the stream (this will construct the EventSource)
-      adapter.streamMessage('Test message', []);
+      const requestBody = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+      expect(fetchMock.mock.calls[0][0]).toContain('/responses');
+      expect(requestBody).toHaveProperty('tools');
+      expect(requestBody.tools).toEqual([{ type: 'web_search' }]);
     });
 
     it('should not add web_search tool when webSearchEnabled is false', () => {
@@ -278,6 +291,7 @@ describe('ChatGPTAdapter - Web Search & Citations', () => {
     it('should handle conversation history with web search enabled', async () => {
       const config = { ...baseConfig, webSearchEnabled: true };
       adapter = new ChatGPTAdapter(config);
+      const fetchMock = mockResponsesFetch();
 
       const history: Message[] = [
         {
@@ -297,50 +311,37 @@ describe('ChatGPTAdapter - Web Search & Citations', () => {
         },
       ];
 
-      const EventSource = require('react-native-sse');
+      await adapter.sendMessage('Tell me more', history);
 
-      EventSource.mockImplementationOnce((url: string, options: unknown) => {
-        const body = (options as { body: string }).body;
-        const requestBody = JSON.parse(body);
+      const body = (fetchMock.mock.calls[0][1] as { body: string }).body;
+      const requestBody = JSON.parse(body);
 
-        // Verify tools are included
-        expect(requestBody.tools).toEqual([{ type: 'web_search' }]);
-
-        // Verify history is formatted correctly
-        expect(requestBody.input).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({
-              role: 'user',
-              content: expect.arrayContaining([
-                expect.objectContaining({ type: 'input_text', text: 'What is the weather?' }),
-              ]),
-            }),
-            expect.objectContaining({
-              role: 'assistant',
-              content: expect.arrayContaining([
-                expect.objectContaining({
-                  type: 'output_text',
-                  text: 'According to [Weather.com](https://weather.com), it is sunny.',
-                }),
-              ]),
-            }),
-            expect.objectContaining({
-              role: 'user',
-              content: expect.arrayContaining([
-                expect.objectContaining({ type: 'input_text', text: 'Tell me more' }),
-              ]),
-            }),
-          ])
-        );
-
-        return {
-          addEventListener: jest.fn(),
-          close: jest.fn(),
-        };
-      });
-
-      const generator = adapter.streamMessage('Tell me more', history);
-      await generator.return?.();
+      expect(requestBody.tools).toEqual([{ type: 'web_search' }]);
+      expect(requestBody.input).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            role: 'user',
+            content: expect.arrayContaining([
+              expect.objectContaining({ type: 'input_text', text: 'What is the weather?' }),
+            ]),
+          }),
+          expect.objectContaining({
+            role: 'assistant',
+            content: expect.arrayContaining([
+              expect.objectContaining({
+                type: 'output_text',
+                text: 'According to [Weather.com](https://weather.com), it is sunny.',
+              }),
+            ]),
+          }),
+          expect.objectContaining({
+            role: 'user',
+            content: expect.arrayContaining([
+              expect.objectContaining({ type: 'input_text', text: 'Tell me more' }),
+            ]),
+          }),
+        ])
+      );
     });
   });
 });

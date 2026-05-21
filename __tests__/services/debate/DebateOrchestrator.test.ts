@@ -188,7 +188,7 @@ describe('DebateOrchestrator', () => {
 
       expect(session.webSearchEnabled).toBe(true);
       expect(mockMergeAvailabilitiesStrict).toHaveBeenCalledWith([
-        { provider: 'claude', model: 'claude-3-opus' },
+        { provider: 'claude', model: 'claude-sonnet-4-6' },
         { provider: 'openai', model: 'gpt-4.1-mini' },
       ]);
     });
@@ -280,7 +280,119 @@ describe('DebateOrchestrator', () => {
       await orchestrator.initializeDebate('AI ethics', participants, {}, { rounds: 1 });
       await orchestrator.startDebate([]);
 
-      expect(adapter.config.webSearchEnabled).toBeUndefined();
+      expect(adapter.config.webSearchEnabled).toBe(false);
+
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    });
+
+    it('clears sticky adapter webSearchEnabled after a search-enabled debate', async () => {
+      jest.useFakeTimers();
+
+      const adapter = {
+        config: {} as Record<string, unknown>,
+        getCapabilities: jest.fn(() => ({ streaming: true })),
+        setTemporaryPersonality: jest.fn(),
+        debugGetSystemPrompt: jest.fn(() => ''),
+      };
+
+      const aiService = {
+        getAdapter: jest.fn(() => adapter),
+        sendMessage: jest.fn(),
+      };
+
+      mockStreamingService.streamResponse.mockImplementation(async (_config, _onChunk, onComplete) => {
+        onComplete?.('response');
+      });
+
+      mockMergeAvailabilitiesStrict.mockReturnValueOnce({
+        webSearch: { supported: true },
+        imageUpload: { supported: false },
+        documentUpload: { supported: false },
+        imageGeneration: { supported: false },
+        videoGeneration: { supported: false },
+      });
+
+      const first = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+      await first.initializeDebate('AI ethics', participants, {}, { rounds: 1 });
+      await first.startDebate([]);
+      expect(adapter.config.webSearchEnabled).toBe(true);
+
+      mockMergeAvailabilitiesStrict.mockReturnValueOnce({
+        webSearch: { supported: false },
+        imageUpload: { supported: false },
+        documentUpload: { supported: false },
+        imageGeneration: { supported: false },
+        videoGeneration: { supported: false },
+      });
+
+      const second = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+      await second.initializeDebate('AI ethics', participants, {}, { rounds: 1 });
+      await second.startDebate([]);
+      expect(adapter.config.webSearchEnabled).toBe(false);
+
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    });
+
+    it('preserves web search metadata and citations when streaming falls back', async () => {
+      jest.useFakeTimers();
+
+      mockMergeAvailabilitiesStrict.mockReturnValue({
+        webSearch: { supported: true },
+        imageUpload: { supported: false },
+        documentUpload: { supported: false },
+        imageGeneration: { supported: false },
+        videoGeneration: { supported: false },
+      });
+
+      const adapter = {
+        config: {} as Record<string, unknown>,
+        getCapabilities: jest.fn(() => ({ streaming: true })),
+        setTemporaryPersonality: jest.fn(),
+        debugGetSystemPrompt: jest.fn(() => ''),
+      };
+      const citations = [{ index: 1, url: 'https://example.com/source', title: 'Source' }];
+
+      const aiService = {
+        getAdapter: jest.fn(() => adapter),
+        sendMessage: jest.fn().mockResolvedValue({
+          response: 'Recovered with sources [1]',
+          metadata: { citations },
+        }),
+      };
+
+      mockStreamingService.streamResponse.mockImplementation(async (_config, _onChunk, _onComplete, onError) => {
+        onError?.(new Error('Streaming requires organization verification'));
+      });
+
+      const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+      const completedEvents: Array<Record<string, unknown>> = [];
+      const addedMessages: Array<Record<string, unknown>> = [];
+      orchestrator.addEventListener(event => {
+        if (event.type === 'stream_completed') completedEvents.push(event.data);
+        if (event.type === 'message_added') addedMessages.push(event.data);
+      });
+
+      await orchestrator.initializeDebate('AI ethics', participants, {}, { rounds: 1 });
+      await orchestrator.startDebate([]);
+
+      expect(aiService.sendMessage).toHaveBeenCalledWith(
+        'claude',
+        expect.any(String),
+        expect.any(Array),
+        true,
+        undefined,
+        undefined,
+        'claude-sonnet-4-6'
+      );
+      expect(completedEvents[0]).toEqual(expect.objectContaining({
+        webSearchEnabled: true,
+        citations,
+      }));
+      expect(addedMessages[0].message).toEqual(expect.objectContaining({
+        metadata: expect.objectContaining({ webSearchEnabled: true }),
+      }));
 
       jest.clearAllTimers();
       jest.useRealTimers();

@@ -113,6 +113,30 @@ describe('DynamicAISelector', () => {
     expect(queryByText(/Start Chat/)).toBeNull();
   });
 
+  it('passes the effective selected model to card badges', () => {
+    const getBadge = jest.fn((ai: AIConfig) => (
+      ai.model === 'gpt-5.5' ? { text: 'Live Search' } : undefined
+    ));
+
+    renderWithProviders(
+      <DynamicAISelector
+        configuredAIs={aiList}
+        selectedAIs={[]}
+        maxAIs={3}
+        onToggleAI={jest.fn()}
+        onAddAI={jest.fn()}
+        selectedModels={{ 'ai-2': 'gpt-5.5' }}
+        getBadge={getBadge}
+      />
+    );
+
+    expect(getBadge).toHaveBeenCalledWith(expect.objectContaining({ id: 'ai-2', model: 'gpt-5.5' }));
+    expect(mockAiCard).toHaveBeenCalledWith(expect.objectContaining({
+      ai: expect.objectContaining({ id: 'ai-2', model: 'gpt-5.5' }),
+      badge: { text: 'Live Search' },
+    }));
+  });
+
   describe('onQuickStart', () => {
     it('renders trailing icon on Start Chat button when onQuickStart provided', () => {
       const { getByTestId } = renderWithProviders(

@@ -6,6 +6,26 @@ import { getDefaultModel, resolveModelAlias } from '../../../../config/providers
 import EventSource from 'react-native-sse';
 import { extractSSEErrorMessage } from '../../utils/extractSSEErrorMessage';
 
+type ChatGPTContentPart = {
+  type: string;
+  text?: string;
+  image_url?: { url: string };
+  file?: { file_name: string; file_data: string };
+};
+
+type ResponsesInputPart = {
+  type: 'input_text' | 'input_image' | 'input_file' | 'output_text';
+  text?: string;
+  image_url?: string;
+  filename?: string;
+  file_data?: string;
+};
+
+type ResponsesInputMessage = {
+  role: 'user' | 'assistant';
+  content: ResponsesInputPart[];
+};
+
 export class ChatGPTAdapter extends OpenAICompatibleAdapter {
   async testConnection(): Promise<boolean> {
     try {
@@ -120,6 +140,251 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
 
     return contentParts;
   }
+
+  private buildResponsesInput(
+    message: string,
+    conversationHistory: Message[],
+    resumptionContext?: ResumptionContext,
+    attachments?: MessageAttachment[]
+  ): ResponsesInputMessage[] {
+    const userContent = this.formatUserMessage(message, attachments);
+    const chatMessages: Array<{ role: 'user' | 'assistant'; content: string | ChatGPTContentPart[] }> = [
+      ...this.formatHistory(conversationHistory, resumptionContext)
+        .filter((historyMessage): historyMessage is { role: 'user' | 'assistant'; content: string | ChatGPTContentPart[] } =>
+          historyMessage.role === 'user' || historyMessage.role === 'assistant'
+        )
+        .map(historyMessage => ({
+          role: historyMessage.role,
+          content: historyMessage.content as string | ChatGPTContentPart[],
+        })),
+      { role: 'user', content: userContent },
+    ];
+
+    return chatMessages.map(chatMessage => {
+      const isAssistant = chatMessage.role === 'assistant';
+
+      if (typeof chatMessage.content === 'string') {
+        return {
+          role: chatMessage.role,
+          content: [{ type: isAssistant ? 'output_text' : 'input_text', text: chatMessage.content }],
+        };
+      }
+
+      const parts = chatMessage.content
+        .map(part => {
+          if (isAssistant) {
+            if (part.type === 'text' && part.text) {
+              return { type: 'output_text', text: part.text } as const;
+            }
+            return undefined;
+          }
+
+          if (part.type === 'text' && part.text) {
+            return { type: 'input_text', text: part.text } as const;
+          }
+          if (part.type === 'image_url' && part.image_url) {
+            return { type: 'input_image', image_url: part.image_url.url } as const;
+          }
+          if (part.type === 'file' && part.file) {
+            return { type: 'input_file', filename: part.file.file_name, file_data: part.file.file_data } as const;
+          }
+          return undefined;
+        })
+        .filter(Boolean) as ResponsesInputPart[];
+
+      return { role: chatMessage.role, content: parts };
+    });
+  }
+
+  private buildResponsesRequestBody(
+    resolvedModel: string,
+    input: ResponsesInputMessage[],
+    stream: boolean
+  ): Record<string, unknown> {
+    const modelConfig = getModelById('openai', resolvedModel);
+    const isO1Model = resolvedModel.startsWith('o1');
+    const isGPT5Model = resolvedModel.startsWith('gpt-5');
+    const instructions = isO1Model ? undefined : this.getSystemPrompt();
+
+    const body: Record<string, unknown> = {
+      model: resolvedModel,
+      input,
+      stream,
+    };
+
+    if (instructions) {
+      body.instructions = instructions;
+    }
+
+    if (modelConfig?.requiresTemperature1 || isGPT5Model || isO1Model) {
+      body.temperature = 1;
+    } else if (this.config.parameters?.temperature !== undefined) {
+      body.temperature = this.config.parameters.temperature;
+    }
+
+    if (this.config.parameters?.maxTokens) {
+      body.max_output_tokens = this.config.parameters.maxTokens;
+    }
+
+    if (!modelConfig?.requiresTemperature1 && !isGPT5Model && !isO1Model && this.config.parameters?.topP !== undefined) {
+      body.top_p = this.config.parameters.topP;
+    }
+
+    if (this.config.webSearchEnabled) {
+      body.tools = [{ type: 'web_search' }];
+    }
+
+    return body;
+  }
+
+  private pickText(node: Record<string, unknown> | null | undefined): string {
+    if (!node) return '';
+    const text = node.text;
+    if (typeof text === 'string') return text;
+    if (text && typeof text === 'object' && typeof (text as { value?: unknown }).value === 'string') {
+      return (text as { value: string }).value;
+    }
+    return '';
+  }
+
+  private extractTextFromResponsesOutput(root: unknown): string {
+    const response = (root as { response?: unknown } | undefined)?.response ?? root;
+    const directOutputText = (response as { output_text?: unknown } | undefined)?.output_text;
+    if (typeof directOutputText === 'string') {
+      return directOutputText;
+    }
+
+    const output = (response as { output?: unknown } | undefined)?.output;
+    if (!Array.isArray(output)) return '';
+
+    const texts: string[] = [];
+    for (const item of output as Array<Record<string, unknown>>) {
+      const type = item?.type as string | undefined;
+      if (type && (type.includes('output_text') || type.includes('refusal'))) {
+        const itemText = this.pickText(item);
+        if (itemText) texts.push(itemText);
+      }
+
+      const content = item?.content;
+      if (Array.isArray(content)) {
+        for (const part of content as Array<Record<string, unknown>>) {
+          if (part?.type === 'output_text' || part?.type === 'refusal') {
+            const partText = this.pickText(part);
+            if (partText) texts.push(partText);
+          }
+        }
+      }
+    }
+
+    return texts.join('');
+  }
+
+  private extractCitationsFromText(text: string): Array<{ index: number; url: string; title?: string }> {
+    const citations: Array<{ index: number; url: string; title?: string }> = [];
+    const seenUrls = new Set<string>();
+    const linkRegex = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = linkRegex.exec(text)) !== null) {
+      const title = match[1];
+      const url = match[2];
+      if (url && !seenUrls.has(url)) {
+        seenUrls.add(url);
+        citations.push({ index: citations.length + 1, url, title });
+      }
+    }
+
+    return citations;
+  }
+
+  private extractCitationsFromResponses(
+    root: unknown,
+    responseText: string
+  ): Array<{ index: number; url: string; title?: string; snippet?: string }> {
+    const citations: Array<{ index: number; url: string; title?: string; snippet?: string }> = [];
+    const seenUrls = new Set<string>();
+
+    const addCitation = (url: unknown, title?: unknown, snippet?: unknown) => {
+      if (typeof url !== 'string' || !url || seenUrls.has(url)) return;
+      seenUrls.add(url);
+      citations.push({
+        index: citations.length + 1,
+        url,
+        ...(typeof title === 'string' && title ? { title } : {}),
+        ...(typeof snippet === 'string' && snippet ? { snippet } : {}),
+      });
+    };
+
+    const visit = (node: unknown) => {
+      if (!node) return;
+      if (Array.isArray(node)) {
+        node.forEach(visit);
+        return;
+      }
+      if (typeof node !== 'object') return;
+
+      const record = node as Record<string, unknown>;
+      if (record.type === 'url_citation') {
+        addCitation(record.url, record.title, record.snippet);
+      }
+
+      Object.values(record).forEach(visit);
+    };
+
+    visit(root);
+
+    if (citations.length === 0 && responseText) {
+      return this.extractCitationsFromText(responseText);
+    }
+
+    return citations;
+  }
+
+  private async sendResponsesMessage(
+    message: string,
+    conversationHistory: Message[] = [],
+    resumptionContext?: ResumptionContext,
+    attachments?: MessageAttachment[],
+    modelOverride?: string
+  ): Promise<SendMessageResponse> {
+    const config = this.getProviderConfig();
+    const resolvedModel = modelOverride ||
+                         resolveModelAlias(this.config.model || getDefaultModel(this.config.provider));
+    const input = this.buildResponsesInput(message, conversationHistory, resumptionContext, attachments);
+    const requestBody = this.buildResponsesRequestBody(resolvedModel, input, false);
+
+    const response = await fetch(`${config.baseUrl}/responses`, {
+      method: 'POST',
+      headers: config.headers(this.config.apiKey),
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      await this.handleApiError(response, 'OpenAI');
+    }
+
+    const data = await response.json();
+    const responseText = this.extractTextFromResponsesOutput(data);
+    const citations = this.extractCitationsFromResponses(data, responseText);
+    const usage = data.usage as {
+      input_tokens?: number;
+      output_tokens?: number;
+      prompt_tokens?: number;
+      completion_tokens?: number;
+      total_tokens?: number;
+    } | undefined;
+
+    return {
+      response: responseText,
+      modelUsed: typeof data.model === 'string' ? data.model : resolvedModel,
+      usage: usage ? {
+        promptTokens: usage.input_tokens ?? usage.prompt_tokens,
+        completionTokens: usage.output_tokens ?? usage.completion_tokens,
+        totalTokens: usage.total_tokens,
+      } : undefined,
+      metadata: citations.length > 0 ? { citations } : undefined,
+    };
+  }
   
   async sendMessage(
     message: string,
@@ -134,6 +399,16 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
     
     // Get model configuration to check for special requirements
     const modelConfig = getModelById('openai', resolvedModel);
+
+    if (this.config.webSearchEnabled) {
+      return this.sendResponsesMessage(
+        message,
+        conversationHistory,
+        resumptionContext,
+        attachments,
+        resolvedModel
+      );
+    }
     
     // O1 models don't support system messages
     const isO1Model = resolvedModel.startsWith('o1');
@@ -227,6 +502,37 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
 
     // Prepare request
     const resolvedModel = modelOverride || resolveModelAlias(this.config.model || getDefaultModel(this.config.provider));
+
+    if (this.config.webSearchEnabled) {
+      if (abortSignal?.aborted) return;
+
+      const response = await this.sendResponsesMessage(
+        message,
+        conversationHistory,
+        resumptionContext,
+        attachments,
+        resolvedModel
+      );
+      const content = typeof response === 'string' ? response : response.response;
+      const citations = typeof response === 'object' ? response.metadata?.citations : undefined;
+      const chunkSize = 8;
+      const delayMs = 12;
+
+      for (let i = 0; i < content.length; i += chunkSize) {
+        if (abortSignal?.aborted) return;
+        yield content.slice(i, i + chunkSize);
+        if (i + chunkSize < content.length) {
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+      }
+
+      if (citations && citations.length > 0 && onEvent) {
+        onEvent({ type: 'citations', citations });
+      }
+
+      return;
+    }
+
     const modelConfig = getModelById('openai', resolvedModel);
     const isO1Model = resolvedModel.startsWith('o1');
     const isGPT5Model = resolvedModel.startsWith('gpt-5');
