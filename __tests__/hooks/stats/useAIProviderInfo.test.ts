@@ -40,7 +40,9 @@ describe('useAIProviderInfo', () => {
     expect(totalProviders).toBe(AI_PROVIDERS.length);
 
     const expectedProvidersWithColors = AI_PROVIDERS.filter(provider => {
-      const colorKey = provider.id === 'openai' || provider.id === 'chatgpt' ? 'openai' : provider.id;
+      const colorKey = provider.id === 'openai' || provider.id === 'chatgpt' ? 'openai' :
+        provider.id === 'google' ? 'gemini' :
+        provider.id;
       return Boolean(AI_BRAND_COLORS[colorKey as keyof typeof AI_BRAND_COLORS]);
     }).map(provider => provider.id);
 

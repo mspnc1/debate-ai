@@ -24,9 +24,6 @@ jest.mock('@/constants/aiColors', () => ({
     cohere: { 50: '#FFF0ED', 500: '#FF7759', 600: '#E6604A' },
     deepseek: { 50: '#EEF0FF', 500: '#4D6BFE', 600: '#3B5BDB' },
     grok: { 50: '#F5F5F5', 500: '#404040', 600: '#333333' },
-    nomi: { 50: '#FFF8E6', 500: '#FFA500', 600: '#CC8400' },
-    replika: { 50: '#FFE6F0', 500: '#FF4081', 600: '#E0306D' },
-    characterai: { 50: '#F3E8FF', 500: '#8B40FF', 600: '#7030E0' },
   },
 }));
 
@@ -58,6 +55,13 @@ describe('useAIBrandColor', () => {
 
     it('returns Gemini brand colors', () => {
       const { result } = renderHook(() => useAIBrandColor('Gemini'));
+
+      expect(result.current).not.toBeNull();
+      expect(result.current?.border).toBe('#8A2BE2');
+    });
+
+    it('returns Gemini brand colors for Google sender names', () => {
+      const { result } = renderHook(() => useAIBrandColor('Google'));
 
       expect(result.current).not.toBeNull();
       expect(result.current?.border).toBe('#8A2BE2');
@@ -123,19 +127,17 @@ describe('useAIBrandColor', () => {
     });
   });
 
-  describe('character.ai special handling', () => {
-    it('recognizes character.ai by partial match', () => {
+  describe('retired provider handling', () => {
+    it('returns null for retired Character.AI names', () => {
       const { result } = renderHook(() => useAIBrandColor('Character.AI'));
 
-      expect(result.current).not.toBeNull();
-      expect(result.current?.border).toBe('#8B40FF');
+      expect(result.current).toBeNull();
     });
 
-    it('recognizes CharacterAI without dot', () => {
+    it('returns null for retired CharacterAI names without dot', () => {
       const { result } = renderHook(() => useAIBrandColor('CharacterAI'));
 
-      expect(result.current).not.toBeNull();
-      expect(result.current?.border).toBe('#8B40FF');
+      expect(result.current).toBeNull();
     });
   });
 
