@@ -19,6 +19,7 @@ import {
   ScrollView,
   TextInput,
 } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErrorService } from '@/services/errors/ErrorService';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -143,6 +144,40 @@ type VideoPlaybackState = {
   hasEnded: boolean;
 };
 
+type AudioPlaybackPhase = 'idle' | 'playing' | 'paused' | 'ended';
+
+type AudioPlayerResetRequest = {
+  id: number;
+  seekTime: number;
+  shouldPlay: boolean;
+};
+
+const AUDIO_END_EPSILON_SECONDS = 0.05;
+const AUDIO_SKIP_SECONDS = 1;
+
+function getAudioPhase(status: ReturnType<typeof useAudioPlayerStatus>): AudioPlaybackPhase {
+  if (status.playing) return 'playing';
+  const hasDuration = Number.isFinite(status.duration) && status.duration > 0;
+  const endedByPosition = hasDuration && status.currentTime >= Math.max(0, status.duration - AUDIO_END_EPSILON_SECONDS);
+  if (status.didJustFinish || endedByPosition) return 'ended';
+  if (status.currentTime > 0) return 'paused';
+  return 'idle';
+}
+
+function clampAudioTime(seconds: number, duration: number): number {
+  if (!Number.isFinite(seconds)) return 0;
+  const upperBound = Number.isFinite(duration) && duration > 0 ? duration : Number.POSITIVE_INFINITY;
+  return Math.max(0, Math.min(seconds, upperBound));
+}
+
+function formatPlaybackTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '0:00';
+  const totalSeconds = Math.floor(seconds);
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainingSeconds = totalSeconds % 60;
+  return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
+}
+
 function VideoPreview({
   mediaId,
   uri,
@@ -226,39 +261,250 @@ function AudioPreview({
   uri: string;
   theme: ReturnType<typeof useTheme>['theme'];
 }) {
-  const player = useAudioPlayer(uri, { updateInterval: 500 });
+  const [playerGeneration, setPlayerGeneration] = useState(0);
+  const [resetRequest, setResetRequest] = useState<AudioPlayerResetRequest>({
+    id: 0,
+    seekTime: 0,
+    shouldPlay: false,
+  });
+
+  const handleResetPlayer = useCallback((seekTime = 0, shouldPlay = true) => {
+    setResetRequest((current) => ({
+      id: current.id + 1,
+      seekTime,
+      shouldPlay,
+    }));
+    setPlayerGeneration((current) => current + 1);
+  }, []);
+
+  return (
+    <AudioPreviewPlayer
+      key={`${uri}-${playerGeneration}`}
+      uri={uri}
+      theme={theme}
+      resetRequest={resetRequest}
+      onResetPlayer={handleResetPlayer}
+    />
+  );
+}
+
+function AudioPreviewPlayer({
+  uri,
+  theme,
+  resetRequest,
+  onResetPlayer,
+}: {
+  uri: string;
+  theme: ReturnType<typeof useTheme>['theme'];
+  resetRequest: AudioPlayerResetRequest;
+  onResetPlayer: (seekTime?: number, shouldPlay?: boolean) => void;
+}) {
+  const player = useAudioPlayer(uri, { updateInterval: 250 });
   const status = useAudioPlayerStatus(player);
-  const isPlaying = Boolean(status.playing);
+  const statusPhase = getAudioPhase(status);
+  const [playbackPhase, setPlaybackPhase] = useState<AudioPlaybackPhase>(statusPhase);
+  const [scrubTime, setScrubTime] = useState<number | null>(null);
+  const isMountedRef = useRef(true);
+  const wasPlayingBeforeScrubRef = useRef(false);
+  const duration = Number.isFinite(status.duration) && status.duration > 0 ? status.duration : 0;
+  const currentTime = clampAudioTime(status.currentTime, duration);
+  const displayedTime = clampAudioTime(scrubTime ?? currentTime, duration);
+  const canSeek = duration > 0;
+  const canSkipBackward = canSeek && displayedTime > 0;
+  const canSkipForward = canSeek && displayedTime < Math.max(0, duration - AUDIO_END_EPSILON_SECONDS);
+
+  useEffect(() => {
+    setPlaybackPhase(statusPhase);
+  }, [statusPhase]);
+
+  useEffect(() => () => {
+    isMountedRef.current = false;
+  }, []);
+
+  useEffect(() => {
+    if (resetRequest.id === 0) {
+      return;
+    }
+
+    let cancelled = false;
+    const nextTime = clampAudioTime(resetRequest.seekTime, duration);
+    const autoPlayTimer = setTimeout(() => {
+      void player.seekTo(nextTime, 0, 0).catch(() => undefined).finally(() => {
+        if (cancelled) return;
+        if (resetRequest.shouldPlay) {
+          player.play();
+          if (isMountedRef.current) {
+            setPlaybackPhase('playing');
+          }
+        } else {
+          if (isMountedRef.current) {
+            setPlaybackPhase(nextTime > 0 ? 'paused' : 'idle');
+          }
+        }
+      });
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(autoPlayTimer);
+    };
+  }, [duration, player, resetRequest]);
+
+  const handlePress = useCallback(() => {
+    if (playbackPhase === 'playing') {
+      player.pause();
+      setPlaybackPhase('paused');
+      return;
+    }
+
+    if (playbackPhase === 'ended') {
+      onResetPlayer(0, true);
+      return;
+    }
+
+    player.play();
+    setPlaybackPhase('playing');
+  }, [onResetPlayer, playbackPhase, player]);
+
+  const seekToTime = useCallback((nextTime: number, shouldResume: boolean) => {
+    const clampedTime = clampAudioTime(nextTime, duration);
+
+    if (playbackPhase === 'ended' || statusPhase === 'ended') {
+      onResetPlayer(clampedTime, shouldResume);
+      return;
+    }
+
+    void player.seekTo(clampedTime, 0, 0).catch(() => undefined).finally(() => {
+      if (!isMountedRef.current) return;
+      if (shouldResume) {
+        player.play();
+        setPlaybackPhase('playing');
+        return;
+      }
+
+      if (duration > 0 && clampedTime >= duration - AUDIO_END_EPSILON_SECONDS) {
+        setPlaybackPhase('ended');
+      } else {
+        setPlaybackPhase(clampedTime > 0 ? 'paused' : 'idle');
+      }
+    });
+  }, [duration, onResetPlayer, playbackPhase, player, statusPhase]);
+
+  const handleSeekStart = useCallback(() => {
+    wasPlayingBeforeScrubRef.current = playbackPhase === 'playing';
+    setScrubTime(displayedTime);
+    if (playbackPhase === 'playing') {
+      player.pause();
+      setPlaybackPhase('paused');
+    }
+  }, [displayedTime, playbackPhase, player]);
+
+  const handleSeekChange = useCallback((nextTime: number) => {
+    setScrubTime(clampAudioTime(nextTime, duration));
+  }, [duration]);
+
+  const handleSeekComplete = useCallback((nextTime: number) => {
+    const shouldResume = wasPlayingBeforeScrubRef.current;
+    wasPlayingBeforeScrubRef.current = false;
+    setScrubTime(null);
+    seekToTime(nextTime, shouldResume);
+  }, [seekToTime]);
+
+  const handleSkipBackward = useCallback(() => {
+    seekToTime(displayedTime - AUDIO_SKIP_SECONDS, playbackPhase === 'playing');
+  }, [displayedTime, playbackPhase, seekToTime]);
+
+  const handleSkipForward = useCallback(() => {
+    seekToTime(displayedTime + AUDIO_SKIP_SECONDS, playbackPhase === 'playing');
+  }, [displayedTime, playbackPhase, seekToTime]);
+
+  const buttonIcon = playbackPhase === 'playing'
+    ? 'pause'
+    : playbackPhase === 'ended'
+      ? 'refresh'
+      : 'play';
+  const accessibilityLabel = playbackPhase === 'playing'
+    ? 'Pause audio'
+    : playbackPhase === 'ended'
+      ? 'Replay audio'
+      : 'Play audio';
+  const statusLabel = playbackPhase === 'playing'
+    ? 'Playing'
+    : playbackPhase === 'ended'
+      ? 'Replay'
+      : playbackPhase === 'paused'
+        ? 'Paused'
+        : 'Ready';
 
   return (
     <View style={[styles.audioPreview, { backgroundColor: theme.colors.primary[50] }]}>
-      <TouchableOpacity
-        style={[styles.audioPlayButton, { backgroundColor: theme.colors.primary[500] }]}
-        onPress={() => {
-          if (isPlaying) {
-            player.pause();
-          } else {
-            player.play();
-          }
-        }}
-        accessibilityRole="button"
-        accessibilityLabel={isPlaying ? 'Pause audio' : 'Play audio'}
-      >
-        <Ionicons name={isPlaying ? 'pause' : 'play'} size={28} color="#FFFFFF" />
-      </TouchableOpacity>
-      <View style={styles.audioWave}>
-        {Array.from({ length: 16 }).map((_, index) => (
-          <View
-            key={index}
-            style={[
-              styles.audioBar,
-              {
-                height: 16 + (index % 5) * 8,
-                backgroundColor: theme.colors.primary[300],
-              },
-            ]}
+      <View style={styles.audioControlsRow}>
+        <TouchableOpacity
+          style={[
+            styles.audioSecondaryControlButton,
+            { backgroundColor: theme.colors.surface, opacity: canSkipBackward ? 1 : 0.45 },
+          ]}
+          onPress={handleSkipBackward}
+          disabled={!canSkipBackward}
+          accessibilityRole="button"
+          accessibilityLabel="Rewind audio 1 second"
+        >
+          <Ionicons name="play-back" size={22} color={theme.colors.primary[700]} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.audioControlButton, { backgroundColor: theme.colors.primary[500] }]}
+          onPress={handlePress}
+          accessibilityRole="button"
+          accessibilityLabel={accessibilityLabel}
+        >
+          <Ionicons name={buttonIcon} size={30} color="#FFFFFF" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.audioSecondaryControlButton,
+            { backgroundColor: theme.colors.surface, opacity: canSkipForward ? 1 : 0.45 },
+          ]}
+          onPress={handleSkipForward}
+          disabled={!canSkipForward}
+          accessibilityRole="button"
+          accessibilityLabel="Advance audio 1 second"
+        >
+          <Ionicons name="play-forward" size={22} color={theme.colors.primary[700]} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.audioPlaybackInfo}>
+        <Typography variant="body" weight="semibold" style={{ color: theme.colors.text.primary }}>
+          {statusLabel}
+        </Typography>
+        <View style={styles.audioProgressRow}>
+          <Typography variant="caption" color="secondary" style={styles.audioTimeText}>
+            {formatPlaybackTime(displayedTime)}
+          </Typography>
+          <Slider
+            style={styles.audioProgressSlider}
+            value={displayedTime}
+            minimumValue={0}
+            maximumValue={duration || 1}
+            disabled={!canSeek}
+            onSlidingStart={handleSeekStart}
+            onValueChange={handleSeekChange}
+            onSlidingComplete={handleSeekComplete}
+            minimumTrackTintColor={theme.colors.primary[500]}
+            maximumTrackTintColor={theme.colors.primary[100]}
+            thumbTintColor={theme.colors.primary[600]}
+            accessibilityLabel="Audio playback position"
+            accessibilityRole="adjustable"
+            accessibilityValue={{
+              min: 0,
+              max: duration || 1,
+              now: displayedTime,
+              text: `${formatPlaybackTime(displayedTime)} of ${formatPlaybackTime(duration)}`,
+            }}
           />
-        ))}
+          <Typography variant="caption" color="secondary" style={styles.audioTimeText}>
+            {formatPlaybackTime(duration)}
+          </Typography>
+        </View>
       </View>
     </View>
   );
@@ -2257,28 +2503,46 @@ const styles = StyleSheet.create({
   },
   audioPreview: {
     width: IMAGE_SIZE,
-    height: 180,
+    minHeight: 156,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    gap: 18,
+  },
+  audioControlsRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    gap: 16,
   },
-  audioPlayButton: {
+  audioControlButton: {
     width: 64,
     height: 64,
     borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
   },
-  audioWave: {
-    height: 56,
+  audioSecondaryControlButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  audioPlaybackInfo: {
+    gap: 10,
+  },
+  audioProgressRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 8,
   },
-  audioBar: {
-    width: 6,
-    borderRadius: 3,
+  audioProgressSlider: {
+    flex: 1,
+    minHeight: 36,
+  },
+  audioTimeText: {
+    minWidth: 34,
+    textAlign: 'center',
   },
   providerBadge: {
     position: 'absolute',

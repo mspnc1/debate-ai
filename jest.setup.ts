@@ -202,10 +202,67 @@ jest.mock('expo-video', () => {
   };
 });
 
-jest.mock('expo-audio', () => ({
-  useAudioPlayer: jest.fn(() => ({ play: jest.fn(), pause: jest.fn(), seekTo: jest.fn() })),
-  useAudioPlayerStatus: jest.fn(() => ({ playing: false, duration: 0, currentTime: 0, isLoaded: true })),
-}));
+jest.mock('expo-audio', () => {
+  const React = require('react');
+  let playerId = 0;
+  const createAudioPlayer = () => {
+    const player = {
+      id: `audio-player-${playerId += 1}`,
+      playing: false,
+      currentTime: 0,
+      duration: 5,
+      didJustFinish: false,
+      play: jest.fn(() => {
+        if (player.currentTime >= player.duration) {
+          return;
+        }
+        player.playing = true;
+        player.didJustFinish = false;
+      }),
+      pause: jest.fn(() => {
+        player.playing = false;
+      }),
+      seekTo: jest.fn(async (seconds: number) => {
+        player.currentTime = seconds;
+        player.didJustFinish = false;
+      }),
+      __finish: jest.fn(() => {
+        player.playing = false;
+        player.currentTime = player.duration;
+        player.didJustFinish = true;
+      }),
+    };
+
+    return player;
+  };
+
+  return {
+    useAudioPlayer: jest.fn(() => {
+      const playerRef = React.useRef<ReturnType<typeof createAudioPlayer> | null>(null);
+      if (!playerRef.current) {
+        playerRef.current = createAudioPlayer();
+      }
+
+      return playerRef.current;
+    }),
+    useAudioPlayerStatus: jest.fn((player: ReturnType<typeof createAudioPlayer>) => ({
+      id: player.id,
+      currentTime: player.currentTime,
+      playbackState: player.playing ? 'playing' : 'paused',
+      timeControlStatus: player.playing ? 'playing' : 'paused',
+      reasonForWaitingToPlay: '',
+      mute: false,
+      duration: player.duration,
+      playing: player.playing,
+      loop: false,
+      didJustFinish: player.didJustFinish,
+      isBuffering: false,
+      isLoaded: true,
+      playbackRate: 1,
+      shouldCorrectPitch: true,
+    })),
+  };
+});
 
 jest.mock('expo-sharing', () => ({
   shareAsync: jest.fn(),

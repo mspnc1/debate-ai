@@ -13,6 +13,7 @@ import {
 } from '@/services/images/fileCache';
 import * as Sharing from 'expo-sharing';
 import { useVideoPlayer } from 'expo-video';
+import { useAudioPlayer } from 'expo-audio';
 import CreateScreen from '@/screens/CreateScreen';
 
 type MockRootState = {
@@ -214,6 +215,7 @@ const mockedGetImageShareUti = getImageShareUti as jest.Mock;
 const mockedLoadBase64FromFileUri = loadBase64FromFileUri as jest.Mock;
 const mockedPersistImageUri = persistImageUri as jest.Mock;
 const mockedUseVideoPlayer = useVideoPlayer as jest.Mock;
+const mockedUseAudioPlayer = useAudioPlayer as jest.Mock;
 
 type MockVideoPlayer = {
   play: jest.Mock;
@@ -221,6 +223,14 @@ type MockVideoPlayer = {
   replay: jest.Mock;
   currentTime: number;
   __emit: (eventName: string, payload?: unknown) => void;
+};
+
+type MockAudioPlayer = {
+  play: jest.Mock;
+  pause: jest.Mock;
+  seekTo: jest.Mock;
+  currentTime: number;
+  __finish: () => void;
 };
 
 describe('CreateScreen', () => {
@@ -338,6 +348,155 @@ describe('CreateScreen', () => {
 
       await waitFor(() => {
         expect(getByText('Save')).toBeTruthy();
+      });
+    });
+
+    it('replays audio in the detail modal without closing the preview', async () => {
+      const audioEntry = {
+        id: 'media_audio_replay',
+        mediaType: 'audio',
+        providerId: 'elevenlabs',
+        modelId: 'eleven_multilingual_v2',
+        operation: 'text_to_speech',
+        prompt: 'A replayable audio clip',
+        uri: 'file:///test/replay-audio.mp3',
+        mimeType: 'audio/mpeg',
+        durationSeconds: 5,
+        status: 'succeeded',
+        createdAt: Date.now(),
+      };
+      mockRouteParams = { focusMediaId: audioEntry.id };
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          create: {
+            ...baseState.create,
+            gallery: [],
+            mediaGallery: [audioEntry],
+          },
+        })
+      );
+
+      const { getByLabelText, rerender } = renderWithProviders(<CreateScreen />);
+      const firstPlayer = mockedUseAudioPlayer.mock.results[0].value as MockAudioPlayer;
+
+      fireEvent.press(getByLabelText('Play audio'));
+      expect(firstPlayer.play).toHaveBeenCalledTimes(1);
+
+      await waitFor(() => {
+        expect(getByLabelText('Pause audio')).toBeTruthy();
+      });
+
+      act(() => {
+        firstPlayer.__finish();
+      });
+      rerender(<CreateScreen />);
+
+      await waitFor(() => {
+        expect(getByLabelText('Replay audio')).toBeTruthy();
+      });
+
+      fireEvent.press(getByLabelText('Replay audio'));
+
+      await waitFor(() => {
+        const replayPlayer = mockedUseAudioPlayer.mock.results[
+          mockedUseAudioPlayer.mock.results.length - 1
+        ].value as MockAudioPlayer;
+        expect(replayPlayer).not.toBe(firstPlayer);
+        expect(replayPlayer.seekTo).toHaveBeenCalledWith(0, 0, 0);
+        expect(replayPlayer.play).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('seeks audio from the detail modal progress control', async () => {
+      const audioEntry = {
+        id: 'media_audio_seek',
+        mediaType: 'audio',
+        providerId: 'elevenlabs',
+        modelId: 'eleven_multilingual_v2',
+        operation: 'text_to_speech',
+        prompt: 'A seekable audio clip',
+        uri: 'file:///test/seek-audio.mp3',
+        mimeType: 'audio/mpeg',
+        durationSeconds: 5,
+        status: 'succeeded',
+        createdAt: Date.now(),
+      };
+      mockRouteParams = { focusMediaId: audioEntry.id };
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          create: {
+            ...baseState.create,
+            gallery: [],
+            mediaGallery: [audioEntry],
+          },
+        })
+      );
+
+      const { getByLabelText } = renderWithProviders(<CreateScreen />);
+      const player = mockedUseAudioPlayer.mock.results[0].value as MockAudioPlayer;
+
+      await act(async () => {
+        fireEvent(getByLabelText('Audio playback position'), 'slidingComplete', 2.25);
+        await Promise.resolve();
+      });
+
+      await waitFor(() => {
+        expect(player.seekTo).toHaveBeenCalledWith(2.25, 0, 0);
+      });
+    });
+
+    it('resets the audio player when seeking after playback ends', async () => {
+      const audioEntry = {
+        id: 'media_audio_seek_ended',
+        mediaType: 'audio',
+        providerId: 'elevenlabs',
+        modelId: 'eleven_multilingual_v2',
+        operation: 'text_to_speech',
+        prompt: 'An ended audio clip',
+        uri: 'file:///test/seek-ended-audio.mp3',
+        mimeType: 'audio/mpeg',
+        durationSeconds: 5,
+        status: 'succeeded',
+        createdAt: Date.now(),
+      };
+      mockRouteParams = { focusMediaId: audioEntry.id };
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          create: {
+            ...baseState.create,
+            gallery: [],
+            mediaGallery: [audioEntry],
+          },
+        })
+      );
+
+      const { getByLabelText, rerender } = renderWithProviders(<CreateScreen />);
+      const firstPlayer = mockedUseAudioPlayer.mock.results[0].value as MockAudioPlayer;
+
+      act(() => {
+        firstPlayer.__finish();
+      });
+      rerender(<CreateScreen />);
+
+      await waitFor(() => {
+        expect(getByLabelText('Replay audio')).toBeTruthy();
+      });
+
+      await act(async () => {
+        fireEvent(getByLabelText('Audio playback position'), 'slidingComplete', 2);
+        await Promise.resolve();
+      });
+
+      await waitFor(() => {
+        const resetPlayer = mockedUseAudioPlayer.mock.results[
+          mockedUseAudioPlayer.mock.results.length - 1
+        ].value as MockAudioPlayer;
+        expect(resetPlayer).not.toBe(firstPlayer);
+        expect(resetPlayer.seekTo).toHaveBeenCalledWith(2, 0, 0);
+        expect(resetPlayer.play).not.toHaveBeenCalled();
       });
     });
 
