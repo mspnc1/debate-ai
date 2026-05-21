@@ -28,6 +28,7 @@ import { settingsService } from '../services/settings/SettingsService';
 import { useStorePrices } from '@/hooks/useStorePrices';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { ENABLED_API_CONFIG_PROVIDER_COUNT } from '@/config/apiConfigProviders';
 
 const { width } = Dimensions.get('window');
 
@@ -132,7 +133,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
       icon: { type: 'material', name: 'brush' },
       gradient: theme.colors.gradients.sunset,
       title: 'Create Mode',
-      description: 'Generate AI images instantly.',
+      description: 'Generate images, video, and audio.',
     },
     {
       icon: { type: 'material-community', name: 'account-group' },
@@ -285,7 +286,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
           <View style={styles.premiumContent}>
             <View style={{ alignItems: 'center', marginBottom: 12 }}>
               <Typography variant="title" weight="bold" align="center">
-                One App. Every AI.
+                {`One App. ${ENABLED_API_CONFIG_PROVIDER_COUNT} AI Providers.`}
               </Typography>
               <Typography
                 variant="body"
@@ -301,8 +302,8 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
               align="center"
               style={{ color: theme.colors.text.secondary, marginBottom: 12 }}
             >
-              Use your own API keys and skip the $20+/month per-AI subscriptions.
-              ChatGPT, Claude, Gemini, and more — all in one place.
+              Use your own API keys for chat, debate, comparison, and Create mode media.
+              ChatGPT, Claude, Gemini, Runway, ElevenLabs, and more in one place.
             </Typography>
 
             <View style={styles.premiumFeatures}>

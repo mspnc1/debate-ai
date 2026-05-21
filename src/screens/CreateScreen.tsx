@@ -1,6 +1,6 @@
 /**
- * CreateScreen - Active image generation session screen
- * Shows generation progress, image gallery, and refinement options
+ * CreateScreen - Active Create generation session screen.
+ * Shows generation progress, media gallery, and refinement options.
  */
 import React, { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import {

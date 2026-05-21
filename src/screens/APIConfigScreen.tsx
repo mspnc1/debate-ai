@@ -166,7 +166,7 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                   Premium Feature
                 </Typography>
                 <Typography variant="body" color="secondary" align="center" style={{ marginBottom: theme.spacing.lg }}>
-                  API Configuration lets you use your own API keys with Claude, ChatGPT, Gemini, and other AI providers. This means you pay only for what you use and get access to the latest models.
+                  API Configuration lets you connect your own keys for {enabledProviders.length} supported AI providers, including chat, image, video, and audio services. You pay only for provider usage and get access to current models.
                 </Typography>
                 <Typography variant="body" color="secondary" align="center" style={{ marginBottom: theme.spacing.xl }}>
                   Start a free trial or subscribe to unlock this feature.

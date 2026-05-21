@@ -26,8 +26,12 @@ export const ScoreDisplay: React.FC<ScoreDisplayProps> = ({
   const getAIColor = (aiId: string) => {
     const aiBrandKey = (aiId === 'openai' || aiId === 'chatgpt') ? 'openai' : 
                        aiId === 'claude' ? 'claude' :
-                       aiId === 'gemini' ? 'gemini' :
-                       aiId === 'nomi' ? 'nomi' : null;
+                       (aiId === 'gemini' || aiId === 'google') ? 'gemini' :
+                       aiId === 'perplexity' ? 'perplexity' :
+                       aiId === 'mistral' ? 'mistral' :
+                       aiId === 'cohere' ? 'cohere' :
+                       aiId === 'deepseek' ? 'deepseek' :
+                       aiId === 'grok' ? 'grok' : null;
     
     return aiBrandKey ? AI_BRAND_COLORS[aiBrandKey as keyof typeof AI_BRAND_COLORS] : theme.colors.primary;
   };

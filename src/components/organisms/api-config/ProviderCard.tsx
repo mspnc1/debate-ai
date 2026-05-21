@@ -294,7 +294,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
                         </>
                       );
                     }
-                    // Fallback for providers without model configs (like Nomi)
+                    // Fallback for providers without model-specific pricing.
                     const pricing = MODEL_PRICING[provider.id]?.['default'];
                     const freeInfo = getFreeMessageInfo(provider.id, 'default');
                     

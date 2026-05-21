@@ -71,7 +71,7 @@ export const useAPIConfigData = () => {
   /**
    * Convert expert mode configs for provider list, filtering only valid API key providers.
    * This complex transformation:
-   * 1. Filters providers to only those that support API keys (claude, openai, google)
+   * 1. Filters providers to only those that support text-model expert settings
    * 2. Maps each provider to its expert mode configuration
    * 3. Returns as object for efficient lookup by provider ID
    */
@@ -84,7 +84,7 @@ export const useAPIConfigData = () => {
             validateAPIKeyProvider(provider.id);
             return true;
           } catch {
-            // Skip providers that don't support API keys (nomi, replika, etc.)
+            // Skip providers that don't expose text-model expert settings.
             return false;
           }
         })

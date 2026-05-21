@@ -29,24 +29,18 @@ const getAIBrandKey = (senderName: string): keyof typeof AI_BRAND_COLORS | null 
     chatgpt: 'openai',
     openai: 'openai',
     claude: 'claude',
+    google: 'gemini',
     gemini: 'gemini',
     perplexity: 'perplexity',
     mistral: 'mistral',
     cohere: 'cohere',
     deepseek: 'deepseek',
     grok: 'grok',
-    nomi: 'nomi',
-    replika: 'replika',
   };
 
   // Check for direct match
   if (mapping[aiName]) {
     return mapping[aiName];
-  }
-
-  // Check for character.ai (partial match)
-  if (aiName.includes('character')) {
-    return 'characterai';
   }
 
   return null;

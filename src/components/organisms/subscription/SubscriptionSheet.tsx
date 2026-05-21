@@ -6,6 +6,7 @@ import { GradientButton, Button, Typography } from "@/components/molecules";
 import { useTheme } from "@/theme";
 import { PurchaseService } from "@/services/iap/PurchaseService";
 import { useStorePrices } from "@/hooks/useStorePrices";
+import { ENABLED_API_CONFIG_PROVIDER_COUNT } from "@/config/apiConfigProviders";
 
 interface SubscriptionSheetProps {
   onClose: () => void;
@@ -56,8 +57,8 @@ export const SubscriptionSheet: React.FC<SubscriptionSheetProps> = ({
           color="secondary"
           style={{ marginBottom: 16 }}
         >
-          Start your {trialDuration} free trial and unlock all premium features with your
-          own API keys.
+          Start your {trialDuration} free trial and unlock all premium features across{' '}
+          {ENABLED_API_CONFIG_PROVIDER_COUNT} supported AI providers with your own API keys.
         </Typography>
 
         {/* Trial Terms Disclosure - Required for Play Store compliance */}

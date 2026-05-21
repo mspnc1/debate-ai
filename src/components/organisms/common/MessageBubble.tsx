@@ -158,15 +158,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLast, s
     // Map AI names to their brand color keys
     const aiBrandKey = (aiName === 'chatgpt' || aiName === 'openai') ? 'openai' : 
                        aiName === 'claude' ? 'claude' :
-                       aiName === 'gemini' ? 'gemini' :
+                       (aiName === 'gemini' || aiName === 'google') ? 'gemini' :
                        aiName === 'perplexity' ? 'perplexity' :
                        aiName === 'mistral' ? 'mistral' :
                        aiName === 'cohere' ? 'cohere' :
                        aiName === 'deepseek' ? 'deepseek' :
-                       aiName === 'grok' ? 'grok' :
-                       aiName === 'nomi' ? 'nomi' :
-                       aiName === 'replika' ? 'replika' :
-                       aiName.includes('character') ? 'characterai' : null;
+                       aiName === 'grok' ? 'grok' : null;
     
     if (!aiBrandKey || !(aiBrandKey in AI_BRAND_COLORS)) return null;
     

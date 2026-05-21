@@ -59,8 +59,12 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
     if (normalizedName.includes('claude')) return AI_BRAND_COLORS.claude[500];
     if (normalizedName.includes('chatgpt') || normalizedName.includes('openai')) 
       return AI_BRAND_COLORS.openai[500];
-    if (normalizedName.includes('gemini')) return AI_BRAND_COLORS.gemini[500];
-    if (normalizedName.includes('nomi')) return AI_BRAND_COLORS.nomi[500];
+    if (normalizedName.includes('gemini') || normalizedName.includes('google')) return AI_BRAND_COLORS.gemini[500];
+    if (normalizedName.includes('perplexity')) return AI_BRAND_COLORS.perplexity[500];
+    if (normalizedName.includes('mistral')) return AI_BRAND_COLORS.mistral[500];
+    if (normalizedName.includes('cohere')) return AI_BRAND_COLORS.cohere[500];
+    if (normalizedName.includes('deepseek')) return AI_BRAND_COLORS.deepseek[500];
+    if (normalizedName.includes('grok')) return AI_BRAND_COLORS.grok[500];
     return theme.colors.primary[500];
   };
   
@@ -70,8 +74,12 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
     if (normalizedName.includes('claude')) return AI_BRAND_COLORS.claude[500];
     if (normalizedName.includes('chatgpt') || normalizedName.includes('openai')) 
       return AI_BRAND_COLORS.openai[500];
-    if (normalizedName.includes('gemini')) return AI_BRAND_COLORS.gemini[500];
-    if (normalizedName.includes('nomi')) return AI_BRAND_COLORS.nomi[500];
+    if (normalizedName.includes('gemini') || normalizedName.includes('google')) return AI_BRAND_COLORS.gemini[500];
+    if (normalizedName.includes('perplexity')) return AI_BRAND_COLORS.perplexity[500];
+    if (normalizedName.includes('mistral')) return AI_BRAND_COLORS.mistral[500];
+    if (normalizedName.includes('cohere')) return AI_BRAND_COLORS.cohere[500];
+    if (normalizedName.includes('deepseek')) return AI_BRAND_COLORS.deepseek[500];
+    if (normalizedName.includes('grok')) return AI_BRAND_COLORS.grok[500];
     return theme.colors.primary[500];
   };
 

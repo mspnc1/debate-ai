@@ -1,6 +1,6 @@
 /**
- * Redux slice for Create mode - AI image generation
- * Manages provider selection, generation state, and persistent gallery
+ * Redux slice for Create mode media generation.
+ * Manages provider selection, generation state, and persistent galleries.
  */
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';

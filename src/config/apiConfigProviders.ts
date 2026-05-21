@@ -6,6 +6,10 @@ export const API_CONFIG_PROVIDERS: AIProvider[] = [
   ...MEDIA_API_PROVIDERS,
 ];
 
+export const ENABLED_API_CONFIG_PROVIDER_COUNT = API_CONFIG_PROVIDERS.filter(
+  (provider) => provider.enabled
+).length;
+
 export function getAPIConfigProviderById(id: string): AIProvider | undefined {
   return getProviderById(id) || API_CONFIG_PROVIDERS.find((provider) => provider.id === id);
 }

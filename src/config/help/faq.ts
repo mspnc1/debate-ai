@@ -5,6 +5,7 @@
  */
 
 import { FAQItem, HelpCategory } from './types';
+import { ENABLED_API_CONFIG_PROVIDER_COUNT } from '../apiConfigProviders';
 
 export const FAQ_ITEMS: FAQItem[] = [
   // ============================================
@@ -14,21 +15,21 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-what-is-symposium',
     question: 'What is Symposium AI?',
     answer:
-      'Symposium AI is a mobile app that lets you chat with multiple AI providers (like ChatGPT, Claude, and Gemini) simultaneously. Our signature feature is the AI Debate Arena, where you can watch different AIs debate any topic in real-time.',
+      `Symposium AI is a mobile app for working with ${ENABLED_API_CONFIG_PROVIDER_COUNT} AI providers across chat, debate, comparison, and Create mode media generation. Our signature feature is the AI Debate Arena, where you can watch different AIs debate any topic in real time.`,
     category: 'getting-started',
   },
   {
     id: 'faq-do-i-need-account',
     question: 'Do I need to create an account?',
     answer:
-      'No account is required to use Symposium AI. Your data and API keys are stored locally on your device. You only need to provide your own API keys from AI providers to start chatting.',
+      'No account is required to use Symposium AI. Your data and API keys are stored locally on your device. You only need to provide your own API keys from AI providers to start live chats, debates, comparisons, and media generation.',
     category: 'getting-started',
   },
   {
     id: 'faq-is-it-free',
     question: 'Is Symposium AI free?',
     answer:
-      'The app includes a demo mode with pre-recorded content so you can explore without API keys. Live chats, debates, and comparisons require your own provider API keys plus an active trial or subscription. Provider API usage has its own costs.',
+      'The app includes a demo mode with pre-recorded content so you can explore without API keys. Live chats, debates, comparisons, and Create mode media generation require your own provider API keys plus an active trial or subscription. Provider API usage has its own costs.',
     category: 'getting-started',
     relatedTopic: 'byok-overview',
   },
@@ -40,7 +41,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-what-is-byok',
     question: 'What is BYOK and why should I use it?',
     answer:
-      'BYOK (Bring Your Own Keys) means you provide your own API keys from AI providers. This is more cost-effective than multiple subscriptions - you pay only for what you use. For example, instead of $60/month for ChatGPT Plus + Claude Pro + Gemini Advanced, most users spend $5-15/month on API usage.',
+      `BYOK (Bring Your Own Keys) means you provide your own API keys from AI providers. This is more cost-effective than stacking multiple subscriptions because you pay providers only for what you use. Symposium currently supports ${ENABLED_API_CONFIG_PROVIDER_COUNT} provider connections across text and media workflows.`,
     category: 'byok',
     relatedTopic: 'byok-overview',
   },
@@ -262,7 +263,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-what-is-create-mode',
     question: 'What is Create mode?',
     answer:
-      'Create mode is Symposium AI\'s image generation feature. You can generate images using AI providers like OpenAI (DALL-E), Google (Imagen), and Grok. Enter a prompt, choose a style and size, then generate images from multiple providers simultaneously.',
+      'Create mode is Symposium AI\'s media generation workspace. You can generate and refine images with OpenAI, Google, and Grok, create videos with Runway, and generate voiceovers or sound effects with ElevenLabs.',
     category: 'create',
     relatedTopic: 'create-mode',
   },
@@ -271,6 +272,14 @@ export const FAQ_ITEMS: FAQItem[] = [
     question: 'Which AI providers can generate images?',
     answer:
       'Image generation is supported by OpenAI (using DALL-E), Google (using Imagen), and Grok. Each provider requires a valid API key. Providers that support image refinement (img2img) display a special badge in the selection screen.',
+    category: 'create',
+    relatedTopic: 'create-providers',
+  },
+  {
+    id: 'faq-which-providers-generate-video-audio',
+    question: 'Which providers generate video and audio?',
+    answer:
+      'Video generation is supported through Runway for text-to-video and image-to-video workflows. Audio generation is supported through ElevenLabs for voiceovers and sound effects. Configure those keys in API Configuration before using the Video or Audio tabs in Create mode.',
     category: 'create',
     relatedTopic: 'create-providers',
   },
@@ -292,25 +301,25 @@ export const FAQ_ITEMS: FAQItem[] = [
   },
   {
     id: 'faq-where-are-images-saved',
-    question: 'Where are my generated images saved?',
+    question: 'Where is my generated media saved?',
     answer:
-      'Generated images are automatically saved to your in-app gallery and persist across app sessions. From the gallery, you can save images to your device\'s photo library, share them, use them for refinement, or delete them.',
+      'Generated images, videos, and audio are saved to your in-app gallery and persist across app sessions. From the gallery, you can preview, share, manage, or delete assets. Images can also be used for refinement or image-to-video source input.',
     category: 'create',
     relatedTopic: 'create-gallery',
   },
   {
     id: 'faq-image-generation-cost',
-    question: 'How much does image generation cost?',
+    question: 'How much does media generation cost?',
     answer:
-      'Image generation uses your API keys and is billed by each provider. Costs vary: OpenAI DALL-E charges per image (typically $0.02-0.08 depending on size/quality), Google Imagen has similar pricing, and Grok pricing varies. Check each provider\'s pricing page for current rates.',
+      'Create mode uses your provider API keys and is billed by each provider. Costs vary by model, image size, video duration, audio length, and provider plan. Check OpenAI, Google, Grok, Runway, and ElevenLabs pricing pages before running large batches.',
     category: 'create',
     relatedTopic: 'byok-cost-savings',
   },
   {
     id: 'faq-image-not-generating',
-    question: 'Why isn\'t my image generating?',
+    question: 'Why isn\'t my media generating?',
     answer:
-      'Check that you have a valid API key for the selected provider and that billing is enabled in their dashboard. Some prompts may be rejected by provider safety filters. Try simplifying your prompt or selecting a different provider.',
+      'Check that you have a valid API key for the selected provider and that billing or credits are enabled in their dashboard. Some prompts, source images, durations, or file types may be rejected by provider safety or format limits. Try simplifying your prompt, selecting a different model, or using another provider.',
     category: 'create',
     relatedTopic: 'create-mode',
   },

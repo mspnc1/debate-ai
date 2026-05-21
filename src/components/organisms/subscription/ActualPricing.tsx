@@ -18,7 +18,7 @@ export const ActualPricing: React.FC<ActualPricingProps> = ({
 }) => {
   const { theme } = useTheme();
   
-  // If it's a subscription service (Nomi, Replika, etc)
+  // If a provider exposes free-tier or account-specific pricing text.
   if (inputPricePerM === 0 && outputPricePerM === 0 && freeInfo) {
     return (
       <Typography 

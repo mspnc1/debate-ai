@@ -24,7 +24,9 @@ export const useAIProviderInfo = () => {
       }
       
       // Handle special cases for OpenAI/ChatGPT aliases
-      const colorKey = (aiId === 'openai' || aiId === 'chatgpt') ? 'openai' : aiId;
+      const colorKey = (aiId === 'openai' || aiId === 'chatgpt') ? 'openai' :
+        aiId === 'google' ? 'gemini' :
+        aiId;
       const brandColors = AI_BRAND_COLORS[colorKey as keyof typeof AI_BRAND_COLORS];
       
       return {
@@ -76,7 +78,9 @@ export const useAIProviderInfo = () => {
   // Get providers with brand colors
   const providersWithColors = useMemo(() => {
     return AI_PROVIDERS.filter(provider => {
-      const colorKey = (provider.id === 'openai' || provider.id === 'chatgpt') ? 'openai' : provider.id;
+      const colorKey = (provider.id === 'openai' || provider.id === 'chatgpt') ? 'openai' :
+        provider.id === 'google' ? 'gemini' :
+        provider.id;
       return AI_BRAND_COLORS[colorKey as keyof typeof AI_BRAND_COLORS];
     });
   }, []);

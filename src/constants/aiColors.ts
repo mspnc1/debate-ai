@@ -51,20 +51,6 @@ export const AI_BRAND_COLORS = {
     800: '#5E1A8E',
     900: '#4A148C',
   },
-  
-  nomi: {
-    50: '#FFF9F0',
-    100: '#FFE4CC',
-    200: '#FFCF99',
-    300: '#FFBA66',
-    400: '#FFA533',
-    500: '#FFA500', // Nomi's orange
-    600: '#E69500',
-    700: '#CC8400',
-    800: '#B37300',
-    900: '#996300',
-  },
-  
   perplexity: {
     50: '#E6F4F5',
     100: '#BFE5E8',
@@ -128,32 +114,6 @@ export const AI_BRAND_COLORS = {
     700: '#262626',
     800: '#1A1A1A',
     900: '#0D0D0D',
-  },
-  
-  replika: {
-    50: '#FFF0F5',
-    100: '#FFD9E6',
-    200: '#FFB3CD',
-    300: '#FF8CB3',
-    400: '#FF669A',
-    500: '#FF4081', // Replika's pink
-    600: '#E63974',
-    700: '#CC3267',
-    800: '#B32C5A',
-    900: '#99254D',
-  },
-  
-  characterai: {
-    50: '#F3F0FF',
-    100: '#DFD9FF',
-    200: '#CAB3FF',
-    300: '#B58CFF',
-    400: '#A066FF',
-    500: '#8B40FF', // Character.AI's purple
-    600: '#7D39E6',
-    700: '#6F32CC',
-    800: '#612CB3',
-    900: '#532599',
   },
 } as const;
 

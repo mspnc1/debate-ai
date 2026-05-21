@@ -1,6 +1,6 @@
 /**
- * CreateSetupScreen - Tab screen for setting up image generation
- * Premium-only feature with provider selection, prompt input, and options
+ * CreateSetupScreen - Tab screen for setting up image, video, and audio generation.
+ * Premium-only feature with provider selection, prompt input, and options.
  */
 import React, { useEffect, useCallback, useMemo, useState } from 'react';
 import {
@@ -1447,7 +1447,7 @@ export default function CreateSetupScreen() {
         <Header
           variant="gradient"
           title="Create"
-          subtitle="AI Image Generation"
+          subtitle="Image, Video, and Audio Generation"
           rightElement={<HeaderActions variant="gradient" helpCategoryId="create" />}
         />
         <View style={styles.premiumGate}>
@@ -1464,7 +1464,8 @@ export default function CreateSetupScreen() {
             color="secondary"
             style={styles.premiumDescription}
           >
-            Generate and refine AI images with multiple providers. This is a premium feature.
+            Generate images, videos, voiceovers, and sound effects with your own provider keys.
+            This is a premium feature.
           </Typography>
           <GradientButton
             title="Upgrade to Premium"

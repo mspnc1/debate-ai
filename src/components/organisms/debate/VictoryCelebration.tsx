@@ -86,12 +86,16 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
     opacity: contentOpacity.value,
   }));
   
-  // Get winner colors - support both old and new AI ID formats
+  // Get winner colors from current text provider IDs and common aliases.
   const getWinnerColors = () => {
     const winnerKey = (winner.id === 'openai' || winner.id === 'chatgpt') ? 'openai' : 
                      winner.id === 'claude' ? 'claude' :
-                     winner.id === 'gemini' ? 'gemini' :
-                     winner.id === 'nomi' ? 'nomi' : null;
+                     (winner.id === 'gemini' || winner.id === 'google') ? 'gemini' :
+                     winner.id === 'perplexity' ? 'perplexity' :
+                     winner.id === 'mistral' ? 'mistral' :
+                     winner.id === 'cohere' ? 'cohere' :
+                     winner.id === 'deepseek' ? 'deepseek' :
+                     winner.id === 'grok' ? 'grok' : null;
     
     return winnerKey ? AI_BRAND_COLORS[winnerKey as keyof typeof AI_BRAND_COLORS] : theme.colors.primary;
   };

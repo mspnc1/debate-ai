@@ -5,6 +5,7 @@ import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/theme';
 import { Typography } from '@/components/molecules';
 import { useStorePrices } from '@/hooks/useStorePrices';
+import { ENABLED_API_CONFIG_PROVIDER_COUNT } from '@/config/apiConfigProviders';
 
 export const UnlockEverythingBanner: React.FC = () => {
   const { theme } = useTheme();
@@ -52,14 +53,14 @@ export const UnlockEverythingBanner: React.FC = () => {
           align="center"
           style={{ color: theme.colors.text.secondary, marginBottom: 16 }}
         >
-          One app for ChatGPT, Claude, Gemini, and more. Use your own API keys and pay only for what you use.
+          One app for {ENABLED_API_CONFIG_PROVIDER_COUNT} AI providers, from ChatGPT and Claude to Runway and ElevenLabs. Use your own API keys and pay only for what you use.
         </Typography>
 
         <View style={styles.features}>
           <View style={styles.bulletRow}>
             <MaterialIcons name="check-circle" size={16} color={theme.colors.success[500]} style={{ marginRight: 8 }} />
             <Typography variant="caption" color="secondary" style={{ flex: 1 }}>
-              Create Mode: Generate and refine images with multiple AI providers like DALL-E and Gemini
+              Create Mode: Generate images, videos, voiceovers, and sound effects with OpenAI, Gemini, Runway, and ElevenLabs
             </Typography>
           </View>
           <View style={styles.bulletRow}>
@@ -125,4 +126,3 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
 });
-

@@ -7,6 +7,7 @@
  */
 
 import { HelpTopic, HelpCategory, HelpCategoryInfo } from "./types";
+import { ENABLED_API_CONFIG_PROVIDER_COUNT } from "../apiConfigProviders";
 
 export const HELP_CATEGORIES: HelpCategoryInfo[] = [
   {
@@ -31,7 +32,7 @@ export const HELP_CATEGORIES: HelpCategoryInfo[] = [
     id: "create",
     title: "Create",
     icon: "image-outline",
-    description: "Generate AI images",
+    description: "Generate images, video, and audio",
   },
   {
     id: "byok",
@@ -160,7 +161,7 @@ Transcript Contents:
     icon: "key",
     category: "getting-started",
     shortDescription: "Bring Your Own Keys explained",
-    content: `BYOK (Bring Your Own Keys) lets you use your own API keys from AI providers like OpenAI, Anthropic, and Google.
+    content: `BYOK (Bring Your Own Keys) lets you use your own API keys across ${ENABLED_API_CONFIG_PROVIDER_COUNT} supported providers, including text, image, video, and audio services.
 
 Why BYOK?
 Instead of paying monthly subscriptions to multiple AI services, you pay only for what you use. This can save significant money, especially if you're already subscribed to these services.
@@ -169,9 +170,13 @@ Supported Providers:
 - Claude (Anthropic)
 - ChatGPT (OpenAI)
 - Gemini (Google)
-- Nomi
-- Replika
-- Character.AI
+- Perplexity
+- Mistral
+- Cohere
+- DeepSeek
+- Grok (xAI)
+- Runway (video)
+- ElevenLabs (audio)
 
 Your keys are stored securely on your device and never sent to our servers.`,
     relatedTopics: ["byok-getting-keys", "byok-security", "byok-cost-savings"],
@@ -237,18 +242,15 @@ Immediately regenerate your API keys in the provider's dashboard and update them
     content: `BYOK can significantly reduce your AI costs compared to multiple subscriptions.
 
 The Math:
-- ChatGPT Plus: $20/month
-- Claude Pro: $20/month
-- Gemini Advanced: $20/month
-- Total: $60/month for three services
+Instead of stacking several consumer AI subscriptions, you connect the provider APIs you actually need and pay those providers based on usage.
 
 With BYOK:
-API costs are typically $0.01-0.03 per message depending on model and length. Most casual users spend $5-15/month total for access to ALL providers.
+Text API costs are typically usage-based and vary by model and length. Media generation has separate provider pricing based on image size, video duration, or audio length. Symposium supports ${ENABLED_API_CONFIG_PROVIDER_COUNT} provider connections, so you can choose the providers and models that fit each task.
 
 Pay-Per-Use Benefits:
 - No monthly minimums
 - Scale down in light months
-- Access to all models from day one
+- Access supported providers from day one
 - No feature restrictions based on tier
 
 Tip: Start with the most affordable models (like GPT-4o-mini or Claude Haiku) and upgrade to higher-cost models only when needed.`,
@@ -831,55 +833,63 @@ To delete specific sessions, swipe left on them in the list instead of using Cle
   },
 
   // ============================================
-  // CREATE MODE (AI Image Generation)
+  // CREATE MODE (AI Media Generation)
   // ============================================
   "create-mode": {
     id: "create-mode",
     title: "Create Mode",
     icon: "image",
     category: "getting-started",
-    shortDescription: "Generate AI images with multiple providers",
-    content: `Create Mode lets you generate AI images using multiple providers simultaneously, compare results, and refine your creations.
+    shortDescription: "Generate images, video, and audio",
+    content: `Create Mode lets you generate images, videos, voiceovers, and sound effects using your own provider keys.
 
 How to Use:
 1. Go to the Create tab
-2. Select one or more AI providers (up to 3)
-3. Enter your image prompt
-4. Choose a style preset and size
-5. Tap Generate to create your images
+2. Choose Image, Video, or Audio
+3. Enter a prompt or script
+4. Choose provider-specific options such as model, style, size, duration, voice, or format
+5. Tap Generate
 
-Multi-Provider Generation:
+Image Generation:
 Generate images with up to 3 providers at once to compare different AI interpretations of your prompt.
 
-Image Gallery:
-All generated images are automatically saved to your gallery. You can save them to your device, share them, or use them as a starting point for refinements.
+Video Generation:
+Use Runway for text-to-video or image-to-video workflows. You can start from a prompt, upload a source image, or use your latest generated image as the source.
+
+Audio Generation:
+Use ElevenLabs to create voiceovers from scripts or generate sound effects from prompts.
+
+Create Gallery:
+Generated images, videos, and audio are saved to your gallery. You can preview, share, manage, or delete assets, and use images as a starting point for refinements or videos.
 
 Refinement:
 Take any generated image (or upload your own) and refine it with additional prompts - perfect for iterating on ideas.`,
-    relatedTopics: ["create-styles", "create-sizes", "create-refinement", "create-gallery"],
+    relatedTopics: ["create-providers", "create-styles", "create-sizes", "create-refinement", "create-gallery"],
   },
 
   "create-providers": {
     id: "create-providers",
-    title: "Image Generation Providers",
+    title: "Create Providers",
     icon: "apps",
     category: "create",
-    shortDescription: "AI providers that support image generation",
-    content: `Symposium AI supports image generation from multiple AI providers, each with unique capabilities.
+    shortDescription: "Providers for images, video, and audio",
+    content: `Symposium AI supports Create mode across image, video, and audio providers, each with unique capabilities.
 
 Supported Providers:
-- OpenAI (DALL-E): High-quality images with strong prompt understanding
-- Google (Imagen): Photorealistic results with good composition
-- Grok (xAI): Fast generation with artistic flair
+- OpenAI (DALL-E): High-quality image generation and editing
+- Google (Imagen and Gemini image models): Photorealistic image results and refinement
+- Grok (xAI): Fast image generation with artistic flair
+- Runway: Text-to-video and image-to-video generation
+- ElevenLabs: Text-to-speech voiceovers and generated sound effects
 
 Provider Selection:
-Providers that support image generation display an "img2img" badge when they also support image refinement.
+The Image tab supports selecting up to 3 image providers at once. Providers that support image refinement display an "img2img" badge.
 
-Multi-Provider Mode:
-Select up to 3 providers to generate images simultaneously and compare results side-by-side.
+Video and Audio:
+The Video tab uses your Runway key. The Audio tab uses your ElevenLabs key and can load voices, models, and output formats from your account.
 
 API Keys Required:
-Each provider requires a valid API key configured in Settings > API Configuration. Image generation may have different pricing than text generation.`,
+Each provider requires a valid API key configured in Settings > API Configuration. Media generation may have different pricing than text generation.`,
     relatedTopics: ["create-mode", "byok-overview"],
   },
 
@@ -966,30 +976,29 @@ Look for the "img2img" badge on provider cards - these support refinement. Not a
 
   "create-gallery": {
     id: "create-gallery",
-    title: "Image Gallery",
+    title: "Create Gallery",
     icon: "images",
     category: "create",
-    shortDescription: "Manage your generated images",
-    content: `Your generated images are automatically saved to a persistent gallery that syncs across app sessions.
+    shortDescription: "Manage generated media",
+    content: `Your generated images, videos, and audio are automatically saved to a persistent gallery that syncs across app sessions.
 
 Gallery Features:
-- View all generated images in a grid
-- Tap any image to view full-screen
-- Save images to your device's photo library
-- Share images directly to other apps
-- Use images as starting points for refinement
+- View generated assets by media type
+- Tap any asset to preview it
+- Save or share generated media directly to other apps
+- Use images as starting points for refinement or image-to-video generation
 
-Image Actions:
-From the full-screen view, you can:
-- Save: Download to your device's camera roll
+Actions:
+From the detail view, you can:
+- Save: Download supported assets to your device
 - Share: Send via messages, email, or social media
-- Refine: Use as a base for img2img refinement
+- Refine: Use images as a base for img2img refinement
 - Delete: Remove from your gallery
 
 Storage:
-Images are stored locally on your device. The gallery persists across app sessions, so your creations are always available.
+Generated assets are stored locally on your device. The gallery persists across app sessions, so your creations are always available.
 
-Tip: Long-press an image in the grid for quick actions without opening full-screen view.`,
+Tip: Long-press an asset in the grid for quick actions without opening the detail view.`,
     relatedTopics: ["create-mode", "create-refinement"],
   },
 };

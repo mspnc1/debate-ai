@@ -275,10 +275,13 @@ export class DebaterSelectionService {
       claude: ['philosophy', 'ethics', 'analysis', 'reasoning'],
       openai: ['creativity', 'general knowledge', 'conversation'],
       chatgpt: ['creativity', 'general knowledge', 'conversation'],
+      google: ['technology', 'science', 'research', 'factual'],
       gemini: ['technology', 'science', 'research', 'factual'],
-      nomi: ['personality', 'emotional intelligence'],
-      replika: ['emotional support', 'personal connection'],
-      character: ['roleplay', 'character consistency'],
+      perplexity: ['current events', 'research', 'citations', 'web search'],
+      mistral: ['multilingual reasoning', 'policy', 'concise analysis'],
+      cohere: ['retrieval', 'business analysis', 'structured reasoning'],
+      deepseek: ['code', 'math', 'technical analysis'],
+      grok: ['current events', 'informal debate', 'contrarian analysis'],
     };
 
     return strengths[provider] || ['general discussion'];
@@ -289,10 +292,13 @@ export class DebaterSelectionService {
       claude: ['casual conversation', 'humor'],
       openai: ['very recent events', 'real-time data'],
       chatgpt: ['very recent events', 'real-time data'],
+      google: ['creative writing', 'personal connection'],
       gemini: ['creative writing', 'personal connection'],
-      nomi: ['technical analysis', 'factual debates'],
-      replika: ['formal debate', 'aggressive arguments'],
-      character: ['factual accuracy', 'formal analysis'],
+      perplexity: ['fictional roleplay', 'long creative prose'],
+      mistral: ['very recent events', 'consumer product details'],
+      cohere: ['casual banter', 'open-ended roleplay'],
+      deepseek: ['real-time data', 'personal connection'],
+      grok: ['formal restraint', 'neutral tone'],
     };
 
     return weaknesses[provider] || [];

@@ -315,7 +315,19 @@ export class SessionFilterService {
     }
 
     // If query contains AI provider names, prioritize those
-    const aiProviders = ['claude', 'gpt', 'chatgpt', 'gemini', 'nomi', 'replika', 'character'];
+    const aiProviders = [
+      'claude',
+      'gpt',
+      'chatgpt',
+      'openai',
+      'gemini',
+      'google',
+      'perplexity',
+      'mistral',
+      'cohere',
+      'deepseek',
+      'grok',
+    ];
     const mentionedProviders = aiProviders.filter(provider => 
       query.toLowerCase().includes(provider)
     );
