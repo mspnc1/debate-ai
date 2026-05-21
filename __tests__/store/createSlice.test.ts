@@ -52,9 +52,16 @@ import reducer, {
   persistMediaGallery,
   generateCreateVideo,
   generateCreateAudio,
+  LOCAL_GALLERY_ASSET_LIMIT,
+  getGalleryAssetCounts,
+  getFilteredGalleryAssets,
+  getGalleryRetentionOverflow,
+  getSortedGalleryAssets,
+  normalizeGalleryAssets,
   type GeneratedImageEntry,
   type GeneratedMediaEntry,
   type ActiveRunwayTask,
+  type GalleryFilterState,
 } from '@/store/createSlice';
 import { configureStore } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -501,10 +508,9 @@ describe('createSlice', () => {
       expect(FileSystem.deleteAsync).not.toHaveBeenCalled();
     });
 
-    it('auto-prunes gallery when exceeding max size (50)', () => {
+    it('does not perform retention pruning in the gallery reducer', () => {
       let state = initialState;
 
-      // Add 51 images to trigger auto-prune
       for (let i = 0; i < 51; i++) {
         state = reducer(state, addToGallery({
           ...mockImage,
@@ -513,12 +519,11 @@ describe('createSlice', () => {
         }));
       }
 
-      expect(state.gallery).toHaveLength(50);
-      // First image should be removed (oldest)
-      expect(state.gallery.find(img => img.id === 'img_0')).toBeUndefined();
+      expect(state.gallery).toHaveLength(51);
+      expect(state.gallery.find(img => img.id === 'img_0')).toBeDefined();
     });
 
-    it('does not perform filesystem side effects in reducer when auto-pruning', () => {
+    it('does not perform filesystem side effects in reducer after exceeding the old cap', () => {
       let state = initialState;
 
       for (let i = 0; i < 51; i++) {
@@ -580,7 +585,7 @@ describe('createSlice', () => {
       expect(state.mediaGallery).toEqual([]);
     });
 
-    it('auto-prunes media gallery when exceeding max size', () => {
+    it('does not perform retention pruning in the media gallery reducer', () => {
       let state = initialState;
 
       for (let i = 0; i < 51; i++) {
@@ -591,8 +596,8 @@ describe('createSlice', () => {
         }));
       }
 
-      expect(state.mediaGallery).toHaveLength(50);
-      expect(state.mediaGallery.find(entry => entry.id === 'media_0')).toBeUndefined();
+      expect(state.mediaGallery).toHaveLength(51);
+      expect(state.mediaGallery.find(entry => entry.id === 'media_0')).toBeDefined();
     });
 
     it('sets active Runway task metadata for resume', () => {
@@ -609,6 +614,108 @@ describe('createSlice', () => {
 
       const state = reducer(initialState, setActiveRunwayTask(task));
       expect(state.activeRunwayTask).toEqual(task);
+    });
+  });
+
+  describe('gallery library helpers', () => {
+    const imageEntry: GeneratedImageEntry = {
+      id: 'img_library',
+      uri: 'file:///test/image.png',
+      prompt: 'A sunset. Photorealistic style',
+      originalPrompt: 'A sunset',
+      revisedPrompt: 'A vivid sunset over water',
+      provider: 'openai',
+      model: 'gpt-image-1',
+      style: 'photo',
+      size: 'square',
+      quality: 'standard',
+      createdAt: 1000,
+      isRefinement: false,
+      isUploaded: false,
+    };
+    const videoEntry: GeneratedMediaEntry = {
+      ...mockMedia,
+      id: 'video_library',
+      mediaType: 'video',
+      providerId: 'runway',
+      modelId: 'gen4.5',
+      operation: 'text_to_video',
+      prompt: 'A cinematic orbital shot',
+      createdAt: 2000,
+    };
+    const audioEntry: GeneratedMediaEntry = {
+      ...mockMedia,
+      id: 'audio_library',
+      mediaType: 'audio',
+      providerId: 'elevenlabs',
+      modelId: 'eleven_multilingual_v2',
+      operation: 'text_to_speech',
+      prompt: 'Read a short greeting',
+      uri: 'file:///test/audio.mp3',
+      mimeType: 'audio/mpeg',
+      createdAt: 3000,
+    };
+    const defaultFilters: GalleryFilterState = {
+      providers: [],
+      models: [],
+      operations: [],
+      dateRange: 'all',
+      availability: 'all',
+    };
+
+    it('normalizes mixed image, video, and audio entries with counts', () => {
+      const assets = normalizeGalleryAssets([imageEntry], [videoEntry, audioEntry]);
+      const counts = getGalleryAssetCounts(assets);
+
+      expect(assets.map((asset) => asset.type)).toEqual(['audio', 'video', 'image']);
+      expect(counts).toEqual({ all: 3, image: 1, video: 1, audio: 1 });
+    });
+
+    it('filters gallery assets by search, provider, model, and operation', () => {
+      const assets = normalizeGalleryAssets([imageEntry], [videoEntry, audioEntry]);
+
+      expect(getFilteredGalleryAssets(assets, 'sunset', defaultFilters)).toHaveLength(1);
+      expect(getFilteredGalleryAssets(assets, '', { ...defaultFilters, providers: ['runway'] })).toEqual([
+        expect.objectContaining({ id: 'video_library' }),
+      ]);
+      expect(getFilteredGalleryAssets(assets, '', { ...defaultFilters, models: ['eleven_multilingual_v2'] })).toEqual([
+        expect.objectContaining({ id: 'audio_library' }),
+      ]);
+      expect(getFilteredGalleryAssets(assets, '', { ...defaultFilters, operations: ['text_to_video'] })).toEqual([
+        expect.objectContaining({ id: 'video_library' }),
+      ]);
+    });
+
+    it('sorts gallery assets by oldest, provider, and model', () => {
+      const assets = normalizeGalleryAssets([imageEntry], [videoEntry, audioEntry]);
+
+      expect(getSortedGalleryAssets(assets, 'oldest').map((asset) => asset.id)).toEqual([
+        'img_library',
+        'video_library',
+        'audio_library',
+      ]);
+      expect(getSortedGalleryAssets(assets, 'provider')[0].providerId).toBe('elevenlabs');
+      expect(getSortedGalleryAssets(assets, 'model')[0].modelId).toBe('eleven_multilingual_v2');
+    });
+
+    it('selects oldest mixed assets for shared retention cleanup', () => {
+      const images = Array.from({ length: LOCAL_GALLERY_ASSET_LIMIT }, (_, index) => ({
+        ...imageEntry,
+        id: `img_${index}`,
+        uri: `file:///test/image_${index}.png`,
+        createdAt: index + 1,
+      }));
+      const media = [{
+        ...videoEntry,
+        id: 'new_video',
+        uri: 'file:///test/new-video.mp4',
+        createdAt: LOCAL_GALLERY_ASSET_LIMIT + 1,
+      }];
+
+      const overflow = getGalleryRetentionOverflow(images, media);
+
+      expect(overflow.images.map((entry) => entry.id)).toEqual(['img_0']);
+      expect(overflow.media).toEqual([]);
     });
   });
 
@@ -877,16 +984,17 @@ describe('createSlice', () => {
       );
     });
 
-    it('addToGalleryWithCleanup deletes the pruned local file outside the reducer', async () => {
+    it('addToGalleryWithCleanup deletes the shared-retention pruned local file outside the reducer', async () => {
       const store = configureStore({
         reducer: { create: reducer },
         preloadedState: {
           create: {
             ...initialState,
-            gallery: Array.from({ length: 50 }, (_, index) => 49 - index).map((index) => ({
+            gallery: Array.from({ length: LOCAL_GALLERY_ASSET_LIMIT }, (_, index) => LOCAL_GALLERY_ASSET_LIMIT - 1 - index).map((index) => ({
               ...thunkImage,
               id: `img_${index}`,
               uri: `file:///test/image_${index}.png`,
+              createdAt: index,
             })),
           },
         },
@@ -896,9 +1004,10 @@ describe('createSlice', () => {
         ...thunkImage,
         id: 'img_new',
         uri: 'file:///test/new-image.png',
+        createdAt: LOCAL_GALLERY_ASSET_LIMIT + 1,
       }));
 
-      expect(store.getState().create.gallery).toHaveLength(50);
+      expect(store.getState().create.gallery).toHaveLength(LOCAL_GALLERY_ASSET_LIMIT);
       expect(FileSystem.deleteAsync).toHaveBeenCalledWith('file:///test/image_0.png', { idempotent: true });
       expect(store.getState().create.gallery[0].id).toBe('img_new');
       expect(store.getState().create.gallery.find((image) => image.id === 'img_0')).toBeUndefined();
@@ -1031,16 +1140,17 @@ describe('createSlice', () => {
       );
     });
 
-    it('addToMediaGalleryWithCleanup deletes pruned local media outside the reducer', async () => {
+    it('addToMediaGalleryWithCleanup deletes shared-retention pruned local media outside the reducer', async () => {
       const store = configureStore({
         reducer: { create: reducer },
         preloadedState: {
           create: {
             ...initialState,
-            mediaGallery: Array.from({ length: 50 }, (_, index) => 49 - index).map((index) => ({
+            mediaGallery: Array.from({ length: LOCAL_GALLERY_ASSET_LIMIT }, (_, index) => LOCAL_GALLERY_ASSET_LIMIT - 1 - index).map((index) => ({
               ...mockMedia,
               id: `media_${index}`,
               uri: `file:///test/media_${index}.mp4`,
+              createdAt: index,
             })),
           },
         },
@@ -1050,9 +1160,10 @@ describe('createSlice', () => {
         ...mockMedia,
         id: 'media_new',
         uri: 'file:///test/new-media.mp4',
+        createdAt: LOCAL_GALLERY_ASSET_LIMIT + 1,
       }));
 
-      expect(store.getState().create.mediaGallery).toHaveLength(50);
+      expect(store.getState().create.mediaGallery).toHaveLength(LOCAL_GALLERY_ASSET_LIMIT);
       expect(FileSystem.deleteAsync).toHaveBeenCalledWith('file:///test/media_0.mp4', { idempotent: true });
       expect(store.getState().create.mediaGallery[0].id).toBe('media_new');
       expect(store.getState().create.mediaGallery.find((entry) => entry.id === 'media_0')).toBeUndefined();

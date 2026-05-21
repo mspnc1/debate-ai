@@ -424,7 +424,7 @@ export default function CreateSetupScreen() {
     if (isDemo) {
       Alert.alert(
         'Gallery Unavailable in Demo',
-        'The image gallery is available with a premium subscription. Upgrade to save and manage your generated images.',
+        'The media gallery is available with a premium subscription. Upgrade to save and manage your generated assets.',
         [
           { text: 'Maybe Later', style: 'cancel' },
           { text: 'Upgrade', onPress: () => navigation.navigate('Subscription') },
@@ -599,7 +599,7 @@ export default function CreateSetupScreen() {
         name="images-outline"
         onPress={handleGalleryPress}
         color={theme.colors.text.inverse}
-        accessibilityLabel={`Gallery (${galleryCount} images)`}
+        accessibilityLabel={`Gallery (${galleryCount} assets)`}
         testID="header-gallery-button"
         badge={galleryCount > 0 ? galleryCount : undefined}
       />
@@ -695,8 +695,11 @@ export default function CreateSetupScreen() {
 
   const handleViewMediaInGallery = useCallback((mediaId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate('CreateSession', { focusMediaId: mediaId });
-  }, [navigation]);
+    const media = mediaGallery.find((entry) => entry.id === mediaId);
+    navigation.navigate('CreateSession', media?.mediaType
+      ? { focusMediaId: mediaId, galleryTab: media.mediaType }
+      : { focusMediaId: mediaId });
+  }, [mediaGallery, navigation]);
 
   const renderOptionGrid = <T extends string,>(
     options: Array<{ id: T; label: string; description?: string }>,

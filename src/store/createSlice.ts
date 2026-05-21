@@ -39,8 +39,7 @@ import { prepareRunwaySourceImage } from '../services/media/sourceImage';
 const GALLERY_STORAGE_KEY = 'create_gallery';
 const MEDIA_GALLERY_STORAGE_KEY = 'create_media_gallery';
 const ACTIVE_MEDIA_TASK_STORAGE_KEY = 'create_active_media_task';
-const MAX_GALLERY_SIZE = 50;
-const MAX_MEDIA_GALLERY_SIZE = 50;
+export const LOCAL_GALLERY_ASSET_LIMIT = 500;
 
 // Types
 export type StylePreset =
@@ -57,6 +56,40 @@ export type StylePreset =
 export type SizeOption = 'auto' | 'square' | 'portrait' | 'landscape';
 export type QualityOption = 'standard' | 'hd';
 export type GenerationProgress = 'pending' | 'generating' | 'complete' | 'error';
+export type GalleryAssetType = 'image' | 'video' | 'audio';
+export type GalleryTab = 'all' | GalleryAssetType;
+export type GallerySortMode = 'newest' | 'oldest' | 'provider' | 'model';
+export type GalleryDateRangeFilter = 'all' | 'today' | 'week' | 'month';
+export type GalleryAvailabilityFilter = 'all' | 'available' | 'remote_expiring' | 'failed';
+
+export interface GalleryFilterState {
+  providers: string[];
+  models: string[];
+  operations: string[];
+  dateRange: GalleryDateRangeFilter;
+  availability: GalleryAvailabilityFilter;
+}
+
+export interface GalleryAsset {
+  id: string;
+  type: GalleryAssetType;
+  source: 'image' | 'media';
+  entry: GeneratedImageEntry | GeneratedMediaEntry;
+  prompt: string;
+  originalPrompt?: string;
+  revisedPrompt?: string;
+  providerId: string;
+  modelId: string;
+  operation?: CreateMediaOperation;
+  uri: string;
+  mimeType?: string;
+  durationSeconds?: number;
+  status?: CreateMediaAssetStatus;
+  createdAt: number;
+  expiresAt?: number;
+  isRefinement?: boolean;
+  isUploaded?: boolean;
+}
 
 export interface GeneratedImageEntry {
   id: string;
@@ -92,6 +125,157 @@ export interface GeneratedMediaEntry {
   createdAt: number;
   expiresAt?: number;
   error?: string;
+}
+
+export function normalizeGalleryAssets(
+  gallery: GeneratedImageEntry[],
+  mediaGallery: GeneratedMediaEntry[]
+): GalleryAsset[] {
+  return [
+    ...gallery.map((entry): GalleryAsset => ({
+      id: entry.id,
+      type: 'image',
+      source: 'image',
+      entry,
+      prompt: entry.prompt,
+      originalPrompt: entry.originalPrompt,
+      revisedPrompt: entry.revisedPrompt,
+      providerId: entry.provider,
+      modelId: entry.model,
+      uri: entry.uri,
+      createdAt: entry.createdAt,
+      isRefinement: entry.isRefinement,
+      isUploaded: entry.isUploaded,
+    })),
+    ...mediaGallery.map((entry): GalleryAsset => ({
+      id: entry.id,
+      type: entry.mediaType,
+      source: 'media',
+      entry,
+      prompt: entry.prompt,
+      providerId: entry.providerId,
+      modelId: entry.modelId,
+      operation: entry.operation,
+      uri: entry.uri,
+      mimeType: entry.mimeType,
+      durationSeconds: entry.durationSeconds,
+      status: entry.status,
+      createdAt: entry.createdAt,
+      expiresAt: entry.expiresAt,
+    })),
+  ].sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export function getGalleryAssetCounts(assets: GalleryAsset[]): Record<GalleryTab, number> {
+  return assets.reduce<Record<GalleryTab, number>>(
+    (counts, asset) => {
+      counts.all += 1;
+      counts[asset.type] += 1;
+      return counts;
+    },
+    { all: 0, image: 0, video: 0, audio: 0 }
+  );
+}
+
+function matchesGalleryDateRange(asset: GalleryAsset, dateRange: GalleryDateRangeFilter, now = Date.now()): boolean {
+  if (dateRange === 'all') return true;
+  const age = now - asset.createdAt;
+  if (dateRange === 'today') return age <= 24 * 60 * 60 * 1000;
+  if (dateRange === 'week') return age <= 7 * 24 * 60 * 60 * 1000;
+  return age <= 30 * 24 * 60 * 60 * 1000;
+}
+
+function matchesGalleryAvailability(asset: GalleryAsset, availability: GalleryAvailabilityFilter): boolean {
+  if (availability === 'all') return true;
+  if (availability === 'failed') return asset.status === 'failed';
+  if (availability === 'remote_expiring') return Boolean(asset.expiresAt && asset.uri.startsWith('http'));
+  return Boolean(asset.uri) && asset.status !== 'failed';
+}
+
+export function getFilteredGalleryAssets(
+  assets: GalleryAsset[],
+  searchQuery: string,
+  filters: GalleryFilterState,
+  now = Date.now()
+): GalleryAsset[] {
+  const query = searchQuery.trim().toLowerCase();
+
+  return assets.filter((asset) => {
+    if (filters.providers.length > 0 && !filters.providers.includes(asset.providerId)) {
+      return false;
+    }
+    if (filters.models.length > 0 && !filters.models.includes(asset.modelId)) {
+      return false;
+    }
+    if (filters.operations.length > 0 && !filters.operations.includes(asset.operation || asset.type)) {
+      return false;
+    }
+    if (!matchesGalleryDateRange(asset, filters.dateRange, now)) {
+      return false;
+    }
+    if (!matchesGalleryAvailability(asset, filters.availability)) {
+      return false;
+    }
+
+    if (!query) return true;
+
+    const searchable = [
+      asset.type,
+      asset.prompt,
+      asset.originalPrompt,
+      asset.revisedPrompt,
+      asset.providerId,
+      asset.modelId,
+      asset.operation,
+      asset.mimeType,
+      asset.status,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    return searchable.includes(query);
+  });
+}
+
+export function getSortedGalleryAssets(assets: GalleryAsset[], sortMode: GallerySortMode): GalleryAsset[] {
+  const sorted = [...assets];
+  if (sortMode === 'oldest') {
+    return sorted.sort((a, b) => a.createdAt - b.createdAt);
+  }
+  if (sortMode === 'provider') {
+    return sorted.sort((a, b) => (
+      a.providerId.localeCompare(b.providerId) ||
+      b.createdAt - a.createdAt
+    ));
+  }
+  if (sortMode === 'model') {
+    return sorted.sort((a, b) => (
+      a.modelId.localeCompare(b.modelId) ||
+      b.createdAt - a.createdAt
+    ));
+  }
+  return sorted.sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export function getGalleryRetentionOverflow(
+  gallery: GeneratedImageEntry[],
+  mediaGallery: GeneratedMediaEntry[]
+): { images: GeneratedImageEntry[]; media: GeneratedMediaEntry[] } {
+  const combined = [
+    ...gallery.map((entry) => ({ source: 'image' as const, entry, createdAt: entry.createdAt })),
+    ...mediaGallery.map((entry) => ({ source: 'media' as const, entry, createdAt: entry.createdAt })),
+  ].sort((a, b) => b.createdAt - a.createdAt);
+
+  const overflow = combined.slice(LOCAL_GALLERY_ASSET_LIMIT);
+  return {
+    images: overflow
+      .filter((item): item is { source: 'image'; entry: GeneratedImageEntry; createdAt: number } => item.source === 'image')
+      .map((item) => item.entry),
+    media: overflow
+      .filter((item): item is { source: 'media'; entry: GeneratedMediaEntry; createdAt: number } => item.source === 'media')
+      .map((item) => item.entry),
+  };
 }
 
 export interface MediaGenerationState {
@@ -228,6 +412,14 @@ async function persistActiveRunwayTask(task?: ActiveRunwayTask): Promise<void> {
   }
 }
 
+async function persistGalleryEntries(gallery: GeneratedImageEntry[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(GALLERY_STORAGE_KEY, JSON.stringify(gallery));
+  } catch (error) {
+    console.warn('[createSlice] Failed to persist gallery:', error);
+  }
+}
+
 async function persistMediaGalleryEntries(mediaGallery: GeneratedMediaEntry[]): Promise<void> {
   try {
     await AsyncStorage.setItem(MEDIA_GALLERY_STORAGE_KEY, JSON.stringify(dedupeMediaGalleryEntries(mediaGallery)));
@@ -250,6 +442,33 @@ function dedupeMediaGalleryEntries(entries: GeneratedMediaEntry[]): GeneratedMed
 async function deleteGeneratedMediaFile(entry?: GeneratedMediaEntry): Promise<void> {
   if (!entry?.uri) return;
   await deleteMediaFile(entry.uri);
+}
+
+async function pruneGalleryOverflow(
+  dispatch: (action: unknown) => void,
+  getState: () => unknown
+): Promise<void> {
+  const state = getState() as { create: CreateState };
+  const overflow = getGalleryRetentionOverflow(state.create.gallery, state.create.mediaGallery);
+  if (overflow.images.length === 0 && overflow.media.length === 0) {
+    return;
+  }
+
+  dispatch(pruneGalleryAssets({
+    imageIds: overflow.images.map((entry) => entry.id),
+    mediaIds: overflow.media.map((entry) => entry.id),
+  }));
+
+  await Promise.all([
+    ...overflow.images.map((entry) => entry.uri ? deleteGalleryFile(entry.uri) : Promise.resolve()),
+    ...overflow.media.map((entry) => deleteGeneratedMediaFile(entry)),
+  ]);
+
+  const nextState = getState() as { create: CreateState };
+  await Promise.all([
+    persistGalleryEntries(nextState.create.gallery),
+    persistMediaGalleryEntries(nextState.create.mediaGallery),
+  ]);
 }
 
 async function getStoredProviderKey(providerId: MediaProviderId): Promise<string | null> {
@@ -309,11 +528,7 @@ export const hydrateGallery = createAsyncThunk(
 export const persistGallery = createAsyncThunk(
   'create/persistGallery',
   async (gallery: GeneratedImageEntry[]) => {
-    try {
-      await AsyncStorage.setItem(GALLERY_STORAGE_KEY, JSON.stringify(gallery));
-    } catch (error) {
-      console.warn('[createSlice] Failed to persist gallery:', error);
-    }
+    await persistGalleryEntries(gallery);
   }
 );
 
@@ -351,21 +566,19 @@ export const addToMediaGalleryWithCleanup = createAsyncThunk(
   async (entry: GeneratedMediaEntry, { dispatch, getState }) => {
     const state = getState() as { create: CreateState };
     const existing = state.create.mediaGallery.find((item) => item.id === entry.id);
-    const removed = !existing && state.create.mediaGallery.length >= MAX_MEDIA_GALLERY_SIZE
-      ? state.create.mediaGallery[state.create.mediaGallery.length - 1]
-      : undefined;
 
     dispatch(addToMediaGallery(entry));
 
     if (existing && existing.uri !== entry.uri) {
       await deleteGeneratedMediaFile(existing);
     }
-    if (removed) {
-      await deleteGeneratedMediaFile(removed);
-    }
 
+    await pruneGalleryOverflow(dispatch, getState);
     const nextState = getState() as { create: CreateState };
-    await persistMediaGalleryEntries(nextState.create.mediaGallery);
+    await Promise.all([
+      persistGalleryEntries(nextState.create.gallery),
+      persistMediaGalleryEntries(nextState.create.mediaGallery),
+    ]);
   }
 );
 
@@ -399,16 +612,14 @@ export const clearMediaGalleryWithCleanup = createAsyncThunk(
 export const addToGalleryWithCleanup = createAsyncThunk(
   'create/addToGalleryWithCleanup',
   async (entry: GeneratedImageEntry, { dispatch, getState }) => {
-    const state = getState() as { create: CreateState };
-    const removed = state.create.gallery.length >= MAX_GALLERY_SIZE
-      ? state.create.gallery[state.create.gallery.length - 1]
-      : undefined;
-
     dispatch(addToGallery(entry));
 
-    if (removed?.uri) {
-      await deleteGalleryFile(removed.uri);
-    }
+    await pruneGalleryOverflow(dispatch, getState);
+    const nextState = getState() as { create: CreateState };
+    await Promise.all([
+      persistGalleryEntries(nextState.create.gallery),
+      persistMediaGalleryEntries(nextState.create.mediaGallery),
+    ]);
   }
 );
 
@@ -423,6 +634,9 @@ export const removeFromGalleryWithCleanup = createAsyncThunk(
     if (removed?.uri) {
       await deleteGalleryFile(removed.uri);
     }
+
+    const nextState = getState() as { create: CreateState };
+    await persistGalleryEntries(nextState.create.gallery);
   }
 );
 
@@ -436,6 +650,7 @@ export const clearGalleryWithCleanup = createAsyncThunk(
 
     dispatch(clearGallery());
     await Promise.all(urisToDelete.map((uri) => deleteGalleryFile(uri)));
+    await persistGalleryEntries([]);
   }
 );
 
@@ -885,9 +1100,6 @@ const createSlice_ = createSlice({
     // Gallery management
     addToGallery: (state, action: PayloadAction<GeneratedImageEntry>) => {
       state.gallery.unshift(action.payload);
-      if (state.gallery.length > MAX_GALLERY_SIZE) {
-        state.gallery.pop();
-      }
     },
     updateGalleryEntryUri: (state, action: PayloadAction<{ id: string; uri: string }>) => {
       const entry = state.gallery.find((image) => image.id === action.payload.id);
@@ -1002,9 +1214,6 @@ const createSlice_ = createSlice({
         state.mediaGallery.splice(existingIndex, 1);
       }
       state.mediaGallery.unshift(action.payload);
-      if (state.mediaGallery.length > MAX_MEDIA_GALLERY_SIZE) {
-        state.mediaGallery.pop();
-      }
     },
     removeFromMediaGallery: (state, action: PayloadAction<string>) => {
       const index = state.mediaGallery.findIndex((entry) => entry.id === action.payload);
@@ -1014,6 +1223,16 @@ const createSlice_ = createSlice({
     },
     clearMediaGallery: (state) => {
       state.mediaGallery = [];
+    },
+    pruneGalleryAssets: (state, action: PayloadAction<{ imageIds: string[]; mediaIds: string[] }>) => {
+      if (action.payload.imageIds.length > 0) {
+        const imageIds = new Set(action.payload.imageIds);
+        state.gallery = state.gallery.filter((entry) => !imageIds.has(entry.id));
+      }
+      if (action.payload.mediaIds.length > 0) {
+        const mediaIds = new Set(action.payload.mediaIds);
+        state.mediaGallery = state.mediaGallery.filter((entry) => !mediaIds.has(entry.id));
+      }
     },
     setActiveRunwayTask: (state, action: PayloadAction<ActiveRunwayTask | undefined>) => {
       state.activeRunwayTask = action.payload;
@@ -1104,6 +1323,7 @@ export const {
   addToMediaGallery,
   removeFromMediaGallery,
   clearMediaGallery,
+  pruneGalleryAssets,
   setActiveRunwayTask,
   startRefinement,
   setRefinementPrompt,
@@ -1121,6 +1341,12 @@ export default createSlice_.reducer;
 export const selectCreateState = (state: { create: CreateState }) => state.create;
 export const selectGallery = (state: { create: CreateState }) => state.create.gallery;
 export const selectMediaGallery = (state: { create: CreateState }) => state.create.mediaGallery;
+export const selectGalleryAssets = (state: { create: CreateState }) => (
+  normalizeGalleryAssets(state.create.gallery, state.create.mediaGallery)
+);
+export const selectGalleryAssetCounts = (state: { create: CreateState }) => (
+  getGalleryAssetCounts(selectGalleryAssets(state))
+);
 export const selectIsGenerating = (state: { create: CreateState }) => state.create.isGenerating;
 export const selectSelectedProviders = (state: { create: CreateState }) => state.create.selectedProviders;
 export const selectGenerationProgress = (state: { create: CreateState }) => state.create.generationProgress;

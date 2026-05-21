@@ -201,6 +201,7 @@ export type RootStackParamList = {
     sourceImage?: string;
     refinementInstructions?: string;
     focusMediaId?: string;
+    galleryTab?: 'all' | 'image' | 'video' | 'audio';
   };
   Stats: undefined;
   PrivacyPolicy: undefined;
