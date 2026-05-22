@@ -168,7 +168,7 @@ export interface HeaderProps {
 
 // Base header heights - will be scaled for tablets
 export const HEADER_HEIGHT = 65;
-const PHONE_GRADIENT_HEIGHT = 104;
+const PHONE_GRADIENT_HEIGHT = 116;
 const COMPACT_HEIGHT = 50;
 const TABLET_COMPACT_HEIGHT = 60;
 
@@ -213,12 +213,13 @@ const getBaseHeaderHeight = (isTablet: boolean, isCompact: boolean): number => {
 const calculateGreetingFontSizes = (
   title: string,
   screenWidth: number,
-  isTablet: boolean
+  isTablet: boolean,
+  reservedRightWidth = 0
 ): { titleSize: number; titleLineHeight: number } => {
   const titleLength = title.length;
 
   // Calculate available width (screen minus horizontal padding)
-  const availableWidth = screenWidth - 32; // 16px padding each side
+  const availableWidth = Math.max(180, screenWidth - 32 - reservedRightWidth); // 16px padding each side
 
   // Estimate characters per line at base font size
   // At 32px font, roughly 0.55 width ratio per character
@@ -276,6 +277,14 @@ export const Header: React.FC<HeaderProps> = ({
   const { isTablet, isLandscape } = useDeviceType();
   const { timeBasedGreeting, welcomeMessage } = useGreeting();
   const hasSubtitle = Boolean(subtitle);
+  const gradientTitleRightReserve = rightElement ? 88 : 0;
+  const gradientSubtitleRightReserve = showDemoBadge ? 150 : gradientTitleRightReserve;
+  const gradientTitleWidthStyle = variant === 'gradient'
+    ? { maxWidth: Math.max(220, width - theme.spacing.lg * 2 - gradientTitleRightReserve) }
+    : undefined;
+  const gradientSubtitleWidthStyle = variant === 'gradient'
+    ? { maxWidth: Math.max(200, width - theme.spacing.lg * 2 - gradientSubtitleRightReserve) }
+    : undefined;
   // Subtle, battery-friendly accents inside the SVG (no edges move)
   const enableAccents = true;
   
@@ -447,7 +456,7 @@ export const Header: React.FC<HeaderProps> = ({
     if (!title) {
       // Dynamic time-based greeting when no title provided
       // Calculate dynamic font sizes based on greeting length and screen width
-      const { titleSize, titleLineHeight } = calculateGreetingFontSizes(timeBasedGreeting, width, isTablet);
+      const { titleSize, titleLineHeight } = calculateGreetingFontSizes(timeBasedGreeting, width, isTablet, gradientTitleRightReserve);
 
       return (
         <>
@@ -508,7 +517,7 @@ export const Header: React.FC<HeaderProps> = ({
     }
 
     // Calculate dynamic font sizes based on title length and screen width
-    const { titleSize, titleLineHeight } = calculateGreetingFontSizes(title, width, isTablet);
+    const { titleSize, titleLineHeight } = calculateGreetingFontSizes(title, width, isTablet, gradientTitleRightReserve);
 
     return (
       <Typography
@@ -657,12 +666,12 @@ export const Header: React.FC<HeaderProps> = ({
             </Box>
           )}
           
-          <Animated.View style={[titleAnimatedStyle, styles.gradientTitleWrapper]}>
+          <Animated.View style={[titleAnimatedStyle, styles.gradientTitleWrapper, gradientTitleWidthStyle]}>
             {renderGradientTitleContent()}
           </Animated.View>
           
           {subtitle && (
-            <Animated.View style={subtitleAnimatedStyle}>
+            <Animated.View style={[subtitleAnimatedStyle, gradientSubtitleWidthStyle]}>
               <Typography
                 variant="subtitle"
                 weight="medium"
@@ -753,8 +762,8 @@ export const Header: React.FC<HeaderProps> = ({
   const actionButtonBottom = isTabletLandscape ? 16 : 8;
   const demoBadgeBottom = actionButton
     ? (isTabletLandscape ? 52 : 40)  // Above action button
-    : (isTabletLandscape ? 16 : 10); // Standalone
-  const headerActionsTop = Math.max(theme.spacing.xs, insets.top - theme.spacing.xs);
+    : (isTabletLandscape ? 16 : 0); // Standalone
+  const headerActionsTop = Math.max(theme.spacing.xs, insets.top + theme.spacing.md);
 
   return (
     <Box 
