@@ -280,7 +280,7 @@ export class PurchaseService {
     }
     if (!this.purchaseErrorSub) {
       this.purchaseErrorSub = purchaseErrorListener((error: unknown) => {
-        ErrorService.handleSilent(error, { action: 'iap_purchase_error' });
+        void this.handlePurchaseError(error);
       });
     }
   }
@@ -519,7 +519,7 @@ export class PurchaseService {
         console.warn('[IAP] Android: requestSubscription returned successfully for', sku);
       }
 
-      return { success: true } as const;
+      return { success: true, pending: true } as const;
     } catch (error: unknown) {
       // Clear pending purchase flag on error
       this.pendingPurchaseSku = null;
@@ -611,7 +611,7 @@ export class PurchaseService {
         await requestPurchase({ type: 'in-app', request: { google: { skus: [sku], obfuscatedAccountId } } });
       }
 
-      return { success: true } as const;
+      return { success: true, pending: true } as const;
     } catch (error: unknown) {
       // Clear pending purchase flag on error
       this.pendingPurchaseSku = null;
@@ -643,6 +643,41 @@ export class PurchaseService {
 
   private static async deriveAppAccountToken(uid: string): Promise<string> {
     return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, uid);
+  }
+
+  private static async handlePurchaseError(error: unknown) {
+    const pendingSku = this.pendingPurchaseSku;
+    this.pendingPurchaseSku = null;
+
+    const errorObj = error as { code?: string; message?: string; debugMessage?: string; responseCode?: number };
+    const errorCode = errorObj?.code || (errorObj?.responseCode !== undefined ? String(errorObj.responseCode) : 'UNKNOWN');
+    const errorMessage = errorObj?.message || errorObj?.debugMessage || 'Unknown error';
+
+    ErrorService.handleSilent(error, {
+      action: 'iap_purchase_error',
+      productId: pendingSku ?? 'unknown',
+      errorCode,
+      errorMessage,
+    });
+
+    if (pendingSku) {
+      await logPurchaseError('purchaseErrorListener', errorCode, errorMessage, {
+        productId: pendingSku,
+        responseCode: errorObj?.responseCode,
+        debugMessage: errorObj?.debugMessage,
+        rawErrorCode: errorObj?.code,
+        fullError: String(error),
+      });
+    }
+
+    if (errorCode === 'E_USER_CANCELLED' || errorCode === 'USER_CANCELED' || errorCode === '1') {
+      return;
+    }
+
+    const userMessage = IAP_ERROR_MESSAGES[errorCode]
+      || (errorMessage && errorMessage !== 'Unknown error' ? errorMessage : null)
+      || 'Purchase could not be completed. Please try again.';
+    this.notifyError(userMessage, true);
   }
 
   private static async handlePurchaseUpdate(purchase: Purchase) {

@@ -242,6 +242,7 @@ describe('ProfileContent', () => {
   });
 
   it('uses the trial offer only when starting a trial from profile', async () => {
+    mockPurchaseSubscription.mockResolvedValueOnce({ success: true, pending: true });
     mockUseFeatureAccess.mockReturnValue({
       isPremium: false,
       isInTrial: false,
@@ -262,6 +263,7 @@ describe('ProfileContent', () => {
     await waitFor(() => {
       expect(mockPurchaseSubscription).toHaveBeenCalledWith('monthly', { includeTrialOffer: true });
     });
+    expect(mockShowInfo).not.toHaveBeenCalled();
   });
 
   describe('Delete Account', () => {

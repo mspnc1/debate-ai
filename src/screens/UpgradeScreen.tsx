@@ -106,9 +106,7 @@ export default function UpgradeScreen() {
       const result = await PurchaseService.purchaseSubscription('monthly', { includeTrialOffer: true });
       if (result.success) {
         setShowTrialTerms(false);
-        ErrorService.showInfo('Your trial is processing. Premium access will turn on after store confirmation.', 'subscription');
-        await refresh();
-        (navigation as unknown as { goBack: () => void }).goBack();
+        return;
       } else if ('cancelled' in result && result.cancelled) {
         // User cancelled, keep terms sheet open
       } else {
@@ -139,9 +137,7 @@ export default function UpgradeScreen() {
         includeTrialOffer: canStartTrial,
       });
       if (result.success) {
-        ErrorService.showInfo('Your purchase is processing. Premium access will turn on after store confirmation.', 'subscription');
-        await refresh();
-        (navigation as unknown as { goBack: () => void }).goBack();
+        return;
       } else if ('cancelled' in result && result.cancelled) {
         // User cancelled, do nothing
       } else {

@@ -404,8 +404,7 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
                   setIapLoading(true);
                   const res = await PurchaseService.purchaseSubscription('monthly', { includeTrialOffer: true });
                   if (res.success) {
-                    ErrorService.showInfo('Your trial is processing. Premium access will turn on after store confirmation.', 'subscription');
-                    await access.refresh();
+                    return;
                   } else if (!('cancelled' in res) || !res.cancelled) {
                     const msg = 'userMessage' in res && res.userMessage ? res.userMessage : 'Unable to start trial.';
                     ErrorService.handleWithToast(new Error(msg), { feature: 'subscription' });

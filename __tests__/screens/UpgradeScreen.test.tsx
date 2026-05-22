@@ -191,8 +191,8 @@ describe('UpgradeScreen', () => {
     });
   });
 
-  it('shows processing toast on submitted purchase', async () => {
-    mockPurchaseSubscription.mockResolvedValueOnce({ success: true });
+  it('does not show a success toast when the billing sheet only launches', async () => {
+    mockPurchaseSubscription.mockResolvedValueOnce({ success: true, pending: true });
 
     const { getAllByText } = renderWithProviders(<UpgradeScreen />, {
       preloadedState: {
@@ -205,11 +205,14 @@ describe('UpgradeScreen', () => {
     fireEvent.press(subscribeButtons[1]);
 
     await waitFor(() => {
-      expect(mockShowInfo).toHaveBeenCalledWith(
-        'Your purchase is processing. Premium access will turn on after store confirmation.',
-        'subscription'
-      );
+      expect(mockPurchaseSubscription).toHaveBeenCalled();
     });
+    expect(mockShowInfo).not.toHaveBeenCalledWith(
+      expect.stringContaining('purchase'),
+      'subscription'
+    );
+    expect(mockShowSuccess).not.toHaveBeenCalled();
+    expect(mockGoBack).not.toHaveBeenCalled();
   });
 
   it('shows error toast on failed purchase', async () => {

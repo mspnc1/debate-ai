@@ -571,13 +571,13 @@ describe('PurchaseService', () => {
       });
     });
 
-    it('should return success when purchase completes (iOS)', async () => {
+    it('should return pending when purchase flow launches (iOS)', async () => {
       Platform.OS = 'ios';
       mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.monthly }]);
 
       const result = await PurchaseService.purchaseSubscription('monthly');
 
-      expect(result).toEqual({ success: true });
+      expect(result).toEqual({ success: true, pending: true });
     });
 
     it('should handle user cancellation gracefully (iOS)', async () => {
@@ -696,12 +696,12 @@ describe('PurchaseService', () => {
       });
     });
 
-    it('should return success when purchase completes', async () => {
+    it('should return pending when lifetime purchase flow launches', async () => {
       mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.lifetime }]);
 
       const result = await PurchaseService.purchaseLifetime();
 
-      expect(result).toEqual({ success: true });
+      expect(result).toEqual({ success: true, pending: true });
     });
 
     it('should handle user cancellation', async () => {

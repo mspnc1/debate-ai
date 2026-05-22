@@ -20,7 +20,7 @@ export const SubscriptionSheet: React.FC<SubscriptionSheetProps> = ({
   const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
   const { monthly } = useStorePrices();
-  const { canStartTrial, refresh } = useFeatureAccess();
+  const { canStartTrial } = useFeatureAccess();
 
   // Get trial duration from store prices (fetched from Google Play/App Store)
   const trialDuration = monthly.trial?.durationText || '1 week';
@@ -43,14 +43,7 @@ export const SubscriptionSheet: React.FC<SubscriptionSheetProps> = ({
       setLoading(true);
       const result = await PurchaseService.purchaseSubscription("monthly", { includeTrialOffer: canStartTrial });
       if (result.success) {
-        ErrorService.showInfo(
-          canStartTrial
-            ? 'Your trial is processing. Premium access will turn on after store confirmation.'
-            : 'Your purchase is processing. Premium access will turn on after store confirmation.',
-          'subscription'
-        );
-        await refresh();
-        onClose();
+        return;
       } else if (!('cancelled' in result) || !result.cancelled) {
         const message = 'userMessage' in result && result.userMessage
           ? result.userMessage

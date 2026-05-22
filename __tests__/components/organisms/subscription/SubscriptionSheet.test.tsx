@@ -64,18 +64,15 @@ describe('SubscriptionSheet', () => {
     mockUseFeatureAccess.mockReturnValue({ canStartTrial: true, refresh: mockRefresh });
   });
 
-  it('starts trial and closes sheet', async () => {
+  it('launches the trial billing flow without showing success or closing the sheet', async () => {
     const onClose = jest.fn();
     const { getByText } = renderWithProviders(<SubscriptionSheet onClose={onClose} />);
 
     fireEvent.press(getByText('Start 1 week Free Trial'));
 
     await waitFor(() => expect(mockPurchaseSubscription).toHaveBeenCalledWith('monthly', { includeTrialOffer: true }));
-    await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(mockShowInfo).toHaveBeenCalledWith(
-      'Your trial is processing. Premium access will turn on after store confirmation.',
-      'subscription'
-    );
+    expect(onClose).not.toHaveBeenCalled();
+    expect(mockShowInfo).not.toHaveBeenCalled();
   });
 
   it('subscribes without a trial offer when the user is not trial eligible', async () => {
