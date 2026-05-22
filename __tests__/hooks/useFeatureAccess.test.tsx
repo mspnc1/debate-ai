@@ -63,6 +63,7 @@ describe('useFeatureAccess', () => {
       auth: {
         isPremium: false,
         authLoading: true,
+        isAuthenticated: true,
         userProfile: null,
       } as any,
     });
@@ -70,6 +71,26 @@ describe('useFeatureAccess', () => {
     const { result } = renderHookWithProviders(() => useFeatureAccess(), { store });
 
     expect(result.current.loading).toBe(true);
+    expect(result.current.isDemo).toBe(false);
+    expect(result.current.canStartTrial).toBe(false);
+    expect(result.current.canAccessLiveAI).toBe(false);
+  });
+
+  it('does not expose trial eligibility before authenticated profile resolves', () => {
+    const store = createAppStore({
+      ...createAppStore().getState(),
+      auth: {
+        isAuthenticated: true,
+        isPremium: false,
+        authLoading: true,
+        userProfile: null,
+      } as any,
+    });
+
+    const { result } = renderHookWithProviders(() => useFeatureAccess(), { store });
+
+    expect(result.current.isDemo).toBe(false);
+    expect(result.current.canStartTrial).toBe(false);
   });
 
   it('maps free/canceled/past_due to demo', () => {

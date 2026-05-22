@@ -23,7 +23,7 @@ import { initializeFirebase } from './src/services/firebase/config';
 import { getFirestore, doc, onSnapshot, collection } from '@react-native-firebase/firestore';
 import { onAuthStateChanged, toAuthUser } from './src/services/firebase/auth';
 import { reload } from '@react-native-firebase/auth';
-import { setAuthUser, setUserProfile } from './src/store';
+import { setAuthLoading, setAuthUser, setUserProfile } from './src/store';
 import PurchaseService from './src/services/iap/PurchaseService';
 import { CrashlyticsService } from './src/services/crashlytics';
 import { ErrorBoundary } from './src/components/organisms/common/ErrorBoundary';
@@ -98,6 +98,8 @@ function AppContent() {
 
         // Set up auth state listener
         authUnsubscribe = onAuthStateChanged(async (user) => {
+          dispatch(setAuthLoading(true));
+
           // Clean up previous Firestore listener when auth changes
           if (firestoreUnsubscribe) {
             firestoreUnsubscribe();
@@ -152,6 +154,7 @@ function AppContent() {
                     hasUsedTrial: profileData?.hasUsedTrial === true,
                     trialEndDate,
                   }));
+                  dispatch(setAuthLoading(false));
 
                   CrashlyticsService.setAttributes({ membershipStatus });
                 } else {
@@ -160,6 +163,7 @@ function AppContent() {
                   console.log('User document does not exist - likely deleted, clearing auth state');
                   dispatch(setAuthUser(null));
                   dispatch(setUserProfile(null));
+                  dispatch(setAuthLoading(false));
                   CrashlyticsService.setUserId(null);
                 }
               },
@@ -170,6 +174,7 @@ function AppContent() {
                   console.log('Firestore permission denied - user likely deleted, clearing auth');
                   dispatch(setAuthUser(null));
                   dispatch(setUserProfile(null));
+                  dispatch(setAuthLoading(false));
                   CrashlyticsService.setUserId(null);
                   return;
                 }
@@ -183,6 +188,7 @@ function AppContent() {
                   membershipStatus: 'demo',
                   preferences: {},
                 }));
+                dispatch(setAuthLoading(false));
                 CrashlyticsService.setAttributes({ membershipStatus: 'demo' });
               }
             );
@@ -198,6 +204,7 @@ function AppContent() {
             // User signed out - clear all auth state
             dispatch(setAuthUser(null));
             dispatch(setUserProfile(null));
+            dispatch(setAuthLoading(false));
             CrashlyticsService.setUserId(null);
           }
         });
@@ -231,6 +238,7 @@ function AppContent() {
         }
       } catch (error) {
         console.error('Error initializing app:', error);
+        dispatch(setAuthLoading(false));
       }
     };
 

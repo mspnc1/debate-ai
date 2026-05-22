@@ -15,6 +15,8 @@ export const useFeatureAccess = () => {
   const userProfile = useSelector((state: RootState) => state.auth.userProfile);
   const isPremiumFromRedux = useSelector((state: RootState) => state.auth.isPremium);
   const authLoading = useSelector((state: RootState) => state.auth.authLoading);
+  const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
+  const profileResolved = !authLoading && (!isAuthenticated || userProfile !== null);
 
   // Derive all values from Redux state
   // Map 'free', 'canceled', 'past_due' to 'demo' for simplicity
@@ -25,8 +27,8 @@ export const useFeatureAccess = () => {
   const hasUsedTrial = userProfile?.hasUsedTrial === true;
 
   const isInTrial = membershipStatus === 'trial';
-  const isPremium = isPremiumFromRedux;
-  const isDemo = !isPremium;
+  const isPremium = profileResolved && isPremiumFromRedux;
+  const isDemo = profileResolved && !isPremium;
   const canAccessLiveAI = isPremium;
   const canStartTrial = !hasUsedTrial && isDemo;
 

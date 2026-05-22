@@ -28,7 +28,7 @@ const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
   isPremium: false,
-  authLoading: false,
+  authLoading: true,
   authModalVisible: false,
   userProfile: null,
   // Social auth state
@@ -66,6 +66,7 @@ const authSlice = createSlice({
       state.user = null;
       state.isAuthenticated = false;
       state.isPremium = false;
+      state.authLoading = false;
       state.userProfile = null;
       state.authModalVisible = false;
       state.lastAuthMethod = null;
