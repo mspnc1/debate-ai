@@ -93,18 +93,12 @@ const checkTrialHistory = async (uid: string, email: string | undefined): Promis
   return { used: false, sameAccount: false };
 };
 
-/**
- * Record trial usage to prevent future abuse after account deletion
- */
-const recordTrialUsage = async (uid: string, email: string | undefined): Promise<void> => {
-  const firestore = admin.firestore();
-  await firestore.collection('trialHistory').doc(uid).set({
+const buildTrialUsageData = (uid: string, email: string | undefined): Record<string, unknown> => ({
     uid,
     emailHash: email ? hashEmail(email) : null,
     firstTrialDate: admin.firestore.FieldValue.serverTimestamp(),
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
-};
+});
 
 const getTimestampMillis = (value: unknown): number | null => {
   if (!value) return null;
@@ -334,6 +328,7 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
     }
 
     // Check and record trial usage to prevent abuse after account deletion
+    let shouldRecordTrialUsage = false;
     if (inTrial) {
       // Check persistent trial history (survives account deletion)
       const trialCheck = await checkTrialHistory(userId, userEmail);
@@ -351,28 +346,29 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
           'You have already used your free trial. Please subscribe to continue using premium features.'
         );
       } else if (hasPriorTrial && isSameAccountTrial) {
-        if (userHasActiveTrial(userData)) {
-          // Same account re-validating their current active trial - this is fine.
-          console.log(`User ${userId} re-validating existing trial - keeping trial status`);
-          updateData.hasUsedTrial = true;
-        } else {
-          // Same account has already consumed and left trial. A store-reported
-          // trial phase must never be converted into premium access.
-          console.log(`User ${userId} attempted repeat trial after previous trial ended - rejecting`);
-          throw new HttpsError(
-            'failed-precondition',
-            'You have already used your free trial. Please subscribe to continue using premium features.'
-          );
-        }
+        // Same account with a store-confirmed active trial. Persist the trial
+        // entitlement instead of leaving the user in demo or upgrading to premium.
+        const statusLabel = userHasActiveTrial(userData) ? 'existing' : 'store-confirmed';
+        console.log(`User ${userId} validating ${statusLabel} trial - keeping trial status`);
+        updateData.hasUsedTrial = true;
       } else {
         // First time using trial - record it for future tracking
         console.log(`User ${userId} starting first trial - recording usage`);
-        await recordTrialUsage(userId, userEmail);
+        shouldRecordTrialUsage = true;
         updateData.hasUsedTrial = true;
       }
     }
 
-    await admin.firestore().collection('users').doc(userId).set(updateData, { merge: true });
+    const firestore = admin.firestore();
+    const userRef = firestore.collection('users').doc(userId);
+    if (shouldRecordTrialUsage) {
+      const batch = firestore.batch();
+      batch.set(userRef, updateData, { merge: true });
+      batch.set(firestore.collection('trialHistory').doc(userId), buildTrialUsageData(userId, userEmail), { merge: true });
+      await batch.commit();
+    } else {
+      await userRef.set(updateData, { merge: true });
+    }
 
     return {
       valid: true,

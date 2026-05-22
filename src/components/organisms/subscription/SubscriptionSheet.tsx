@@ -8,6 +8,7 @@ import { PurchaseService } from "@/services/iap/PurchaseService";
 import { useStorePrices } from "@/hooks/useStorePrices";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { ENABLED_API_CONFIG_PROVIDER_COUNT } from "@/config/apiConfigProviders";
+import { ErrorService } from "@/services/errors/ErrorService";
 
 interface SubscriptionSheetProps {
   onClose: () => void;
@@ -19,7 +20,7 @@ export const SubscriptionSheet: React.FC<SubscriptionSheetProps> = ({
   const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
   const { monthly } = useStorePrices();
-  const { canStartTrial } = useFeatureAccess();
+  const { canStartTrial, refresh } = useFeatureAccess();
 
   // Get trial duration from store prices (fetched from Google Play/App Store)
   const trialDuration = monthly.trial?.durationText || '1 week';
@@ -40,11 +41,24 @@ export const SubscriptionSheet: React.FC<SubscriptionSheetProps> = ({
   const handleStartTrial = async () => {
     try {
       setLoading(true);
-      await PurchaseService.purchaseSubscription("monthly", { includeTrialOffer: canStartTrial });
-      // The underlying hook will update UI; just close to reduce friction
-      onClose();
+      const result = await PurchaseService.purchaseSubscription("monthly", { includeTrialOffer: canStartTrial });
+      if (result.success) {
+        ErrorService.showInfo(
+          canStartTrial
+            ? 'Your trial is processing. Premium access will turn on after store confirmation.'
+            : 'Your purchase is processing. Premium access will turn on after store confirmation.',
+          'subscription'
+        );
+        await refresh();
+        onClose();
+      } else if (!('cancelled' in result) || !result.cancelled) {
+        const message = 'userMessage' in result && result.userMessage
+          ? result.userMessage
+          : 'Purchase could not be completed. Please try again.';
+        ErrorService.showError(message, 'subscription');
+      }
     } catch {
-      // Keep the sheet open for retry; could show inline error
+      ErrorService.showError('Purchase could not be completed. Please try again.', 'subscription');
     } finally {
       setLoading(false);
     }

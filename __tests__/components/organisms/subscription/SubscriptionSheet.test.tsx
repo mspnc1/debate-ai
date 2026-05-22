@@ -36,10 +36,20 @@ jest.mock('@/components/organisms/subscription/UnlockEverythingBanner', () => {
 });
 
 const mockPurchaseSubscription = jest.fn().mockResolvedValue({ success: true });
-const mockUseFeatureAccess = jest.fn(() => ({ canStartTrial: true }));
+const mockRefresh = jest.fn().mockResolvedValue(undefined);
+const mockShowInfo = jest.fn();
+const mockShowError = jest.fn();
+const mockUseFeatureAccess = jest.fn(() => ({ canStartTrial: true, refresh: mockRefresh }));
 
 jest.mock('@/services/iap/PurchaseService', () => ({
   PurchaseService: { purchaseSubscription: (...args: any[]) => mockPurchaseSubscription(...args) },
+}));
+
+jest.mock('@/services/errors/ErrorService', () => ({
+  ErrorService: {
+    showInfo: (...args: unknown[]) => mockShowInfo(...args),
+    showError: (...args: unknown[]) => mockShowError(...args),
+  },
 }));
 
 jest.mock('@/hooks/useFeatureAccess', () => ({
@@ -49,7 +59,9 @@ jest.mock('@/hooks/useFeatureAccess', () => ({
 describe('SubscriptionSheet', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseFeatureAccess.mockReturnValue({ canStartTrial: true });
+    mockRefresh.mockResolvedValue(undefined);
+    mockPurchaseSubscription.mockResolvedValue({ success: true });
+    mockUseFeatureAccess.mockReturnValue({ canStartTrial: true, refresh: mockRefresh });
   });
 
   it('starts trial and closes sheet', async () => {
@@ -59,11 +71,15 @@ describe('SubscriptionSheet', () => {
     fireEvent.press(getByText('Start 1 week Free Trial'));
 
     await waitFor(() => expect(mockPurchaseSubscription).toHaveBeenCalledWith('monthly', { includeTrialOffer: true }));
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(mockShowInfo).toHaveBeenCalledWith(
+      'Your trial is processing. Premium access will turn on after store confirmation.',
+      'subscription'
+    );
   });
 
   it('subscribes without a trial offer when the user is not trial eligible', async () => {
-    mockUseFeatureAccess.mockReturnValue({ canStartTrial: false });
+    mockUseFeatureAccess.mockReturnValue({ canStartTrial: false, refresh: mockRefresh });
     const onClose = jest.fn();
     const { getByText } = renderWithProviders(<SubscriptionSheet onClose={onClose} />);
 

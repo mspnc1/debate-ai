@@ -80,6 +80,7 @@ const mockFeatureAccess = {
   trialDaysRemaining: null,
   isPremium: false,
   canStartTrial: true,
+  refresh: jest.fn(),
 };
 
 jest.mock('@/hooks/useFeatureAccess', () => ({
@@ -118,6 +119,7 @@ describe('UpgradeScreen', () => {
     mockFeatureAccess.trialDaysRemaining = null;
     mockFeatureAccess.isPremium = false;
     mockFeatureAccess.canStartTrial = true;
+    mockFeatureAccess.refresh.mockResolvedValue(undefined);
   });
 
   it('renders UnlockEverythingBanner and navigates back via header', () => {
@@ -189,7 +191,7 @@ describe('UpgradeScreen', () => {
     });
   });
 
-  it('shows success toast on successful purchase', async () => {
+  it('shows processing toast on submitted purchase', async () => {
     mockPurchaseSubscription.mockResolvedValueOnce({ success: true });
 
     const { getAllByText } = renderWithProviders(<UpgradeScreen />, {
@@ -203,7 +205,10 @@ describe('UpgradeScreen', () => {
     fireEvent.press(subscribeButtons[1]);
 
     await waitFor(() => {
-      expect(mockShowSuccess).toHaveBeenCalledWith('Thank you for your purchase!', 'subscription');
+      expect(mockShowInfo).toHaveBeenCalledWith(
+        'Your purchase is processing. Premium access will turn on after store confirmation.',
+        'subscription'
+      );
     });
   });
 
