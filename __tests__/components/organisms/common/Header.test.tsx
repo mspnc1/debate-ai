@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent } from '@testing-library/react-native';
+import { Text } from 'react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { Header } from '@/components/organisms/common/Header';
 import * as Haptics from 'expo-haptics';
@@ -113,5 +114,41 @@ describe('Header', () => {
     );
 
     expect(getByText('The symposium awaits')).toBeTruthy();
+  });
+
+  it('uses one top row for gradient date and right actions', () => {
+    const { getByTestId } = renderWithProviders(
+      <Header
+        title="This isn't healthy"
+        variant="gradient"
+        showDate
+        rightElement={<Text testID="header-right-actions">Actions</Text>}
+      />
+    );
+
+    expect(getByTestId('header-gradient-top-row')).toHaveStyle({
+      top: 4,
+      height: 40,
+      flexDirection: 'row',
+      alignItems: 'center',
+    });
+    expect(getByTestId('header-right-actions')).toBeTruthy();
+  });
+
+  it('keeps debate motion titles to two lines when subtitle is present', () => {
+    const motion =
+      'ICE actions in Minneapolis prove the current administration has no respect for due process';
+    const { getByText } = renderWithProviders(
+      <Header
+        title={`Motion: ${motion}`}
+        subtitle="ChatGPT vs Claude"
+        variant="gradient"
+        showBackButton
+        onBack={jest.fn()}
+      />
+    );
+
+    expect(getByText(motion).props.numberOfLines).toBe(2);
+    expect(getByText('ChatGPT vs Claude')).toBeTruthy();
   });
 });

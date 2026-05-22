@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { LogBox, Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import * as NavigationBar from 'expo-navigation-bar';
 import * as Device from 'expo-device';
 
 // Suppress Reanimated v4 dev-mode worklet warnings
@@ -28,6 +29,7 @@ import PurchaseService from './src/services/iap/PurchaseService';
 import { CrashlyticsService } from './src/services/crashlytics';
 import { ErrorBoundary } from './src/components/organisms/common/ErrorBoundary';
 import { ToastContainer } from './src/components/organisms/common/ToastContainer';
+import { AppPortalProvider } from './src/components/organisms/common/AppPortal';
 import { PersonalityProvider } from './src/contexts/PersonalityContext';
 
 function AppContent() {
@@ -271,17 +273,25 @@ function AppContent() {
 function ThemedAppSurface() {
   const { theme } = useTheme();
 
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      NavigationBar.setStyle('dark');
+    }
+  }, []);
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <PersonalityProvider>
-        <CitationPreviewProvider>
-          <AIServiceProvider>
-            <AppNavigator />
-            <ToastContainer />
-            <StatusBar style="light" />
-          </AIServiceProvider>
-        </CitationPreviewProvider>
-      </PersonalityProvider>
+      <AppPortalProvider>
+        <PersonalityProvider>
+          <CitationPreviewProvider>
+            <AIServiceProvider>
+              <AppNavigator />
+              <ToastContainer />
+              <StatusBar style="light" />
+            </AIServiceProvider>
+          </CitationPreviewProvider>
+        </PersonalityProvider>
+      </AppPortalProvider>
     </View>
   );
 }

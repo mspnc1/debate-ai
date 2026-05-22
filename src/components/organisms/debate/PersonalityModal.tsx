@@ -4,12 +4,17 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, View, TouchableOpacity, FlatList, StyleSheet, Platform } from 'react-native';
+import { BackHandler, View, TouchableOpacity, FlatList, StyleSheet, Platform } from 'react-native';
 import { useTheme } from '../../../theme';
 import { Typography } from '../../molecules';
 import { SheetHeader } from '@/components/molecules';
 import { GradientButton } from '../../molecules';
 import { PersonalityOption } from '../../../config/personalities';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AppPortal } from '@/components/organisms/common/AppPortal';
+
+const MODAL_TOP_MIN_CLEARANCE = 88;
+const MODAL_TOP_SAFE_AREA_GAP = 40;
 
 export interface PersonalityModalProps {
   visible: boolean;
@@ -33,6 +38,8 @@ export const PersonalityModal: React.FC<PersonalityModalProps> = ({
   testID,
 }) => {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const modalTop = Math.max(MODAL_TOP_MIN_CLEARANCE, insets.top + MODAL_TOP_SAFE_AREA_GAP);
   const [localSelection, setLocalSelection] = useState<string>(selectedPersonalityId);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -42,6 +49,17 @@ export const PersonalityModal: React.FC<PersonalityModalProps> = ({
       setExpandedId(null);
     }
   }, [selectedPersonalityId, visible]);
+
+  useEffect(() => {
+    if (!visible || Platform.OS !== 'android') return;
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      onClose();
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [onClose, visible]);
 
   const canConfirm = useMemo(() => {
     return Boolean(localSelection);
@@ -167,52 +185,57 @@ export const PersonalityModal: React.FC<PersonalityModalProps> = ({
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="overFullScreen"
-      transparent
-      onRequestClose={onClose}
-      testID={testID}
-    >
-      <TouchableOpacity
-        activeOpacity={1}
-        onPress={() => {
-          if (!disableBackdropDismiss) onClose();
-        }}
-        style={[styles.backdrop, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
-      />
-      <View style={[styles.modalContainer, { backgroundColor: theme.colors.background }]}>
-        <SheetHeader title="Choose a Personality" onClose={onClose} showHandle />
-        {aiName ? (
-          <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 }}>
-            <Typography variant="caption" color="secondary">for {aiName}</Typography>
+    <AppPortal visible={visible}>
+      <View
+        accessibilityViewIsModal
+        style={StyleSheet.absoluteFill}
+        testID={testID}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => {
+            if (!disableBackdropDismiss) onClose();
+          }}
+          style={[styles.backdrop, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
+        />
+        <View
+          testID="personality-modal-sheet"
+          style={[styles.modalContainer, { top: modalTop, backgroundColor: theme.colors.background }]}
+        >
+          <SheetHeader title="Choose a Personality" onClose={onClose} showHandle />
+          {aiName ? (
+            <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 }}>
+              <Typography variant="caption" color="secondary">for {aiName}</Typography>
+            </View>
+          ) : null}
+
+          <View style={{ flex: 1, paddingHorizontal: 16 }}>
+            <FlatList
+              data={sortedPersonas}
+              keyExtractor={(item) => item.id}
+              renderItem={renderItem}
+              numColumns={2}
+              columnWrapperStyle={{ gap: 12 }}
+              contentContainerStyle={{ paddingBottom: 24, gap: 12 }}
+              showsVerticalScrollIndicator={false}
+            />
           </View>
-        ) : null}
 
-        <View style={{ flex: 1, paddingHorizontal: 16 }}>
-          <FlatList
-            data={sortedPersonas}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            numColumns={2}
-            columnWrapperStyle={{ gap: 12 }}
-            contentContainerStyle={{ paddingBottom: 16, gap: 12 }}
-            showsVerticalScrollIndicator={false}
-          />
-        </View>
-
-        <View style={{ padding: 16 }}>
-          <GradientButton
-            title="Use This Style"
-            onPress={() => canConfirm && onConfirm(localSelection)}
-            disabled={!canConfirm}
-            gradient={theme.colors.gradients.primary}
-            fullWidth
-          />
+          <View
+            testID="personality-modal-action-bar"
+            style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: Math.max(16, insets.bottom + 12) }}
+          >
+            <GradientButton
+              title="Use This Style"
+              onPress={() => canConfirm && onConfirm(localSelection)}
+              disabled={!canConfirm}
+              gradient={theme.colors.gradients.primary}
+              fullWidth
+            />
+          </View>
         </View>
       </View>
-    </Modal>
+    </AppPortal>
   );
 };
 
@@ -226,7 +249,6 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     position: 'absolute',
-    top: Platform.select({ ios: 60, android: 40, default: 40 }),
     left: 0,
     right: 0,
     bottom: 0,

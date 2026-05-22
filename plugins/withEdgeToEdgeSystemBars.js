@@ -4,6 +4,10 @@ const APP_THEME = AndroidConfig.Styles.getAppThemeGroup();
 
 const SYSTEM_BAR_STYLE_ITEMS = [
   {
+    name: 'android:navigationBarColor',
+    value: '@android:color/black',
+  },
+  {
     name: 'android:windowLightNavigationBar',
     value: 'false',
     targetApi: '27',

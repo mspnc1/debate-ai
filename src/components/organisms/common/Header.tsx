@@ -168,9 +168,10 @@ export interface HeaderProps {
 
 // Base header heights - will be scaled for tablets
 export const HEADER_HEIGHT = 65;
-const PHONE_GRADIENT_HEIGHT = 116;
+const PHONE_GRADIENT_HEIGHT = 156;
 const COMPACT_HEIGHT = 50;
 const TABLET_COMPACT_HEIGHT = 60;
+const GRADIENT_TOP_ROW_HEIGHT = 40;
 
 // Gradient header uses proportional scaling for tablets
 const MIN_TABLET_GRADIENT_HEIGHT = 100;
@@ -277,13 +278,14 @@ export const Header: React.FC<HeaderProps> = ({
   const { isTablet, isLandscape } = useDeviceType();
   const { timeBasedGreeting, welcomeMessage } = useGreeting();
   const hasSubtitle = Boolean(subtitle);
-  const gradientTitleRightReserve = rightElement ? 88 : 0;
-  const gradientSubtitleRightReserve = showDemoBadge ? 150 : gradientTitleRightReserve;
+  const gradientHorizontalPadding = theme.spacing.lg;
+  const gradientTitleRightReserve = 0;
+  const gradientSubtitleRightReserve = showDemoBadge ? 150 : 0;
   const gradientTitleWidthStyle = variant === 'gradient'
-    ? { maxWidth: Math.max(220, width - theme.spacing.lg * 2 - gradientTitleRightReserve) }
+    ? { width: '100%' as const, maxWidth: Math.max(220, width - gradientHorizontalPadding * 2 - gradientTitleRightReserve) }
     : undefined;
   const gradientSubtitleWidthStyle = variant === 'gradient'
-    ? { maxWidth: Math.max(200, width - theme.spacing.lg * 2 - gradientSubtitleRightReserve) }
+    ? { width: '100%' as const, maxWidth: Math.max(200, width - gradientHorizontalPadding * 2 - gradientSubtitleRightReserve) }
     : undefined;
   // Subtle, battery-friendly accents inside the SVG (no edges move)
   const enableAccents = true;
@@ -487,8 +489,8 @@ export const Header: React.FC<HeaderProps> = ({
     if (motionMatch) {
       const motionText = motionMatch[1]?.trim() || '';
       const maxContentWidth = Math.max(200, width - theme.spacing.lg * 2);
-      const responsiveFontSize = Math.min(30, Math.max(20, width * 0.065));
-      const responsiveLineHeight = responsiveFontSize + 6;
+      const responsiveFontSize = Math.min(hasSubtitle ? 24 : 28, Math.max(20, width * 0.06));
+      const responsiveLineHeight = responsiveFontSize + 4;
 
       return (
         <Box
@@ -502,7 +504,7 @@ export const Header: React.FC<HeaderProps> = ({
             variant="title"
             weight="bold"
             color="inverse"
-            numberOfLines={3}
+            numberOfLines={hasSubtitle ? 2 : 3}
             ellipsizeMode="tail"
             style={[
               styles.motionTitle,
@@ -624,48 +626,6 @@ export const Header: React.FC<HeaderProps> = ({
     if (variant === 'gradient') {
       return (
         <Box style={styles.gradientContent}>
-          {/* Go Back button at the top when showing back button */}
-          {showBackButton && onBack && (
-            <Box style={[styles.goBackContainer, { marginBottom: theme.spacing.xs }]}>
-              <TouchableOpacity
-                onPress={onBack}
-                style={styles.goBackButton}
-                activeOpacity={0.7}
-                testID="header-go-back-button"
-                accessibilityRole="button"
-                accessibilityLabel="Go back"
-                accessibilityHint="Navigates to the previous screen"
-              >
-                <Typography 
-                  variant="body" 
-                  weight="bold"
-                  color="inverse"
-                  style={styles.goBackText}
-                >
-                  ← Go Back
-                </Typography>
-              </TouchableOpacity>
-            </Box>
-          )}
-          
-          {/* Date positioned above greeting - but not when showing back button */}
-          {showDate && !showBackButton && (
-            <Box style={[styles.dateContainer, { marginBottom: theme.spacing.xs }]}>
-              <Typography 
-                variant="body" 
-                weight="bold"
-                color="inverse"
-                style={styles.dateText}
-              >
-                {currentTime.toLocaleDateString('en-US', { 
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric'
-                })}
-              </Typography>
-            </Box>
-          )}
-          
           <Animated.View style={[titleAnimatedStyle, styles.gradientTitleWrapper, gradientTitleWidthStyle]}>
             {renderGradientTitleContent()}
           </Animated.View>
@@ -731,6 +691,50 @@ export const Header: React.FC<HeaderProps> = ({
       </View>
     );
   };
+
+  const renderGradientTopLeftSection = () => {
+    if (showBackButton && onBack) {
+      return (
+        <TouchableOpacity
+          onPress={onBack}
+          style={styles.goBackButton}
+          activeOpacity={0.7}
+          testID="header-go-back-button"
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          accessibilityHint="Navigates to the previous screen"
+        >
+          <Typography
+            variant="body"
+            weight="bold"
+            color="inverse"
+            style={styles.goBackText}
+          >
+            ← Go Back
+          </Typography>
+        </TouchableOpacity>
+      );
+    }
+
+    if (showDate) {
+      return (
+        <Typography
+          variant="body"
+          weight="bold"
+          color="inverse"
+          style={styles.dateText}
+        >
+          {currentTime.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+          })}
+        </Typography>
+      );
+    }
+
+    return null;
+  };
   
   // Render right section
   const renderRightSection = () => {
@@ -762,8 +766,15 @@ export const Header: React.FC<HeaderProps> = ({
   const actionButtonBottom = isTabletLandscape ? 16 : 8;
   const demoBadgeBottom = actionButton
     ? (isTabletLandscape ? 52 : 40)  // Above action button
-    : (isTabletLandscape ? 16 : 0); // Standalone
-  const headerActionsTop = Math.max(theme.spacing.xs, insets.top + theme.spacing.md);
+    : (isTabletLandscape ? 16 : 12); // Standalone
+  const gradientTopRowTop = insets.top + theme.spacing.xs;
+  const gradientBodyTopPadding = gradientTopRowTop + GRADIENT_TOP_ROW_HEIGHT + theme.spacing.xs;
+  const gradientContentBottomPadding = showDemoBadge
+    ? theme.spacing.xl
+    : theme.spacing.md;
+  const gradientTopLeftContent = variant === 'gradient'
+    ? renderGradientTopLeftSection()
+    : null;
 
   return (
     <Box 
@@ -790,20 +801,45 @@ export const Header: React.FC<HeaderProps> = ({
       {variant === 'gradient' ? (
         <>
           {/* Gradient variant uses vertical layout structure */}
-          <Box style={styles.gradientContentContainer}>
+          {(gradientTopLeftContent || rightElement) && (
+            <View
+              testID="header-gradient-top-row"
+              style={[
+                styles.gradientTopRow,
+                {
+                  top: gradientTopRowTop,
+                  left: gradientHorizontalPadding,
+                  right: gradientHorizontalPadding,
+                  height: GRADIENT_TOP_ROW_HEIGHT,
+                },
+              ]}
+            >
+              <View style={styles.gradientTopRowLeft}>
+                {gradientTopLeftContent}
+              </View>
+              {rightElement && (
+                <View style={styles.gradientTopRowRight}>
+                  {rightElement}
+                </View>
+              )}
+            </View>
+          )}
+
+          <Box
+            style={[
+              styles.gradientContentContainer,
+              {
+                paddingTop: gradientBodyTopPadding,
+                paddingBottom: gradientContentBottomPadding,
+              },
+            ]}
+          >
             {/* Main content area with vertical layout */}
             <Box style={styles.gradientMainContent}>
               {renderCenterSection()}
             </Box>
           </Box>
-          
-          {/* Top right container for HeaderActions - positioned absolutely OUTSIDE main content */}
-          {rightElement && (
-            <View style={[styles.headerTopRightContainer, { top: headerActionsTop, right: 0 }]}>
-              {rightElement}
-            </View>
-          )}
-          
+
           {/* Action button positioned in lower right of header for gradient variant */}
           {actionButton && (
             <View style={[styles.headerActionButtonContainer, {
@@ -912,7 +948,7 @@ const createStyles = (
     paddingTop: topInset + theme.spacing.xs,
     zIndex: 10,
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   geometryContainer: {
     position: 'absolute',
@@ -964,6 +1000,25 @@ const createStyles = (
     alignItems: 'flex-end',
     zIndex: 15,
   },
+  gradientTopRow: {
+    position: 'absolute',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 1000,
+  },
+  gradientTopRowLeft: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  gradientTopRowRight: {
+    flexShrink: 0,
+    marginLeft: theme.spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTopRightContainer: {
     position: 'absolute',
     flexDirection: 'row',
@@ -987,15 +1042,17 @@ const createStyles = (
     zIndex: 15,
   },
   timeText: {
-    letterSpacing: -0.5,
+    letterSpacing: 0,
     textShadowColor: theme.colors.shadow,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
   dateText: {
-    letterSpacing: 0.3,
+    letterSpacing: 0,
     opacity: 0.9,
     fontSize: isTablet ? 18 : undefined,
+    lineHeight: isTablet ? 22 : 20,
+    includeFontPadding: false,
     textShadowColor: theme.colors.shadow,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
@@ -1010,13 +1067,12 @@ const createStyles = (
     alignItems: 'flex-start',
     zIndex: 10,  // Lower than headerTopRightContainer
     minHeight: 0,
-    transform: [{ translateY: isTablet ? theme.spacing.xs : 6 }],
   },
   gradientTitleWrapper: {
     width: '100%',
   },
   gradientTitle: {
-    letterSpacing: -1,
+    letterSpacing: 0,
     lineHeight: isTablet ? 40 : 32,
     fontSize: isTablet ? 38 : 32,
     textShadowColor: theme.colors.shadow,
@@ -1028,7 +1084,7 @@ const createStyles = (
     marginBottom: isTablet ? theme.spacing.xs : theme.spacing.xs, // 4px
   },
   gradientSubtitle: {
-    letterSpacing: 0.5,
+    letterSpacing: 0,
     lineHeight: isTablet ? 24 : 24,  // was 22 on phones
     fontSize: isTablet ? 18 : 17,    // was 15 on phones
     opacity: 0.95,
@@ -1041,7 +1097,7 @@ const createStyles = (
     width: '100%',
   },
   motionTitle: {
-    letterSpacing: -0.4,
+    letterSpacing: 0,
   },
   gradientBackButton: {
     position: 'absolute',
@@ -1057,7 +1113,7 @@ const createStyles = (
     backgroundColor: 'transparent',
   },
   goBackText: {
-    letterSpacing: 0.3,
+    letterSpacing: 0,
     textShadowColor: theme.colors.shadow,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,

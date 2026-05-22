@@ -7,7 +7,7 @@
     "primaryColor": "#0E9594",
     "orientation": "default",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -75,6 +75,14 @@
       ],
       "@react-native-firebase/crashlytics",
       "./plugins/withPlayStoreIAP",
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false,
+          "barStyle": "light",
+          "visibility": "visible"
+        }
+      ],
       "./plugins/withEdgeToEdgeSystemBars",
       "./plugins/withFirebaseClang",
       "expo-video",
