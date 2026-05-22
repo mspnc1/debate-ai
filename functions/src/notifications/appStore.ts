@@ -137,14 +137,11 @@ export const handleAppStoreNotification = functions.https.onRequest(async (req, 
     const userSnap = await userRef.get();
     const userData = userSnap.data();
     const existingTrialEndMs = getTimestampMillis(userData?.trialEndDate) ?? getTimestampMillis(userData?.trialEndsAt);
-    const knownExpiredTrial = userData?.hasUsedTrial === true
-      && existingTrialEndMs !== null
-      && existingTrialEndMs <= Date.now();
-    const preserveActiveTrial = isActive && userData?.hasUsedTrial === true
+    const storeReportsTrial = transaction.offerType === OfferType.INTRODUCTORY_OFFER;
+    const preserveActiveTrial = isActive && !storeReportsTrial && userData?.hasUsedTrial === true
       && existingTrialEndMs !== null
       && existingTrialEndMs > Date.now();
-    const storeReportsTrial = transaction.offerType === OfferType.INTRODUCTORY_OFFER;
-    const inTrial = isActive && !knownExpiredTrial && (storeReportsTrial || preserveActiveTrial);
+    const inTrial = isActive && (storeReportsTrial || preserveActiveTrial);
     const newStatus = isActive ? (inTrial ? 'trial' : 'premium') : 'demo';
     const trialEndMs = inTrial
       ? (storeReportsTrial ? expiresAt.getTime() : existingTrialEndMs)

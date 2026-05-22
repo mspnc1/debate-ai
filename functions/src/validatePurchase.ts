@@ -52,8 +52,6 @@ const LIFETIME_PRODUCT_IDS = [
   'premium_lifetime', // Android
 ];
 
-const TRIAL_HISTORY_MATCH_TOLERANCE_MS = 24 * 60 * 60 * 1000;
-
 /**
  * Hash email for privacy-preserving trial tracking
  */
@@ -139,14 +137,6 @@ const userHasUnexpiredTrialWindow = (userData: admin.firestore.DocumentData | un
 
 const userHasActiveTrial = (userData: admin.firestore.DocumentData | undefined): boolean => {
   return userData?.membershipStatus === 'trial' && userHasUnexpiredTrialWindow(userData);
-};
-
-const trialHistoryMatchesStoreTrial = (
-  trialCheck: { firstTrialMs: number | null },
-  trialStartMs: number | null
-): boolean => {
-  if (trialCheck.firstTrialMs === null || trialStartMs === null) return false;
-  return Math.abs(trialCheck.firstTrialMs - trialStartMs) <= TRIAL_HISTORY_MATCH_TOLERANCE_MS;
 };
 
 const toStatusCode = (value: unknown): number | undefined => {
@@ -380,18 +370,9 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
           'You have already used your free trial. Please subscribe to continue using premium features.'
         );
       } else if (hasPriorTrial && isSameAccountTrial) {
-        // Same account with a store-confirmed active trial. Persist the trial
-        // entitlement instead of leaving the user in demo or upgrading to premium.
-        const trialStartMs = trialStart ? trialStart.getTime() : null;
-        const sameTrialWindow = userHasUnexpiredTrialWindow(userData)
-          || trialHistoryMatchesStoreTrial(trialCheck, trialStartMs);
-        if (!sameTrialWindow) {
-          console.log(`User ${userId} attempted repeat trial after previous trial ended - rejecting`);
-          throw new HttpsError(
-            'failed-precondition',
-            'You have already used your free trial. Please subscribe to continue using premium features.'
-          );
-        }
+        // Same Firebase account with a store-confirmed active trial. Google is
+        // authoritative for the current token phase; keep trial state until the
+        // store reports paid or expired instead of rejecting the purchase.
         const statusLabel = userHasActiveTrial(userData) ? 'existing' : 'store-confirmed';
         console.log(`User ${userId} validating ${statusLabel} trial - keeping trial status`);
         updateData.hasUsedTrial = true;

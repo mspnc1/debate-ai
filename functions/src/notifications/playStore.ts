@@ -39,18 +39,16 @@ export const handlePlayStoreNotification = onMessagePublished(
       const userData = userSnap.data();
       const isActive = !!(expiresAt && expiresAt.getTime() > Date.now());
       const existingTrialEndMs = getTimestampMillis(userData?.trialEndDate) ?? getTimestampMillis(userData?.trialEndsAt);
-      const knownExpiredTrial = userData?.hasUsedTrial === true
-        && existingTrialEndMs !== null
-        && existingTrialEndMs <= Date.now();
-      const preserveActiveTrial = isActive && userData?.hasUsedTrial === true
+      const storeReportsTrial = state?.inTrial === true;
+      const preserveActiveTrial = isActive && !storeReportsTrial && userData?.hasUsedTrial === true
         && existingTrialEndMs !== null
         && existingTrialEndMs > Date.now();
-      const inTrial = isActive && !knownExpiredTrial && (state?.inTrial === true || preserveActiveTrial);
+      const inTrial = isActive && (storeReportsTrial || preserveActiveTrial);
       const trialStartMs = state?.startTimeMillis
         ? parseInt(state.startTimeMillis, 10)
         : getTimestampMillis(userData?.trialStartDate);
       const trialEndMs = inTrial
-        ? (state?.inTrial === true && expiresAt ? expiresAt.getTime() : existingTrialEndMs)
+        ? (storeReportsTrial && expiresAt ? expiresAt.getTime() : existingTrialEndMs)
         : null;
       const updateData: Record<string, unknown> = {
         membershipStatus: isActive ? (inTrial ? 'trial' : 'premium') : 'demo',
