@@ -114,7 +114,10 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   const [refinementOriginalPrompt, setRefinementOriginalPrompt] = React.useState('');
   const [refinementOriginalProvider, setRefinementOriginalProvider] = React.useState<AIProvider>('openai');
   const [refinementMessageId, setRefinementMessageId] = React.useState<string | undefined>();
-  const { isDemo } = useFeatureAccess();
+  const { isDemo, canStartTrial } = useFeatureAccess();
+  const subscriptionUnlockMessage = canStartTrial
+    ? 'Start a free trial to unlock this feature.'
+    : 'Upgrade to Premium to unlock this feature.';
   const recordModeEnabled = useSelector((state: RootState) => state.settings.recordModeEnabled ?? false);
   const [isRecording, setIsRecording] = React.useState(false);
   const [topicPickerVisible, setTopicPickerVisible] = React.useState(false);
@@ -188,7 +191,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   // Handler for executing refinement
   const handleRefineImage = React.useCallback(async (opts: { instructions: string; provider: AIProvider; modelId: string }) => {
     if (isDemo) {
-      ErrorService.showInfo('Image refinement requires a subscription. Start a free trial to unlock this feature.', 'chat');
+      ErrorService.showInfo(`Image refinement requires a subscription. ${subscriptionUnlockMessage}`, 'chat');
       return;
     }
     setRefinementModalVisible(false);
@@ -282,7 +285,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         metadata: { providerMetadata: { imageGenerating: false, imagePhase: 'error' } },
       }));
     }
-  }, [isDemo, dispatch, refinementImageUri, refinementOriginalPrompt, refinementMessageId]);
+  }, [isDemo, dispatch, refinementImageUri, refinementOriginalPrompt, refinementMessageId, subscriptionUnlockMessage]);
 
   /* const handleGenerateVideo = async (opts: { prompt: string; resolution: '720p' | '1080p'; duration: 5 | 10 | 15 }) => {
     try {
@@ -572,7 +575,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
 
         {/* Demo Banner */}
         <DemoBanner
-          subtitle="Simulated chat preview. Start a free trial to chat for real."
+          subtitle={canStartTrial
+            ? 'Simulated chat preview. Start a free trial to chat for real.'
+            : 'Simulated chat preview. Upgrade to Premium to chat for real.'}
           onPress={() => dispatch(showSheet({ sheet: 'subscription' }))}
         />
 

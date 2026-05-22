@@ -42,7 +42,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const aiSelection = useAISelection(premium.maxAIs);
   const session = useSessionManagement();
   const quickStart = useQuickStart();
-  const { isDemo } = useFeatureAccess();
+  const { isDemo, canStartTrial } = useFeatureAccess();
   const dispatch = useDispatch();
   const [topicPickerVisible, setTopicPickerVisible] = React.useState(false);
   
@@ -96,7 +96,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
       {isDemo && (
         <DemoBanner
-          subtitle="Simulated chat preview. Start a free trial to chat for real."
+          subtitle={canStartTrial
+            ? 'Simulated chat preview. Start a free trial to chat for real.'
+            : 'Simulated chat preview. Upgrade to Premium to chat for real.'}
           onPress={() => dispatch(showSheet({ sheet: 'subscription' }))}
         />
       )}

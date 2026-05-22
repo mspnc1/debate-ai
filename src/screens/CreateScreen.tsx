@@ -594,7 +594,10 @@ export default function CreateScreen() {
   const gallery = useSelector(selectGallery);
   const isGenerating = useSelector(selectIsGenerating);
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
-  const { isDemo, loading: subscriptionLoading } = useFeatureAccess();
+  const { isDemo, canStartTrial, loading: subscriptionLoading } = useFeatureAccess();
+  const subscriptionUnlockMessage = canStartTrial
+    ? 'Start a free trial to unlock this feature.'
+    : 'Upgrade to Premium to unlock this feature.';
 
   const {
     selectedModels: storedSelectedModels = {},
@@ -750,7 +753,7 @@ export default function CreateScreen() {
   // Generate refinement for uploaded image
   const generateRefinement = useCallback(async () => {
     if (isDemo) {
-      ErrorService.showInfo('Image generation requires a subscription. Start a free trial to unlock this feature.', 'create');
+      ErrorService.showInfo(`Image generation requires a subscription. ${subscriptionUnlockMessage}`, 'create');
       return;
     }
     if (!sourceImage || !refinementInstructions || providers.length === 0) return;
@@ -820,11 +823,12 @@ export default function CreateScreen() {
     selectedSize,
     selectedQuality,
     dispatch,
+    subscriptionUnlockMessage,
   ]);
 
   const generateImages = useCallback(async () => {
     if (isDemo) {
-      ErrorService.showInfo('Image generation requires a subscription. Start a free trial to unlock this feature.', 'create');
+      ErrorService.showInfo(`Image generation requires a subscription. ${subscriptionUnlockMessage}`, 'create');
       return;
     }
     if (!initialPrompt) return;
@@ -927,11 +931,12 @@ export default function CreateScreen() {
     selectedQuality,
     sourceImage,
     dispatch,
+    subscriptionUnlockMessage,
   ]);
 
   const handleRefine = useCallback((imageId: string) => {
     if (isDemo) {
-      ErrorService.showInfo('Image refinement requires a subscription. Start a free trial to unlock this feature.', 'create');
+      ErrorService.showInfo(`Image refinement requires a subscription. ${subscriptionUnlockMessage}`, 'create');
       return;
     }
 
@@ -948,7 +953,7 @@ export default function CreateScreen() {
     }
 
     setRefiningImage(image);
-  }, [isDemo, gallery, availableRefinementProviders]);
+  }, [isDemo, gallery, availableRefinementProviders, subscriptionUnlockMessage]);
 
   const getResolvedGalleryImage = useCallback(async (imageId: string): Promise<GeneratedImageEntry | null> => {
     const image = gallery.find((entry) => entry.id === imageId);

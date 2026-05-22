@@ -480,6 +480,12 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
     expect(dispatchSpy).toHaveBeenCalledWith(showSheet({ sheet: 'subscription' }));
   });
 
+  it('does not show trial-start copy in the demo banner after the trial was used', () => {
+    renderHome({ featureAccess: { isDemo: true, canStartTrial: false } });
+
+    expect(mockDemoBannerProps.subtitle).toBe('Simulated chat preview. Upgrade to Premium to chat for real.');
+  });
+
   it('creates demo session from topic picker selection and closes modal', async () => {
     const selectedAIs = [createAIConfig({ id: 'anthropic', provider: 'anthropic' })];
     const session = { createSession: jest.fn().mockReturnValue('session-demo') };

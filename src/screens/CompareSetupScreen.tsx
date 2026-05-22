@@ -166,7 +166,9 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
       <TrialBanner />
       {access.isDemo && (
         <DemoBanner
-          subtitle="Sample comparisons only in Demo. Start a free trial for live comparisons."
+          subtitle={access.canStartTrial
+            ? 'Sample comparisons only in Demo. Start a free trial for live comparisons.'
+            : 'Sample comparisons only in Demo. Upgrade to Premium for live comparisons.'}
           onPress={() => dispatch(showSheet({ sheet: 'subscription' }))}
         />
       )}

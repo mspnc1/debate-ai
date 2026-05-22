@@ -109,6 +109,17 @@ const IAP_ERROR_MESSAGES: Record<string, string> = {
   '-1': 'Connection to the store was lost. Please try again.',  // SERVICE_DISCONNECTED
   '-2': 'This feature is not supported on your device.',  // FEATURE_NOT_SUPPORTED
   '-3': 'Network error. Please check your internet connection and try again.',  // NETWORK_ERROR
+  // react-native-iap/OpenIAP string error codes
+  'service-error': 'Google Play could not complete the purchase. Please check your Play Store sign-in and payment setup, then try again.',
+  'service-disconnected': 'Connection to Google Play was lost. Please try again.',
+  'network-error': 'Network error. Please check your internet connection and try again.',
+  'billing-unavailable': 'Google Play billing is not available. Please ensure Google Play services are up to date.',
+  'iap-not-available': 'Google Play billing is not available. Please ensure Google Play services are up to date.',
+  'item-unavailable': 'This subscription is not available for purchase at this time.',
+  'item-already-owned': 'You already have an active subscription. Tap "Restore Purchases" below to restore it.',
+  'item-not-owned': 'You do not own this item.',
+  'user-cancelled': 'Purchase was cancelled.',
+  'purchase-error': 'Google Play could not complete the purchase. Please check your Play Store sign-in and payment setup, then try again.',
 };
 
 /** User-friendly messages for Firebase validation errors */
@@ -127,37 +138,41 @@ function isStandardizedSubscriptionOffer(
 }
 
 function hasFreeTrialPhase(offer: ProductSubscriptionAndroidOfferDetails | SubscriptionOffer): boolean {
+  const hasZeroPricePhase = (phases?: PricingPhaseAndroid[] | null) =>
+    phases?.some((p) => String(p.priceAmountMicros) === '0') === true;
+
   if (isStandardizedSubscriptionOffer(offer)) {
     return offer.paymentMode === 'free-trial'
-      || offer.pricingPhasesAndroid?.pricingPhaseList?.some((p: PricingPhaseAndroid) => p.priceAmountMicros === '0') === true;
+      || hasZeroPricePhase(offer.pricingPhasesAndroid?.pricingPhaseList);
   }
 
-  return offer.pricingPhases.pricingPhaseList.some((p: PricingPhaseAndroid) => p.priceAmountMicros === '0');
+  return hasZeroPricePhase(offer.pricingPhases.pricingPhaseList);
 }
 
 function getAndroidSubscriptionOfferToken(
   product: ProductSubscriptionAndroid,
   includeTrialOffer: boolean
 ): string | null {
-  const selectOffer = <T extends ProductSubscriptionAndroidOfferDetails | SubscriptionOffer>(
-    offers: T[]
-  ): T | undefined => {
-    if (includeTrialOffer) {
-      return offers.find(hasFreeTrialPhase) ?? offers[0];
-    }
+  const candidates = [
+    ...(product.subscriptionOffers ?? [])
+      .filter((offer) => Boolean(offer.offerTokenAndroid))
+      .map((offer) => ({
+        token: offer.offerTokenAndroid as string,
+        hasFreeTrial: hasFreeTrialPhase(offer),
+      })),
+    ...(product.subscriptionOfferDetailsAndroid ?? [])
+      .filter((offer) => Boolean(offer.offerToken))
+      .map((offer) => ({
+        token: offer.offerToken,
+        hasFreeTrial: hasFreeTrialPhase(offer),
+      })),
+  ];
 
-    return offers.find((offer) => !hasFreeTrialPhase(offer));
-  };
-
-  const standardizedOffers = product.subscriptionOffers ?? [];
-  const standardizedOffer = selectOffer(standardizedOffers);
-  if (standardizedOffer?.offerTokenAndroid) {
-    return standardizedOffer.offerTokenAndroid;
+  if (includeTrialOffer) {
+    return candidates.find((offer) => offer.hasFreeTrial)?.token ?? candidates[0]?.token ?? null;
   }
 
-  const legacyOffers = product.subscriptionOfferDetailsAndroid ?? [];
-  const legacyOffer = selectOffer(legacyOffers);
-  return legacyOffer?.offerToken ?? null;
+  return candidates.find((offer) => !offer.hasFreeTrial)?.token ?? null;
 }
 
 /** Extract user-friendly message from Firebase function error */
@@ -524,7 +539,14 @@ export class PurchaseService {
       // Clear pending purchase flag on error
       this.pendingPurchaseSku = null;
 
-      const errorObj = error as { code?: string; message?: string; debugMessage?: string; responseCode?: number };
+      const errorObj = error as {
+        code?: string;
+        message?: string;
+        debugMessage?: string;
+        responseCode?: number;
+        name?: string;
+        stack?: string;
+      };
       // Handle both react-native-iap error codes and Google Play response codes
       const errorCode = errorObj?.code || (errorObj?.responseCode !== undefined ? String(errorObj.responseCode) : 'UNKNOWN');
       const errorMessage = errorObj?.message || errorObj?.debugMessage || 'Unknown error';
@@ -649,7 +671,14 @@ export class PurchaseService {
     const pendingSku = this.pendingPurchaseSku;
     this.pendingPurchaseSku = null;
 
-    const errorObj = error as { code?: string; message?: string; debugMessage?: string; responseCode?: number };
+    const errorObj = error as {
+      code?: string;
+      message?: string;
+      debugMessage?: string;
+      responseCode?: number;
+      name?: string;
+      stack?: string;
+    };
     const errorCode = errorObj?.code || (errorObj?.responseCode !== undefined ? String(errorObj.responseCode) : 'UNKNOWN');
     const errorMessage = errorObj?.message || errorObj?.debugMessage || 'Unknown error';
 
@@ -666,18 +695,21 @@ export class PurchaseService {
         responseCode: errorObj?.responseCode,
         debugMessage: errorObj?.debugMessage,
         rawErrorCode: errorObj?.code,
-        fullError: String(error),
+        errorName: errorObj?.name,
+        errorStack: errorObj?.stack,
+        fullError: JSON.stringify(Logger.redactValue('purchaseError', error)),
       });
     }
 
-    if (errorCode === 'E_USER_CANCELLED' || errorCode === 'USER_CANCELED' || errorCode === '1') {
+    if (['E_USER_CANCELLED', 'USER_CANCELED', 'user-cancelled', '1'].includes(errorCode)) {
       return;
     }
 
     const userMessage = IAP_ERROR_MESSAGES[errorCode]
       || (errorMessage && errorMessage !== 'Unknown error' ? errorMessage : null)
       || 'Purchase could not be completed. Please try again.';
-    this.notifyError(userMessage, true);
+    const canRestore = ['E_ALREADY_OWNED', 'ITEM_ALREADY_OWNED', 'item-already-owned', '7'].includes(errorCode);
+    this.notifyError(userMessage, canRestore);
   }
 
   private static async handlePurchaseUpdate(purchase: Purchase) {

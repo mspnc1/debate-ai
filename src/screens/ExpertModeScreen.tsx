@@ -22,7 +22,7 @@ const ExpertModeScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ na
   const dispatch = useDispatch();
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
   const expertMode = useSelector((state: RootState) => state.settings.expertMode || {});
-  const { isDemo } = useFeatureAccess();
+  const { isDemo, canStartTrial } = useFeatureAccess();
 
   const providersWithKeys = AI_PROVIDERS.filter(p => p.enabled && isApiKeyConfigured(apiKeys[p.id]));
   const [expanded, setExpanded] = useState<string | null>(providersWithKeys[0]?.id || null);
@@ -60,7 +60,9 @@ const ExpertModeScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ na
                 Expert Mode lets you fine-tune AI parameters like temperature, max tokens, and choose specific models for each provider.
               </Typography>
               <Typography variant="body" color="secondary" align="center" style={{ marginBottom: theme.spacing.xl }}>
-                Start a free trial or subscribe to unlock this feature.
+                {canStartTrial
+                  ? 'Start a free trial or subscribe to unlock this feature.'
+                  : 'Upgrade to Premium to unlock this feature.'}
               </Typography>
               <GradientButton
                 title="Unlock Expert Mode"

@@ -3,6 +3,8 @@ import { fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { DemoExplainerSheet } from '@/components/organisms/demo/DemoExplainerSheet';
 
+const mockUseFeatureAccess = jest.fn();
+
 // Mock expo-linear-gradient
 jest.mock('expo-linear-gradient', () => ({
   LinearGradient: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -57,12 +59,18 @@ jest.mock('@/components/organisms/subscription/UnlockEverythingBanner', () => {
   };
 });
 
+jest.mock('@/hooks/useFeatureAccess', () => ({
+  __esModule: true,
+  default: () => mockUseFeatureAccess(),
+}));
+
 describe('DemoExplainerSheet', () => {
   const mockOnClose = jest.fn();
   const mockOnStartTrial = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseFeatureAccess.mockReturnValue({ canStartTrial: true });
   });
 
   describe('Rendering', () => {
@@ -91,6 +99,15 @@ describe('DemoExplainerSheet', () => {
     it('renders the "Start 7-Day Free Trial" button', () => {
       const { getByText } = renderWithProviders(<DemoExplainerSheet onClose={mockOnClose} onStartTrial={mockOnStartTrial} />);
       expect(getByText('Start 7‑Day Free Trial')).toBeTruthy();
+    });
+
+    it('renders upgrade copy when the user cannot start another trial', () => {
+      mockUseFeatureAccess.mockReturnValue({ canStartTrial: false });
+
+      const { getByText, queryByText } = renderWithProviders(<DemoExplainerSheet onClose={mockOnClose} onStartTrial={mockOnStartTrial} />);
+
+      expect(getByText('Upgrade to Premium')).toBeTruthy();
+      expect(queryByText('Start 7‑Day Free Trial')).toBeNull();
     });
 
     it('renders the "Maybe later" button', () => {

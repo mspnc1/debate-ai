@@ -92,7 +92,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   const flow = useDebateFlow(session.orchestrator);
   const voting = useDebateVoting(session.orchestrator, selectedAIs);
   const messages = useDebateMessages(session.session?.startTime);
-  const { isDemo } = useFeatureAccess();
+  const { isDemo, canStartTrial } = useFeatureAccess();
   const { getPersonality: getMergedPersonality } = usePersonality();
 
   useEffect(() => {
@@ -403,7 +403,9 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
           style={{ flex: 1 }}
         >
           <DemoBanner
-            subtitle="Pre‑recorded debates only in Demo. Start a free trial to create custom debates."
+            subtitle={canStartTrial
+              ? 'Pre-recorded debates only in Demo. Start a free trial to create custom debates.'
+              : 'Pre-recorded debates only in Demo. Upgrade to Premium to create custom debates.'}
             onPress={() => dispatch(showSheet({ sheet: 'subscription' }))}
           />
           {isDemo && debateSamples.length > 0 && (

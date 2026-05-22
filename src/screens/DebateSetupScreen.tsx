@@ -362,7 +362,9 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
 
       {access.isDemo && (
         <DemoBanner
-          subtitle="Pre-recorded demo debates only. Start a trial for custom debates."
+          subtitle={access.canStartTrial
+            ? 'Pre-recorded demo debates only. Start a trial for custom debates.'
+            : 'Pre-recorded demo debates only. Upgrade to Premium for custom debates.'}
           onPress={() => dispatch(showSheet({ sheet: 'subscription' }))}
         />
       )}

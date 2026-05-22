@@ -84,7 +84,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
   const { theme } = useTheme();
   const { aiService, isInitialized } = useAIService();
   const dispatch = useDispatch();
-  const { isDemo } = useFeatureAccess();
+  const { isDemo, canStartTrial } = useFeatureAccess();
   const { getPersonality: getMergedPersonality } = usePersonality();
   
   // Get models and user status from Redux
@@ -1094,7 +1094,9 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
         >
           {isDemo && (
             <DemoBanner
-              subtitle="Sample comparisons only. Start a free trial for live runs."
+              subtitle={canStartTrial
+                ? 'Sample comparisons only. Start a free trial for live runs.'
+                : 'Sample comparisons only. Upgrade to Premium for live runs.'}
               onPress={() => dispatch(showSheet({ sheet: 'subscription' }))}
             />
           )}

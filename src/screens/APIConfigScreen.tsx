@@ -35,7 +35,7 @@ interface APIConfigScreenProps {
 const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
   const dispatch = useDispatch();
   const { theme } = useTheme();
-  const { isDemo } = useFeatureAccess();
+  const { isDemo, canStartTrial } = useFeatureAccess();
   // Custom hooks
   const { apiKeys, clearAll } = useAPIKeys();
   const { clearAllVerifications } = useProviderVerification();
@@ -169,7 +169,9 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
                   API Configuration lets you connect your own keys for {enabledProviders.length} supported AI providers, including chat, image, video, and audio services. You pay only for provider usage and get access to current models.
                 </Typography>
                 <Typography variant="body" color="secondary" align="center" style={{ marginBottom: theme.spacing.xl }}>
-                  Start a free trial or subscribe to unlock this feature.
+                  {canStartTrial
+                    ? 'Start a free trial or subscribe to unlock this feature.'
+                    : 'Upgrade to Premium to unlock this feature.'}
                 </Typography>
                 <GradientButton
                   title="Unlock API Configuration"

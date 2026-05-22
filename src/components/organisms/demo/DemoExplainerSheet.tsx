@@ -4,6 +4,7 @@ import { Typography, Button, GradientButton } from '@/components/molecules';
 import { useTheme } from '@/theme';
 import { Header } from '@/components/organisms';
 import { UnlockEverythingBanner } from '@/components/organisms/subscription/UnlockEverythingBanner';
+import useFeatureAccess from '@/hooks/useFeatureAccess';
 
 interface DemoExplainerSheetProps {
   onClose: () => void;
@@ -12,6 +13,12 @@ interface DemoExplainerSheetProps {
 
 export const DemoExplainerSheet: React.FC<DemoExplainerSheetProps> = ({ onClose, onStartTrial }) => {
   const { theme } = useTheme();
+  const { canStartTrial } = useFeatureAccess();
+  const bodyCopy = canStartTrial
+    ? 'Explore pre‑recorded chats, debates, and comparisons that mimic live streaming. To use real providers with your own keys and unlock all features, start a free 7‑day trial.'
+    : 'Explore pre‑recorded chats, debates, and comparisons that mimic live streaming. To use real providers with your own keys and unlock all features, upgrade to Premium.';
+  const ctaText = canStartTrial ? 'Start 7‑Day Free Trial' : 'Upgrade to Premium';
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}> 
       <Header
@@ -26,13 +33,13 @@ export const DemoExplainerSheet: React.FC<DemoExplainerSheetProps> = ({ onClose,
       />
       <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
         <Typography variant="body" color="secondary" style={{ marginBottom: 16 }}>
-          Explore pre‑recorded chats, debates, and comparisons that mimic live streaming. To use real providers with your own keys and unlock all features, start a free 7‑day trial.
+          {bodyCopy}
         </Typography>
 
         <UnlockEverythingBanner />
 
         <GradientButton
-          title="Start 7‑Day Free Trial"
+          title={ctaText}
           onPress={onStartTrial}
           gradient={theme.colors.gradients.primary}
           fullWidth
