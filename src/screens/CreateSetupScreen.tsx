@@ -495,14 +495,16 @@ export default function CreateSetupScreen() {
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const submittedPrompt = videoPrompt;
     try {
       await dispatch(generateCreateVideo({
-        prompt: videoPrompt,
+        prompt: submittedPrompt,
         modelId: videoModelId,
         durationSeconds: videoDuration,
         aspectRatio: videoAspectRatio,
         sourceImageUri: videoSourceUri,
       })).unwrap();
+      setVideoPrompt((draftPrompt) => draftPrompt === submittedPrompt ? '' : draftPrompt);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -530,9 +532,10 @@ export default function CreateSetupScreen() {
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const submittedPrompt = audioPrompt;
     try {
       await dispatch(generateCreateAudio({
-        prompt: audioPrompt,
+        prompt: submittedPrompt,
         operation: audioOperation,
         modelId: activeAudioModelId,
         voiceId: audioOperation === 'text_to_speech' ? audioVoiceId : undefined,
@@ -540,6 +543,7 @@ export default function CreateSetupScreen() {
         durationSeconds: audioOperation === 'sound_effect' ? audioDuration : undefined,
         promptInfluence: audioOperation === 'sound_effect' ? promptInfluence : undefined,
       })).unwrap();
+      setAudioPrompt((draftPrompt) => draftPrompt === submittedPrompt ? '' : draftPrompt);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

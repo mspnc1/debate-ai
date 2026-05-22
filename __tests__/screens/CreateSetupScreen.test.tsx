@@ -697,6 +697,9 @@ describe('CreateSetupScreen', () => {
 
       await waitFor(() => expect(getByText('Narrator A')).toBeTruthy());
       fireEvent.changeText(getByTestId('create-audio-prompt-input'), 'Read this line');
+      await waitFor(() => {
+        expect(getByTestId('create-audio-prompt-input').props.value).toBe('Read this line');
+      });
 
       fireEvent.press(getByTestId('create-audio-settings-toggle'));
       fireEvent.press(getByTestId('create-audio-model-selector'));
@@ -718,6 +721,63 @@ describe('CreateSetupScreen', () => {
           promptInfluence: undefined,
         },
       }));
+    });
+
+    it('clears the audio prompt after successful generation', async () => {
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          settings: {
+            ...baseState.settings,
+            apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
+          },
+          create: {
+            ...baseState.create,
+            activeTab: 'audio',
+          },
+        })
+      );
+
+      const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
+
+      fireEvent.changeText(getByTestId('create-audio-prompt-input'), 'Read this line');
+      await waitFor(() => {
+        expect(getByTestId('create-audio-prompt-input').props.value).toBe('Read this line');
+      });
+      fireEvent.press(getByTestId('gradient-button'));
+
+      await waitFor(() => {
+        expect(getByTestId('create-audio-prompt-input').props.value).toBe('');
+      });
+    });
+
+    it('clears the video prompt after successful generation', async () => {
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          settings: {
+            ...baseState.settings,
+            apiKeys: { ...baseState.settings.apiKeys, runway: 'runway-key' },
+            verifiedProviders: [...baseState.settings.verifiedProviders, 'runway'],
+          },
+          create: {
+            ...baseState.create,
+            activeTab: 'video',
+          },
+        })
+      );
+
+      const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
+
+      fireEvent.changeText(getByTestId('create-video-prompt-input'), 'A city timelapse');
+      await waitFor(() => {
+        expect(getByTestId('create-video-prompt-input').props.value).toBe('A city timelapse');
+      });
+      fireEvent.press(getByTestId('gradient-button'));
+
+      await waitFor(() => {
+        expect(getByTestId('create-video-prompt-input').props.value).toBe('');
+      });
     });
 
     it('shows the sticky video running rail from media generation state', () => {
