@@ -40,6 +40,7 @@ export const DebateTopicSelector: React.FC<DebateTopicSelectorProps> = ({
   const { theme, isDark } = useTheme();
   const [presetVisible, setPresetVisible] = useState(false);
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
+  const hasInlineContent = Boolean((selectedTopic && topicMode !== 'custom') || topicMode === 'custom');
 
   const motionSuggestion = useMemo(() => {
     if (topicMode !== 'custom') return null;
@@ -73,7 +74,7 @@ export const DebateTopicSelector: React.FC<DebateTopicSelectorProps> = ({
       )}
       
       {/* Motion action buttons: Preset | Custom | Surprise */}
-      <View style={{ marginBottom: compact ? theme.spacing.lg : theme.spacing.xl }}>
+      <View style={{ marginBottom: hasInlineContent ? (compact ? theme.spacing.md : theme.spacing.xl) : 0 }}>
         <View style={{ flexDirection: 'row', marginBottom: theme.spacing.sm, gap: theme.spacing.sm }}>
           <Button
             title="Preset Motions"
@@ -101,7 +102,7 @@ export const DebateTopicSelector: React.FC<DebateTopicSelectorProps> = ({
       </View>
       
       {/* Content Area - Changes based on selection */}
-      <Animated.View layout={Layout.duration(300)} style={{ minHeight: compact ? 120 : 200 }}>
+      <Animated.View layout={Layout.duration(300)} style={{ minHeight: compact ? 0 : 200 }}>
         {/* Preset topics now live in a modal; inline list removed */}
 
         {/* Unified selected motion display (for preset or surprise) */}
@@ -111,7 +112,7 @@ export const DebateTopicSelector: React.FC<DebateTopicSelectorProps> = ({
             exiting={FadeOut.duration(200)}
             style={{ marginBottom: compact ? theme.spacing.lg : theme.spacing.xl }}
           >
-            <Card shadow padding="large" margin="none" style={{
+            <Card shadow padding={compact ? 'medium' : 'large'} margin="none" style={{
               backgroundColor: isDark ? theme.colors.overlays.medium : theme.colors.primary[50],
               borderColor: isDark ? theme.colors.primary[400] : theme.colors.primary[200],
               borderWidth: 1,

@@ -35,7 +35,7 @@ const TermsOfServiceScreen: React.FC<TermsOfServiceScreenProps> = ({ navigation 
   }, [openTerms]);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['left', 'right', 'bottom']}>
       <Header
         variant="gradient"
         title="Terms of Service"
@@ -68,4 +68,3 @@ const TermsOfServiceScreen: React.FC<TermsOfServiceScreenProps> = ({ navigation 
 };
 
 export default TermsOfServiceScreen;
-

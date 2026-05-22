@@ -15,6 +15,7 @@ interface DebateStepIndicatorProps {
   completedSteps: DebateStep[];
   isPremium: boolean;
   showPersonalityStep?: boolean;
+  compact?: boolean;
 }
 
 interface StepInfo {
@@ -29,8 +30,11 @@ export const DebateStepIndicator: React.FC<DebateStepIndicatorProps> = ({
   completedSteps,
   isPremium,
   showPersonalityStep = true,
+  compact = false,
 }) => {
   const { theme } = useTheme();
+  const circleSize = compact ? 28 : 36;
+  const progressHeight = compact ? 3 : 4;
 
   const steps: StepInfo[] = [
     {
@@ -62,18 +66,18 @@ export const DebateStepIndicator: React.FC<DebateStepIndicatorProps> = ({
   return (
     <View style={{
       backgroundColor: theme.colors.surface,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.md,
-      marginBottom: theme.spacing.lg,
+      borderRadius: theme.borderRadius.md,
+      padding: compact ? theme.spacing.sm : theme.spacing.md,
+      marginBottom: compact ? theme.spacing.sm : theme.spacing.lg,
       borderWidth: 1,
       borderColor: theme.colors.border,
     }}>
       {/* Progress Bar */}
       <View style={{
-        height: 4,
+        height: progressHeight,
         backgroundColor: theme.colors.border,
-        borderRadius: 2,
-        marginBottom: theme.spacing.md,
+        borderRadius: progressHeight / 2,
+        marginBottom: compact ? 6 : theme.spacing.md,
         overflow: 'hidden',
       }}>
         <View style={{
@@ -132,22 +136,22 @@ export const DebateStepIndicator: React.FC<DebateStepIndicatorProps> = ({
             >
               {/* Step Circle */}
               <View style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
+                width: circleSize,
+                height: circleSize,
+                borderRadius: circleSize / 2,
                 backgroundColor: getStepBackgroundColor(),
                 borderWidth: 2,
                 borderColor: getStepColor(),
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginBottom: theme.spacing.xs,
+                marginBottom: compact ? 2 : theme.spacing.xs,
               }}>
                 {isCompleted ? (
                   <Typography variant="body" style={{ color: getStepColor() }}>
                     ✓
                   </Typography>
                 ) : (
-                  <Typography variant="body" style={{ fontSize: 16 }}>
+                  <Typography variant="body" style={{ fontSize: compact ? 14 : 16 }}>
                     {step.icon}
                   </Typography>
                 )}
@@ -167,17 +171,19 @@ export const DebateStepIndicator: React.FC<DebateStepIndicatorProps> = ({
               </Typography>
 
               {/* Step Description */}
-              <Typography
-                variant="caption"
-                align="center"
-                style={{
-                  color: theme.colors.text.secondary,
-                  fontSize: 10,
-                  lineHeight: 12,
-                }}
-              >
-                {step.description}
-              </Typography>
+              {!compact && (
+                <Typography
+                  variant="caption"
+                  align="center"
+                  style={{
+                    color: theme.colors.text.secondary,
+                    fontSize: 10,
+                    lineHeight: 12,
+                  }}
+                >
+                  {step.description}
+                </Typography>
+              )}
             </View>
           );
         })}

@@ -80,7 +80,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   return (
     <SafeAreaView 
       style={{ flex: 1, backgroundColor: theme.colors.background }}
-      edges={['top', 'left', 'right']}>
+      edges={['left', 'right']}>
       <Header
         variant="gradient"
         title={greeting.timeBasedGreeting}

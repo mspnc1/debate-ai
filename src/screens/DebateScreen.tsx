@@ -534,7 +534,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     <SafeAreaView style={{
       flex: 1,
       backgroundColor: theme.colors.background,
-    }}>
+    }} edges={['left', 'right', 'bottom']}>
       {(() => {
       return (
         <Header

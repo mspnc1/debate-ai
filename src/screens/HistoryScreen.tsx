@@ -250,7 +250,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
   // Handle loading state
   if (isLoading) {
     return (
-      <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <SafeAreaView edges={['left', 'right']} style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <ErrorBoundary>
           <Box style={{ flex: 1, backgroundColor: theme.colors.background }}>
             {/* Header with greeting while loading */}
@@ -436,7 +436,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <SafeAreaView edges={['left', 'right']} style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <ErrorBoundary>
         <Box style={{ flex: 1, backgroundColor: theme.colors.background }}>
           {/* Header with dynamic greeting */}

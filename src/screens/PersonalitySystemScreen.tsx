@@ -166,7 +166,7 @@ export default function PersonalitySystemScreen() {
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
-      edges={['top']}
+      edges={['left', 'right']}
     >
       {/* Header */}
       <Header

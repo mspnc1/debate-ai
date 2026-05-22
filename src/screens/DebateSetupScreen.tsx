@@ -347,7 +347,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   };
   
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['left', 'right']}>
       <Header
         variant="gradient"
         title={greeting.timeBasedGreeting}
@@ -357,40 +357,35 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
         animated={true}
         rightElement={<HeaderActions variant="gradient" helpTopicId="debate-formats" />}
         showDemoBadge={access.isDemo}
-        actionButton={{
-          label: '📊 Stats',
-          onPress: () => navigation.navigate('Stats'),
-          variant: 'ghost'
-        }}
       />
       <TrialBanner />
 
       {access.isDemo && (
         <DemoBanner
-          subtitle="Pre‑recorded debates only in Demo. Start a free trial to create custom debates."
+          subtitle="Pre-recorded demo debates only. Start a trial for custom debates."
           onPress={() => dispatch(showSheet({ sheet: 'subscription' }))}
         />
       )}
-      
-      {/* Stats Button now provided via Header.actionButton to avoid overlay collisions */}
       
       <ScrollView
         ref={scrollViewRef}
         style={{ flex: 1 }}
         contentContainerStyle={{
-          padding: rs('lg'),
-          paddingBottom: rs('xl') * 2,
+          paddingHorizontal: rs('lg'),
+          paddingTop: rs('sm'),
+          paddingBottom: rs('xl') * 3,
         }}
         showsVerticalScrollIndicator={false}
       >
         <ResponsiveContainer maxWidth="lg" center>
           {/* Step Indicator */}
           <DebateStepIndicator
-          currentStep={currentStep}
-          completedSteps={currentStep === 'ai' ? ['topic'] : currentStep === 'personality' ? ['topic', 'ai'] : []}
-          isPremium={access.isPremium || access.isInTrial}
-          showPersonalityStep={!access.isDemo}
-        />
+            currentStep={currentStep}
+            completedSteps={currentStep === 'ai' ? ['topic'] : currentStep === 'personality' ? ['topic', 'ai'] : []}
+            isPremium={access.isPremium || access.isInTrial}
+            showPersonalityStep={!access.isDemo}
+            compact
+          />
 
         {/* Warning: Insufficient AIs configured (non-blocking inline card) */}
         {!validation.isReady && (
@@ -418,8 +413,8 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
         {currentStep === 'topic' && (
           <>
             {/* Topic card first */}
-            <Card shadow style={{ marginTop: theme.spacing.sm, marginBottom: theme.spacing.xl }}>
-              <Box style={{ marginBottom: theme.spacing.md }}>
+            <Card shadow style={{ marginBottom: theme.spacing.md }}>
+              <Box style={{ marginBottom: theme.spacing.sm }}>
                 <Typography variant="subtitle" weight="semibold" style={{ marginBottom: 4 }}>
                   💭 Choose Your Motion
                 </Typography>
@@ -445,19 +440,28 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
             </Card>
 
             {/* Debate Configuration card second */}
-            <Card shadow style={{ marginBottom: theme.spacing.xl }}>
+            <Card shadow style={{ marginBottom: theme.spacing.lg }}>
               {/* Header */}
-              <Box style={{ marginBottom: theme.spacing.md }}>
-                <Typography variant="subtitle" weight="semibold" style={{ marginBottom: 4 }}>
-                  ⚙️ Debate Configuration
-                </Typography>
-                <Typography variant="caption" color="secondary">
-                  Choose format and rounds
-                </Typography>
+              <Box style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
+                <Box style={{ flex: 1 }}>
+                  <Typography variant="subtitle" weight="semibold" style={{ marginBottom: 4 }}>
+                    ⚙️ Debate Configuration
+                  </Typography>
+                  <Typography variant="caption" color="secondary">
+                    Choose format and rounds
+                  </Typography>
+                </Box>
+                <Button
+                  title="📊 Stats"
+                  onPress={() => navigation.navigate('Stats')}
+                  variant="ghost"
+                  size="small"
+                  style={{ minHeight: 36 }}
+                />
               </Box>
 
               {/* Format row */}
-              <Box style={{ marginBottom: theme.spacing.md }}>
+              <Box style={{ marginBottom: theme.spacing.sm }}>
                 <Box style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: theme.spacing.xs }}>
                   <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Typography variant="body" weight="semibold">Format</Typography>

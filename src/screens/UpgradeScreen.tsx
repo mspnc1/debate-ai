@@ -158,7 +158,7 @@ export default function UpgradeScreen() {
 
   return (
     <Box style={{ flex: 1 }} backgroundColor="background">
-      <SafeAreaView style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1 }} edges={['left', 'right', 'bottom']}>
         <Header
           variant="gradient"
           title={getTitle()}

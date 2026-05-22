@@ -75,6 +75,7 @@
       ],
       "@react-native-firebase/crashlytics",
       "./plugins/withPlayStoreIAP",
+      "./plugins/withEdgeToEdgeSystemBars",
       "./plugins/withFirebaseClang",
       "expo-video",
       "expo-audio"

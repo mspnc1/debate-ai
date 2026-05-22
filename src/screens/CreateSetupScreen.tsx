@@ -1445,7 +1445,7 @@ export default function CreateSetupScreen() {
     return (
       <SafeAreaView
         style={[styles.container, { backgroundColor: theme.colors.background }]}
-        edges={['top', 'left', 'right']}
+        edges={['left', 'right']}
       >
         <Header
           variant="gradient"
@@ -1483,7 +1483,7 @@ export default function CreateSetupScreen() {
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
-      edges={['top', 'left', 'right']}
+      edges={['left', 'right']}
     >
       <Header
         variant="gradient"

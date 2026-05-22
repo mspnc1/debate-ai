@@ -1005,7 +1005,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     >
       <SafeAreaView 
         style={[styles.container, { backgroundColor: theme.colors.background }]}
-        edges={['top', 'left', 'right', 'bottom']}
+        edges={['left', 'right', 'bottom']}
       >
         <Header
           variant="gradient"

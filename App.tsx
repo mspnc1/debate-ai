@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { LogBox, Platform } from 'react-native';
+import { LogBox, Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Device from 'expo-device';
 
@@ -15,7 +15,7 @@ import { settingsService } from './src/services/settings/SettingsService';
 import AppNavigator from './src/navigation/AppNavigator';
 import { AIServiceProvider } from './src/providers/AIServiceProvider';
 import { CitationPreviewProvider } from './src/providers/CitationPreviewProvider';
-import { ThemeProvider } from './src/theme';
+import { ThemeProvider, useTheme } from './src/theme';
 import secureStorage from './src/services/secureStorage';
 import VerificationPersistenceService from './src/services/VerificationPersistenceService';
 import { StatsPersistenceService } from './src/services/stats';
@@ -262,17 +262,27 @@ function AppContent() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <PersonalityProvider>
-          <CitationPreviewProvider>
-            <AIServiceProvider>
-              <AppNavigator />
-              <ToastContainer />
-              <StatusBar style="auto" />
-            </AIServiceProvider>
-          </CitationPreviewProvider>
-        </PersonalityProvider>
+        <ThemedAppSurface />
       </ThemeProvider>
     </SafeAreaProvider>
+  );
+}
+
+function ThemedAppSurface() {
+  const { theme } = useTheme();
+
+  return (
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <PersonalityProvider>
+        <CitationPreviewProvider>
+          <AIServiceProvider>
+            <AppNavigator />
+            <ToastContainer />
+            <StatusBar style="light" />
+          </AIServiceProvider>
+        </CitationPreviewProvider>
+      </PersonalityProvider>
+    </View>
   );
 }
 

@@ -168,6 +168,7 @@ export interface HeaderProps {
 
 // Base header heights - will be scaled for tablets
 export const HEADER_HEIGHT = 65;
+const PHONE_GRADIENT_HEIGHT = 104;
 const COMPACT_HEIGHT = 50;
 const TABLET_COMPACT_HEIGHT = 60;
 
@@ -183,7 +184,7 @@ const TABLET_LANDSCAPE_HEIGHT_RATIO = 0.15; // 15% for landscape (shorter screen
  * Uses proportional scaling for tablets to handle iPad Air vs iPad Pro differences.
  */
 const getGradientHeaderHeight = (isTablet: boolean, screenHeight: number, isLandscape: boolean = false): number => {
-  if (!isTablet) return HEADER_HEIGHT; // 65px for phones - unchanged
+  if (!isTablet) return PHONE_GRADIENT_HEIGHT;
 
   // In landscape, use a higher ratio and minimum since screen height is shorter
   const ratio = isLandscape ? TABLET_LANDSCAPE_HEIGHT_RATIO : TABLET_GRADIENT_HEIGHT_RATIO;
@@ -385,7 +386,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
   
   const variantStyles = getVariantStyles();
-  const styles = createStyles(theme, totalHeight, headerHeight, variant === 'centered', isTablet);
+  const styles = createStyles(theme, totalHeight, headerHeight, insets.top, variant === 'centered', isTablet);
   
   // Animated props for subtle accent opacity
   const pulseProps = useAnimatedProps(() => ({
@@ -753,6 +754,7 @@ export const Header: React.FC<HeaderProps> = ({
   const demoBadgeBottom = actionButton
     ? (isTabletLandscape ? 52 : 40)  // Above action button
     : (isTabletLandscape ? 16 : 10); // Standalone
+  const headerActionsTop = Math.max(theme.spacing.xs, insets.top - theme.spacing.xs);
 
   return (
     <Box 
@@ -788,7 +790,7 @@ export const Header: React.FC<HeaderProps> = ({
           
           {/* Top right container for HeaderActions - positioned absolutely OUTSIDE main content */}
           {rightElement && (
-            <View style={[styles.headerTopRightContainer, { top: 0, right: 0 }]}>
+            <View style={[styles.headerTopRightContainer, { top: headerActionsTop, right: 0 }]}>
               {rightElement}
             </View>
           )}
@@ -837,6 +839,7 @@ const createStyles = (
   theme: Theme,
   totalHeight: number,
   headerHeight: number,
+  topInset: number,
   _centered?: boolean,
   isTablet?: boolean
 ) => StyleSheet.create({
@@ -896,11 +899,11 @@ const createStyles = (
   // Gradient variant specific styles (from GradientHeader)
   gradientContentContainer: {
     paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.xs,  // 4px
-    paddingTop: theme.spacing.xs,     // 4px
+    paddingBottom: theme.spacing.md,
+    paddingTop: topInset + theme.spacing.xs,
     zIndex: 10,
     flex: 1,
-    justifyContent: 'center',  // Vertically center content within header
+    justifyContent: 'center',
   },
   geometryContainer: {
     position: 'absolute',
@@ -998,7 +1001,7 @@ const createStyles = (
     alignItems: 'flex-start',
     zIndex: 10,  // Lower than headerTopRightContainer
     minHeight: 0,
-    // No extra paddingTop - container padding handles spacing
+    transform: [{ translateY: isTablet ? theme.spacing.xs : 6 }],
   },
   gradientTitleWrapper: {
     width: '100%',

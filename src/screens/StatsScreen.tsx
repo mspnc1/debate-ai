@@ -37,7 +37,7 @@ const StatsScreen: React.FC<StatsScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['left', 'right']}>
       {/* Header with back button */}
       <Header
         variant="gradient"

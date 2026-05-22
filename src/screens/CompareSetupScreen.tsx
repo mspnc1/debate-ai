@@ -151,7 +151,7 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
   return (
     <SafeAreaView 
       style={{ flex: 1, backgroundColor: theme.colors.background }}
-      edges={['top', 'left', 'right']}
+      edges={['left', 'right']}
     >
       <Header
         variant="gradient"
