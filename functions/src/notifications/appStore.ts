@@ -5,6 +5,7 @@ import {
   Environment,
   ResponseBodyV2DecodedPayload,
   JWSTransactionDecodedPayload,
+  OfferType,
 } from '@apple/app-store-server-library';
 
 // App configuration
@@ -114,18 +115,24 @@ export const handleAppStoreNotification = functions.https.onRequest(async (req, 
 
     const expiresAt = new Date(expiresDate);
     const isActive = expiresAt.getTime() > Date.now();
-    const newStatus = isActive ? 'premium' : 'demo';
+    const inTrial = isActive && transaction.offerType === OfferType.INTRODUCTORY_OFFER;
+    const newStatus = isActive ? (inTrial ? 'trial' : 'premium') : 'demo';
 
     console.log(`Updating user ${userId}: membershipStatus=${newStatus}, expiresAt=${expiresAt.toISOString()}`);
 
-    await admin.firestore().collection('users').doc(userId).set({
+    const updateData: Record<string, unknown> = {
       membershipStatus: newStatus,
       isPremium: isActive,
       subscriptionSource: 'apple_iap',
       subscriptionExpiryDate: admin.firestore.Timestamp.fromDate(expiresAt),
+      trialEndDate: inTrial ? admin.firestore.Timestamp.fromDate(expiresAt) : null,
       productId: productId && productId.includes('annual') ? 'annual' : 'monthly',
       lastValidated: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
+    };
+    if (inTrial) {
+      updateData.hasUsedTrial = true;
+    }
+    await admin.firestore().collection('users').doc(userId).set(updateData, { merge: true });
 
     console.log(`Successfully updated user ${userId} to ${newStatus}`);
     res.status(200).send('OK');

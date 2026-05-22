@@ -6,7 +6,9 @@ const PACKAGE_NAME_ANDROID = 'com.braveheartinnovations.debateai';
 
 type AndroidSubscriptionState = {
   expiryTimeMillis?: string;
+  startTimeMillis?: string;
   autoRenewing?: boolean;
+  inTrial?: boolean;
 };
 
 export const handlePlayStoreNotification = onMessagePublished(
@@ -33,15 +35,24 @@ export const handlePlayStoreNotification = onMessagePublished(
 
       // Update user doc
       const isActive = !!(expiresAt && expiresAt.getTime() > Date.now());
-      await admin.firestore().collection('users').doc(userId).set({
-        membershipStatus: isActive ? 'premium' : 'demo',
+      const inTrial = isActive && state?.inTrial === true;
+      const updateData: Record<string, unknown> = {
+        membershipStatus: isActive ? (inTrial ? 'trial' : 'premium') : 'demo',
         isPremium: isActive,
         subscriptionSource: 'google_play',
         subscriptionExpiryDate: expiresAt ? admin.firestore.Timestamp.fromDate(expiresAt) : null,
+        trialStartDate: inTrial && state?.startTimeMillis
+          ? admin.firestore.Timestamp.fromDate(new Date(parseInt(state.startTimeMillis, 10)))
+          : null,
+        trialEndDate: inTrial && expiresAt ? admin.firestore.Timestamp.fromDate(expiresAt) : null,
         autoRenewing,
         productId: subscriptionId.includes('annual') ? 'annual' : 'monthly',
         lastValidated: admin.firestore.FieldValue.serverTimestamp(),
-      }, { merge: true });
+      };
+      if (inTrial) {
+        updateData.hasUsedTrial = true;
+      }
+      await admin.firestore().collection('users').doc(userId).set(updateData, { merge: true });
     } catch (e) {
       console.error('handlePlayStoreNotification error', e);
     }
@@ -97,6 +108,8 @@ async function validateAndroidSubscription(
 
   return {
     expiryTimeMillis: parseAndroidTimestampMillis(lineItem?.expiryTime),
+    startTimeMillis: parseAndroidTimestampMillis(purchase.startTime),
     autoRenewing: lineItem?.autoRenewingPlan?.autoRenewEnabled ?? false,
+    inTrial: lineItem?.offerPhase?.freeTrial !== undefined,
   };
 }

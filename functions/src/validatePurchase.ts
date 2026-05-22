@@ -356,17 +356,13 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
           console.log(`User ${userId} re-validating existing trial - keeping trial status`);
           updateData.hasUsedTrial = true;
         } else {
-          // Same account has already consumed and left trial. If Google reports a
-          // trial phase from a stale offer token, store the entitlement as premium
-          // so the app does not briefly regress to trial copy/state.
-          console.log(`User ${userId} already used trial - treating purchase as premium`);
-          inTrial = false;
-          trialStart = null;
-          trialEnd = null;
-          updateData.membershipStatus = 'premium';
-          updateData.trialStartDate = null;
-          updateData.trialEndDate = null;
-          updateData.hasUsedTrial = true;
+          // Same account has already consumed and left trial. A store-reported
+          // trial phase must never be converted into premium access.
+          console.log(`User ${userId} attempted repeat trial after previous trial ended - rejecting`);
+          throw new HttpsError(
+            'failed-precondition',
+            'You have already used your free trial. Please subscribe to continue using premium features.'
+          );
         }
       } else {
         // First time using trial - record it for future tracking
