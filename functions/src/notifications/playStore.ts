@@ -3,7 +3,6 @@ import * as admin from 'firebase-admin';
 import { google, androidpublisher_v3 } from 'googleapis';
 
 const PACKAGE_NAME_ANDROID = 'com.braveheartinnovations.debateai';
-const MAX_ANDROID_TRIAL_DURATION_MS = 14 * 24 * 60 * 60 * 1000;
 
 type AndroidSubscriptionState = {
   expiryTimeMillis?: string;
@@ -40,10 +39,13 @@ export const handlePlayStoreNotification = onMessagePublished(
       const userData = userSnap.data();
       const isActive = !!(expiresAt && expiresAt.getTime() > Date.now());
       const existingTrialEndMs = getTimestampMillis(userData?.trialEndDate) ?? getTimestampMillis(userData?.trialEndsAt);
+      const knownExpiredTrial = userData?.hasUsedTrial === true
+        && existingTrialEndMs !== null
+        && existingTrialEndMs <= Date.now();
       const preserveActiveTrial = isActive && userData?.hasUsedTrial === true
         && existingTrialEndMs !== null
         && existingTrialEndMs > Date.now();
-      const inTrial = isActive && (state?.inTrial === true || preserveActiveTrial);
+      const inTrial = isActive && !knownExpiredTrial && (state?.inTrial === true || preserveActiveTrial);
       const trialStartMs = state?.startTimeMillis
         ? parseInt(state.startTimeMillis, 10)
         : getTimestampMillis(userData?.trialStartDate);
@@ -106,12 +108,6 @@ function getTimestampMillis(value: unknown): number | null {
   return null;
 }
 
-function isLikelyAndroidTrialWindow(startMs: number | null, expiryMs: number | null): boolean {
-  if (startMs === null || expiryMs === null) return false;
-  const durationMs = expiryMs - startMs;
-  return durationMs > 0 && durationMs <= MAX_ANDROID_TRIAL_DURATION_MS;
-}
-
 function getLatestSubscriptionLineItem(
   lineItems: androidpublisher_v3.Schema$SubscriptionPurchaseLineItem[] | undefined,
   subscriptionId: string
@@ -145,15 +141,12 @@ async function validateAndroidSubscription(
   const lineItem = getLatestSubscriptionLineItem(purchase.lineItems, subscriptionId);
   const expiryTimeMillis = parseAndroidTimestampMillis(lineItem?.expiryTime);
   const startTimeMillis = parseAndroidTimestampMillis(purchase.startTime);
-  const expiryMs = expiryTimeMillis ? parseInt(expiryTimeMillis, 10) : null;
-  const startMs = startTimeMillis ? parseInt(startTimeMillis, 10) : null;
   const hasFreeTrialPhase = lineItem?.offerPhase?.freeTrial !== undefined;
-  const hasShortInitialWindow = isLikelyAndroidTrialWindow(startMs, expiryMs);
 
   return {
     expiryTimeMillis,
     startTimeMillis,
     autoRenewing: lineItem?.autoRenewingPlan?.autoRenewEnabled ?? false,
-    inTrial: hasFreeTrialPhase || hasShortInitialWindow,
+    inTrial: hasFreeTrialPhase,
   };
 }

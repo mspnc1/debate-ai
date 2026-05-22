@@ -27,7 +27,7 @@ type AndroidSubscriptionState = {
   startTimeMillis?: string;
   autoRenewing?: boolean;
   paymentState?: number;
-  trialSignal?: 'offer_phase' | 'short_initial_window' | 'none';
+  trialSignal?: 'offer_phase' | 'none';
   productId?: string;
   basePlanId?: string;
 };
@@ -52,7 +52,6 @@ const LIFETIME_PRODUCT_IDS = [
   'premium_lifetime', // Android
 ];
 
-const MAX_ANDROID_TRIAL_DURATION_MS = 14 * 24 * 60 * 60 * 1000;
 const TRIAL_HISTORY_MATCH_TOLERANCE_MS = 24 * 60 * 60 * 1000;
 
 /**
@@ -82,12 +81,6 @@ const getTimestampMillis = (value: unknown): number | null => {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
-};
-
-const isLikelyAndroidTrialWindow = (startMs: number | null, expiryMs: number | null): boolean => {
-  if (startMs === null || expiryMs === null) return false;
-  const durationMs = expiryMs - startMs;
-  return durationMs > 0 && durationMs <= MAX_ANDROID_TRIAL_DURATION_MS;
 };
 
 /**
@@ -313,9 +306,9 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
         }
         expiresAt = new Date(parseInt(android.expiryTimeMillis, 10));
         autoRenewing = !!android.autoRenewing;
-        // Trial detection prefers Google's current offer phase. Some Play
-        // notifications/validation responses omit it, so fall back to the
-        // initial short entitlement window that Google returns during trials.
+        // Trial detection must come from Google's explicit current offer phase.
+        // Do not infer trial from short entitlement windows; Google test
+        // renewals and paid periods can also be short.
         inTrial = android.paymentState === 2;
         if (inTrial) {
           trialStart = android.startTimeMillis
@@ -339,11 +332,14 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
       resolvedProductId = 'annual';
     }
 
+    const isActiveEntitlement = isLifetime || !expiresAt || expiresAt.getTime() > Date.now();
+    const isActiveTrial = isActiveEntitlement && inTrial;
+
     // Persist authoritative state
     // If starting a trial, mark hasUsedTrial = true so they can't retry later
     const updateData: Record<string, any> = {
-      membershipStatus: inTrial ? 'trial' : 'premium',
-      isPremium: true, // Both trial and premium users have premium access
+      membershipStatus: isActiveEntitlement ? (isActiveTrial ? 'trial' : 'premium') : 'demo',
+      isPremium: isActiveEntitlement, // Both active trial and paid users have premium access
       subscriptionSource: platform === 'ios' ? 'apple_iap' : 'google_play',
       subscriptionId: productId,
       subscriptionExpiryDate: expiresAt ? admin.firestore.Timestamp.fromDate(expiresAt) : null,
@@ -419,7 +415,7 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
     }
 
     return {
-      valid: true,
+      valid: isActiveEntitlement,
       membershipStatus: updateData.membershipStatus, // Use the actual status we saved
       expiryDate: expiresAt ? admin.firestore.Timestamp.fromDate(expiresAt) : null,
       trialStartDate: trialStart ? admin.firestore.Timestamp.fromDate(trialStart) : null,
@@ -524,18 +520,14 @@ async function validateAndroidSubscription(
 
   const expiryTimeMillis = parseAndroidTimestampMillis(lineItem.expiryTime);
   const startTimeMillis = parseAndroidTimestampMillis(purchase.startTime);
-  const expiryMs = expiryTimeMillis ? parseInt(expiryTimeMillis, 10) : null;
-  const startMs = startTimeMillis ? parseInt(startTimeMillis, 10) : null;
   const hasFreeTrialPhase = lineItem.offerPhase?.freeTrial !== undefined;
-  const hasShortInitialWindow = isLikelyAndroidTrialWindow(startMs, expiryMs);
-  const inTrial = hasFreeTrialPhase || hasShortInitialWindow;
 
   return {
     expiryTimeMillis,
     startTimeMillis,
     autoRenewing: lineItem.autoRenewingPlan?.autoRenewEnabled ?? false,
-    paymentState: inTrial ? 2 : 1,
-    trialSignal: hasFreeTrialPhase ? 'offer_phase' : hasShortInitialWindow ? 'short_initial_window' : 'none',
+    paymentState: hasFreeTrialPhase ? 2 : 1,
+    trialSignal: hasFreeTrialPhase ? 'offer_phase' : 'none',
     productId: lineItem.productId ?? undefined,
     basePlanId: lineItem.offerDetails?.basePlanId ?? undefined,
   };
