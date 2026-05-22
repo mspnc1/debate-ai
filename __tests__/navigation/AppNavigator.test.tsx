@@ -1,6 +1,7 @@
 import React from 'react';
 import { waitFor } from '@testing-library/react-native';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
+import { createAppStore } from '@/store';
 import type { RootState } from '@/store';
 
 jest.mock('react-native-view-shot', () => ({
@@ -122,10 +123,15 @@ describe('AppNavigator', () => {
     hasCompletedOnboarding: false,
     recordModeEnabled: false,
   };
+  const resolvedAuth: RootState['auth'] = {
+    ...createAppStore().getState().auth,
+    authLoading: false,
+  };
 
   it('shows welcome flow when onboarding incomplete', async () => {
     const { getByText } = renderWithProviders(<AppNavigator />, {
       preloadedState: {
+        auth: resolvedAuth,
         settings: { ...baseSettings, hasCompletedOnboarding: false },
       },
     });
@@ -138,6 +144,7 @@ describe('AppNavigator', () => {
   it('renders main tabs after onboarding completes', async () => {
     const { getByText, queryByText } = renderWithProviders(<AppNavigator />, {
       preloadedState: {
+        auth: resolvedAuth,
         settings: { ...baseSettings, hasCompletedOnboarding: true },
       },
     });

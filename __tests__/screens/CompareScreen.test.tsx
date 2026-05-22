@@ -272,8 +272,24 @@ const renderScreen = (options: RenderOptions = {}) => {
     store = providedStore;
   } else {
     const baseState = createAppStore().getState();
-    // Set auth.isPremium based on isDemo flag (isDemo = !isPremium)
-    const authState = { auth: { isPremium: !isDemo } };
+    // Screen tests bypass App.tsx, so mark auth/profile resolution complete.
+    const authState = {
+      auth: {
+        ...baseState.auth,
+        authLoading: false,
+        isAuthenticated: true,
+        isPremium: !isDemo,
+        userProfile: {
+          email: null,
+          displayName: null,
+          photoURL: null,
+          createdAt: null,
+          membershipStatus: isDemo ? 'demo' : 'premium',
+          hasUsedTrial: false,
+          trialEndDate: null,
+        },
+      },
+    } satisfies Partial<RootState>;
     const mergedState = mergeState(mergeState(baseState, authState), preloadedState ? preloadedState : undefined);
     store = createAppStore(mergedState);
   }
