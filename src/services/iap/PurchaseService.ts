@@ -18,6 +18,9 @@ import { ErrorService } from '@/services/errors/ErrorService';
 import { Logger } from '@/services/logging';
 
 type InitializeResult = { success: true } | { success: false; error?: unknown; skipped?: boolean };
+type PurchaseSubscriptionOptions = {
+  includeTrialOffer?: boolean;
+};
 
 /** Timeout helper for promises */
 function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> {
@@ -132,15 +135,28 @@ function hasFreeTrialPhase(offer: ProductSubscriptionAndroidOfferDetails | Subsc
   return offer.pricingPhases.pricingPhaseList.some((p: PricingPhaseAndroid) => p.priceAmountMicros === '0');
 }
 
-function getAndroidSubscriptionOfferToken(product: ProductSubscriptionAndroid): string | null {
+function getAndroidSubscriptionOfferToken(
+  product: ProductSubscriptionAndroid,
+  includeTrialOffer: boolean
+): string | null {
+  const selectOffer = <T extends ProductSubscriptionAndroidOfferDetails | SubscriptionOffer>(
+    offers: T[]
+  ): T | undefined => {
+    if (includeTrialOffer) {
+      return offers.find(hasFreeTrialPhase) ?? offers[0];
+    }
+
+    return offers.find((offer) => !hasFreeTrialPhase(offer));
+  };
+
   const standardizedOffers = product.subscriptionOffers ?? [];
-  const standardizedOffer = standardizedOffers.find(hasFreeTrialPhase) ?? standardizedOffers[0];
+  const standardizedOffer = selectOffer(standardizedOffers);
   if (standardizedOffer?.offerTokenAndroid) {
     return standardizedOffer.offerTokenAndroid;
   }
 
   const legacyOffers = product.subscriptionOfferDetailsAndroid ?? [];
-  const legacyOffer = legacyOffers.find(hasFreeTrialPhase) ?? legacyOffers[0];
+  const legacyOffer = selectOffer(legacyOffers);
   return legacyOffer?.offerToken ?? null;
 }
 
@@ -357,11 +373,13 @@ export class PurchaseService {
     };
   }
 
-  static async purchaseSubscription(plan: PlanType) {
+  static async purchaseSubscription(plan: PlanType, options: PurchaseSubscriptionOptions = {}) {
     // Route lifetime purchases to the dedicated method
     if (plan === 'lifetime') {
       return this.purchaseLifetime();
     }
+
+    const includeTrialOffer = options.includeTrialOffer === true;
 
     if (isAndroidEmulatorStoreUnavailable()) {
       return {
@@ -469,9 +487,9 @@ export class PurchaseService {
           ...(product.subscriptionOffers ?? []),
           ...(product.subscriptionOfferDetailsAndroid ?? []),
         ].some(hasFreeTrialPhase);
-        const offerToken = getAndroidSubscriptionOfferToken(product);
+        const offerToken = getAndroidSubscriptionOfferToken(product, includeTrialOffer);
 
-        console.warn('[IAP] Android: Selected offer for', sku, '- hasTrialOffer:', hasTrialOffer, 'offerToken:', offerToken ? 'present' : 'MISSING');
+        console.warn('[IAP] Android: Selected offer for', sku, '- includeTrialOffer:', includeTrialOffer, 'hasTrialOffer:', hasTrialOffer, 'offerToken:', offerToken ? 'present' : 'MISSING');
 
         if (!offerToken) {
           // Log this critical error to Firestore

@@ -106,6 +106,30 @@ const recordTrialUsage = async (uid: string, email: string | undefined): Promise
   });
 };
 
+const getTimestampMillis = (value: unknown): number | null => {
+  if (!value) return null;
+  if (typeof value === 'object') {
+    const timestampLike = value as {
+      toMillis?: () => number;
+      toDate?: () => Date;
+    };
+    if (typeof timestampLike.toMillis === 'function') return timestampLike.toMillis();
+    if (typeof timestampLike.toDate === 'function') return timestampLike.toDate().getTime();
+  }
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const userHasActiveTrial = (userData: admin.firestore.DocumentData | undefined): boolean => {
+  if (userData?.membershipStatus !== 'trial') return false;
+  const trialEndMs = getTimestampMillis(userData.trialEndDate) ?? getTimestampMillis(userData.trialEndsAt);
+  return trialEndMs !== null && trialEndMs > Date.now();
+};
+
 const toStatusCode = (value: unknown): number | undefined => {
   if (typeof value === 'number') return value;
   if (typeof value === 'string') {
@@ -314,7 +338,11 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
       // Check persistent trial history (survives account deletion)
       const trialCheck = await checkTrialHistory(userId, userEmail);
 
-      if (trialCheck.used && !trialCheck.sameAccount) {
+      const hasPriorTrialOnCurrentUser = userData?.hasUsedTrial === true;
+      const hasPriorTrial = trialCheck.used || hasPriorTrialOnCurrentUser;
+      const isSameAccountTrial = trialCheck.sameAccount || hasPriorTrialOnCurrentUser;
+
+      if (hasPriorTrial && !isSameAccountTrial) {
         // FRAUD ATTEMPT: Different account but same email - they already used a trial
         // Block them completely - set to demo and reject
         console.log(`User ${userId} attempted trial fraud (email already used trial) - blocking`);
@@ -322,11 +350,24 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
           'failed-precondition',
           'You have already used your free trial. Please subscribe to continue using premium features.'
         );
-      } else if (trialCheck.used && trialCheck.sameAccount) {
-        // Same account re-validating their current trial - this is fine
-        // Keep them on trial status (already set in updateData)
-        console.log(`User ${userId} re-validating existing trial - keeping trial status`);
-        updateData.hasUsedTrial = true;
+      } else if (hasPriorTrial && isSameAccountTrial) {
+        if (userHasActiveTrial(userData)) {
+          // Same account re-validating their current active trial - this is fine.
+          console.log(`User ${userId} re-validating existing trial - keeping trial status`);
+          updateData.hasUsedTrial = true;
+        } else {
+          // Same account has already consumed and left trial. If Google reports a
+          // trial phase from a stale offer token, store the entitlement as premium
+          // so the app does not briefly regress to trial copy/state.
+          console.log(`User ${userId} already used trial - treating purchase as premium`);
+          inTrial = false;
+          trialStart = null;
+          trialEnd = null;
+          updateData.membershipStatus = 'premium';
+          updateData.trialStartDate = null;
+          updateData.trialEndDate = null;
+          updateData.hasUsedTrial = true;
+        }
       } else {
         // First time using trial - record it for future tracking
         console.log(`User ${userId} starting first trial - recording usage`);
@@ -345,7 +386,7 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
       trialEndDate: trialEnd ? admin.firestore.Timestamp.fromDate(trialEnd) : null,
       autoRenewing,
       productId: resolvedProductId,
-      hasUsedTrial: updateData.hasUsedTrial ?? false,
+      hasUsedTrial: updateData.hasUsedTrial ?? userData?.hasUsedTrial ?? false,
       isLifetime,
     };
   } catch (err) {

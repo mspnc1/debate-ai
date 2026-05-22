@@ -103,7 +103,7 @@ export default function UpgradeScreen() {
     // User is authenticated - proceed with trial purchase
     try {
       setLoadingPlan('trial');
-      const result = await PurchaseService.purchaseSubscription('monthly');
+      const result = await PurchaseService.purchaseSubscription('monthly', { includeTrialOffer: true });
       if (result.success) {
         setShowTrialTerms(false);
         ErrorService.showSuccess('Your free trial has started!', 'subscription');
@@ -134,7 +134,9 @@ export default function UpgradeScreen() {
 
     try {
       setLoadingPlan(planId);
-      const result = await PurchaseService.purchaseSubscription(planId as PlanType);
+      const result = await PurchaseService.purchaseSubscription(planId as PlanType, {
+        includeTrialOffer: canStartTrial,
+      });
       if (result.success) {
         ErrorService.showSuccess('Thank you for your purchase!', 'subscription');
         (navigation as unknown as { goBack: () => void }).goBack();

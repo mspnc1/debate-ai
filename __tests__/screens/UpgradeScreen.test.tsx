@@ -146,13 +146,31 @@ describe('UpgradeScreen', () => {
     fireEvent.press(subscribeButtons[1]); // Monthly plan card
 
     await waitFor(() => {
-      expect(mockPurchaseSubscription).toHaveBeenCalledWith('monthly');
+      expect(mockPurchaseSubscription).toHaveBeenCalledWith('monthly', { includeTrialOffer: true });
     });
 
     fireEvent.press(subscribeButtons[2]); // Annual plan card
 
     await waitFor(() => {
-      expect(mockPurchaseSubscription).toHaveBeenCalledWith('annual');
+      expect(mockPurchaseSubscription).toHaveBeenCalledWith('annual', { includeTrialOffer: true });
+    });
+  });
+
+  it('does not request a trial offer after the user has used a trial', async () => {
+    mockFeatureAccess.hasUsedTrial = true;
+    mockFeatureAccess.canStartTrial = false;
+
+    const { getAllByText } = renderWithProviders(<UpgradeScreen />, {
+      preloadedState: {
+        auth: { isAuthenticated: true, user: null, loading: false, error: null },
+      },
+    });
+
+    const subscribeButtons = getAllByText('Subscribe Now');
+    fireEvent.press(subscribeButtons[0]);
+
+    await waitFor(() => {
+      expect(mockPurchaseSubscription).toHaveBeenCalledWith('monthly', { includeTrialOffer: false });
     });
   });
 

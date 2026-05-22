@@ -13,6 +13,13 @@ const mockShowSuccess = jest.fn();
 const mockShowInfo = jest.fn();
 const mockHandleWithToast = jest.fn();
 const mockOpenSubscriptionManagement = jest.fn();
+const mockNavigate = jest.fn();
+const mockPurchaseSubscription = jest.fn().mockResolvedValue({ success: true });
+const mockRestorePurchases = jest.fn().mockResolvedValue({ success: true, restored: false });
+
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({ navigate: mockNavigate }),
+}));
 
 jest.mock('@/services/errors/ErrorService', () => ({
   ErrorService: {
@@ -51,8 +58,8 @@ jest.mock('@/components/molecules', () => {
     Button: ({ title, onPress }: { title: string; onPress: () => void }) =>
       React.createElement(
         TouchableOpacity,
-        { onPress },
-        React.createElement(Text, null, title)
+        { onPress, testID: title },
+        React.createElement(Text, { onPress }, title)
       ),
     SettingRow: ({ title, onPress }: { title: string; onPress?: () => void }) =>
       React.createElement(
@@ -117,7 +124,11 @@ jest.mock('@react-native-firebase/firestore', () => ({
 }));
 
 jest.mock('@/services/iap/PurchaseService', () => ({
-  default: { purchaseSubscription: jest.fn().mockResolvedValue({ success: true }) },
+  __esModule: true,
+  default: {
+    purchaseSubscription: (...args: unknown[]) => mockPurchaseSubscription(...args),
+    restorePurchases: (...args: unknown[]) => mockRestorePurchases(...args),
+  },
 }));
 
 const baseAuthState = {
@@ -156,11 +167,16 @@ describe('ProfileContent', () => {
     mockShowInfo.mockClear();
     mockHandleWithToast.mockClear();
     mockOpenSubscriptionManagement.mockClear();
+    mockNavigate.mockClear();
+    mockPurchaseSubscription.mockClear();
+    mockRestorePurchases.mockClear();
     mockUseFeatureAccess.mockReturnValue({
       isPremium: false,
       isInTrial: false,
       trialDaysRemaining: 0,
       isDemo: true,
+      hasUsedTrial: false,
+      canStartTrial: false,
       refresh: jest.fn(),
     });
   });
@@ -187,6 +203,8 @@ describe('ProfileContent', () => {
       isInTrial: false,
       trialDaysRemaining: null,
       isDemo: false,
+      hasUsedTrial: true,
+      canStartTrial: false,
       refresh: jest.fn(),
     });
 
@@ -198,6 +216,52 @@ describe('ProfileContent', () => {
     fireEvent.press(getByText('Manage Subscription'));
 
     expect(mockOpenSubscriptionManagement).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets expired-trial users open the subscription screen from profile', () => {
+    mockUseFeatureAccess.mockReturnValue({
+      isPremium: false,
+      isInTrial: false,
+      trialDaysRemaining: null,
+      isDemo: true,
+      hasUsedTrial: true,
+      canStartTrial: false,
+      refresh: jest.fn(),
+    });
+
+    const onClose = jest.fn();
+    const { getByText } = renderWithProviders(
+      <ProfileContent onClose={onClose} />,
+      { preloadedState: authenticatedState as RootState }
+    );
+
+    fireEvent.press(getByText('Upgrade to Premium'));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith('Subscription');
+  });
+
+  it('uses the trial offer only when starting a trial from profile', async () => {
+    mockUseFeatureAccess.mockReturnValue({
+      isPremium: false,
+      isInTrial: false,
+      trialDaysRemaining: null,
+      isDemo: true,
+      hasUsedTrial: false,
+      canStartTrial: true,
+      refresh: jest.fn(),
+    });
+
+    const { getByTestId } = renderWithProviders(
+      <ProfileContent onClose={jest.fn()} />,
+      { preloadedState: authenticatedState as RootState }
+    );
+
+    fireEvent.press(getByTestId('Start 1 week Free Trial'));
+
+    await waitFor(() => {
+      expect(mockPurchaseSubscription).toHaveBeenCalledWith('monthly', { includeTrialOffer: true });
+    });
   });
 
   describe('Delete Account', () => {

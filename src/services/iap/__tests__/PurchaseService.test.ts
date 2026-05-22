@@ -304,7 +304,7 @@ describe('PurchaseService', () => {
       it('should fetch subscriptions and request purchase on iOS', async () => {
         mockFetchProducts.mockResolvedValue([{ id: SUBSCRIPTION_PRODUCTS.monthly }]);
 
-        await PurchaseService.purchaseSubscription('monthly');
+        await PurchaseService.purchaseSubscription('monthly', { includeTrialOffer: true });
 
         expect(mockFetchProducts).toHaveBeenCalledWith({ skus: [SUBSCRIPTION_PRODUCTS.monthly], type: 'subs' });
         expect(mockRequestPurchase).toHaveBeenCalledWith({
@@ -377,7 +377,7 @@ describe('PurchaseService', () => {
 
         mockFetchProducts.mockResolvedValue([mockProduct]);
 
-        await PurchaseService.purchaseSubscription('monthly');
+        await PurchaseService.purchaseSubscription('monthly', { includeTrialOffer: true });
 
         expect(mockRequestPurchase).toHaveBeenCalledWith({
           type: 'subs',
@@ -386,6 +386,66 @@ describe('PurchaseService', () => {
               skus: [SUBSCRIPTION_PRODUCTS.monthly],
               obfuscatedAccountId: 'hashed-token-123',
               subscriptionOffers: [{ sku: SUBSCRIPTION_PRODUCTS.monthly, offerToken: 'trial-offer-token' }],
+            },
+          },
+        });
+      });
+
+      it('should request a paid offer on Android when trial is not included', async () => {
+        const mockProduct = {
+          id: SUBSCRIPTION_PRODUCTS.monthly,
+          productId: SUBSCRIPTION_PRODUCTS.monthly,
+          subscriptionOfferDetailsAndroid: [
+            {
+              offerToken: 'trial-offer-token',
+              basePlanId: 'base-plan',
+              offerId: 'offer-id',
+              offerTags: [],
+              pricingPhases: {
+                pricingPhaseList: [
+                  {
+                    priceAmountMicros: '0',
+                    billingPeriod: 'P7D',
+                    recurrenceMode: 1,
+                    billingCycleCount: 1,
+                    formattedPrice: 'Free',
+                    priceCurrencyCode: 'USD',
+                  },
+                ],
+              },
+            },
+            {
+              offerToken: 'regular-offer-token',
+              basePlanId: 'base-plan',
+              offerId: 'offer-id-2',
+              offerTags: [],
+              pricingPhases: {
+                pricingPhaseList: [
+                  {
+                    priceAmountMicros: '5990000',
+                    billingPeriod: 'P1M',
+                    recurrenceMode: 1,
+                    billingCycleCount: 0,
+                    formattedPrice: '$5.99',
+                    priceCurrencyCode: 'USD',
+                  },
+                ],
+              },
+            },
+          ],
+        } as Partial<ProductSubscriptionAndroid>;
+
+        mockFetchProducts.mockResolvedValue([mockProduct]);
+
+        await PurchaseService.purchaseSubscription('monthly');
+
+        expect(mockRequestPurchase).toHaveBeenCalledWith({
+          type: 'subs',
+          request: {
+            google: {
+              skus: [SUBSCRIPTION_PRODUCTS.monthly],
+              obfuscatedAccountId: 'hashed-token-123',
+              subscriptionOffers: [{ sku: SUBSCRIPTION_PRODUCTS.monthly, offerToken: 'regular-offer-token' }],
             },
           },
         });
@@ -472,7 +532,7 @@ describe('PurchaseService', () => {
 
         mockFetchProducts.mockResolvedValue([mockProduct]);
 
-        await PurchaseService.purchaseSubscription('monthly');
+        await PurchaseService.purchaseSubscription('monthly', { includeTrialOffer: true });
 
         expect(mockRequestPurchase).toHaveBeenCalledWith({
           type: 'subs',

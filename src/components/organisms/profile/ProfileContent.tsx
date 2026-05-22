@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Alert, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store';
 import { logout, setAuthUser, setUserProfile } from '../../../store/authSlice';
+import type { RootStackParamList } from '@/types';
 import { ProfileAvatar, Typography, Button, SettingRow } from '@/components/molecules';
 import { EmailAuthForm } from '@/components/molecules/auth/EmailAuthForm';
 import { SocialAuthProviders } from '../auth/SocialAuthProviders';
@@ -32,6 +34,7 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
   onClose,
 }) => {
   const { theme, isDark } = useTheme();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const dispatch = useDispatch();
   const { userProfile, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const access = useFeatureAccess();
@@ -146,6 +149,10 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
   };
 
   // Subscription navigation handled by Account Settings actions; no sheet close side-effects
+  const openSubscriptionScreen = () => {
+    onClose();
+    navigation.navigate('Subscription');
+  };
 
   // App Settings link removed
 
@@ -395,7 +402,7 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
               onPress={async () => {
                 try {
                   setIapLoading(true);
-                  const res = await PurchaseService.purchaseSubscription('monthly');
+                  const res = await PurchaseService.purchaseSubscription('monthly', { includeTrialOffer: true });
                   if (res.success) {
                     ErrorService.showSuccess('Your trial is starting (pending store confirmation).', 'subscription');
                     await access.refresh();
@@ -434,6 +441,13 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
       {access.isDemo && access.hasUsedTrial && (
         <View style={styles.ctaSection}>
           <UnlockEverythingBanner />
+          <Button
+            title="Upgrade to Premium"
+            onPress={openSubscriptionScreen}
+            variant="primary"
+            fullWidth
+            style={styles.upgradeButton}
+          />
         </View>
       )}
 
@@ -725,6 +739,9 @@ const styles = StyleSheet.create({
   ctaSection: {
     paddingHorizontal: 20,
     marginBottom: 16,
+  },
+  upgradeButton: {
+    marginTop: 16,
   },
   trialTerms: {
     marginTop: 12,

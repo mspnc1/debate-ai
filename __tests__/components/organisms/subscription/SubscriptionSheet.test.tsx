@@ -36,14 +36,20 @@ jest.mock('@/components/organisms/subscription/UnlockEverythingBanner', () => {
 });
 
 const mockPurchaseSubscription = jest.fn().mockResolvedValue({ success: true });
+const mockUseFeatureAccess = jest.fn(() => ({ canStartTrial: true }));
 
 jest.mock('@/services/iap/PurchaseService', () => ({
   PurchaseService: { purchaseSubscription: (...args: any[]) => mockPurchaseSubscription(...args) },
 }));
 
+jest.mock('@/hooks/useFeatureAccess', () => ({
+  useFeatureAccess: () => mockUseFeatureAccess(),
+}));
+
 describe('SubscriptionSheet', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseFeatureAccess.mockReturnValue({ canStartTrial: true });
   });
 
   it('starts trial and closes sheet', async () => {
@@ -52,8 +58,18 @@ describe('SubscriptionSheet', () => {
 
     fireEvent.press(getByText('Start 1 week Free Trial'));
 
-    await waitFor(() => expect(mockPurchaseSubscription).toHaveBeenCalledWith('monthly'));
+    await waitFor(() => expect(mockPurchaseSubscription).toHaveBeenCalledWith('monthly', { includeTrialOffer: true }));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('subscribes without a trial offer when the user is not trial eligible', async () => {
+    mockUseFeatureAccess.mockReturnValue({ canStartTrial: false });
+    const onClose = jest.fn();
+    const { getByText } = renderWithProviders(<SubscriptionSheet onClose={onClose} />);
+
+    fireEvent.press(getByText('Subscribe Now'));
+
+    await waitFor(() => expect(mockPurchaseSubscription).toHaveBeenCalledWith('monthly', { includeTrialOffer: false }));
   });
 
   it('closes when choosing Maybe later', () => {

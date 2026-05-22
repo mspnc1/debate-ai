@@ -6,6 +6,7 @@ import { GradientButton, Button, Typography } from "@/components/molecules";
 import { useTheme } from "@/theme";
 import { PurchaseService } from "@/services/iap/PurchaseService";
 import { useStorePrices } from "@/hooks/useStorePrices";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { ENABLED_API_CONFIG_PROVIDER_COUNT } from "@/config/apiConfigProviders";
 
 interface SubscriptionSheetProps {
@@ -18,6 +19,7 @@ export const SubscriptionSheet: React.FC<SubscriptionSheetProps> = ({
   const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
   const { monthly } = useStorePrices();
+  const { canStartTrial } = useFeatureAccess();
 
   // Get trial duration from store prices (fetched from Google Play/App Store)
   const trialDuration = monthly.trial?.durationText || '1 week';
@@ -38,7 +40,7 @@ export const SubscriptionSheet: React.FC<SubscriptionSheetProps> = ({
   const handleStartTrial = async () => {
     try {
       setLoading(true);
-      await PurchaseService.purchaseSubscription("monthly");
+      await PurchaseService.purchaseSubscription("monthly", { includeTrialOffer: canStartTrial });
       // The underlying hook will update UI; just close to reduce friction
       onClose();
     } catch {
@@ -57,42 +59,43 @@ export const SubscriptionSheet: React.FC<SubscriptionSheetProps> = ({
           color="secondary"
           style={{ marginBottom: 16 }}
         >
-          Start your {trialDuration} free trial and unlock all premium features across{' '}
+          {canStartTrial ? `Start your ${trialDuration} free trial` : 'Subscribe to Premium'} and unlock all premium features across{' '}
           {ENABLED_API_CONFIG_PROVIDER_COUNT} supported AI providers with your own API keys.
         </Typography>
 
-        {/* Trial Terms Disclosure - Required for Play Store compliance */}
-        <View style={{
-          backgroundColor: theme.colors.surface,
-          padding: 16,
-          borderRadius: 12,
-          marginBottom: 16,
-          borderWidth: 1,
-          borderColor: theme.colors.border,
-        }}>
-          <Typography variant="body" weight="semibold" style={{ marginBottom: 8 }}>
-            Trial Terms
-          </Typography>
-          <Typography variant="caption" color="secondary" style={{ marginBottom: 4 }}>
-            {'\u2022'} Payment method required to start trial
-          </Typography>
-          <Typography variant="caption" color="secondary" style={{ marginBottom: 4 }}>
-            {'\u2022'} {trialDuration} free trial ends on {trialEndDate}
-          </Typography>
-          <Typography variant="caption" color="secondary" style={{ marginBottom: 4 }}>
-            {'\u2022'} First charge: {monthly.localizedPrice} on {trialEndDate} unless canceled
-          </Typography>
-          <Typography variant="caption" color="secondary" style={{ marginBottom: 4 }}>
-            {'\u2022'} Subscription auto-renews monthly at {monthly.localizedPrice}
-          </Typography>
-          <Typography variant="caption" color="secondary">
-            {'\u2022'} Cancel anytime: {cancelInstructions}
-          </Typography>
-        </View>
+        {canStartTrial && (
+          <View style={{
+            backgroundColor: theme.colors.surface,
+            padding: 16,
+            borderRadius: 12,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+          }}>
+            <Typography variant="body" weight="semibold" style={{ marginBottom: 8 }}>
+              Trial Terms
+            </Typography>
+            <Typography variant="caption" color="secondary" style={{ marginBottom: 4 }}>
+              {'\u2022'} Payment method required to start trial
+            </Typography>
+            <Typography variant="caption" color="secondary" style={{ marginBottom: 4 }}>
+              {'\u2022'} {trialDuration} free trial ends on {trialEndDate}
+            </Typography>
+            <Typography variant="caption" color="secondary" style={{ marginBottom: 4 }}>
+              {'\u2022'} First charge: {monthly.localizedPrice} on {trialEndDate} unless canceled
+            </Typography>
+            <Typography variant="caption" color="secondary" style={{ marginBottom: 4 }}>
+              {'\u2022'} Subscription auto-renews monthly at {monthly.localizedPrice}
+            </Typography>
+            <Typography variant="caption" color="secondary">
+              {'\u2022'} Cancel anytime: {cancelInstructions}
+            </Typography>
+          </View>
+        )}
 
         <UnlockEverythingBanner />
         <GradientButton
-          title={loading ? "Starting Trial…" : `Start ${trialDuration} Free Trial`}
+          title={loading ? "Processing…" : canStartTrial ? `Start ${trialDuration} Free Trial` : "Subscribe Now"}
           onPress={handleStartTrial}
           gradient={theme.colors.gradients.primary}
           fullWidth
