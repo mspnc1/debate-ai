@@ -109,7 +109,7 @@ function mergeAudioVoices(
 }
 
 export default function CreateSetupScreen() {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const dispatch = useDispatch<AppDispatch>();
   const { isDemo } = useFeatureAccess();
@@ -182,6 +182,9 @@ export default function CreateSetupScreen() {
   const canGenerateVideo = hasRunwayKey && canGenerateVideoInput;
   const canGenerateAudioInput = audioPrompt.trim().length > 0;
   const canGenerateAudio = hasElevenLabsKey && canGenerateAudioInput;
+  const primaryTintBackground = isDark ? theme.colors.overlays.medium : theme.colors.primary[50];
+  const primaryTintStrongBackground = isDark ? theme.colors.overlays.strong : theme.colors.primary[100];
+  const primaryAccentColor = isDark ? theme.colors.primary[300] : theme.colors.primary[600];
 
   useEffect(() => {
     if (runwayModels.some((model) => model.id === videoModelId)) {
@@ -716,7 +719,7 @@ export default function CreateSetupScreen() {
             style={[
               styles.optionTile,
               {
-                backgroundColor: selected ? theme.colors.primary[50] : theme.colors.surface,
+                backgroundColor: selected ? primaryTintBackground : theme.colors.surface,
                 borderColor: selected ? theme.colors.primary[500] : theme.colors.border,
               },
             ]}
@@ -870,7 +873,7 @@ export default function CreateSetupScreen() {
                     style={[
                       styles.pickerOption,
                       {
-                        backgroundColor: selected ? theme.colors.primary[50] : theme.colors.surface,
+                        backgroundColor: selected ? primaryTintBackground : theme.colors.surface,
                         borderColor: selected ? theme.colors.primary[500] : theme.colors.border,
                       },
                     ]}
@@ -1000,7 +1003,7 @@ export default function CreateSetupScreen() {
             style={[
               styles.aspectTile,
               {
-                backgroundColor: selected ? theme.colors.primary[50] : theme.colors.surface,
+                backgroundColor: selected ? primaryTintBackground : theme.colors.surface,
                 borderColor: selected ? theme.colors.primary[500] : theme.colors.border,
               },
             ]}
@@ -1015,7 +1018,7 @@ export default function CreateSetupScreen() {
                   width: isSquare ? 24 : isPortrait ? 18 : 30,
                   height: isSquare ? 24 : isPortrait ? 30 : 18,
                   borderColor: selected ? theme.colors.primary[500] : theme.colors.text.secondary,
-                  backgroundColor: selected ? theme.colors.primary[100] : 'transparent',
+                  backgroundColor: selected ? primaryTintStrongBackground : 'transparent',
                 },
               ]}
             />
@@ -1093,14 +1096,14 @@ export default function CreateSetupScreen() {
 
         {isSuccess && result?.id && (
           <TouchableOpacity
-            style={[styles.galleryCta, { borderColor: theme.colors.primary[500], backgroundColor: theme.colors.primary[50] }]}
+            style={[styles.galleryCta, { borderColor: theme.colors.primary[500], backgroundColor: primaryTintBackground }]}
             onPress={() => handleViewMediaInGallery(result.id)}
             accessibilityRole="button"
             accessibilityLabel={`View ${label.toLowerCase()} in Gallery`}
             testID={`create-${mediaType}-gallery-cta`}
           >
-            <Ionicons name="images-outline" size={18} color={theme.colors.primary[600]} />
-            <Typography variant="button" weight="semibold" style={{ color: theme.colors.primary[600] }}>
+            <Ionicons name="images-outline" size={18} color={primaryAccentColor} />
+            <Typography variant="button" weight="semibold" style={{ color: primaryAccentColor }}>
               View in Gallery
             </Typography>
           </TouchableOpacity>
@@ -1379,7 +1382,7 @@ export default function CreateSetupScreen() {
                 style={[
                   styles.loadMoreVoicesButton,
                   {
-                    backgroundColor: theme.colors.primary[50],
+                    backgroundColor: primaryTintBackground,
                     borderColor: theme.colors.primary[500],
                     opacity: loadingMoreAudioVoices ? 0.7 : 1,
                   },
@@ -1393,9 +1396,9 @@ export default function CreateSetupScreen() {
                 {loadingMoreAudioVoices ? (
                   <ActivityIndicator size="small" color={theme.colors.primary[500]} />
                 ) : (
-                  <Ionicons name="add-circle-outline" size={18} color={theme.colors.primary[600]} />
+                  <Ionicons name="add-circle-outline" size={18} color={primaryAccentColor} />
                 )}
-                <Typography variant="button" weight="semibold" style={{ color: theme.colors.primary[600] }}>
+                <Typography variant="button" weight="semibold" style={{ color: primaryAccentColor }}>
                   Load More Voices
                 </Typography>
               </TouchableOpacity>

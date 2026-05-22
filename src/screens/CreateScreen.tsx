@@ -257,9 +257,11 @@ function VideoPreview({
 function AudioPreview({
   uri,
   theme,
+  isDark,
 }: {
   uri: string;
   theme: ReturnType<typeof useTheme>['theme'];
+  isDark: boolean;
 }) {
   const [playerGeneration, setPlayerGeneration] = useState(0);
   const [resetRequest, setResetRequest] = useState<AudioPlayerResetRequest>({
@@ -282,6 +284,7 @@ function AudioPreview({
       key={`${uri}-${playerGeneration}`}
       uri={uri}
       theme={theme}
+      isDark={isDark}
       resetRequest={resetRequest}
       onResetPlayer={handleResetPlayer}
     />
@@ -291,11 +294,13 @@ function AudioPreview({
 function AudioPreviewPlayer({
   uri,
   theme,
+  isDark,
   resetRequest,
   onResetPlayer,
 }: {
   uri: string;
   theme: ReturnType<typeof useTheme>['theme'];
+  isDark: boolean;
   resetRequest: AudioPlayerResetRequest;
   onResetPlayer: (seekTime?: number, shouldPlay?: boolean) => void;
 }) {
@@ -312,6 +317,9 @@ function AudioPreviewPlayer({
   const canSeek = duration > 0;
   const canSkipBackward = canSeek && displayedTime > 0;
   const canSkipForward = canSeek && displayedTime < Math.max(0, duration - AUDIO_END_EPSILON_SECONDS);
+  const audioSurfaceColor = isDark ? theme.colors.overlays.medium : theme.colors.primary[50];
+  const audioAccentColor = isDark ? theme.colors.primary[300] : theme.colors.primary[700];
+  const audioTrackColor = isDark ? theme.colors.border : theme.colors.primary[100];
 
   useEffect(() => {
     setPlaybackPhase(statusPhase);
@@ -437,7 +445,7 @@ function AudioPreviewPlayer({
         : 'Ready';
 
   return (
-    <View style={[styles.audioPreview, { backgroundColor: theme.colors.primary[50] }]}>
+    <View style={[styles.audioPreview, { backgroundColor: audioSurfaceColor }]}>
       <View style={styles.audioControlsRow}>
         <TouchableOpacity
           style={[
@@ -449,7 +457,7 @@ function AudioPreviewPlayer({
           accessibilityRole="button"
           accessibilityLabel="Rewind audio 1 second"
         >
-          <Ionicons name="play-back" size={22} color={theme.colors.primary[700]} />
+          <Ionicons name="play-back" size={22} color={audioAccentColor} />
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.audioControlButton, { backgroundColor: theme.colors.primary[500] }]}
@@ -469,7 +477,7 @@ function AudioPreviewPlayer({
           accessibilityRole="button"
           accessibilityLabel="Advance audio 1 second"
         >
-          <Ionicons name="play-forward" size={22} color={theme.colors.primary[700]} />
+          <Ionicons name="play-forward" size={22} color={audioAccentColor} />
         </TouchableOpacity>
       </View>
       <View style={styles.audioPlaybackInfo}>
@@ -490,8 +498,8 @@ function AudioPreviewPlayer({
             onValueChange={handleSeekChange}
             onSlidingComplete={handleSeekComplete}
             minimumTrackTintColor={theme.colors.primary[500]}
-            maximumTrackTintColor={theme.colors.primary[100]}
-            thumbTintColor={theme.colors.primary[600]}
+            maximumTrackTintColor={audioTrackColor}
+            thumbTintColor={audioAccentColor}
             accessibilityLabel="Audio playback position"
             accessibilityRole="adjustable"
             accessibilityValue={{
@@ -566,7 +574,7 @@ function buildFilterOptions(assets: GalleryAsset[], field: 'providerId' | 'model
 }
 
 export default function CreateScreen() {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRouteProp>();
@@ -601,6 +609,10 @@ export default function CreateScreen() {
     mediaGeneration = { video: null, audio: null },
   } = createState;
   const isGalleryMode = !initialPrompt && !sourceImage && !refinementInstructions && providers.length === 0;
+  const primaryTintBackground = isDark ? theme.colors.overlays.medium : theme.colors.primary[50];
+  const primaryAccentColor = isDark ? theme.colors.primary[300] : theme.colors.primary[600];
+  const errorSurfaceColor = isDark ? theme.colors.semantic.error : theme.colors.error[100];
+  const errorTextColor = isDark ? theme.colors.error[300] : theme.colors.error[700];
 
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [selectedMediaId, setSelectedMediaId] = useState<string | null>(null);
@@ -1552,7 +1564,7 @@ export default function CreateScreen() {
               onPlaybackStateChange={handleVideoPlaybackStateChange}
             />
           ) : (
-            <AudioPreview uri={item.uri} theme={theme} />
+            <AudioPreview uri={item.uri} theme={theme} isDark={isDark} />
           )}
 
           <View style={[styles.providerBadge, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
@@ -1592,6 +1604,7 @@ export default function CreateScreen() {
     selectedMediaId,
     sharingMediaId,
     theme,
+    isDark,
     videoPlaybackStates,
   ]);
 
@@ -1653,8 +1666,8 @@ export default function CreateScreen() {
       >
         {isAudioRow ? (
           <>
-            <View style={[styles.audioLibraryIcon, { backgroundColor: theme.colors.primary[50] }]}>
-              <Ionicons name="musical-notes-outline" size={22} color={theme.colors.primary[600]} />
+            <View style={[styles.audioLibraryIcon, { backgroundColor: primaryTintBackground }]}>
+              <Ionicons name="musical-notes-outline" size={22} color={primaryAccentColor} />
             </View>
             <View style={styles.audioLibraryText}>
               <Typography variant="body" weight="semibold" numberOfLines={1}>
@@ -1671,11 +1684,11 @@ export default function CreateScreen() {
               {item.type === 'image' ? (
                 <Image source={{ uri: item.uri }} style={styles.libraryImage} resizeMode="cover" />
               ) : (
-                <View style={[styles.libraryMediaPlaceholder, { backgroundColor: isVideo ? '#111827' : theme.colors.primary[50] }]}>
+                <View style={[styles.libraryMediaPlaceholder, { backgroundColor: isVideo ? '#111827' : primaryTintBackground }]}>
                   <Ionicons
                     name={isVideo ? 'play-circle-outline' : 'musical-notes-outline'}
                     size={36}
-                    color={isVideo ? '#FFFFFF' : theme.colors.primary[600]}
+                    color={isVideo ? '#FFFFFF' : primaryAccentColor}
                   />
                 </View>
               )}
@@ -1721,6 +1734,8 @@ export default function CreateScreen() {
     galleryTab,
     handleLibraryAssetLongPress,
     handleLibraryAssetPress,
+    primaryAccentColor,
+    primaryTintBackground,
     selectedAssetIds,
     selectionMode,
     theme,
@@ -2017,7 +2032,7 @@ export default function CreateScreen() {
               />
             )}
             {selectedAsset.type === 'audio' && (
-              <AudioPreview uri={selectedAsset.uri} theme={theme} />
+              <AudioPreview uri={selectedAsset.uri} theme={theme} isDark={isDark} />
             )}
 
             <View style={[styles.detailPanel, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
@@ -2241,8 +2256,8 @@ export default function CreateScreen() {
         )}
 
         {errorMessage && (
-          <View style={[styles.errorContainer, { backgroundColor: theme.colors.error[100] }]}>
-            <Typography variant="body" style={{ color: theme.colors.error[700] }}>
+          <View style={[styles.errorContainer, { backgroundColor: errorSurfaceColor }]}>
+            <Typography variant="body" style={{ color: errorTextColor }}>
               {errorMessage}
             </Typography>
           </View>
@@ -2381,8 +2396,8 @@ export default function CreateScreen() {
 
       {/* Error Message */}
       {errorMessage && (
-        <View style={[styles.errorContainer, { backgroundColor: theme.colors.error[100] }]}>
-          <Typography variant="body" style={{ color: theme.colors.error[700] }}>
+        <View style={[styles.errorContainer, { backgroundColor: errorSurfaceColor }]}>
+          <Typography variant="body" style={{ color: errorTextColor }}>
             {errorMessage}
           </Typography>
         </View>
