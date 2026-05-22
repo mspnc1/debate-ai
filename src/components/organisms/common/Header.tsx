@@ -168,7 +168,8 @@ export interface HeaderProps {
 
 // Base header heights - will be scaled for tablets
 export const HEADER_HEIGHT = 65;
-const PHONE_GRADIENT_HEIGHT = 156;
+const PHONE_GRADIENT_HEIGHT = 140;
+const PHONE_GRADIENT_LONG_MOTION_EXTRA_HEIGHT = 16;
 const COMPACT_HEIGHT = 50;
 const TABLET_COMPACT_HEIGHT = 60;
 const GRADIENT_TOP_ROW_HEIGHT = 40;
@@ -184,8 +185,13 @@ const TABLET_LANDSCAPE_HEIGHT_RATIO = 0.15; // 15% for landscape (shorter screen
  * Calculate gradient header height based on screen dimensions.
  * Uses proportional scaling for tablets to handle iPad Air vs iPad Pro differences.
  */
-const getGradientHeaderHeight = (isTablet: boolean, screenHeight: number, isLandscape: boolean = false): number => {
-  if (!isTablet) return PHONE_GRADIENT_HEIGHT;
+const getGradientHeaderHeight = (
+  isTablet: boolean,
+  screenHeight: number,
+  isLandscape: boolean = false,
+  extraHeight: number = 0
+): number => {
+  if (!isTablet) return PHONE_GRADIENT_HEIGHT + extraHeight;
 
   // In landscape, use a higher ratio and minimum since screen height is shorter
   const ratio = isLandscape ? TABLET_LANDSCAPE_HEIGHT_RATIO : TABLET_GRADIENT_HEIGHT_RATIO;
@@ -193,7 +199,7 @@ const getGradientHeaderHeight = (isTablet: boolean, screenHeight: number, isLand
 
   // Proportional scaling with landscape-aware bounds
   const proportionalHeight = screenHeight * ratio;
-  return Math.max(minHeight, Math.min(MAX_TABLET_GRADIENT_HEIGHT, proportionalHeight));
+  return Math.max(minHeight, Math.min(MAX_TABLET_GRADIENT_HEIGHT, proportionalHeight)) + extraHeight;
 };
 
 /**
@@ -278,6 +284,10 @@ export const Header: React.FC<HeaderProps> = ({
   const { isTablet, isLandscape } = useDeviceType();
   const { timeBasedGreeting, welcomeMessage } = useGreeting();
   const hasSubtitle = Boolean(subtitle);
+  const isDebateMotionHeader = /^\s*Motion:/i.test(title);
+  const gradientExtraHeight = variant === 'gradient' && isDebateMotionHeader && hasSubtitle
+    ? PHONE_GRADIENT_LONG_MOTION_EXTRA_HEIGHT
+    : 0;
   const gradientHorizontalPadding = theme.spacing.lg;
   const gradientTitleRightReserve = 0;
   const gradientSubtitleRightReserve = showDemoBadge ? 150 : 0;
@@ -357,7 +367,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   // Calculate header height - use proportional scaling for gradient variant on tablets
   const baseHeight = variant === 'gradient'
-    ? getGradientHeaderHeight(isTablet, screenHeight, isLandscape)
+    ? getGradientHeaderHeight(isTablet, screenHeight, isLandscape, gradientExtraHeight)
     : getBaseHeaderHeight(isTablet, variant === 'compact');
   const headerHeight = height || baseHeight;
   const totalHeight = headerHeight + insets.top;

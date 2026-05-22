@@ -135,11 +135,30 @@ describe('Header', () => {
     expect(getByTestId('header-right-actions')).toBeTruthy();
   });
 
+  it('keeps normal phone gradient headers compact', () => {
+    const { getByTestId } = renderWithProviders(
+      <Header
+        testID="normal-gradient-header"
+        title="Time for reflection"
+        subtitle="Or avoidance. Your call."
+        variant="gradient"
+        showDate
+        showDemoBadge
+        rightElement={<Text testID="header-right-actions">Actions</Text>}
+      />
+    );
+
+    expect(getByTestId('normal-gradient-header')).toHaveStyle({
+      minHeight: 140,
+    });
+  });
+
   it('keeps debate motion titles to two lines when subtitle is present', () => {
     const motion =
       'ICE actions in Minneapolis prove the current administration has no respect for due process';
-    const { getByText } = renderWithProviders(
+    const { getByText, getByTestId } = renderWithProviders(
       <Header
+        testID="motion-gradient-header"
         title={`Motion: ${motion}`}
         subtitle="ChatGPT vs Claude"
         variant="gradient"
@@ -150,5 +169,8 @@ describe('Header', () => {
 
     expect(getByText(motion).props.numberOfLines).toBe(2);
     expect(getByText('ChatGPT vs Claude')).toBeTruthy();
+    expect(getByTestId('motion-gradient-header')).toHaveStyle({
+      minHeight: 156,
+    });
   });
 });
