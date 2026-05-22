@@ -26,6 +26,24 @@ const verifier = new SignedDataVerifier(
   APP_APPLE_ID
 );
 
+function getTimestampMillis(value: unknown): number | null {
+  if (!value) return null;
+  if (typeof value === 'object') {
+    const timestampLike = value as {
+      toMillis?: () => number;
+      toDate?: () => Date;
+    };
+    if (typeof timestampLike.toMillis === 'function') return timestampLike.toMillis();
+    if (typeof timestampLike.toDate === 'function') return timestampLike.toDate().getTime();
+  }
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
 /**
  * Handle App Store Server Notifications V2
  *
@@ -115,8 +133,19 @@ export const handleAppStoreNotification = functions.https.onRequest(async (req, 
 
     const expiresAt = new Date(expiresDate);
     const isActive = expiresAt.getTime() > Date.now();
-    const inTrial = isActive && transaction.offerType === OfferType.INTRODUCTORY_OFFER;
+    const userRef = admin.firestore().collection('users').doc(userId);
+    const userSnap = await userRef.get();
+    const userData = userSnap.data();
+    const existingTrialEndMs = getTimestampMillis(userData?.trialEndDate) ?? getTimestampMillis(userData?.trialEndsAt);
+    const preserveActiveTrial = isActive && userData?.hasUsedTrial === true
+      && existingTrialEndMs !== null
+      && existingTrialEndMs > Date.now();
+    const storeReportsTrial = transaction.offerType === OfferType.INTRODUCTORY_OFFER;
+    const inTrial = isActive && (storeReportsTrial || preserveActiveTrial);
     const newStatus = isActive ? (inTrial ? 'trial' : 'premium') : 'demo';
+    const trialEndMs = inTrial
+      ? (storeReportsTrial ? expiresAt.getTime() : existingTrialEndMs)
+      : null;
 
     console.log(`Updating user ${userId}: membershipStatus=${newStatus}, expiresAt=${expiresAt.toISOString()}`);
 
@@ -125,14 +154,14 @@ export const handleAppStoreNotification = functions.https.onRequest(async (req, 
       isPremium: isActive,
       subscriptionSource: 'apple_iap',
       subscriptionExpiryDate: admin.firestore.Timestamp.fromDate(expiresAt),
-      trialEndDate: inTrial ? admin.firestore.Timestamp.fromDate(expiresAt) : null,
+      trialEndDate: inTrial && trialEndMs ? admin.firestore.Timestamp.fromDate(new Date(trialEndMs)) : null,
       productId: productId && productId.includes('annual') ? 'annual' : 'monthly',
       lastValidated: admin.firestore.FieldValue.serverTimestamp(),
     };
     if (inTrial) {
       updateData.hasUsedTrial = true;
     }
-    await admin.firestore().collection('users').doc(userId).set(updateData, { merge: true });
+    await userRef.set(updateData, { merge: true });
 
     console.log(`Successfully updated user ${userId} to ${newStatus}`);
     res.status(200).send('OK');

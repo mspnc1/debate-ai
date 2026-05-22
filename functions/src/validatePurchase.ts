@@ -27,6 +27,7 @@ type AndroidSubscriptionState = {
   startTimeMillis?: string;
   autoRenewing?: boolean;
   paymentState?: number;
+  trialSignal?: 'offer_phase' | 'short_initial_window' | 'none';
   productId?: string;
   basePlanId?: string;
 };
@@ -51,6 +52,9 @@ const LIFETIME_PRODUCT_IDS = [
   'premium_lifetime', // Android
 ];
 
+const MAX_ANDROID_TRIAL_DURATION_MS = 14 * 24 * 60 * 60 * 1000;
+const TRIAL_HISTORY_MATCH_TOLERANCE_MS = 24 * 60 * 60 * 1000;
+
 /**
  * Hash email for privacy-preserving trial tracking
  */
@@ -61,44 +65,6 @@ const sha256 = (value: string): string => {
 const hashEmail = (email: string): string => {
   return sha256(email.toLowerCase().trim());
 };
-
-/**
- * Check if user has already used a trial (survives account deletion)
- * Returns: { used: boolean, sameAccount: boolean }
- * - used: true if they've used a trial before (by UID or email)
- * - sameAccount: true if the match was by UID (re-validating current trial is OK)
- */
-const checkTrialHistory = async (uid: string, email: string | undefined): Promise<{ used: boolean; sameAccount: boolean }> => {
-  const firestore = admin.firestore();
-
-  // Check by UID first - same account re-validating
-  const uidDoc = await firestore.collection('trialHistory').doc(uid).get();
-  if (uidDoc.exists) {
-    return { used: true, sameAccount: true };
-  }
-
-  // Check by email hash - different account, potential fraud
-  if (email) {
-    const emailHash = hashEmail(email);
-    const emailQuery = await firestore
-      .collection('trialHistory')
-      .where('emailHash', '==', emailHash)
-      .limit(1)
-      .get();
-    if (!emailQuery.empty) {
-      return { used: true, sameAccount: false };
-    }
-  }
-
-  return { used: false, sameAccount: false };
-};
-
-const buildTrialUsageData = (uid: string, email: string | undefined): Record<string, unknown> => ({
-    uid,
-    emailHash: email ? hashEmail(email) : null,
-    firstTrialDate: admin.firestore.FieldValue.serverTimestamp(),
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-});
 
 const getTimestampMillis = (value: unknown): number | null => {
   if (!value) return null;
@@ -118,10 +84,76 @@ const getTimestampMillis = (value: unknown): number | null => {
   return null;
 };
 
-const userHasActiveTrial = (userData: admin.firestore.DocumentData | undefined): boolean => {
-  if (userData?.membershipStatus !== 'trial') return false;
-  const trialEndMs = getTimestampMillis(userData.trialEndDate) ?? getTimestampMillis(userData.trialEndsAt);
+const isLikelyAndroidTrialWindow = (startMs: number | null, expiryMs: number | null): boolean => {
+  if (startMs === null || expiryMs === null) return false;
+  const durationMs = expiryMs - startMs;
+  return durationMs > 0 && durationMs <= MAX_ANDROID_TRIAL_DURATION_MS;
+};
+
+/**
+ * Check if user has already used a trial (survives account deletion)
+ * Returns: { used: boolean, sameAccount: boolean, firstTrialMs: number | null }
+ * - used: true if they've used a trial before (by UID or email)
+ * - sameAccount: true if the match was by UID (re-validating current trial is OK)
+ */
+const checkTrialHistory = async (
+  uid: string,
+  email: string | undefined
+): Promise<{ used: boolean; sameAccount: boolean; firstTrialMs: number | null }> => {
+  const firestore = admin.firestore();
+
+  // Check by UID first - same account re-validating
+  const uidDoc = await firestore.collection('trialHistory').doc(uid).get();
+  if (uidDoc.exists) {
+    return {
+      used: true,
+      sameAccount: true,
+      firstTrialMs: getTimestampMillis(uidDoc.data()?.firstTrialDate),
+    };
+  }
+
+  // Check by email hash - different account, potential fraud
+  if (email) {
+    const emailHash = hashEmail(email);
+    const emailQuery = await firestore
+      .collection('trialHistory')
+      .where('emailHash', '==', emailHash)
+      .limit(1)
+      .get();
+    if (!emailQuery.empty) {
+      return {
+        used: true,
+        sameAccount: false,
+        firstTrialMs: getTimestampMillis(emailQuery.docs[0].data()?.firstTrialDate),
+      };
+    }
+  }
+
+  return { used: false, sameAccount: false, firstTrialMs: null };
+};
+
+const buildTrialUsageData = (uid: string, email: string | undefined): Record<string, unknown> => ({
+  uid,
+  emailHash: email ? hashEmail(email) : null,
+  firstTrialDate: admin.firestore.FieldValue.serverTimestamp(),
+  createdAt: admin.firestore.FieldValue.serverTimestamp(),
+});
+
+const userHasUnexpiredTrialWindow = (userData: admin.firestore.DocumentData | undefined): boolean => {
+  const trialEndMs = getTimestampMillis(userData?.trialEndDate) ?? getTimestampMillis(userData?.trialEndsAt);
   return trialEndMs !== null && trialEndMs > Date.now();
+};
+
+const userHasActiveTrial = (userData: admin.firestore.DocumentData | undefined): boolean => {
+  return userData?.membershipStatus === 'trial' && userHasUnexpiredTrialWindow(userData);
+};
+
+const trialHistoryMatchesStoreTrial = (
+  trialCheck: { firstTrialMs: number | null },
+  trialStartMs: number | null
+): boolean => {
+  if (trialCheck.firstTrialMs === null || trialStartMs === null) return false;
+  return Math.abs(trialCheck.firstTrialMs - trialStartMs) <= TRIAL_HISTORY_MATCH_TOLERANCE_MS;
 };
 
 const toStatusCode = (value: unknown): number | undefined => {
@@ -281,8 +313,9 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
         }
         expiresAt = new Date(parseInt(android.expiryTimeMillis, 10));
         autoRenewing = !!android.autoRenewing;
-        // Trial detection via paymentState (2 = Free trial)
-        // This is more reliable than offerTags which indicates offer TYPE, not user's current state
+        // Trial detection prefers Google's current offer phase. Some Play
+        // notifications/validation responses omit it, so fall back to the
+        // initial short entitlement window that Google returns during trials.
         inTrial = android.paymentState === 2;
         if (inTrial) {
           trialStart = android.startTimeMillis
@@ -290,6 +323,11 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
             : new Date();
           trialEnd = expiresAt;
         }
+        console.log(
+          `Android subscription state for user ${userId}: productId=${productId}, ` +
+          `trialSignal=${android.trialSignal ?? 'none'}, inTrial=${inTrial}, ` +
+          `start=${android.startTimeMillis ?? 'none'}, expiry=${android.expiryTimeMillis}`
+        );
       }
     }
 
@@ -348,6 +386,16 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
       } else if (hasPriorTrial && isSameAccountTrial) {
         // Same account with a store-confirmed active trial. Persist the trial
         // entitlement instead of leaving the user in demo or upgrading to premium.
+        const trialStartMs = trialStart ? trialStart.getTime() : null;
+        const sameTrialWindow = userHasUnexpiredTrialWindow(userData)
+          || trialHistoryMatchesStoreTrial(trialCheck, trialStartMs);
+        if (!sameTrialWindow) {
+          console.log(`User ${userId} attempted repeat trial after previous trial ended - rejecting`);
+          throw new HttpsError(
+            'failed-precondition',
+            'You have already used your free trial. Please subscribe to continue using premium features.'
+          );
+        }
         const statusLabel = userHasActiveTrial(userData) ? 'existing' : 'store-confirmed';
         console.log(`User ${userId} validating ${statusLabel} trial - keeping trial status`);
         updateData.hasUsedTrial = true;
@@ -474,11 +522,20 @@ async function validateAndroidSubscription(
     return {};
   }
 
+  const expiryTimeMillis = parseAndroidTimestampMillis(lineItem.expiryTime);
+  const startTimeMillis = parseAndroidTimestampMillis(purchase.startTime);
+  const expiryMs = expiryTimeMillis ? parseInt(expiryTimeMillis, 10) : null;
+  const startMs = startTimeMillis ? parseInt(startTimeMillis, 10) : null;
+  const hasFreeTrialPhase = lineItem.offerPhase?.freeTrial !== undefined;
+  const hasShortInitialWindow = isLikelyAndroidTrialWindow(startMs, expiryMs);
+  const inTrial = hasFreeTrialPhase || hasShortInitialWindow;
+
   return {
-    expiryTimeMillis: parseAndroidTimestampMillis(lineItem.expiryTime),
-    startTimeMillis: parseAndroidTimestampMillis(purchase.startTime),
+    expiryTimeMillis,
+    startTimeMillis,
     autoRenewing: lineItem.autoRenewingPlan?.autoRenewEnabled ?? false,
-    paymentState: lineItem.offerPhase?.freeTrial ? 2 : 1,
+    paymentState: inTrial ? 2 : 1,
+    trialSignal: hasFreeTrialPhase ? 'offer_phase' : hasShortInitialWindow ? 'short_initial_window' : 'none',
     productId: lineItem.productId ?? undefined,
     basePlanId: lineItem.offerDetails?.basePlanId ?? undefined,
   };

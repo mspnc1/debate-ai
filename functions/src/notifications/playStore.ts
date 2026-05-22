@@ -3,6 +3,7 @@ import * as admin from 'firebase-admin';
 import { google, androidpublisher_v3 } from 'googleapis';
 
 const PACKAGE_NAME_ANDROID = 'com.braveheartinnovations.debateai';
+const MAX_ANDROID_TRIAL_DURATION_MS = 14 * 24 * 60 * 60 * 1000;
 
 type AndroidSubscriptionState = {
   expiryTimeMillis?: string;
@@ -34,17 +35,30 @@ export const handlePlayStoreNotification = onMessagePublished(
       const autoRenewing = !!state?.autoRenewing;
 
       // Update user doc
+      const userRef = admin.firestore().collection('users').doc(userId);
+      const userSnap = await userRef.get();
+      const userData = userSnap.data();
       const isActive = !!(expiresAt && expiresAt.getTime() > Date.now());
-      const inTrial = isActive && state?.inTrial === true;
+      const existingTrialEndMs = getTimestampMillis(userData?.trialEndDate) ?? getTimestampMillis(userData?.trialEndsAt);
+      const preserveActiveTrial = isActive && userData?.hasUsedTrial === true
+        && existingTrialEndMs !== null
+        && existingTrialEndMs > Date.now();
+      const inTrial = isActive && (state?.inTrial === true || preserveActiveTrial);
+      const trialStartMs = state?.startTimeMillis
+        ? parseInt(state.startTimeMillis, 10)
+        : getTimestampMillis(userData?.trialStartDate);
+      const trialEndMs = inTrial
+        ? (state?.inTrial === true && expiresAt ? expiresAt.getTime() : existingTrialEndMs)
+        : null;
       const updateData: Record<string, unknown> = {
         membershipStatus: isActive ? (inTrial ? 'trial' : 'premium') : 'demo',
         isPremium: isActive,
         subscriptionSource: 'google_play',
         subscriptionExpiryDate: expiresAt ? admin.firestore.Timestamp.fromDate(expiresAt) : null,
-        trialStartDate: inTrial && state?.startTimeMillis
-          ? admin.firestore.Timestamp.fromDate(new Date(parseInt(state.startTimeMillis, 10)))
+        trialStartDate: inTrial && trialStartMs
+          ? admin.firestore.Timestamp.fromDate(new Date(trialStartMs))
           : null,
-        trialEndDate: inTrial && expiresAt ? admin.firestore.Timestamp.fromDate(expiresAt) : null,
+        trialEndDate: inTrial && trialEndMs ? admin.firestore.Timestamp.fromDate(new Date(trialEndMs)) : null,
         autoRenewing,
         productId: subscriptionId.includes('annual') ? 'annual' : 'monthly',
         lastValidated: admin.firestore.FieldValue.serverTimestamp(),
@@ -52,7 +66,7 @@ export const handlePlayStoreNotification = onMessagePublished(
       if (inTrial) {
         updateData.hasUsedTrial = true;
       }
-      await admin.firestore().collection('users').doc(userId).set(updateData, { merge: true });
+      await userRef.set(updateData, { merge: true });
     } catch (e) {
       console.error('handlePlayStoreNotification error', e);
     }
@@ -72,6 +86,30 @@ function parseAndroidTimestampMillis(value?: string | null): string | undefined 
   if (!value) return undefined;
   const millis = Date.parse(value);
   return Number.isFinite(millis) ? String(millis) : undefined;
+}
+
+function getTimestampMillis(value: unknown): number | null {
+  if (!value) return null;
+  if (typeof value === 'object') {
+    const timestampLike = value as {
+      toMillis?: () => number;
+      toDate?: () => Date;
+    };
+    if (typeof timestampLike.toMillis === 'function') return timestampLike.toMillis();
+    if (typeof timestampLike.toDate === 'function') return timestampLike.toDate().getTime();
+  }
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function isLikelyAndroidTrialWindow(startMs: number | null, expiryMs: number | null): boolean {
+  if (startMs === null || expiryMs === null) return false;
+  const durationMs = expiryMs - startMs;
+  return durationMs > 0 && durationMs <= MAX_ANDROID_TRIAL_DURATION_MS;
 }
 
 function getLatestSubscriptionLineItem(
@@ -105,11 +143,17 @@ async function validateAndroidSubscription(
   } as any);
   const purchase = res.data as androidpublisher_v3.Schema$SubscriptionPurchaseV2;
   const lineItem = getLatestSubscriptionLineItem(purchase.lineItems, subscriptionId);
+  const expiryTimeMillis = parseAndroidTimestampMillis(lineItem?.expiryTime);
+  const startTimeMillis = parseAndroidTimestampMillis(purchase.startTime);
+  const expiryMs = expiryTimeMillis ? parseInt(expiryTimeMillis, 10) : null;
+  const startMs = startTimeMillis ? parseInt(startTimeMillis, 10) : null;
+  const hasFreeTrialPhase = lineItem?.offerPhase?.freeTrial !== undefined;
+  const hasShortInitialWindow = isLikelyAndroidTrialWindow(startMs, expiryMs);
 
   return {
-    expiryTimeMillis: parseAndroidTimestampMillis(lineItem?.expiryTime),
-    startTimeMillis: parseAndroidTimestampMillis(purchase.startTime),
+    expiryTimeMillis,
+    startTimeMillis,
     autoRenewing: lineItem?.autoRenewingPlan?.autoRenewEnabled ?? false,
-    inTrial: lineItem?.offerPhase?.freeTrial !== undefined,
+    inTrial: hasFreeTrialPhase || hasShortInitialWindow,
   };
 }
