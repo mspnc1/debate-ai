@@ -185,6 +185,15 @@ describe('extractSSEErrorMessage', () => {
       // Message mentions overload, so it's kept
       expect(extractSSEErrorMessage(error)).toBe('Overloaded');
     });
+
+    it('uses react-native-sse xhrStatus when status is absent', () => {
+      const error = {
+        xhrStatus: 401,
+        message: 'Access denied',
+      };
+
+      expect(extractSSEErrorMessage(error)).toBe('Invalid API key or unauthorized access');
+    });
   });
 
   describe('edge cases', () => {
@@ -216,6 +225,15 @@ describe('extractSSEErrorMessage', () => {
       };
 
       expect(extractSSEErrorMessage(error, 'Fallback')).toBe('Fallback');
+    });
+
+    it('does not leak react-native-sse null XHR status implementation errors', () => {
+      const error = {
+        type: 'exception',
+        message: "Cannot read property 'status' of null",
+      };
+
+      expect(extractSSEErrorMessage(error, 'Connection failed')).toBe('Connection failed');
     });
   });
 });

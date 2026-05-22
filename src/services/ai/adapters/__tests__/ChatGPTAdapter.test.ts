@@ -2,7 +2,7 @@ import { ChatGPTAdapter } from '../openai/ChatGPTAdapter';
 import type { AIAdapterConfig } from '../../types/adapter.types';
 import type { MessageAttachment } from '../../../../types';
 
-type EventListener = (event: { data: string | null }) => void;
+type EventListener = (event: unknown) => void;
 
 class TestEventSource {
   listeners: Record<string, EventListener[]> = {};
@@ -20,6 +20,12 @@ class TestEventSource {
   emit(type: string, data: string | null): void {
     for (const listener of this.listeners[type] || []) {
       listener({ data });
+    }
+  }
+
+  emitRaw(type: string, event: unknown): void {
+    for (const listener of this.listeners[type] || []) {
+      listener(event);
     }
   }
 }
@@ -304,6 +310,24 @@ describe('ChatGPTAdapter', () => {
     if (!eventSource) throw new Error('EventSource not created');
     eventSource.emit('response.error', JSON.stringify({ error: { message: 'Upstream failure' } }));
     await expect(pending).rejects.toThrow('Upstream failure');
+    expect(eventSource.close).toHaveBeenCalled();
+  });
+
+  it('normalizes react-native-sse null XHR status errors during OpenAI streaming', async () => {
+    const adapter = new ChatGPTAdapter(baseConfig);
+    const iterator = adapter.streamMessage('Debate turn');
+
+    const pending = iterator.next();
+    await flushMicrotasks();
+    const eventSource = mockEventSourceInstances[0];
+    if (!eventSource) throw new Error('EventSource not created');
+    eventSource.emitRaw('error', {
+      type: 'exception',
+      message: "Cannot read property 'status' of null",
+      error: {},
+    });
+
+    await expect(pending).rejects.toThrow('Connection failed');
     expect(eventSource.close).toHaveBeenCalled();
   });
 });

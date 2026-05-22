@@ -6,6 +6,7 @@
  * - { data: '{"message":"..."}' } - Simple JSON
  * - { message: "..." } - Direct message property
  * - { status: 401 } - HTTP status code
+ * - { xhrStatus: 401 } - react-native-sse HTTP status code
  *
  * This utility normalizes all formats into user-friendly messages.
  */
@@ -15,6 +16,7 @@ export interface SSEErrorEvent {
   message?: string | object;
   error?: string | object;
   status?: number;
+  xhrStatus?: number;
   type?: string;
 }
 
@@ -64,12 +66,39 @@ export function extractSSEErrorMessage(
     }
   }
 
+  errorMessage = normalizeTransportImplementationMessage(errorMessage, defaultMessage);
+
   // Enhance message based on HTTP status code if available
-  if (typeof errorObj.status === 'number') {
-    errorMessage = enhanceWithStatusCode(errorObj.status, errorMessage);
+  const statusCode = getStatusCode(errorObj);
+  if (typeof statusCode === 'number') {
+    errorMessage = enhanceWithStatusCode(statusCode, errorMessage);
   }
 
   return errorMessage;
+}
+
+function getStatusCode(errorObj: SSEErrorEvent): number | undefined {
+  if (typeof errorObj.status === 'number') return errorObj.status;
+  if (typeof errorObj.xhrStatus === 'number') return errorObj.xhrStatus;
+  return undefined;
+}
+
+function normalizeTransportImplementationMessage(
+  message: string,
+  defaultMessage: string
+): string {
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes("cannot read property 'status' of null") ||
+    normalized.includes('cannot read property "status" of null') ||
+    normalized.includes("cannot read properties of null (reading 'status')") ||
+    normalized.includes('cannot read properties of null (reading "status")')
+  ) {
+    return defaultMessage;
+  }
+
+  return message;
 }
 
 /**
