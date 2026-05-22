@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { LogBox, Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import * as NavigationBar from 'expo-navigation-bar';
 import * as Device from 'expo-device';
 
 // Suppress Reanimated v4 dev-mode worklet warnings
@@ -272,12 +271,6 @@ function AppContent() {
 
 function ThemedAppSurface() {
   const { theme } = useTheme();
-
-  useEffect(() => {
-    if (Platform.OS === 'android') {
-      NavigationBar.setStyle('dark');
-    }
-  }, []);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
