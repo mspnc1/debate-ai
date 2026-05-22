@@ -17,8 +17,8 @@ describe('demoGating', () => {
     showTrialCTA(navigate);
     expect(Alert.alert).toHaveBeenCalledWith(
       'Demo Mode',
-      'This action requires a Free Trial to enable live AI access.',
-      expect.arrayContaining([{ text: 'Not now', style: 'cancel' }, expect.objectContaining({ text: 'Start 7‑Day Free Trial' })]),
+      'This action requires Premium access.',
+      expect.arrayContaining([{ text: 'Not now', style: 'cancel' }, expect.objectContaining({ text: 'Upgrade to Premium' })]),
     );
     const [, , buttons] = (Alert.alert as jest.Mock).mock.calls[0];
     buttons[1].onPress?.();

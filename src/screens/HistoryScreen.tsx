@@ -39,7 +39,7 @@ interface HistoryScreenProps {
 export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();
   const dispatch = useDispatch();
-  const { isDemo } = useFeatureAccess();
+  const { isDemo, canStartTrial } = useFeatureAccess();
   const { isTablet, isLandscape, width } = useResponsive();
   const greeting = useGreeting({ screenCategory: 'history' });
   const [activeTab, setActiveTab] = useState<'all' | 'chat' | 'comparison' | 'debate'>('all');
@@ -457,7 +457,11 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
           />
 
           <DemoBanner
-            subtitle="Demo Mode: Replay samples only. Continue requires a Free Trial."
+            subtitle={
+              canStartTrial
+                ? 'Demo Mode: Replay samples only. Start a free trial to continue.'
+                : 'Demo Mode: Replay samples only. Upgrade to Premium to continue.'
+            }
             onPress={() => dispatch(showSheet({ sheet: 'subscription' }))}
           />
 

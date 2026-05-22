@@ -21,6 +21,23 @@ type InitializeResult = { success: true } | { success: false; error?: unknown; s
 type PurchaseSubscriptionOptions = {
   includeTrialOffer?: boolean;
 };
+type AndroidOfferCandidate = {
+  token: string;
+  hasFreeTrial: boolean;
+  source: 'legacy' | 'standardized';
+  basePlanId?: string | null;
+  offerId?: string | null;
+  phaseCount?: number;
+};
+type PendingPurchaseContext = {
+  sku: string;
+  plan?: PlanType;
+  includeTrialOffer?: boolean;
+  selectedOffer?: Omit<AndroidOfferCandidate, 'token'>;
+  legacyOfferCount?: number;
+  standardizedOfferCount?: number;
+  productStatusAndroid?: string | null;
+};
 
 /** Timeout helper for promises */
 function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> {
@@ -149,30 +166,52 @@ function hasFreeTrialPhase(offer: ProductSubscriptionAndroidOfferDetails | Subsc
   return hasZeroPricePhase(offer.pricingPhases.pricingPhaseList);
 }
 
-function getAndroidSubscriptionOfferToken(
+function getAndroidSubscriptionOffer(
   product: ProductSubscriptionAndroid,
   includeTrialOffer: boolean
-): string | null {
-  const candidates = [
+): AndroidOfferCandidate | null {
+  const legacyCandidates = (product.subscriptionOfferDetailsAndroid ?? [])
+    .filter((offer) => Boolean(offer.offerToken))
+    .map((offer) => ({
+      token: offer.offerToken,
+      hasFreeTrial: hasFreeTrialPhase(offer),
+      source: 'legacy' as const,
+      basePlanId: offer.basePlanId,
+      offerId: offer.offerId,
+      phaseCount: offer.pricingPhases.pricingPhaseList.length,
+    }));
+  const standardizedCandidates = [
     ...(product.subscriptionOffers ?? [])
       .filter((offer) => Boolean(offer.offerTokenAndroid))
       .map((offer) => ({
         token: offer.offerTokenAndroid as string,
         hasFreeTrial: hasFreeTrialPhase(offer),
-      })),
-    ...(product.subscriptionOfferDetailsAndroid ?? [])
-      .filter((offer) => Boolean(offer.offerToken))
-      .map((offer) => ({
-        token: offer.offerToken,
-        hasFreeTrial: hasFreeTrialPhase(offer),
+        source: 'standardized' as const,
+        basePlanId: offer.basePlanIdAndroid,
+        offerId: offer.id,
+        phaseCount: offer.pricingPhasesAndroid?.pricingPhaseList?.length ?? undefined,
       })),
   ];
+  // Prefer the legacy Android BillingClient offer details. The standardized list is
+  // a derived compatibility surface, while subscriptionOfferDetailsAndroid is the
+  // native offer-token source used by Google Play Billing.
+  const candidates = [...legacyCandidates, ...standardizedCandidates];
 
   if (includeTrialOffer) {
-    return candidates.find((offer) => offer.hasFreeTrial)?.token ?? candidates[0]?.token ?? null;
+    return candidates.find((offer) => offer.hasFreeTrial) ?? candidates[0] ?? null;
   }
 
-  return candidates.find((offer) => !offer.hasFreeTrial)?.token ?? null;
+  return candidates.find((offer) => !offer.hasFreeTrial) ?? null;
+}
+
+function redactOfferToken(candidate: AndroidOfferCandidate): Omit<AndroidOfferCandidate, 'token'> {
+  return {
+    hasFreeTrial: candidate.hasFreeTrial,
+    source: candidate.source,
+    basePlanId: candidate.basePlanId,
+    offerId: candidate.offerId,
+    phaseCount: candidate.phaseCount,
+  };
 }
 
 /** Extract user-friendly message from Firebase function error */
@@ -212,6 +251,7 @@ export class PurchaseService {
   // Track when we're expecting a purchase - only process listener events when true
   // This prevents assigning purchases from a different Google account to the current Firebase user
   private static pendingPurchaseSku: string | null = null;
+  private static pendingPurchaseContext: PendingPurchaseContext | null = null;
 
   /**
    * Register a listener for background purchase errors (e.g., validation failures).
@@ -312,6 +352,7 @@ export class PurchaseService {
     this.isInitialized = false;
     this.initializationInProgress = null;
     this.pendingPurchaseSku = null;
+    this.pendingPurchaseContext = null;
     errorListeners.clear();
     const iapModule = getLoadedIapModule();
     if (iapModule) {
@@ -502,11 +543,11 @@ export class PurchaseService {
           ...(product.subscriptionOffers ?? []),
           ...(product.subscriptionOfferDetailsAndroid ?? []),
         ].some(hasFreeTrialPhase);
-        const offerToken = getAndroidSubscriptionOfferToken(product, includeTrialOffer);
+        const selectedOffer = getAndroidSubscriptionOffer(product, includeTrialOffer);
 
-        console.warn('[IAP] Android: Selected offer for', sku, '- includeTrialOffer:', includeTrialOffer, 'hasTrialOffer:', hasTrialOffer, 'offerToken:', offerToken ? 'present' : 'MISSING');
+        console.warn('[IAP] Android: Selected offer for', sku, '- includeTrialOffer:', includeTrialOffer, 'hasTrialOffer:', hasTrialOffer, 'offerSource:', selectedOffer?.source ?? 'MISSING', 'hasFreeTrial:', selectedOffer?.hasFreeTrial ?? 'MISSING', 'offerToken:', selectedOffer ? 'present' : 'MISSING');
 
-        if (!offerToken) {
+        if (!selectedOffer) {
           // Log this critical error to Firestore
           await logPurchaseError('noOfferToken', 'E_DEVELOPER_ERROR', `No offer token for SKU: ${sku}`, {
             plan,
@@ -520,6 +561,15 @@ export class PurchaseService {
         console.warn('[IAP] Android: Calling requestSubscription for', sku);
         const obfuscatedAccountId = await this.deriveAppAccountToken(user.uid);
         this.pendingPurchaseSku = sku; // Mark that we're expecting this purchase
+        this.pendingPurchaseContext = {
+          sku,
+          plan,
+          includeTrialOffer,
+          selectedOffer: redactOfferToken(selectedOffer),
+          legacyOfferCount: product.subscriptionOfferDetailsAndroid?.length ?? 0,
+          standardizedOfferCount: product.subscriptionOffers?.length ?? 0,
+          productStatusAndroid: product.productStatusAndroid,
+        };
         // For Android, subscriptionOffers contains the sku and offerToken
         await requestPurchase({
           type: 'subs',
@@ -527,7 +577,7 @@ export class PurchaseService {
             google: {
               skus: [sku],
               obfuscatedAccountId,
-              subscriptionOffers: [{ sku, offerToken }],
+              subscriptionOffers: [{ sku, offerToken: selectedOffer.token }],
             },
           },
         });
@@ -537,7 +587,9 @@ export class PurchaseService {
       return { success: true, pending: true } as const;
     } catch (error: unknown) {
       // Clear pending purchase flag on error
+      const pendingContext = this.pendingPurchaseContext;
       this.pendingPurchaseSku = null;
+      this.pendingPurchaseContext = null;
 
       const errorObj = error as {
         code?: string;
@@ -561,6 +613,7 @@ export class PurchaseService {
         responseCode: errorObj?.responseCode,
         debugMessage: errorObj?.debugMessage,
         rawErrorCode: errorObj?.code,
+        pendingContext,
         fullError: String(error),
       });
 
@@ -637,6 +690,7 @@ export class PurchaseService {
     } catch (error: unknown) {
       // Clear pending purchase flag on error
       this.pendingPurchaseSku = null;
+      this.pendingPurchaseContext = null;
 
       const errorObj = error as { code?: string; message?: string };
       const errorCode = errorObj?.code || 'UNKNOWN';
@@ -669,7 +723,9 @@ export class PurchaseService {
 
   private static async handlePurchaseError(error: unknown) {
     const pendingSku = this.pendingPurchaseSku;
+    const pendingContext = this.pendingPurchaseContext;
     this.pendingPurchaseSku = null;
+    this.pendingPurchaseContext = null;
 
     const errorObj = error as {
       code?: string;
@@ -697,6 +753,7 @@ export class PurchaseService {
         rawErrorCode: errorObj?.code,
         errorName: errorObj?.name,
         errorStack: errorObj?.stack,
+        pendingContext,
         fullError: JSON.stringify(Logger.redactValue('purchaseError', error)),
       });
     }
@@ -719,6 +776,7 @@ export class PurchaseService {
       const message = `Missing purchase token for ${purchase.productId}`;
       console.warn('[IAP] Purchase update missing token:', purchase.productId);
       this.pendingPurchaseSku = null;
+      this.pendingPurchaseContext = null;
       await logPurchaseError('handlePurchaseUpdate', 'MISSING_PURCHASE_TOKEN', message, {
         productId: purchase.productId,
         transactionId: purchase.transactionId,
@@ -744,6 +802,7 @@ export class PurchaseService {
     // Clear the pending purchase flag
     const expectedSku = this.pendingPurchaseSku;
     this.pendingPurchaseSku = null;
+    this.pendingPurchaseContext = null;
 
     // Verify the purchase matches what we expected
     if (purchase.productId !== expectedSku) {

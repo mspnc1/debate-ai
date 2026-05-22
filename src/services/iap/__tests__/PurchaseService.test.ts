@@ -493,7 +493,7 @@ describe('PurchaseService', () => {
         });
       });
 
-      it('should use standardized Android subscription offers when available', async () => {
+      it('should prefer legacy Android offer details over standardized offers', async () => {
         const mockProduct = {
           id: SUBSCRIPTION_PRODUCTS.monthly,
           productId: SUBSCRIPTION_PRODUCTS.monthly,
@@ -528,6 +528,40 @@ describe('PurchaseService', () => {
               },
             },
           ],
+        } as Partial<ProductSubscriptionAndroid>;
+
+        mockFetchProducts.mockResolvedValue([mockProduct]);
+
+        await PurchaseService.purchaseSubscription('monthly');
+
+        expect(mockRequestPurchase).toHaveBeenCalledWith({
+          type: 'subs',
+          request: {
+            google: {
+              skus: [SUBSCRIPTION_PRODUCTS.monthly],
+              obfuscatedAccountId: 'hashed-token-123',
+              subscriptionOffers: [{ sku: SUBSCRIPTION_PRODUCTS.monthly, offerToken: 'legacy-offer-token' }],
+            },
+          },
+        });
+      });
+
+      it('should fall back to standardized Android subscription offers when legacy details are unavailable', async () => {
+        const mockProduct = {
+          id: SUBSCRIPTION_PRODUCTS.monthly,
+          productId: SUBSCRIPTION_PRODUCTS.monthly,
+          productStatusAndroid: 'ok',
+          subscriptionOffers: [
+            {
+              id: 'standard-trial-offer',
+              displayPrice: 'Free',
+              price: 0,
+              type: 'introductory',
+              paymentMode: 'free-trial',
+              offerTokenAndroid: 'standard-trial-token',
+            },
+          ],
+          subscriptionOfferDetailsAndroid: [],
         } as Partial<ProductSubscriptionAndroid>;
 
         mockFetchProducts.mockResolvedValue([mockProduct]);

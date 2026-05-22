@@ -15,7 +15,7 @@ export const useSessionActions = (
 ): UseSessionActionsReturn => {
   const dispatch = useDispatch();
   const [isProcessing, setIsProcessing] = useState(false);
-  const { isDemo } = useFeatureAccess();
+  const { isDemo, canStartTrial } = useFeatureAccess();
 
   /**
    * Delete a session with confirmation
@@ -63,7 +63,12 @@ export const useSessionActions = (
   const resumeSession = useCallback((session: ChatSession) => {
     // Gate resuming in Demo Mode with CTA
     if (isDemo) {
-      showTrialCTA(navigation.navigate, { message: 'Continuing conversations requires a Free Trial.' });
+      showTrialCTA(navigation.navigate, {
+        message: canStartTrial
+          ? 'Continuing conversations requires a Free Trial.'
+          : 'Continuing conversations requires Premium.',
+        ctaText: canStartTrial ? 'Start 7-Day Free Trial' : 'Upgrade to Premium',
+      });
       return;
     }
     try {
@@ -227,7 +232,7 @@ export const useSessionActions = (
       console.error('Error resuming session:', error);
       ErrorService.handleWithToast(new Error('Failed to open the session. Please try again.'), { feature: 'history' });
     }
-  }, [dispatch, navigation, isDemo]);
+  }, [canStartTrial, dispatch, navigation, isDemo]);
 
   /**
    * Share a session (export conversation)

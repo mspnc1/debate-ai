@@ -5,8 +5,8 @@ export function showTrialCTA(
   opts?: { title?: string; message?: string; ctaText?: string }
 ) {
   const title = opts?.title || 'Demo Mode';
-  const message = opts?.message || 'This action requires a Free Trial to enable live AI access.';
-  const ctaText = opts?.ctaText || 'Start 7‑Day Free Trial';
+  const message = opts?.message || 'This action requires Premium access.';
+  const ctaText = opts?.ctaText || 'Upgrade to Premium';
   Alert.alert(
     title,
     message,
@@ -16,4 +16,3 @@ export function showTrialCTA(
     ]
   );
 }
-
