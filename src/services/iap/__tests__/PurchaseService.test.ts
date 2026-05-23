@@ -17,6 +17,7 @@ const mockGetDoc = jest.fn();
 const mockSetDoc = jest.fn();
 const mockDoc = jest.fn();
 const mockCollection = jest.fn();
+const mockAddDoc = jest.fn();
 
 const mockHttpsCallable = jest.fn();
 const mockGetFunctions = jest.fn();
@@ -48,6 +49,7 @@ jest.mock('@react-native-firebase/firestore', () => ({
   doc: (...args: unknown[]) => mockDoc(...args),
   getDoc: (...args: unknown[]) => mockGetDoc(...args),
   setDoc: (...args: unknown[]) => mockSetDoc(...args),
+  addDoc: (...args: unknown[]) => mockAddDoc(...args),
 }));
 
 jest.mock('@react-native-firebase/functions', () => ({
@@ -88,6 +90,7 @@ describe('PurchaseService', () => {
     mockDigestStringAsync.mockResolvedValue('hashed-token-123');
     mockGetDoc.mockResolvedValue({ data: () => ({}) });
     mockSetDoc.mockResolvedValue(undefined);
+    mockAddDoc.mockResolvedValue({ id: 'purchase-error-doc' });
     mockDoc.mockReturnValue('doc-ref');
     mockCollection.mockReturnValue('collection-ref');
     mockGetFunctions.mockReturnValue({});
@@ -545,6 +548,59 @@ describe('PurchaseService', () => {
         });
       });
 
+      it('should restore an existing same-SKU Android subscription instead of launching duplicate purchase', async () => {
+        const mockProduct = {
+          id: SUBSCRIPTION_PRODUCTS.annual,
+          productId: SUBSCRIPTION_PRODUCTS.annual,
+          subscriptionOfferDetailsAndroid: [
+            {
+              offerToken: 'annual-offer-token',
+              basePlanId: 'annual-base',
+              offerId: null,
+              offerTags: [],
+              pricingPhases: {
+                pricingPhaseList: [
+                  {
+                    priceAmountMicros: '49990000',
+                    billingPeriod: 'P1Y',
+                    recurrenceMode: 1,
+                    billingCycleCount: 0,
+                    formattedPrice: '$49.99',
+                    priceCurrencyCode: 'USD',
+                  },
+                ],
+              },
+            },
+          ],
+        } as Partial<ProductSubscriptionAndroid>;
+
+        mockFetchProducts.mockResolvedValue([mockProduct]);
+        mockGetAvailablePurchases.mockResolvedValue([
+          {
+            productId: SUBSCRIPTION_PRODUCTS.annual,
+            purchaseToken: 'existing-annual-token',
+            transactionId: 'existing-annual-tx',
+            purchaseState: 'purchased',
+          },
+        ]);
+        mockValidatePurchaseCallable.mockResolvedValueOnce({ data: { valid: true } });
+
+        const result = await PurchaseService.purchaseSubscription('annual');
+
+        expect(result).toEqual({
+          success: true,
+          restored: true,
+          userMessage: 'Your existing Google Play subscription has been restored.',
+        });
+        expect(mockRequestPurchase).not.toHaveBeenCalled();
+        expect(mockValidatePurchaseCallable).toHaveBeenCalledWith({
+          receipt: 'existing-annual-token',
+          platform: 'android',
+          productId: SUBSCRIPTION_PRODUCTS.annual,
+          purchaseToken: 'existing-annual-token',
+        });
+      });
+
       it('should prefer legacy Android offer details over standardized offers', async () => {
         const mockProduct = {
           id: SUBSCRIPTION_PRODUCTS.monthly,
@@ -862,6 +918,33 @@ describe('PurchaseService', () => {
         platform: 'ios',
         productId: SUBSCRIPTION_PRODUCTS.monthly,
         purchaseToken: 'monthly-receipt',
+      });
+    });
+
+    it('should validate store purchases even when Firebase has stale subscription metadata', async () => {
+      const annualPurchase: Partial<Purchase> = {
+        productId: SUBSCRIPTION_PRODUCTS.annual,
+        purchaseToken: 'annual-receipt',
+        transactionId: 'annual-tx-456',
+      };
+
+      mockGetDoc.mockResolvedValue({
+        data: () => ({
+          membershipStatus: 'demo',
+          subscriptionExpiryDate: { seconds: Math.floor(Date.now() / 1000) - 86400 },
+        }),
+      });
+      mockGetAvailablePurchases.mockResolvedValue([annualPurchase]);
+      mockValidatePurchaseCallable.mockResolvedValueOnce({ data: { valid: true } });
+
+      const result = await PurchaseService.restorePurchases();
+
+      expect(result).toEqual({ success: true, restored: true, isLifetime: false });
+      expect(mockValidatePurchaseCallable).toHaveBeenCalledWith({
+        receipt: 'annual-receipt',
+        platform: 'ios',
+        productId: SUBSCRIPTION_PRODUCTS.annual,
+        purchaseToken: 'annual-receipt',
       });
     });
 

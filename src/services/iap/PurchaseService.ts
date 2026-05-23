@@ -41,6 +41,19 @@ type PendingPurchaseContext = {
   replacementProductId?: string | null;
 };
 
+type StorePurchaseSummary = {
+  productId: string | null;
+  ids?: string[];
+  state?: string | null;
+  currentPlanId?: string | null;
+  autoRenewingAndroid?: boolean | null;
+  acknowledgedAndroid?: boolean | null;
+  suspendedAndroid?: boolean | null;
+  hasStoreCredential: boolean;
+  hasTxnId: boolean;
+  hasPendingStoreUpdate?: boolean;
+};
+
 const ANDROID_SUBSCRIPTION_REPLACEMENT_MODE = 'without-proration' as const;
 
 /** Timeout helper for promises */
@@ -51,6 +64,35 @@ function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage: string): 
       setTimeout(() => reject(new Error(errorMessage)), ms)
     ),
   ]);
+}
+
+function getTimestampMillis(value: unknown): number | null {
+  if (!value) {
+    return null;
+  }
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+  if (typeof value === 'number') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  if (typeof value === 'object') {
+    const timestamp = value as { toDate?: () => Date; seconds?: number; _seconds?: number };
+    if (typeof timestamp.toDate === 'function') {
+      return timestamp.toDate().getTime();
+    }
+    if (typeof timestamp.seconds === 'number') {
+      return timestamp.seconds * 1000;
+    }
+    if (typeof timestamp._seconds === 'number') {
+      return timestamp._seconds * 1000;
+    }
+  }
+  return null;
 }
 
 /**
@@ -218,11 +260,48 @@ function redactOfferToken(candidate: AndroidOfferCandidate): Omit<AndroidOfferCa
   };
 }
 
+function getPurchaseProductIds(purchase: Purchase): string[] {
+  const ids = [
+    purchase.productId,
+    ...((purchase as Purchase & { ids?: string[] | null }).ids ?? []),
+  ].filter((id): id is string => Boolean(id));
+  return Array.from(new Set(ids));
+}
+
 function getPurchaseProductId(purchase: Purchase): string | null {
-  const productId = purchase.productId;
-  if (productId) return productId;
-  const ids = (purchase as Purchase & { ids?: string[] }).ids;
-  return ids?.[0] ?? null;
+  return getPurchaseProductIds(purchase)[0] ?? null;
+}
+
+function purchaseMatchesSku(purchase: Purchase, sku: string): boolean {
+  return getPurchaseProductIds(purchase).includes(sku);
+}
+
+function summarizeStorePurchase(purchase: Purchase): StorePurchaseSummary {
+  const androidPurchase = purchase as Purchase & {
+    autoRenewingAndroid?: boolean | null;
+    isAcknowledgedAndroid?: boolean | null;
+    isSuspendedAndroid?: boolean | null;
+    pendingPurchaseUpdateAndroid?: unknown;
+    transactionId?: string | null;
+  };
+  const ids = getPurchaseProductIds(purchase);
+
+  return {
+    productId: getPurchaseProductId(purchase),
+    ids: ids.length > 1 ? ids : undefined,
+    state: purchase.purchaseState ?? null,
+    currentPlanId: purchase.currentPlanId ?? null,
+    autoRenewingAndroid: androidPurchase.autoRenewingAndroid ?? null,
+    acknowledgedAndroid: androidPurchase.isAcknowledgedAndroid ?? null,
+    suspendedAndroid: androidPurchase.isSuspendedAndroid ?? null,
+    hasStoreCredential: Boolean(purchase.purchaseToken),
+    hasTxnId: Boolean(androidPurchase.transactionId),
+    hasPendingStoreUpdate: Boolean(androidPurchase.pendingPurchaseUpdateAndroid),
+  };
+}
+
+function summarizeStorePurchases(purchases: Purchase[]): StorePurchaseSummary[] {
+  return purchases.map(summarizeStorePurchase);
 }
 
 function getAndroidSubscriptionReplacementParams(
@@ -236,7 +315,7 @@ function getAndroidSubscriptionReplacementParams(
 
   const existingSubscription = purchases.find((purchase) => {
     const productId = getPurchaseProductId(purchase);
-    return Boolean(productId && productId !== targetSku && subscriptionSkus.has(productId));
+    return Boolean(productId && !purchaseMatchesSku(purchase, targetSku) && subscriptionSkus.has(productId));
   });
   const oldProductId = existingSubscription ? getPurchaseProductId(existingSubscription) : null;
 
@@ -247,6 +326,36 @@ function getAndroidSubscriptionReplacementParams(
   return {
     oldProductId,
     replacementMode: ANDROID_SUBSCRIPTION_REPLACEMENT_MODE,
+  };
+}
+
+function summarizeUnknownError(error: unknown): {
+  errorCode: string;
+  errorMessage: string;
+  responseCode?: number;
+  debugMessage?: string;
+  name?: string;
+  productId?: string | null;
+  stackPresent?: boolean;
+} {
+  const errorObj = error as {
+    code?: string;
+    message?: string;
+    debugMessage?: string;
+    responseCode?: number;
+    name?: string;
+    productId?: string | null;
+    stack?: string;
+  };
+
+  return {
+    errorCode: errorObj?.code || (errorObj?.responseCode !== undefined ? String(errorObj.responseCode) : 'UNKNOWN'),
+    errorMessage: errorObj?.message || errorObj?.debugMessage || String(error),
+    responseCode: errorObj?.responseCode,
+    debugMessage: errorObj?.debugMessage,
+    name: errorObj?.name,
+    productId: errorObj?.productId,
+    stackPresent: Boolean(errorObj?.stack),
   };
 }
 
@@ -603,6 +712,62 @@ export class PurchaseService {
           });
           return [] as Purchase[];
         });
+        const sameSkuPurchase = availablePurchases.find((purchase) => purchaseMatchesSku(purchase, sku));
+        if (sameSkuPurchase) {
+          const sameSkuContext = {
+            sku,
+            plan,
+            includeTrialOffer,
+            selectedOffer: redactOfferToken(selectedOffer),
+            legacyOfferCount: product.subscriptionOfferDetailsAndroid?.length ?? 0,
+            standardizedOfferCount: product.subscriptionOffers?.length ?? 0,
+            productStatusAndroid: product.productStatusAndroid,
+            sameStoreItem: summarizeStorePurchase(sameSkuPurchase),
+            storeItems: summarizeStorePurchases(availablePurchases),
+          };
+          await logPurchaseError(
+            'sameSkuAlreadyOwned',
+            'ITEM_ALREADY_OWNED',
+            `Google Play already has an active or unexpired subscription for SKU: ${sku}`,
+            sameSkuContext
+          );
+
+          if (sameSkuPurchase.purchaseToken) {
+            try {
+              await this.validateAndSavePurchase(sameSkuPurchase);
+              return {
+                success: true,
+                restored: true,
+                userMessage: 'Your existing Google Play subscription has been restored.',
+              } as const;
+            } catch (restoreError: unknown) {
+              const restoreSummary = summarizeUnknownError(restoreError);
+              await logPurchaseError(
+                'sameSkuRestoreFailed',
+                restoreSummary.errorCode,
+                restoreSummary.errorMessage,
+                {
+                  sku,
+                  plan,
+                  errorSummary: restoreSummary,
+                  sameStoreItem: summarizeStorePurchase(sameSkuPurchase),
+                }
+              );
+              return {
+                success: false,
+                error: restoreError,
+                errorCode: 'ITEM_ALREADY_OWNED',
+                userMessage: 'Google Play already has this subscription on your account. Tap Restore Purchases, or manage the subscription in Google Play.',
+              } as const;
+            }
+          }
+
+          return {
+            success: false,
+            errorCode: 'ITEM_ALREADY_OWNED',
+            userMessage: 'Google Play already has this subscription on your account. Tap Restore Purchases, or manage the subscription in Google Play.',
+          } as const;
+        }
         const replacementParams = getAndroidSubscriptionReplacementParams(availablePurchases, sku);
         if (replacementParams) {
           console.warn('[IAP] Android: Adding subscription replacement params for', sku, 'from', replacementParams.oldProductId);
@@ -665,7 +830,7 @@ export class PurchaseService {
         debugMessage: errorObj?.debugMessage,
         rawErrorCode: errorObj?.code,
         pendingContext,
-        fullError: String(error),
+        errorSummary: summarizeUnknownError(error),
       });
 
       if (errorCode === 'E_USER_CANCELLED' || errorCode === 'USER_CANCELED') {
@@ -803,9 +968,9 @@ export class PurchaseService {
         debugMessage: errorObj?.debugMessage,
         rawErrorCode: errorObj?.code,
         errorName: errorObj?.name,
-        errorStack: errorObj?.stack,
+        errorStackPresent: Boolean(errorObj?.stack),
         pendingContext,
-        fullError: JSON.stringify(Logger.redactValue('purchaseError', error)),
+        errorSummary: summarizeUnknownError(error),
       });
     }
 
@@ -946,15 +1111,27 @@ export class PurchaseService {
         membershipStatus?: string;
         isLifetime?: boolean;
         subscriptionExpiryDate?: unknown;
+        trialEndDate?: unknown;
+        trialEndsAt?: unknown;
       } | undefined;
 
-      // Check if user has any subscription-related data
-      return !!(
-        data?.membershipStatus === 'premium' ||
-        data?.membershipStatus === 'trial' ||
-        data?.isLifetime === true ||
-        data?.subscriptionExpiryDate
-      );
+      if (data?.isLifetime === true) {
+        return true;
+      }
+
+      const now = Date.now();
+      const subscriptionExpiryMs = getTimestampMillis(data?.subscriptionExpiryDate);
+      const trialExpiryMs = getTimestampMillis(data?.trialEndDate) ?? getTimestampMillis(data?.trialEndsAt);
+
+      if (data?.membershipStatus === 'trial') {
+        return trialExpiryMs !== null && trialExpiryMs > now;
+      }
+
+      if (data?.membershipStatus === 'premium') {
+        return subscriptionExpiryMs === null || subscriptionExpiryMs > now;
+      }
+
+      return false;
     } catch {
       return false;
     }
@@ -979,28 +1156,27 @@ export class PurchaseService {
         return { success: false, errorCode: 'NOT_AUTHENTICATED', userMessage: 'Please sign in to restore purchases.' } as const;
       }
 
-      // Check if user already has subscription data in Firebase
-      const hasExisting = await this.userHasExistingSubscription();
-      if (hasExisting) {
-        console.warn('[IAP] User already has subscription data');
-        return { success: true, restored: false, userMessage: 'Your subscription is already active.' } as const;
-      }
-
       const purchases = await getAvailablePurchases();
       const ids = Object.values(SUBSCRIPTION_PRODUCTS) as string[];
 
       // Prioritize lifetime purchases if found
-      const lifetimePurchase = purchases.find((p) => p.productId === SUBSCRIPTION_PRODUCTS.lifetime);
+      const lifetimePurchase = purchases.find((p) => purchaseMatchesSku(p, SUBSCRIPTION_PRODUCTS.lifetime));
       if (lifetimePurchase) {
         await this.validateAndSavePurchase(lifetimePurchase);
         return { success: true, restored: true, isLifetime: true } as const;
       }
 
       // Otherwise look for active subscription
-      const active = purchases.find((p) => ids.includes(p.productId));
+      const active = purchases.find((p) => ids.some((id) => purchaseMatchesSku(p, id)));
       if (active) {
         await this.validateAndSavePurchase(active);
         return { success: true, restored: true, isLifetime: false } as const;
+      }
+
+      const hasExisting = await this.userHasExistingSubscription();
+      if (hasExisting) {
+        console.warn('[IAP] User already has active subscription data');
+        return { success: true, restored: false, userMessage: 'Your subscription is already active.' } as const;
       }
       return { success: true, restored: false, userMessage: 'No previous purchases found.' } as const;
     } catch (error) {

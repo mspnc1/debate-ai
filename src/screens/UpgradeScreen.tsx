@@ -105,6 +105,16 @@ export default function UpgradeScreen() {
       setLoadingPlan('trial');
       const result = await PurchaseService.purchaseSubscription('monthly', { includeTrialOffer: true });
       if (result.success) {
+        if ('restored' in result && result.restored) {
+          setShowTrialTerms(false);
+          refresh();
+          ErrorService.showSuccess(
+            'userMessage' in result && result.userMessage
+              ? result.userMessage
+              : 'Your existing subscription has been restored.',
+            'subscription'
+          );
+        }
         setShowTrialTerms(false);
         return;
       } else if ('cancelled' in result && result.cancelled) {
@@ -137,6 +147,15 @@ export default function UpgradeScreen() {
         includeTrialOffer: canStartTrial,
       });
       if (result.success) {
+        if ('restored' in result && result.restored) {
+          refresh();
+          ErrorService.showSuccess(
+            'userMessage' in result && result.userMessage
+              ? result.userMessage
+              : 'Your existing subscription has been restored.',
+            'subscription'
+          );
+        }
         return;
       } else if ('cancelled' in result && result.cancelled) {
         // User cancelled, do nothing

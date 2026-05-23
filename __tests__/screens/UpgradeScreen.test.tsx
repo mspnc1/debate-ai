@@ -215,6 +215,31 @@ describe('UpgradeScreen', () => {
     expect(mockGoBack).not.toHaveBeenCalled();
   });
 
+  it('shows restored feedback when purchase preflight restores an existing subscription', async () => {
+    mockPurchaseSubscription.mockResolvedValueOnce({
+      success: true,
+      restored: true,
+      userMessage: 'Your existing Google Play subscription has been restored.',
+    });
+
+    const { getAllByText } = renderWithProviders(<UpgradeScreen />, {
+      preloadedState: {
+        auth: { isAuthenticated: true, user: null, loading: false, error: null },
+      },
+    });
+
+    const subscribeButtons = getAllByText('Start Free Trial');
+    fireEvent.press(subscribeButtons[2]);
+
+    await waitFor(() => {
+      expect(mockShowSuccess).toHaveBeenCalledWith(
+        'Your existing Google Play subscription has been restored.',
+        'subscription'
+      );
+    });
+    expect(mockFeatureAccess.refresh).toHaveBeenCalled();
+  });
+
   it('shows error toast on failed purchase', async () => {
     mockPurchaseSubscription.mockResolvedValueOnce({ success: false, userMessage: 'Payment failed' });
 
