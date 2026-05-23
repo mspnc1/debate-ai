@@ -118,6 +118,7 @@ export interface ChatSession {
   // Debate-specific optional configuration snapshot for history/analytics
   debateConfig?: {
     formatId?: 'oxford' | 'lincoln_douglas' | 'policy' | 'socratic';
+    presetId?: string;
     rounds?: number;
     tempo?: 'streaming' | 'fixed';
     postStreamPauseMs?: number;

@@ -35,3 +35,11 @@ export type {
 export type {
   PromptContext,
 } from './DebatePromptBuilder';
+
+export type {
+  DebateFormatId,
+  FormatSpec,
+  MessageSpec,
+  PhaseId,
+  PresetConfig,
+} from '../../config/debate/formats';

@@ -5,7 +5,7 @@
 
 import { AI, Message, PersonalityTone, PersonalityDebateProfile } from '../../types';
 import { DEBATE_CONSTANTS } from '../../config/debateConstants';
-import type { FormatSpec } from '../../config/debate/formats';
+import type { FormatSpec, PhaseId } from '../../config/debate/formats';
 import { generateStyleNudge } from '@/lib/personality';
 
 export interface PromptContext {
@@ -23,18 +23,20 @@ export class DebatePromptBuilder {
   // Build a minimal per-turn prompt (no persona reinjection)
   buildTurnPrompt(params: {
     topic: string;
-    phase: 'opening' | 'rebuttal' | 'closing' | 'crossfire' | 'question';
+    phase: PhaseId;
     previousMessage?: string;
     isFinalRound?: boolean;
     guidance?: string; // from FormatSpec
     civilityLevel?: 1 | 2 | 3 | 4 | 5;
     format?: FormatSpec;
     personalityId?: string;
+    messageLabel?: string;
+    cxRole?: 'questioner' | 'answerer';
     // Optional customized personality data for style nudges
     customizedTone?: Partial<PersonalityTone>;
     customizedDebateProfile?: Partial<PersonalityDebateProfile>;
   }): string {
-    const { topic, phase, previousMessage, isFinalRound, guidance, civilityLevel, format, personalityId, customizedTone, customizedDebateProfile } = params;
+    const { topic, phase, previousMessage, isFinalRound, guidance, civilityLevel, format, personalityId, messageLabel, cxRole, customizedTone, customizedDebateProfile } = params;
     const base = guidance || '';
     const prev = previousMessage ? `${DEBATE_CONSTANTS.PROMPT_MARKERS.PREVIOUS_SPEAKER}"${previousMessage}"` : '';
     const isSocratic = format?.id === 'socratic';
@@ -49,29 +51,37 @@ export class DebatePromptBuilder {
     } else if (personalityId === 'george') {
       styleNudge = 'Use PG-13 observational satire: expose contradictions with sarcasm; mild profanity is allowed sparingly, never slurs or personal attacks.';
     }
-    const prevGuarded = phase === 'opening' ? '' : prev;
+    const prevGuarded = phase === 'opening' || phase === 'constructive' ? '' : prev;
     // Human-friendly phase labels (format-aware for Socratic)
-    const defaultLabelMap: Record<typeof phase, string> = {
+    const defaultLabelMap: Record<PhaseId, string> = {
       opening: isSocratic ? 'Opening Questions' : 'Opening Statement',
+      constructive: 'Constructive Speech',
       rebuttal: isSocratic ? 'Focused Follow-up' : 'Rebuttal',
+      final_rebuttal: 'Final Rebuttal',
       closing: isSocratic ? 'Synthesis' : 'Closing Argument',
-      crossfire: 'Cross-examination',
+      cross_examination: cxRole === 'questioner' ? 'Cross-Examination (Questions)' : 'Cross-Examination (Answers)',
       question: 'Question',
+      synthesis: 'Synthesis',
     } as const;
-    const phaseLabel = defaultLabelMap[phase] || 'Turn';
+    const phaseLabel = messageLabel || defaultLabelMap[phase] || 'Turn';
     // One-line hints per phase (format-aware) with explicit do/don't boundaries
-    const hintMap: Record<typeof phase, string> = {
+    const hintMap: Record<PhaseId, string> = {
       opening: isSocratic
         ? 'Pose 1–3 clarifying questions to frame terms and assumptions.'
         : 'Present your case. Do NOT mention or address the opponent or their claims in this turn.',
+      constructive: 'Present your constructive case with supporting evidence. You may introduce new arguments.',
       rebuttal: isSocratic
         ? 'Probe assumptions with concise, pointed follow-ups or answers.'
         : 'Directly refute 1–2 specific claims from the prior turn with focused evidence.',
+      final_rebuttal: 'Reinforce your strongest points. No new arguments.',
       closing: isSocratic
         ? 'Offer a crisp synthesis; no new claims.'
         : 'Synthesize and leave one clear takeaway; no new claims.',
-      crossfire: 'Ask or answer pointed questions; keep it tight.',
+      cross_examination: cxRole === 'questioner'
+        ? 'Ask pointed questions to expose weaknesses in the opponent\'s case.'
+        : 'Answer directly and defend your position. Be concise.',
       question: 'Pose one focused question that moves the argument.',
+      synthesis: 'Identify the strongest insight or unresolved tension; be concise.',
     } as const;
     const phaseHint = hintMap[phase];
 

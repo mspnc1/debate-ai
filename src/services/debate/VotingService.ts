@@ -1,11 +1,11 @@
 /**
  * Voting Service
- * Handles all voting logic including round voting, overall voting, and score calculation
+ * Handles voting logic including round voting, overall voting, and score calculation.
  */
 
 import { AI } from '../../types';
 import { DEBATE_CONSTANTS } from '../../config/debateConstants';
-import type { FormatSpec } from '../../config/debate/formats';
+import { getPresetForFormat, getPresetIdForRounds, type FormatSpec, type PresetConfig } from '../../config/debate/formats';
 
 export interface VoteRecord {
   round: number;
@@ -31,57 +31,63 @@ export interface VotingState {
   isOverallVote: boolean;
 }
 
+function isPresetConfig(value: PresetConfig | FormatSpec | undefined): value is PresetConfig {
+  return Boolean(value && Array.isArray((value as PresetConfig).messages));
+}
+
+function isFormatSpec(value: PresetConfig | FormatSpec | undefined): value is FormatSpec {
+  return Boolean(value && Array.isArray((value as FormatSpec).presets));
+}
+
 export class VotingService {
   private participants: AI[];
-  private format: FormatSpec;
-  private maxRounds: number;
+  private preset: PresetConfig;
+  private votingLabels: string[];
+  private totalVotes: number;
   private votes: Map<number, VoteRecord> = new Map();
   private overallWinner?: string;
-  
-  constructor(participants: AI[], format: FormatSpec, maxRounds: number = DEBATE_CONSTANTS.MAX_ROUNDS) {
+
+  constructor(participants: AI[], presetOrFormat: PresetConfig | FormatSpec, legacyMaxRounds?: number) {
     this.participants = participants;
-    this.format = format;
-    this.maxRounds = maxRounds;
+
+    if (isPresetConfig(presetOrFormat)) {
+      this.preset = presetOrFormat;
+    } else if (isFormatSpec(presetOrFormat)) {
+      const presetId = getPresetIdForRounds(legacyMaxRounds);
+      this.preset = presetOrFormat.presets.find((preset) => preset.id === presetId) || presetOrFormat.presets[0];
+    } else {
+      this.preset = getPresetForFormat('oxford', 'short');
+    }
+
+    this.votingLabels = this.preset.messages
+      .filter((message) => message.voteAfter)
+      .map((message) => message.votingLabel || message.label || 'Exchange');
+    this.totalVotes = this.votingLabels.length;
   }
-  
-  /**
-   * Record a vote for a specific round
-   */
+
   recordRoundVote(round: number, winnerId: string): VoteRecord {
     const voteRecord: VoteRecord = {
       round,
       winnerId,
       timestamp: Date.now(),
     };
-    
+
     this.votes.set(round, voteRecord);
     return voteRecord;
   }
-  
-  /**
-   * Record the overall winner
-   */
+
   recordOverallWinner(winnerId: string): void {
     this.overallWinner = winnerId;
   }
-  
-  /**
-   * Get vote for a specific round
-   */
+
   getRoundVote(round: number): VoteRecord | undefined {
     return this.votes.get(round);
   }
-  
-  /**
-   * Check if a round has been voted on
-   */
+
   hasVotedForRound(round: number): boolean {
     return this.votes.has(round);
   }
-  
-  /**
-   * Get all votes as a simple map for compatibility
-   */
+
   getVotesMap(): { [key: string]: string } {
     const votesMap: { [key: string]: string } = {};
     this.votes.forEach((vote, round) => {
@@ -92,15 +98,11 @@ export class VotingService {
     }
     return votesMap;
   }
-  
-  /**
-   * Calculate current scores based on round wins
-   */
+
   calculateScores(): ScoreBoard {
     const scoreBoard: ScoreBoard = {};
-    
-    // Initialize scoreboard
-    this.participants.forEach(ai => {
+
+    this.participants.forEach((ai) => {
       scoreBoard[ai.id] = {
         name: ai.name,
         roundWins: 0,
@@ -108,85 +110,70 @@ export class VotingService {
         isOverallWinner: ai.id === this.overallWinner,
       };
     });
-    
-    // Count round wins
+
     this.votes.forEach((vote, round) => {
       if (scoreBoard[vote.winnerId]) {
-        scoreBoard[vote.winnerId].roundWins++;
+        scoreBoard[vote.winnerId].roundWins += 1;
         scoreBoard[vote.winnerId].roundsWon.push(round);
       }
     });
-    
+
     return scoreBoard;
   }
-  
-  /**
-   * Get voting prompt for UI
-   */
+
+  getVotingLabel(voteIndex: number): string {
+    if (voteIndex >= 1 && voteIndex <= this.votingLabels.length) {
+      return this.votingLabels[voteIndex - 1];
+    }
+    return 'Exchange';
+  }
+
   getVotingPrompt(round: number, _isFinalVote: boolean, isOverallVote: boolean): string {
     if (isOverallVote) {
       return DEBATE_CONSTANTS.VOTING.OVERALL_PROMPT;
     }
-    const label = this.getExchangeLabel(round);
-    // Keep concise and avoid the word "Round"
-    return `🏅 Who won ${label}?`;
+    return `🏅 Who won ${this.getVotingLabel(round)}?`;
   }
-  
-  /**
-   * Get winner announcement message
-   */
+
   getWinnerMessage(round: number, winnerId: string, _isFinalVote: boolean): string {
-    const winner = this.participants.find(ai => ai.id === winnerId);
+    const winner = this.participants.find((ai) => ai.id === winnerId);
     const winnerName = winner?.name || 'Unknown';
-    const label = this.getExchangeLabel(round);
-    // Use exchange label instead of numeric round
-    return `${label}: ${winnerName}`;
+    return `${this.getVotingLabel(round)}: ${winnerName}`;
   }
-  
-  /**
-   * Get overall winner message
-   */
+
   getOverallWinnerMessage(winnerId: string): string {
-    const winner = this.participants.find(ai => ai.id === winnerId);
+    const winner = this.participants.find((ai) => ai.id === winnerId);
     const winnerName = winner?.name || 'Unknown';
     return DEBATE_CONSTANTS.MESSAGES.OVERALL_WINNER(winnerName);
   }
-  
-  /**
-   * Check if all rounds have been voted on
-   */
+
   areAllRoundsVoted(): boolean {
-    for (let round = 1; round <= this.maxRounds; round++) {
+    for (let round = 1; round <= this.totalVotes; round += 1) {
       if (!this.hasVotedForRound(round)) {
         return false;
       }
     }
     return true;
   }
-  
-  /**
-   * Get next round that needs voting
-   */
+
   getNextVotingRound(): number | null {
-    for (let round = 1; round <= this.maxRounds; round++) {
+    for (let round = 1; round <= this.totalVotes; round += 1) {
       if (!this.hasVotedForRound(round)) {
         return round;
       }
     }
     return null;
   }
-  
-  /**
-   * Reset all votes and state
-   */
+
+  getTotalVotes(): number {
+    return this.totalVotes;
+  }
+
   reset(): void {
     this.votes.clear();
     this.overallWinner = undefined;
   }
-  
-  /**
-   * Get voting statistics
-   */
+
   getVotingStats(): {
     totalRounds: number;
     votedRounds: number;
@@ -194,66 +181,10 @@ export class VotingService {
     hasOverallWinner: boolean;
   } {
     return {
-      totalRounds: this.maxRounds,
+      totalRounds: this.totalVotes,
       votedRounds: this.votes.size,
-      remainingRounds: this.maxRounds - this.votes.size,
+      remainingRounds: this.totalVotes - this.votes.size,
       hasOverallWinner: !!this.overallWinner,
     };
-  }
-
-  /**
-   * Derive the human-friendly exchange label (e.g., Opening, Rebuttal, Closing)
-   */
-  private getExchangeLabel(round: number): string {
-    // Canonical labels for 3 exchanges
-    if (this.maxRounds === 3) {
-      const MAP_3: Record<number, string> = {
-        1: 'Opening',
-        2: 'Rebuttal',
-        3: 'Closing',
-      };
-      return MAP_3[round] || 'Exchange';
-    }
-    // If the debate uses 5 exchanges, provide canonical labels
-    if (this.maxRounds === 5) {
-      const MAP_5: Record<number, string> = {
-        1: 'Opening',
-        2: 'Rebuttal',
-        3: 'Cross-examination',
-        4: 'Counter',
-        5: 'Closing',
-      };
-      return MAP_5[round] || 'Exchange';
-    }
-    // If the debate uses 7 exchanges, provide full mapping
-    if (this.maxRounds === 7) {
-      const MAP_7: Record<number, string> = {
-        1: 'Opening',
-        2: 'Rebuttal',
-        3: 'Deep analysis',
-        4: 'Cross-examination',
-        5: 'Counter',
-        6: 'Synthesis',
-        7: 'Closing',
-      };
-      return MAP_7[round] || 'Exchange';
-    }
-
-    const turnsPerExchange = Math.max(2, this.participants.length);
-    const turnIndex = Math.min((round - 1) * turnsPerExchange, this.format.baseTurns.length - 1);
-    const phase = this.format.baseTurns[turnIndex]?.phase || 'rebuttal';
-    // Prefer explicit description from format.phases
-    const phaseMeta = this.format.phases.find(p => p.id === phase);
-    const known: Record<string, string> = {
-      opening: 'Opening',
-      rebuttal: 'Rebuttal',
-      closing: 'Closing',
-      crossfire: 'Cross-examination',
-      question: 'Question',
-    };
-    if (phaseMeta?.description) {
-      return known[phase] || phaseMeta.description.split(':')[0];
-    }
-    return known[phase] || 'Exchange';
   }
 }

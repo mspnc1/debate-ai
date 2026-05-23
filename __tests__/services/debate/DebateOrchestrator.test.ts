@@ -1,5 +1,6 @@
 import { DebateOrchestrator, DebateStatus } from '@/services/debate/DebateOrchestrator';
 import { DEBATE_CONSTANTS } from '@/config/debateConstants';
+import { getPresetForFormat } from '@/config/debate/formats';
 import type { AI } from '@/types';
 import { setProviderVerificationError } from '@/store/streamingSlice';
 
@@ -199,6 +200,120 @@ describe('DebateOrchestrator', () => {
       systemPrompt: expect.stringContaining('Affirmative (FOR)'),
     }));
     expect(adapter.config.parameters).toEqual(expect.objectContaining({ temperature: 0.9 }));
+
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  it('maps legacy rounds values to selected presets', async () => {
+    const orchestrator = new DebateOrchestrator({
+      getAdapter: jest.fn(),
+      sendMessage: jest.fn(),
+    } as unknown as Parameters<typeof DebateOrchestrator>[0]);
+
+    const session = await orchestrator.initializeDebate('Climate policy', participants, {}, {
+      formatId: 'policy',
+      rounds: 5,
+    });
+    const policyStandard = getPresetForFormat('policy', 'standard');
+
+    expect(session.presetId).toBe('standard');
+    expect(session.preset).toEqual(policyStandard);
+    expect(session.totalMessages).toBe(policyStandard.messages.length);
+    expect(session.totalRounds).toBe(policyStandard.voteCount);
+  });
+
+  it('runs the Oxford short opening sequence from preset messages', async () => {
+    jest.useFakeTimers();
+    const adapter = {
+      config: {} as Record<string, unknown>,
+      getCapabilities: jest.fn(() => ({ streaming: false })),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => ''),
+    };
+    const aiService = {
+      getAdapter: jest.fn(() => adapter),
+      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+    };
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+
+    await orchestrator.initializeDebate('AI ethics', participants, {}, {
+      formatId: 'oxford',
+      rounds: 3,
+    });
+
+    await orchestrator.executeDebateMessage(0, []);
+    await orchestrator.executeDebateMessage(1, []);
+
+    expect(aiService.sendMessage.mock.calls[0][0]).toBe('claude');
+    expect(aiService.sendMessage.mock.calls[0][1]).toContain('Turn: Opening Statement');
+    expect(aiService.sendMessage.mock.calls[1][0]).toBe('openai');
+    expect(aiService.sendMessage.mock.calls[1][1]).toContain('Turn: Opening Statement');
+
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  it('uses Lincoln-Douglas standard cross-examination roles', async () => {
+    jest.useFakeTimers();
+    const adapter = {
+      config: {} as Record<string, unknown>,
+      getCapabilities: jest.fn(() => ({ streaming: false })),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => ''),
+    };
+    const aiService = {
+      getAdapter: jest.fn(() => adapter),
+      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+    };
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+
+    await orchestrator.initializeDebate('Resolved: privacy is more important than security.', participants, {}, {
+      formatId: 'lincoln_douglas',
+      rounds: 5,
+    });
+
+    await orchestrator.executeDebateMessage(1, []);
+    await orchestrator.executeDebateMessage(2, []);
+
+    expect(aiService.sendMessage.mock.calls[0][0]).toBe('openai');
+    expect(aiService.sendMessage.mock.calls[0][1]).toContain('Turn: Cross-Examination (CX)');
+    expect(aiService.sendMessage.mock.calls[0][1]).toContain('Ask pointed questions');
+    expect(aiService.sendMessage.mock.calls[1][0]).toBe('claude');
+    expect(aiService.sendMessage.mock.calls[1][1]).toContain('Answer directly');
+
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  it('uses Policy standard cross-examination and rebuttal ordering', async () => {
+    jest.useFakeTimers();
+    const adapter = {
+      config: {} as Record<string, unknown>,
+      getCapabilities: jest.fn(() => ({ streaming: false })),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => ''),
+    };
+    const aiService = {
+      getAdapter: jest.fn(() => adapter),
+      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+    };
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+
+    await orchestrator.initializeDebate('The city should adopt congestion pricing.', participants, {}, {
+      formatId: 'policy',
+      rounds: 5,
+    });
+
+    await orchestrator.executeDebateMessage(4, []);
+    await orchestrator.executeDebateMessage(8, []);
+
+    expect(aiService.sendMessage.mock.calls[0][0]).toBe('claude');
+    expect(aiService.sendMessage.mock.calls[0][1]).toContain('Turn: CX after 1NC');
+    expect(aiService.sendMessage.mock.calls[0][1]).toContain('Ask pointed questions');
+    expect(aiService.sendMessage.mock.calls[1][0]).toBe('openai');
+    expect(aiService.sendMessage.mock.calls[1][1]).toContain('Turn: 1NR');
+    expect(orchestrator.getSession()?.messageIndex).toBe(8);
 
     jest.clearAllTimers();
     jest.useRealTimers();

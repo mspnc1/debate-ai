@@ -1,5 +1,6 @@
 import { DebateRulesEngine } from '@/services/debate/DebateRulesEngine';
 import { DEBATE_CONSTANTS } from '@/config/debateConstants';
+import { getPresetForFormat } from '@/config/debate/formats';
 import type { AI } from '@/types';
 
 describe('DebateRulesEngine', () => {
@@ -11,6 +12,25 @@ describe('DebateRulesEngine', () => {
   it('calculates max messages based on participant count and configured rounds', () => {
     const engine = new DebateRulesEngine({ maxRounds: 5 });
     expect(engine.calculateMaxMessages(participants.length)).toBe(10);
+  });
+
+  it('derives max message count from the selected preset', () => {
+    const preset = getPresetForFormat('policy', 'standard');
+    const engine = new DebateRulesEngine(preset);
+
+    expect(engine.calculateMaxMessages(participants.length)).toBe(preset.messages.length);
+    expect(engine.getRules().maxRounds).toBe(preset.voteCount);
+    expect(engine.getRules().maxMessages).toBe(preset.messages.length);
+  });
+
+  it('derives vote checkpoints and labels from preset messages', () => {
+    const preset = getPresetForFormat('lincoln_douglas', 'standard');
+    const engine = new DebateRulesEngine(preset);
+
+    expect(engine.shouldVoteAfter(3)).toBe(true);
+    expect(engine.shouldVoteAfter(4)).toBe(false);
+    expect(engine.getVoteIndex(5)).toBe(2);
+    expect(engine.getVotingLabel(2)).toBe('Cross-Examination');
   });
 
   it('derives round metadata and signals voting on new rounds', () => {

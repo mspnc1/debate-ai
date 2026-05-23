@@ -15,7 +15,14 @@ import { StorageService } from '../chat/StorageService';
 import { store } from '../../store';
 import { getStreamingService } from '../streaming/StreamingService';
 import { setProviderVerificationError } from '../../store/streamingSlice';
-import { getFormat, type DebateFormatId, type FormatSpec } from '../../config/debate/formats';
+import {
+  getFormat,
+  getPresetForFormat,
+  getPresetIdForRounds,
+  type DebateFormatId,
+  type FormatSpec,
+  type PresetConfig,
+} from '../../config/debate/formats';
 import { getExpertOverrides } from '../../utils/expertMode';
 import { ErrorService } from '@/services/errors/ErrorService';
 import { AppError } from '@/errors/types/AppError';
@@ -36,10 +43,14 @@ export interface DebateSession {
   status: DebateStatus;
   currentRound: number;
   messageCount: number;
+  messageIndex: number;
   currentAIIndex: number;
   totalRounds: number;
+  totalMessages: number;
   civility: 1 | 2 | 3 | 4 | 5;
   format: FormatSpec;
+  preset: PresetConfig;
+  presetId: string;
   stances: { [aiId: string]: 'pro' | 'con' };
   webSearchEnabled?: boolean; // Auto-enabled when both AIs support it
 }
@@ -91,6 +102,7 @@ export class DebateOrchestrator {
   private eventHandlers: DebateEventHandler[] = [];
   private timeouts: Map<string, NodeJS.Timeout> = new Map();
   private currentMessages: Message[] = [];
+  private currentVoteIndex = 0;
   
   constructor(aiService: AIService) {
     this.aiService = aiService;
@@ -138,6 +150,7 @@ export class DebateOrchestrator {
     personalities: { [aiId: string]: string } = {},
     options?: {
       formatId?: DebateFormatId;
+      presetId?: string;
       rounds?: number; // 1–5
       civility?: 1 | 2 | 3 | 4 | 5;
       stances?: { [aiId: string]: 'pro' | 'con' };
@@ -162,10 +175,12 @@ export class DebateOrchestrator {
     }));
 
     // Resolve configuration
-    const format = getFormat(options?.formatId || 'oxford');
-    // Allow 3–7 rounds only; default to provided format default (usually 3)
-    const desired = options?.rounds ?? format.defaultRounds;
-    const totalRounds = Math.max(3, Math.min(desired, 7));
+    const formatId = options?.formatId || 'oxford';
+    const format = getFormat(formatId);
+    const presetId = options?.presetId || getPresetIdForRounds(options?.rounds);
+    const preset = getPresetForFormat(formatId, presetId);
+    const totalRounds = preset.voteCount;
+    const totalMessages = preset.messages.length;
     const civility = (options?.civility as 1|2|3|4|5) || 1;
     const stances: { [aiId: string]: 'pro' | 'con' } = {};
     if (resolvedParticipants[0]) stances[resolvedParticipants[0].id] = options?.stances?.[resolvedParticipants[0].id] || 'pro';
@@ -188,20 +203,25 @@ export class DebateOrchestrator {
       status: DebateStatus.INITIALIZING,
       currentRound: 1,
       messageCount: 0,
+      messageIndex: 0,
       currentAIIndex: 0,
       totalRounds,
+      totalMessages,
       civility,
       format,
+      preset,
+      presetId: preset.id,
       stances,
       webSearchEnabled,
     };
 
     this.session = session;
+    this.currentVoteIndex = 0;
+    this.currentMessages = [];
     
     // Initialize services
-    this.votingService = new VotingService(resolvedParticipants, format, totalRounds);
-    // Apply custom round rules
-    this.rulesEngine = new DebateRulesEngine({ maxRounds: totalRounds });
+    this.votingService = new VotingService(resolvedParticipants, preset);
+    this.rulesEngine = new DebateRulesEngine(preset);
     
     // Update status
     this.updateSessionStatus(DebateStatus.ACTIVE);
@@ -243,30 +263,14 @@ export class DebateOrchestrator {
     // Store the initial messages
     this.currentMessages = [...existingMessages];
     
-    const { topic, participants, personalities, format, civility } = this.session;
-    const firstAI = participants[0];
-    const personalityId = personalities[firstAI.id] || 'default';
-    // Build opening prompt with one‑time Role Brief
-    const openingPrompt = this.promptBuilder.buildTurnPrompt({
-      topic,
-      phase: 'opening',
-      guidance: format.guidance.opening,
-      format,
-      civilityLevel: civility,
-      personalityId,
-    });
-    
-    // Start the debate round
-    await this.executeDebateRound(openingPrompt, 0, 1, this.currentMessages);
+    await this.executeDebateMessage(0, this.currentMessages);
   }
   
   /**
-   * Execute a single debate round
+   * Execute a single debate message from the active format preset.
    */
-  async executeDebateRound(
-    _prompt: string,
-    aiIndex: number,
-    messageCount: number,
+  async executeDebateMessage(
+    messageIndex: number,
     existingMessages: Message[]
   ): Promise<void> {
     if (!this.session || !this.votingService) {
@@ -277,64 +281,63 @@ export class DebateOrchestrator {
         recoverable: true,
       });
     }
-    
-    const { participants, personalities, topic, format, totalRounds, civility } = this.session;
-    const currentAI = participants[aiIndex];
-    const maxMessages = this.rulesEngine.calculateMaxMessages(participants.length);
-    
+
+    const { participants, personalities, topic, format, preset, totalRounds, civility } = this.session;
+    const maxMessages = preset.messages.length;
+
     // Check if debate should end
-    if (this.session.status === DebateStatus.COMPLETED || messageCount > maxMessages) {
+    if (this.session.status === DebateStatus.COMPLETED || messageIndex >= maxMessages) {
       this.endDebate();
       return;
     }
-    
-    // Get round information
-    const roundInfo = this.rulesEngine.getRoundInfo(
-      messageCount,
-      aiIndex,
-      participants.length,
-      this.session.currentRound
-    );
-    
-    // Check if we need to show voting
-    if (roundInfo.shouldShowVoting && !this.votingService.hasVotedForRound(this.session.currentRound)) {
-      // We're voting for the round that just ended (currentRound), not the new round
-      const isFinalRoundVote = this.session.currentRound === this.session.totalRounds;
-      this.showVotingForRound(this.session.currentRound, isFinalRoundVote);
+
+    const messageSpec = preset.messages[messageIndex];
+    if (!messageSpec) {
+      this.endDebate();
       return;
     }
-    
-    // Update session state
-    if (roundInfo.isNewRound) {
-      this.session.currentRound = roundInfo.currentRound;
-      
-      // Emit round change event
+
+    // Check if we need to show voting from the prior completed speech group.
+    if (this.currentVoteIndex > 0 && !this.votingService.hasVotedForRound(this.currentVoteIndex)) {
+      const isFinalRoundVote = this.currentVoteIndex === this.session.totalRounds;
+      this.showVotingForRound(this.currentVoteIndex, isFinalRoundVote);
+      return;
+    }
+
+    const aiIndex = messageSpec.speaker === 'aff' ? 0 : 1;
+    const currentAI = participants[aiIndex];
+    const phase = messageSpec.phase;
+    const currentRound = this.currentVoteIndex + 1;
+
+    if (currentRound !== this.session.currentRound) {
+      this.session.currentRound = currentRound;
       this.emitEvent({
         type: 'round_changed',
-        data: { round: roundInfo.currentRound, isFinal: roundInfo.isFinalRound },
+        data: { round: currentRound, isFinal: currentRound >= totalRounds },
         timestamp: Date.now(),
       });
     }
-    
+
     this.session.currentAIIndex = aiIndex;
-    this.session.messageCount = messageCount;
-    
+    this.session.messageIndex = messageIndex;
+    this.session.messageCount = messageIndex + 1;
+
     try {
       const stances = this.session.stances;
       // Build per‑turn prompt; include Role Brief only the first time this AI speaks
       const personalityId = personalities[currentAI.id] || 'default';
       const previousMessage = this.promptBuilder.extractPreviousMessage(existingMessages, currentAI);
-      const turnIndex = Math.min(messageCount - 1, format.baseTurns.length - 1);
-      const phase = format.baseTurns[turnIndex]?.phase || 'rebuttal';
       const minimal = this.promptBuilder.buildTurnPrompt({
         topic,
         phase,
         previousMessage,
-        isFinalRound: phase === 'closing' || roundInfo.currentRound >= totalRounds,
-        guidance: format.guidance[phase] as string,
+        isFinalRound: phase === 'closing' || messageIndex >= maxMessages - 2,
+        guidance: format.guidance[phase] ?? '',
         format,
         civilityLevel: civility,
         personalityId,
+        messageLabel: messageSpec.label,
+        cxRole: messageSpec.cxRole,
       });
       const contextualPrompt = minimal;
 
@@ -417,8 +420,8 @@ export class DebateOrchestrator {
               civility,
               format: { id: format.id, name: format.name },
               phase,
-              round: this.session.currentRound,
-              messageCount,
+              round: currentRound,
+              messageCount: messageIndex + 1,
               systemPromptApplied: runtime.systemPrompt,
               systemPromptAdapter: sysCombined,
               userPrompt: contextualPrompt,
@@ -447,8 +450,16 @@ export class DebateOrchestrator {
 
         const messageId = placeholderMessage.id;
         this.currentMessages = [...existingMessages, placeholderMessage];
-        this.emitEvent({ type: 'message_added', data: { message: placeholderMessage }, timestamp: Date.now() });
-        this.emitEvent({ type: 'stream_started', data: { messageId, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled() }, timestamp: Date.now() });
+        this.emitEvent({
+          type: 'message_added',
+          data: { message: placeholderMessage, messageIndex, phase, messageLabel: messageSpec.label },
+          timestamp: Date.now(),
+        });
+        this.emitEvent({
+          type: 'stream_started',
+          data: { messageId, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), messageIndex, phase, messageLabel: messageSpec.label },
+          timestamp: Date.now(),
+        });
 
         const streamingService = getStreamingService();
         let finalContent = '';
@@ -466,19 +477,19 @@ export class DebateOrchestrator {
             speed: streamSpeed,
           },
             (chunk: string) => {
-            this.emitEvent({ type: 'stream_chunk', data: { messageId, chunk, aiProvider: currentAI.id }, timestamp: Date.now() });
+            this.emitEvent({ type: 'stream_chunk', data: { messageId, chunk, aiProvider: currentAI.id, messageIndex, phase, messageLabel: messageSpec.label }, timestamp: Date.now() });
           },
           (completeText: string) => {
             const normalizedAnswer = ensureAnswerContent(completeText, capturedCitations, currentAI.name);
             finalContent = normalizedAnswer.content;
             capturedCitations = normalizedAnswer.citations;
-            this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), citations: normalizedAnswer.citations }, timestamp: Date.now() });
+            this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), citations: normalizedAnswer.citations, messageIndex, phase, messageLabel: messageSpec.label }, timestamp: Date.now() });
           },
           (err: Error) => {
             hadError = true;
             const msg = err?.message || '';
             errorForFallback = msg;
-            this.emitEvent({ type: 'stream_error', data: { messageId, error: msg, aiProvider: currentAI.id }, timestamp: Date.now() });
+            this.emitEvent({ type: 'stream_error', data: { messageId, error: msg, aiProvider: currentAI.id, messageIndex, phase, messageLabel: messageSpec.label }, timestamp: Date.now() });
           },
           (event: unknown) => {
             // Handle citation events from providers like Perplexity
@@ -549,7 +560,7 @@ export class DebateOrchestrator {
               const normalizedAnswer = ensureAnswerContent(text, fallbackMetadata?.citations, currentAI.name);
               finalContent = normalizedAnswer.content;
               // Emit completion to update the placeholder message and end stream state in UI
-              this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), citations: normalizedAnswer.citations }, timestamp: Date.now() });
+              this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), citations: normalizedAnswer.citations, messageIndex, phase, messageLabel: messageSpec.label }, timestamp: Date.now() });
               const updated = {
                 ...placeholderMessage,
                 content: normalizedAnswer.content,
@@ -565,7 +576,7 @@ export class DebateOrchestrator {
                 content: DEBATE_CONSTANTS.MESSAGES.ERROR(currentAI.name),
                 timestamp: Date.now(),
               };
-              this.emitEvent({ type: 'message_added', data: { message: errorMessage }, timestamp: Date.now() });
+              this.emitEvent({ type: 'message_added', data: { message: errorMessage, messageIndex, phase, messageLabel: messageSpec.label }, timestamp: Date.now() });
               this.currentMessages = [...existingMessages, placeholderMessage, errorMessage];
             }
           } else {
@@ -577,22 +588,12 @@ export class DebateOrchestrator {
               content: DEBATE_CONSTANTS.MESSAGES.ERROR(currentAI.name),
               timestamp: Date.now(),
             };
-            this.emitEvent({ type: 'message_added', data: { message: errorMessage }, timestamp: Date.now() });
+            this.emitEvent({ type: 'message_added', data: { message: errorMessage, messageIndex, phase, messageLabel: messageSpec.label }, timestamp: Date.now() });
             this.currentMessages = [...existingMessages, placeholderMessage, errorMessage];
           }
         }
 
-        // Schedule next round
-        const nextMessageCount = messageCount + 1;
-        if (nextMessageCount <= maxMessages && this.session.status === DebateStatus.ACTIVE) {
-          const nextAIIndex = this.rulesEngine.getNextAIIndex(aiIndex, participants.length);
-          // When streaming was used, we've already consumed user reading time during the stream.
-          // Use a shorter post-message pause to keep the debate flowing naturally.
-          const delay = DEBATE_CONSTANTS.DELAYS.POST_STREAM_PAUSE;
-          this.scheduleNextRound(nextAIIndex, nextMessageCount, this.currentMessages, delay);
-        } else {
-          this.endDebate();
-        }
+        this.continueAfterMessage(messageIndex, this.currentMessages, true);
       } else {
         // Non-streaming fallback (retain existing typing behavior)
         this.emitEvent({ type: 'typing_started', data: { aiName: currentAI.name }, timestamp: Date.now() });
@@ -636,8 +637,8 @@ export class DebateOrchestrator {
               civility,
               format: { id: format.id, name: format.name },
               phase,
-              round: this.session.currentRound,
-              messageCount,
+              round: currentRound,
+              messageCount: messageIndex + 1,
               systemPromptApplied: runtime.systemPrompt,
               systemPromptAdapter: sysCombined,
               userPrompt: contextualPrompt,
@@ -658,18 +659,14 @@ export class DebateOrchestrator {
           metadata: this.buildAIResponseMetadata(currentAI, modelUsed, normalizedAnswer.citations),
         };
         this.currentMessages = [...existingMessages, aiMessage];
-        this.emitEvent({ type: 'message_added', data: { message: aiMessage }, timestamp: Date.now() });
+        this.emitEvent({
+          type: 'message_added',
+          data: { message: aiMessage, messageIndex, phase, messageLabel: messageSpec.label },
+          timestamp: Date.now(),
+        });
         this.emitEvent({ type: 'typing_stopped', data: { aiName: currentAI.name }, timestamp: Date.now() });
 
-        const nextMessageCount = messageCount + 1;
-        if (nextMessageCount <= maxMessages && this.session.status === DebateStatus.ACTIVE) {
-          const nextAIIndex = this.rulesEngine.getNextAIIndex(aiIndex, participants.length);
-          // Non-streaming path: keep the longer delay to allow reading time.
-          const delay = DEBATE_CONSTANTS.DELAYS.AI_RESPONSE;
-          this.scheduleNextRound(nextAIIndex, nextMessageCount, this.currentMessages, delay);
-        } else {
-          this.endDebate();
-        }
+        this.continueAfterMessage(messageIndex, this.currentMessages, false);
       }
 
     } catch (error) {
@@ -679,8 +676,20 @@ export class DebateOrchestrator {
         showToast: false, // We show errors in the debate UI
         context: { provider: currentAI.provider, aiName: currentAI.name, round: this.session?.currentRound },
       });
-      await this.handleDebateError(appError, currentAI, aiIndex, messageCount, existingMessages);
+      await this.handleDebateError(appError, currentAI, messageIndex, existingMessages);
     }
+  }
+
+  /**
+   * Compatibility wrapper for older callers that still think in message counts.
+   */
+  async executeDebateRound(
+    _prompt: string,
+    _aiIndex: number,
+    messageCount: number,
+    existingMessages: Message[]
+  ): Promise<void> {
+    await this.executeDebateMessage(Math.max(0, messageCount - 1), existingMessages);
   }
   
   /**
@@ -689,8 +698,7 @@ export class DebateOrchestrator {
   private async handleDebateError(
     error: AppError | Error,
     currentAI: AI,
-    aiIndex: number,
-    messageCount: number,
+    messageIndex: number,
     existingMessages: Message[]
   ): Promise<void> {
     if (!this.session) return;
@@ -743,38 +751,35 @@ export class DebateOrchestrator {
     this.currentMessages = [...existingMessages, errorMessage];
     
     // Continue with next AI after delay
-    const nextMessageCount = messageCount + 1;
+    const nextMessageIndex = messageIndex + 1;
     const maxMessages = this.rulesEngine.calculateMaxMessages(this.session.participants.length);
     
-    if (nextMessageCount <= maxMessages && this.session.status === DebateStatus.ACTIVE) {
-      const nextAIIndex = this.rulesEngine.getNextAIIndex(aiIndex, this.session.participants.length);
+    if (nextMessageIndex < maxMessages && this.session.status === DebateStatus.ACTIVE) {
       const delay = debateError.type === 'rate_limit' 
         ? DEBATE_CONSTANTS.DELAYS.RATE_LIMIT_RECOVERY 
         : DEBATE_CONSTANTS.DELAYS.ERROR_RECOVERY;
       
-      this.scheduleNextRound(nextAIIndex, nextMessageCount, this.currentMessages, delay);
+      this.scheduleNextMessage(nextMessageIndex, this.currentMessages, delay);
     } else {
       this.endDebate();
     }
   }
   
   /**
-   * Schedule the next round with a delay
+   * Schedule the next message with a delay
    */
-  private scheduleNextRound(
-    aiIndex: number,
-    messageCount: number,
+  private scheduleNextMessage(
+    messageIndex: number,
     messages: Message[],
     delay: number
   ): void {
     if (!this.session) return;
     
-    const timeoutId = `next_round_${Date.now()}`;
+    const timeoutId = `next_message_${Date.now()}`;
     const timeout = setTimeout(() => {
       this.timeouts.delete(timeoutId);
       if (this.session?.status === DebateStatus.ACTIVE) {
-        const prompt = this.buildContinuationPrompt(aiIndex, messages);
-        this.executeDebateRound(prompt, aiIndex, messageCount, messages);
+        this.executeDebateMessage(messageIndex, messages);
       }
     }, delay);
     
@@ -782,28 +787,32 @@ export class DebateOrchestrator {
   }
   
   /**
-   * Build continuation prompt for next AI
+   * Advance the debate after a message resolves.
    */
-  private buildContinuationPrompt(aiIndex: number, messages: Message[]): string {
-    if (!this.session) return '';
-    
-    const { participants, personalities, topic, format, totalRounds, civility } = this.session;
-    const currentAI = participants[aiIndex];
-    const personalityId = personalities[currentAI.id] || 'default';
-    const previousMessage = this.promptBuilder.extractPreviousMessage(messages, currentAI);
-    const turnIndex = Math.min(this.session.messageCount - 1, format.baseTurns.length - 1);
-    const phase = format.baseTurns[turnIndex]?.phase || 'rebuttal';
-    const minimal = this.promptBuilder.buildTurnPrompt({
-      topic,
-      phase,
-      previousMessage,
-      isFinalRound: phase === 'closing' || this.session.currentRound >= totalRounds,
-      guidance: format.guidance[phase] as string,
-      civilityLevel: civility,
-      format,
-      personalityId,
-    });
-    return minimal;
+  private continueAfterMessage(messageIndex: number, messages: Message[], usedStreaming: boolean): void {
+    if (!this.session) return;
+
+    const messageSpec = this.session.preset.messages[messageIndex];
+    if (messageSpec?.voteAfter) {
+      this.currentVoteIndex = this.rulesEngine.getVoteIndex(messageIndex);
+      const isFinalRoundVote = this.currentVoteIndex === this.session.totalRounds;
+      if (isFinalRoundVote) {
+        this.endDebate();
+      } else {
+        this.showVotingForRound(this.currentVoteIndex, false);
+      }
+      return;
+    }
+
+    const nextMessageIndex = messageIndex + 1;
+    if (nextMessageIndex < this.session.totalMessages && this.session.status === DebateStatus.ACTIVE) {
+      const delay = usedStreaming
+        ? DEBATE_CONSTANTS.DELAYS.POST_STREAM_PAUSE
+        : DEBATE_CONSTANTS.DELAYS.AI_RESPONSE;
+      this.scheduleNextMessage(nextMessageIndex, messages, delay);
+    } else {
+      this.endDebate();
+    }
   }
   
   /**
@@ -814,7 +823,12 @@ export class DebateOrchestrator {
     
     this.emitEvent({
       type: 'voting_started',
-      data: { round, isFinalRound, isOverallVote: false },
+      data: {
+        round,
+        isFinalRound,
+        isOverallVote: false,
+        votingLabel: this.votingService?.getVotingLabel(round),
+      },
       timestamp: Date.now(),
     });
   }
@@ -849,6 +863,7 @@ export class DebateOrchestrator {
       data: { message: winnerMessage },
       timestamp: Date.now(),
     });
+    this.currentMessages = [...this.currentMessages, winnerMessage];
     
     // Update scores after voting (UI will display persistent scoreboard)
     const scores = this.votingService.calculateScores();
@@ -878,18 +893,19 @@ export class DebateOrchestrator {
    */
   private resumeDebateAfterVoting(): void {
     if (!this.session || !this.votingService) return;
-    
-    const { participants } = this.session;
-    
+
     // Continue with the next message in the debate
-    const nextMessageCount = this.session.messageCount + 1;
-    const nextAIIndex = this.rulesEngine.getNextAIIndex(this.session.currentAIIndex, participants.length);
+    const nextMessageIndex = this.session.messageIndex + 1;
+    if (nextMessageIndex >= this.session.totalMessages) {
+      this.endDebate();
+      return;
+    }
     
     // Use shorter delay for faster flow after voting
     const delay = DEBATE_CONSTANTS.DELAYS.VOTING_CONTINUATION;
     
-    // Schedule the next round with the accumulated messages
-    this.scheduleNextRound(nextAIIndex, nextMessageCount, this.currentMessages, delay);
+    // Schedule the next message with the accumulated messages
+    this.scheduleNextMessage(nextMessageIndex, this.currentMessages, delay);
   }
   
   /**
@@ -942,6 +958,7 @@ export class DebateOrchestrator {
       data: { message: winnerMessage },
       timestamp: Date.now(),
     });
+    this.currentMessages = [...this.currentMessages, winnerMessage];
     
     this.emitEvent({
       type: 'debate_ended',
@@ -975,6 +992,7 @@ export class DebateOrchestrator {
         lastMessageAt: Date.now(),
         debateConfig: {
           formatId: this.session.format.id,
+          presetId: this.session.presetId,
           rounds: this.session.totalRounds,
           tempo: 'streaming',
           postStreamPauseMs: DEBATE_CONSTANTS.DELAYS.POST_STREAM_PAUSE,
@@ -994,6 +1012,11 @@ export class DebateOrchestrator {
    */
   endDebate(): void {
     if (!this.session) return;
+
+    if (this.votingService?.areAllRoundsVoted()) {
+      this.declareOverallWinner();
+      return;
+    }
     
     this.updateSessionStatus(DebateStatus.VOTING_ROUND);
     
@@ -1015,9 +1038,16 @@ export class DebateOrchestrator {
       data: { message: endMessage },
       timestamp: Date.now(),
     });
-    
-    // Show voting for final round
-    this.showVotingForRound(this.session.totalRounds, true);
+    this.currentMessages = [...this.currentMessages, endMessage];
+
+    const nextVoteRound = this.votingService?.getNextVotingRound() ?? this.session.totalRounds;
+    const activeVoteRound = this.currentVoteIndex > 0 && !this.votingService?.hasVotedForRound(this.currentVoteIndex)
+      ? this.currentVoteIndex
+      : nextVoteRound;
+    this.currentVoteIndex = activeVoteRound;
+
+    // Show voting for the final pending checkpoint.
+    this.showVotingForRound(activeVoteRound, activeVoteRound === this.session.totalRounds);
   }
   
   /**
@@ -1091,5 +1121,6 @@ export class DebateOrchestrator {
     this.votingService = null;
     this.eventHandlers = [];
     this.currentMessages = [];
+    this.currentVoteIndex = 0;
   }
 }

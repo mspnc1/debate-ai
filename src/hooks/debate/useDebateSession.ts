@@ -10,6 +10,7 @@ import { DebateOrchestrator, DebateSession, DebateStatus } from '../../services/
 import { useAIService } from '../../providers/AIServiceProvider';
 import { AI } from '../../types';
 import { PersonalityOption } from '@/config/personalities';
+import type { DebateFormatId } from '@/config/debate/formats';
 
 export interface UseDebateSessionReturn {
   session: DebateSession | null;
@@ -21,7 +22,8 @@ export interface UseDebateSessionReturn {
     participants: AI[],
     personalities?: { [aiId: string]: string },
     options?: {
-      formatId?: 'oxford' | 'lincoln_douglas' | 'policy' | 'socratic';
+      formatId?: DebateFormatId;
+      presetId?: string;
       rounds?: number;
       civility?: 1|2|3|4|5;
       stances?: { [aiId: string]: 'pro' | 'con' };
@@ -57,7 +59,8 @@ export const useDebateSession = (_selectedAIs: AI[]): UseDebateSessionReturn => 
     participants: AI[],
     personalities: { [aiId: string]: string } = {},
     options?: {
-      formatId?: 'oxford' | 'lincoln_douglas' | 'policy' | 'socratic';
+      formatId?: DebateFormatId;
+      presetId?: string;
       rounds?: number;
       civility?: 1|2|3|4|5;
       stances?: { [aiId: string]: 'pro' | 'con' };

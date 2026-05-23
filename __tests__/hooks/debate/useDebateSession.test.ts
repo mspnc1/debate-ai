@@ -4,6 +4,7 @@ import { DebateStatus } from '@/services/debate';
 import type { AI } from '@/types';
 import type { RootState } from '@/store';
 import { renderHookWithProviders } from '../../../test-utils/renderHookWithProviders';
+import { getFormat, getPresetForFormat } from '@/config/debate/formats';
 
 const mockInitializeDebate = jest.fn();
 const mockReset = jest.fn();
@@ -48,10 +49,14 @@ describe('useDebateSession', () => {
     status: DebateStatus.ACTIVE,
     currentRound: 1,
     messageCount: 0,
+    messageIndex: 0,
     currentAIIndex: 0,
     totalRounds: 3,
+    totalMessages: 6,
     civility: 1,
-    format: { id: 'oxford', name: 'Oxford', description: '', defaultRounds: 3, phases: [], baseTurns: [], guidance: { opening: '', rebuttal: '', closing: '' } },
+    format: getFormat('oxford'),
+    preset: getPresetForFormat('oxford', 'short'),
+    presetId: 'short',
     stances: {},
   };
 
