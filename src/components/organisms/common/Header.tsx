@@ -202,6 +202,35 @@ const getGradientHeaderHeight = (
   return Math.max(minHeight, Math.min(MAX_TABLET_GRADIENT_HEIGHT, proportionalHeight)) + extraHeight;
 };
 
+const getGradientContentMinimumHeight = (
+  isTablet: boolean,
+  hasSubtitle: boolean,
+  isDebateMotionHeader: boolean,
+  showDemoBadge: boolean,
+  bottomPadding: number,
+  extraHeight: number,
+  spacingXs: number
+): number => {
+  if (!isTablet) return 0;
+
+  const titleBlockHeight = isDebateMotionHeader && hasSubtitle
+    ? 64
+    : hasSubtitle
+      ? 50
+      : 46;
+  const subtitleBlockHeight = hasSubtitle ? 24 : 0;
+  const badgeReserve = showDemoBadge ? spacingXs : 0;
+  const contentHeight =
+    GRADIENT_TOP_ROW_HEIGHT +
+    spacingXs * 2 +
+    titleBlockHeight +
+    subtitleBlockHeight +
+    bottomPadding +
+    badgeReserve;
+
+  return Math.max(PHONE_GRADIENT_HEIGHT + extraHeight, contentHeight);
+};
+
 /**
  * Get base header height for non-gradient variants.
  */
@@ -289,6 +318,9 @@ export const Header: React.FC<HeaderProps> = ({
     ? PHONE_GRADIENT_LONG_MOTION_EXTRA_HEIGHT
     : 0;
   const gradientHorizontalPadding = theme.spacing.lg;
+  const gradientContentBottomPadding = showDemoBadge
+    ? theme.spacing.xl
+    : theme.spacing.md;
   const gradientTitleRightReserve = 0;
   const gradientSubtitleRightReserve = showDemoBadge ? 150 : 0;
   const gradientTitleWidthStyle = variant === 'gradient'
@@ -369,7 +401,18 @@ export const Header: React.FC<HeaderProps> = ({
   const baseHeight = variant === 'gradient'
     ? getGradientHeaderHeight(isTablet, screenHeight, isLandscape, gradientExtraHeight)
     : getBaseHeaderHeight(isTablet, variant === 'compact');
-  const headerHeight = height || baseHeight;
+  const gradientContentMinimumHeight = variant === 'gradient'
+    ? getGradientContentMinimumHeight(
+      isTablet,
+      hasSubtitle,
+      isDebateMotionHeader,
+      showDemoBadge,
+      gradientContentBottomPadding,
+      gradientExtraHeight,
+      theme.spacing.xs
+    )
+    : 0;
+  const headerHeight = height || Math.max(baseHeight, gradientContentMinimumHeight);
   const totalHeight = headerHeight + insets.top;
   
   // Get variant-specific styles
@@ -779,9 +822,6 @@ export const Header: React.FC<HeaderProps> = ({
     : (isTabletLandscape ? 16 : 12); // Standalone
   const gradientTopRowTop = insets.top + theme.spacing.xs;
   const gradientBodyTopPadding = gradientTopRowTop + GRADIENT_TOP_ROW_HEIGHT + theme.spacing.xs;
-  const gradientContentBottomPadding = showDemoBadge
-    ? theme.spacing.xl
-    : theme.spacing.md;
   const gradientTopLeftContent = variant === 'gradient'
     ? renderGradientTopLeftSection()
     : null;

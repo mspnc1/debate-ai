@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent } from '@testing-library/react-native';
 import { Text } from 'react-native';
+import useWindowDimensions from 'react-native/Libraries/Utilities/useWindowDimensions';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { Header } from '@/components/organisms/common/Header';
 import * as Haptics from 'expo-haptics';
@@ -16,7 +17,8 @@ jest.mock('react-native-safe-area-context', () => ({
 
 jest.mock('react-native-svg', () => {
   const React = require('react');
-  const Mock = (props: any) => React.createElement('svg', props, props.children);
+  const Mock = (props: { children?: React.ReactNode } & Record<string, unknown>) =>
+    React.createElement('svg', props, props.children);
   return {
     __esModule: true,
     default: Mock,
@@ -30,6 +32,8 @@ jest.mock('react-native-svg', () => {
     Circle: Mock,
   };
 });
+
+const mockUseWindowDimensions = useWindowDimensions as jest.Mock;
 
 jest.mock('@/components/atoms', () => {
   const React = require('react');
@@ -65,6 +69,7 @@ jest.mock('@/hooks/home/useGreeting', () => ({
 describe('Header', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseWindowDimensions.mockReturnValue({ width: 375, height: 812 });
   });
 
   it('renders title, subtitle, and back button triggers haptics', () => {
@@ -149,6 +154,25 @@ describe('Header', () => {
     );
 
     expect(getByTestId('normal-gradient-header')).toHaveStyle({
+      minHeight: 140,
+    });
+  });
+
+  it('keeps iPad gradient title and subtitle inside the header bounds', () => {
+    mockUseWindowDimensions.mockReturnValue({ width: 820, height: 1180 });
+
+    const { getByTestId } = renderWithProviders(
+      <Header
+        testID="ipad-gradient-header"
+        title="Create"
+        subtitle="Image, Video, and Audio Generation"
+        variant="gradient"
+        showDate
+        rightElement={<Text testID="header-right-actions">Actions</Text>}
+      />
+    );
+
+    expect(getByTestId('ipad-gradient-header')).toHaveStyle({
       minHeight: 140,
     });
   });
