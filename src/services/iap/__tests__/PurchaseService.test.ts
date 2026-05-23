@@ -454,6 +454,141 @@ describe('PurchaseService', () => {
         });
       });
 
+      it('should request a paid offer on Android when the user already used a trial', async () => {
+        const mockProduct = {
+          id: SUBSCRIPTION_PRODUCTS.annual,
+          productId: SUBSCRIPTION_PRODUCTS.annual,
+          subscriptionOfferDetailsAndroid: [
+            {
+              offerToken: 'annual-trial-token',
+              basePlanId: 'annual-base',
+              offerId: 'trial-week',
+              offerTags: [],
+              pricingPhases: {
+                pricingPhaseList: [
+                  {
+                    priceAmountMicros: '0',
+                    billingPeriod: 'P7D',
+                    recurrenceMode: 1,
+                    billingCycleCount: 1,
+                    formattedPrice: 'Free',
+                    priceCurrencyCode: 'USD',
+                  },
+                ],
+              },
+            },
+            {
+              offerToken: 'annual-paid-token',
+              basePlanId: 'annual-base',
+              offerId: null,
+              offerTags: [],
+              pricingPhases: {
+                pricingPhaseList: [
+                  {
+                    priceAmountMicros: '49990000',
+                    billingPeriod: 'P1Y',
+                    recurrenceMode: 1,
+                    billingCycleCount: 0,
+                    formattedPrice: '$49.99',
+                    priceCurrencyCode: 'USD',
+                  },
+                ],
+              },
+            },
+          ],
+        } as Partial<ProductSubscriptionAndroid>;
+
+        mockGetDoc.mockResolvedValue({ data: () => ({ hasUsedTrial: true }) });
+        mockFetchProducts.mockResolvedValue([mockProduct]);
+
+        await PurchaseService.purchaseSubscription('annual', { includeTrialOffer: true });
+
+        expect(mockRequestPurchase).toHaveBeenCalledWith({
+          type: 'subs',
+          request: {
+            google: {
+              skus: [SUBSCRIPTION_PRODUCTS.annual],
+              obfuscatedAccountId: 'hashed-token-123',
+              subscriptionOffers: [{ sku: SUBSCRIPTION_PRODUCTS.annual, offerToken: 'annual-paid-token' }],
+            },
+          },
+        });
+      });
+
+      it('should retry annual purchase with the paid offer when Google rejects trial offer arguments', async () => {
+        const mockProduct = {
+          id: SUBSCRIPTION_PRODUCTS.annual,
+          productId: SUBSCRIPTION_PRODUCTS.annual,
+          subscriptionOfferDetailsAndroid: [
+            {
+              offerToken: 'annual-trial-token',
+              basePlanId: 'annual-base',
+              offerId: 'trial-week',
+              offerTags: [],
+              pricingPhases: {
+                pricingPhaseList: [
+                  {
+                    priceAmountMicros: '0',
+                    billingPeriod: 'P7D',
+                    recurrenceMode: 1,
+                    billingCycleCount: 1,
+                    formattedPrice: 'Free',
+                    priceCurrencyCode: 'USD',
+                  },
+                ],
+              },
+            },
+            {
+              offerToken: 'annual-paid-token',
+              basePlanId: 'annual-base',
+              offerId: null,
+              offerTags: [],
+              pricingPhases: {
+                pricingPhaseList: [
+                  {
+                    priceAmountMicros: '49990000',
+                    billingPeriod: 'P1Y',
+                    recurrenceMode: 1,
+                    billingCycleCount: 0,
+                    formattedPrice: '$49.99',
+                    priceCurrencyCode: 'USD',
+                  },
+                ],
+              },
+            },
+          ],
+        } as Partial<ProductSubscriptionAndroid>;
+
+        mockFetchProducts.mockResolvedValue([mockProduct]);
+        mockRequestPurchase
+          .mockRejectedValueOnce({ code: 'developer-error', message: 'Invalid arguments provided to the API' })
+          .mockResolvedValueOnce(undefined);
+
+        const result = await PurchaseService.purchaseSubscription('annual', { includeTrialOffer: true });
+
+        expect(result).toEqual({ success: true, pending: true });
+        expect(mockRequestPurchase).toHaveBeenNthCalledWith(1, {
+          type: 'subs',
+          request: {
+            google: {
+              skus: [SUBSCRIPTION_PRODUCTS.annual],
+              obfuscatedAccountId: 'hashed-token-123',
+              subscriptionOffers: [{ sku: SUBSCRIPTION_PRODUCTS.annual, offerToken: 'annual-trial-token' }],
+            },
+          },
+        });
+        expect(mockRequestPurchase).toHaveBeenNthCalledWith(2, {
+          type: 'subs',
+          request: {
+            google: {
+              skus: [SUBSCRIPTION_PRODUCTS.annual],
+              obfuscatedAccountId: 'hashed-token-123',
+              subscriptionOffers: [{ sku: SUBSCRIPTION_PRODUCTS.annual, offerToken: 'annual-paid-token' }],
+            },
+          },
+        });
+      });
+
       it('should fallback to first offer if no trial available', async () => {
         const mockProduct = {
           id: SUBSCRIPTION_PRODUCTS.annual,

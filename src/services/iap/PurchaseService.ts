@@ -34,6 +34,8 @@ type PendingPurchaseContext = {
   sku: string;
   plan?: PlanType;
   includeTrialOffer?: boolean;
+  requestedTrialOffer?: boolean;
+  hasUsedTrial?: boolean;
   selectedOffer?: Omit<AndroidOfferCandidate, 'token'>;
   legacyOfferCount?: number;
   standardizedOfferCount?: number;
@@ -60,6 +62,7 @@ type StorePurchaseSummary = {
 type AndroidStoreOwnershipContext = {
   expectedObfuscatedAccountId: string;
   storedPurchaseTokens: Set<string>;
+  hasUsedTrial: boolean;
 };
 
 type AndroidStorePurchaseOwnershipStatus = 'owned' | 'foreign' | 'unverified';
@@ -421,6 +424,18 @@ function summarizeUnknownError(error: unknown): {
   };
 }
 
+function isInvalidPurchaseArgumentsError(error: unknown): boolean {
+  const summary = summarizeUnknownError(error);
+  const normalizedCode = summary.errorCode.toLowerCase();
+  const normalizedMessage = summary.errorMessage.toLowerCase();
+
+  return normalizedCode === 'developer-error'
+    || normalizedCode === 'e_developer_error'
+    || normalizedCode === '5'
+    || normalizedMessage.includes('invalid arguments provided to the api')
+    || normalizedMessage.includes('invalid arguments');
+}
+
 /** Extract user-friendly message from Firebase function error */
 function extractFirebaseErrorMessage(error: unknown): string {
   // Check if it's a Firebase HttpsError with a message
@@ -746,13 +761,17 @@ export class PurchaseService {
           console.warn(`[IAP] Android: Offer ${idx}: hasFreeTrial=${hasFreeTrial}, token=${offer.offerTokenAndroid ? 'present' : 'MISSING'}`);
         });
 
+        const obfuscatedAccountId = await this.deriveAppAccountToken(user.uid);
+        const storeOwnership = await this.getAndroidStoreOwnershipContext(user.uid, obfuscatedAccountId);
+        const shouldIncludeTrialOffer = includeTrialOffer && !storeOwnership.hasUsedTrial;
+
         const hasTrialOffer = [
           ...(product.subscriptionOffers ?? []),
           ...(product.subscriptionOfferDetailsAndroid ?? []),
         ].some(hasFreeTrialPhase);
-        const selectedOffer = getAndroidSubscriptionOffer(product, includeTrialOffer);
+        const selectedOffer = getAndroidSubscriptionOffer(product, shouldIncludeTrialOffer);
 
-        console.warn('[IAP] Android: Selected offer for', sku, '- includeTrialOffer:', includeTrialOffer, 'hasTrialOffer:', hasTrialOffer, 'offerSource:', selectedOffer?.source ?? 'MISSING', 'hasFreeTrial:', selectedOffer?.hasFreeTrial ?? 'MISSING', 'offerToken:', selectedOffer ? 'present' : 'MISSING');
+        console.warn('[IAP] Android: Selected offer for', sku, '- includeTrialOffer:', shouldIncludeTrialOffer, 'requestedTrialOffer:', includeTrialOffer, 'hasUsedTrial:', storeOwnership.hasUsedTrial, 'hasTrialOffer:', hasTrialOffer, 'offerSource:', selectedOffer?.source ?? 'MISSING', 'hasFreeTrial:', selectedOffer?.hasFreeTrial ?? 'MISSING', 'offerToken:', selectedOffer ? 'present' : 'MISSING');
 
         if (!selectedOffer) {
           // Log this critical error to Firestore
@@ -766,8 +785,6 @@ export class PurchaseService {
         }
 
         console.warn('[IAP] Android: Calling requestSubscription for', sku);
-        const obfuscatedAccountId = await this.deriveAppAccountToken(user.uid);
-        const storeOwnership = await this.getAndroidStoreOwnershipContext(user.uid, obfuscatedAccountId);
         const availablePurchases = await getAvailablePurchases().catch((purchaseLookupError: unknown) => {
           ErrorService.handleSilent(purchaseLookupError, {
             action: 'iap_get_available_purchases_for_replacement',
@@ -787,7 +804,9 @@ export class PurchaseService {
           {
             plan,
             sku,
-            includeTrialOffer,
+            includeTrialOffer: shouldIncludeTrialOffer,
+            requestedTrialOffer: includeTrialOffer,
+            hasUsedTrial: storeOwnership.hasUsedTrial,
             selectedOffer: redactOfferToken(selectedOffer),
             storeItems: summarizeStorePurchases(availablePurchases),
           }
@@ -798,7 +817,9 @@ export class PurchaseService {
           const sameSkuContext = {
             sku,
             plan,
-            includeTrialOffer,
+            includeTrialOffer: shouldIncludeTrialOffer,
+            requestedTrialOffer: includeTrialOffer,
+            hasUsedTrial: storeOwnership.hasUsedTrial,
             selectedOffer: redactOfferToken(selectedOffer),
             legacyOfferCount: product.subscriptionOfferDetailsAndroid?.length ?? 0,
             standardizedOfferCount: product.subscriptionOffers?.length ?? 0,
@@ -859,7 +880,9 @@ export class PurchaseService {
         this.pendingPurchaseContext = {
           sku,
           plan,
-          includeTrialOffer,
+          includeTrialOffer: shouldIncludeTrialOffer,
+          requestedTrialOffer: includeTrialOffer,
+          hasUsedTrial: storeOwnership.hasUsedTrial,
           selectedOffer: redactOfferToken(selectedOffer),
           legacyOfferCount: product.subscriptionOfferDetailsAndroid?.length ?? 0,
           standardizedOfferCount: product.subscriptionOffers?.length ?? 0,
@@ -869,19 +892,57 @@ export class PurchaseService {
           unverifiedStoreItemCount,
         };
         // For Android, subscriptionOffers contains the sku and offerToken
-        await requestPurchase({
-          type: 'subs',
+        const buildAndroidSubscriptionRequest = (offer: AndroidOfferCandidate) => ({
+          type: 'subs' as const,
           request: {
             google: {
               skus: [sku],
               obfuscatedAccountId,
-              subscriptionOffers: [{ sku, offerToken: selectedOffer.token }],
+              subscriptionOffers: [{ sku, offerToken: offer.token }],
               ...(replacementParams
                 ? { subscriptionProductReplacementParams: replacementParams }
                 : {}),
             },
           },
         });
+
+        try {
+          await requestPurchase(buildAndroidSubscriptionRequest(selectedOffer));
+        } catch (purchaseRequestError) {
+          const paidFallbackOffer = selectedOffer.hasFreeTrial
+            ? getAndroidSubscriptionOffer(product, false)
+            : null;
+          if (
+            paidFallbackOffer
+            && paidFallbackOffer.token !== selectedOffer.token
+            && isInvalidPurchaseArgumentsError(purchaseRequestError)
+          ) {
+            const fallbackSummary = summarizeUnknownError(purchaseRequestError);
+            await logPurchaseError(
+              'trialOfferRejectedRetryPaid',
+              fallbackSummary.errorCode,
+              fallbackSummary.errorMessage,
+              {
+                plan,
+                sku,
+                selectedOffer: redactOfferToken(selectedOffer),
+                paidFallbackOffer: redactOfferToken(paidFallbackOffer),
+                replacementProductId: replacementParams?.oldProductId ?? null,
+                requestedTrialOffer: includeTrialOffer,
+                hasUsedTrial: storeOwnership.hasUsedTrial,
+                errorSummary: fallbackSummary,
+              }
+            );
+            this.pendingPurchaseContext = {
+              ...this.pendingPurchaseContext,
+              includeTrialOffer: false,
+              selectedOffer: redactOfferToken(paidFallbackOffer),
+            };
+            await requestPurchase(buildAndroidSubscriptionRequest(paidFallbackOffer));
+          } else {
+            throw purchaseRequestError;
+          }
+        }
         console.warn('[IAP] Android: requestSubscription returned successfully for', sku);
       }
 
@@ -1027,6 +1088,7 @@ export class PurchaseService {
     expectedObfuscatedAccountId?: string
   ): Promise<AndroidStoreOwnershipContext> {
     const storedPurchaseTokens = new Set<string>();
+    let hasUsedTrial = false;
 
     try {
       const db = getFirestore();
@@ -1034,7 +1096,9 @@ export class PurchaseService {
       const data = userDoc.data() as {
         androidPurchaseToken?: unknown;
         lastReceiptData?: unknown;
+        hasUsedTrial?: unknown;
       } | undefined;
+      hasUsedTrial = data?.hasUsedTrial === true;
 
       [data?.androidPurchaseToken, data?.lastReceiptData].forEach((token) => {
         if (typeof token === 'string' && token.length > 0) {
@@ -1048,6 +1112,7 @@ export class PurchaseService {
     return {
       expectedObfuscatedAccountId: expectedObfuscatedAccountId ?? await this.deriveAppAccountToken(uid),
       storedPurchaseTokens,
+      hasUsedTrial,
     };
   }
 
