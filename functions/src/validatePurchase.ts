@@ -1,9 +1,13 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
-import * as crypto from 'crypto';
 import axios from 'axios';
 import { google, androidpublisher_v3 } from 'googleapis';
+import {
+  getAndroidPurchaseOwnershipDecision,
+  sha256,
+  type AndroidPurchaseOwnershipInput,
+} from './purchaseOwnership';
 
 // Initialize Admin if not already
 try { admin.app(); } catch { admin.initializeApp(); }
@@ -30,11 +34,16 @@ type AndroidSubscriptionState = {
   trialSignal?: 'offer_phase' | 'none';
   productId?: string;
   basePlanId?: string;
+  linkedPurchaseToken?: string | null;
+  obfuscatedExternalAccountId?: string | null;
+  obfuscatedExternalProfileId?: string | null;
 };
 
 type AndroidProductState = {
   purchaseState?: number;
   productId?: string;
+  obfuscatedExternalAccountId?: string | null;
+  obfuscatedExternalProfileId?: string | null;
 };
 
 type ErrorSummary = {
@@ -55,10 +64,6 @@ const LIFETIME_PRODUCT_IDS = [
 /**
  * Hash email for privacy-preserving trial tracking
  */
-const sha256 = (value: string): string => {
-  return crypto.createHash('sha256').update(value).digest('hex');
-};
-
 const hashEmail = (email: string): string => {
   return sha256(email.toLowerCase().trim());
 };
@@ -182,6 +187,74 @@ const isGoogleInvalidValueError = (summary: ErrorSummary): boolean => {
     || summary.googleStatus === 'INVALID_ARGUMENT';
 };
 
+async function getAndroidPurchaseTokenOwnerStatus(
+  userId: string,
+  purchaseTokens: Array<string | null | undefined>
+): Promise<{ hasCurrentUserOwner: boolean; conflictingUserId: string | null }> {
+  const uniqueTokens = Array.from(new Set(
+    purchaseTokens.filter((token): token is string => Boolean(token))
+  ));
+  if (uniqueTokens.length === 0) {
+    return { hasCurrentUserOwner: false, conflictingUserId: null };
+  }
+
+  const firestore = admin.firestore();
+  let hasCurrentUserOwner = false;
+  const fields = ['androidPurchaseToken', 'lastReceiptData'];
+
+  for (const token of uniqueTokens) {
+    for (const field of fields) {
+      const snapshot = await firestore
+        .collection('users')
+        .where(field, '==', token)
+        .limit(3)
+        .get();
+
+      for (const doc of snapshot.docs) {
+        if (doc.id === userId) {
+          hasCurrentUserOwner = true;
+        } else {
+          return { hasCurrentUserOwner, conflictingUserId: doc.id };
+        }
+      }
+    }
+  }
+
+  return { hasCurrentUserOwner, conflictingUserId: null };
+}
+
+async function assertAndroidPurchaseBelongsToUser(
+  userId: string,
+  purchaseToken: string | undefined,
+  purchase: AndroidPurchaseOwnershipInput & { linkedPurchaseToken?: string | null }
+): Promise<void> {
+  const ownership = getAndroidPurchaseOwnershipDecision(userId, purchase);
+  if (ownership.hasAccountIdentifier && !ownership.matchesCurrentUser) {
+    throw new HttpsError(
+      'failed-precondition',
+      'This Google Play purchase is linked to a different app account. Please switch to the correct Play Store account and try again.'
+    );
+  }
+
+  const tokenOwner = await getAndroidPurchaseTokenOwnerStatus(userId, [
+    purchaseToken,
+    purchase.linkedPurchaseToken,
+  ]);
+  if (tokenOwner.conflictingUserId) {
+    throw new HttpsError(
+      'failed-precondition',
+      'This Google Play purchase has already been restored to a different app account.'
+    );
+  }
+
+  if (!ownership.hasAccountIdentifier && !tokenOwner.hasCurrentUserOwner) {
+    throw new HttpsError(
+      'failed-precondition',
+      'This Google Play purchase cannot be verified for the current app account. Please sign in with the original app account or contact support.'
+    );
+  }
+}
+
 /**
  * Callable Function: validatePurchase
  * Validates App Store/Play Store receipts and returns authoritative subscription state.
@@ -253,6 +326,7 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
         if (!android || android.purchaseState !== 0 || android.productId !== productId) {
           throw new HttpsError('invalid-argument', 'Invalid Android product purchase state');
         }
+        await assertAndroidPurchaseBelongsToUser(userId, purchaseToken, android);
         // Lifetime purchases have no expiry
         expiresAt = null;
       }
@@ -294,6 +368,7 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
         if (android.productId && android.productId !== productId) {
           throw new HttpsError('not-found', 'No matching Android subscription found');
         }
+        await assertAndroidPurchaseBelongsToUser(userId, purchaseToken, android);
         expiresAt = new Date(parseInt(android.expiryTimeMillis, 10));
         autoRenewing = !!android.autoRenewing;
         // Trial detection must come from Google's explicit current offer phase.
@@ -511,6 +586,9 @@ async function validateAndroidSubscription(
     trialSignal: hasFreeTrialPhase ? 'offer_phase' : 'none',
     productId: lineItem.productId ?? undefined,
     basePlanId: lineItem.offerDetails?.basePlanId ?? undefined,
+    linkedPurchaseToken: purchase.linkedPurchaseToken ?? null,
+    obfuscatedExternalAccountId: purchase.externalAccountIdentifiers?.obfuscatedExternalAccountId ?? null,
+    obfuscatedExternalProfileId: purchase.externalAccountIdentifiers?.obfuscatedExternalProfileId ?? null,
   };
 }
 
@@ -532,5 +610,7 @@ async function validateAndroidProduct(
     // Legacy code expects 0 = purchased.
     purchaseState: data.purchaseStateContext?.purchaseState === 'PURCHASED' ? 0 : 1,
     productId: lineItem?.productId ?? data.productLineItem?.[0]?.productId ?? undefined,
+    obfuscatedExternalAccountId: data.obfuscatedExternalAccountId ?? null,
+    obfuscatedExternalProfileId: data.obfuscatedExternalProfileId ?? null,
   };
 }

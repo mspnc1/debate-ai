@@ -527,6 +527,7 @@ describe('PurchaseService', () => {
           {
             productId: SUBSCRIPTION_PRODUCTS.monthly,
             purchaseToken: 'existing-monthly-token',
+            obfuscatedAccountIdAndroid: 'hashed-token-123',
           },
         ]);
 
@@ -581,6 +582,7 @@ describe('PurchaseService', () => {
             purchaseToken: 'existing-annual-token',
             transactionId: 'existing-annual-tx',
             purchaseState: 'purchased',
+            obfuscatedAccountIdAndroid: 'hashed-token-123',
           },
         ]);
         mockValidatePurchaseCallable.mockResolvedValueOnce({ data: { valid: true } });
@@ -599,6 +601,49 @@ describe('PurchaseService', () => {
           productId: SUBSCRIPTION_PRODUCTS.annual,
           purchaseToken: 'existing-annual-token',
         });
+      });
+
+      it('should block Android purchases when Play returns a subscription linked to another app account', async () => {
+        const mockProduct = {
+          id: SUBSCRIPTION_PRODUCTS.monthly,
+          productId: SUBSCRIPTION_PRODUCTS.monthly,
+          subscriptionOfferDetailsAndroid: [
+            {
+              offerToken: 'monthly-offer-token',
+              basePlanId: 'monthly-base',
+              offerId: null,
+              offerTags: [],
+              pricingPhases: {
+                pricingPhaseList: [
+                  {
+                    priceAmountMicros: '5990000',
+                    billingPeriod: 'P1M',
+                    recurrenceMode: 1,
+                    billingCycleCount: 0,
+                    formattedPrice: '$5.99',
+                    priceCurrencyCode: 'USD',
+                  },
+                ],
+              },
+            },
+          ],
+        } as Partial<ProductSubscriptionAndroid>;
+
+        mockFetchProducts.mockResolvedValue([mockProduct]);
+        mockGetAvailablePurchases.mockResolvedValue([
+          {
+            productId: SUBSCRIPTION_PRODUCTS.annual,
+            purchaseToken: 'foreign-annual-token',
+            obfuscatedAccountIdAndroid: 'different-user-hash',
+          },
+        ]);
+
+        const result = await PurchaseService.purchaseSubscription('monthly', { includeTrialOffer: true });
+
+        expect(result.success).toBe(false);
+        expect(result.errorCode).toBe('STORE_ACCOUNT_MISMATCH');
+        expect(mockRequestPurchase).not.toHaveBeenCalled();
+        expect(mockValidatePurchaseCallable).not.toHaveBeenCalled();
       });
 
       it('should prefer legacy Android offer details over standardized offers', async () => {
@@ -992,6 +1037,51 @@ describe('PurchaseService', () => {
 
       expect(result.success).toBe(false);
       expect(result).toHaveProperty('error');
+    });
+
+    it('should not restore Android purchases linked to another app account', async () => {
+      Platform.OS = 'android';
+      mockGetAvailablePurchases.mockResolvedValue([
+        {
+          productId: SUBSCRIPTION_PRODUCTS.annual,
+          purchaseToken: 'foreign-annual-receipt',
+          transactionId: 'foreign-annual-tx',
+          obfuscatedAccountIdAndroid: 'different-user-hash',
+        },
+      ]);
+
+      const result = await PurchaseService.restorePurchases();
+
+      expect(result.success).toBe(false);
+      expect(result.errorCode).toBe('STORE_ACCOUNT_MISMATCH');
+      expect(mockValidatePurchaseCallable).not.toHaveBeenCalled();
+    });
+
+    it('should restore Android purchases without account identifiers only when the token is already stored for the current user', async () => {
+      Platform.OS = 'android';
+      const purchase: Partial<Purchase> = {
+        productId: SUBSCRIPTION_PRODUCTS.annual,
+        purchaseToken: 'stored-annual-receipt',
+        transactionId: 'stored-annual-tx',
+      };
+
+      mockGetDoc.mockResolvedValue({
+        data: () => ({
+          androidPurchaseToken: 'stored-annual-receipt',
+        }),
+      });
+      mockGetAvailablePurchases.mockResolvedValue([purchase]);
+      mockValidatePurchaseCallable.mockResolvedValueOnce({ data: { valid: true } });
+
+      const result = await PurchaseService.restorePurchases();
+
+      expect(result).toEqual({ success: true, restored: true, isLifetime: false });
+      expect(mockValidatePurchaseCallable).toHaveBeenCalledWith({
+        receipt: 'stored-annual-receipt',
+        platform: 'android',
+        productId: SUBSCRIPTION_PRODUCTS.annual,
+        purchaseToken: 'stored-annual-receipt',
+      });
     });
 
     it('should map error codes to user messages', async () => {

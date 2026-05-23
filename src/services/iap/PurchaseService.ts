@@ -49,12 +49,22 @@ type StorePurchaseSummary = {
   autoRenewingAndroid?: boolean | null;
   acknowledgedAndroid?: boolean | null;
   suspendedAndroid?: boolean | null;
+  hasObfuscatedAccountIdAndroid?: boolean;
   hasStoreCredential: boolean;
   hasTxnId: boolean;
   hasPendingStoreUpdate?: boolean;
 };
 
+type AndroidStoreOwnershipContext = {
+  expectedObfuscatedAccountId: string;
+  storedPurchaseTokens: Set<string>;
+};
+
+type AndroidStorePurchaseOwnershipStatus = 'owned' | 'foreign' | 'unverified';
+
 const ANDROID_SUBSCRIPTION_REPLACEMENT_MODE = 'without-proration' as const;
+const STORE_ACCOUNT_MISMATCH_MESSAGE =
+  'Google Play is returning a purchase linked to a different app account on this device. Open Play Store with the Google account you want to use, clear the Play Store cache, then restart the app and try again.';
 
 /** Timeout helper for promises */
 function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> {
@@ -272,6 +282,10 @@ function getPurchaseProductId(purchase: Purchase): string | null {
   return getPurchaseProductIds(purchase)[0] ?? null;
 }
 
+function getPurchaseToken(purchase: Purchase): string | null {
+  return (purchase as Purchase & { purchaseToken?: string | null }).purchaseToken ?? null;
+}
+
 function purchaseMatchesSku(purchase: Purchase, sku: string): boolean {
   return getPurchaseProductIds(purchase).includes(sku);
 }
@@ -294,6 +308,9 @@ function summarizeStorePurchase(purchase: Purchase): StorePurchaseSummary {
     autoRenewingAndroid: androidPurchase.autoRenewingAndroid ?? null,
     acknowledgedAndroid: androidPurchase.isAcknowledgedAndroid ?? null,
     suspendedAndroid: androidPurchase.isSuspendedAndroid ?? null,
+    hasObfuscatedAccountIdAndroid: Boolean(
+      (androidPurchase as Purchase & { obfuscatedAccountIdAndroid?: string | null }).obfuscatedAccountIdAndroid
+    ),
     hasStoreCredential: Boolean(purchase.purchaseToken),
     hasTxnId: Boolean(androidPurchase.transactionId),
     hasPendingStoreUpdate: Boolean(androidPurchase.pendingPurchaseUpdateAndroid),
@@ -327,6 +344,49 @@ function getAndroidSubscriptionReplacementParams(
     oldProductId,
     replacementMode: ANDROID_SUBSCRIPTION_REPLACEMENT_MODE,
   };
+}
+
+function getAndroidPurchaseObfuscatedAccountId(purchase: Purchase): string | null {
+  return (purchase as Purchase & { obfuscatedAccountIdAndroid?: string | null }).obfuscatedAccountIdAndroid ?? null;
+}
+
+function getAndroidStorePurchaseOwnershipStatus(
+  purchase: Purchase,
+  ownership: AndroidStoreOwnershipContext
+): AndroidStorePurchaseOwnershipStatus {
+  const purchaseAccountId = getAndroidPurchaseObfuscatedAccountId(purchase);
+  if (purchaseAccountId) {
+    return purchaseAccountId === ownership.expectedObfuscatedAccountId ? 'owned' : 'foreign';
+  }
+
+  const purchaseToken = getPurchaseToken(purchase);
+  if (purchaseToken && ownership.storedPurchaseTokens.has(purchaseToken)) {
+    return 'owned';
+  }
+
+  return 'unverified';
+}
+
+function filterAndroidStorePurchasesForCurrentUser(
+  purchases: Purchase[],
+  ownership: AndroidStoreOwnershipContext
+): {
+  ownedPurchases: Purchase[];
+  rejectedPurchases: Array<{ purchase: Purchase; status: AndroidStorePurchaseOwnershipStatus }>;
+} {
+  const ownedPurchases: Purchase[] = [];
+  const rejectedPurchases: Array<{ purchase: Purchase; status: AndroidStorePurchaseOwnershipStatus }> = [];
+
+  purchases.forEach((purchase) => {
+    const status = getAndroidStorePurchaseOwnershipStatus(purchase, ownership);
+    if (status === 'owned') {
+      ownedPurchases.push(purchase);
+    } else {
+      rejectedPurchases.push({ purchase, status });
+    }
+  });
+
+  return { ownedPurchases, rejectedPurchases };
 }
 
 function summarizeUnknownError(error: unknown): {
@@ -705,6 +765,7 @@ export class PurchaseService {
 
         console.warn('[IAP] Android: Calling requestSubscription for', sku);
         const obfuscatedAccountId = await this.deriveAppAccountToken(user.uid);
+        const storeOwnership = await this.getAndroidStoreOwnershipContext(user.uid, obfuscatedAccountId);
         const availablePurchases = await getAvailablePurchases().catch((purchaseLookupError: unknown) => {
           ErrorService.handleSilent(purchaseLookupError, {
             action: 'iap_get_available_purchases_for_replacement',
@@ -712,7 +773,25 @@ export class PurchaseService {
           });
           return [] as Purchase[];
         });
-        const sameSkuPurchase = availablePurchases.find((purchase) => purchaseMatchesSku(purchase, sku));
+        const {
+          ownedPurchases: availablePurchasesForCurrentUser,
+          rejectedPurchases,
+        } = filterAndroidStorePurchasesForCurrentUser(availablePurchases, storeOwnership);
+        await this.logRejectedAndroidStorePurchases(
+          'purchaseSubscriptionStoreAccountMismatch',
+          sku,
+          storeOwnership,
+          rejectedPurchases,
+          {
+            plan,
+            sku,
+            includeTrialOffer,
+            selectedOffer: redactOfferToken(selectedOffer),
+            storeItems: summarizeStorePurchases(availablePurchases),
+          }
+        );
+
+        const sameSkuPurchase = availablePurchasesForCurrentUser.find((purchase) => purchaseMatchesSku(purchase, sku));
         if (sameSkuPurchase) {
           const sameSkuContext = {
             sku,
@@ -723,7 +802,7 @@ export class PurchaseService {
             standardizedOfferCount: product.subscriptionOffers?.length ?? 0,
             productStatusAndroid: product.productStatusAndroid,
             sameStoreItem: summarizeStorePurchase(sameSkuPurchase),
-            storeItems: summarizeStorePurchases(availablePurchases),
+            storeItems: summarizeStorePurchases(availablePurchasesForCurrentUser),
           };
           await logPurchaseError(
             'sameSkuAlreadyOwned',
@@ -768,7 +847,15 @@ export class PurchaseService {
             userMessage: 'Google Play already has this subscription on your account. Tap Restore Purchases, or manage the subscription in Google Play.',
           } as const;
         }
-        const replacementParams = getAndroidSubscriptionReplacementParams(availablePurchases, sku);
+        if (rejectedPurchases.length > 0) {
+          return {
+            success: false,
+            errorCode: 'STORE_ACCOUNT_MISMATCH',
+            userMessage: STORE_ACCOUNT_MISMATCH_MESSAGE,
+          } as const;
+        }
+
+        const replacementParams = getAndroidSubscriptionReplacementParams(availablePurchasesForCurrentUser, sku);
         if (replacementParams) {
           console.warn('[IAP] Android: Adding subscription replacement params for', sku, 'from', replacementParams.oldProductId);
         }
@@ -937,6 +1024,58 @@ export class PurchaseService {
     return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, uid);
   }
 
+  private static async getAndroidStoreOwnershipContext(
+    uid: string,
+    expectedObfuscatedAccountId?: string
+  ): Promise<AndroidStoreOwnershipContext> {
+    const storedPurchaseTokens = new Set<string>();
+
+    try {
+      const db = getFirestore();
+      const userDoc = await getDoc(doc(collection(db, 'users'), uid));
+      const data = userDoc.data() as {
+        androidPurchaseToken?: unknown;
+        lastReceiptData?: unknown;
+      } | undefined;
+
+      [data?.androidPurchaseToken, data?.lastReceiptData].forEach((token) => {
+        if (typeof token === 'string' && token.length > 0) {
+          storedPurchaseTokens.add(token);
+        }
+      });
+    } catch (error) {
+      ErrorService.handleSilent(error, { action: 'iap_read_android_purchase_ownership' });
+    }
+
+    return {
+      expectedObfuscatedAccountId: expectedObfuscatedAccountId ?? await this.deriveAppAccountToken(uid),
+      storedPurchaseTokens,
+    };
+  }
+
+  private static async logRejectedAndroidStorePurchases(
+    action: string,
+    productId: string,
+    ownership: AndroidStoreOwnershipContext,
+    rejectedPurchases: Array<{ purchase: Purchase; status: AndroidStorePurchaseOwnershipStatus }>,
+    details: Record<string, unknown> = {}
+  ): Promise<void> {
+    if (rejectedPurchases.length === 0) {
+      return;
+    }
+
+    await logPurchaseError(action, 'STORE_ACCOUNT_MISMATCH', STORE_ACCOUNT_MISMATCH_MESSAGE, {
+      productId,
+      expectedObfuscatedAccountIdPresent: Boolean(ownership.expectedObfuscatedAccountId),
+      storedCredentialCount: ownership.storedPurchaseTokens.size,
+      rejectedStoreItems: rejectedPurchases.map(({ purchase, status }) => ({
+        status,
+        item: summarizeStorePurchase(purchase),
+      })),
+      ...details,
+    });
+  }
+
   private static async handlePurchaseError(error: unknown) {
     const pendingSku = this.pendingPurchaseSku;
     const pendingContext = this.pendingPurchaseContext;
@@ -1029,6 +1168,30 @@ export class PurchaseService {
         actualSku: purchase.productId,
         transactionId: purchase.transactionId,
       });
+    }
+
+    if (Platform.OS === 'android') {
+      const user = getAuth().currentUser;
+      if (user) {
+        const ownership = await this.getAndroidStoreOwnershipContext(user.uid);
+        const ownershipStatus = getAndroidStorePurchaseOwnershipStatus(purchase, ownership);
+        if (ownershipStatus !== 'owned') {
+          await this.logRejectedAndroidStorePurchases(
+            'handlePurchaseUpdateStoreAccountMismatch',
+            purchase.productId,
+            ownership,
+            [{ purchase, status: ownershipStatus }],
+            { expectedSku }
+          );
+          try {
+            await finishTransaction({ purchase, isConsumable: false });
+          } catch {
+            // Ignore finish errors
+          }
+          this.notifyError(STORE_ACCOUNT_MISMATCH_MESSAGE, false);
+          return;
+        }
+      }
     }
 
     let validationError: unknown = null;
@@ -1157,20 +1320,46 @@ export class PurchaseService {
       }
 
       const purchases = await getAvailablePurchases();
+      const storeOwnership = Platform.OS === 'android'
+        ? await this.getAndroidStoreOwnershipContext(user.uid)
+        : null;
+      const {
+        ownedPurchases,
+        rejectedPurchases,
+      } = storeOwnership
+        ? filterAndroidStorePurchasesForCurrentUser(purchases, storeOwnership)
+        : { ownedPurchases: purchases, rejectedPurchases: [] };
+      if (storeOwnership) {
+        await this.logRejectedAndroidStorePurchases(
+          'restorePurchasesStoreAccountMismatch',
+          'restore',
+          storeOwnership,
+          rejectedPurchases,
+          { storeItems: summarizeStorePurchases(purchases) }
+        );
+      }
       const ids = Object.values(SUBSCRIPTION_PRODUCTS) as string[];
 
       // Prioritize lifetime purchases if found
-      const lifetimePurchase = purchases.find((p) => purchaseMatchesSku(p, SUBSCRIPTION_PRODUCTS.lifetime));
+      const lifetimePurchase = ownedPurchases.find((p) => purchaseMatchesSku(p, SUBSCRIPTION_PRODUCTS.lifetime));
       if (lifetimePurchase) {
         await this.validateAndSavePurchase(lifetimePurchase);
         return { success: true, restored: true, isLifetime: true } as const;
       }
 
       // Otherwise look for active subscription
-      const active = purchases.find((p) => ids.some((id) => purchaseMatchesSku(p, id)));
+      const active = ownedPurchases.find((p) => ids.some((id) => purchaseMatchesSku(p, id)));
       if (active) {
         await this.validateAndSavePurchase(active);
         return { success: true, restored: true, isLifetime: false } as const;
+      }
+
+      if (rejectedPurchases.length > 0) {
+        return {
+          success: false,
+          errorCode: 'STORE_ACCOUNT_MISMATCH',
+          userMessage: STORE_ACCOUNT_MISMATCH_MESSAGE,
+        } as const;
       }
 
       const hasExisting = await this.userHasExistingSubscription();
