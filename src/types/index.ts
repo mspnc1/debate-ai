@@ -65,6 +65,15 @@ export interface GeneratedImageMetadata {
   refinementOf?: string; // Message ID of the original image
 }
 
+export interface DebateVoteResult {
+  round: number;
+  winnerId: string;
+  winnerName?: string;
+  votingLabel: string;
+  criterion: string;
+  timestamp: number;
+}
+
 export interface MessageMetadata {
   sessionId?: string;
   conversationTurn?: number;
@@ -81,6 +90,9 @@ export interface MessageMetadata {
 
   // Image generation metadata
   generatedImage?: GeneratedImageMetadata;
+
+  // Debate vote checkpoint metadata
+  debateVote?: DebateVoteResult;
 }
 
 export interface MessageAttachment {
@@ -123,6 +135,7 @@ export interface ChatSession {
     tempo?: 'streaming' | 'fixed';
     postStreamPauseMs?: number;
     civility?: 1 | 2 | 3 | 4 | 5; // 1=friendly banter, 5=hostile
+    voteResults?: DebateVoteResult[];
   };
 }
 

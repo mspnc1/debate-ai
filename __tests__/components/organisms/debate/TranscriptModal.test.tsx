@@ -131,6 +131,38 @@ describe('TranscriptModal', () => {
       expect(queryByText('Debate ended')).toBeNull();
     });
 
+    it('renders vote criteria from vote metadata even when host messages are hidden', () => {
+      const messagesWithVote: Message[] = [
+        ...mockMessages,
+        {
+          id: 'vote-1',
+          sender: 'Debate Host',
+          senderType: 'user',
+          content: 'Constructives: Claude',
+          timestamp: Date.now(),
+          metadata: {
+            debateVote: {
+              round: 1,
+              winnerId: 'claude',
+              winnerName: 'Claude',
+              votingLabel: 'Constructives',
+              criterion: 'Vote criteria: value clash.',
+              timestamp: 100,
+            },
+          },
+        },
+      ];
+
+      const { getByText, queryByText } = renderWithProviders(
+        <TranscriptModal {...defaultProps} messages={messagesWithVote} />
+      );
+
+      expect(queryByText('Constructives: Claude')).toBeNull();
+      expect(getByText('Vote Criteria')).toBeTruthy();
+      expect(getByText('Constructives')).toBeTruthy();
+      expect(getByText('Vote criteria: value clash.')).toBeTruthy();
+    });
+
     it('renders debate messages', () => {
       const { getByText } = renderWithProviders(<TranscriptModal {...defaultProps} />);
 

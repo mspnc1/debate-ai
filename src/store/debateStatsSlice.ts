@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import type { DebateVoteResult } from '@/types';
 
 export interface DebateStats {
   [aiId: string]: {
@@ -24,6 +25,7 @@ export interface DebateRound {
   topic: string;
   participants: string[];
   roundWinners: { [round: number]: string };
+  voteResults?: DebateVoteResult[];
   overallWinner?: string;
   timestamp: number;
 }
@@ -77,14 +79,34 @@ const debateStatsSlice = createSlice({
       });
     },
     
-    recordRoundWinner: (state, action: PayloadAction<{ round: number; winnerId: string }>) => {
-      const { round, winnerId } = action.payload;
+    recordRoundWinner: (
+      state,
+      action: PayloadAction<{
+        round: number;
+        winnerId: string;
+        votingLabel?: string;
+        criterion?: string;
+      }>
+    ) => {
+      const { round, winnerId, votingLabel, criterion } = action.payload;
 
       if (state.currentDebate) {
         // Check if this round was already voted on to prevent double-counting
         const alreadyVoted = state.currentDebate.roundWinners[round] !== undefined;
 
         state.currentDebate.roundWinners[round] = winnerId;
+        const voteResult: DebateVoteResult = {
+          round,
+          winnerId,
+          votingLabel: votingLabel || `Vote ${round}`,
+          criterion: criterion || '',
+          timestamp: Date.now(),
+        };
+        const currentVoteResults = state.currentDebate.voteResults || [];
+        state.currentDebate.voteResults = [
+          ...currentVoteResults.filter((record) => record.round !== round),
+          voteResult,
+        ].sort((a, b) => a.round - b.round);
 
         // Only update stats if this is a NEW vote for this round
         if (!alreadyVoted) {

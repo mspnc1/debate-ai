@@ -10,11 +10,23 @@ class MockVotingService {
   public scores: ScoreBoard = {
     claude: { name: 'Claude', roundWins: 1, roundsWon: [1], isOverallWinner: false },
   };
+  public voteRecords = [
+    {
+      round: 1,
+      winnerId: 'claude',
+      winnerName: 'Claude',
+      votingLabel: 'Opening',
+      criterion: 'Vote criteria: motion burden.',
+      timestamp: 100,
+    },
+  ];
   public voted = new Set<number>();
 
   calculateScores = jest.fn(() => this.scores);
   getVotingPrompt = jest.fn(() => this.prompt);
-  getBallotCriterion = jest.fn(() => 'Ballot: judge the motion.');
+  getVoteCriterion = jest.fn(() => 'Vote criteria: motion burden.');
+  getVotingLabel = jest.fn(() => 'Opening');
+  getVoteRecords = jest.fn(() => this.voteRecords);
   hasVotedForRound = jest.fn((round: number) => this.voted.has(round));
 }
 
@@ -63,11 +75,12 @@ describe('useDebateVoting', () => {
 
     expect(orchestrator.votingService.calculateScores).toHaveBeenCalledTimes(1);
     expect(result.current.scores).toEqual(orchestrator.votingService.scores);
+    expect(result.current.voteRecords).toEqual(orchestrator.votingService.voteRecords);
 
     expect(result.current.getVotingPrompt()).toBe('🏅 Who won Opening?');
     expect(orchestrator.votingService.getVotingPrompt).toHaveBeenCalledWith(0, false, false);
-    expect(result.current.getVotingBallotCriterion()).toBe('Ballot: judge the motion.');
-    expect(orchestrator.votingService.getBallotCriterion).toHaveBeenCalledWith(false);
+    expect(result.current.getVoteCriterion()).toBe('Vote criteria: motion burden.');
+    expect(orchestrator.votingService.getVoteCriterion).toHaveBeenCalledWith(false);
 
     act(() => {
       orchestrator.emit({ type: 'voting_started', data: { round: 1, isFinalRound: false, isOverallVote: false }, timestamp: Date.now() });
@@ -79,9 +92,24 @@ describe('useDebateVoting', () => {
     expect(result.current.hasVotedForRound(1)).toBe(true);
 
     act(() => {
-      orchestrator.emit({ type: 'voting_completed', data: { scores: orchestrator.votingService.scores }, timestamp: Date.now() });
+      orchestrator.emit({
+        type: 'voting_completed',
+        data: {
+          scores: orchestrator.votingService.scores,
+          voteRecord: {
+            round: 1,
+            winnerId: 'claude',
+            winnerName: 'Claude',
+            votingLabel: 'Opening',
+            criterion: 'Vote criteria: motion burden.',
+            timestamp: 200,
+          },
+        },
+        timestamp: Date.now(),
+      });
     });
     expect(result.current.scores).toEqual(orchestrator.votingService.scores);
+    expect(result.current.voteRecords[0]?.timestamp).toBe(200);
 
     await act(async () => {
       await result.current.recordVote('claude');
@@ -89,6 +117,10 @@ describe('useDebateVoting', () => {
 
     expect(orchestrator.recordVote).toHaveBeenCalledWith(1, 'claude', false);
     expect(store.getState().debateStats.currentDebate?.roundWinners[1]).toBe('claude');
+    expect(store.getState().debateStats.currentDebate?.voteResults?.[0]).toMatchObject({
+      votingLabel: 'Opening',
+      criterion: 'Vote criteria: motion burden.',
+    });
 
     orchestrator.votingService.prompt = '🏆 Vote for Overall Winner!';
     expect(result.current.getVotingPrompt()).toBe('🏆 Vote for Overall Winner!');
@@ -104,8 +136,8 @@ describe('useDebateVoting', () => {
     expect(orchestrator.recordVote).toHaveBeenLastCalledWith(3, 'gpt4', true);
     expect(result.current.getVotingPrompt()).toBe('🏆 Vote for Overall Winner!');
     expect(orchestrator.votingService.getVotingPrompt).toHaveBeenLastCalledWith(3, true, true);
-    expect(result.current.getVotingBallotCriterion()).toBe('Ballot: judge the motion.');
-    expect(orchestrator.votingService.getBallotCriterion).toHaveBeenLastCalledWith(true);
+    expect(result.current.getVoteCriterion()).toBe('Vote criteria: motion burden.');
+    expect(orchestrator.votingService.getVoteCriterion).toHaveBeenLastCalledWith(true);
 
     // History is populated when debate_ended event is emitted (not during recordVote)
     act(() => {
@@ -127,7 +159,7 @@ describe('useDebateVoting', () => {
     );
 
     expect(result.current.getVotingPrompt()).toBe('');
-    expect(result.current.getVotingBallotCriterion()).toBe('');
+    expect(result.current.getVoteCriterion()).toBe('');
     expect(result.current.hasVotedForRound(5)).toBe(false);
 
     await act(async () => {

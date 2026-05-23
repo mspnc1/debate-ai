@@ -24,6 +24,8 @@ describe('VotingService', () => {
     expect(scores.claude.isOverallWinner).toBe(true);
     expect(scores.gpt4.isOverallWinner).toBe(false);
     expect(service.getRoundVote(2)?.winnerId).toBe('gpt4');
+    expect(service.getRoundVote(2)?.votingLabel).toBe('Rebuttals');
+    expect(service.getVoteRecords()).toHaveLength(3);
     expect(service.getVotesMap()).toEqual({ '1': 'claude', '2': 'gpt4', '3': 'claude', overall: 'claude' });
   });
 
@@ -60,14 +62,14 @@ describe('VotingService', () => {
     expect(service.getVotingPrompt(2, false, false)).toBe('🏅 Who won Cross-Examination?');
   });
 
-  it('provides format-specific ballot criteria', () => {
+  it('provides format-specific vote criteria', () => {
     const ldService = new VotingService(participants, LINCOLN_DOUGLAS_FORMAT, 5);
     const policyService = new VotingService(participants, POLICY_FORMAT, 5);
     const presetService = new VotingService(participants, getPresetForFormat('socratic', 'short'), 'socratic');
 
-    expect(ldService.getBallotCriterion()).toContain('value clash');
-    expect(policyService.getBallotCriterion()).toContain('policy burden');
-    expect(presetService.getBallotCriterion(true)).toContain('Final ballot');
-    expect(presetService.getBallotCriterion(true)).toContain('judge the inquiry');
+    expect(ldService.getVoteCriterion()).toContain('value clash');
+    expect(policyService.getVoteCriterion()).toContain('policy burden');
+    expect(presetService.getVoteCriterion(true)).toContain('Final vote criteria');
+    expect(presetService.getVoteCriterion(true)).toContain('inquiry quality');
   });
 });

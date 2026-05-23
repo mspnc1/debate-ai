@@ -828,7 +828,7 @@ export class DebateOrchestrator {
         isFinalRound,
         isOverallVote: false,
         votingLabel: this.votingService?.getVotingLabel(round),
-        ballotCriterion: this.votingService?.getBallotCriterion(false),
+        voteCriterion: this.votingService?.getVoteCriterion(false),
       },
       timestamp: Date.now(),
     });
@@ -848,7 +848,7 @@ export class DebateOrchestrator {
     }
     
     // Record round vote
-    this.votingService.recordRoundVote(round, winnerId);
+    const voteRecord = this.votingService.recordRoundVote(round, winnerId);
     
     // Emit round winner message
     const winnerMessage: Message = {
@@ -857,6 +857,9 @@ export class DebateOrchestrator {
       senderType: 'user',
       content: this.votingService.getWinnerMessage(round, winnerId, round === this.session.totalRounds),
       timestamp: Date.now(),
+      metadata: {
+        debateVote: voteRecord,
+      },
     };
     
     this.emitEvent({
@@ -872,7 +875,7 @@ export class DebateOrchestrator {
     // Emit score update event instead of message
     this.emitEvent({
       type: 'voting_completed',
-      data: { round, winnerId, scores },
+      data: { round, winnerId, scores, voteRecord },
       timestamp: Date.now(),
     });
     
@@ -963,7 +966,12 @@ export class DebateOrchestrator {
     
     this.emitEvent({
       type: 'debate_ended',
-      data: { session: this.session, overallWinner: winnerId, finalScores: scores },
+      data: {
+        session: this.session,
+        overallWinner: winnerId,
+        finalScores: scores,
+        voteRecords: this.votingService.getVoteRecords(),
+      },
       timestamp: Date.now(),
     });
 
@@ -998,6 +1006,7 @@ export class DebateOrchestrator {
           tempo: 'streaming',
           postStreamPauseMs: DEBATE_CONSTANTS.DELAYS.POST_STREAM_PAUSE,
           civility: this.session.civility,
+          voteResults: this.votingService?.getVoteRecords(),
         }
       };
       

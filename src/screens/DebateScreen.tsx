@@ -358,6 +358,14 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     return `${ai.name} (${p.name})`;
   };
 
+  const voteResults = voting.voteRecords.map((record) => {
+    const winnerAI = selectedAIs.find((ai) => ai.id === record.winnerId);
+    return {
+      ...record,
+      winnerName: winnerAI ? displayName(winnerAI) : record.winnerName,
+    };
+  });
+
   // Show loading state while waiting for orchestrator when topic is provided
   const isLoading = initialTopic && !session.orchestrator && !session.isInitialized;
   
@@ -450,9 +458,18 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
             winner={winnerAI}
             scores={voting.scores || {}}
             rounds={[
-              { round: 1, winner: winner[1].name, topic: topicSelection.finalTopic || 'Debate Topic' },
-              { round: 2, winner: winner[1].name, topic: topicSelection.finalTopic || 'Debate Topic' }
+              ...(voteResults.length > 0
+                ? voteResults.map((record) => ({
+                  round: record.round,
+                  winner: record.winnerName || record.winnerId,
+                  topic: topicSelection.finalTopic || 'Debate Topic',
+                }))
+                : [
+                  { round: 1, winner: winner[1].name, topic: topicSelection.finalTopic || 'Debate Topic' },
+                  { round: 2, winner: winner[1].name, topic: topicSelection.finalTopic || 'Debate Topic' },
+                ])
             ]}
+            voteResults={voteResults}
             onViewTranscript={handleViewTranscript}
             onRematch={handleRematch}
             onStartOver={handleVictoryStartOver}
@@ -500,7 +517,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
                 votingRound={voting.votingRound}
                 scores={voting.scores || undefined}
                 votingPrompt={voting.getVotingPrompt()}
-                ballotCriterion={voting.getVotingBallotCriterion()}
+                voteCriterion={voting.getVoteCriterion()}
                 onVote={handleVote}
               />
             </Animated.View>
@@ -659,6 +676,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         topic={topicSelection.finalTopic || 'AI Debate'}
         participants={selectedAIs.map(ai => ({ id: ai.id, name: displayName(ai) }))}
         messages={messages.messages}
+        voteResults={voteResults}
         winner={voting.scores && Object.keys(voting.scores).length > 0 ? (() => {
           const winner = Object.entries(voting.scores).reduce((prev, current) => 
             prev[1].roundWins > current[1].roundWins ? prev : current

@@ -20,7 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Typography } from '../../molecules';
 import { useTheme } from '../../../theme';
 import { AI_BRAND_COLORS } from '../../../constants/aiColors';
-import { AI, Message } from '../../../types';
+import { AI, type DebateVoteResult, Message } from '../../../types';
 import { ScoreBoard } from '../../../services/debate';
 import ShareModal from './ShareModal';
 import { analytics } from '../../../services/analytics';
@@ -36,6 +36,7 @@ export interface VictoryCelebrationProps {
   winner: AI;
   scores: ScoreBoard;
   rounds: RoundResult[];
+  voteResults?: DebateVoteResult[];
   onViewTranscript: () => void;
   onRematch: () => void;
   onStartOver: () => void;
@@ -48,6 +49,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
   winner,
   scores,
   rounds,
+  voteResults = [],
   onViewTranscript,
   onRematch,
   onStartOver,
@@ -235,6 +237,35 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                     })}
                   </View>
                 </View>
+
+                {voteResults.length > 0 && (
+                  <View style={[styles.voteBreakdown, { borderColor: theme.colors.border }]}>
+                    <Typography
+                      variant="body"
+                      weight="semibold"
+                      color="secondary"
+                      align="center"
+                      style={styles.voteBreakdownTitle}
+                    >
+                      Vote Criteria
+                    </Typography>
+                    {voteResults.map((vote) => (
+                      <View key={vote.round} style={styles.voteResultRow}>
+                        <View style={styles.voteResultHeader}>
+                          <Typography variant="caption" weight="semibold">
+                            {vote.votingLabel}
+                          </Typography>
+                          <Typography variant="caption" color="secondary">
+                            {vote.winnerName || vote.winnerId}
+                          </Typography>
+                        </View>
+                        <Typography variant="caption" color="secondary" numberOfLines={2}>
+                          {vote.criterion}
+                        </Typography>
+                      </View>
+                    ))}
+                  </View>
+                )}
                 
                 <View style={styles.actions}>
                   <VictoryActionButton
@@ -476,6 +507,26 @@ const styles = StyleSheet.create({
   scoreBarFill: {
     height: '100%',
     borderRadius: 4,
+  },
+  voteBreakdown: {
+    width: '100%',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    paddingVertical: 14,
+    marginBottom: 22,
+    gap: 10,
+  },
+  voteBreakdownTitle: {
+    marginBottom: 2,
+  },
+  voteResultRow: {
+    gap: 4,
+  },
+  voteResultHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
   },
   actions: {
     width: '100%',

@@ -274,8 +274,9 @@ const createVotingState = (overrides: Record<string, unknown> = {}) => ({
   isFinalVote: false,
   votingRound: 1,
   scores: null,
+  voteRecords: [],
   getVotingPrompt: jest.fn().mockReturnValue('Vote now'),
-  getVotingBallotCriterion: jest.fn().mockReturnValue('Ballot: judge the motion.'),
+  getVoteCriterion: jest.fn().mockReturnValue('Vote criteria: motion burden.'),
   recordVote: jest.fn().mockResolvedValue(undefined),
   error: null,
   ...overrides,
@@ -425,6 +426,14 @@ describe('DebateScreen', () => {
   it('displays messages, voting, and scores when debate is active', async () => {
     const recordVote = jest.fn().mockResolvedValue(undefined);
     const preset = getPresetForFormat('lincoln_douglas', 'standard');
+    const voteRecords = [{
+      round: 1,
+      winnerId: 'left',
+      winnerName: 'Claude',
+      votingLabel: 'Constructives',
+      criterion: 'Vote criteria: value clash.',
+      timestamp: 100,
+    }];
 
     renderScreen({
       flow: { isDebateActive: true, currentMessageIndex: 2, currentTurnLabel: 'Cross-Examination (CX) · answering' },
@@ -440,6 +449,7 @@ describe('DebateScreen', () => {
           left: { name: 'Claude', roundWins: 1, roundsWon: [1], isOverallWinner: false },
           right: { name: 'GPT-4', roundWins: 0, roundsWon: [], isOverallWinner: false },
         },
+        voteRecords,
         recordVote,
       },
     });
@@ -450,7 +460,7 @@ describe('DebateScreen', () => {
     expect(mockDebateTurnTimelineProps.messages).toHaveLength(preset.messages.length);
     expect(mockDebateTurnTimelineProps.currentMessageIndex).toBe(2);
     expect(mockVotingInterfaceProps).toBeDefined();
-    expect(mockVotingInterfaceProps.ballotCriterion).toBe('Ballot: judge the motion.');
+    expect(mockVotingInterfaceProps.voteCriterion).toBe('Vote criteria: motion burden.');
     expect(mockScoreDisplayProps.scores.left.roundWins).toBe(1);
 
     mockVotingInterfaceProps.onVote('left');

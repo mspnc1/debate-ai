@@ -23,7 +23,7 @@ import { GradientButton } from '../../molecules';
 import { SheetHeader } from '@/components/molecules';
 import { CitationSources } from '@/components/organisms/common/CitationSources';
 import { useTheme } from '../../../theme';
-import type { Citation, Message } from '../../../types';
+import type { Citation, DebateVoteResult, Message } from '../../../types';
 import { AI_BRAND_COLORS } from '../../../constants/aiColors';
 import { ErrorService } from '@/services/errors/ErrorService';
 import { normalizeCitations } from '@/utils/citationUtils';
@@ -34,6 +34,7 @@ export interface TranscriptModalProps {
   topic: string;
   participants: { id: string; name: string }[];
   messages: Message[];
+  voteResults?: DebateVoteResult[];
   winner?: { id: string; name: string };
   scores?: Record<string, { name: string; roundWins: number }>;
 }
@@ -49,6 +50,12 @@ const escapeHTML = (value: string): string =>
 const getMessageCitations = (message: Message): Citation[] =>
   normalizeCitations(message.metadata?.citations ?? []);
 
+const getVoteResultsFromMessages = (messages: Message[]): DebateVoteResult[] =>
+  messages
+    .map((message) => message.metadata?.debateVote)
+    .filter((vote): vote is DebateVoteResult => Boolean(vote))
+    .sort((a, b) => a.round - b.round);
+
 const getParticipantClassName = (name: string): string =>
   name.toLowerCase().replace(/[^a-z0-9_-]+/g, '');
 
@@ -58,6 +65,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
   topic,
   participants,
   messages,
+  voteResults,
   winner,
   scores,
 }) => {
@@ -68,6 +76,9 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
   const debateMessages = messages.filter(
     (msg) => msg.sender !== 'Debate Host' && msg.sender !== 'System'
   );
+  const displayedVoteResults = voteResults && voteResults.length > 0
+    ? voteResults
+    : getVoteResultsFromMessages(messages);
 
   // Get AI brand color for styling
   const getAIColor = (aiName: string) => {
@@ -191,6 +202,47 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
       background: ${pdfColors.surface};
       border-radius: 12px;
       border-left: 4px solid ${pdfColors.primary};
+    }
+
+    .vote-results {
+      margin: 0 0 32px 0;
+      padding: 18px;
+      background: ${pdfColors.surface};
+      border: 1px solid ${pdfColors.border};
+      border-radius: 12px;
+    }
+
+    .vote-results-title {
+      color: ${pdfColors.text.tertiary};
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .vote-result {
+      border-top: 1px solid ${pdfColors.border};
+      padding-top: 12px;
+      margin-top: 12px;
+    }
+
+    .vote-result:first-of-type {
+      border-top: 0;
+      padding-top: 0;
+      margin-top: 0;
+    }
+
+    .vote-result-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .vote-criterion {
+      color: ${pdfColors.text.secondary};
+      font-size: 12px;
     }
     
     ${aiStyles}
@@ -352,6 +404,27 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
       <strong>Participants:</strong> ${participants.map(p => escapeHTML(p.name)).join(' vs ')}
     </div>
   </div>
+
+  ${
+    displayedVoteResults.length > 0
+      ? `
+  <div class="vote-results">
+    <div class="vote-results-title">Vote Criteria</div>
+    ${displayedVoteResults
+      .map((vote) => `
+    <div class="vote-result">
+      <div class="vote-result-header">
+        <span>${escapeHTML(vote.votingLabel)}</span>
+        <span>${escapeHTML(vote.winnerName || vote.winnerId)}</span>
+      </div>
+      <div class="vote-criterion">${escapeHTML(vote.criterion)}</div>
+    </div>
+    `)
+      .join('')}
+  </div>
+  `
+      : ''
+  }
   
   <div class="messages">
     ${debateMessages
@@ -536,6 +609,46 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
 
         {/* Messages */}
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          {displayedVoteResults.length > 0 && (
+            <View
+              style={[
+                styles.voteResultsCard,
+                {
+                  backgroundColor: isDark
+                    ? theme.colors.overlays.soft
+                    : theme.colors.overlays.soft,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
+              <Typography variant="subtitle" weight="semibold" style={styles.voteResultsTitle}>
+                Vote Criteria
+              </Typography>
+              {displayedVoteResults.map((vote, index) => (
+                <View
+                  key={vote.round}
+                  style={[
+                    styles.voteResultItem,
+                    { borderTopColor: theme.colors.border },
+                    index === 0 && styles.firstVoteResultItem,
+                  ]}
+                >
+                  <View style={styles.voteResultHeader}>
+                    <Typography variant="caption" weight="semibold">
+                      {vote.votingLabel}
+                    </Typography>
+                    <Typography variant="caption" color="secondary">
+                      {vote.winnerName || vote.winnerId}
+                    </Typography>
+                  </View>
+                  <Typography variant="caption" color="secondary" style={styles.voteResultCriterion}>
+                    {vote.criterion}
+                  </Typography>
+                </View>
+              ))}
+            </View>
+          )}
+
           {debateMessages.map((msg, index) => {
             const citations = getMessageCitations(msg);
 
@@ -682,6 +795,35 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderLeftWidth: 4,
+  },
+  voteResultsCard: {
+    marginVertical: 8,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  voteResultsTitle: {
+    marginBottom: 10,
+  },
+  voteResultItem: {
+    paddingTop: 10,
+    marginTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  firstVoteResultItem: {
+    paddingTop: 0,
+    marginTop: 0,
+    borderTopWidth: 0,
+  },
+  voteResultHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 4,
+  },
+  voteResultCriterion: {
+    lineHeight: 18,
   },
   citationSources: {
     marginTop: 12,

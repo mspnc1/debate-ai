@@ -3,7 +3,7 @@
  * Handles voting logic including round voting, overall voting, and score calculation.
  */
 
-import { AI } from '../../types';
+import { AI, type DebateVoteResult } from '../../types';
 import { DEBATE_CONSTANTS } from '../../config/debateConstants';
 import {
   getPresetForFormat,
@@ -13,11 +13,7 @@ import {
   type PresetConfig,
 } from '../../config/debate/formats';
 
-export interface VoteRecord {
-  round: number;
-  winnerId: string;
-  timestamp: number;
-}
+export type VoteRecord = DebateVoteResult;
 
 export interface ScoreBoard {
   [aiId: string]: {
@@ -83,26 +79,30 @@ export class VotingService {
     this.totalVotes = this.votingLabels.length;
   }
 
-  getBallotCriterion(isOverallVote: boolean = false): string {
-    const scope = isOverallVote ? 'Final ballot' : 'Ballot';
+  getVoteCriterion(isOverallVote: boolean = false): string {
+    const scope = isOverallVote ? 'Final vote criteria' : 'Vote criteria';
 
     switch (this.formatId) {
       case 'lincoln_douglas':
-        return `${scope}: judge the value clash. Who better upheld their value and criterion while answering the opponent?`;
+        return `${scope}: value clash. Choose who better upheld their value and criterion while answering the opponent.`;
       case 'policy':
-        return `${scope}: judge the policy burden. Who better proved solvency, impacts, and comparative advantage?`;
+        return `${scope}: policy burden. Choose who better proved solvency, impacts, and comparative advantage.`;
       case 'socratic':
-        return `${scope}: judge the inquiry. Who clarified assumptions and advanced understanding?`;
+        return `${scope}: inquiry quality. Choose who better clarified assumptions and advanced understanding.`;
       case 'oxford':
       default:
-        return `${scope}: judge the motion. Who presented the clearer case, rebuttal, and voters?`;
+        return `${scope}: motion burden. Choose who presented the clearer case, rebuttal, and voters.`;
     }
   }
 
   recordRoundVote(round: number, winnerId: string): VoteRecord {
+    const winner = this.participants.find((ai) => ai.id === winnerId);
     const voteRecord: VoteRecord = {
       round,
       winnerId,
+      winnerName: winner?.name,
+      votingLabel: this.getVotingLabel(round),
+      criterion: this.getVoteCriterion(false),
       timestamp: Date.now(),
     };
 
@@ -116,6 +116,10 @@ export class VotingService {
 
   getRoundVote(round: number): VoteRecord | undefined {
     return this.votes.get(round);
+  }
+
+  getVoteRecords(): VoteRecord[] {
+    return Array.from(this.votes.values()).sort((a, b) => a.round - b.round);
   }
 
   hasVotedForRound(round: number): boolean {

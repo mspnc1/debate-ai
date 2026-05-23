@@ -64,6 +64,16 @@ describe('VictoryCelebration', () => {
       { round: 2, winner: 'Gemini' },
       { round: 3, winner: 'Gemini' },
     ],
+    voteResults: [
+      {
+        round: 1,
+        winnerId: 'gemini',
+        winnerName: 'Gemini',
+        votingLabel: 'Constructives',
+        criterion: 'Vote criteria: value clash.',
+        timestamp: 100,
+      },
+    ],
     onViewTranscript: jest.fn(),
     onRematch: jest.fn(),
     onStartOver: jest.fn(),
@@ -77,12 +87,15 @@ describe('VictoryCelebration', () => {
   });
 
   it('renders the revamped victory actions', () => {
-    const { getByText, getByTestId, queryByText } = renderWithProviders(
+    const { getAllByText, getByText, getByTestId, queryByText } = renderWithProviders(
       <VictoryCelebration {...defaultProps} />
     );
 
     expect(getByText('DEBATE CHAMPION')).toBeTruthy();
-    expect(getByText('Gemini')).toBeTruthy();
+    expect(getAllByText('Gemini').length).toBeGreaterThan(0);
+    expect(getByText('Vote Criteria')).toBeTruthy();
+    expect(getByText('Constructives')).toBeTruthy();
+    expect(getByText('Vote criteria: value clash.')).toBeTruthy();
     expect(getByTestId('victory-rematch')).toBeTruthy();
     expect(getByTestId('victory-transcript')).toBeTruthy();
     expect(getByTestId('victory-share')).toBeTruthy();

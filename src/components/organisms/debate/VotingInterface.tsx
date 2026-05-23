@@ -26,7 +26,7 @@ export interface VotingInterfaceProps {
   votingRound: number;
   scores?: ScoreBoard | null;
   votingPrompt: string;
-  ballotCriterion?: string;
+  voteCriterion?: string;
   onVote: (aiId: string) => void;
 }
 
@@ -38,7 +38,7 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
   votingRound: _votingRound,
   scores,
   votingPrompt,
-  ballotCriterion,
+  voteCriterion,
   onVote,
 }) => {
   const { theme, isDark } = useTheme();
@@ -103,17 +103,17 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
     );
   };
 
-  const renderBallotCriterion = () => {
-    if (!ballotCriterion) return null;
+  const renderVoteCriterion = () => {
+    if (!voteCriterion) return null;
 
     return (
       <Typography
         variant="caption"
         color="secondary"
         align="center"
-        style={styles.ballotCriterion}
+        style={styles.voteCriterion}
       >
-        {ballotCriterion}
+        {voteCriterion}
       </Typography>
     );
   };
@@ -160,11 +160,11 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
                   variant="title"
                   weight="bold"
                   align="center"
-                  style={[styles.title, !ballotCriterion && styles.titleWithoutCriterion]}
+                  style={[styles.title, !voteCriterion && styles.titleWithoutCriterion]}
                 >
                   {votingPrompt}
                 </Typography>
-                {renderBallotCriterion()}
+                {renderVoteCriterion()}
               </Animated.View>
 
               {renderCurrentScores()}
@@ -199,11 +199,11 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
                 variant="title"
                 weight="bold"
                 align="center"
-                style={[styles.title, !ballotCriterion && styles.titleWithoutCriterion]}
+                style={[styles.title, !voteCriterion && styles.titleWithoutCriterion]}
               >
                 {votingPrompt}
               </Typography>
-              {renderBallotCriterion()}
+              {renderVoteCriterion()}
             </Animated.View>
 
             {renderCurrentScores()}
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   titleWithoutCriterion: {
     marginBottom: 20,
   },
-  ballotCriterion: {
+  voteCriterion: {
     marginBottom: 20,
     paddingHorizontal: 4,
     lineHeight: 18,

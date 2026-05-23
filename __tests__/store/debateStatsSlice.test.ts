@@ -19,8 +19,19 @@ describe('debateStatsSlice', () => {
 
   it('tracks round winners and overall results', () => {
     let state = reducer(initialState, startDebate({ debateId: 'debate-1', topic: 'AI', participants: ['claude', 'gpt'] }));
-    state = reducer(state, recordRoundWinner({ round: 1, winnerId: 'claude' }));
+    state = reducer(state, recordRoundWinner({
+      round: 1,
+      winnerId: 'claude',
+      votingLabel: 'Opening Statements',
+      criterion: 'Vote criteria: motion burden.',
+    }));
     expect(state.currentDebate?.roundWinners[1]).toBe('claude');
+    expect(state.currentDebate?.voteResults?.[0]).toMatchObject({
+      round: 1,
+      winnerId: 'claude',
+      votingLabel: 'Opening Statements',
+      criterion: 'Vote criteria: motion burden.',
+    });
     expect(state.stats.claude.roundsWon).toBe(1);
     expect(state.stats.gpt.roundsLost).toBe(1);
 

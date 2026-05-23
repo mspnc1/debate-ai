@@ -7,7 +7,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useDispatch } from 'react-redux';
 import { recordRoundWinner, recordOverallWinner } from '../../store';
 import { DebateOrchestrator, DebateEvent, ScoreBoard } from '../../services/debate';
-import { AI } from '../../types';
+import { AI, type DebateVoteResult } from '../../types';
 
 export interface UseDebateVotingReturn {
   isVoting: boolean;
@@ -15,10 +15,11 @@ export interface UseDebateVotingReturn {
   isFinalVote: boolean;
   isOverallVote: boolean;
   scores: ScoreBoard | null;
+  voteRecords: DebateVoteResult[];
   hasVotedForRound: (round: number) => boolean;
   recordVote: (aiId: string) => Promise<void>;
   getVotingPrompt: () => string;
-  getVotingBallotCriterion: () => string;
+  getVoteCriterion: () => string;
   error: string | null;
 }
 
@@ -33,6 +34,7 @@ export const useDebateVoting = (
   const [isFinalVote, setIsFinalVote] = useState(false);
   const [isOverallVote, setIsOverallVote] = useState(false);
   const [scores, setScores] = useState<ScoreBoard | null>(null);
+  const [voteRecords, setVoteRecords] = useState<DebateVoteResult[]>([]);
   const [error, setError] = useState<string | null>(null);
   
   // Event handler for voting events
@@ -52,6 +54,13 @@ export const useDebateVoting = (
         // Update scores if provided
         if (event.data.scores) {
           setScores(event.data.scores as ScoreBoard);
+        }
+        if (event.data.voteRecord) {
+          const voteRecord = event.data.voteRecord as DebateVoteResult;
+          setVoteRecords((current) => [
+            ...current.filter((record) => record.round !== voteRecord.round),
+            voteRecord,
+          ].sort((a, b) => a.round - b.round));
         }
         break;
         
@@ -76,6 +85,7 @@ export const useDebateVoting = (
       if (votingService) {
         const currentScores = votingService.calculateScores();
         setScores(currentScores);
+        setVoteRecords(votingService.getVoteRecords());
       }
     }
   }, [orchestrator]);
@@ -118,7 +128,13 @@ export const useDebateVoting = (
       // the orchestrator will emit debate_ended which triggers recordOverallWinner
       // and clears currentDebate. If we dispatch after, currentDebate is already gone.
       if (!isOverallVote) {
-        dispatch(recordRoundWinner({ round: votingRound, winnerId: aiId }));
+        const votingService = orchestrator.getVotingService();
+        dispatch(recordRoundWinner({
+          round: votingRound,
+          winnerId: aiId,
+          votingLabel: votingService?.getVotingLabel(votingRound),
+          criterion: votingService?.getVoteCriterion(false),
+        }));
       }
 
       // Record vote in orchestrator (may trigger debate_ended for final round)
@@ -146,11 +162,11 @@ export const useDebateVoting = (
     return '';
   }, [orchestrator, votingRound, isFinalVote, isOverallVote]);
 
-  const getVotingBallotCriterion = useCallback((): string => {
+  const getVoteCriterion = useCallback((): string => {
     if (orchestrator) {
       const votingService = orchestrator.getVotingService();
       if (votingService) {
-        return votingService.getBallotCriterion(isOverallVote);
+        return votingService.getVoteCriterion(isOverallVote);
       }
     }
     return '';
@@ -167,10 +183,11 @@ export const useDebateVoting = (
     isFinalVote,
     isOverallVote,
     scores,
+    voteRecords,
     hasVotedForRound,
     recordVote,
     getVotingPrompt,
-    getVotingBallotCriterion,
+    getVoteCriterion,
     error,
   };
 };

@@ -44,6 +44,18 @@ describe('DebateTranscriptScreen', () => {
       createdAt: 0,
       topic: 'AI Ethics',
       sessionType: 'debate',
+      debateConfig: {
+        voteResults: [
+          {
+            round: 1,
+            winnerId: 'ai-1',
+            winnerName: 'Claude',
+            votingLabel: 'Opening Statements',
+            criterion: 'Vote criteria: motion burden.',
+            timestamp: 100,
+          },
+        ],
+      },
     };
 
     const { getByTestId } = renderWithProviders(
@@ -58,6 +70,16 @@ describe('DebateTranscriptScreen', () => {
         { id: 'ai-2', name: 'GPT-5' },
       ],
       winner: { id: 'ai-1', name: 'Claude' },
+      voteResults: [
+        {
+          round: 1,
+          winnerId: 'ai-1',
+          winnerName: 'Claude',
+          votingLabel: 'Opening Statements',
+          criterion: 'Vote criteria: motion burden.',
+          timestamp: 100,
+        },
+      ],
     });
 
     expect(lastTranscriptProps.scores).toMatchObject({
