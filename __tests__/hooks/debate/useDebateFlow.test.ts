@@ -5,6 +5,7 @@ import type { RootState } from '@/store';
 import type { Message } from '@/types';
 import { RecordController } from '@/services/demo/RecordController';
 import { renderHookWithProviders } from '../../../test-utils/renderHookWithProviders';
+import { getPresetForFormat } from '@/config/debate/formats';
 
 jest.mock('@/services/demo/RecordController', () => {
   const recordControllerMock = {
@@ -25,6 +26,7 @@ class MockOrchestrator {
     status: DebateStatus.PENDING,
     currentRound: 1,
     totalRounds: 3,
+    preset: getPresetForFormat('oxford', 'short'),
   };
   public startDebate = jest.fn(async () => undefined);
   private handlers = new Set<EventHandler>();
@@ -93,6 +95,7 @@ describe('useDebateFlow', () => {
 
     expect(result.current.isDebateActive).toBe(true);
     expect(result.current.maxRounds).toBe(3);
+    expect(result.current.currentTurnLabel).toBe('Opening Statement');
 
     act(() => {
       orchestrator.emit({ type: 'round_changed', data: { round: 2 }, timestamp: Date.now() });
@@ -100,9 +103,29 @@ describe('useDebateFlow', () => {
     expect(result.current.currentRound).toBe(2);
 
     act(() => {
-      orchestrator.emit({ type: 'stream_started', data: { messageId: 'm1', aiProvider: 'claude' }, timestamp: Date.now() });
+      orchestrator.emit({
+        type: 'stream_started',
+        data: {
+          messageId: 'm1',
+          aiProvider: 'claude',
+          messageLabel: 'Cross-Examination (CX)',
+          phase: 'cross_examination',
+          cxRole: 'questioner',
+        },
+        timestamp: Date.now(),
+      });
     });
     expect(store.getState().streaming.streamingMessages.m1).toBeDefined();
+    expect(result.current.currentTurnLabel).toBe('Cross-Examination (CX) · questioning');
+
+    act(() => {
+      orchestrator.emit({
+        type: 'voting_started',
+        data: { round: 2, votingLabel: 'Cross-Examination' },
+        timestamp: Date.now(),
+      });
+    });
+    expect(result.current.currentTurnLabel).toBe('Vote: Cross-Examination');
 
     await act(async () => {
       await result.current.startDebate();

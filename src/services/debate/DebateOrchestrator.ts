@@ -452,12 +452,12 @@ export class DebateOrchestrator {
         this.currentMessages = [...existingMessages, placeholderMessage];
         this.emitEvent({
           type: 'message_added',
-          data: { message: placeholderMessage, messageIndex, phase, messageLabel: messageSpec.label },
+          data: { message: placeholderMessage, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole },
           timestamp: Date.now(),
         });
         this.emitEvent({
           type: 'stream_started',
-          data: { messageId, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), messageIndex, phase, messageLabel: messageSpec.label },
+          data: { messageId, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole },
           timestamp: Date.now(),
         });
 
@@ -477,19 +477,19 @@ export class DebateOrchestrator {
             speed: streamSpeed,
           },
             (chunk: string) => {
-            this.emitEvent({ type: 'stream_chunk', data: { messageId, chunk, aiProvider: currentAI.id, messageIndex, phase, messageLabel: messageSpec.label }, timestamp: Date.now() });
+            this.emitEvent({ type: 'stream_chunk', data: { messageId, chunk, aiProvider: currentAI.id, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
           },
           (completeText: string) => {
             const normalizedAnswer = ensureAnswerContent(completeText, capturedCitations, currentAI.name);
             finalContent = normalizedAnswer.content;
             capturedCitations = normalizedAnswer.citations;
-            this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), citations: normalizedAnswer.citations, messageIndex, phase, messageLabel: messageSpec.label }, timestamp: Date.now() });
+            this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), citations: normalizedAnswer.citations, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
           },
           (err: Error) => {
             hadError = true;
             const msg = err?.message || '';
             errorForFallback = msg;
-            this.emitEvent({ type: 'stream_error', data: { messageId, error: msg, aiProvider: currentAI.id, messageIndex, phase, messageLabel: messageSpec.label }, timestamp: Date.now() });
+            this.emitEvent({ type: 'stream_error', data: { messageId, error: msg, aiProvider: currentAI.id, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
           },
           (event: unknown) => {
             // Handle citation events from providers like Perplexity
@@ -560,7 +560,7 @@ export class DebateOrchestrator {
               const normalizedAnswer = ensureAnswerContent(text, fallbackMetadata?.citations, currentAI.name);
               finalContent = normalizedAnswer.content;
               // Emit completion to update the placeholder message and end stream state in UI
-              this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), citations: normalizedAnswer.citations, messageIndex, phase, messageLabel: messageSpec.label }, timestamp: Date.now() });
+              this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), citations: normalizedAnswer.citations, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
               const updated = {
                 ...placeholderMessage,
                 content: normalizedAnswer.content,
@@ -576,7 +576,7 @@ export class DebateOrchestrator {
                 content: DEBATE_CONSTANTS.MESSAGES.ERROR(currentAI.name),
                 timestamp: Date.now(),
               };
-              this.emitEvent({ type: 'message_added', data: { message: errorMessage, messageIndex, phase, messageLabel: messageSpec.label }, timestamp: Date.now() });
+              this.emitEvent({ type: 'message_added', data: { message: errorMessage, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
               this.currentMessages = [...existingMessages, placeholderMessage, errorMessage];
             }
           } else {
@@ -588,7 +588,7 @@ export class DebateOrchestrator {
               content: DEBATE_CONSTANTS.MESSAGES.ERROR(currentAI.name),
               timestamp: Date.now(),
             };
-            this.emitEvent({ type: 'message_added', data: { message: errorMessage, messageIndex, phase, messageLabel: messageSpec.label }, timestamp: Date.now() });
+            this.emitEvent({ type: 'message_added', data: { message: errorMessage, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
             this.currentMessages = [...existingMessages, placeholderMessage, errorMessage];
           }
         }
@@ -661,7 +661,7 @@ export class DebateOrchestrator {
         this.currentMessages = [...existingMessages, aiMessage];
         this.emitEvent({
           type: 'message_added',
-          data: { message: aiMessage, messageIndex, phase, messageLabel: messageSpec.label },
+          data: { message: aiMessage, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole },
           timestamp: Date.now(),
         });
         this.emitEvent({ type: 'typing_stopped', data: { aiName: currentAI.name }, timestamp: Date.now() });

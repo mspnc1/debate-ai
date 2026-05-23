@@ -31,7 +31,7 @@ import { isValidProviderId } from '../utils/typeGuards';
 // import { DEBATE_TOPICS } from '../constants/debateTopics';
 import { usePreDebateValidation } from '../hooks/debate';
 import { Card } from '@/components/molecules';
-import { FORMATS } from '../config/debate/formats';
+import { FORMATS, getPresetForFormat, getPresetIdForRounds, type DebateFormatId } from '../config/debate/formats';
 import { TrialBanner } from '@/components/molecules/subscription/TrialBanner';
 import { DemoBanner } from '@/components/molecules/subscription/DemoBanner';
 import { showSheet } from '@/store';
@@ -121,7 +121,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   const [topicMode, setTopicMode] = useState<'preset' | 'custom' | 'surprise'>(preservedTopicMode || 'preset');
   const [selectedModels, setSelectedModels] = useState<Record<string, string>>(selectedModelsFromStore || {});
   // New configuration toggles
-  const [formatId, setFormatId] = useState<'oxford' | 'lincoln_douglas' | 'policy' | 'socratic'>('oxford');
+  const [formatId, setFormatId] = useState<DebateFormatId>('oxford');
   const [exchanges, setExchanges] = useState<number>(3);
   // Removed: category/preset inline picker (using DebateTopicSelector instead)
   const [civility, setCivility] = useState<1|2|3|4|5>(1);
@@ -141,6 +141,21 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     aiConfigs: AIConfig[];
     personaKey: string;
   } | null>(null);
+
+  const presetOptions = useMemo(() => [3, 5, 7].map((rounds) => ({
+    rounds,
+    preset: getPresetForFormat(formatId, getPresetIdForRounds(rounds)),
+  })), [formatId]);
+  const selectedPreset = getPresetForFormat(formatId, getPresetIdForRounds(exchanges));
+  const speechOrderPreview = useMemo(() => selectedPreset.messages.map((message) => {
+    const side = message.speaker === 'aff' ? 'Aff' : 'Neg';
+    const role = message.cxRole === 'questioner'
+      ? ' asks'
+      : message.cxRole === 'answerer'
+        ? ' answers'
+        : '';
+    return `${side}: ${message.label}${role}`;
+  }).join(' → '), [selectedPreset]);
   
   // Debate mode always requires exactly 2 AIs
   const maxAIs = 2;
@@ -450,7 +465,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
                     ⚙️ Debate Configuration
                   </Typography>
                   <Typography variant="caption" color="secondary">
-                    Choose format and rounds
+                    Choose format and preset
                   </Typography>
                 </Box>
                 <Button
@@ -486,26 +501,28 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
                 </Typography>
               </Box>
 
-              {/* Exchanges selector (3, 5, 7) */}
+              {/* Preset selector (legacy 3, 5, 7 values still route through rounds) */}
               <Box>
-                <Typography variant="body" weight="semibold" style={{ marginBottom: theme.spacing.xs }}>Exchanges</Typography>
+                <Typography variant="body" weight="semibold" style={{ marginBottom: theme.spacing.xs }}>
+                  {FORMATS[formatId].stepLabel === 'Exchanges' ? 'Exchanges' : 'Preset'}
+                </Typography>
                 <Box style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {[3,5,7].map((n) => (
+                  {presetOptions.map(({ rounds: n, preset }) => (
                     <Button
                       key={n}
-                      title={`${n}`}
+                      title={preset.label}
                       onPress={() => setExchanges(n)}
                       variant={n === exchanges ? 'primary' : 'tonal'}
                       size="small"
-                      style={{ minWidth: 56 }}
+                      style={{ minWidth: 96, flexGrow: 1 }}
                     />
                   ))}
                 </Box>
-                {/* Help text showing debate phases for exchanges */}
                 <Typography variant="caption" color="secondary" style={{ marginTop: 6 }}>
-                  {exchanges === 3 && 'Opening Argument → Rebuttal → Closing Argument'}
-                  {exchanges === 5 && 'Opening Argument → Rebuttal → Cross-examination → Counter → Closing'}
-                  {exchanges === 7 && 'Opening → Rebuttal → Deep analysis → Cross-examination → Counter → Synthesis → Closing'}
+                  {selectedPreset.shortLabel} · {selectedPreset.messages.length} speeches · {selectedPreset.voteCount} votes
+                </Typography>
+                <Typography variant="caption" color="secondary" numberOfLines={4} style={{ marginTop: 6, lineHeight: 17 }}>
+                  {speechOrderPreview}
                 </Typography>
               </Box>
             </Card>

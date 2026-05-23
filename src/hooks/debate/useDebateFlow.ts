@@ -14,6 +14,7 @@ import {
   streamingError,
 } from '../../store/streamingSlice';
 import { DebateOrchestrator, DebateEvent, DebateStatus } from '../../services/debate';
+import type { PhaseId } from '../../services/debate';
 import { RecordController } from '@/services/demo/RecordController';
 import { ensureAnswerContent } from '@/utils/citationUtils';
 import { Message } from '../../types';
@@ -25,7 +26,45 @@ export interface UseDebateFlowReturn {
   error: string | null;
   currentRound: number;
   maxRounds: number;
+  currentPhase?: PhaseId;
+  currentMessageLabel?: string;
+  currentCxRole?: 'questioner' | 'answerer';
+  currentTurnLabel?: string;
 }
+
+const PHASE_LABELS: Record<PhaseId, string> = {
+  opening: 'Opening',
+  constructive: 'Constructive',
+  cross_examination: 'Cross-Examination',
+  rebuttal: 'Rebuttal',
+  final_rebuttal: 'Final Rebuttal',
+  question: 'Question',
+  closing: 'Closing',
+  synthesis: 'Synthesis',
+};
+
+const isPhaseId = (value: unknown): value is PhaseId =>
+  typeof value === 'string' && value in PHASE_LABELS;
+
+const toCxRole = (value: unknown): 'questioner' | 'answerer' | undefined => {
+  if (value === 'questioner' || value === 'answerer') {
+    return value;
+  }
+  return undefined;
+};
+
+const buildTurnLabel = (
+  messageLabel?: string,
+  phase?: PhaseId,
+  cxRole?: 'questioner' | 'answerer'
+): string | undefined => {
+  const baseLabel = messageLabel || (phase ? PHASE_LABELS[phase] : undefined);
+  if (!baseLabel) return undefined;
+
+  if (cxRole === 'questioner') return `${baseLabel} · questioning`;
+  if (cxRole === 'answerer') return `${baseLabel} · answering`;
+  return baseLabel;
+};
 
 export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebateFlowReturn => {
   const dispatch = useDispatch();
@@ -37,14 +76,33 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
   const [error, setError] = useState<string | null>(null);
   const [currentRound, setCurrentRound] = useState(1);
   const [maxRounds, setMaxRounds] = useState(3);
+  const [currentPhase, setCurrentPhase] = useState<PhaseId | undefined>(undefined);
+  const [currentMessageLabel, setCurrentMessageLabel] = useState<string | undefined>(undefined);
+  const [currentCxRole, setCurrentCxRole] = useState<'questioner' | 'answerer' | undefined>(undefined);
   
   // Use ref to track if we've started the debate to prevent multiple starts
   const hasStartedRef = useRef(false);
+  const currentTurnLabel = buildTurnLabel(currentMessageLabel, currentPhase, currentCxRole);
   
   // Event handler for orchestrator events
   const handleDebateEvent = useCallback((event: DebateEvent) => {
+    const updateTurnStatus = (): void => {
+      const messageLabel = typeof event.data.messageLabel === 'string'
+        ? event.data.messageLabel
+        : undefined;
+      const phase = isPhaseId(event.data.phase) ? event.data.phase : undefined;
+      const cxRole = toCxRole(event.data.cxRole);
+
+      if (messageLabel || phase) {
+        setCurrentMessageLabel(messageLabel);
+        setCurrentPhase(phase);
+        setCurrentCxRole(cxRole);
+      }
+    };
+
     switch (event.type) {
       case 'message_added':
+        updateTurnStatus();
         if (event.data.message) {
           dispatch(addMessage(event.data.message as Message));
           // If recording a debate, capture assistant messages
@@ -62,9 +120,23 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
       
       case 'debate_started': {
         // Initialize rounds from the session payload if present
-        const session = (event.data?.session || null) as { totalRounds?: number; currentRound?: number } | null;
+        const session = (event.data?.session || null) as {
+          totalRounds?: number;
+          currentRound?: number;
+          preset?: {
+            messages?: Array<{
+              label?: string;
+              phase?: unknown;
+              cxRole?: unknown;
+            }>;
+          };
+        } | null;
         if (session?.totalRounds) setMaxRounds(session.totalRounds);
         if (session?.currentRound) setCurrentRound(session.currentRound);
+        const firstMessage = session?.preset?.messages?.[0];
+        setCurrentMessageLabel(firstMessage?.label);
+        setCurrentPhase(isPhaseId(firstMessage?.phase) ? firstMessage.phase : undefined);
+        setCurrentCxRole(toCxRole(firstMessage?.cxRole));
         setIsDebateActive(true);
         setIsDebateEnded(false);
         break;
@@ -94,10 +166,14 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
       case 'debate_ended':
         setIsDebateEnded(true);
         setIsDebateActive(false);
+        setCurrentMessageLabel(undefined);
+        setCurrentPhase(undefined);
+        setCurrentCxRole(undefined);
         break;
       
       // Streaming lifecycle events
       case 'stream_started': {
+        updateTurnStatus();
         const messageId = String((event.data as { messageId?: string }).messageId || '');
         const aiProvider = String((event.data as { aiProvider?: string }).aiProvider || '');
         if (messageId) dispatch(startStreaming({ messageId, aiProvider }));
@@ -143,6 +219,17 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
         const messageId = String((event.data as { messageId?: string }).messageId || '');
         const error = String((event.data as { error?: string }).error || 'Streaming error');
         if (messageId) dispatch(streamingError({ messageId, error }));
+        break;
+      }
+
+      case 'voting_started': {
+        const votingLabel = typeof event.data.votingLabel === 'string'
+          ? event.data.votingLabel
+          : undefined;
+        const round = typeof event.data.round === 'number' ? event.data.round : undefined;
+        setCurrentMessageLabel(votingLabel ? `Vote: ${votingLabel}` : round ? `Vote ${round}` : 'Vote');
+        setCurrentPhase(undefined);
+        setCurrentCxRole(undefined);
         break;
       }
       
@@ -211,6 +298,9 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
     setIsDebateEnded(false);
     setError(null);
     setCurrentRound(1);
+    setCurrentMessageLabel(undefined);
+    setCurrentPhase(undefined);
+    setCurrentCxRole(undefined);
   }, [orchestrator]);
   
   return {
@@ -220,5 +310,9 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
     error,
     currentRound,
     maxRounds,
+    currentPhase,
+    currentMessageLabel,
+    currentCxRole,
+    currentTurnLabel,
   };
 };

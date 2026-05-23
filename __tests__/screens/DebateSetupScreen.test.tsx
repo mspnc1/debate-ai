@@ -321,6 +321,16 @@ describe('DebateSetupScreen', () => {
     expect(testIds.indexOf('header')).toBeLessThan(testIds.indexOf('trial-banner'));
   });
 
+  it('shows preset labels and speech-order preview for the selected debate format', () => {
+    const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
+
+    expect(renderResult.getByText('Short')).toBeTruthy();
+    expect(renderResult.getByText('Standard')).toBeTruthy();
+    expect(renderResult.getByText('Extended')).toBeTruthy();
+    expect(renderResult.getByText('3 Rounds · 6 speeches · 3 votes')).toBeTruthy();
+    expect(renderResult.getByText('Aff: Opening Statement → Neg: Opening Statement → Aff: Rebuttal → Neg: Rebuttal → Aff: Closing Statement → Neg: Closing Statement')).toBeTruthy();
+  });
+
   it('progresses from topic to AI step with valid selection', async () => {
     const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
 
