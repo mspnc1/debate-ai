@@ -603,7 +603,7 @@ describe('PurchaseService', () => {
         });
       });
 
-      it('should block Android purchases when Play returns a subscription linked to another app account', async () => {
+      it('should ignore Android purchases linked to another app account when starting a new purchase', async () => {
         const mockProduct = {
           id: SUBSCRIPTION_PRODUCTS.monthly,
           productId: SUBSCRIPTION_PRODUCTS.monthly,
@@ -640,9 +640,17 @@ describe('PurchaseService', () => {
 
         const result = await PurchaseService.purchaseSubscription('monthly', { includeTrialOffer: true });
 
-        expect(result.success).toBe(false);
-        expect(result.errorCode).toBe('STORE_ACCOUNT_MISMATCH');
-        expect(mockRequestPurchase).not.toHaveBeenCalled();
+        expect(result).toEqual({ success: true, pending: true });
+        expect(mockRequestPurchase).toHaveBeenCalledWith({
+          type: 'subs',
+          request: {
+            google: {
+              skus: [SUBSCRIPTION_PRODUCTS.monthly],
+              obfuscatedAccountId: 'hashed-token-123',
+              subscriptionOffers: [{ sku: SUBSCRIPTION_PRODUCTS.monthly, offerToken: 'monthly-offer-token' }],
+            },
+          },
+        });
         expect(mockValidatePurchaseCallable).not.toHaveBeenCalled();
       });
 
@@ -1137,6 +1145,103 @@ describe('PurchaseService', () => {
         productId: SUBSCRIPTION_PRODUCTS.monthly,
         purchaseToken: 'test-receipt',
       });
+      expect(mockFinishTransaction).toHaveBeenCalledWith({ purchase, isConsumable: false });
+    });
+
+    it('should send unverified Android purchase updates to backend validation', async () => {
+      Platform.OS = 'android';
+      mockValidatePurchaseCallable.mockResolvedValueOnce({ data: { valid: true } });
+      mockFetchProducts.mockResolvedValue([
+        {
+          id: SUBSCRIPTION_PRODUCTS.monthly,
+          productId: SUBSCRIPTION_PRODUCTS.monthly,
+          subscriptionOfferDetailsAndroid: [
+            {
+              offerToken: 'monthly-offer-token',
+              basePlanId: 'monthly-base',
+              offerId: null,
+              offerTags: [],
+              pricingPhases: {
+                pricingPhaseList: [
+                  {
+                    priceAmountMicros: '5990000',
+                    billingPeriod: 'P1M',
+                    recurrenceMode: 1,
+                    billingCycleCount: 0,
+                    formattedPrice: '$5.99',
+                    priceCurrencyCode: 'USD',
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ]);
+
+      await PurchaseService.initialize();
+      await PurchaseService.purchaseSubscription('monthly', { includeTrialOffer: true });
+
+      const purchaseUpdateHandler = mockPurchaseUpdatedListener.mock.calls[0][0];
+      const purchase: Partial<Purchase> = {
+        productId: SUBSCRIPTION_PRODUCTS.monthly,
+        purchaseToken: 'new-android-receipt',
+        transactionId: 'new-android-tx',
+      };
+
+      await purchaseUpdateHandler(purchase);
+
+      expect(mockValidatePurchaseCallable).toHaveBeenCalledWith({
+        receipt: 'new-android-receipt',
+        platform: 'android',
+        productId: SUBSCRIPTION_PRODUCTS.monthly,
+        purchaseToken: 'new-android-receipt',
+      });
+      expect(mockFinishTransaction).toHaveBeenCalledWith({ purchase, isConsumable: false });
+    });
+
+    it('should block Android purchase updates with an explicit different app account id', async () => {
+      Platform.OS = 'android';
+      mockFetchProducts.mockResolvedValue([
+        {
+          id: SUBSCRIPTION_PRODUCTS.monthly,
+          productId: SUBSCRIPTION_PRODUCTS.monthly,
+          subscriptionOfferDetailsAndroid: [
+            {
+              offerToken: 'monthly-offer-token',
+              basePlanId: 'monthly-base',
+              offerId: null,
+              offerTags: [],
+              pricingPhases: {
+                pricingPhaseList: [
+                  {
+                    priceAmountMicros: '5990000',
+                    billingPeriod: 'P1M',
+                    recurrenceMode: 1,
+                    billingCycleCount: 0,
+                    formattedPrice: '$5.99',
+                    priceCurrencyCode: 'USD',
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ]);
+
+      await PurchaseService.initialize();
+      await PurchaseService.purchaseSubscription('monthly', { includeTrialOffer: true });
+
+      const purchaseUpdateHandler = mockPurchaseUpdatedListener.mock.calls[0][0];
+      const purchase: Partial<Purchase> & { obfuscatedAccountIdAndroid: string } = {
+        productId: SUBSCRIPTION_PRODUCTS.monthly,
+        purchaseToken: 'foreign-android-receipt',
+        transactionId: 'foreign-android-tx',
+        obfuscatedAccountIdAndroid: 'different-user-hash',
+      };
+
+      await purchaseUpdateHandler(purchase);
+
+      expect(mockValidatePurchaseCallable).not.toHaveBeenCalled();
       expect(mockFinishTransaction).toHaveBeenCalledWith({ purchase, isConsumable: false });
     });
 

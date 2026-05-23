@@ -39,6 +39,8 @@ type PendingPurchaseContext = {
   standardizedOfferCount?: number;
   productStatusAndroid?: string | null;
   replacementProductId?: string | null;
+  foreignStoreItemCount?: number;
+  unverifiedStoreItemCount?: number;
 };
 
 type StorePurchaseSummary = {
@@ -847,18 +849,12 @@ export class PurchaseService {
             userMessage: 'Google Play already has this subscription on your account. Tap Restore Purchases, or manage the subscription in Google Play.',
           } as const;
         }
-        if (rejectedPurchases.length > 0) {
-          return {
-            success: false,
-            errorCode: 'STORE_ACCOUNT_MISMATCH',
-            userMessage: STORE_ACCOUNT_MISMATCH_MESSAGE,
-          } as const;
-        }
-
         const replacementParams = getAndroidSubscriptionReplacementParams(availablePurchasesForCurrentUser, sku);
         if (replacementParams) {
           console.warn('[IAP] Android: Adding subscription replacement params for', sku, 'from', replacementParams.oldProductId);
         }
+        const foreignStoreItemCount = rejectedPurchases.filter(({ status }) => status === 'foreign').length;
+        const unverifiedStoreItemCount = rejectedPurchases.filter(({ status }) => status === 'unverified').length;
         this.pendingPurchaseSku = sku; // Mark that we're expecting this purchase
         this.pendingPurchaseContext = {
           sku,
@@ -869,6 +865,8 @@ export class PurchaseService {
           standardizedOfferCount: product.subscriptionOffers?.length ?? 0,
           productStatusAndroid: product.productStatusAndroid,
           replacementProductId: replacementParams?.oldProductId ?? null,
+          foreignStoreItemCount,
+          unverifiedStoreItemCount,
         };
         // For Android, subscriptionOffers contains the sku and offerToken
         await requestPurchase({
@@ -1117,10 +1115,15 @@ export class PurchaseService {
       return;
     }
 
+    const canRestore = ['E_ALREADY_OWNED', 'ITEM_ALREADY_OWNED', 'item-already-owned', '7'].includes(errorCode);
+    if (canRestore && (pendingContext?.foreignStoreItemCount ?? 0) > 0) {
+      this.notifyError(STORE_ACCOUNT_MISMATCH_MESSAGE, false);
+      return;
+    }
+
     const userMessage = IAP_ERROR_MESSAGES[errorCode]
       || (errorMessage && errorMessage !== 'Unknown error' ? errorMessage : null)
       || 'Purchase could not be completed. Please try again.';
-    const canRestore = ['E_ALREADY_OWNED', 'ITEM_ALREADY_OWNED', 'item-already-owned', '7'].includes(errorCode);
     this.notifyError(userMessage, canRestore);
   }
 
@@ -1175,7 +1178,7 @@ export class PurchaseService {
       if (user) {
         const ownership = await this.getAndroidStoreOwnershipContext(user.uid);
         const ownershipStatus = getAndroidStorePurchaseOwnershipStatus(purchase, ownership);
-        if (ownershipStatus !== 'owned') {
+        if (ownershipStatus === 'foreign') {
           await this.logRejectedAndroidStorePurchases(
             'handlePurchaseUpdateStoreAccountMismatch',
             purchase.productId,
