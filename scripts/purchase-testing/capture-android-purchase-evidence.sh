@@ -131,8 +131,8 @@ run_capture network-play.txt "$ADB" -s "$SERIAL" shell ping -c 1 play.googleapis
 run_capture connectivity.txt "$ADB" -s "$SERIAL" shell dumpsys connectivity
 
 if PATH="$NODE_BIN_PATH:$PATH" command -v firebase >/dev/null 2>&1; then
-  run_capture validatePurchase.log env PATH="$NODE_BIN_PATH:$PATH" firebase functions:log --only validatePurchase --project "$PROJECT" --limit 50
-  run_capture handlePlayStoreNotification.log env PATH="$NODE_BIN_PATH:$PATH" firebase functions:log --only handlePlayStoreNotification --project "$PROJECT" --limit 50
+  run_capture validatePurchase.log env PATH="$NODE_BIN_PATH:$PATH" firebase functions:log --only validatePurchase --project "$PROJECT" -n 50
+  run_capture handlePlayStoreNotification.log env PATH="$NODE_BIN_PATH:$PATH" firebase functions:log --only handlePlayStoreNotification --project "$PROJECT" -n 50
 else
   echo "firebase CLI not found in PATH." > "$OUT_DIR/validatePurchase.log"
   echo "firebase CLI not found in PATH." > "$OUT_DIR/handlePlayStoreNotification.log"
