@@ -1105,6 +1105,15 @@ export class PurchaseService {
           storedPurchaseTokens.add(token);
         }
       });
+
+      if (!hasUsedTrial) {
+        try {
+          const trialHistoryDoc = await getDoc(doc(collection(db, 'trialHistory'), uid));
+          hasUsedTrial = trialHistoryDoc.exists();
+        } catch (trialHistoryError) {
+          ErrorService.handleSilent(trialHistoryError, { action: 'iap_read_trial_history' });
+        }
+      }
     } catch (error) {
       ErrorService.handleSilent(error, { action: 'iap_read_android_purchase_ownership' });
     }

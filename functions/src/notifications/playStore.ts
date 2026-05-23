@@ -37,6 +37,10 @@ export const handlePlayStoreNotification = onMessagePublished(
       const userRef = admin.firestore().collection('users').doc(userId);
       const userSnap = await userRef.get();
       const userData = userSnap.data();
+      const trialHistorySnap = userData?.hasUsedTrial === true
+        ? null
+        : await admin.firestore().collection('trialHistory').doc(userId).get();
+      const hasRecordedTrialUsage = userData?.hasUsedTrial === true || trialHistorySnap?.exists === true;
       const isActive = !!(expiresAt && expiresAt.getTime() > Date.now());
       const existingTrialEndMs = getTimestampMillis(userData?.trialEndDate) ?? getTimestampMillis(userData?.trialEndsAt);
       const storeReportsTrial = state?.inTrial === true;
@@ -63,7 +67,7 @@ export const handlePlayStoreNotification = onMessagePublished(
         productId: subscriptionId.includes('annual') ? 'annual' : 'monthly',
         lastValidated: admin.firestore.FieldValue.serverTimestamp(),
       };
-      if (inTrial) {
+      if (inTrial || hasRecordedTrialUsage) {
         updateData.hasUsedTrial = true;
       }
       await userRef.set(updateData, { merge: true });

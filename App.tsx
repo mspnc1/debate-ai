@@ -20,7 +20,7 @@ import secureStorage from './src/services/secureStorage';
 import VerificationPersistenceService from './src/services/VerificationPersistenceService';
 import { StatsPersistenceService } from './src/services/stats';
 import { initializeFirebase } from './src/services/firebase/config';
-import { getFirestore, doc, onSnapshot, collection } from '@react-native-firebase/firestore';
+import { getFirestore, doc, getDoc, onSnapshot, collection } from '@react-native-firebase/firestore';
 import { onAuthStateChanged, toAuthUser } from './src/services/firebase/auth';
 import { reload } from '@react-native-firebase/auth';
 import { setAuthLoading, setAuthUser, setUserProfile } from './src/store';
@@ -140,6 +140,16 @@ function AppContent() {
                     }
                   }
 
+                  let hasUsedTrial = profileData?.hasUsedTrial === true;
+                  if (!hasUsedTrial) {
+                    try {
+                      const trialHistoryDoc = await getDoc(doc(collection(db, 'trialHistory'), user.uid));
+                      hasUsedTrial = trialHistoryDoc.exists();
+                    } catch (e) {
+                      console.warn('Failed to read trial history fallback:', e);
+                    }
+                  }
+
                   dispatch(setUserProfile({
                     email: user.email,
                     displayName: profileData?.displayName || user.displayName || 'User',
@@ -151,7 +161,7 @@ function AppContent() {
                       : Date.now(),
                     membershipStatus,
                     preferences: profileData?.preferences || {},
-                    hasUsedTrial: profileData?.hasUsedTrial === true,
+                    hasUsedTrial,
                     trialEndDate,
                   }));
                   dispatch(setAuthLoading(false));

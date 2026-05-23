@@ -428,9 +428,17 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
 
     // Check and record trial usage to prevent abuse after account deletion
     let shouldRecordTrialUsage = false;
+    let trialCheck: Awaited<ReturnType<typeof checkTrialHistory>> | null = null;
+    const getTrialCheck = async () => {
+      if (!trialCheck) {
+        trialCheck = await checkTrialHistory(userId, userEmail);
+      }
+      return trialCheck;
+    };
+
     if (inTrial) {
       // Check persistent trial history (survives account deletion)
-      const trialCheck = await checkTrialHistory(userId, userEmail);
+      const trialCheck = await getTrialCheck();
 
       const hasPriorTrialOnCurrentUser = userData?.hasUsedTrial === true;
       const hasPriorTrial = trialCheck.used || hasPriorTrialOnCurrentUser;
@@ -457,6 +465,8 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
         shouldRecordTrialUsage = true;
         updateData.hasUsedTrial = true;
       }
+    } else if (userData?.hasUsedTrial === true || (await getTrialCheck()).used) {
+      updateData.hasUsedTrial = true;
     }
 
     const firestore = admin.firestore();

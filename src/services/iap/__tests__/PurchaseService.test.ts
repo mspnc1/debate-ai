@@ -88,7 +88,7 @@ describe('PurchaseService', () => {
     mockGetAvailablePurchases.mockResolvedValue([]);
     mockFinishTransaction.mockResolvedValue(undefined);
     mockDigestStringAsync.mockResolvedValue('hashed-token-123');
-    mockGetDoc.mockResolvedValue({ data: () => ({}) });
+    mockGetDoc.mockResolvedValue({ data: () => ({}), exists: () => false });
     mockSetDoc.mockResolvedValue(undefined);
     mockAddDoc.mockResolvedValue({ id: 'purchase-error-doc' });
     mockDoc.mockReturnValue('doc-ref');
@@ -499,6 +499,69 @@ describe('PurchaseService', () => {
         } as Partial<ProductSubscriptionAndroid>;
 
         mockGetDoc.mockResolvedValue({ data: () => ({ hasUsedTrial: true }) });
+        mockFetchProducts.mockResolvedValue([mockProduct]);
+
+        await PurchaseService.purchaseSubscription('annual', { includeTrialOffer: true });
+
+        expect(mockRequestPurchase).toHaveBeenCalledWith({
+          type: 'subs',
+          request: {
+            google: {
+              skus: [SUBSCRIPTION_PRODUCTS.annual],
+              obfuscatedAccountId: 'hashed-token-123',
+              subscriptionOffers: [{ sku: SUBSCRIPTION_PRODUCTS.annual, offerToken: 'annual-paid-token' }],
+            },
+          },
+        });
+      });
+
+      it('should request a paid offer on Android when trial history exists', async () => {
+        const mockProduct = {
+          id: SUBSCRIPTION_PRODUCTS.annual,
+          productId: SUBSCRIPTION_PRODUCTS.annual,
+          subscriptionOfferDetailsAndroid: [
+            {
+              offerToken: 'annual-trial-token',
+              basePlanId: 'annual-base',
+              offerId: 'trial-week',
+              offerTags: [],
+              pricingPhases: {
+                pricingPhaseList: [
+                  {
+                    priceAmountMicros: '0',
+                    billingPeriod: 'P7D',
+                    recurrenceMode: 1,
+                    billingCycleCount: 1,
+                    formattedPrice: 'Free',
+                    priceCurrencyCode: 'USD',
+                  },
+                ],
+              },
+            },
+            {
+              offerToken: 'annual-paid-token',
+              basePlanId: 'annual-base',
+              offerId: null,
+              offerTags: [],
+              pricingPhases: {
+                pricingPhaseList: [
+                  {
+                    priceAmountMicros: '49990000',
+                    billingPeriod: 'P1Y',
+                    recurrenceMode: 1,
+                    billingCycleCount: 0,
+                    formattedPrice: '$49.99',
+                    priceCurrencyCode: 'USD',
+                  },
+                ],
+              },
+            },
+          ],
+        } as Partial<ProductSubscriptionAndroid>;
+
+        mockGetDoc
+          .mockResolvedValueOnce({ data: () => ({ hasUsedTrial: false }), exists: () => true })
+          .mockResolvedValueOnce({ data: () => ({}), exists: () => true });
         mockFetchProducts.mockResolvedValue([mockProduct]);
 
         await PurchaseService.purchaseSubscription('annual', { includeTrialOffer: true });
