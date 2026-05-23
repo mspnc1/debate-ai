@@ -233,6 +233,12 @@ type MockAudioPlayer = {
   __finish: () => void;
 };
 
+const flushVirtualizedListUpdates = async () => {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  });
+};
+
 describe('CreateScreen', () => {
   const mockGalleryImage = {
     id: 'img_1',
@@ -619,6 +625,8 @@ describe('CreateScreen', () => {
       await waitFor(() => {
         expect(getVideoSurface().props.nativeControls).toBe(true);
       });
+
+      await flushVirtualizedListUpdates();
     });
   });
 
