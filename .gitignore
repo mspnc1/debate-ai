@@ -118,3 +118,6 @@ yarn-error.*
 
 # Test coverage reports
 coverage/
+
+# Local purchase debugging captures
+.purchase-test-runs/
