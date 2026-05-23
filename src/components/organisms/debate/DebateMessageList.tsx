@@ -78,6 +78,19 @@ const getCitationMetadataKey = (message: Message): string => {
   ].join(':');
 };
 
+const scheduleFrame = (callback: (timestamp: number) => void): number =>
+  typeof requestAnimationFrame === 'function'
+    ? requestAnimationFrame(callback)
+    : (setTimeout(() => callback(Date.now()), 0) as unknown as number);
+
+const cancelFrame = (frame: number): void => {
+  if (typeof cancelAnimationFrame === 'function') {
+    cancelAnimationFrame(frame);
+  } else {
+    clearTimeout(frame as unknown as ReturnType<typeof setTimeout>);
+  }
+};
+
 // Memoized message item component - optimized
 const MessageItem = memo<{ message: Message; index: number; alignment: 'left' | 'right' | 'center' }>(({ message, index, alignment }) => {
   const systemType = detectType(message);
@@ -127,18 +140,36 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
   const alignmentMapRef = useRef<Record<string, 'left' | 'right'>>({});
   const lastAssignedSideRef = useRef<'left' | 'right'>('right');
   const isAtBottomRef = useRef(true);
+  const autoFollowRef = useRef(true);
+  const userScrollInProgressRef = useRef(false);
+  const scrollFrameRef = useRef<number | null>(null);
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   const { theme } = useTheme();
   const lastMessageKeyRef = useRef('');
 
   // Auto-scroll to new messages
   const scrollToEnd = useCallback((animated = true) => {
-    flatListRef.current?.scrollToEnd({ animated });
+    if (scrollFrameRef.current !== null) return;
+
+    scrollFrameRef.current = scheduleFrame(() => {
+      scrollFrameRef.current = null;
+      flatListRef.current?.scrollToEnd({ animated });
+    });
   }, []);
 
-  // Handle content size changes - unconditionally scroll like Chat mode
+  useEffect(() => () => {
+    if (scrollFrameRef.current !== null) {
+      cancelFrame(scrollFrameRef.current);
+    }
+  }, []);
+
+  // Handle content size changes while respecting user scroll position.
   const handleContentSizeChange = useCallback(() => {
-    scrollToEnd(true);
+    if (autoFollowRef.current) {
+      scrollToEnd(true);
+    } else {
+      setShowScrollIndicator(true);
+    }
   }, [scrollToEnd]);
 
   // Scroll when new messages are added
@@ -153,7 +184,7 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
 
   const handleContentUpdate = useCallback(() => {
     if (listEmpty) return;
-    if (isAtBottomRef.current) {
+    if (autoFollowRef.current) {
       scrollToEnd();
     } else {
       setShowScrollIndicator(true);
@@ -175,7 +206,7 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
 
   useEffect(() => {
     if (typingAIs.length === 0) return;
-    if (isAtBottomRef.current) {
+    if (autoFollowRef.current) {
       scrollToEnd();
     } else {
       setShowScrollIndicator(true);
@@ -191,7 +222,7 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
     const key = `${lastMessage.id ?? 'unknown'}:${lastMessage.timestamp ?? ''}:${lastMessage.content?.length ?? 0}`;
     if (key !== lastMessageKeyRef.current) {
       lastMessageKeyRef.current = key;
-      if (!isAtBottomRef.current) {
+      if (!autoFollowRef.current) {
         setShowScrollIndicator(true);
       }
     }
@@ -248,25 +279,39 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
     );
   }, [typingAIs]);
 
+  const handleScrollBeginDrag = useCallback(() => {
+    userScrollInProgressRef.current = true;
+  }, []);
+
+  const handleScrollEndDrag = useCallback(() => {
+    userScrollInProgressRef.current = false;
+    autoFollowRef.current = isAtBottomRef.current;
+  }, []);
+
   const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     const paddingToBottom = 32;
     const atBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - paddingToBottom;
     isAtBottomRef.current = atBottom;
     if (atBottom) {
+      autoFollowRef.current = true;
       setShowScrollIndicator(false);
+    } else if (userScrollInProgressRef.current) {
+      autoFollowRef.current = false;
+      setShowScrollIndicator(true);
     }
   }, []);
 
   const handleScrollToLatest = useCallback(() => {
     isAtBottomRef.current = true;
+    autoFollowRef.current = true;
     setShowScrollIndicator(false);
     scrollToEnd();
   }, [scrollToEnd]);
 
   useEffect(() => {
     if (listEmpty) return;
-    if (isAtBottomRef.current) {
+    if (autoFollowRef.current) {
       scrollToEnd();
     }
   }, [bottomInset, listEmpty, scrollToEnd]);
@@ -281,7 +326,6 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
         data={messages}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
-        extraData={messages}
         showsVerticalScrollIndicator={showsVerticalScrollIndicator}
         ListHeaderComponent={headerComponent || null}
         contentContainerStyle={[
@@ -290,6 +334,9 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
         ]}
         ListFooterComponent={renderTypingIndicator}
         onScroll={handleScroll}
+        onScrollBeginDrag={handleScrollBeginDrag}
+        onScrollEndDrag={handleScrollEndDrag}
+        onMomentumScrollEnd={handleScrollEndDrag}
         onContentSizeChange={handleContentSizeChange}
         scrollEventThrottle={16}
         // Performance optimizations

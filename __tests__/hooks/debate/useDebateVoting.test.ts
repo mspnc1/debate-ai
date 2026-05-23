@@ -6,7 +6,7 @@ import { startDebate } from '@/store';
 import { renderHookWithProviders } from '../../../test-utils/renderHookWithProviders';
 
 class MockVotingService {
-  public prompt = '🏅 Who won Opening?';
+  public prompt = 'Who had the stronger opening?';
   public scores: ScoreBoard = {
     claude: { name: 'Claude', roundWins: 1, roundsWon: [1], isOverallWinner: false },
   };
@@ -16,7 +16,7 @@ class MockVotingService {
       winnerId: 'claude',
       winnerName: 'Claude',
       votingLabel: 'Opening',
-      criterion: 'Vote criteria: motion burden.',
+      criterion: 'Opening: choose who framed the motion more clearly.',
       timestamp: 100,
     },
   ];
@@ -24,7 +24,7 @@ class MockVotingService {
 
   calculateScores = jest.fn(() => this.scores);
   getVotingPrompt = jest.fn(() => this.prompt);
-  getVoteCriterion = jest.fn(() => 'Vote criteria: motion burden.');
+  getVoteCriterion = jest.fn(() => 'Opening: choose who framed the motion more clearly.');
   getVotingLabel = jest.fn(() => 'Opening');
   getVoteRecords = jest.fn(() => this.voteRecords);
   hasVotedForRound = jest.fn((round: number) => this.voted.has(round));
@@ -77,10 +77,10 @@ describe('useDebateVoting', () => {
     expect(result.current.scores).toEqual(orchestrator.votingService.scores);
     expect(result.current.voteRecords).toEqual(orchestrator.votingService.voteRecords);
 
-    expect(result.current.getVotingPrompt()).toBe('🏅 Who won Opening?');
+    expect(result.current.getVotingPrompt()).toBe('Who had the stronger opening?');
     expect(orchestrator.votingService.getVotingPrompt).toHaveBeenCalledWith(0, false, false);
-    expect(result.current.getVoteCriterion()).toBe('Vote criteria: motion burden.');
-    expect(orchestrator.votingService.getVoteCriterion).toHaveBeenCalledWith(false);
+    expect(result.current.getVoteCriterion()).toBe('Opening: choose who framed the motion more clearly.');
+    expect(orchestrator.votingService.getVoteCriterion).toHaveBeenCalledWith(0, false);
 
     act(() => {
       orchestrator.emit({ type: 'voting_started', data: { round: 1, isFinalRound: false, isOverallVote: false }, timestamp: Date.now() });
@@ -101,7 +101,7 @@ describe('useDebateVoting', () => {
             winnerId: 'claude',
             winnerName: 'Claude',
             votingLabel: 'Opening',
-            criterion: 'Vote criteria: motion burden.',
+            criterion: 'Opening: choose who framed the motion more clearly.',
             timestamp: 200,
           },
         },
@@ -119,11 +119,11 @@ describe('useDebateVoting', () => {
     expect(store.getState().debateStats.currentDebate?.roundWinners[1]).toBe('claude');
     expect(store.getState().debateStats.currentDebate?.voteResults?.[0]).toMatchObject({
       votingLabel: 'Opening',
-      criterion: 'Vote criteria: motion burden.',
+      criterion: 'Opening: choose who framed the motion more clearly.',
     });
 
-    orchestrator.votingService.prompt = '🏆 Vote for Overall Winner!';
-    expect(result.current.getVotingPrompt()).toBe('🏆 Vote for Overall Winner!');
+    orchestrator.votingService.prompt = 'Choose the overall winner';
+    expect(result.current.getVotingPrompt()).toBe('Choose the overall winner');
 
     act(() => {
       orchestrator.emit({ type: 'voting_started', data: { round: 3, isFinalRound: true, isOverallVote: true }, timestamp: Date.now() });
@@ -134,10 +134,10 @@ describe('useDebateVoting', () => {
     });
 
     expect(orchestrator.recordVote).toHaveBeenLastCalledWith(3, 'gpt4', true);
-    expect(result.current.getVotingPrompt()).toBe('🏆 Vote for Overall Winner!');
+    expect(result.current.getVotingPrompt()).toBe('Choose the overall winner');
     expect(orchestrator.votingService.getVotingPrompt).toHaveBeenLastCalledWith(3, true, true);
-    expect(result.current.getVoteCriterion()).toBe('Vote criteria: motion burden.');
-    expect(orchestrator.votingService.getVoteCriterion).toHaveBeenLastCalledWith(true);
+    expect(result.current.getVoteCriterion()).toBe('Opening: choose who framed the motion more clearly.');
+    expect(orchestrator.votingService.getVoteCriterion).toHaveBeenLastCalledWith(3, true);
 
     // History is populated when debate_ended event is emitted (not during recordVote)
     act(() => {

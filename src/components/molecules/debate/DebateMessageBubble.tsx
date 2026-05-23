@@ -212,7 +212,11 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
             borderWidth: 1,
           }
         ]}>
-        {isLongContent ? (
+        {isStreaming ? (
+          <Typography variant="body" style={styles.streamingText}>
+            {displayContent}
+          </Typography>
+        ) : isLongContent ? (
           <LazyMarkdownRenderer
             content={displayContent}
             style={markdownStyles}
@@ -300,6 +304,7 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
     prevProps.message.content === nextProps.message.content &&
     prevProps.message.sender === nextProps.message.sender &&
     prevProps.message.timestamp === nextProps.message.timestamp &&
+    prevProps.side === nextProps.side &&
     getCitationMetadataKey(prevProps.message) === getCitationMetadataKey(nextProps.message)
   );
 });
@@ -363,6 +368,10 @@ const styles = StyleSheet.create({
   },
   messageText: {
     fontSize: 15,
+    lineHeight: 22,
+  },
+  streamingText: {
+    fontSize: 16,
     lineHeight: 22,
   },
   copyButton: {

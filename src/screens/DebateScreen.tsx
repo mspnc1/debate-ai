@@ -380,8 +380,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   // Determine what to show based on debate state
   const displayedTopic = session.session?.topic || topicSelection.finalTopic || initialTopic || 'Debate Motion';
   const vsLine = selectedAIs.length >= 2 ? `${displayName(selectedAIs[0])} vs ${displayName(selectedAIs[1])}` : '';
-  const turnLine = flow.currentTurnLabel ? `Turn: ${flow.currentTurnLabel}` : '';
-  const headerSubtitle = [vsLine, turnLine].filter(Boolean).join(' · ') || undefined;
+  const headerSubtitle = vsLine || undefined;
 
   const renderContent = () => {
     const bottomInset = votingOverlayHeight + scoreOverlayHeight;

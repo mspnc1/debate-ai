@@ -146,7 +146,7 @@ describe('TranscriptModal', () => {
               winnerId: 'claude',
               winnerName: 'Claude',
               votingLabel: 'Constructives',
-              criterion: 'Vote criteria: value clash.',
+              criterion: 'Constructives: choose who better established their value and criterion.',
               timestamp: 100,
             },
           },
@@ -158,9 +158,9 @@ describe('TranscriptModal', () => {
       );
 
       expect(queryByText('Constructives: Claude')).toBeNull();
-      expect(getByText('Vote Criteria')).toBeTruthy();
+      expect(getByText('Vote Decisions')).toBeTruthy();
       expect(getByText('Constructives')).toBeTruthy();
-      expect(getByText('Vote criteria: value clash.')).toBeTruthy();
+      expect(getByText('Constructives: choose who better established their value and criterion.')).toBeTruthy();
     });
 
     it('renders debate messages', () => {
@@ -208,7 +208,7 @@ describe('TranscriptModal', () => {
       );
 
       expect(getByText('1AC')).toBeTruthy();
-      expect(getByText('CX after 1AC · Neg asks')).toBeTruthy();
+      expect(getByText('CX after 1AC · Negative asks')).toBeTruthy();
     });
 
     it('renders citations for cited debate messages', () => {

@@ -133,7 +133,7 @@ export const useDebateVoting = (
           round: votingRound,
           winnerId: aiId,
           votingLabel: votingService?.getVotingLabel(votingRound),
-          criterion: votingService?.getVoteCriterion(false),
+          criterion: votingService?.getVoteCriterion(votingRound, false),
         }));
       }
 
@@ -166,11 +166,11 @@ export const useDebateVoting = (
     if (orchestrator) {
       const votingService = orchestrator.getVotingService();
       if (votingService) {
-        return votingService.getVoteCriterion(isOverallVote);
+        return votingService.getVoteCriterion(votingRound, isOverallVote);
       }
     }
     return '';
-  }, [orchestrator, isOverallVote]);
+  }, [orchestrator, votingRound, isOverallVote]);
   
   // Initialize scores when orchestrator is available
   useEffect(() => {

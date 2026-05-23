@@ -276,7 +276,7 @@ const createVotingState = (overrides: Record<string, unknown> = {}) => ({
   scores: null,
   voteRecords: [],
   getVotingPrompt: jest.fn().mockReturnValue('Vote now'),
-  getVoteCriterion: jest.fn().mockReturnValue('Vote criteria: motion burden.'),
+  getVoteCriterion: jest.fn().mockReturnValue('Opening Statements: choose who gave the clearer motion framing.'),
   recordVote: jest.fn().mockResolvedValue(undefined),
   error: null,
   ...overrides,
@@ -431,7 +431,7 @@ describe('DebateScreen', () => {
       winnerId: 'left',
       winnerName: 'Claude',
       votingLabel: 'Constructives',
-      criterion: 'Vote criteria: value clash.',
+      criterion: 'Constructives: choose who better established their value and criterion.',
       timestamp: 100,
     }];
 
@@ -459,8 +459,10 @@ describe('DebateScreen', () => {
     expect(mockDebateMessageListProps.messages).toHaveLength(1);
     expect(mockDebateTurnTimelineProps.messages).toHaveLength(preset.messages.length);
     expect(mockDebateTurnTimelineProps.currentMessageIndex).toBe(2);
+    expect(mockHeaderProps.subtitle).toBe('Claude vs GPT-4');
+    expect(mockHeaderProps.subtitle).not.toContain('Turn:');
     expect(mockVotingInterfaceProps).toBeDefined();
-    expect(mockVotingInterfaceProps.voteCriterion).toBe('Vote criteria: motion burden.');
+    expect(mockVotingInterfaceProps.voteCriterion).toBe('Opening Statements: choose who gave the clearer motion framing.');
     expect(mockScoreDisplayProps.scores.left.roundWins).toBe(1);
 
     mockVotingInterfaceProps.onVote('left');

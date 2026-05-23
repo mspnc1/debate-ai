@@ -47,9 +47,9 @@ describe('VotingService', () => {
   it('provides contextual prompts based on round and overall vote', () => {
     const service = new VotingService(participants, oxfordShort);
 
-    expect(service.getVotingPrompt(2, false, false)).toBe('🏅 Who won Rebuttals?');
-    expect(service.getVotingPrompt(3, true, false)).toBe('🏅 Who won Closing Statements?');
-    expect(service.getVotingPrompt(3, true, true)).toBe('🏆 Vote for Overall Winner!');
+    expect(service.getVotingPrompt(2, false, false)).toBe('Who had the stronger rebuttals?');
+    expect(service.getVotingPrompt(3, true, false)).toBe('Who had the stronger closing statements?');
+    expect(service.getVotingPrompt(3, true, true)).toBe('Choose the overall winner');
     expect(service.getWinnerMessage(1, 'claude', false)).toBe('Opening Statements: Claude');
     expect(service.getWinnerMessage(3, 'gpt4', true)).toBe('Closing Statements: GPT-4o');
     expect(service.getOverallWinnerMessage('gpt4')).toBe('OVERALL WINNER: GPT-4o!\n\nGPT-4o won the debate.');
@@ -59,7 +59,7 @@ describe('VotingService', () => {
     const service = new VotingService(participants, LINCOLN_DOUGLAS_FORMAT, 5);
 
     expect(service.getTotalVotes()).toBe(3);
-    expect(service.getVotingPrompt(2, false, false)).toBe('🏅 Who won Cross-Examination?');
+    expect(service.getVotingPrompt(2, false, false)).toBe('Who had the stronger cross-examination?');
   });
 
   it('provides format-specific vote criteria', () => {
@@ -67,9 +67,27 @@ describe('VotingService', () => {
     const policyService = new VotingService(participants, POLICY_FORMAT, 5);
     const presetService = new VotingService(participants, getPresetForFormat('socratic', 'short'), 'socratic');
 
-    expect(ldService.getVoteCriterion()).toContain('value clash');
-    expect(policyService.getVoteCriterion()).toContain('policy burden');
-    expect(presetService.getVoteCriterion(true)).toContain('Final vote criteria');
-    expect(presetService.getVoteCriterion(true)).toContain('inquiry quality');
+    expect(ldService.getVoteCriterion(1)).toContain('value, criterion');
+    expect(policyService.getVoteCriterion(1)).toContain('core harms');
+    expect(presetService.getVoteCriterion(true)).toContain('Final decision');
+    expect(presetService.getVoteCriterion(true)).toContain('improved understanding');
+  });
+
+  it('uses distinct vote guidance for each checkpoint and records it', () => {
+    const service = new VotingService(participants, oxfordShort);
+
+    const openingCriterion = service.getVoteCriterion(1);
+    const rebuttalCriterion = service.getVoteCriterion(2);
+    const closingCriterion = service.getVoteCriterion(3);
+
+    expect(openingCriterion).toContain('motion framing');
+    expect(rebuttalCriterion).toContain('answered the other side');
+    expect(closingCriterion).toContain('summary of voters');
+    expect(new Set([openingCriterion, rebuttalCriterion, closingCriterion]).size).toBe(3);
+
+    expect(service.recordRoundVote(2, 'gpt4')).toMatchObject({
+      votingLabel: 'Rebuttals',
+      criterion: rebuttalCriterion,
+    });
   });
 });

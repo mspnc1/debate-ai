@@ -1,8 +1,9 @@
-import React from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Typography } from '../../molecules';
 import { useTheme } from '../../../theme';
 import type { MessageSpec } from '@/services/debate';
+import { getDebateSpeakerRoleLabel } from '@/utils/debateLabels';
 
 export interface DebateTurnTimelineProps {
   messages: MessageSpec[];
@@ -10,13 +11,20 @@ export interface DebateTurnTimelineProps {
   currentTurnLabel?: string;
 }
 
-const getSpeakerLabel = (speaker: MessageSpec['speaker']): string =>
-  speaker === 'aff' ? 'Aff' : 'Neg';
+const CHIP_GAP = 8;
+const MIN_CHIP_WIDTH = 124;
+const MAX_CHIP_WIDTH = 168;
+const scheduleFrame = (callback: (timestamp: number) => void): number =>
+  typeof requestAnimationFrame === 'function'
+    ? requestAnimationFrame(callback)
+    : (setTimeout(() => callback(Date.now()), 0) as unknown as number);
 
-const getCxRoleLabel = (role: MessageSpec['cxRole']): string | undefined => {
-  if (role === 'questioner') return 'asks';
-  if (role === 'answerer') return 'answers';
-  return undefined;
+const cancelFrame = (frame: number): void => {
+  if (typeof cancelAnimationFrame === 'function') {
+    cancelAnimationFrame(frame);
+  } else {
+    clearTimeout(frame as unknown as ReturnType<typeof setTimeout>);
+  }
 };
 
 export const DebateTurnTimeline: React.FC<DebateTurnTimelineProps> = ({
@@ -25,12 +33,32 @@ export const DebateTurnTimeline: React.FC<DebateTurnTimelineProps> = ({
   currentTurnLabel,
 }) => {
   const { theme, isDark } = useTheme();
+  const { width } = useWindowDimensions();
+  const scrollRef = useRef<ScrollView>(null);
 
-  if (messages.length === 0) {
+  const activeIndex = messages.length > 0
+    ? Math.min(Math.max(currentMessageIndex, 0), messages.length - 1)
+    : 0;
+  const activeMessage = messages[activeIndex];
+  const chipWidth = Math.min(MAX_CHIP_WIDTH, Math.max(MIN_CHIP_WIDTH, Math.round(width * 0.36)));
+
+  useEffect(() => {
+    if (messages.length === 0) return undefined;
+
+    const frame = scheduleFrame(() => {
+      const centeredOffset = activeIndex * (chipWidth + CHIP_GAP) - Math.max(0, (width - chipWidth) / 2);
+      scrollRef.current?.scrollTo({
+        x: Math.max(0, centeredOffset),
+        animated: true,
+      });
+    });
+
+    return () => cancelFrame(frame);
+  }, [activeIndex, chipWidth, messages.length, width]);
+
+  if (!activeMessage) {
     return null;
   }
-
-  const activeIndex = Math.min(Math.max(currentMessageIndex, 0), messages.length - 1);
 
   return (
     <View
@@ -51,21 +79,38 @@ export const DebateTurnTimeline: React.FC<DebateTurnTimelineProps> = ({
         </Typography>
       </View>
 
-      {currentTurnLabel ? (
-        <Typography variant="caption" weight="medium" numberOfLines={1} style={styles.currentTurn}>
-          {currentTurnLabel}
+      <View
+        style={[
+          styles.activeSummary,
+          {
+            backgroundColor: isDark ? theme.colors.overlays.soft : theme.colors.primary[50],
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <View style={styles.activeCopy}>
+          <Typography variant="caption" color="secondary">
+            Current step
+          </Typography>
+          <Typography variant="body" weight="semibold" numberOfLines={1}>
+            {currentTurnLabel || activeMessage.label}
+          </Typography>
+        </View>
+        <Typography variant="caption" weight="semibold" color="brand" numberOfLines={1}>
+          {getDebateSpeakerRoleLabel(activeMessage)}
         </Typography>
-      ) : null}
+      </View>
 
       <ScrollView
+        ref={scrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        testID="debate-turn-timeline-scroll"
       >
         {messages.map((message, index) => {
           const isCurrent = index === activeIndex;
           const isComplete = index < activeIndex;
-          const cxRoleLabel = getCxRoleLabel(message.cxRole);
           const borderColor = isCurrent
             ? theme.colors.primary[500]
             : isComplete
@@ -82,12 +127,16 @@ export const DebateTurnTimeline: React.FC<DebateTurnTimelineProps> = ({
               key={`${message.label}-${index}`}
               style={[
                 styles.turnChip,
+                { width: chipWidth },
                 {
                   backgroundColor,
                   borderColor,
                 },
               ]}
             >
+              <Typography variant="caption" color="secondary" numberOfLines={1}>
+                {index + 1}
+              </Typography>
               <Typography
                 variant="caption"
                 weight={isCurrent ? 'semibold' : 'medium'}
@@ -96,7 +145,7 @@ export const DebateTurnTimeline: React.FC<DebateTurnTimelineProps> = ({
                 {message.label}
               </Typography>
               <Typography variant="caption" color="secondary" numberOfLines={1}>
-                {getSpeakerLabel(message.speaker)}{cxRoleLabel ? ` · ${cxRoleLabel}` : ''}
+                {getDebateSpeakerRoleLabel(message)}
               </Typography>
             </View>
           );
@@ -119,19 +168,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
-  currentTurn: {
-    marginBottom: 8,
+  activeSummary: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  activeCopy: {
+    flex: 1,
+    minWidth: 0,
   },
   scrollContent: {
-    gap: 8,
+    gap: CHIP_GAP,
     paddingRight: 16,
   },
   turnChip: {
-    width: 132,
-    minHeight: 58,
+    minHeight: 66,
     borderRadius: 8,
     borderWidth: 1,
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 10,
     paddingVertical: 8,
   },

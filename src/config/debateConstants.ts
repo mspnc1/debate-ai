@@ -36,9 +36,9 @@ export const DEBATE_CONSTANTS = {
   
   // Voting configuration
   VOTING: {
-    ROUND_PROMPT: (_round: number) => `🏅 Who won this exchange?`,
-    FINAL_ROUND_PROMPT: '🏅 Who won the final exchange?',
-    OVERALL_PROMPT: '🏆 Vote for Overall Winner!',
+    ROUND_PROMPT: (round: number) => `Who had the stronger exchange ${round}?`,
+    FINAL_ROUND_PROMPT: 'Who had the stronger final exchange?',
+    OVERALL_PROMPT: 'Choose the overall winner',
     SCORE_OVERRIDE_TEXT: 'Despite the scores, you can crown any AI as the overall winner!',
   },
   

@@ -23,14 +23,14 @@ describe('debateStatsSlice', () => {
       round: 1,
       winnerId: 'claude',
       votingLabel: 'Opening Statements',
-      criterion: 'Vote criteria: motion burden.',
+      criterion: 'Opening Statements: choose who gave the clearer motion framing.',
     }));
     expect(state.currentDebate?.roundWinners[1]).toBe('claude');
     expect(state.currentDebate?.voteResults?.[0]).toMatchObject({
       round: 1,
       winnerId: 'claude',
       votingLabel: 'Opening Statements',
-      criterion: 'Vote criteria: motion burden.',
+      criterion: 'Opening Statements: choose who gave the clearer motion framing.',
     });
     expect(state.stats.claude.roundsWon).toBe(1);
     expect(state.stats.gpt.roundsLost).toBe(1);

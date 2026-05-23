@@ -328,7 +328,7 @@ describe('DebateSetupScreen', () => {
     expect(renderResult.getByText('Standard')).toBeTruthy();
     expect(renderResult.getByText('Extended')).toBeTruthy();
     expect(renderResult.getByText('3 Rounds · 6 speeches · 3 votes')).toBeTruthy();
-    expect(renderResult.getByText('Aff: Opening Statement → Neg: Opening Statement → Aff: Rebuttal → Neg: Rebuttal → Aff: Closing Statement → Neg: Closing Statement')).toBeTruthy();
+    expect(renderResult.getByText('Affirmative: Opening Statement → Negative: Opening Statement → Affirmative: Rebuttal → Negative: Rebuttal → Affirmative: Closing Statement → Negative: Closing Statement')).toBeTruthy();
   });
 
   it('progresses from topic to AI step with valid selection', async () => {

@@ -247,7 +247,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                       align="center"
                       style={styles.voteBreakdownTitle}
                     >
-                      Vote Criteria
+                      Vote Decisions
                     </Typography>
                     {voteResults.map((vote) => (
                       <View key={vote.round} style={styles.voteResultRow}>
@@ -259,7 +259,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                             {vote.winnerName || vote.winnerId}
                           </Typography>
                         </View>
-                        <Typography variant="caption" color="secondary" numberOfLines={2}>
+                        <Typography variant="caption" color="secondary" style={styles.voteCriterionText}>
                           {vote.criterion}
                         </Typography>
                       </View>
@@ -522,11 +522,15 @@ const styles = StyleSheet.create({
   voteResultRow: {
     gap: 4,
   },
+  voteCriterionText: {
+    lineHeight: 18,
+  },
   voteResultHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
+    flexWrap: 'wrap',
   },
   actions: {
     width: '100%',

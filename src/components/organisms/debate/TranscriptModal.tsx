@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -27,6 +27,7 @@ import type { Citation, DebateVoteResult, Message } from '../../../types';
 import { AI_BRAND_COLORS } from '../../../constants/aiColors';
 import { ErrorService } from '@/services/errors/ErrorService';
 import { normalizeCitations } from '@/utils/citationUtils';
+import { getDebateSideLabel } from '@/utils/debateLabels';
 
 export interface TranscriptModalProps {
   visible: boolean;
@@ -61,7 +62,7 @@ const getSpeechDisplayLabel = (message: Message): string | undefined => {
   if (!speech) return undefined;
 
   if (speech.cxRole) {
-    const speakerLabel = speech.speaker === 'aff' ? 'Aff' : 'Neg';
+    const speakerLabel = getDebateSideLabel(speech.speaker);
     const roleLabel = speech.cxRole === 'questioner' ? 'asks' : 'answers';
     return `${speech.label} · ${speakerLabel} ${roleLabel}`;
   }
@@ -83,7 +84,10 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
   scores,
 }) => {
   const { theme, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const [isGenerating, setIsGenerating] = useState(false);
+  const actionBarBottomPadding = Math.max(insets.bottom + 16, Platform.OS === 'ios' ? 32 : 16);
+  const scrollBottomSpacer = 88 + actionBarBottomPadding;
 
   // Filter out system messages for cleaner transcript
   const debateMessages = messages.filter(
@@ -430,7 +434,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
     displayedVoteResults.length > 0
       ? `
   <div class="vote-results">
-    <div class="vote-results-title">Vote Criteria</div>
+    <div class="vote-results-title">Vote Decisions</div>
     ${displayedVoteResults
       .map((vote) => `
     <div class="vote-result">
@@ -645,7 +649,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
               ]}
             >
               <Typography variant="subtitle" weight="semibold" style={styles.voteResultsTitle}>
-                Vote Criteria
+                Vote Decisions
               </Typography>
               {displayedVoteResults.map((vote, index) => (
                 <View
@@ -757,11 +761,17 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
             </LinearGradient>
           )}
 
-          <View style={{ height: 100 }} />
+          <View style={{ height: scrollBottomSpacer }} />
         </ScrollView>
 
         {/* Action Buttons */}
-        <BlurView intensity={90} style={styles.actionBar}>
+        <BlurView
+          intensity={90}
+          style={[
+            styles.actionBar,
+            { paddingBottom: actionBarBottomPadding },
+          ]}
+        >
           <View style={styles.actionButtons}>
             <GradientButton
               title={isGenerating ? 'Processing...' : '💾 Save'}

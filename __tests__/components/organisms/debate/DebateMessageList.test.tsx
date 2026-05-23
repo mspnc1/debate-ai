@@ -195,6 +195,9 @@ describe('DebateMessageList', () => {
       // Verify onContentSizeChange is connected (enables auto-scroll during streaming)
       expect(flatList.props.onContentSizeChange).toBeDefined();
       expect(typeof flatList.props.onContentSizeChange).toBe('function');
+      expect(flatList.props.onScrollBeginDrag).toBeDefined();
+      expect(flatList.props.onScrollEndDrag).toBeDefined();
+      expect(flatList.props.onMomentumScrollEnd).toBeDefined();
     });
 
     it('handles scroll events', () => {

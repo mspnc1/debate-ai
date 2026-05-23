@@ -50,7 +50,7 @@ describe('VotingInterface', () => {
     isFinalVote: false,
     votingRound: 1,
     scores: null,
-    votingPrompt: 'Who won this exchange?',
+    votingPrompt: 'Who had the stronger opening statements?',
     onVote: mockOnVote,
   };
 
@@ -61,7 +61,7 @@ describe('VotingInterface', () => {
   describe('Rendering', () => {
     it('renders voting prompt', () => {
       const { getByText } = renderWithProviders(<VotingInterface {...defaultProps} />);
-      expect(getByText('Who won this exchange?')).toBeTruthy();
+      expect(getByText('Who had the stronger opening statements?')).toBeTruthy();
     });
 
     it('renders all participant tiles', () => {
@@ -167,7 +167,7 @@ describe('VotingInterface', () => {
         <VotingInterface {...defaultProps} isOverallVote={true} scores={null} />
       );
 
-      expect(getByText('Who won this exchange?')).toBeTruthy();
+      expect(getByText('Who had the stronger opening statements?')).toBeTruthy();
     });
   });
 
@@ -177,11 +177,11 @@ describe('VotingInterface', () => {
         <VotingInterface {...defaultProps} votingRound={1} />
       );
 
-      expect(getByText('Who won this exchange?')).toBeTruthy();
+      expect(getByText('Who had the stronger opening statements?')).toBeTruthy();
 
       rerender(<VotingInterface {...defaultProps} votingRound={3} />);
 
-      expect(getByText('Who won this exchange?')).toBeTruthy();
+      expect(getByText('Who had the stronger opening statements?')).toBeTruthy();
     });
 
     it('handles isFinalVote prop', () => {
@@ -211,7 +211,7 @@ describe('VotingInterface', () => {
         <VotingInterface {...defaultProps} participants={[]} />
       );
 
-      expect(getByText('Who won this exchange?')).toBeTruthy();
+      expect(getByText('Who had the stronger opening statements?')).toBeTruthy();
     });
 
     it('handles participants without color', () => {

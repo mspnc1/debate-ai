@@ -13,8 +13,8 @@ describe('Debate constants', () => {
   });
 
   it('produces voting prompts and markers', () => {
-    expect(DEBATE_CONSTANTS.VOTING.ROUND_PROMPT(1)).toBe('🏅 Who won this exchange?');
-    expect(DEBATE_CONSTANTS.VOTING.FINAL_ROUND_PROMPT).toBe('🏅 Who won the final exchange?');
+    expect(DEBATE_CONSTANTS.VOTING.ROUND_PROMPT(1)).toBe('Who had the stronger exchange 1?');
+    expect(DEBATE_CONSTANTS.VOTING.FINAL_ROUND_PROMPT).toBe('Who had the stronger final exchange?');
     expect(DEBATE_CONSTANTS.PROMPT_MARKERS.DEBATE_MODE).toBe('[DEBATE MODE]');
     expect(DEBATE_CONSTANTS.PROMPT_MARKERS.FINAL_ARGUMENT).toBe('Make your final argument!');
   });

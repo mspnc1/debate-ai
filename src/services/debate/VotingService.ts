@@ -10,6 +10,8 @@ import {
   getPresetIdForRounds,
   type DebateFormatId,
   type FormatSpec,
+  type MessageSpec,
+  type PhaseId,
   type PresetConfig,
 } from '../../config/debate/formats';
 
@@ -33,6 +35,12 @@ export interface VotingState {
   isOverallVote: boolean;
 }
 
+interface VoteCheckpoint {
+  label: string;
+  prompt: string;
+  criterion: string;
+}
+
 function isPresetConfig(value: PresetConfig | FormatSpec | undefined): value is PresetConfig {
   return Boolean(value && Array.isArray((value as PresetConfig).messages));
 }
@@ -45,7 +53,7 @@ export class VotingService {
   private participants: AI[];
   private preset: PresetConfig;
   private formatId: DebateFormatId = 'oxford';
-  private votingLabels: string[];
+  private voteCheckpoints: VoteCheckpoint[];
   private totalVotes: number;
   private votes: Map<number, VoteRecord> = new Map();
   private overallWinner?: string;
@@ -73,26 +81,103 @@ export class VotingService {
       this.preset = getPresetForFormat('oxford', 'short');
     }
 
-    this.votingLabels = this.preset.messages
+    this.voteCheckpoints = this.preset.messages
       .filter((message) => message.voteAfter)
-      .map((message) => message.votingLabel || message.label || 'Exchange');
-    this.totalVotes = this.votingLabels.length;
+      .map((message) => this.buildVoteCheckpoint(message));
+    this.totalVotes = this.voteCheckpoints.length;
   }
 
-  getVoteCriterion(isOverallVote: boolean = false): string {
-    const scope = isOverallVote ? 'Final vote criteria' : 'Vote criteria';
+  private buildVoteCheckpoint(message: MessageSpec): VoteCheckpoint {
+    const label = message.votingLabel || message.label || 'Exchange';
 
+    return {
+      label,
+      prompt: this.buildVotingPrompt(label),
+      criterion: this.buildVoteCriterion(label, message.phase),
+    };
+  }
+
+  private buildVotingPrompt(label: string): string {
+    return `Who had the stronger ${label.toLowerCase()}?`;
+  }
+
+  private buildVoteCriterion(label: string, phase: PhaseId): string {
     switch (this.formatId) {
       case 'lincoln_douglas':
-        return `${scope}: value clash. Choose who better upheld their value and criterion while answering the opponent.`;
+        if (phase === 'constructive') {
+          return `${label}: choose who better established their value, criterion, definitions, and initial burden.`;
+        }
+        if (phase === 'cross_examination') {
+          return `${label}: choose who used questions and answers to expose weaknesses, clarify standards, and protect their case.`;
+        }
+        if (phase === 'final_rebuttal') {
+          return `${label}: choose who crystallized the value clash and gave the clearer reason to prefer their criterion.`;
+        }
+        return `${label}: choose who better answered attacks, extended key value arguments, and weighed the round.`;
       case 'policy':
-        return `${scope}: policy burden. Choose who better proved solvency, impacts, and comparative advantage.`;
+        if (label === 'First Constructives') {
+          return `${label}: choose who better framed the plan or opposition, core harms, links, and initial solvency claims.`;
+        }
+        if (label === 'Second Constructives') {
+          return `${label}: choose who better developed clash on solvency, disadvantages, counterplans, and comparative advantage.`;
+        }
+        if (phase === 'cross_examination') {
+          return `${label}: choose who turned cross-examination into useful concessions or clearer burden analysis.`;
+        }
+        return `${label}: choose who better extended winning arguments, compared impacts, and explained the ballot.`;
       case 'socratic':
-        return `${scope}: inquiry quality. Choose who better clarified assumptions and advanced understanding.`;
+        if (label === 'Initial Framing') {
+          return `${label}: choose who framed the central assumption or definition more clearly.`;
+        }
+        if (label === 'Clarification' || label === 'Focused Inquiry') {
+          return `${label}: choose who advanced the inquiry with the sharper question or more direct answer.`;
+        }
+        if (label === 'Assumption Testing' || label === 'Counter-Questioning') {
+          return `${label}: choose who tested assumptions more precisely without drifting from the issue.`;
+        }
+        return `${label}: choose who produced the clearer synthesis or unresolved tension.`;
       case 'oxford':
       default:
-        return `${scope}: motion burden. Choose who presented the clearer case, rebuttal, and voters.`;
+        if (phase === 'opening') {
+          return `${label}: choose who gave the clearer motion framing, definitions, burden, and initial support.`;
+        }
+        if (phase === 'closing') {
+          return `${label}: choose who gave the cleaner summary of voters and weighing without relying on new claims.`;
+        }
+        if (phase === 'final_rebuttal') {
+          return `${label}: choose who best crystallized the decisive clash before closing.`;
+        }
+        return `${label}: choose who answered the other side more directly and improved their position on the motion.`;
     }
+  }
+
+  private getOverallVoteCriterion(): string {
+    switch (this.formatId) {
+      case 'lincoln_douglas':
+        return 'Final decision: weigh the value clash across all checkpoints and choose the debater whose criterion should decide the debate.';
+      case 'policy':
+        return 'Final decision: weigh solvency, risks, impacts, and dropped arguments across the full policy debate.';
+      case 'socratic':
+        return 'Final decision: choose who most improved understanding through clear questions, direct answers, and useful synthesis.';
+      case 'oxford':
+      default:
+        return 'Final decision: weigh the checkpoint wins and choose who carried the motion more convincingly overall.';
+    }
+  }
+
+  getVoteCriterion(roundOrIsOverallVote: number | boolean = 1, maybeIsOverallVote: boolean = false): string {
+    const isOverallVote = typeof roundOrIsOverallVote === 'boolean'
+      ? roundOrIsOverallVote
+      : maybeIsOverallVote;
+    const round = typeof roundOrIsOverallVote === 'number'
+      ? roundOrIsOverallVote
+      : 1;
+
+    if (isOverallVote) {
+      return this.getOverallVoteCriterion();
+    }
+
+    return this.getVoteCheckpoint(round)?.criterion || this.buildVoteCriterion('Exchange', 'rebuttal');
   }
 
   recordRoundVote(round: number, winnerId: string): VoteRecord {
@@ -102,7 +187,7 @@ export class VotingService {
       winnerId,
       winnerName: winner?.name,
       votingLabel: this.getVotingLabel(round),
-      criterion: this.getVoteCriterion(false),
+      criterion: this.getVoteCriterion(round, false),
       timestamp: Date.now(),
     };
 
@@ -160,17 +245,21 @@ export class VotingService {
   }
 
   getVotingLabel(voteIndex: number): string {
-    if (voteIndex >= 1 && voteIndex <= this.votingLabels.length) {
-      return this.votingLabels[voteIndex - 1];
+    return this.getVoteCheckpoint(voteIndex)?.label || 'Exchange';
+  }
+
+  private getVoteCheckpoint(voteIndex: number): VoteCheckpoint | undefined {
+    if (voteIndex >= 1 && voteIndex <= this.voteCheckpoints.length) {
+      return this.voteCheckpoints[voteIndex - 1];
     }
-    return 'Exchange';
+    return undefined;
   }
 
   getVotingPrompt(round: number, _isFinalVote: boolean, isOverallVote: boolean): string {
     if (isOverallVote) {
       return DEBATE_CONSTANTS.VOTING.OVERALL_PROMPT;
     }
-    return `🏅 Who won ${this.getVotingLabel(round)}?`;
+    return this.getVoteCheckpoint(round)?.prompt || this.buildVotingPrompt('exchange');
   }
 
   getWinnerMessage(round: number, winnerId: string, _isFinalVote: boolean): string {

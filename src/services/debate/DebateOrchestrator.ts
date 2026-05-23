@@ -853,7 +853,7 @@ export class DebateOrchestrator {
         isFinalRound,
         isOverallVote: false,
         votingLabel: this.votingService?.getVotingLabel(round),
-        voteCriterion: this.votingService?.getVoteCriterion(false),
+        voteCriterion: this.votingService?.getVoteCriterion(round, false),
       },
       timestamp: Date.now(),
     });

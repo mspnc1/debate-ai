@@ -39,6 +39,7 @@ import { RecordController } from '@/services/demo/RecordController';
 import { DebateRecordPickerModal } from '@/components/organisms/demo/DebateRecordPickerModal';
 import { DemoDebatePickerModal } from '@/components/organisms/demo/DemoDebatePickerModal';
 import { DemoContentService } from '@/services/demo/DemoContentService';
+import { getDebateSideLabel } from '@/utils/debateLabels';
 
 interface DebateSetupScreenProps {
   navigation: {
@@ -148,7 +149,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   })), [formatId]);
   const selectedPreset = getPresetForFormat(formatId, getPresetIdForRounds(exchanges));
   const speechOrderPreview = useMemo(() => selectedPreset.messages.map((message) => {
-    const side = message.speaker === 'aff' ? 'Aff' : 'Neg';
+    const side = getDebateSideLabel(message.speaker);
     const role = message.cxRole === 'questioner'
       ? ' asks'
       : message.cxRole === 'answerer'
