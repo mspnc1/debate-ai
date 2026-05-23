@@ -305,6 +305,26 @@ describe('firebase auth service', () => {
     Platform.OS = 'ios';
   });
 
+  it('configures Google Sign-In with checked-in client ID fallbacks when OTA env vars are missing', () => {
+    delete process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+    delete process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+
+    configureGoogleSignIn();
+    expect(mockGoogleSignin.configure).toHaveBeenCalledWith({
+      webClientId: '248794683640-45l77l2un600prqlqnqslv54fqhnpclq.apps.googleusercontent.com',
+      offlineAccess: true,
+      iosClientId: '248794683640-7su8cmoma5rvtg1hbmtsohmbec4qrc4p.apps.googleusercontent.com',
+    });
+
+    Platform.OS = 'android';
+    configureGoogleSignIn();
+    expect(mockGoogleSignin.configure).toHaveBeenLastCalledWith({
+      webClientId: '248794683640-45l77l2un600prqlqnqslv54fqhnpclq.apps.googleusercontent.com',
+      offlineAccess: true,
+    });
+    Platform.OS = 'ios';
+  });
+
   it('signs in with Apple successfully on iOS', async () => {
     Platform.OS = 'ios';
     setUser(null);

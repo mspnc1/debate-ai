@@ -28,6 +28,11 @@ import * as Device from 'expo-device';
 import { ErrorService } from '@/services/errors/ErrorService';
 import { AuthError } from '@/errors/types/AuthError';
 
+const FALLBACK_GOOGLE_WEB_CLIENT_ID =
+  '248794683640-45l77l2un600prqlqnqslv54fqhnpclq.apps.googleusercontent.com';
+const FALLBACK_GOOGLE_IOS_CLIENT_ID =
+  '248794683640-7su8cmoma5rvtg1hbmtsohmbec4qrc4p.apps.googleusercontent.com';
+
 // Minimal serializable user shape for Redux
 export type AuthUser = {
   uid: string;
@@ -63,6 +68,32 @@ type EmailPasswordSignInStatus = RateLimitStatus & {
 type PasswordResetStatus = RateLimitStatus & {
   emailSent?: boolean;
 };
+
+type GoogleClientIdSource = 'env' | 'native-config-fallback';
+
+type GoogleSignInClientIds = {
+  webClientId: string;
+  iosClientId: string;
+  webClientIdSource: GoogleClientIdSource;
+  iosClientIdSource: GoogleClientIdSource;
+};
+
+function getExpoPublicEnv(name: string): string | undefined {
+  const value = process.env[name];
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function getGoogleSignInClientIds(): GoogleSignInClientIds {
+  const webClientId = getExpoPublicEnv('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID');
+  const iosClientId = getExpoPublicEnv('EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID');
+
+  return {
+    webClientId: webClientId ?? FALLBACK_GOOGLE_WEB_CLIENT_ID,
+    iosClientId: iosClientId ?? FALLBACK_GOOGLE_IOS_CLIENT_ID,
+    webClientIdSource: webClientId ? 'env' : 'native-config-fallback',
+    iosClientIdSource: iosClientId ? 'env' : 'native-config-fallback',
+  };
+}
 
 async function callAuthFunction<T>(
   name: 'verifyEmailPasswordSignIn' | 'clearLoginAttempts' | 'requestPasswordResetEmail',
@@ -376,18 +407,19 @@ export type User = FirebaseAuthTypes.User;
  * Must be called before using Google Sign In
  */
 export const configureGoogleSignIn = () => {
+  const clientIds = getGoogleSignInClientIds();
   const config: {
     webClientId: string;
     offlineAccess: boolean;
     iosClientId?: string;
   } = {
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '', // Required for Firebase
+    webClientId: clientIds.webClientId,
     offlineAccess: true,
   };
   
   // iOS requires the iOS client ID
-  if (Platform.OS === 'ios' && process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID) {
-    config.iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+  if (Platform.OS === 'ios') {
+    config.iosClientId = clientIds.iosClientId;
   }
   
   GoogleSignin.configure(config);
@@ -589,6 +621,7 @@ export const signInWithGoogle = async (): Promise<{ user: User; profile: UserPro
     };
   } catch (error) {
     const authError = error as { code?: string; message?: string; statusCode?: number };
+    const clientIds = getGoogleSignInClientIds();
     // Handle user cancellation separately (not an error)
     if (authError?.code === 'SIGN_IN_CANCELLED' || authError?.code === '12501') {
       throw new Error('User cancelled');
@@ -606,6 +639,10 @@ export const signInWithGoogle = async (): Promise<{ user: User; profile: UserPro
         action: 'signInWithGoogle',
         errorCode: authError?.code,
         statusCode: authError?.statusCode,
+        googleWebClientConfigured: Boolean(clientIds.webClientId),
+        googleWebClientSource: clientIds.webClientIdSource,
+        googleIosClientConfigured: Platform.OS === 'ios' ? Boolean(clientIds.iosClientId) : undefined,
+        googleIosClientSource: Platform.OS === 'ios' ? clientIds.iosClientIdSource : undefined,
       },
     });
     throw appError;
