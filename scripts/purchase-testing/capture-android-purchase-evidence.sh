@@ -103,6 +103,16 @@ filter_file() {
   echo "channel=$CHANNEL"
 } > "$OUT_DIR/context.txt"
 
+CURRENT_USER="$("$ADB" -s "$SERIAL" shell am get-current-user 2>/dev/null | tr -d '\r' || true)"
+PACKAGE_UID=""
+if [[ -n "$CURRENT_USER" ]]; then
+  PACKAGE_UID="$("$ADB" -s "$SERIAL" shell cmd package list packages -U --user "$CURRENT_USER" "$PACKAGE" 2>/dev/null | sed -n 's/.* uid://p' | tr -d '\r' || true)"
+  {
+    echo "android_user=$CURRENT_USER"
+    echo "package_uid=$PACKAGE_UID"
+  } >> "$OUT_DIR/context.txt"
+fi
+
 run_capture adb-devices.txt "$ADB" devices -l
 run_capture package-dumpsys.txt "$ADB" -s "$SERIAL" shell dumpsys package "$PACKAGE"
 filter_file "$OUT_DIR/package-dumpsys.txt" package-summary.txt "versionName|versionCode|firstInstallTime|lastUpdateTime|installerPackageName"
@@ -114,7 +124,11 @@ if [[ "$CLEAR_LOGS" == "1" ]]; then
   read -r _
 fi
 
-PID="$("$ADB" -s "$SERIAL" shell pidof -s "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
+if [[ -n "$PACKAGE_UID" ]]; then
+  PID="$("$ADB" -s "$SERIAL" shell ps -A -o UID,PID,NAME 2>/dev/null | awk -v uid="$PACKAGE_UID" -v pkg="$PACKAGE" '$1 == uid && $3 == pkg { print $2; exit }' | tr -d '\r' || true)"
+else
+  PID="$("$ADB" -s "$SERIAL" shell pidof -s "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
+fi
 echo "$PID" > "$OUT_DIR/app-pid.txt"
 
 run_capture logcat-full.txt "$ADB" -s "$SERIAL" logcat -d -v time
