@@ -104,33 +104,31 @@ export const AICard: React.FC<AICardProps> = ({
           <Box style={{ position: 'relative', overflow: 'visible' }}>
             <SelectionIndicator isSelected={isSelected} color={ai.color} />
 
-            {/* Badge (e.g., img2img, Live Search) */}
-            {badge && (
-              <View style={styles.badgeRow}>
-                <View
-                  style={[
-                    styles.badge,
-                    { backgroundColor: badge.color || theme.colors.success[500] },
-                  ]}
-                >
-                  <Typography variant="caption" style={styles.badgeText}>
-                    {badge.text}
-                  </Typography>
-                </View>
-              </View>
-            )}
-
             {/* Avatar centered */}
             <Box style={{ alignItems: 'center' }}>
-              <AIAvatar
-                icon={ai.icon || ai.name.charAt(0)}
-                iconType={ai.iconType || 'letter'}
-                size="large"
-                color={ai.color}
-                isSelected={isSelected}
-                providerId={ai.provider}
-                style={{ flex: 1 }}
-              />
+              <View style={styles.avatarBadgeAnchor}>
+                <AIAvatar
+                  icon={ai.icon || ai.name.charAt(0)}
+                  iconType={ai.iconType || 'letter'}
+                  size="large"
+                  color={ai.color}
+                  isSelected={isSelected}
+                  providerId={ai.provider}
+                />
+
+                {badge && (
+                  <View
+                    style={[
+                      styles.badge,
+                      { backgroundColor: badge.color || theme.colors.success[500] },
+                    ]}
+                  >
+                    <Typography variant="caption" style={styles.badgeText}>
+                      {badge.text}
+                    </Typography>
+                  </View>
+                )}
+              </View>
             </Box>
             
             {/* Dropdowns with full width */}
@@ -168,16 +166,18 @@ export const AICard: React.FC<AICardProps> = ({
 };
 
 const styles = StyleSheet.create({
-  badgeRow: {
-    alignItems: 'flex-start',
-    marginBottom: 6,
-    minHeight: 18,
-    paddingRight: 28,
+  avatarBadgeAnchor: {
+    position: 'relative',
+    overflow: 'visible',
   },
   badge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+    zIndex: 2,
   },
   badgeText: {
     color: '#FFFFFF',
