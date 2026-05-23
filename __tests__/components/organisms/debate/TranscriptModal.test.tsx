@@ -170,6 +170,47 @@ describe('TranscriptModal', () => {
       expect(getByText('Counter argument')).toBeTruthy();
     });
 
+    it('renders formal speech labels from debate speech metadata', () => {
+      const speechMessages: Message[] = [
+        {
+          ...mockMessages[0],
+          metadata: {
+            debateSpeech: {
+              formatId: 'policy',
+              presetId: 'standard',
+              messageIndex: 0,
+              totalMessages: 12,
+              phase: 'constructive',
+              speaker: 'aff',
+              label: '1AC',
+            },
+          },
+        },
+        {
+          ...mockMessages[1],
+          metadata: {
+            debateSpeech: {
+              formatId: 'policy',
+              presetId: 'standard',
+              messageIndex: 1,
+              totalMessages: 12,
+              phase: 'cross_examination',
+              speaker: 'neg',
+              cxRole: 'questioner',
+              label: 'CX after 1AC',
+            },
+          },
+        },
+      ];
+
+      const { getByText } = renderWithProviders(
+        <TranscriptModal {...defaultProps} messages={speechMessages} />
+      );
+
+      expect(getByText('1AC')).toBeTruthy();
+      expect(getByText('CX after 1AC · Neg asks')).toBeTruthy();
+    });
+
     it('renders citations for cited debate messages', () => {
       const citedMessages: Message[] = [
         {
@@ -355,6 +396,39 @@ describe('TranscriptModal', () => {
       expect(html).toContain('Example Source');
       expect(html).toContain('https://example.com/source');
       expect(html).toContain('Evidence summary');
+    });
+
+    it('includes speech labels in generated PDF HTML', async () => {
+      const Print = require('expo-print') as { printToFileAsync: jest.Mock };
+      const speechMessages: Message[] = [
+        {
+          ...mockMessages[0],
+          metadata: {
+            debateSpeech: {
+              formatId: 'lincoln_douglas',
+              presetId: 'standard',
+              messageIndex: 6,
+              totalMessages: 8,
+              phase: 'rebuttal',
+              speaker: 'aff',
+              label: 'Affirmative Rebuttal (AR)',
+            },
+          },
+        },
+      ];
+
+      const { getByTestId } = renderWithProviders(
+        <TranscriptModal {...defaultProps} messages={speechMessages} />
+      );
+
+      fireEvent.press(getByTestId('save-button'));
+
+      await waitFor(() => {
+        expect(Print.printToFileAsync).toHaveBeenCalled();
+      });
+
+      const html = Print.printToFileAsync.mock.calls[0][0].html;
+      expect(html).toContain('Affirmative Rebuttal (AR)');
     });
 
     it('shows error toast when save fails', async () => {

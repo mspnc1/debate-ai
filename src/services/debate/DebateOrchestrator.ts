@@ -4,7 +4,7 @@
  * Coordinates between all other debate services and manages state transitions
  */
 
-import { AI, Message, ChatSession, Citation } from '../../types';
+import { AI, Message, ChatSession, Citation, type DebateSpeechMetadata } from '../../types';
 import { AIService } from '../aiAdapter';
 import { DebateRulesEngine } from './DebateRulesEngine';
 import { VotingService } from './VotingService';
@@ -21,6 +21,7 @@ import {
   getPresetIdForRounds,
   type DebateFormatId,
   type FormatSpec,
+  type MessageSpec,
   type PresetConfig,
 } from '../../config/debate/formats';
 import { getExpertOverrides } from '../../utils/expertMode';
@@ -123,7 +124,8 @@ export class DebateOrchestrator {
   private buildAIResponseMetadata(
     ai: AI,
     modelUsed?: string,
-    citations?: Citation[]
+    citations?: Citation[],
+    debateSpeech?: DebateSpeechMetadata
   ): Message['metadata'] {
     const metadata: Message['metadata'] = {
       providerId: ai.id,
@@ -138,7 +140,29 @@ export class DebateOrchestrator {
       metadata.citations = citations;
     }
 
+    if (debateSpeech) {
+      metadata.debateSpeech = debateSpeech;
+    }
+
     return metadata;
+  }
+
+  private buildDebateSpeechMetadata(
+    messageIndex: number,
+    messageSpec: MessageSpec
+  ): DebateSpeechMetadata | undefined {
+    if (!this.session) return undefined;
+
+    return {
+      formatId: this.session.format.id,
+      presetId: this.session.presetId,
+      messageIndex,
+      totalMessages: this.session.totalMessages,
+      phase: messageSpec.phase,
+      speaker: messageSpec.speaker,
+      ...(messageSpec.cxRole ? { cxRole: messageSpec.cxRole } : {}),
+      label: messageSpec.label,
+    };
   }
   
   /**
@@ -307,6 +331,7 @@ export class DebateOrchestrator {
     const aiIndex = messageSpec.speaker === 'aff' ? 0 : 1;
     const currentAI = participants[aiIndex];
     const phase = messageSpec.phase;
+    const debateSpeech = this.buildDebateSpeechMetadata(messageIndex, messageSpec);
     const currentRound = this.currentVoteIndex + 1;
 
     if (currentRound !== this.session.currentRound) {
@@ -445,7 +470,7 @@ export class DebateOrchestrator {
           senderType: 'ai',
           content: '',
           timestamp: Date.now(),
-          metadata: this.buildAIResponseMetadata(currentAI, currentAI.model),
+          metadata: this.buildAIResponseMetadata(currentAI, currentAI.model, undefined, debateSpeech),
         };
 
         const messageId = placeholderMessage.id;
@@ -511,7 +536,7 @@ export class DebateOrchestrator {
           const updated = {
             ...placeholderMessage,
             content: finalContent,
-            metadata: this.buildAIResponseMetadata(currentAI, currentAI.model, capturedCitations),
+            metadata: this.buildAIResponseMetadata(currentAI, currentAI.model, capturedCitations, debateSpeech),
           };
           this.currentMessages = [...existingMessages, updated];
         } else {
@@ -564,7 +589,7 @@ export class DebateOrchestrator {
               const updated = {
                 ...placeholderMessage,
                 content: normalizedAnswer.content,
-                metadata: this.buildAIResponseMetadata(currentAI, currentAI.model, normalizedAnswer.citations),
+                metadata: this.buildAIResponseMetadata(currentAI, currentAI.model, normalizedAnswer.citations, debateSpeech),
               };
               this.currentMessages = [...existingMessages, updated];
             } catch {
@@ -656,7 +681,7 @@ export class DebateOrchestrator {
           senderType: 'ai',
           content: normalizedAnswer.content,
           timestamp: Date.now(),
-          metadata: this.buildAIResponseMetadata(currentAI, modelUsed, normalizedAnswer.citations),
+          metadata: this.buildAIResponseMetadata(currentAI, modelUsed, normalizedAnswer.citations, debateSpeech),
         };
         this.currentMessages = [...existingMessages, aiMessage];
         this.emitEvent({

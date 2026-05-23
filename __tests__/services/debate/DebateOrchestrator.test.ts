@@ -1,7 +1,7 @@
 import { DebateOrchestrator, DebateStatus } from '@/services/debate/DebateOrchestrator';
 import { DEBATE_CONSTANTS } from '@/config/debateConstants';
 import { getPresetForFormat } from '@/config/debate/formats';
-import type { AI } from '@/types';
+import type { AI, Message } from '@/types';
 import { setProviderVerificationError } from '@/store/streamingSlice';
 
 const mockMergeAvailabilitiesStrict = jest.fn();
@@ -267,6 +267,12 @@ describe('DebateOrchestrator', () => {
       sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
     };
     const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    const addedMessages: Message[] = [];
+    orchestrator.addEventListener(event => {
+      if (event.type === 'message_added' && event.data.message) {
+        addedMessages.push(event.data.message as Message);
+      }
+    });
 
     await orchestrator.initializeDebate('Resolved: privacy is more important than security.', participants, {}, {
       formatId: 'lincoln_douglas',
@@ -281,6 +287,22 @@ describe('DebateOrchestrator', () => {
     expect(aiService.sendMessage.mock.calls[0][1]).toContain('Ask pointed questions');
     expect(aiService.sendMessage.mock.calls[1][0]).toBe('claude');
     expect(aiService.sendMessage.mock.calls[1][1]).toContain('Answer directly');
+    expect(addedMessages[0]?.metadata?.debateSpeech).toMatchObject({
+      formatId: 'lincoln_douglas',
+      presetId: 'standard',
+      messageIndex: 1,
+      totalMessages: 8,
+      phase: 'cross_examination',
+      speaker: 'neg',
+      cxRole: 'questioner',
+      label: 'Cross-Examination (CX)',
+    });
+    expect(addedMessages[1]?.metadata?.debateSpeech).toMatchObject({
+      messageIndex: 2,
+      speaker: 'aff',
+      cxRole: 'answerer',
+      label: 'Cross-Examination (CX)',
+    });
 
     jest.clearAllTimers();
     jest.useRealTimers();

@@ -56,6 +56,19 @@ const getVoteResultsFromMessages = (messages: Message[]): DebateVoteResult[] =>
     .filter((vote): vote is DebateVoteResult => Boolean(vote))
     .sort((a, b) => a.round - b.round);
 
+const getSpeechDisplayLabel = (message: Message): string | undefined => {
+  const speech = message.metadata?.debateSpeech;
+  if (!speech) return undefined;
+
+  if (speech.cxRole) {
+    const speakerLabel = speech.speaker === 'aff' ? 'Aff' : 'Neg';
+    const roleLabel = speech.cxRole === 'questioner' ? 'asks' : 'answers';
+    return `${speech.label} · ${speakerLabel} ${roleLabel}`;
+  }
+
+  return speech.label;
+};
+
 const getParticipantClassName = (name: string): string =>
   name.toLowerCase().replace(/[^a-z0-9_-]+/g, '');
 
@@ -254,6 +267,14 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
       display: flex;
       align-items: center;
     }
+
+    .speech-label {
+      color: ${pdfColors.text.secondary};
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
     
     .content {
       color: ${pdfColors.text.primary};
@@ -431,6 +452,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
       .map((msg) => {
         const aiClass = getParticipantClassName(msg.sender);
         const citations = getMessageCitations(msg);
+        const speechLabel = getSpeechDisplayLabel(msg);
         const citationsHTML = citations.length > 0
           ? `
         <div class="citations">
@@ -454,6 +476,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
         return `
       <div class="message ${aiClass}">
         <div class="participant ${aiClass}">${escapeHTML(msg.sender)}</div>
+        ${speechLabel ? `<div class="speech-label">${escapeHTML(speechLabel)}</div>` : ''}
         <div class="content">${escapeHTML(msg.content)}</div>
         ${citationsHTML}
       </div>
@@ -651,6 +674,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
 
           {debateMessages.map((msg, index) => {
             const citations = getMessageCitations(msg);
+            const speechLabel = getSpeechDisplayLabel(msg);
 
             return (
               <View
@@ -672,6 +696,16 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
                 >
                   {msg.sender}
                 </Typography>
+                {speechLabel && (
+                  <Typography
+                    variant="caption"
+                    weight="semibold"
+                    color="secondary"
+                    style={styles.speechLabel}
+                  >
+                    {speechLabel}
+                  </Typography>
+                )}
                 <Typography variant="body" style={{ lineHeight: 24 }}>
                   {msg.content}
                 </Typography>
@@ -795,6 +829,10 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderLeftWidth: 4,
+  },
+  speechLabel: {
+    marginBottom: 8,
+    textTransform: 'uppercase',
   },
   voteResultsCard: {
     marginVertical: 8,
