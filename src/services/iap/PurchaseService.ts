@@ -8,6 +8,7 @@ import type {
   ProductSubscriptionAndroidOfferDetails,
   PricingPhaseAndroid,
   SubscriptionOffer,
+  SubscriptionProductReplacementParamsAndroid,
 } from 'react-native-iap';
 import { SUBSCRIPTION_PRODUCTS, type PlanType } from '@/services/iap/products';
 import { isAndroidEmulatorStoreUnavailable } from '@/services/iap/environment';
@@ -37,7 +38,10 @@ type PendingPurchaseContext = {
   legacyOfferCount?: number;
   standardizedOfferCount?: number;
   productStatusAndroid?: string | null;
+  replacementProductId?: string | null;
 };
+
+const ANDROID_SUBSCRIPTION_REPLACEMENT_MODE = 'without-proration' as const;
 
 /** Timeout helper for promises */
 function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> {
@@ -211,6 +215,38 @@ function redactOfferToken(candidate: AndroidOfferCandidate): Omit<AndroidOfferCa
     basePlanId: candidate.basePlanId,
     offerId: candidate.offerId,
     phaseCount: candidate.phaseCount,
+  };
+}
+
+function getPurchaseProductId(purchase: Purchase): string | null {
+  const productId = purchase.productId;
+  if (productId) return productId;
+  const ids = (purchase as Purchase & { ids?: string[] }).ids;
+  return ids?.[0] ?? null;
+}
+
+function getAndroidSubscriptionReplacementParams(
+  purchases: Purchase[],
+  targetSku: string
+): SubscriptionProductReplacementParamsAndroid | null {
+  const subscriptionSkus = new Set<string>([
+    SUBSCRIPTION_PRODUCTS.monthly,
+    SUBSCRIPTION_PRODUCTS.annual,
+  ]);
+
+  const existingSubscription = purchases.find((purchase) => {
+    const productId = getPurchaseProductId(purchase);
+    return Boolean(productId && productId !== targetSku && subscriptionSkus.has(productId));
+  });
+  const oldProductId = existingSubscription ? getPurchaseProductId(existingSubscription) : null;
+
+  if (!oldProductId) {
+    return null;
+  }
+
+  return {
+    oldProductId,
+    replacementMode: ANDROID_SUBSCRIPTION_REPLACEMENT_MODE,
   };
 }
 
@@ -446,7 +482,7 @@ export class PurchaseService {
     }
 
     try {
-      const { fetchProducts, requestPurchase } = await getIapModule();
+      const { fetchProducts, getAvailablePurchases, requestPurchase } = await getIapModule();
       console.warn('[IAP] purchaseSubscription starting for plan:', plan);
 
       // Ensure IAP is initialized (handles hot reload scenarios)
@@ -560,6 +596,17 @@ export class PurchaseService {
 
         console.warn('[IAP] Android: Calling requestSubscription for', sku);
         const obfuscatedAccountId = await this.deriveAppAccountToken(user.uid);
+        const availablePurchases = await getAvailablePurchases().catch((purchaseLookupError: unknown) => {
+          ErrorService.handleSilent(purchaseLookupError, {
+            action: 'iap_get_available_purchases_for_replacement',
+            productId: sku,
+          });
+          return [] as Purchase[];
+        });
+        const replacementParams = getAndroidSubscriptionReplacementParams(availablePurchases, sku);
+        if (replacementParams) {
+          console.warn('[IAP] Android: Adding subscription replacement params for', sku, 'from', replacementParams.oldProductId);
+        }
         this.pendingPurchaseSku = sku; // Mark that we're expecting this purchase
         this.pendingPurchaseContext = {
           sku,
@@ -569,6 +616,7 @@ export class PurchaseService {
           legacyOfferCount: product.subscriptionOfferDetailsAndroid?.length ?? 0,
           standardizedOfferCount: product.subscriptionOffers?.length ?? 0,
           productStatusAndroid: product.productStatusAndroid,
+          replacementProductId: replacementParams?.oldProductId ?? null,
         };
         // For Android, subscriptionOffers contains the sku and offerToken
         await requestPurchase({
@@ -578,6 +626,9 @@ export class PurchaseService {
               skus: [sku],
               obfuscatedAccountId,
               subscriptionOffers: [{ sku, offerToken: selectedOffer.token }],
+              ...(replacementParams
+                ? { subscriptionProductReplacementParams: replacementParams }
+                : {}),
             },
           },
         });

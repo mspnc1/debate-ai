@@ -493,6 +493,58 @@ describe('PurchaseService', () => {
         });
       });
 
+      it('should pass Android replacement params when switching subscription products', async () => {
+        const mockProduct = {
+          id: SUBSCRIPTION_PRODUCTS.annual,
+          productId: SUBSCRIPTION_PRODUCTS.annual,
+          subscriptionOfferDetailsAndroid: [
+            {
+              offerToken: 'annual-offer-token',
+              basePlanId: 'annual-base',
+              offerId: null,
+              offerTags: [],
+              pricingPhases: {
+                pricingPhaseList: [
+                  {
+                    priceAmountMicros: '49990000',
+                    billingPeriod: 'P1Y',
+                    recurrenceMode: 1,
+                    billingCycleCount: 0,
+                    formattedPrice: '$49.99',
+                    priceCurrencyCode: 'USD',
+                  },
+                ],
+              },
+            },
+          ],
+        } as Partial<ProductSubscriptionAndroid>;
+
+        mockFetchProducts.mockResolvedValue([mockProduct]);
+        mockGetAvailablePurchases.mockResolvedValue([
+          {
+            productId: SUBSCRIPTION_PRODUCTS.monthly,
+            purchaseToken: 'existing-monthly-token',
+          },
+        ]);
+
+        await PurchaseService.purchaseSubscription('annual');
+
+        expect(mockRequestPurchase).toHaveBeenCalledWith({
+          type: 'subs',
+          request: {
+            google: {
+              skus: [SUBSCRIPTION_PRODUCTS.annual],
+              obfuscatedAccountId: 'hashed-token-123',
+              subscriptionOffers: [{ sku: SUBSCRIPTION_PRODUCTS.annual, offerToken: 'annual-offer-token' }],
+              subscriptionProductReplacementParams: {
+                oldProductId: SUBSCRIPTION_PRODUCTS.monthly,
+                replacementMode: 'without-proration',
+              },
+            },
+          },
+        });
+      });
+
       it('should prefer legacy Android offer details over standardized offers', async () => {
         const mockProduct = {
           id: SUBSCRIPTION_PRODUCTS.monthly,
