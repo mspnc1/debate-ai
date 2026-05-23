@@ -5,7 +5,13 @@
 
 import { AI } from '../../types';
 import { DEBATE_CONSTANTS } from '../../config/debateConstants';
-import { getPresetForFormat, getPresetIdForRounds, type FormatSpec, type PresetConfig } from '../../config/debate/formats';
+import {
+  getPresetForFormat,
+  getPresetIdForRounds,
+  type DebateFormatId,
+  type FormatSpec,
+  type PresetConfig,
+} from '../../config/debate/formats';
 
 export interface VoteRecord {
   round: number;
@@ -42,18 +48,30 @@ function isFormatSpec(value: PresetConfig | FormatSpec | undefined): value is Fo
 export class VotingService {
   private participants: AI[];
   private preset: PresetConfig;
+  private formatId: DebateFormatId = 'oxford';
   private votingLabels: string[];
   private totalVotes: number;
   private votes: Map<number, VoteRecord> = new Map();
   private overallWinner?: string;
 
-  constructor(participants: AI[], presetOrFormat: PresetConfig | FormatSpec, legacyMaxRounds?: number) {
+  constructor(
+    participants: AI[],
+    presetOrFormat: PresetConfig | FormatSpec,
+    legacyMaxRoundsOrFormatId?: number | DebateFormatId
+  ) {
     this.participants = participants;
 
     if (isPresetConfig(presetOrFormat)) {
       this.preset = presetOrFormat;
+      if (typeof legacyMaxRoundsOrFormatId === 'string') {
+        this.formatId = legacyMaxRoundsOrFormatId;
+      }
     } else if (isFormatSpec(presetOrFormat)) {
-      const presetId = getPresetIdForRounds(legacyMaxRounds);
+      this.formatId = presetOrFormat.id;
+      const rounds = typeof legacyMaxRoundsOrFormatId === 'number'
+        ? legacyMaxRoundsOrFormatId
+        : undefined;
+      const presetId = getPresetIdForRounds(rounds);
       this.preset = presetOrFormat.presets.find((preset) => preset.id === presetId) || presetOrFormat.presets[0];
     } else {
       this.preset = getPresetForFormat('oxford', 'short');
@@ -63,6 +81,22 @@ export class VotingService {
       .filter((message) => message.voteAfter)
       .map((message) => message.votingLabel || message.label || 'Exchange');
     this.totalVotes = this.votingLabels.length;
+  }
+
+  getBallotCriterion(isOverallVote: boolean = false): string {
+    const scope = isOverallVote ? 'Final ballot' : 'Ballot';
+
+    switch (this.formatId) {
+      case 'lincoln_douglas':
+        return `${scope}: judge the value clash. Who better upheld their value and criterion while answering the opponent?`;
+      case 'policy':
+        return `${scope}: judge the policy burden. Who better proved solvency, impacts, and comparative advantage?`;
+      case 'socratic':
+        return `${scope}: judge the inquiry. Who clarified assumptions and advanced understanding?`;
+      case 'oxford':
+      default:
+        return `${scope}: judge the motion. Who presented the clearer case, rebuttal, and voters?`;
+    }
   }
 
   recordRoundVote(round: number, winnerId: string): VoteRecord {

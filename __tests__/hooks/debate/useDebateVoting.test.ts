@@ -14,6 +14,7 @@ class MockVotingService {
 
   calculateScores = jest.fn(() => this.scores);
   getVotingPrompt = jest.fn(() => this.prompt);
+  getBallotCriterion = jest.fn(() => 'Ballot: judge the motion.');
   hasVotedForRound = jest.fn((round: number) => this.voted.has(round));
 }
 
@@ -65,6 +66,8 @@ describe('useDebateVoting', () => {
 
     expect(result.current.getVotingPrompt()).toBe('🏅 Who won Opening?');
     expect(orchestrator.votingService.getVotingPrompt).toHaveBeenCalledWith(0, false, false);
+    expect(result.current.getVotingBallotCriterion()).toBe('Ballot: judge the motion.');
+    expect(orchestrator.votingService.getBallotCriterion).toHaveBeenCalledWith(false);
 
     act(() => {
       orchestrator.emit({ type: 'voting_started', data: { round: 1, isFinalRound: false, isOverallVote: false }, timestamp: Date.now() });
@@ -101,6 +104,8 @@ describe('useDebateVoting', () => {
     expect(orchestrator.recordVote).toHaveBeenLastCalledWith(3, 'gpt4', true);
     expect(result.current.getVotingPrompt()).toBe('🏆 Vote for Overall Winner!');
     expect(orchestrator.votingService.getVotingPrompt).toHaveBeenLastCalledWith(3, true, true);
+    expect(result.current.getVotingBallotCriterion()).toBe('Ballot: judge the motion.');
+    expect(orchestrator.votingService.getBallotCriterion).toHaveBeenLastCalledWith(true);
 
     // History is populated when debate_ended event is emitted (not during recordVote)
     act(() => {
@@ -122,6 +127,7 @@ describe('useDebateVoting', () => {
     );
 
     expect(result.current.getVotingPrompt()).toBe('');
+    expect(result.current.getVotingBallotCriterion()).toBe('');
     expect(result.current.hasVotedForRound(5)).toBe(false);
 
     await act(async () => {

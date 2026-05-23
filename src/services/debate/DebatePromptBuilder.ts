@@ -19,6 +19,67 @@ export interface PromptContext {
   messageCount: number;
 }
 
+type CxRole = 'questioner' | 'answerer';
+
+const getFormatPhaseConstraint = (
+  formatId: FormatSpec['id'] | undefined,
+  phase: PhaseId,
+  cxRole?: CxRole
+): string => {
+  switch (formatId) {
+    case 'lincoln_douglas':
+      if (phase === 'constructive') {
+        return 'Lincoln-Douglas structure: define the central value and criterion, then organize contentions under that standard. Do not drift into a policy plan.';
+      }
+      if (phase === 'cross_examination') {
+        return cxRole === 'questioner'
+          ? 'Lincoln-Douglas CX: test definitions, the value criterion, and whether contentions actually link back to that standard.'
+          : 'Lincoln-Douglas CX: answer directly, defend your value and criterion, and do not introduce a new constructive case.';
+      }
+      if (phase === 'rebuttal' || phase === 'final_rebuttal' || phase === 'closing') {
+        return 'Lincoln-Douglas weighing: compare the value clash and criterion directly; explain why your standard decides the round.';
+      }
+      return '';
+    case 'policy':
+      if (phase === 'constructive') {
+        return 'Policy structure: identify the plan, counterplan, or status quo burden; explain solvency, harms or advantages, and impact links.';
+      }
+      if (phase === 'cross_examination') {
+        return cxRole === 'questioner'
+          ? 'Policy CX: clarify plan text, solvency mechanism, burden, and the impact chain.'
+          : 'Policy CX: answer concessions directly, defend the plan, counterplan, or burden, and do not evade.';
+      }
+      if (phase === 'rebuttal' || phase === 'final_rebuttal' || phase === 'closing') {
+        return 'Policy weighing: compare impacts, collapse to the winning issues, and state the decision rule.';
+      }
+      return '';
+    case 'oxford':
+      if (phase === 'opening') {
+        return 'Oxford opening: frame the motion and burden clearly. Build your case without rebutting yet.';
+      }
+      if (phase === 'rebuttal' || phase === 'final_rebuttal') {
+        return 'Oxford rebuttal: answer prior claims and rebuild your case. Avoid new main contentions unless needed to resolve a clash.';
+      }
+      if (phase === 'closing') {
+        return 'Oxford closing: crystallize the voters and do not introduce new claims.';
+      }
+      return '';
+    case 'socratic':
+      if (phase === 'opening' || phase === 'question') {
+        return 'Socratic inquiry: stay question-led, surface assumptions, and avoid grandstanding.';
+      }
+      if (phase === 'rebuttal') {
+        return 'Socratic follow-up: probe tensions in the prior answer and keep the exchange inquiry-led.';
+      }
+      if (phase === 'synthesis' || phase === 'closing') {
+        return 'Socratic synthesis: name the clearest insight, remaining assumption, or unresolved tension.';
+      }
+      return '';
+    default:
+      return '';
+  }
+};
+
 export class DebatePromptBuilder {
   // Build a minimal per-turn prompt (no persona reinjection)
   buildTurnPrompt(params: {
@@ -84,6 +145,7 @@ export class DebatePromptBuilder {
       synthesis: 'Identify the strongest insight or unresolved tension; be concise.',
     } as const;
     const phaseHint = hintMap[phase];
+    const formatConstraint = getFormatPhaseConstraint(format?.id, phase, cxRole);
 
     // Final-round cue (duplicated here for emphasis)
     const finalCue = isFinalRound && phase === 'closing' ? 'Closing: reinforce your strongest point; no new claims; concise.' : '';
@@ -91,6 +153,7 @@ export class DebatePromptBuilder {
     return [
       `Turn: ${phaseLabel}`,
       phaseHint,
+      formatConstraint,
       prevGuarded,
       base,
       `Respond about "${topic}". Maintain your assigned stance strictly; do not switch sides.`,

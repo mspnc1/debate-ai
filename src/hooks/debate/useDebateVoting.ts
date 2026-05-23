@@ -18,6 +18,7 @@ export interface UseDebateVotingReturn {
   hasVotedForRound: (round: number) => boolean;
   recordVote: (aiId: string) => Promise<void>;
   getVotingPrompt: () => string;
+  getVotingBallotCriterion: () => string;
   error: string | null;
 }
 
@@ -144,6 +145,16 @@ export const useDebateVoting = (
     }
     return '';
   }, [orchestrator, votingRound, isFinalVote, isOverallVote]);
+
+  const getVotingBallotCriterion = useCallback((): string => {
+    if (orchestrator) {
+      const votingService = orchestrator.getVotingService();
+      if (votingService) {
+        return votingService.getBallotCriterion(isOverallVote);
+      }
+    }
+    return '';
+  }, [orchestrator, isOverallVote]);
   
   // Initialize scores when orchestrator is available
   useEffect(() => {
@@ -159,6 +170,7 @@ export const useDebateVoting = (
     hasVotedForRound,
     recordVote,
     getVotingPrompt,
+    getVotingBallotCriterion,
     error,
   };
 };

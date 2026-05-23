@@ -1,5 +1,5 @@
 import { VotingService } from '@/services/debate/VotingService';
-import { LINCOLN_DOUGLAS_FORMAT, getPresetForFormat } from '@/config/debate/formats';
+import { LINCOLN_DOUGLAS_FORMAT, POLICY_FORMAT, getPresetForFormat } from '@/config/debate/formats';
 import type { AI } from '@/types';
 
 describe('VotingService', () => {
@@ -58,5 +58,16 @@ describe('VotingService', () => {
 
     expect(service.getTotalVotes()).toBe(3);
     expect(service.getVotingPrompt(2, false, false)).toBe('🏅 Who won Cross-Examination?');
+  });
+
+  it('provides format-specific ballot criteria', () => {
+    const ldService = new VotingService(participants, LINCOLN_DOUGLAS_FORMAT, 5);
+    const policyService = new VotingService(participants, POLICY_FORMAT, 5);
+    const presetService = new VotingService(participants, getPresetForFormat('socratic', 'short'), 'socratic');
+
+    expect(ldService.getBallotCriterion()).toContain('value clash');
+    expect(policyService.getBallotCriterion()).toContain('policy burden');
+    expect(presetService.getBallotCriterion(true)).toContain('Final ballot');
+    expect(presetService.getBallotCriterion(true)).toContain('judge the inquiry');
   });
 });

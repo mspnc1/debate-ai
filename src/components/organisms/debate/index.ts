@@ -6,6 +6,7 @@
 export { DebateHeader } from './DebateHeader';
 export { TopicSelector } from './TopicSelector';
 export { DebateMessageList } from './DebateMessageList';
+export { DebateTurnTimeline } from './DebateTurnTimeline';
 export { VotingInterface } from './VotingInterface';
 export { ScoreDisplay } from './ScoreDisplay';
 export { SystemAnnouncement } from './SystemAnnouncement';
@@ -28,6 +29,7 @@ export { DebateStepIndicator } from './DebateStepIndicator';
 export type { DebateHeaderProps } from './DebateHeader';
 export type { TopicSelectorProps } from './TopicSelector';
 export type { DebateMessageListProps } from './DebateMessageList';
+export type { DebateTurnTimelineProps } from './DebateTurnTimeline';
 export type { VotingInterfaceProps } from './VotingInterface';
 export type { ScoreDisplayProps } from './ScoreDisplay';
 export type { SystemAnnouncementProps } from './SystemAnnouncement';

@@ -4,6 +4,8 @@ import { act } from '@testing-library/react-native';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
 import { createAppStore, showSheet } from '@/store';
 import type { AI, Message } from '@/types';
+import { getPresetForFormat } from '@/config/debate/formats';
+import type { DebateTurnTimelineProps } from '@/components/organisms/debate/DebateTurnTimeline';
 
 // Mock ErrorService
 const mockHandleWithToast = jest.fn();
@@ -36,6 +38,7 @@ let mockTopicSelectorProps: any;
 let mockDebateMessageListProps: any;
 let mockVotingInterfaceProps: any;
 let mockScoreDisplayProps: any;
+let mockDebateTurnTimelineProps: DebateTurnTimelineProps | undefined;
 let mockDemoBannerProps: any;
 let mockDemoSamplesBarProps: any;
 let mockVictoryProps: any;
@@ -93,6 +96,10 @@ jest.mock('@/components/organisms', () => {
     DebateMessageList: (props: any) => {
       mockDebateMessageListProps = props;
       return React.createElement(Text, { testID: 'debate-message-list' }, `messages:${props.messages?.length ?? 0}`);
+    },
+    DebateTurnTimeline: (props: DebateTurnTimelineProps) => {
+      mockDebateTurnTimelineProps = props;
+      return React.createElement(Text, { testID: 'debate-turn-timeline' }, 'timeline');
     },
     VotingInterface: (props: any) => {
       mockVotingInterfaceProps = props;
@@ -227,6 +234,7 @@ beforeEach(() => {
   mockDebateMessageListProps = undefined;
   mockVotingInterfaceProps = undefined;
   mockScoreDisplayProps = undefined;
+  mockDebateTurnTimelineProps = undefined;
   mockDemoBannerProps = undefined;
   mockDemoSamplesBarProps = undefined;
   mockVictoryProps = undefined;
@@ -254,6 +262,8 @@ const createFlowState = (overrides: Record<string, unknown> = {}) => ({
   startDebate: jest.fn().mockResolvedValue(undefined),
   isDebateActive: false,
   isDebateEnded: false,
+  currentMessageIndex: 0,
+  totalMessages: 0,
   error: null,
   ...overrides,
 });
@@ -265,6 +275,7 @@ const createVotingState = (overrides: Record<string, unknown> = {}) => ({
   votingRound: 1,
   scores: null,
   getVotingPrompt: jest.fn().mockReturnValue('Vote now'),
+  getVotingBallotCriterion: jest.fn().mockReturnValue('Ballot: judge the motion.'),
   recordVote: jest.fn().mockResolvedValue(undefined),
   error: null,
   ...overrides,
@@ -413,15 +424,16 @@ describe('DebateScreen', () => {
 
   it('displays messages, voting, and scores when debate is active', async () => {
     const recordVote = jest.fn().mockResolvedValue(undefined);
+    const preset = getPresetForFormat('lincoln_douglas', 'standard');
 
     renderScreen({
-      flow: { isDebateActive: true },
+      flow: { isDebateActive: true, currentMessageIndex: 2, currentTurnLabel: 'Cross-Examination (CX) · answering' },
       messages: {
         messages: [
           { id: 'm1', sender: 'Host', senderType: 'ai', content: 'Opening', timestamp: 1 } as Message,
         ],
       },
-      session: { isInitialized: true, session: { topic: 'Topic' }, orchestrator: {} },
+      session: { isInitialized: true, session: { topic: 'Topic', preset }, orchestrator: {} },
       voting: {
         isVoting: true,
         scores: {
@@ -435,7 +447,10 @@ describe('DebateScreen', () => {
     await flushMicrotasks();
 
     expect(mockDebateMessageListProps.messages).toHaveLength(1);
+    expect(mockDebateTurnTimelineProps.messages).toHaveLength(preset.messages.length);
+    expect(mockDebateTurnTimelineProps.currentMessageIndex).toBe(2);
     expect(mockVotingInterfaceProps).toBeDefined();
+    expect(mockVotingInterfaceProps.ballotCriterion).toBe('Ballot: judge the motion.');
     expect(mockScoreDisplayProps.scores.left.roundWins).toBe(1);
 
     mockVotingInterfaceProps.onVote('left');

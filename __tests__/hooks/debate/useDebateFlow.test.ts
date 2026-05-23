@@ -26,6 +26,8 @@ class MockOrchestrator {
     status: DebateStatus.PENDING,
     currentRound: 1,
     totalRounds: 3,
+    messageIndex: 0,
+    totalMessages: getPresetForFormat('oxford', 'short').messages.length,
     preset: getPresetForFormat('oxford', 'short'),
   };
   public startDebate = jest.fn(async () => undefined);
@@ -95,6 +97,8 @@ describe('useDebateFlow', () => {
 
     expect(result.current.isDebateActive).toBe(true);
     expect(result.current.maxRounds).toBe(3);
+    expect(result.current.totalMessages).toBe(6);
+    expect(result.current.currentMessageIndex).toBe(0);
     expect(result.current.currentTurnLabel).toBe('Opening Statement');
 
     act(() => {
@@ -108,6 +112,7 @@ describe('useDebateFlow', () => {
         data: {
           messageId: 'm1',
           aiProvider: 'claude',
+          messageIndex: 1,
           messageLabel: 'Cross-Examination (CX)',
           phase: 'cross_examination',
           cxRole: 'questioner',
@@ -116,6 +121,7 @@ describe('useDebateFlow', () => {
       });
     });
     expect(store.getState().streaming.streamingMessages.m1).toBeDefined();
+    expect(result.current.currentMessageIndex).toBe(1);
     expect(result.current.currentTurnLabel).toBe('Cross-Examination (CX) · questioning');
 
     act(() => {
@@ -339,6 +345,8 @@ describe('useDebateFlow', () => {
     expect(result.current.isDebateActive).toBe(false);
     expect(result.current.isDebateEnded).toBe(false);
     expect(result.current.currentRound).toBe(1);
+    expect(result.current.currentMessageIndex).toBe(0);
+    expect(result.current.totalMessages).toBe(0);
 
     act(() => {
       orchestratorB.emit({ type: 'debate_started', data: { session: orchestratorB.session }, timestamp: Date.now() });

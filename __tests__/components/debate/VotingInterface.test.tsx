@@ -41,11 +41,13 @@ describe('VotingInterface', () => {
           right: { name: 'GPT-4', roundWins: 1, roundsWon: [3], isOverallWinner: false },
         }}
         votingPrompt="Pick the champion"
+        ballotCriterion="Final ballot: judge the policy burden."
         onVote={jest.fn()}
       />
     );
 
     expect(getByText('Pick the champion')).toBeTruthy();
+    expect(getByText('Final ballot: judge the policy burden.')).toBeTruthy();
     expect(getAllByText('Claude').length).toBeGreaterThan(0);
     expect(getByText('2')).toBeTruthy();
   });

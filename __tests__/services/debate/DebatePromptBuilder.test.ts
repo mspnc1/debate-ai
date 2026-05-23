@@ -1,7 +1,12 @@
 import { DebatePromptBuilder } from '@/services/debate/DebatePromptBuilder';
 import { DEBATE_CONSTANTS } from '@/config/debateConstants';
 import type { AI, Message } from '@/types';
-import { OXFORD_FORMAT } from '@/config/debate/formats';
+import {
+  LINCOLN_DOUGLAS_FORMAT,
+  OXFORD_FORMAT,
+  POLICY_FORMAT,
+  SOCRATIC_FORMAT,
+} from '@/config/debate/formats';
 
 describe('DebatePromptBuilder', () => {
   const builder = new DebatePromptBuilder();
@@ -28,6 +33,48 @@ describe('DebatePromptBuilder', () => {
     expect(prompt).not.toContain('PG humor');
     expect(prompt).toContain('Tone: neutral and professional');
     expect(prompt).toContain(DEBATE_CONSTANTS.PROMPT_MARKERS.PREVIOUS_SPEAKER);
+  });
+
+  it('adds Lincoln-Douglas value and criterion constraints', () => {
+    const prompt = builder.buildTurnPrompt({
+      topic: 'Civil disobedience is morally justified.',
+      phase: 'constructive',
+      format: LINCOLN_DOUGLAS_FORMAT,
+    });
+
+    expect(prompt).toContain('central value and criterion');
+    expect(prompt).toContain('Do not drift into a policy plan');
+  });
+
+  it('adds Policy cross-examination and weighing constraints', () => {
+    const cxPrompt = builder.buildTurnPrompt({
+      topic: 'The city should adopt congestion pricing.',
+      phase: 'cross_examination',
+      cxRole: 'questioner',
+      format: POLICY_FORMAT,
+    });
+    const rebuttalPrompt = builder.buildTurnPrompt({
+      topic: 'The city should adopt congestion pricing.',
+      phase: 'rebuttal',
+      previousMessage: 'The plan creates enforcement costs.',
+      format: POLICY_FORMAT,
+    });
+
+    expect(cxPrompt).toContain('clarify plan text');
+    expect(cxPrompt).toContain('impact chain');
+    expect(rebuttalPrompt).toContain('compare impacts');
+    expect(rebuttalPrompt).toContain('decision rule');
+  });
+
+  it('keeps Socratic turns question-led and assumption-focused', () => {
+    const prompt = builder.buildTurnPrompt({
+      topic: 'Technology makes us less free.',
+      phase: 'question',
+      format: SOCRATIC_FORMAT,
+    });
+
+    expect(prompt).toContain('question-led');
+    expect(prompt).toContain('surface assumptions');
   });
 
   it('extracts previous opponent message while skipping current speaker', () => {

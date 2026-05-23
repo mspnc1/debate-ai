@@ -30,6 +30,8 @@ export interface UseDebateFlowReturn {
   currentMessageLabel?: string;
   currentCxRole?: 'questioner' | 'answerer';
   currentTurnLabel?: string;
+  currentMessageIndex: number;
+  totalMessages: number;
 }
 
 const PHASE_LABELS: Record<PhaseId, string> = {
@@ -79,6 +81,8 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
   const [currentPhase, setCurrentPhase] = useState<PhaseId | undefined>(undefined);
   const [currentMessageLabel, setCurrentMessageLabel] = useState<string | undefined>(undefined);
   const [currentCxRole, setCurrentCxRole] = useState<'questioner' | 'answerer' | undefined>(undefined);
+  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
+  const [totalMessages, setTotalMessages] = useState(0);
   
   // Use ref to track if we've started the debate to prevent multiple starts
   const hasStartedRef = useRef(false);
@@ -92,6 +96,9 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
         : undefined;
       const phase = isPhaseId(event.data.phase) ? event.data.phase : undefined;
       const cxRole = toCxRole(event.data.cxRole);
+      if (typeof event.data.messageIndex === 'number') {
+        setCurrentMessageIndex(event.data.messageIndex);
+      }
 
       if (messageLabel || phase) {
         setCurrentMessageLabel(messageLabel);
@@ -122,7 +129,9 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
         // Initialize rounds from the session payload if present
         const session = (event.data?.session || null) as {
           totalRounds?: number;
+          totalMessages?: number;
           currentRound?: number;
+          messageIndex?: number;
           preset?: {
             messages?: Array<{
               label?: string;
@@ -132,7 +141,13 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
           };
         } | null;
         if (session?.totalRounds) setMaxRounds(session.totalRounds);
+        if (session?.totalMessages) setTotalMessages(session.totalMessages);
         if (session?.currentRound) setCurrentRound(session.currentRound);
+        if (typeof session?.messageIndex === 'number') {
+          setCurrentMessageIndex(session.messageIndex);
+        } else {
+          setCurrentMessageIndex(0);
+        }
         const firstMessage = session?.preset?.messages?.[0];
         setCurrentMessageLabel(firstMessage?.label);
         setCurrentPhase(isPhaseId(firstMessage?.phase) ? firstMessage.phase : undefined);
@@ -266,6 +281,8 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
         setIsDebateEnded(session.status === DebateStatus.COMPLETED);
         setCurrentRound(session.currentRound);
         setMaxRounds(session.totalRounds);
+        setCurrentMessageIndex(session.messageIndex);
+        setTotalMessages(session.totalMessages);
       }
     }
   }, [orchestrator]);
@@ -301,6 +318,8 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
     setCurrentMessageLabel(undefined);
     setCurrentPhase(undefined);
     setCurrentCxRole(undefined);
+    setCurrentMessageIndex(0);
+    setTotalMessages(0);
   }, [orchestrator]);
   
   return {
@@ -314,5 +333,7 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
     currentMessageLabel,
     currentCxRole,
     currentTurnLabel,
+    currentMessageIndex,
+    totalMessages,
   };
 };

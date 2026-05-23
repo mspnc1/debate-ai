@@ -26,6 +26,7 @@ export interface VotingInterfaceProps {
   votingRound: number;
   scores?: ScoreBoard | null;
   votingPrompt: string;
+  ballotCriterion?: string;
   onVote: (aiId: string) => void;
 }
 
@@ -37,6 +38,7 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
   votingRound: _votingRound,
   scores,
   votingPrompt,
+  ballotCriterion,
   onVote,
 }) => {
   const { theme, isDark } = useTheme();
@@ -101,6 +103,21 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
     );
   };
 
+  const renderBallotCriterion = () => {
+    if (!ballotCriterion) return null;
+
+    return (
+      <Typography
+        variant="caption"
+        color="secondary"
+        align="center"
+        style={styles.ballotCriterion}
+      >
+        {ballotCriterion}
+      </Typography>
+    );
+  };
+
   const animatedContainerStyle = useAnimatedStyle(() => ({
     transform: [{ scale: containerScale.value }],
   }));
@@ -143,10 +160,11 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
                   variant="title"
                   weight="bold"
                   align="center"
-                  style={styles.title}
+                  style={[styles.title, !ballotCriterion && styles.titleWithoutCriterion]}
                 >
                   {votingPrompt}
                 </Typography>
+                {renderBallotCriterion()}
               </Animated.View>
 
               {renderCurrentScores()}
@@ -181,10 +199,11 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
                 variant="title"
                 weight="bold"
                 align="center"
-                style={styles.title}
+                style={[styles.title, !ballotCriterion && styles.titleWithoutCriterion]}
               >
                 {votingPrompt}
               </Typography>
+              {renderBallotCriterion()}
             </Animated.View>
 
             {renderCurrentScores()}
@@ -225,8 +244,16 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
-    marginBottom: 20,
+    marginBottom: 8,
     fontSize: 22,
+  },
+  titleWithoutCriterion: {
+    marginBottom: 20,
+  },
+  ballotCriterion: {
+    marginBottom: 20,
+    paddingHorizontal: 4,
+    lineHeight: 18,
   },
   currentScoresCard: {
     borderRadius: 16,

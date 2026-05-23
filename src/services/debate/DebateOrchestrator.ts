@@ -220,7 +220,7 @@ export class DebateOrchestrator {
     this.currentMessages = [];
     
     // Initialize services
-    this.votingService = new VotingService(resolvedParticipants, preset);
+    this.votingService = new VotingService(resolvedParticipants, preset, format.id);
     this.rulesEngine = new DebateRulesEngine(preset);
     
     // Update status
@@ -828,6 +828,7 @@ export class DebateOrchestrator {
         isFinalRound,
         isOverallVote: false,
         votingLabel: this.votingService?.getVotingLabel(round),
+        ballotCriterion: this.votingService?.getBallotCriterion(false),
       },
       timestamp: Date.now(),
     });

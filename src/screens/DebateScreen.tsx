@@ -27,6 +27,7 @@ import {
   DebateMessageList,
   VotingInterface,
   ScoreDisplay,
+  DebateTurnTimeline,
 } from '../components/organisms';
 import { VictoryCelebration } from '../components/organisms/debate/VictoryCelebration';
 import { TranscriptModal } from '../components/organisms/debate/TranscriptModal';
@@ -464,12 +465,22 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     }
     
     if (flow.isDebateActive || flow.isDebateEnded) {
+      const timelineMessages = session.session?.preset?.messages || [];
+
       return (
         <Animated.View 
           entering={FadeIn.duration(400)}
           layout={Layout.springify()}
           style={{ flex: 1 }}
         >
+          {timelineMessages.length > 0 && (
+            <DebateTurnTimeline
+              messages={timelineMessages}
+              currentMessageIndex={flow.currentMessageIndex}
+              currentTurnLabel={flow.currentTurnLabel}
+            />
+          )}
+
           <DebateMessageList
             messages={messages.messages}
             typingAIs={messages.typingAIs}
@@ -489,6 +500,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
                 votingRound={voting.votingRound}
                 scores={voting.scores || undefined}
                 votingPrompt={voting.getVotingPrompt()}
+                ballotCriterion={voting.getVotingBallotCriterion()}
                 onVote={handleVote}
               />
             </Animated.View>
