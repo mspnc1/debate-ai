@@ -50,7 +50,7 @@ describe('FormatModal', () => {
       const { getByText } = renderWithProviders(<FormatModal {...defaultProps} />);
 
       expect(getByText('Oxford')).toBeTruthy();
-      expect(getByText('Lincoln–Douglas')).toBeTruthy();
+      expect(getByText('Lincoln-Douglas')).toBeTruthy();
       expect(getByText('Policy')).toBeTruthy();
       expect(getByText('Socratic')).toBeTruthy();
     });
@@ -112,7 +112,7 @@ describe('FormatModal', () => {
         <FormatModal {...defaultProps} selected="lincoln_douglas" />
       );
 
-      const lincolnOption = getByText('Lincoln–Douglas').parent;
+      const lincolnOption = getByText('Lincoln-Douglas').parent;
       expect(lincolnOption).toBeTruthy();
     });
 
@@ -148,7 +148,7 @@ describe('FormatModal', () => {
     it('calls onSelect and onClose when Lincoln-Douglas format is pressed', () => {
       const { getByText } = renderWithProviders(<FormatModal {...defaultProps} />);
 
-      fireEvent.press(getByText('Lincoln–Douglas'));
+      fireEvent.press(getByText('Lincoln-Douglas'));
 
       expect(mockOnSelect).toHaveBeenCalledWith('lincoln_douglas');
       expect(mockOnClose).toHaveBeenCalled();
