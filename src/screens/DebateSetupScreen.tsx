@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
@@ -20,7 +20,8 @@ import {
 } from '../components/organisms/debate';
 
 import { useTheme } from '../theme';
-import { AIConfig } from '../types';
+import { AIConfig, type DebateVoiceConfig, type DebateVoiceSelection } from '../types';
+import type { MediaProviderVoiceOption } from '@/types/media';
 import type { DemoDebate } from '@/types/demo';
 import { AI_PROVIDERS } from '../config/aiProviders';
 import { FormatModal } from '../components/organisms/debate/FormatModal';
@@ -39,6 +40,9 @@ import { RecordController } from '@/services/demo/RecordController';
 import { DebateRecordPickerModal } from '@/components/organisms/demo/DebateRecordPickerModal';
 import { DemoDebatePickerModal } from '@/components/organisms/demo/DemoDebatePickerModal';
 import { DemoContentService } from '@/services/demo/DemoContentService';
+import APIKeyService from '@/services/APIKeyService';
+import MediaGenerationService from '@/services/media/MediaGenerationService';
+import { ErrorService } from '@/services/errors/ErrorService';
 
 interface DebateSetupScreenProps {
   navigation: {
@@ -75,6 +79,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   const { rs } = useResponsive();
   const greeting = useGreeting({ screenCategory: 'debate' });
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
+  const verifiedProviders = useSelector((state: RootState) => state.settings.verifiedProviders || []);
   const expertMode = useSelector((state: RootState) => state.settings.expertMode || {});
   const aiPersonalities = useSelector((state: RootState) => state.chat.aiPersonalities);
   const selectedModelsFromStore = useSelector((state: RootState) => state.chat.selectedModels);
@@ -147,6 +152,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     defaultTopic: string;
     providersKey: string;
     personaKey: string;
+    voiceConfig?: DebateVoiceConfig;
   } | null>(null);
   const [demoPickerVisible, setDemoPickerVisible] = useState(false);
   const [demoSamplesLoading, setDemoSamplesLoading] = useState(false);
@@ -155,6 +161,11 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     aiConfigs: AIConfig[];
     personaKey: string;
   } | null>(null);
+  const [voiceDebateEnabled, setVoiceDebateEnabled] = useState(false);
+  const [debateVoiceOptions, setDebateVoiceOptions] = useState<MediaProviderVoiceOption[]>([]);
+  const [debateVoiceSelections, setDebateVoiceSelections] = useState<Record<string, DebateVoiceSelection>>({});
+  const [debateVoicesLoading, setDebateVoicesLoading] = useState(false);
+  const [debateVoiceError, setDebateVoiceError] = useState<string | null>(null);
 
   const presetOptions = useMemo(() => [3, 5, 7].map((rounds) => ({
     rounds,
@@ -170,10 +181,109 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   const presetVoteLabels = useMemo(() => getPresetVoteLabels(selectedPreset), [selectedPreset]);
   
   const maxAIs = requiredDebaterCount;
+  const hasVerifiedElevenLabs = isApiKeyConfigured(apiKeys.elevenlabs) && verifiedProviders.includes('elevenlabs');
 
   useEffect(() => {
     setSelectedAIs((current) => current.slice(0, maxAIs));
   }, [maxAIs]);
+
+  const loadDebateVoices = useCallback(async () => {
+    if (!hasVerifiedElevenLabs || debateVoicesLoading) return;
+    try {
+      setDebateVoicesLoading(true);
+      setDebateVoiceError(null);
+      const key = await APIKeyService.getKey('elevenlabs');
+      if (!key) {
+        throw new Error('Add an ElevenLabs API key before enabling voiced debates.');
+      }
+      const options = await MediaGenerationService.listElevenLabsOptions(key, {
+        pageSize: 100,
+        includeTotalCount: true,
+        sort: 'name',
+        sortDirection: 'asc',
+      });
+      setDebateVoiceOptions(options.voices || []);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load ElevenLabs voices.';
+      setDebateVoiceError(message);
+      ErrorService.handleWithToast(error, { feature: 'debate', provider: 'elevenlabs' });
+    } finally {
+      setDebateVoicesLoading(false);
+    }
+  }, [debateVoicesLoading, hasVerifiedElevenLabs]);
+
+  useEffect(() => {
+    if (!hasVerifiedElevenLabs) {
+      setVoiceDebateEnabled(false);
+      setDebateVoiceSelections({});
+      return;
+    }
+    if (currentStep === 'personality' && debateVoiceOptions.length === 0 && !debateVoicesLoading) {
+      void loadDebateVoices();
+    }
+  }, [currentStep, debateVoiceOptions.length, debateVoicesLoading, hasVerifiedElevenLabs, loadDebateVoices]);
+
+  useEffect(() => {
+    if (!hasVerifiedElevenLabs || debateVoiceOptions.length === 0) return;
+    setDebateVoiceSelections((current) => {
+      const next: Record<string, DebateVoiceSelection> = {};
+      selectedAIs.forEach((ai, index) => {
+        const existing = current[ai.id];
+        if (existing && debateVoiceOptions.some((voice) => voice.id === existing.voiceId)) {
+          next[ai.id] = existing;
+          return;
+        }
+        const fallbackVoice = debateVoiceOptions[index % debateVoiceOptions.length];
+        if (fallbackVoice) {
+          next[ai.id] = {
+            voiceId: fallbackVoice.id,
+            voiceName: fallbackVoice.name,
+          };
+        }
+      });
+
+      const currentKeys = Object.keys(current).sort().join('|');
+      const nextKeys = Object.keys(next).sort().join('|');
+      if (currentKeys === nextKeys && Object.keys(next).every((key) => current[key]?.voiceId === next[key]?.voiceId)) {
+        return current;
+      }
+      return next;
+    });
+  }, [debateVoiceOptions, hasVerifiedElevenLabs, selectedAIs]);
+
+  const handleVoiceDebateToggle = useCallback((enabled: boolean) => {
+    setVoiceDebateEnabled(enabled);
+    if (enabled && debateVoiceOptions.length === 0) {
+      void loadDebateVoices();
+    }
+  }, [debateVoiceOptions.length, loadDebateVoices]);
+
+  const handleDebateVoiceSelect = useCallback((aiId: string, voice: MediaProviderVoiceOption) => {
+    setDebateVoiceSelections((current) => ({
+      ...current,
+      [aiId]: {
+        voiceId: voice.id,
+        voiceName: voice.name,
+      },
+    }));
+  }, []);
+
+  const buildDebateVoiceConfig = useCallback((): DebateVoiceConfig | undefined => {
+    if (!voiceDebateEnabled || !hasVerifiedElevenLabs) return undefined;
+    const debaterVoices: Record<string, DebateVoiceSelection> = {};
+    selectedAIs.forEach((ai) => {
+      const selection = debateVoiceSelections[ai.id];
+      if (selection) {
+        debaterVoices[ai.id] = selection;
+      }
+    });
+
+    return {
+      enabled: true,
+      providerId: 'elevenlabs',
+      debaterVoices,
+    };
+  }, [debateVoiceSelections, hasVerifiedElevenLabs, selectedAIs, voiceDebateEnabled]);
 
   // Save topic when navigating away
   useEffect(() => {
@@ -205,6 +315,8 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
       setFormatId('oxford');
       setExchanges(3);
       setCivility(1);
+      setVoiceDebateEnabled(false);
+      setDebateVoiceSelections({});
       dispatch(clearPreservedTopic());
       scrollViewRef.current?.scrollTo({ y: 0, animated: false });
       return;
@@ -270,7 +382,11 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     return 'default';
   };
 
-  const startDebateNavigation = (topic: string, aiConfigs: AIConfig[], options?: { demoSampleId?: string; demoSample?: DemoDebate }) => {
+  const startDebateNavigation = (
+    topic: string,
+    aiConfigs: AIConfig[],
+    options?: { demoSampleId?: string; demoSample?: DemoDebate; voiceConfig?: DebateVoiceConfig }
+  ) => {
     clearPreservedData();
     navigation.navigate('Debate', {
       selectedAIs: aiConfigs,
@@ -281,6 +397,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
       civility,
       demoDebateId: options?.demoSampleId,
       demoSample: options?.demoSample,
+      voiceConfig: options?.voiceConfig,
     });
   };
 
@@ -304,6 +421,18 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
 
     // Update AIs with selected models
     const aiConfigsWithModels = mapSelectedAIsWithModels();
+    const voiceConfig = buildDebateVoiceConfig();
+    if (voiceDebateEnabled) {
+      const missingVoices = aiConfigsWithModels.filter((ai) => !voiceConfig?.debaterVoices[ai.id]);
+      if (!hasVerifiedElevenLabs) {
+        Alert.alert('Verify ElevenLabs', 'Voiced debates require a verified ElevenLabs API key.');
+        return;
+      }
+      if (missingVoices.length > 0) {
+        Alert.alert('Choose Voices', 'Choose an ElevenLabs voice for each debater before starting a voiced debate.');
+        return;
+      }
+    }
 
     if (recordModeEnabled) {
       const providersKey = aiConfigsWithModels.map(ai => ai.provider).sort().join('+');
@@ -313,12 +442,13 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
         defaultTopic: finalTopic,
         providersKey,
         personaKey,
+        voiceConfig,
       });
       setRecordPickerVisible(true);
       return;
     }
 
-    startDebateNavigation(finalTopic, aiConfigsWithModels);
+    startDebateNavigation(finalTopic, aiConfigsWithModels, { voiceConfig });
   };
   
   // Deprecated: selectRandomTopic (superseded by inline Surprise Me handler)
@@ -683,6 +813,15 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
             onBack={() => setCurrentStep('ai')}
             civility={civility}
             onChangeCivility={(v)=>setCivility(v)}
+            voiceConfigAvailable={hasVerifiedElevenLabs}
+            voiceEnabled={voiceDebateEnabled}
+            voiceOptions={debateVoiceOptions}
+            voiceSelections={debateVoiceSelections}
+            voiceLoading={debateVoicesLoading}
+            voiceError={debateVoiceError}
+            onToggleVoiceEnabled={handleVoiceDebateToggle}
+            onVoiceSelect={handleDebateVoiceSelect}
+            onReloadVoices={loadDebateVoices}
           />
         )}
         </ResponsiveContainer>
@@ -707,10 +846,10 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
               const participants = aiConfigs.map(ai => ai.name);
               if (selection.type === 'new') {
                 RecordController.startDebate({ id: selection.id, topic: selection.topic, comboKey, participants });
-                startDebateNavigation(selection.topic, aiConfigs);
+                startDebateNavigation(selection.topic, aiConfigs, { voiceConfig: recordMeta.voiceConfig });
               } else {
                 RecordController.startDebate({ id: `${selection.id}_rec_${Date.now()}`, topic: selection.topic, comboKey, participants });
-                startDebateNavigation(selection.topic, aiConfigs);
+                startDebateNavigation(selection.topic, aiConfigs, { voiceConfig: recordMeta.voiceConfig });
               }
             } catch (error) {
               const message = error instanceof Error ? error.message : 'Failed to start recording';

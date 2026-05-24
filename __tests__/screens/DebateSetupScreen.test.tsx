@@ -240,6 +240,22 @@ jest.mock('@/services/demo/DemoContentService', () => ({
   },
 }));
 
+const mockGetAPIKey = jest.fn();
+jest.mock('@/services/APIKeyService', () => ({
+  __esModule: true,
+  default: {
+    getKey: (...args: unknown[]) => mockGetAPIKey(...args),
+  },
+}));
+
+const mockListElevenLabsOptions = jest.fn();
+jest.mock('@/services/media/MediaGenerationService', () => ({
+  __esModule: true,
+  default: {
+    listElevenLabsOptions: (...args: unknown[]) => mockListElevenLabsOptions(...args),
+  },
+}));
+
 const mockRecordController = {
   startDebate: jest.fn(),
 };
@@ -300,6 +316,17 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockListDebateSamples.mockReset();
   mockFindDebateById.mockReset();
+  mockGetAPIKey.mockReset();
+  mockListElevenLabsOptions.mockReset();
+  mockGetAPIKey.mockResolvedValue('eleven-key');
+  mockListElevenLabsOptions.mockResolvedValue({
+    success: true,
+    providerId: 'elevenlabs',
+    voices: [
+      { id: 'voice-1', name: 'Voice One', description: 'Warm' },
+      { id: 'voice-2', name: 'Voice Two', description: 'Clear' },
+    ],
+  });
   mockRecordController.startDebate.mockReset();
   topicSelectorProps = undefined;
   aiSelectorProps = undefined;
@@ -506,6 +533,101 @@ describe('DebateSetupScreen', () => {
 
     expect(mockRecordController.startDebate).toHaveBeenCalledWith(expect.objectContaining({ id: 'record-1' }));
     expect(navigation.navigate).toHaveBeenCalledWith('Debate', expect.objectContaining({ topic: 'Custom Topic' }));
+  });
+
+  it('hides voiced debate controls without a verified ElevenLabs key', async () => {
+    const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
+
+    act(() => {
+      topicSelectorProps.onTopicSelect('Climate Action');
+    });
+    await flush();
+    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
+    await flush();
+
+    const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
+    const openaiConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'openai');
+    act(() => {
+      aiSelectorProps.onToggleAI(claudeConfig);
+      aiSelectorProps.onToggleAI(openaiConfig);
+    });
+    await flush();
+
+    await act(async () => {
+      await aiSelectorProps.onNext();
+    });
+    await flush();
+
+    expect(personalitySelectorProps.voiceConfigAvailable).toBe(false);
+    expect(mockListElevenLabsOptions).not.toHaveBeenCalled();
+  });
+
+  it('loads verified ElevenLabs voices and passes voice config to Debate', async () => {
+    const { renderResult, navigation } = renderScreen({
+      featureAccess: { isDemo: false },
+      state: {
+        settings: {
+          ...defaultState().settings,
+          apiKeys: {
+            ...defaultState().settings.apiKeys,
+            elevenlabs: { configured: true, maskedLabel: 'key', updatedAt: 1 },
+          },
+          verifiedProviders: ['elevenlabs'],
+        } as any,
+      },
+    });
+
+    act(() => {
+      topicSelectorProps.onTopicSelect('Climate Action');
+    });
+    await flush();
+    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
+    await flush();
+
+    const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
+    const openaiConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'openai');
+    act(() => {
+      aiSelectorProps.onToggleAI(claudeConfig);
+      aiSelectorProps.onToggleAI(openaiConfig);
+    });
+    await flush();
+
+    await act(async () => {
+      await aiSelectorProps.onNext();
+    });
+    await flush();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mockGetAPIKey).toHaveBeenCalledWith('elevenlabs');
+    expect(mockListElevenLabsOptions).toHaveBeenCalledWith('eleven-key', expect.objectContaining({
+      pageSize: 100,
+      includeTotalCount: true,
+    }));
+    expect(personalitySelectorProps.voiceConfigAvailable).toBe(true);
+    expect(personalitySelectorProps.voiceOptions).toHaveLength(2);
+
+    act(() => {
+      personalitySelectorProps.onToggleVoiceEnabled(true);
+    });
+    await flush();
+
+    await act(async () => {
+      await personalitySelectorProps.onStartDebate();
+    });
+
+    expect(navigation.navigate).toHaveBeenCalledWith('Debate', expect.objectContaining({
+      voiceConfig: {
+        enabled: true,
+        providerId: 'elevenlabs',
+        debaterVoices: {
+          claude: { voiceId: 'voice-1', voiceName: 'Voice One' },
+          openai: { voiceId: 'voice-2', voiceName: 'Voice Two' },
+        },
+      },
+    }));
   });
 
   it('shows alerts when missing selections', async () => {

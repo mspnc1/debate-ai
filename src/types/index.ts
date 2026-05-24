@@ -98,6 +98,28 @@ export interface DebateSpeechMetadata {
   label: string;
 }
 
+export interface DebateVoiceSelection {
+  voiceId: string;
+  voiceName: string;
+}
+
+export interface DebateVoiceConfig {
+  enabled: true;
+  providerId: 'elevenlabs';
+  debaterVoices: Record<string, DebateVoiceSelection>;
+}
+
+export interface DebateAudioMetadata {
+  status: 'generating' | 'ready' | 'failed';
+  voiceId: string;
+  voiceName: string;
+  modelId?: string;
+  generatedAt?: number;
+  mimeType?: string;
+  uri?: string;
+  error?: string;
+}
+
 export interface MessageMetadata {
   sessionId?: string;
   conversationTurn?: number;
@@ -120,6 +142,9 @@ export interface MessageMetadata {
 
   // Debate speech role metadata
   debateSpeech?: DebateSpeechMetadata;
+
+  // Debate TTS generation metadata
+  debateAudio?: DebateAudioMetadata;
 }
 
 export interface MessageAttachment {
@@ -164,6 +189,7 @@ export interface ChatSession {
     civility?: 1 | 2 | 3 | 4 | 5; // 1=friendly banter, 5=hostile
     voteResults?: DebateVoteResult[];
     audienceResult?: AudienceDecisionResult;
+    voiceConfig?: DebateVoiceConfig;
   };
 }
 
@@ -242,6 +268,7 @@ export type RootStackParamList = {
     demoDebateId?: string;
     demoSample?: import('@/types/demo').DemoDebate;
     rematchKey?: string;
+    voiceConfig?: DebateVoiceConfig;
   };
   DebateTranscript: { session: ChatSession };
   Compare?: undefined;

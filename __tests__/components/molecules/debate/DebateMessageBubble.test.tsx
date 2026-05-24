@@ -24,6 +24,10 @@ jest.mock('react-native-markdown-display', () => {
   const { Text } = require('react-native');
   return ({ children }: { children: string }) => <Text>{children}</Text>;
 });
+jest.mock('@react-native-community/slider', () => {
+  const { View } = require('react-native');
+  return { __esModule: true, default: (props: any) => require('react').createElement(View, props) };
+});
 
 jest.mock('@/utils/markdown', () => ({
   sanitizeMarkdown: jest.fn((text) => text || ''),
@@ -142,6 +146,80 @@ describe('DebateMessageBubble', () => {
 
       expect(getByText('See [[1]](https://example.com/source) for details.')).toBeTruthy();
       expect(getByTestId('citation-sources')).toBeTruthy();
+    });
+
+    it('renders generating debate audio state', () => {
+      const message = createMessage({
+        senderType: 'ai',
+        metadata: {
+          debateAudio: {
+            status: 'generating',
+            voiceId: 'voice-1',
+            voiceName: 'Voice One',
+          },
+        },
+      });
+
+      const { getByTestId, getByText } = renderWithProviders(
+        <DebateMessageBubble message={message} index={0} />
+      );
+
+      expect(getByTestId('debate-audio-generating')).toBeTruthy();
+      expect(getByText('Generating voice with Voice One')).toBeTruthy();
+    });
+
+    it('renders ready debate audio controls', () => {
+      const message = createMessage({
+        senderType: 'ai',
+        metadata: {
+          debateAudio: {
+            status: 'ready',
+            voiceId: 'voice-1',
+            voiceName: 'Voice One',
+            uri: 'file:///debate/msg-1.mp3',
+            mimeType: 'audio/mpeg',
+          },
+        },
+        attachments: [
+          { type: 'audio', uri: 'file:///debate/msg-1.mp3', mimeType: 'audio/mpeg' },
+        ],
+      });
+
+      const { getByTestId, getByText } = renderWithProviders(
+        <DebateMessageBubble message={message} index={0} />
+      );
+
+      expect(getByTestId('debate-audio-play')).toBeTruthy();
+      expect(getByText('Ready · Voice One')).toBeTruthy();
+    });
+
+    it('renders retry action for failed debate audio', () => {
+      const onRetryAudio = jest.fn();
+      const message = createMessage({
+        senderType: 'ai',
+        metadata: {
+          debateAudio: {
+            status: 'failed',
+            voiceId: 'voice-1',
+            voiceName: 'Voice One',
+            error: 'Quota exceeded',
+          },
+        },
+      });
+
+      const { getByTestId, getByText } = renderWithProviders(
+        <DebateMessageBubble
+          message={message}
+          index={0}
+          canRetryAudio
+          onRetryAudio={onRetryAudio}
+        />
+      );
+
+      expect(getByTestId('debate-audio-failed')).toBeTruthy();
+      expect(getByText('Quota exceeded')).toBeTruthy();
+      fireEvent.press(getByTestId('debate-audio-retry'));
+      expect(onRetryAudio).toHaveBeenCalledWith(message);
     });
   });
 

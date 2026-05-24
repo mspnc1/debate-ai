@@ -3,6 +3,7 @@ import { ChatSession, Message } from '../../types';
 import { ErrorService } from '@/services/errors/ErrorService';
 import { AppError } from '@/errors/types/AppError';
 import { ErrorCode } from '@/errors/codes/ErrorCodes';
+import { deleteAllDebateAudio, deleteDebateAudioForSession } from '@/services/debate/debateAudioStorage';
 
 export interface StorageKeys {
   SESSION_INDEX: 'sessionIndex';
@@ -169,6 +170,7 @@ export class StorageService {
       // Delete the session data
       const sessionKey = this.getSessionKey(sessionId);
       await AsyncStorage.removeItem(sessionKey);
+      await deleteDebateAudioForSession(sessionId);
 
       // Update the index
       const index = await this.getSessionIndex();
@@ -274,6 +276,7 @@ export class StorageService {
       if (keysToRemove.length > 0) {
         await AsyncStorage.multiRemove(keysToRemove);
       }
+      await deleteAllDebateAudio();
       
       // Create empty index
       await this.updateSessionIndex({ sessions: [], lastUpdated: Date.now() });

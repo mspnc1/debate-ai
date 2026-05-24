@@ -11,7 +11,7 @@ import { ErrorService } from '@/services/errors/ErrorService';
 import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
 import { Typography } from '../components/molecules';
 import { useTheme } from '../theme';
-import { AI } from '../types';
+import { AI, type DebateVoiceConfig } from '../types';
 import { usePersonality } from '@/hooks/usePersonality';
 import {
   useDebateSession,
@@ -19,6 +19,7 @@ import {
   useDebateVoting,
   useTopicSelection,
   useDebateMessages,
+  useDebateVoiceGeneration,
 } from '../hooks/debate';
 import {
   Header,
@@ -70,6 +71,7 @@ interface DebateScreenProps {
       demoDebateId?: string;
       demoSample?: DemoDebate;
       rematchKey?: string;
+      voiceConfig?: DebateVoiceConfig;
     };
   };
 }
@@ -77,7 +79,7 @@ interface DebateScreenProps {
 const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   const { theme } = useTheme();
   const dispatch = useDispatch();
-  const { selectedAIs, topic: initialTopic, personalities: initialPersonalities, formatId, rounds, exchanges, civility, demoDebateId, demoSample } = route.params;
+  const { selectedAIs, topic: initialTopic, personalities: initialPersonalities, formatId, rounds, exchanges, civility, demoDebateId, demoSample, voiceConfig } = route.params;
   const [showTranscript, setShowTranscript] = useState(false);
   const [debateSamples, setDebateSamples] = useState<Array<{ id: string; title: string; topic: string }>>([]);
   const [isRecording, setIsRecording] = useState(false);
@@ -94,6 +96,11 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   const flow = useDebateFlow(session.orchestrator);
   const voting = useDebateVoting(session.orchestrator, selectedAIs);
   const messages = useDebateMessages(session.session?.startTime);
+  const debateVoice = useDebateVoiceGeneration({
+    sessionId: session.session?.id,
+    voiceConfig,
+    messages: messages.messages,
+  });
   const { isDemo, canStartTrial } = useFeatureAccess();
   const { getPersonality: getMergedPersonality } = usePersonality();
 
@@ -179,7 +186,13 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         topicToUse,
         selectedAIs,
         effectivePersonalities,
-        { formatId: formatId || 'oxford', rounds: (exchanges || rounds || 3), civility: (civility as 1|2|3|4|5) || 1, mergedPersonalities }
+        {
+          formatId: formatId || 'oxford',
+          rounds: (exchanges || rounds || 3),
+          civility: (civility as 1|2|3|4|5) || 1,
+          mergedPersonalities,
+          voiceConfig,
+        }
       );
       
       // Add initial host message
@@ -210,7 +223,8 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     messages,
     flow,
     isDemo,
-    getMergedPersonality
+    getMergedPersonality,
+    voiceConfig,
   ]);
   
   // Auto-start debate if topic is provided from DebateSetupScreen
@@ -538,6 +552,8 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
             messages={messages.messages}
             typingAIs={messages.typingAIs}
             bottomInset={bottomInset}
+            canRetryAudio={debateVoice.canRetryAudio}
+            onRetryAudio={debateVoice.retryMessageAudio}
           />
           
           {voting.isVoting && (

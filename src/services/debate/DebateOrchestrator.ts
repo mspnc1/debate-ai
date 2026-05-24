@@ -4,7 +4,7 @@
  * Coordinates between all other debate services and manages state transitions
  */
 
-import { AI, Message, ChatSession, Citation, type DebateSpeechMetadata } from '../../types';
+import { AI, Message, ChatSession, Citation, type DebateSpeechMetadata, type DebateVoiceConfig } from '../../types';
 import { AIService } from '../aiAdapter';
 import { DebateRulesEngine } from './DebateRulesEngine';
 import { VotingService } from './VotingService';
@@ -59,6 +59,7 @@ export interface DebateSession {
   stances: { [aiId: string]: 'pro' | 'con' };
   audienceResult?: AudienceDecisionResult;
   webSearchEnabled?: boolean; // Auto-enabled when both AIs support it
+  voiceConfig?: DebateVoiceConfig;
 }
 
 export enum DebateStatus {
@@ -319,6 +320,7 @@ export class DebateOrchestrator {
       stances?: { [aiId: string]: 'pro' | 'con' };
       /** Optional pre-merged personalities from context (includes user customizations) */
       mergedPersonalities?: Record<string, PersonalityOption>;
+      voiceConfig?: DebateVoiceConfig;
     }
   ): Promise<DebateSession> {
     // Resolve configuration
@@ -383,6 +385,7 @@ export class DebateOrchestrator {
       presetId: preset.id,
       stances,
       webSearchEnabled,
+      voiceConfig: options?.voiceConfig,
     };
 
     this.session = session;
@@ -1320,12 +1323,18 @@ export class DebateOrchestrator {
       // Use the session ID directly (it's already prefixed with 'debate_')
       const sessionId = this.session.id;
       
+      const reduxSession = store.getState().chat.currentSession;
+      const reduxMessages = reduxSession?.sessionType === 'debate' ? reduxSession.messages : undefined;
+      const messagesForHistory = reduxMessages && reduxMessages.length >= this.currentMessages.length
+        ? reduxMessages
+        : this.currentMessages;
+
       const debateSession: ChatSession = {
         id: sessionId,
         sessionType: 'debate',
         topic: this.session.topic, // Store the debate topic directly
         selectedAIs: this.session.participants,
-        messages: this.currentMessages, // Use the actual messages from the debate
+        messages: messagesForHistory,
         isActive: false,
         createdAt: this.session.startTime,
         lastMessageAt: Date.now(),
@@ -1338,6 +1347,7 @@ export class DebateOrchestrator {
           civility: this.session.civility,
           voteResults: this.votingService?.getVoteRecords(),
           audienceResult: this.session.audienceResult,
+          voiceConfig: this.session.voiceConfig,
         }
       };
       

@@ -32,6 +32,7 @@ const mockUseDebateFlow = jest.fn();
 const mockUseDebateVoting = jest.fn();
 const mockUseTopicSelection = jest.fn();
 const mockUseDebateMessages = jest.fn();
+const mockUseDebateVoiceGeneration = jest.fn();
 
 let mockHeaderProps: any;
 let mockTopicSelectorProps: any;
@@ -70,6 +71,7 @@ jest.mock('@/hooks/debate', () => ({
   useDebateVoting: (...args: unknown[]) => mockUseDebateVoting(...args),
   useTopicSelection: (...args: unknown[]) => mockUseTopicSelection(...args),
   useDebateMessages: (...args: unknown[]) => mockUseDebateMessages(...args),
+  useDebateVoiceGeneration: (...args: unknown[]) => mockUseDebateVoiceGeneration(...args),
 }));
 
 jest.mock('@/components/molecules', () => {
@@ -334,6 +336,10 @@ const renderScreen = (options: RenderOptions = {}) => {
   mockUseDebateVoting.mockReturnValue(votingState);
   mockUseTopicSelection.mockReturnValue(topicSelectionState);
   mockUseDebateMessages.mockReturnValue(messagesState);
+  mockUseDebateVoiceGeneration.mockReturnValue({
+    canRetryAudio: jest.fn().mockReturnValue(false),
+    retryMessageAudio: jest.fn(),
+  });
   mockFeatureAccess.mockReturnValue({ isDemo: false, ...featureAccess });
 
   const navigation = {

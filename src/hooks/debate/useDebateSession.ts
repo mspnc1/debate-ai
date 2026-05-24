@@ -8,7 +8,7 @@ import { useDispatch } from 'react-redux';
 import { startSession, startDebate } from '../../store';
 import { DebateOrchestrator, DebateSession, DebateStatus } from '../../services/debate';
 import { useAIService } from '../../providers/AIServiceProvider';
-import { AI } from '../../types';
+import { AI, type DebateVoiceConfig } from '../../types';
 import { PersonalityOption } from '@/config/personalities';
 import type { DebateFormatId } from '@/config/debate/formats';
 
@@ -29,6 +29,7 @@ export interface UseDebateSessionReturn {
       stances?: { [aiId: string]: 'pro' | 'con' };
       /** Optional pre-merged personalities from context (includes user customizations) */
       mergedPersonalities?: Record<string, PersonalityOption>;
+      voiceConfig?: DebateVoiceConfig;
     }
   ) => Promise<void>;
   resetSession: () => void;
@@ -65,6 +66,7 @@ export const useDebateSession = (_selectedAIs: AI[]): UseDebateSessionReturn => 
       civility?: 1|2|3|4|5;
       stances?: { [aiId: string]: 'pro' | 'con' };
       mergedPersonalities?: Record<string, PersonalityOption>;
+      voiceConfig?: DebateVoiceConfig;
     }
   ): Promise<void> => {
     if (!orchestrator) {

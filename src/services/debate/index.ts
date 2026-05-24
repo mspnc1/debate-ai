@@ -13,6 +13,11 @@ export { TopicService } from './TopicService';
 export { DebaterSelectionService } from './DebaterSelectionService';
 export { PersonalityService } from './PersonalityService';
 export { DebateSetupService } from './DebateSetupService';
+export {
+  DebateVoiceGenerationError,
+  generateDebateVoiceAudio,
+} from './DebateVoiceService';
+export { sanitizeDebateSpeechForTTS } from './debateAudioSanitizer';
 
 export type { 
   DebateSession,

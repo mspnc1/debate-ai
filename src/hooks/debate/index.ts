@@ -9,6 +9,7 @@ export { useDebateVoting } from './useDebateVoting';
 export { useTopicSelection } from './useTopicSelection';
 export { useDebateMessages } from './useDebateMessages';
 export { usePreDebateValidation } from './usePreDebateValidation';
+export { useDebateVoiceGeneration } from './useDebateVoiceGeneration';
 
 // Debate Setup Hooks
 export { useDebateSetup } from './useDebateSetup';

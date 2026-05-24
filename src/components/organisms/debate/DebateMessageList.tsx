@@ -21,6 +21,8 @@ export interface DebateMessageListProps {
   showsVerticalScrollIndicator?: boolean;
   headerComponent?: React.ReactElement | null;
   bottomInset?: number;
+  canRetryAudio?: boolean;
+  onRetryAudio?: (message: Message) => void;
 }
 
 // Helper functions moved outside component for performance
@@ -71,10 +73,17 @@ const getIcon = (type: string): string => {
 
 const getCitationMetadataKey = (message: Message): string => {
   const citations = message.metadata?.citations || [];
+  const audio = message.metadata?.debateAudio;
+  const audioAttachments = (message.attachments || [])
+    .filter((attachment) => attachment.type === 'audio')
+    .map((attachment) => `${attachment.uri}:${attachment.mimeType}`)
+    .join('|');
   return [
     message.metadata?.webSearchEnabled ? 'search' : 'no-search',
     citations.length,
     citations.map(citation => `${citation.index}:${citation.url}`).join('|'),
+    audio ? `${audio.status}:${audio.voiceId}:${audio.uri || ''}:${audio.error || ''}` : 'no-audio',
+    audioAttachments,
   ].join(':');
 };
 
@@ -92,7 +101,13 @@ const cancelFrame = (frame: number): void => {
 };
 
 // Memoized message item component - optimized
-const MessageItem = memo<{ message: Message; index: number; alignment: 'left' | 'right' | 'center' }>(({ message, index, alignment }) => {
+const MessageItem = memo<{
+  message: Message;
+  index: number;
+  alignment: 'left' | 'right' | 'center';
+  canRetryAudio?: boolean;
+  onRetryAudio?: (message: Message) => void;
+}>(({ message, index, alignment, canRetryAudio, onRetryAudio }) => {
   const systemType = detectType(message);
   
   if (systemType) {
@@ -112,6 +127,8 @@ const MessageItem = memo<{ message: Message; index: number; alignment: 'left' | 
       message={message}
       index={index}
       side={alignment}
+      canRetryAudio={canRetryAudio}
+      onRetryAudio={onRetryAudio}
     />
   );
 }, (prevProps, nextProps) => {
@@ -123,6 +140,8 @@ const MessageItem = memo<{ message: Message; index: number; alignment: 'left' | 
   if (prevProps.message.timestamp !== nextProps.message.timestamp) return false;
   if (getCitationMetadataKey(prevProps.message) !== getCitationMetadataKey(nextProps.message)) return false;
   if (prevProps.alignment !== nextProps.alignment) return false;
+  if (prevProps.canRetryAudio !== nextProps.canRetryAudio) return false;
+  if (prevProps.onRetryAudio !== nextProps.onRetryAudio) return false;
   return true;
 });
 
@@ -135,6 +154,8 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
   showsVerticalScrollIndicator = false,
   headerComponent,
   bottomInset = 0,
+  canRetryAudio,
+  onRetryAudio,
 }) => {
   const flatListRef = useRef<FlatList>(null);
   const alignmentMapRef = useRef<Record<string, 'left' | 'right'>>({});
@@ -257,8 +278,16 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
   // Memoized render function with proper types
   const renderItem: ListRenderItem<Message> = useCallback(({ item, index }) => {
     const alignment = getAlignment(item);
-    return <MessageItem message={item} index={index} alignment={alignment} />;
-  }, [getAlignment]);
+    return (
+      <MessageItem
+        message={item}
+        index={index}
+        alignment={alignment}
+        canRetryAudio={canRetryAudio}
+        onRetryAudio={onRetryAudio}
+      />
+    );
+  }, [canRetryAudio, getAlignment, onRetryAudio]);
 
   // Memoized key extractor - optimized
   const keyExtractor = useCallback((item: Message, index: number) => {

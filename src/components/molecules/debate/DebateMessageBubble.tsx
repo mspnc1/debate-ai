@@ -6,7 +6,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import Animated from 'react-native-reanimated';
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, StyleSheet, TouchableOpacity } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { sanitizeMarkdown, shouldLazyRender } from '@/utils/markdown';
 import { processMessageContentWithCitations } from '@/utils/citationUtils';
@@ -25,6 +25,7 @@ import { useCitationInteractions } from '@/hooks/useCitationInteractions';
 import { selectableMarkdownRules } from '@/utils/markdownSelectable';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
+import { DebateAudioControls } from './DebateAudioControls';
 
 export interface DebateMessageBubbleProps {
   message: Message;
@@ -32,14 +33,23 @@ export interface DebateMessageBubbleProps {
   participants?: Array<{ id: string; name: string }>;
   scores?: Record<string, { roundWins: number; name: string }>;
   side?: 'left' | 'right' | 'center';
+  canRetryAudio?: boolean;
+  onRetryAudio?: (message: Message) => void;
 }
 
 const getCitationMetadataKey = (message: Message): string => {
   const citations = message.metadata?.citations || [];
+  const audio = message.metadata?.debateAudio;
+  const audioAttachments = (message.attachments || [])
+    .filter((attachment) => attachment.type === 'audio')
+    .map((attachment) => `${attachment.uri}:${attachment.mimeType}`)
+    .join('|');
   return [
     message.metadata?.webSearchEnabled ? 'search' : 'no-search',
     citations.length,
     citations.map(citation => `${citation.index}:${citation.url}`).join('|'),
+    audio ? `${audio.status}:${audio.voiceId}:${audio.uri || ''}:${audio.error || ''}` : 'no-audio',
+    audioAttachments,
   ].join(':');
 };
 
@@ -48,6 +58,8 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
   participants: _participants,
   scores: _scores,
   side = 'left',
+  canRetryAudio = false,
+  onRetryAudio,
 }) => {
   const { theme, isDark } = useTheme();
   const { responsive } = useResponsive();
@@ -117,6 +129,15 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
   
   const aiColor = getAIColor();
   const { handleCitationLinkPress } = useCitationInteractions(aiColor?.border);
+  const debateAudio = message.metadata?.debateAudio;
+  const audioAttachment = useMemo(() => {
+    const existing = message.attachments?.find((attachment) => attachment.type === 'audio' && attachment.uri);
+    if (existing) return existing;
+    if (debateAudio?.status === 'ready' && debateAudio.uri && debateAudio.mimeType) {
+      return { type: 'audio' as const, uri: debateAudio.uri, mimeType: debateAudio.mimeType };
+    }
+    return undefined;
+  }, [debateAudio?.mimeType, debateAudio?.status, debateAudio?.uri, message.attachments]);
 
   // Handle link press - check for citations first
   const handleLinkPress = useCallback((url: string): boolean => {
@@ -256,6 +277,50 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
             </Typography>
           </Box>
         )}
+        {!isStreaming && debateAudio?.status === 'generating' && (
+          <Box
+            style={[
+              styles.audioStateRow,
+              { backgroundColor: isDark ? theme.colors.overlays.medium : theme.colors.surface },
+            ]}
+            testID="debate-audio-generating"
+          >
+            <ActivityIndicator size="small" color={aiColor?.border || theme.colors.primary[500]} />
+            <Typography variant="caption" color="secondary" style={{ flex: 1 }}>
+              Generating voice with {debateAudio.voiceName}
+            </Typography>
+          </Box>
+        )}
+        {!isStreaming && debateAudio?.status === 'ready' && audioAttachment && (
+          <DebateAudioControls uri={audioAttachment.uri} voiceName={debateAudio.voiceName} />
+        )}
+        {!isStreaming && debateAudio?.status === 'failed' && (
+          <Box
+            style={[
+              styles.audioStateRow,
+              { backgroundColor: isDark ? theme.colors.overlays.medium : theme.colors.surface },
+            ]}
+            testID="debate-audio-failed"
+          >
+            <Ionicons name="alert-circle-outline" size={16} color={theme.colors.warning[600]} />
+            <Typography variant="caption" color="secondary" style={{ flex: 1 }}>
+              {debateAudio.error || 'Voice generation failed.'}
+            </Typography>
+            {canRetryAudio && onRetryAudio && (
+              <TouchableOpacity
+                onPress={() => onRetryAudio(message)}
+                accessibilityRole="button"
+                accessibilityLabel="Retry debate audio"
+                testID="debate-audio-retry"
+                style={[styles.retryButton, { borderColor: aiColor?.border || theme.colors.primary[500] }]}
+              >
+                <Typography variant="caption" weight="semibold" style={{ color: aiColor?.border || theme.colors.primary[500] }}>
+                  Retry
+                </Typography>
+              </TouchableOpacity>
+            )}
+          </Box>
+        )}
         {/* Copy button */}
         <TouchableOpacity
           onPress={async () => {
@@ -305,6 +370,8 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
     prevProps.message.sender === nextProps.message.sender &&
     prevProps.message.timestamp === nextProps.message.timestamp &&
     prevProps.side === nextProps.side &&
+    prevProps.canRetryAudio === nextProps.canRetryAudio &&
+    prevProps.onRetryAudio === nextProps.onRetryAudio &&
     getCitationMetadataKey(prevProps.message) === getCitationMetadataKey(nextProps.message)
   );
 });
@@ -377,11 +444,26 @@ const styles = StyleSheet.create({
   copyButton: {
     position: 'absolute',
     right: 8,
-    bottom: 8,
+    top: 8,
     borderRadius: 12,
     padding: 6,
   },
   citationSources: {
     marginTop: 0,
+  },
+  audioStateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderRadius: 12,
+  },
+  retryButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
 });
