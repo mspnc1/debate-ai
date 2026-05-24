@@ -391,7 +391,7 @@ describe('DebateSetupScreen', () => {
     expect(stepIndicatorProps.currentStep).toBe('ai');
   });
 
-  it('toggles AI selection and streaming preferences', async () => {
+  it('adds same-provider debater slots and keeps streaming preferences provider-scoped', async () => {
     const { renderResult } = renderScreen({
       featureAccess: { isDemo: false },
       state: {
@@ -415,25 +415,28 @@ describe('DebateSetupScreen', () => {
     await flush();
 
     const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
-    const openaiConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'openai');
     act(() => {
       aiSelectorProps.onToggleAI(claudeConfig);
-      aiSelectorProps.onToggleAI(openaiConfig);
+      aiSelectorProps.onToggleAI(claudeConfig);
     });
     await flush();
 
     expect(aiSelectorProps.selectedAIs).toHaveLength(2);
+    expect(aiSelectorProps.selectedAIs.map((ai: AIConfig) => ai.provider)).toEqual(['claude', 'claude']);
+    expect(aiSelectorProps.selectedAIs[0].id).not.toEqual(aiSelectorProps.selectedAIs[1].id);
+
+    const firstDebaterId = aiSelectorProps.selectedAIs[0].id;
 
     act(() => {
-      aiSelectorProps.onPersonalityChange('claude', 'friendly');
+      aiSelectorProps.onPersonalityChange(firstDebaterId, 'friendly');
     });
-    expect(mockDispatch).toHaveBeenCalledWith(setAIPersonality({ aiId: 'claude', personalityId: 'friendly' }));
+    expect(mockDispatch).toHaveBeenCalledWith(setAIPersonality({ aiId: firstDebaterId, personalityId: 'friendly' }));
 
     await act(async () => {
-      await aiSelectorProps.onModelChange('claude', 'claude-custom');
+      await aiSelectorProps.onModelChange(firstDebaterId, 'claude-custom');
     });
     expect(mockDispatch).toHaveBeenCalledWith(setAIModel({
-      aiId: 'claude',
+      aiId: firstDebaterId,
       modelId: resolveProviderModelId('claude', 'claude-custom') || 'claude-custom',
     }));
 
@@ -469,7 +472,6 @@ describe('DebateSetupScreen', () => {
       aiSelectorProps.onToggleAI(openaiConfig);
     });
     await flush();
-
     await act(async () => {
       await aiSelectorProps.onNext();
     });
@@ -552,7 +554,6 @@ describe('DebateSetupScreen', () => {
       aiSelectorProps.onToggleAI(openaiConfig);
     });
     await flush();
-
     await act(async () => {
       await aiSelectorProps.onNext();
     });
@@ -592,6 +593,8 @@ describe('DebateSetupScreen', () => {
     });
     await flush();
 
+    const [claudeDebater, openaiDebater] = aiSelectorProps.selectedAIs;
+
     await act(async () => {
       await aiSelectorProps.onNext();
     });
@@ -623,8 +626,8 @@ describe('DebateSetupScreen', () => {
         enabled: true,
         providerId: 'elevenlabs',
         debaterVoices: {
-          claude: { voiceId: 'voice-1', voiceName: 'Voice One' },
-          openai: { voiceId: 'voice-2', voiceName: 'Voice Two' },
+          [claudeDebater.id]: { voiceId: 'voice-1', voiceName: 'Voice One' },
+          [openaiDebater.id]: { voiceId: 'voice-2', voiceName: 'Voice Two' },
         },
       },
     }));

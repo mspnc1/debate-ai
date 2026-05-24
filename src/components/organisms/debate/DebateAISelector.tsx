@@ -11,6 +11,7 @@ import { useTheme } from '../../../theme';
 import { Typography, GradientButton, Button } from '../../molecules';
 import { Box } from '@/components/atoms';
 import { DynamicAISelector } from '@/components/organisms/home/DynamicAISelector';
+import { ModelSelectorEnhanced } from '@/components/organisms/home/ModelSelectorEnhanced';
 import { AIConfig } from '../../../types';
 import { getModelById, resolveProviderModelId } from '@/config/modelConfigs';
 
@@ -25,6 +26,7 @@ interface DebateAISelectorProps {
   aiPersonalities: Record<string, string>;
   selectedModels?: Record<string, string>;
   onToggleAI: (ai: AIConfig) => void;
+  onRemoveAI: (aiId: string) => void;
   onPersonalityChange: (aiId: string, personalityId: string) => void;
   onModelChange?: (aiId: string, modelId: string) => void;
   onAddAI: () => void;
@@ -41,7 +43,7 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
   aiPersonalities,
   selectedModels = {},
   onToggleAI,
-  onPersonalityChange,
+  onRemoveAI,
   onModelChange,
   onAddAI,
   onNext,
@@ -263,12 +265,12 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
         maxAIs={maxAIs}
         onToggleAI={onToggleAI}
         onAddAI={onAddAI}
-        customSubtitle={`Select exactly ${maxAIs} ${maxAIs === 2 ? 'AIs' : 'debaters'} for this format`}
+        customSubtitle={`Tap providers to fill ${maxAIs} debater slots. Reuse a provider for different models or personalities.`}
         hideStartButton={true}
         aiPersonalities={aiPersonalities}
         selectedModels={selectedModels}
-        onPersonalityChange={onPersonalityChange}
-        onModelChange={onModelChange}
+        onPersonalityChange={undefined}
+        onModelChange={undefined}
         getBadge={(ai) => getSearchInfo(ai).supportsLiveSearch
           ? { text: 'Live Search', color: theme.colors.success[600] }
           : undefined}
@@ -330,6 +332,130 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
           )}
         </View>
       </Box>
+
+      {selectedAIs.length > 0 && (
+        <Box
+          style={[
+            styles.assignedModelsPanel,
+            {
+              borderColor: theme.colors.border,
+              backgroundColor: isDark ? theme.colors.overlays.soft : theme.colors.surface,
+            },
+          ]}
+        >
+          <View style={styles.assignedModelsHeader}>
+            <View
+              style={[
+                styles.assignedModelsIcon,
+                { backgroundColor: isDark ? theme.colors.overlays.medium : theme.colors.primary[50] },
+              ]}
+            >
+              <Ionicons name="options-outline" size={18} color={theme.colors.primary[500]} />
+            </View>
+            <View style={styles.assignedModelsTitle}>
+              <Typography variant="body" weight="semibold">
+                Assigned debaters & models
+              </Typography>
+              <Typography variant="caption" color="secondary" numberOfLines={2}>
+                Change the model for each filled slot here before setting the tone.
+              </Typography>
+            </View>
+          </View>
+
+          <Box style={styles.debaterConfigList}>
+            {selectedAIs.map((ai, index) => {
+              const selectedModel = selectedModels[ai.id] || ai.model;
+              const model = getModelById(ai.provider, resolveProviderModelId(ai.provider, selectedModel) || selectedModel);
+              const slotLabel = getSlotLabel(index);
+
+              return (
+                <Box
+                  key={ai.id}
+                  style={[
+                    styles.debaterConfigCard,
+                    {
+                      borderColor: theme.colors.border,
+                      backgroundColor: theme.colors.card,
+                    },
+                  ]}
+                >
+                  <View style={styles.debaterConfigHeader}>
+                    <View
+                      style={[
+                        styles.debaterSlotBadge,
+                        { backgroundColor: isDark ? theme.colors.overlays.medium : theme.colors.primary[50] },
+                      ]}
+                    >
+                      <Typography
+                        variant="caption"
+                        weight="semibold"
+                        style={{ color: theme.colors.primary[500] }}
+                        numberOfLines={1}
+                      >
+                        {slotLabel}
+                      </Typography>
+                    </View>
+                    <View style={styles.debaterConfigTitle}>
+                      <Typography variant="body" weight="semibold" numberOfLines={1}>
+                        {ai.name}
+                      </Typography>
+                      <Typography variant="caption" color="secondary" numberOfLines={1}>
+                        Current model: {model?.name || selectedModel}
+                      </Typography>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => onRemoveAI(ai.id)}
+                      style={[
+                        styles.removeDebaterButton,
+                        {
+                          borderColor: theme.colors.border,
+                          backgroundColor: isDark ? theme.colors.overlays.medium : theme.colors.surface,
+                        },
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${ai.name} from ${slotLabel}`}
+                    >
+                      <Ionicons name="close" size={16} color={theme.colors.text.secondary} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {onModelChange && (
+                    <View
+                      style={[
+                        styles.modelControl,
+                        {
+                          borderColor: isDark ? theme.colors.primary[700] : theme.colors.primary[200],
+                          backgroundColor: isDark ? theme.colors.overlays.medium : theme.colors.primary[50],
+                        },
+                      ]}
+                    >
+                      <View style={styles.modelControlHeader}>
+                        <Ionicons name="swap-horizontal-outline" size={16} color={theme.colors.primary[500]} />
+                        <View style={styles.modelControlCopy}>
+                          <Typography variant="caption" weight="semibold" numberOfLines={1}>
+                            Change model for this debater
+                          </Typography>
+                          <Typography variant="caption" color="secondary" numberOfLines={1}>
+                            Applies only to {slotLabel}
+                          </Typography>
+                        </View>
+                      </View>
+                      <ModelSelectorEnhanced
+                        providerId={ai.provider}
+                        selectedModel={selectedModel}
+                        onSelectModel={(modelId) => onModelChange(ai.id, modelId)}
+                        compactMode
+                        aiName={ai.name}
+                        showPricing
+                      />
+                    </View>
+                  )}
+                </Box>
+              );
+            })}
+          </Box>
+        </Box>
+      )}
 
       {liveSearchStatus && (
         <Box
@@ -454,6 +580,76 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   slotCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  assignedModelsPanel: {
+    marginTop: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    gap: 12,
+  },
+  assignedModelsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  assignedModelsIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  assignedModelsTitle: {
+    flex: 1,
+    minWidth: 0,
+  },
+  debaterConfigList: {
+    gap: 10,
+  },
+  debaterConfigCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    gap: 12,
+  },
+  debaterConfigHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  debaterSlotBadge: {
+    maxWidth: 116,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  debaterConfigTitle: {
+    flex: 1,
+    minWidth: 0,
+  },
+  removeDebaterButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modelControl: {
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 10,
+    gap: 8,
+  },
+  modelControlHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modelControlCopy: {
     flex: 1,
     minWidth: 0,
   },

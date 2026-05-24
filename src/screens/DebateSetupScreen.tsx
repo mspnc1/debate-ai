@@ -72,10 +72,39 @@ const getPresetVoteLabels = (preset: PresetConfig): string[] => (
       .map((message) => message.votingLabel || message.label)
 );
 
+const DEBATE_SLOT_ID_MARKER = '-debater-slot-';
+
+const isDebateSlotId = (id: string): boolean => id.includes(DEBATE_SLOT_ID_MARKER);
+
+const createDebateSlotId = (provider: AIConfig['provider'], counter: number): string =>
+  `${provider}${DEBATE_SLOT_ID_MARKER}${Date.now()}-${counter}`;
+
+const getBaseProviderName = (ai: AIConfig, configuredAIs: AIConfig[]): string =>
+  configuredAIs.find((configured) => configured.provider === ai.provider)?.name || ai.name.replace(/\s+\d+$/, '');
+
+const normalizeDebateSlotNames = (ais: AIConfig[], configuredAIs: AIConfig[]): AIConfig[] => {
+  const providerCounts = ais.reduce<Record<string, number>>((acc, ai) => {
+    acc[ai.provider] = (acc[ai.provider] || 0) + 1;
+    return acc;
+  }, {});
+  const seenCounts: Record<string, number> = {};
+
+  return ais.map((ai) => {
+    const baseName = getBaseProviderName(ai, configuredAIs);
+    if ((providerCounts[ai.provider] || 0) <= 1) {
+      return { ...ai, name: baseName };
+    }
+
+    seenCounts[ai.provider] = (seenCounts[ai.provider] || 0) + 1;
+    return { ...ai, name: `${baseName} ${seenCounts[ai.provider]}` };
+  });
+};
+
 const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route }) => {
   const { theme } = useTheme();
   const dispatch = useDispatch();
   const scrollViewRef = useRef<ScrollView>(null);
+  const debaterSlotCounterRef = useRef(0);
   const { rs } = useResponsive();
   const greeting = useGreeting({ screenCategory: 'debate' });
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
@@ -126,12 +155,14 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
 
   const [currentStep, setCurrentStep] = useState<'topic' | 'ai' | 'personality'>('topic');
   const [selectedAIs, setSelectedAIs] = useState<AIConfig[]>(
-    (routeParams?.preselectedAIs || [])
+    normalizeDebateSlotNames((routeParams?.preselectedAIs || [])
       .filter(ai => isValidProviderId(ai.provider))
-      .map(ai => ({
+      .map((ai, index) => ({
         ...ai,
+        id: isDebateSlotId(ai.id) ? ai.id : createDebateSlotId(ai.provider, index),
+        model: selectedModelsFromStore?.[ai.id] || selectedModelsFromStore?.[ai.provider] || ai.model,
         personality: ai.personality || 'default',
-      }))
+      })), configuredAIs)
   );
   const [selectedTopic, setSelectedTopic] = useState<string>(routeParams?.prefilledTopic || preservedTopic || '');
   const [customTopic, setCustomTopic] = useState(
@@ -182,10 +213,18 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   
   const maxAIs = requiredDebaterCount;
   const hasVerifiedElevenLabs = isApiKeyConfigured(apiKeys.elevenlabs) && verifiedProviders.includes('elevenlabs');
+  const selectedStreamingProviders = useMemo(() => {
+    const seen = new Set<string>();
+    return selectedAIs.filter((ai) => {
+      if (seen.has(ai.provider)) return false;
+      seen.add(ai.provider);
+      return true;
+    });
+  }, [selectedAIs]);
 
   useEffect(() => {
-    setSelectedAIs((current) => current.slice(0, maxAIs));
-  }, [maxAIs]);
+    setSelectedAIs((current) => normalizeDebateSlotNames(current.slice(0, maxAIs), configuredAIs));
+  }, [configuredAIs, maxAIs]);
 
   const loadDebateVoices = useCallback(async () => {
     if (!hasVerifiedElevenLabs || debateVoicesLoading) return;
@@ -323,12 +362,14 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     }
 
     if (params.preselectedAIs || typeof params.prefilledTopic === 'string') {
-      const validPreselectedAIs = (params.preselectedAIs || [])
+      const validPreselectedAIs = normalizeDebateSlotNames((params.preselectedAIs || [])
         .filter(ai => isValidProviderId(ai.provider))
-        .map(ai => ({
+        .map((ai, index) => ({
           ...ai,
+          id: isDebateSlotId(ai.id) ? ai.id : createDebateSlotId(ai.provider, index),
+          model: selectedModelsFromStore?.[ai.id] || selectedModelsFromStore?.[ai.provider] || ai.model,
           personality: ai.personality || 'default',
-        }));
+        })), configuredAIs);
 
       if (validPreselectedAIs.length > 0) {
         setSelectedAIs(validPreselectedAIs);
@@ -343,6 +384,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
       scrollViewRef.current?.scrollTo({ y: 0, animated: false });
     }
   }, [
+    configuredAIs,
     dispatch,
     routeParams,
     selectedModelsFromStore,
@@ -350,13 +392,33 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   
   const handleToggleAI = (ai: AIConfig) => {
     setSelectedAIs(prev => {
-      const isSelected = prev.some(s => s.id === ai.id);
-      if (isSelected) {
-        return prev.filter(s => s.id !== ai.id);
-      } else if (prev.length < maxAIs) {
-        return [...prev, { ...ai, personality: ai.personality || 'default' }];
+      if (prev.length < maxAIs) {
+        const slotId = createDebateSlotId(ai.provider, debaterSlotCounterRef.current++);
+        const selectedModel = selectedModels[ai.id] || selectedModels[ai.provider] || ai.model;
+        return normalizeDebateSlotNames([
+          ...prev,
+          {
+            ...ai,
+            id: slotId,
+            model: selectedModel,
+            personality: aiPersonalities[ai.id] || ai.personality || 'default',
+          },
+        ], configuredAIs);
       }
       return prev;
+    });
+  };
+
+  const handleRemoveAI = (aiId: string) => {
+    setSelectedAIs(prev => normalizeDebateSlotNames(
+      prev.filter(ai => ai.id !== aiId),
+      configuredAIs
+    ));
+    setSelectedModels(prev => {
+      if (!(aiId in prev)) return prev;
+      const next = { ...prev };
+      delete next[aiId];
+      return next;
     });
   };
 
@@ -365,7 +427,10 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   };
   
   const handleModelChange = (aiId: string, modelId: string) => {
-    const resolvedModelId = resolveProviderModelId(aiId, modelId) || modelId;
+    const providerId = selectedAIs.find(ai => ai.id === aiId)?.provider || (isValidProviderId(aiId) ? aiId : undefined);
+    const resolvedModelId = providerId
+      ? resolveProviderModelId(providerId, modelId) || modelId
+      : modelId;
     dispatch(setAIModel({ aiId, modelId: resolvedModelId }));
     setSelectedModels(prev => ({
       ...prev,
@@ -403,7 +468,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
 
   const mapSelectedAIsWithModels = () => selectedAIs.map(ai => ({
     ...ai,
-    model: resolveProviderModelId(ai.provider, selectedModels[ai.id] || ai.model) || ai.model,
+    model: resolveProviderModelId(ai.provider, selectedModels[ai.id] || selectedModels[ai.provider] || ai.model) || ai.model,
     personality: aiPersonalities[ai.id] || ai.personality || 'default',
   }));
 
@@ -559,7 +624,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
             borderRadius: theme.borderRadius.lg,
           }}>
             <Typography variant="body" style={{ textAlign: 'center', color: theme.colors.warning[900] }}>
-              You need at least 2 configured AIs to start a debate.
+              Add at least one AI provider to start a debate. You can reuse that provider for multiple debater slots.
             </Typography>
             <Button
               title="Add AI Keys"
@@ -712,6 +777,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
             aiPersonalities={aiPersonalities}
             selectedModels={selectedModels}
             onToggleAI={handleToggleAI}
+            onRemoveAI={handleRemoveAI}
             onPersonalityChange={handlePersonalityChange}
             onModelChange={handleModelChange}
             onAddAI={() => navigation.navigate('APIConfig')}
@@ -759,8 +825,8 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
                 disabled={!streamingState?.globalStreamingEnabled}
               />
             </Box>
-            {selectedAIs.map(ai => {
-              const providerId = ai.id;
+            {selectedStreamingProviders.map(ai => {
+              const providerId = ai.provider;
               const providerPref = streamingState?.streamingPreferences?.[providerId]?.enabled ?? true;
               const hasVerificationError = !!streamingState?.providerVerificationErrors?.[providerId];
               const willStream = (streamingState?.globalStreamingEnabled ?? true) && providerPref && !hasVerificationError;

@@ -40,6 +40,7 @@ describe('DebateAISelector', () => {
     isPremium: false,
     aiPersonalities: {},
     onToggleAI: jest.fn(),
+    onRemoveAI: jest.fn(),
     onPersonalityChange: jest.fn(),
     onAddAI: jest.fn(),
     onNext: jest.fn(),
