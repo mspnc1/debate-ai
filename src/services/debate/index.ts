@@ -27,6 +27,7 @@ export {
 export type { 
   DebateSession,
   DebateError,
+  DebateContinuationPrompt,
   DebateEvent,
   DebateEventHandler,
 } from './DebateOrchestrator';

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert } from 'react-native';
-import { act } from '@testing-library/react-native';
+import { act, fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
 import { createAppStore, showSheet } from '@/store';
 import type { AI, Message } from '@/types';
@@ -262,6 +262,8 @@ const createSessionState = (overrides: Record<string, unknown> = {}) => ({
 
 const createFlowState = (overrides: Record<string, unknown> = {}) => ({
   startDebate: jest.fn().mockResolvedValue(undefined),
+  continueDebate: jest.fn(),
+  continuation: null,
   isDebateActive: false,
   isDebateEnded: false,
   currentMessageIndex: 0,
@@ -476,6 +478,40 @@ describe('DebateScreen', () => {
 
     mockVotingInterfaceProps.onVote('left');
     expect(recordVote).toHaveBeenCalledWith('left');
+  });
+
+  it('shows the debate continuation prompt and resumes when pressed', async () => {
+    const continueDebate = jest.fn();
+    const preset = getPresetForFormat('oxford', 'short');
+    const { renderResult } = renderScreen({
+      flow: {
+        isDebateActive: true,
+        continuation: {
+          title: 'Opening speeches complete',
+          message: 'Review the last two speeches or finish any voice clips before the next round begins.',
+          buttonLabel: 'Continue Debate',
+          isFinalReview: false,
+          completedMessageIndex: 1,
+          nextMessageIndex: 2,
+        },
+        continueDebate,
+      },
+      messages: {
+        messages: [
+          { id: 'm1', sender: 'Claude', senderType: 'ai', content: 'Opening', timestamp: 1 } as Message,
+        ],
+      },
+      session: { isInitialized: true, session: { topic: 'Topic', preset }, orchestrator: {} },
+    });
+
+    await flushMicrotasks();
+
+    expect(renderResult.getByText('Opening speeches complete')).toBeTruthy();
+    expect(renderResult.getByText('Continue Debate')).toBeTruthy();
+
+    fireEvent.press(renderResult.getByTestId('debate-continuation-button'));
+
+    expect(continueDebate).toHaveBeenCalledTimes(1);
   });
 
   it('shows alert when vote submission fails', async () => {

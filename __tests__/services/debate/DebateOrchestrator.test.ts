@@ -297,6 +297,112 @@ describe('DebateOrchestrator', () => {
     jest.useRealTimers();
   });
 
+  it('pauses Oxford audience debates after speech pairs until the user continues', async () => {
+    jest.useFakeTimers();
+    const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+    const adapter = {
+      config: {} as Record<string, unknown>,
+      getCapabilities: jest.fn(() => ({ streaming: false })),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => ''),
+    };
+    const aiService = {
+      getAdapter: jest.fn(() => adapter),
+      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+    };
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    const continuationEvents: Array<Record<string, unknown>> = [];
+    orchestrator.addEventListener(event => {
+      if (event.type === 'continuation_required') {
+        continuationEvents.push(event.data);
+      }
+    });
+
+    await orchestrator.initializeDebate('AI ethics', participants, {}, {
+      formatId: 'oxford',
+      rounds: 3,
+    });
+
+    await orchestrator.executeDebateMessage(0, []);
+    expect(continuationEvents).toHaveLength(0);
+
+    jest.clearAllTimers();
+    setTimeoutSpy.mockClear();
+
+    await orchestrator.executeDebateMessage(1, []);
+
+    expect(orchestrator.getSession()?.status).toBe(DebateStatus.PAUSED_FOR_REVIEW);
+    expect(continuationEvents[0]).toEqual(expect.objectContaining({
+      title: 'Opening speeches complete',
+      buttonLabel: 'Continue Debate',
+      isFinalReview: false,
+      completedMessageIndex: 1,
+      nextMessageIndex: 2,
+    }));
+    expect(setTimeoutSpy).not.toHaveBeenCalled();
+
+    orchestrator.continueDebate();
+
+    expect(orchestrator.getSession()?.status).toBe(DebateStatus.ACTIVE);
+    expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), DEBATE_CONSTANTS.DELAYS.VOTING_CONTINUATION);
+
+    setTimeoutSpy.mockRestore();
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  it('requires explicit Oxford final review before showing the final audience vote', async () => {
+    jest.useFakeTimers();
+    const adapter = {
+      config: {} as Record<string, unknown>,
+      getCapabilities: jest.fn(() => ({ streaming: false })),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => ''),
+    };
+    const aiService = {
+      getAdapter: jest.fn(() => adapter),
+      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+    };
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    const continuationEvents: Array<Record<string, unknown>> = [];
+    const votingEvents: Array<Record<string, unknown>> = [];
+    orchestrator.addEventListener(event => {
+      if (event.type === 'continuation_required') {
+        continuationEvents.push(event.data);
+      }
+      if (event.type === 'voting_started') {
+        votingEvents.push(event.data);
+      }
+    });
+
+    await orchestrator.initializeDebate('AI ethics', participants, {}, {
+      formatId: 'oxford',
+      rounds: 3,
+    });
+
+    await orchestrator.executeDebateMessage(5, []);
+
+    expect(orchestrator.getSession()?.status).toBe(DebateStatus.PAUSED_FOR_REVIEW);
+    expect(continuationEvents[0]).toEqual(expect.objectContaining({
+      title: 'Closing speeches complete',
+      buttonLabel: 'Cast Final Vote',
+      isFinalReview: true,
+      completedMessageIndex: 5,
+    }));
+    expect(votingEvents).toHaveLength(0);
+
+    orchestrator.continueDebate();
+
+    expect(votingEvents[0]).toEqual(expect.objectContaining({
+      voteKind: 'audience_stance',
+      audienceVoteStage: 'final',
+      votingLabel: 'Final Audience Vote',
+    }));
+
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
   it('maps Oxford full speeches across 2v2 proposition and opposition slots', async () => {
     jest.useFakeTimers();
     const adapter = {

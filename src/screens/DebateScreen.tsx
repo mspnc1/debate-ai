@@ -5,8 +5,9 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { Alert, ActivityIndicator } from 'react-native';
+import { Alert, ActivityIndicator, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { ErrorService } from '@/services/errors/ErrorService';
 import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
 import { Typography } from '../components/molecules';
@@ -87,6 +88,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [votingOverlayHeight, setVotingOverlayHeight] = useState(0);
   const [scoreOverlayHeight, setScoreOverlayHeight] = useState(0);
+  const [continuationOverlayHeight, setContinuationOverlayHeight] = useState(0);
   const selectedSampleRef = React.useRef<DemoDebate | null>(null);
   // No custom controls modal
   
@@ -129,6 +131,12 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
       setVotingOverlayHeight(0);
     }
   }, [voting.isVoting]);
+
+  useEffect(() => {
+    if (!flow.continuation) {
+      setContinuationOverlayHeight(0);
+    }
+  }, [flow.continuation]);
 
   useEffect(() => {
     if (!voting.scores || Object.keys(voting.scores).length === 0) {
@@ -412,7 +420,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   const headerSubtitle = vsLine || undefined;
 
   const renderContent = () => {
-    const bottomInset = votingOverlayHeight + scoreOverlayHeight;
+    const bottomInset = votingOverlayHeight + scoreOverlayHeight + continuationOverlayHeight;
 
     if (isLoading) {
       return (
@@ -555,6 +563,81 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
             canRetryAudio={debateVoice.canRetryAudio}
             onRetryAudio={debateVoice.retryMessageAudio}
           />
+
+          {flow.continuation && !voting.isVoting && (
+            <Animated.View
+              entering={FadeIn.duration(250)}
+              exiting={FadeOut.duration(180)}
+              onLayout={({ nativeEvent }) => setContinuationOverlayHeight(nativeEvent.layout.height)}
+              style={{
+                backgroundColor: theme.colors.card,
+                borderTopWidth: 1,
+                borderColor: theme.colors.border,
+                paddingHorizontal: 20,
+                paddingTop: 14,
+                paddingBottom: 16,
+                shadowColor: theme.colors.shadowDark,
+                shadowOpacity: 0.18,
+                shadowRadius: 14,
+                shadowOffset: { width: 0, height: -6 },
+                elevation: 8,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <View
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    marginRight: 8,
+                    backgroundColor: flow.continuation.isFinalReview
+                      ? theme.colors.warning[500]
+                      : theme.colors.primary[500],
+                  }}
+                />
+                <Typography
+                  variant="caption"
+                  color={flow.continuation.isFinalReview ? 'warning' : 'brand'}
+                  weight="semibold"
+                  style={{ textTransform: 'uppercase' }}
+                >
+                  {flow.continuation.isFinalReview ? 'Final review' : 'Review checkpoint'}
+                </Typography>
+              </View>
+              <Typography variant="subtitle" weight="bold" style={{ marginBottom: 4 }}>
+                {flow.continuation.title}
+              </Typography>
+              <Typography variant="body" color="secondary" style={{ marginBottom: 14 }}>
+                {flow.continuation.message}
+              </Typography>
+              <Pressable
+                testID="debate-continuation-button"
+                onPress={flow.continueDebate}
+                accessibilityRole="button"
+                accessibilityLabel={flow.continuation.buttonLabel}
+                accessibilityHint="Continues the debate after you finish reviewing the current speeches."
+                style={({ pressed }) => ({
+                  minHeight: 48,
+                  borderRadius: 8,
+                  backgroundColor: theme.colors.primary[500],
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'row',
+                  opacity: pressed ? 0.82 : 1,
+                })}
+              >
+                <Typography variant="button" color="inverse" weight="semibold">
+                  {flow.continuation.buttonLabel}
+                </Typography>
+                <Ionicons
+                  name={flow.continuation.isFinalReview ? 'checkmark-circle' : 'arrow-forward'}
+                  size={17}
+                  color={theme.colors.text.inverse}
+                  style={{ marginLeft: 8 }}
+                />
+              </Pressable>
+            </Animated.View>
+          )}
           
           {voting.isVoting && (
             <Animated.View 

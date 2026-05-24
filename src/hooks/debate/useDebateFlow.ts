@@ -13,7 +13,7 @@ import {
   endStreaming,
   streamingError,
 } from '../../store/streamingSlice';
-import { DebateOrchestrator, DebateEvent, DebateStatus } from '../../services/debate';
+import { DebateOrchestrator, DebateEvent, DebateStatus, type DebateContinuationPrompt } from '../../services/debate';
 import type { PhaseId } from '../../services/debate';
 import { RecordController } from '@/services/demo/RecordController';
 import { ensureAnswerContent } from '@/utils/citationUtils';
@@ -23,6 +23,8 @@ export interface UseDebateFlowReturn {
   isDebateActive: boolean;
   isDebateEnded: boolean;
   startDebate: () => Promise<void>;
+  continueDebate: () => void;
+  continuation: DebateContinuationPrompt | null;
   error: string | null;
   currentRound: number;
   maxRounds: number;
@@ -83,6 +85,7 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
   const [currentCxRole, setCurrentCxRole] = useState<'questioner' | 'answerer' | undefined>(undefined);
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const [totalMessages, setTotalMessages] = useState(0);
+  const [continuation, setContinuation] = useState<DebateContinuationPrompt | null>(null);
   
   // Use ref to track if we've started the debate to prevent multiple starts
   const hasStartedRef = useRef(false);
@@ -152,6 +155,7 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
         setCurrentMessageLabel(firstMessage?.label);
         setCurrentPhase(isPhaseId(firstMessage?.phase) ? firstMessage.phase : undefined);
         setCurrentCxRole(toCxRole(firstMessage?.cxRole));
+        setContinuation(null);
         setIsDebateActive(true);
         setIsDebateEnded(false);
         break;
@@ -184,6 +188,7 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
         setCurrentMessageLabel(undefined);
         setCurrentPhase(undefined);
         setCurrentCxRole(undefined);
+        setContinuation(null);
         break;
       
       // Streaming lifecycle events
@@ -245,6 +250,40 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
         setCurrentMessageLabel(votingLabel ? `Vote: ${votingLabel}` : round ? `Vote ${round}` : 'Vote');
         setCurrentPhase(undefined);
         setCurrentCxRole(undefined);
+        setContinuation(null);
+        break;
+      }
+
+      case 'continuation_required': {
+        const title = typeof event.data.title === 'string'
+          ? event.data.title
+          : 'Review checkpoint';
+        const message = typeof event.data.message === 'string'
+          ? event.data.message
+          : 'Review the latest speeches before the debate continues.';
+        const buttonLabel = typeof event.data.buttonLabel === 'string'
+          ? event.data.buttonLabel
+          : 'Continue Debate';
+        const completedMessageIndex = typeof event.data.completedMessageIndex === 'number'
+          ? event.data.completedMessageIndex
+          : 0;
+        const nextMessageIndex = typeof event.data.nextMessageIndex === 'number'
+          ? event.data.nextMessageIndex
+          : undefined;
+
+        setContinuation({
+          title,
+          message,
+          buttonLabel,
+          isFinalReview: Boolean(event.data.isFinalReview),
+          completedMessageIndex,
+          ...(typeof nextMessageIndex === 'number' ? { nextMessageIndex } : {}),
+        });
+        setCurrentMessageLabel(title);
+        setCurrentPhase(undefined);
+        setCurrentCxRole(undefined);
+        setCurrentMessageIndex(completedMessageIndex);
+        setIsDebateActive(true);
         break;
       }
       
@@ -277,7 +316,12 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
     if (orchestrator) {
       const session = orchestrator.getSession();
       if (session) {
-        setIsDebateActive(session.status === DebateStatus.ACTIVE);
+        setIsDebateActive(
+          session.status === DebateStatus.ACTIVE ||
+          session.status === DebateStatus.PAUSED_FOR_REVIEW ||
+          session.status === DebateStatus.VOTING_ROUND ||
+          session.status === DebateStatus.VOTING_OVERALL
+        );
         setIsDebateEnded(session.status === DebateStatus.COMPLETED);
         setCurrentRound(session.currentRound);
         setMaxRounds(session.totalRounds);
@@ -285,6 +329,11 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
         setTotalMessages(session.totalMessages);
       }
     }
+  }, [orchestrator]);
+
+  const continueDebate = useCallback((): void => {
+    setContinuation(null);
+    orchestrator?.continueDebate();
   }, [orchestrator]);
   
   // Start debate function
@@ -320,12 +369,15 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
     setCurrentCxRole(undefined);
     setCurrentMessageIndex(0);
     setTotalMessages(0);
+    setContinuation(null);
   }, [orchestrator]);
   
   return {
     isDebateActive,
     isDebateEnded,
     startDebate,
+    continueDebate,
+    continuation,
     error,
     currentRound,
     maxRounds,

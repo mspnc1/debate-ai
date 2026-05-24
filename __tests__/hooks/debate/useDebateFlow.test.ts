@@ -31,6 +31,7 @@ class MockOrchestrator {
     preset: getPresetForFormat('oxford', 'short'),
   };
   public startDebate = jest.fn(async () => undefined);
+  public continueDebate = jest.fn();
   private handlers = new Set<EventHandler>();
 
   addEventListener(handler: EventHandler) {
@@ -256,6 +257,45 @@ describe('useDebateFlow', () => {
     expect(result.current.error).toBe('boom');
 
     warnSpy.mockRestore();
+  });
+
+  it('surfaces continuation prompts and resumes the orchestrator on request', () => {
+    const orchestrator = new MockOrchestrator();
+    const { result } = renderHookWithProviders(() => useDebateFlow(orchestrator as unknown as never), {
+      preloadedState: baseState,
+    });
+
+    act(() => {
+      orchestrator.emit({
+        type: 'continuation_required',
+        data: {
+          title: 'Opening speeches complete',
+          message: 'Review the last two speeches or finish any voice clips before the next round begins.',
+          buttonLabel: 'Continue Debate',
+          isFinalReview: false,
+          completedMessageIndex: 1,
+          nextMessageIndex: 2,
+        },
+        timestamp: Date.now(),
+      });
+    });
+
+    expect(result.current.isDebateActive).toBe(true);
+    expect(result.current.currentMessageIndex).toBe(1);
+    expect(result.current.currentTurnLabel).toBe('Opening speeches complete');
+    expect(result.current.continuation).toEqual(expect.objectContaining({
+      title: 'Opening speeches complete',
+      buttonLabel: 'Continue Debate',
+      isFinalReview: false,
+      nextMessageIndex: 2,
+    }));
+
+    act(() => {
+      result.current.continueDebate();
+    });
+
+    expect(orchestrator.continueDebate).toHaveBeenCalledTimes(1);
+    expect(result.current.continuation).toBeNull();
   });
 
   it('handles start errors, retries, and early exits', async () => {

@@ -67,6 +67,7 @@ export enum DebateStatus {
   IDLE = 'idle',
   INITIALIZING = 'initializing',
   ACTIVE = 'active',
+  PAUSED_FOR_REVIEW = 'paused_for_review',
   VOTING_ROUND = 'voting_round',
   VOTING_OVERALL = 'voting_overall',
   COMPLETED = 'completed',
@@ -78,6 +79,19 @@ export interface DebateError {
   message: string;
   aiId?: string;
   retryable: boolean;
+}
+
+export interface DebateContinuationPrompt {
+  title: string;
+  message: string;
+  buttonLabel: string;
+  isFinalReview: boolean;
+  completedMessageIndex: number;
+  nextMessageIndex?: number;
+}
+
+interface PendingDebateContinuation extends DebateContinuationPrompt {
+  messages: Message[];
 }
 
 interface DebateRoleContext {
@@ -104,7 +118,8 @@ export interface DebateEvent {
     | 'stream_started'
     | 'stream_chunk'
     | 'stream_completed'
-    | 'stream_error';
+    | 'stream_error'
+    | 'continuation_required';
   data: Record<string, unknown>;
   timestamp: number;
 }
@@ -122,6 +137,7 @@ export class DebateOrchestrator {
   private currentMessages: Message[] = [];
   private currentVoteIndex = 0;
   private currentAudienceVoteStage?: AudienceVoteStage;
+  private pendingContinuation: PendingDebateContinuation | null = null;
   
   constructor(aiService: AIService) {
     this.aiService = aiService;
@@ -392,6 +408,7 @@ export class DebateOrchestrator {
     this.session = session;
     this.currentVoteIndex = 0;
     this.currentAudienceVoteStage = undefined;
+    this.pendingContinuation = null;
     this.currentMessages = [];
     
     // Initialize services
@@ -996,6 +1013,64 @@ export class DebateOrchestrator {
     
     this.timeouts.set(timeoutId, timeout);
   }
+
+  private shouldPauseForAudienceReview(messageIndex: number): boolean {
+    if (!this.session || !this.votingService?.isAudienceStanceVoteModel()) {
+      return false;
+    }
+
+    const completedSpeechCount = messageIndex + 1;
+    return completedSpeechCount % 2 === 0 || completedSpeechCount >= this.session.totalMessages;
+  }
+
+  private getAudienceReviewTitle(messageSpec?: MessageSpec): string {
+    switch (messageSpec?.phase) {
+      case 'opening':
+        return 'Opening speeches complete';
+      case 'rebuttal':
+        return 'Floor speeches complete';
+      case 'closing':
+        return 'Closing speeches complete';
+      default:
+        return 'Review checkpoint';
+    }
+  }
+
+  private pauseForAudienceReview(
+    messageIndex: number,
+    messages: Message[],
+    nextMessageIndex?: number
+  ): void {
+    if (!this.session) return;
+
+    this.timeouts.forEach(timeout => clearTimeout(timeout));
+    this.timeouts.clear();
+
+    const isFinalReview = typeof nextMessageIndex !== 'number' || nextMessageIndex >= this.session.totalMessages;
+    const messageSpec = this.session.preset.messages[messageIndex];
+    const prompt: DebateContinuationPrompt = {
+      title: this.getAudienceReviewTitle(messageSpec),
+      message: isFinalReview
+        ? 'Finish any remaining clips or transcript review before casting the final audience vote.'
+        : 'Review the last two speeches or finish any voice clips before the next round begins.',
+      buttonLabel: isFinalReview ? 'Cast Final Vote' : 'Continue Debate',
+      isFinalReview,
+      completedMessageIndex: messageIndex,
+      ...(typeof nextMessageIndex === 'number' ? { nextMessageIndex } : {}),
+    };
+
+    this.pendingContinuation = {
+      ...prompt,
+      messages,
+    };
+    this.updateSessionStatus(DebateStatus.PAUSED_FOR_REVIEW);
+
+    this.emitEvent({
+      type: 'continuation_required',
+      data: { ...prompt },
+      timestamp: Date.now(),
+    });
+  }
   
   /**
    * Advance the debate after a message resolves.
@@ -1016,6 +1091,15 @@ export class DebateOrchestrator {
     }
 
     const nextMessageIndex = messageIndex + 1;
+    if (this.shouldPauseForAudienceReview(messageIndex)) {
+      this.pauseForAudienceReview(
+        messageIndex,
+        messages,
+        nextMessageIndex < this.session.totalMessages ? nextMessageIndex : undefined
+      );
+      return;
+    }
+
     if (nextMessageIndex < this.session.totalMessages && this.session.status === DebateStatus.ACTIVE) {
       const delay = usedStreaming
         ? DEBATE_CONSTANTS.DELAYS.POST_STREAM_PAUSE
@@ -1024,6 +1108,30 @@ export class DebateOrchestrator {
     } else {
       this.endDebate();
     }
+  }
+
+  continueDebate(): void {
+    if (!this.session || !this.pendingContinuation) return;
+
+    const pending = this.pendingContinuation;
+    this.pendingContinuation = null;
+
+    if (pending.isFinalReview) {
+      this.updateSessionStatus(DebateStatus.ACTIVE);
+      this.endDebate();
+      return;
+    }
+
+    if (typeof pending.nextMessageIndex !== 'number') {
+      return;
+    }
+
+    this.updateSessionStatus(DebateStatus.ACTIVE);
+    this.scheduleNextMessage(
+      pending.nextMessageIndex,
+      pending.messages,
+      DEBATE_CONSTANTS.DELAYS.VOTING_CONTINUATION
+    );
   }
   
   /**
@@ -1516,5 +1624,6 @@ export class DebateOrchestrator {
     this.currentMessages = [];
     this.currentVoteIndex = 0;
     this.currentAudienceVoteStage = undefined;
+    this.pendingContinuation = null;
   }
 }
