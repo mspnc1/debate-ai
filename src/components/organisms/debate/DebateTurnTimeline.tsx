@@ -9,6 +9,9 @@ export interface DebateTurnTimelineProps {
   messages: MessageSpec[];
   currentMessageIndex: number;
   currentTurnLabel?: string;
+  activeSideLabel?: string;
+  presetLabel?: string;
+  totalMessages?: number;
   showCurrentSummary?: boolean;
   showRailHeader?: boolean;
   embedded?: boolean;
@@ -19,6 +22,10 @@ const MIN_CHIP_WIDTH = 124;
 const MAX_CHIP_WIDTH = 168;
 const EMBEDDED_MIN_CHIP_WIDTH = 108;
 const EMBEDDED_MAX_CHIP_WIDTH = 148;
+const ACTIVE_MIN_CHIP_WIDTH = 184;
+const ACTIVE_MAX_CHIP_WIDTH = 232;
+const EMBEDDED_ACTIVE_MIN_CHIP_WIDTH = 204;
+const EMBEDDED_ACTIVE_MAX_CHIP_WIDTH = 264;
 
 export const getDebateTimelineActiveIndex = (currentMessageIndex: number, messageCount: number): number => (
   messageCount > 0
@@ -28,6 +35,25 @@ export const getDebateTimelineActiveIndex = (currentMessageIndex: number, messag
 
 export const getDebateTimelineLeftOffset = (activeIndex: number, chipWidth: number): number =>
   Math.max(0, activeIndex * (chipWidth + CHIP_GAP));
+
+export const getDebateTimelineChipWidths = (
+  viewportWidth: number,
+  embedded = false
+): { inactiveChipWidth: number; activeChipWidth: number } => {
+  const inactiveMin = embedded ? EMBEDDED_MIN_CHIP_WIDTH : MIN_CHIP_WIDTH;
+  const inactiveMax = embedded ? EMBEDDED_MAX_CHIP_WIDTH : MAX_CHIP_WIDTH;
+  const activeMin = embedded ? EMBEDDED_ACTIVE_MIN_CHIP_WIDTH : ACTIVE_MIN_CHIP_WIDTH;
+  const activeMax = embedded ? EMBEDDED_ACTIVE_MAX_CHIP_WIDTH : ACTIVE_MAX_CHIP_WIDTH;
+  const inactiveScale = embedded ? 0.28 : 0.34;
+  const activeScale = embedded ? 0.58 : 0.48;
+  const inactiveChipWidth = Math.min(inactiveMax, Math.max(inactiveMin, Math.round(viewportWidth * inactiveScale)));
+  const activeChipWidth = Math.min(activeMax, Math.max(activeMin, Math.round(viewportWidth * activeScale)));
+
+  return {
+    inactiveChipWidth,
+    activeChipWidth: Math.max(activeChipWidth, inactiveChipWidth),
+  };
+};
 
 const scheduleFrame = (callback: (timestamp: number) => void): number =>
   typeof requestAnimationFrame === 'function'
@@ -46,6 +72,9 @@ export const DebateTurnTimeline: React.FC<DebateTurnTimelineProps> = ({
   messages,
   currentMessageIndex,
   currentTurnLabel,
+  activeSideLabel,
+  presetLabel,
+  totalMessages,
   showCurrentSummary = true,
   showRailHeader = true,
   embedded = false,
@@ -56,17 +85,19 @@ export const DebateTurnTimeline: React.FC<DebateTurnTimelineProps> = ({
 
   const activeIndex = getDebateTimelineActiveIndex(currentMessageIndex, messages.length);
   const activeMessage = messages[activeIndex];
-  const chipMinWidth = embedded ? EMBEDDED_MIN_CHIP_WIDTH : MIN_CHIP_WIDTH;
-  const chipMaxWidth = embedded ? EMBEDDED_MAX_CHIP_WIDTH : MAX_CHIP_WIDTH;
-  const chipWidth = Math.min(chipMaxWidth, Math.max(chipMinWidth, Math.round(width * (embedded ? 0.31 : 0.36))));
   const viewportWidth = Math.max(0, width - (embedded ? 28 : 32));
-  const railRightPadding = Math.max(16, viewportWidth - chipWidth);
+  const { inactiveChipWidth, activeChipWidth } = getDebateTimelineChipWidths(viewportWidth, embedded);
+  const railRightPadding = Math.max(16, viewportWidth - activeChipWidth);
+  const safeTotalMessages = Math.max(totalMessages ?? messages.length, messages.length);
+  const progressText = safeTotalMessages > 0 ? `${activeIndex + 1}/${safeTotalMessages}` : '0/0';
+  const progressPercent = safeTotalMessages > 0 ? ((activeIndex + 1) / safeTotalMessages) * 100 : 0;
+  const activeRoleLabel = activeSideLabel || getDebateSpeakerRoleLabel(activeMessage);
 
   useEffect(() => {
     if (messages.length === 0) return undefined;
 
     const frame = scheduleFrame(() => {
-      const leftLockedOffset = getDebateTimelineLeftOffset(activeIndex, chipWidth);
+      const leftLockedOffset = getDebateTimelineLeftOffset(activeIndex, inactiveChipWidth);
       scrollRef.current?.scrollTo({
         x: Math.max(0, leftLockedOffset),
         animated: true,
@@ -74,7 +105,7 @@ export const DebateTurnTimeline: React.FC<DebateTurnTimelineProps> = ({
     });
 
     return () => cancelFrame(frame);
-  }, [activeIndex, chipWidth, messages.length]);
+  }, [activeIndex, inactiveChipWidth, messages.length]);
 
   if (!activeMessage) {
     return null;
@@ -156,26 +187,57 @@ export const DebateTurnTimeline: React.FC<DebateTurnTimelineProps> = ({
               style={[
                 styles.turnChip,
                 embedded && styles.embeddedTurnChip,
-                { width: chipWidth },
+                isCurrent && styles.activeTurnChip,
+                embedded && isCurrent && styles.embeddedActiveTurnChip,
+                { width: isCurrent ? activeChipWidth : inactiveChipWidth },
                 {
                   backgroundColor,
                   borderColor,
                 },
               ]}
             >
-              <Typography variant="caption" color="secondary" numberOfLines={1}>
-                {index + 1}
-              </Typography>
+              <View style={styles.chipMetaRow}>
+                <Typography
+                  variant="caption"
+                  color={isCurrent ? 'brand' : 'secondary'}
+                  weight={isCurrent ? 'semibold' : 'normal'}
+                  numberOfLines={1}
+                >
+                  {isCurrent ? progressText : index + 1}
+                </Typography>
+                {isCurrent && (
+                  <Typography variant="caption" color="brand" weight="semibold" numberOfLines={1} style={styles.activeRoleText}>
+                    {activeRoleLabel}
+                  </Typography>
+                )}
+              </View>
               <Typography
-                variant="caption"
-                weight={isCurrent ? 'semibold' : 'medium'}
-                numberOfLines={1}
+                variant={isCurrent ? 'body' : 'caption'}
+                weight={isCurrent ? 'bold' : 'medium'}
+                numberOfLines={isCurrent ? 2 : 1}
+                style={styles.turnLabel}
               >
-                {message.label}
+                {isCurrent ? currentTurnLabel || message.label : message.label}
               </Typography>
               <Typography variant="caption" color="secondary" numberOfLines={1}>
-                {getDebateSpeakerRoleLabel(message)}
+                {isCurrent ? presetLabel || activeRoleLabel : getDebateSpeakerRoleLabel(message)}
               </Typography>
+              {isCurrent && (
+                <View style={[
+                  styles.progressTrack,
+                  { backgroundColor: isDark ? theme.colors.overlays.medium : theme.colors.gray[200] },
+                ]}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: `${progressPercent}%` as `${number}%`,
+                        backgroundColor: theme.colors.primary[500],
+                      },
+                    ]}
+                  />
+                </View>
+              )}
             </View>
           );
         })}
@@ -232,8 +294,44 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   embeddedTurnChip: {
-    minHeight: 52,
+    minHeight: 50,
     paddingHorizontal: 9,
     paddingVertical: 6,
+  },
+  activeTurnChip: {
+    minHeight: 80,
+    shadowColor: 'rgba(0,0,0,0.18)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  embeddedActiveTurnChip: {
+    minHeight: 72,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+  },
+  chipMetaRow: {
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  activeRoleText: {
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+  turnLabel: {
+    letterSpacing: 0,
+  },
+  progressTrack: {
+    height: 3,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
   },
 });

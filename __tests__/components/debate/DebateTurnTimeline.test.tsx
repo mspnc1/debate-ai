@@ -2,6 +2,7 @@ import React from 'react';
 import { renderWithProviders } from '../../../test-utils/renderWithProviders';
 import {
   DebateTurnTimeline,
+  getDebateTimelineChipWidths,
   getDebateTimelineActiveIndex,
   getDebateTimelineLeftOffset,
 } from '@/components/organisms/debate/DebateTurnTimeline';
@@ -19,7 +20,8 @@ describe('DebateTurnTimeline', () => {
     );
 
     expect(getByText('Speech Order')).toBeTruthy();
-    expect(getByText(`3/${preset.messages.length}`)).toBeTruthy();
+    expect(getAllByText(`3/${preset.messages.length}`).length).toBeGreaterThan(0);
+    expect(getAllByText('Cross-Examination (CX) · answering').length).toBeGreaterThan(0);
     expect(getAllByText('Cross-Examination (CX)').length).toBeGreaterThan(0);
     expect(getAllByText('Affirmative · answers').length).toBeGreaterThan(0);
   });
@@ -43,10 +45,12 @@ describe('DebateTurnTimeline', () => {
 
   it('clamps active index and computes a left-locked rail offset', () => {
     const preset = getPresetForFormat('lincoln_douglas', 'standard');
+    const embeddedWidths = getDebateTimelineChipWidths(362, true);
 
     expect(getDebateTimelineActiveIndex(-4, preset.messages.length)).toBe(0);
     expect(getDebateTimelineActiveIndex(99, preset.messages.length)).toBe(preset.messages.length - 1);
     expect(getDebateTimelineLeftOffset(0, 124)).toBe(0);
     expect(getDebateTimelineLeftOffset(2, 124)).toBe(264);
+    expect(embeddedWidths.activeChipWidth).toBeGreaterThan(embeddedWidths.inactiveChipWidth);
   });
 });

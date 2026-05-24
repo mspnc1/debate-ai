@@ -63,14 +63,7 @@ export const DebateSessionHeader: React.FC<DebateSessionHeaderProps> = ({
   const { width } = useWindowDimensions();
   const isNarrow = width < 360;
   const styles = createStyles(theme, isDark, insets.top);
-  const safeTotalMessages = Math.max(totalMessages, timelineMessages.length);
-  const activeIndex = safeTotalMessages > 0
-    ? Math.min(Math.max(currentMessageIndex, 0), safeTotalMessages - 1)
-    : 0;
-  const activeMessage = timelineMessages[activeIndex];
   const motionText = stripMotionPrefix(topic) || 'Debate Motion';
-  const activeTurnText = currentTurnLabel || activeMessage?.label || 'Current step';
-  const progressText = safeTotalMessages > 0 ? `${activeIndex + 1}/${safeTotalMessages}` : '0/0';
 
   return (
     <View style={styles.container} testID="debate-session-header">
@@ -183,42 +176,14 @@ export const DebateSessionHeader: React.FC<DebateSessionHeaderProps> = ({
         })}
       </View>
 
-      <View
-        style={[
-          styles.turnBlock,
-          {
-            backgroundColor: isDark ? theme.colors.overlays.soft : theme.colors.primary[50],
-            borderColor: theme.colors.border,
-          },
-        ]}
-      >
-        <View style={styles.turnCopy}>
-          <View style={styles.turnMetaRow}>
-            <Typography variant="caption" color="secondary" weight="semibold" numberOfLines={1}>
-              {progressText}
-            </Typography>
-            <Typography variant="caption" color="secondary" numberOfLines={1}>
-              {presetLabel}
-            </Typography>
-          </View>
-          <Typography variant="body" weight="bold" numberOfLines={1}>
-            {activeTurnText}
-          </Typography>
-        </View>
-        {activeSideLabel && (
-          <View style={styles.sideBadge}>
-            <Typography variant="caption" weight="semibold" color="brand" numberOfLines={1}>
-              {activeSideLabel}
-            </Typography>
-          </View>
-        )}
-      </View>
-
       {timelineMessages.length > 0 && (
         <DebateTurnTimeline
           messages={timelineMessages}
           currentMessageIndex={currentMessageIndex}
           currentTurnLabel={currentTurnLabel}
+          activeSideLabel={activeSideLabel}
+          presetLabel={presetLabel}
+          totalMessages={totalMessages}
           showCurrentSummary={false}
           showRailHeader={false}
           embedded
@@ -361,36 +326,5 @@ const createStyles = (theme: Theme, isDark: boolean, topInset: number) => StyleS
   personaIconText: {
     fontSize: 11,
     lineHeight: 15,
-  },
-  turnBlock: {
-    minHeight: 46,
-    borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    marginTop: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  turnCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  turnMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 1,
-  },
-  sideBadge: {
-    maxWidth: 132,
-    minHeight: 30,
-    justifyContent: 'center',
-    paddingHorizontal: 9,
-    borderRadius: 8,
-    backgroundColor: isDark ? theme.colors.overlays.medium : theme.colors.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
   },
 });
