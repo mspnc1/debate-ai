@@ -9,7 +9,8 @@ export type CreateMediaOperation =
   | 'image_to_video'
   | 'text_to_speech'
   | 'sound_effect'
-  | 'debate_voice_pack';
+  | 'debate_voice_pack'
+  | 'debate_podcast_playlist';
 
 export type CreateMediaAssetStatus =
   | 'queued'
@@ -71,6 +72,7 @@ export interface DebateVoicePackClip {
   id: string;
   messageId: string;
   order: number;
+  role?: 'debater' | 'mc';
   speakerId?: string;
   speakerName: string;
   speechLabel?: string;
@@ -83,7 +85,7 @@ export interface DebateVoicePackClip {
 }
 
 export interface DebateVoicePackManifest {
-  kind: 'debate_voice_pack';
+  kind: 'debate_voice_pack' | 'debate_podcast_playlist';
   version: 1;
   sessionId: string;
   topic: string;

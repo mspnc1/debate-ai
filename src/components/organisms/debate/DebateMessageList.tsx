@@ -31,10 +31,12 @@ type DetectedAnnouncementType =
   | 'debate-complete'
   | 'overall-winner'
   | 'debate-start'
-  | 'audience-stance';
+  | 'audience-stance'
+  | 'mc';
 
 // Helper functions moved outside component for performance
 const detectType = (msg: Message): DetectedAnnouncementType | null => {
+  if (msg.metadata?.debateInterstitial) return 'mc';
   if (msg.sender !== 'Debate Host' && msg.sender !== 'System') return null;
   
   const content = msg.content.toLowerCase();
@@ -67,6 +69,7 @@ const getLabel = (type: DetectedAnnouncementType, content = ''): string => {
       return content.toLowerCase().includes('final audience')
         ? 'FINAL AUDIENCE VOTE'
         : 'OPENING AUDIENCE STANCE';
+    case 'mc': return 'MC';
     case 'exchange-winner': return 'EXCHANGE RESULT';
     case 'debate-complete': return 'DEBATE ENDED';
     case 'overall-winner': return 'CHAMPION';
@@ -79,6 +82,7 @@ const getIcon = (type: DetectedAnnouncementType): string => {
     case 'topic': return ''; // No icon for cleaner look
     case 'debate-start': return '🥊';
     case 'audience-stance': return '◉';
+    case 'mc': return '🎙️';
     case 'exchange-winner': return '🎯';
     case 'debate-complete': return '🏁';
     case 'overall-winner': return '🏆';
@@ -129,7 +133,7 @@ const MessageItem = memo<{
     return (
       <SystemAnnouncement
         type={systemType}
-        label={getLabel(systemType, message.content)}
+        label={systemType === 'mc' ? message.metadata?.debateInterstitial?.label : getLabel(systemType, message.content)}
         content={message.content}
         icon={getIcon(systemType)}
         animation="slide-up"

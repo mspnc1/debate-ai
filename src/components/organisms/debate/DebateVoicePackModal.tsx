@@ -18,6 +18,7 @@ interface DebateVoicePackModalProps {
   selectedIds: string[];
   isSaving: boolean;
   canRetryAudio: boolean;
+  isPodcastPlaylist?: boolean;
   onToggleClip: (id: string) => void;
   onSelectAllReady: () => void;
   onClearSelection: () => void;
@@ -39,6 +40,7 @@ export const DebateVoicePackModal: React.FC<DebateVoicePackModalProps> = ({
   selectedIds,
   isSaving,
   canRetryAudio,
+  isPodcastPlaylist = false,
   onToggleClip,
   onSelectAllReady,
   onClearSelection,
@@ -65,7 +67,7 @@ export const DebateVoicePackModal: React.FC<DebateVoicePackModalProps> = ({
         <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
           <View style={styles.headerText}>
             <Typography variant="subtitle" weight="semibold">
-              Save Voice Pack
+              {isPodcastPlaylist ? 'Save Podcast Playlist' : 'Save Voice Pack'}
             </Typography>
             <Typography variant="caption" color="secondary">
               {selectedCount} selected • {readyCount} ready
@@ -178,7 +180,7 @@ export const DebateVoicePackModal: React.FC<DebateVoicePackModalProps> = ({
             onPress={onSave}
             disabled={!canSave}
             accessibilityRole="button"
-            accessibilityLabel="Save selected clips as a voice pack"
+            accessibilityLabel={isPodcastPlaylist ? 'Save selected clips as a podcast playlist' : 'Save selected clips as a voice pack'}
             testID="voice-pack-save"
           >
             {isSaving ? (

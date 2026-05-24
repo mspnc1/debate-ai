@@ -2,6 +2,7 @@ import React from 'react';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { DebatePersonalitySelector } from '@/components/organisms/debate/DebatePersonalitySelector';
 import type { AIConfig } from '@/types';
+import type { MediaProviderVoiceOption } from '@/types/media';
 
 jest.mock('@/components/molecules', () => {
   const React = require('react');
@@ -48,5 +49,22 @@ describe('DebatePersonalitySelector', () => {
     expect(getByText('Back to AI Selection')).toBeTruthy();
     expect(getByText('Debate Intensity')).toBeTruthy();
     expect(getByText('Hostile')).toBeTruthy();
+  });
+
+  it('renders a separate MC voice row in podcast mode', () => {
+    const { getByText } = renderWithProviders(
+      <DebatePersonalitySelector
+        {...defaultProps}
+        voiceConfigAvailable
+        voiceEnabled
+        voiceOptions={[{ id: 'voice-1', name: 'Host Voice' } as MediaProviderVoiceOption]}
+        podcastModeEnabled
+        podcastMC={{ id: 'mc-1', provider: 'openai', name: 'MC', model: 'gpt-5' }}
+        podcastMCVoice={{ voiceId: 'voice-1', voiceName: 'Host Voice' }}
+      />
+    );
+
+    expect(getByText('Podcast MC')).toBeTruthy();
+    expect(getByText('Host Voice')).toBeTruthy();
   });
 });

@@ -25,6 +25,10 @@ export {
 } from './debateVoicePack';
 export { sanitizeDebateSpeechForTTS } from './debateAudioSanitizer';
 export {
+  buildDebateInterstitialTemplate,
+  createDebateInterstitialMessage,
+} from './DebateInterstitialService';
+export {
   applyDebateOutputTokenCap,
   getDebateSpeechLengthGuidance,
 } from './debateSpeechLength';

@@ -15,6 +15,8 @@ import { UNIVERSAL_PERSONALITIES } from '../../../config/personalities';
 // PersonalityService removed from this view to simplify UI
 import PersonalityModal from './PersonalityModal';
 
+type VoiceModalTarget = { kind: 'debater'; ai: AIConfig } | { kind: 'mc'; ai: AIConfig };
+
 interface DebatePersonalitySelectorProps {
   selectedTopic: string;
   customTopic: string;
@@ -34,6 +36,10 @@ interface DebatePersonalitySelectorProps {
   voiceError?: string | null;
   onToggleVoiceEnabled?: (enabled: boolean) => void;
   onVoiceSelect?: (aiId: string, voice: MediaProviderVoiceOption) => void;
+  podcastModeEnabled?: boolean;
+  podcastMC?: AIConfig | null;
+  podcastMCVoice?: DebateVoiceSelection;
+  onPodcastMCVoiceSelect?: (voice: MediaProviderVoiceOption) => void;
   onReloadVoices?: () => void;
 }
 
@@ -56,13 +62,18 @@ export const DebatePersonalitySelector: React.FC<DebatePersonalitySelectorProps>
   voiceError = null,
   onToggleVoiceEnabled,
   onVoiceSelect,
+  podcastModeEnabled = false,
+  podcastMC = null,
+  podcastMCVoice,
+  onPodcastMCVoiceSelect,
   onReloadVoices,
 }) => {
   const { theme } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const [activeAI, setActiveAI] = useState<AIConfig | null>(null);
-  const [voiceModalAI, setVoiceModalAI] = useState<AIConfig | null>(null);
+  const [voiceModalTarget, setVoiceModalTarget] = useState<VoiceModalTarget | null>(null);
   const [voiceSearch, setVoiceSearch] = useState('');
+  const voiceModalAI = voiceModalTarget?.ai || null;
 
   const normalizedVoiceSearch = voiceSearch.trim().toLowerCase();
   const filteredVoiceOptions = normalizedVoiceSearch
@@ -252,7 +263,7 @@ export const DebatePersonalitySelector: React.FC<DebatePersonalitySelectorProps>
                         title="Choose"
                         onPress={() => {
                           setVoiceSearch('');
-                          setVoiceModalAI(ai);
+                          setVoiceModalTarget({ kind: 'debater', ai });
                         }}
                         variant="tonal"
                         size="small"
@@ -260,6 +271,44 @@ export const DebatePersonalitySelector: React.FC<DebatePersonalitySelectorProps>
                     </View>
                   );
                 })}
+
+                {voiceOptions.length > 0 && podcastModeEnabled && podcastMC && (
+                  <View
+                    key={`voice-mc-${podcastMC.id}`}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: theme.spacing.sm,
+                      paddingVertical: theme.spacing.sm,
+                      borderTopWidth: 1,
+                      borderTopColor: theme.colors.border,
+                    }}
+                  >
+                    <AIAvatar
+                      icon="🎙️"
+                      size="small"
+                      color={podcastMC.color}
+                      isSelected={false}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Typography variant="caption" weight="semibold">
+                        Podcast MC
+                      </Typography>
+                      <Typography variant="caption" color="secondary">
+                        {podcastMCVoice?.voiceName || 'Choose a voice'}
+                      </Typography>
+                    </View>
+                    <Button
+                      title="Choose"
+                      onPress={() => {
+                        setVoiceSearch('');
+                        setVoiceModalTarget({ kind: 'mc', ai: podcastMC });
+                      }}
+                      variant="tonal"
+                      size="small"
+                    />
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -282,10 +331,10 @@ export const DebatePersonalitySelector: React.FC<DebatePersonalitySelectorProps>
       />
 
       <Modal
-        visible={Boolean(voiceModalAI)}
+        visible={Boolean(voiceModalTarget)}
         transparent
         animationType="fade"
-        onRequestClose={() => setVoiceModalAI(null)}
+        onRequestClose={() => setVoiceModalTarget(null)}
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.48)', justifyContent: 'flex-end' }}>
           <View style={{ maxHeight: '78%', backgroundColor: theme.colors.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: theme.spacing.lg }}>
@@ -295,10 +344,10 @@ export const DebatePersonalitySelector: React.FC<DebatePersonalitySelectorProps>
                   Choose voice
                 </Typography>
                 <Typography variant="caption" color="secondary">
-                  {voiceModalAI?.name}
+                  {voiceModalTarget?.kind === 'mc' ? 'Podcast MC' : voiceModalAI?.name}
                 </Typography>
               </View>
-              <Button title="Close" onPress={() => setVoiceModalAI(null)} variant="ghost" size="small" />
+              <Button title="Close" onPress={() => setVoiceModalTarget(null)} variant="ghost" size="small" />
             </View>
             <TextInput
               value={voiceSearch}
@@ -322,14 +371,20 @@ export const DebatePersonalitySelector: React.FC<DebatePersonalitySelectorProps>
               keyExtractor={(voice) => voice.id}
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => {
-                const selected = voiceModalAI ? voiceSelections[voiceModalAI.id]?.voiceId === item.id : false;
+                const selected = voiceModalTarget?.kind === 'mc'
+                  ? podcastMCVoice?.voiceId === item.id
+                  : voiceModalAI
+                    ? voiceSelections[voiceModalAI.id]?.voiceId === item.id
+                    : false;
                 return (
                   <TouchableOpacity
                     onPress={() => {
-                      if (voiceModalAI) {
+                      if (voiceModalTarget?.kind === 'mc') {
+                        onPodcastMCVoiceSelect?.(item);
+                      } else if (voiceModalAI) {
                         onVoiceSelect?.(voiceModalAI.id, item);
                       }
-                      setVoiceModalAI(null);
+                      setVoiceModalTarget(null);
                     }}
                     style={{
                       paddingVertical: theme.spacing.md,

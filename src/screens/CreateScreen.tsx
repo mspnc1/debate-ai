@@ -157,7 +157,7 @@ const AUDIO_END_EPSILON_SECONDS = 0.05;
 const AUDIO_SKIP_SECONDS = 1;
 
 function isVoicePackEntry(entry: GeneratedMediaEntry): entry is GeneratedMediaEntry & { voicePack: DebateVoicePackManifest } {
-  return entry.voicePack?.kind === 'debate_voice_pack';
+  return entry.voicePack?.kind === 'debate_voice_pack' || entry.voicePack?.kind === 'debate_podcast_playlist';
 }
 
 function getAudioPhase(status: ReturnType<typeof useAudioPlayerStatus>): AudioPlaybackPhase {
@@ -817,7 +817,9 @@ function getGalleryAssetModelLabel(asset: GalleryAsset): string {
     return getImageModelDisplayName(image.provider, image.model);
   }
   const media = asset.entry as GeneratedMediaEntry;
-  if (isVoicePackEntry(media)) return 'Debate voice pack';
+  if (isVoicePackEntry(media)) {
+    return media.voicePack.kind === 'debate_podcast_playlist' ? 'Debate podcast' : 'Debate voice pack';
+  }
   return asset.modelId;
 }
 
@@ -840,7 +842,8 @@ function formatVoicePackSummary(entry: GeneratedMediaEntry): string | undefined 
   if (!isVoicePackEntry(entry)) return undefined;
   const clipCount = entry.voicePack.clips.length;
   const pauseSeconds = entry.voicePack.pauseMs / 1000;
-  return `${clipCount} clip${clipCount === 1 ? '' : 's'} • ${pauseSeconds.toFixed(1)}s pauses`;
+  const label = entry.voicePack.kind === 'debate_podcast_playlist' ? 'podcast clip' : 'clip';
+  return `${clipCount} ${label}${clipCount === 1 ? '' : 's'} • ${pauseSeconds.toFixed(1)}s pauses`;
 }
 
 function buildFilterOptions(assets: GalleryAsset[], field: 'providerId' | 'modelId' | 'operation'): string[] {

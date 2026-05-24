@@ -37,17 +37,26 @@ function getDebaterId(message: Message): string | undefined {
   return message.metadata?.providerId || message.sender.split(' (')[0].toLowerCase();
 }
 
+function getVoiceForMessage(message: Message, voiceConfig?: DebateVoiceConfig) {
+  if (!voiceConfig?.enabled) return undefined;
+  if (message.metadata?.debateInterstitial) {
+    return voiceConfig.podcast?.mcVoice;
+  }
+
+  const debaterId = getDebaterId(message);
+  return debaterId ? voiceConfig.debaterVoices[debaterId] : undefined;
+}
+
 function shouldAutoGenerate(message: Message, voiceConfig?: DebateVoiceConfig): boolean {
-  if (!voiceConfig?.enabled || message.senderType !== 'ai') return false;
-  if (!message.metadata?.debateSpeech) return false;
+  if (!voiceConfig?.enabled) return false;
+  if (!message.metadata?.debateSpeech && !message.metadata?.debateInterstitial) return false;
   if (!message.content.trim()) return false;
   if (hasAudioAttachment(message)) return false;
 
   const status = message.metadata.debateAudio?.status;
   if (status === 'generating' || status === 'ready' || status === 'failed') return false;
 
-  const debaterId = getDebaterId(message);
-  return Boolean(debaterId && voiceConfig.debaterVoices[debaterId]);
+  return Boolean(getVoiceForMessage(message, voiceConfig));
 }
 
 export function useDebateVoiceGeneration({
@@ -98,8 +107,7 @@ export function useDebateVoiceGeneration({
   }, [sessionId]);
 
   const markFailed = useCallback(async (message: Message, error: unknown) => {
-    const debaterId = getDebaterId(message);
-    const voice = debaterId ? voiceConfig?.debaterVoices[debaterId] : undefined;
+    const voice = getVoiceForMessage(message, voiceConfig);
     if (!voice) return;
 
     const generationError = error instanceof DebateVoiceGenerationError
@@ -121,15 +129,14 @@ export function useDebateVoiceGeneration({
     } catch {
       // Active debate playback should not fail because history persistence was unavailable.
     }
-  }, [dispatch, persistSessionMessages, voiceConfig?.debaterVoices]);
+  }, [dispatch, persistSessionMessages, voiceConfig]);
 
   const generateForMessage = useCallback(async (message: Message, force = false) => {
     if (!voiceConfig?.enabled || !sessionId || !hasVerifiedElevenLabs) return;
     if (inFlightRef.current.has(message.id)) return;
     if (!force && !shouldAutoGenerate(message, voiceConfig)) return;
 
-    const debaterId = getDebaterId(message);
-    const voice = debaterId ? voiceConfig.debaterVoices[debaterId] : undefined;
+    const voice = getVoiceForMessage(message, voiceConfig);
     if (!voice) return;
 
     inFlightRef.current.add(message.id);

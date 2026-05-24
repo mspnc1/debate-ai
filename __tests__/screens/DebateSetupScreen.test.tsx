@@ -338,6 +338,17 @@ beforeEach(() => {
 });
 
 describe('DebateSetupScreen', () => {
+  const selectDebaterSlot = async (index: number, ai: AIConfig) => {
+    act(() => {
+      aiSelectorProps.onRequestDebaterSlot(index);
+    });
+    await flush();
+    act(() => {
+      aiSelectorProps.onSelectProvider(ai);
+    });
+    await flush();
+  };
+
   it('places the trial banner below the header surface', () => {
     const { renderResult } = renderScreen({ featureAccess: { isInTrial: true, trialDaysRemaining: 1 } });
 
@@ -415,11 +426,8 @@ describe('DebateSetupScreen', () => {
     await flush();
 
     const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
-    act(() => {
-      aiSelectorProps.onToggleAI(claudeConfig);
-      aiSelectorProps.onToggleAI(claudeConfig);
-    });
-    await flush();
+    await selectDebaterSlot(0, claudeConfig);
+    await selectDebaterSlot(1, claudeConfig);
 
     expect(aiSelectorProps.selectedAIs).toHaveLength(2);
     expect(aiSelectorProps.selectedAIs.map((ai: AIConfig) => ai.provider)).toEqual(['claude', 'claude']);
@@ -464,11 +472,8 @@ describe('DebateSetupScreen', () => {
 
     const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
     const openaiConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'openai');
-    act(() => {
-      aiSelectorProps.onToggleAI(claudeConfig);
-      aiSelectorProps.onToggleAI(openaiConfig);
-    });
-    await flush();
+    await selectDebaterSlot(0, claudeConfig);
+    await selectDebaterSlot(1, openaiConfig);
 
     await act(async () => {
       await aiSelectorProps.onNext();
@@ -498,11 +503,8 @@ describe('DebateSetupScreen', () => {
     const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
     const openaiConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'openai');
 
-    act(() => {
-      aiSelectorProps.onToggleAI(claudeConfig);
-      aiSelectorProps.onToggleAI(openaiConfig);
-    });
-    await flush();
+    await selectDebaterSlot(0, claudeConfig);
+    await selectDebaterSlot(1, openaiConfig);
     await act(async () => {
       await aiSelectorProps.onNext();
     });
@@ -541,11 +543,8 @@ describe('DebateSetupScreen', () => {
 
     const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
     const openaiConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'openai');
-    act(() => {
-      aiSelectorProps.onToggleAI(claudeConfig);
-      aiSelectorProps.onToggleAI(openaiConfig);
-    });
-    await flush();
+    await selectDebaterSlot(0, claudeConfig);
+    await selectDebaterSlot(1, openaiConfig);
 
     act(() => {
       aiSelectorProps.onNext();
@@ -580,11 +579,8 @@ describe('DebateSetupScreen', () => {
 
     const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
     const openaiConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'openai');
-    act(() => {
-      aiSelectorProps.onToggleAI(claudeConfig);
-      aiSelectorProps.onToggleAI(openaiConfig);
-    });
-    await flush();
+    await selectDebaterSlot(0, claudeConfig);
+    await selectDebaterSlot(1, openaiConfig);
     await act(async () => {
       await aiSelectorProps.onNext();
     });
@@ -618,11 +614,8 @@ describe('DebateSetupScreen', () => {
 
     const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
     const openaiConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'openai');
-    act(() => {
-      aiSelectorProps.onToggleAI(claudeConfig);
-      aiSelectorProps.onToggleAI(openaiConfig);
-    });
-    await flush();
+    await selectDebaterSlot(0, claudeConfig);
+    await selectDebaterSlot(1, openaiConfig);
 
     const [claudeDebater, openaiDebater] = aiSelectorProps.selectedAIs;
 
@@ -664,6 +657,78 @@ describe('DebateSetupScreen', () => {
     }));
   });
 
+  it('passes podcast MC provider, model, and voice config to Debate', async () => {
+    const { renderResult, navigation } = renderScreen({
+      featureAccess: { isDemo: false },
+      state: {
+        settings: {
+          ...defaultState().settings,
+          apiKeys: {
+            ...defaultState().settings.apiKeys,
+            elevenlabs: { configured: true, maskedLabel: 'key', updatedAt: 1 },
+          },
+          verifiedProviders: ['elevenlabs'],
+        } as any,
+      },
+    });
+
+    act(() => {
+      topicSelectorProps.onTopicSelect('Climate Action');
+    });
+    await flush();
+    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
+    await flush();
+
+    const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
+    const openaiConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'openai');
+    const googleConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'google');
+    await selectDebaterSlot(0, claudeConfig);
+    await selectDebaterSlot(1, openaiConfig);
+
+    act(() => {
+      aiSelectorProps.onTogglePodcastMode(true);
+    });
+    await flush();
+    act(() => {
+      aiSelectorProps.onRequestPodcastMC();
+    });
+    await flush();
+    act(() => {
+      aiSelectorProps.onSelectProvider(googleConfig);
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      await aiSelectorProps.onNext();
+    });
+    await flush();
+    await flush();
+
+    expect(personalitySelectorProps.podcastModeEnabled).toBe(true);
+    expect(personalitySelectorProps.podcastMC.provider).toBe('google');
+    expect(personalitySelectorProps.podcastMCVoice).toEqual({ voiceId: 'voice-1', voiceName: 'Voice One' });
+
+    await act(async () => {
+      await personalitySelectorProps.onStartDebate();
+    });
+
+    expect(navigation.navigate).toHaveBeenCalledWith('Debate', expect.objectContaining({
+      voiceConfig: expect.objectContaining({
+        podcast: {
+          enabled: true,
+          scriptMode: 'byok_ai',
+          outputMode: 'playlist',
+          mc: expect.objectContaining({
+            provider: 'google',
+            model: expect.any(String),
+          }),
+          mcVoice: { voiceId: 'voice-1', voiceName: 'Voice One' },
+        },
+      }),
+    }));
+  });
+
   it('shows alerts when missing selections', async () => {
     const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
 
@@ -682,7 +747,7 @@ describe('DebateSetupScreen', () => {
     await act(async () => {
       await aiSelectorProps.onNext();
     });
-    expect(Alert.alert).toHaveBeenCalledWith('Select 2 AIs', expect.any(String));
+    expect(Alert.alert).toHaveBeenCalledWith('Fill 2 Slots', expect.any(String));
   });
 
   it('resets setup state when returning from a completed debate', async () => {

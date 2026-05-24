@@ -100,6 +100,37 @@ const normalizeDebateSlotNames = (ais: AIConfig[], configuredAIs: AIConfig[]): A
   });
 };
 
+type DebaterSlot = AIConfig | null;
+type PendingSelectionTarget = { kind: 'debater'; index: number } | { kind: 'mc' };
+
+const getRequiredDebaterCountForPreset = (preset: PresetConfig): number => (preset.teamSize || 1) * 2;
+
+const normalizeDebateSlots = (slots: DebaterSlot[], configuredAIs: AIConfig[]): DebaterSlot[] => {
+  const filledSlots = slots.filter((slot): slot is AIConfig => Boolean(slot));
+  const normalizedFilledSlots = normalizeDebateSlotNames(filledSlots, configuredAIs);
+  let filledIndex = 0;
+
+  return slots.map((slot) => {
+    if (!slot) return null;
+    const normalized = normalizedFilledSlots[filledIndex];
+    filledIndex += 1;
+    return normalized || slot;
+  });
+};
+
+const buildDebaterSlotsFromAIs = (
+  ais: AIConfig[],
+  slotCount: number,
+  configuredAIs: AIConfig[],
+): DebaterSlot[] => {
+  const normalizedAIs = normalizeDebateSlotNames(ais.slice(0, slotCount), configuredAIs);
+  return Array.from({ length: slotCount }, (_, index) => normalizedAIs[index] || null);
+};
+
+const DEFAULT_DEBATER_SLOT_COUNT = getRequiredDebaterCountForPreset(
+  getPresetForFormat('oxford', getPresetIdForRounds(3))
+);
+
 const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route }) => {
   const { theme } = useTheme();
   const dispatch = useDispatch();
@@ -154,16 +185,17 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   }, [apiKeys, expertMode, access.isDemo]);
 
   const [currentStep, setCurrentStep] = useState<'topic' | 'ai' | 'personality'>('topic');
-  const [selectedAIs, setSelectedAIs] = useState<AIConfig[]>(
-    normalizeDebateSlotNames((routeParams?.preselectedAIs || [])
+  const [debaterSlots, setDebaterSlots] = useState<DebaterSlot[]>(
+    buildDebaterSlotsFromAIs((routeParams?.preselectedAIs || [])
       .filter(ai => isValidProviderId(ai.provider))
       .map((ai, index) => ({
         ...ai,
         id: isDebateSlotId(ai.id) ? ai.id : createDebateSlotId(ai.provider, index),
         model: selectedModelsFromStore?.[ai.id] || selectedModelsFromStore?.[ai.provider] || ai.model,
         personality: ai.personality || 'default',
-      })), configuredAIs)
+      })), DEFAULT_DEBATER_SLOT_COUNT, configuredAIs)
   );
+  const debaterSlotsRef = useRef<DebaterSlot[]>(debaterSlots);
   const [selectedTopic, setSelectedTopic] = useState<string>(routeParams?.prefilledTopic || preservedTopic || '');
   const [customTopic, setCustomTopic] = useState(
     routeParams?.prefilledTopic || (preservedTopicMode === 'custom' ? (preservedTopic || '') : '')
@@ -193,6 +225,12 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     personaKey: string;
   } | null>(null);
   const [voiceDebateEnabled, setVoiceDebateEnabled] = useState(false);
+  const [podcastModeEnabled, setPodcastModeEnabled] = useState(false);
+  const [podcastMC, setPodcastMC] = useState<AIConfig | null>(null);
+  const [podcastMCVoice, setPodcastMCVoice] = useState<DebateVoiceSelection | undefined>(undefined);
+  const [pendingSelectionTarget, setPendingSelectionTarget] = useState<PendingSelectionTarget | null>(null);
+  const teamGridYRef = useRef(0);
+  const providerSelectorYRef = useRef(0);
   const [debateVoiceOptions, setDebateVoiceOptions] = useState<MediaProviderVoiceOption[]>([]);
   const [debateVoiceSelections, setDebateVoiceSelections] = useState<Record<string, DebateVoiceSelection>>({});
   const [debateVoicesLoading, setDebateVoicesLoading] = useState(false);
@@ -203,7 +241,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     preset: getPresetForFormat(formatId, getPresetIdForRounds(rounds)),
   })), [formatId]);
   const selectedPreset = getPresetForFormat(formatId, getPresetIdForRounds(exchanges));
-  const requiredDebaterCount = (selectedPreset.teamSize || 1) * 2;
+  const requiredDebaterCount = getRequiredDebaterCountForPreset(selectedPreset);
   const presetSummary = useMemo(() => (
     selectedPreset.voteModel === 'audience_stance'
       ? `${selectedPreset.messages.length} speeches · opening + final audience vote · ${selectedPreset.description}`
@@ -212,6 +250,17 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   const presetVoteLabels = useMemo(() => getPresetVoteLabels(selectedPreset), [selectedPreset]);
   
   const maxAIs = requiredDebaterCount;
+  const selectedAIs = useMemo(
+    () => debaterSlots.filter((slot): slot is AIConfig => Boolean(slot)).slice(0, maxAIs),
+    [debaterSlots, maxAIs],
+  );
+  const areRequiredDebaterSlotsFilled = useMemo(
+    () => {
+      const requiredSlots = debaterSlots.slice(0, maxAIs);
+      return requiredSlots.length === maxAIs && requiredSlots.every(Boolean);
+    },
+    [debaterSlots, maxAIs],
+  );
   const hasVerifiedElevenLabs = isApiKeyConfigured(apiKeys.elevenlabs) && verifiedProviders.includes('elevenlabs');
   const selectedStreamingProviders = useMemo(() => {
     const seen = new Set<string>();
@@ -223,8 +272,31 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   }, [selectedAIs]);
 
   useEffect(() => {
-    setSelectedAIs((current) => normalizeDebateSlotNames(current.slice(0, maxAIs), configuredAIs));
-  }, [configuredAIs, maxAIs]);
+    debaterSlotsRef.current = debaterSlots;
+  }, [debaterSlots]);
+
+  useEffect(() => {
+    debaterSlotsRef.current.slice(maxAIs).forEach((slot) => {
+      if (!slot) return;
+      setSelectedModels(prev => {
+        if (!(slot.id in prev)) return prev;
+        const next = { ...prev };
+        delete next[slot.id];
+        return next;
+      });
+      setDebateVoiceSelections(prev => {
+        if (!(slot.id in prev)) return prev;
+        const next = { ...prev };
+        delete next[slot.id];
+        return next;
+      });
+      dispatch(setAIPersonality({ aiId: slot.id, personalityId: 'default' }));
+    });
+    setDebaterSlots((current) => {
+      const resized = Array.from({ length: maxAIs }, (_, index) => current[index] || null);
+      return normalizeDebateSlots(resized, configuredAIs);
+    });
+  }, [configuredAIs, dispatch, maxAIs]);
 
   const loadDebateVoices = useCallback(async () => {
     if (!hasVerifiedElevenLabs || debateVoicesLoading) return;
@@ -255,6 +327,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     if (!hasVerifiedElevenLabs) {
       setVoiceDebateEnabled(false);
       setDebateVoiceSelections({});
+      setPodcastMCVoice(undefined);
       return;
     }
     if (currentStep === 'personality' && debateVoiceOptions.length === 0 && !debateVoicesLoading) {
@@ -290,10 +363,32 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     });
   }, [debateVoiceOptions, hasVerifiedElevenLabs, selectedAIs]);
 
+  useEffect(() => {
+    if (!podcastModeEnabled || !hasVerifiedElevenLabs || debateVoiceOptions.length === 0) return;
+    setPodcastMCVoice((current) => current || {
+      voiceId: debateVoiceOptions[0].id,
+      voiceName: debateVoiceOptions[0].name,
+    });
+  }, [debateVoiceOptions, hasVerifiedElevenLabs, podcastModeEnabled]);
+
   const handleVoiceDebateToggle = useCallback((enabled: boolean) => {
     setVoiceDebateEnabled(enabled);
     if (enabled && debateVoiceOptions.length === 0) {
       void loadDebateVoices();
+    }
+  }, [debateVoiceOptions.length, loadDebateVoices]);
+
+  const handlePodcastModeToggle = useCallback((enabled: boolean) => {
+    setPodcastModeEnabled(enabled);
+    if (enabled) {
+      setVoiceDebateEnabled(true);
+      if (debateVoiceOptions.length === 0) {
+        void loadDebateVoices();
+      }
+    } else {
+      setPendingSelectionTarget((current) => current?.kind === 'mc' ? null : current);
+      setPodcastMC(null);
+      setPodcastMCVoice(undefined);
     }
   }, [debateVoiceOptions.length, loadDebateVoices]);
 
@@ -307,8 +402,15 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     }));
   }, []);
 
+  const handlePodcastMCVoiceSelect = useCallback((voice: MediaProviderVoiceOption) => {
+    setPodcastMCVoice({
+      voiceId: voice.id,
+      voiceName: voice.name,
+    });
+  }, []);
+
   const buildDebateVoiceConfig = useCallback((): DebateVoiceConfig | undefined => {
-    if (!voiceDebateEnabled || !hasVerifiedElevenLabs) return undefined;
+    if ((!voiceDebateEnabled && !podcastModeEnabled) || !hasVerifiedElevenLabs) return undefined;
     const debaterVoices: Record<string, DebateVoiceSelection> = {};
     selectedAIs.forEach((ai) => {
       const selection = debateVoiceSelections[ai.id];
@@ -321,8 +423,31 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
       enabled: true,
       providerId: 'elevenlabs',
       debaterVoices,
+      ...(podcastModeEnabled && podcastMC && podcastMCVoice ? {
+        podcast: {
+          enabled: true,
+          scriptMode: 'byok_ai',
+          outputMode: 'playlist',
+          mc: {
+            id: podcastMC.id,
+            provider: podcastMC.provider,
+            name: podcastMC.name,
+            model: resolveProviderModelId(podcastMC.provider, selectedModels[podcastMC.id] || selectedModels[podcastMC.provider] || podcastMC.model) || podcastMC.model,
+          },
+          mcVoice: podcastMCVoice,
+        },
+      } : {}),
     };
-  }, [debateVoiceSelections, hasVerifiedElevenLabs, selectedAIs, voiceDebateEnabled]);
+  }, [
+    debateVoiceSelections,
+    hasVerifiedElevenLabs,
+    podcastMC,
+    podcastMCVoice,
+    podcastModeEnabled,
+    selectedAIs,
+    selectedModels,
+    voiceDebateEnabled,
+  ]);
 
   // Save topic when navigating away
   useEffect(() => {
@@ -350,7 +475,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
 
     if (params.resetDebateSetup) {
       setCurrentStep('topic');
-      setSelectedAIs([]);
+      setDebaterSlots(Array.from({ length: DEFAULT_DEBATER_SLOT_COUNT }, () => null));
       setSelectedTopic('');
       setCustomTopic('');
       setTopicMode('preset');
@@ -359,6 +484,10 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
       setExchanges(3);
       setCivility(3);
       setVoiceDebateEnabled(false);
+      setPodcastModeEnabled(false);
+      setPodcastMC(null);
+      setPodcastMCVoice(undefined);
+      setPendingSelectionTarget(null);
       setDebateVoiceSelections({});
       dispatch(clearPreservedTopic());
       scrollSetupToTop(false);
@@ -376,7 +505,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
         })), configuredAIs);
 
       if (validPreselectedAIs.length > 0) {
-        setSelectedAIs(validPreselectedAIs);
+        setDebaterSlots(buildDebaterSlotsFromAIs(validPreselectedAIs, maxAIs, configuredAIs));
       }
 
       if (typeof params.prefilledTopic === 'string') {
@@ -390,49 +519,124 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   }, [
     configuredAIs,
     dispatch,
+    maxAIs,
     routeParams,
     selectedModelsFromStore,
     scrollSetupToTop,
   ]);
-  
-  const handleToggleAI = (ai: AIConfig) => {
-    setSelectedAIs(prev => {
-      if (prev.length < maxAIs) {
-        const slotId = createDebateSlotId(ai.provider, debaterSlotCounterRef.current++);
-        const selectedModel = selectedModels[ai.id] || selectedModels[ai.provider] || ai.model;
-        return normalizeDebateSlotNames([
-          ...prev,
-          {
-            ...ai,
-            id: slotId,
-            model: selectedModel,
-            personality: aiPersonalities[ai.id] || ai.personality || 'default',
-          },
-        ], configuredAIs);
-      }
-      return prev;
-    });
-  };
 
-  const handleRemoveAI = (aiId: string) => {
-    setSelectedAIs(prev => normalizeDebateSlotNames(
-      prev.filter(ai => ai.id !== aiId),
-      configuredAIs
-    ));
+  const scrollToTeamGrid = useCallback(() => {
+    scrollViewRef.current?.scrollTo({ y: Math.max(teamGridYRef.current - 16, 0), animated: true });
+  }, []);
+
+  const scrollToProviderSelector = useCallback(() => {
+    scrollViewRef.current?.scrollTo({ y: Math.max(providerSelectorYRef.current - 16, 0), animated: true });
+  }, []);
+
+  const buildSlotAI = useCallback((ai: AIConfig): AIConfig => {
+    const slotId = createDebateSlotId(ai.provider, debaterSlotCounterRef.current++);
+    const selectedModel = selectedModels[ai.id] || selectedModels[ai.provider] || ai.model;
+    return {
+      ...ai,
+      id: slotId,
+      model: selectedModel,
+      personality: aiPersonalities[ai.id] || ai.personality || 'default',
+    };
+  }, [aiPersonalities, selectedModels]);
+
+  const clearSlotState = useCallback((slotId?: string) => {
+    if (!slotId) return;
     setSelectedModels(prev => {
-      if (!(aiId in prev)) return prev;
+      if (!(slotId in prev)) return prev;
       const next = { ...prev };
-      delete next[aiId];
+      delete next[slotId];
       return next;
     });
-  };
+    setDebateVoiceSelections(prev => {
+      if (!(slotId in prev)) return prev;
+      const next = { ...prev };
+      delete next[slotId];
+      return next;
+    });
+    dispatch(setAIPersonality({ aiId: slotId, personalityId: 'default' }));
+  }, [dispatch]);
+
+  const handleRequestDebaterSlot = useCallback((index: number) => {
+    setPendingSelectionTarget({ kind: 'debater', index });
+    setTimeout(scrollToProviderSelector, 50);
+  }, [scrollToProviderSelector]);
+
+  const handleRequestPodcastMC = useCallback(() => {
+    setPendingSelectionTarget({ kind: 'mc' });
+    setTimeout(scrollToProviderSelector, 50);
+  }, [scrollToProviderSelector]);
+
+  const handleProviderSelection = useCallback((ai: AIConfig) => {
+    const target = pendingSelectionTarget || {
+      kind: 'debater' as const,
+      index: debaterSlots.findIndex(slot => !slot),
+    };
+
+    if (target.kind === 'mc') {
+      const mcId = createDebateSlotId(ai.provider, debaterSlotCounterRef.current++);
+      const selectedModel = selectedModels[ai.id] || selectedModels[ai.provider] || ai.model;
+      clearSlotState(podcastMC?.id);
+      setPodcastMC({
+        ...ai,
+        id: mcId,
+        model: selectedModel,
+        personality: 'default',
+      });
+    } else if (target.index >= 0 && target.index < maxAIs) {
+      const nextSlot = buildSlotAI(ai);
+      const replacedSlotId = debaterSlots[target.index]?.id;
+      clearSlotState(replacedSlotId);
+      setDebaterSlots(prev => {
+        const next = Array.from({ length: maxAIs }, (_, index) => prev[index] || null);
+        next[target.index] = nextSlot;
+        return normalizeDebateSlots(next, configuredAIs);
+      });
+    }
+
+    setPendingSelectionTarget(null);
+    setTimeout(scrollToTeamGrid, 75);
+  }, [
+    buildSlotAI,
+    clearSlotState,
+    configuredAIs,
+    debaterSlots,
+    maxAIs,
+    pendingSelectionTarget,
+    podcastMC?.id,
+    scrollToTeamGrid,
+    selectedModels,
+  ]);
+
+  const handleRemoveDebaterSlot = useCallback((index: number) => {
+    const removedSlotId = debaterSlots[index]?.id;
+    clearSlotState(removedSlotId);
+    setDebaterSlots(prev => {
+      const next = Array.from({ length: maxAIs }, (_, slotIndex) => prev[slotIndex] || null);
+      next[index] = null;
+      return normalizeDebateSlots(next, configuredAIs);
+    });
+    setPendingSelectionTarget(current => current?.kind === 'debater' && current.index === index ? null : current);
+  }, [clearSlotState, configuredAIs, debaterSlots, maxAIs]);
+
+  const handleRemovePodcastMC = useCallback(() => {
+    clearSlotState(podcastMC?.id);
+    setPodcastMC(null);
+    setPendingSelectionTarget(current => current?.kind === 'mc' ? null : current);
+  }, [clearSlotState, podcastMC?.id]);
 
   const handlePersonalityChange = (aiId: string, personalityId: string) => {
     dispatch(setAIPersonality({ aiId, personalityId: personalityId || 'default' }));
   };
   
   const handleModelChange = (aiId: string, modelId: string) => {
-    const providerId = selectedAIs.find(ai => ai.id === aiId)?.provider || (isValidProviderId(aiId) ? aiId : undefined);
+    const providerId = debaterSlots.find(ai => ai?.id === aiId)?.provider
+      || (podcastMC?.id === aiId ? podcastMC.provider : undefined)
+      || (isValidProviderId(aiId) ? aiId : undefined);
     const resolvedModelId = providerId
       ? resolveProviderModelId(providerId, modelId) || modelId
       : modelId;
@@ -478,8 +682,8 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   }));
 
   const handleStartDebate = () => {
-    if (selectedAIs.length < requiredDebaterCount) {
-      Alert.alert('Select More AIs', `${selectedPreset.shortLabel} requires ${requiredDebaterCount} debaters.`);
+    if (!areRequiredDebaterSlotsFilled) {
+      Alert.alert('Fill Debate Slots', `${selectedPreset.shortLabel} requires ${requiredDebaterCount} debaters.`);
       return;
     }
 
@@ -492,6 +696,20 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     // Update AIs with selected models
     const aiConfigsWithModels = mapSelectedAIsWithModels();
     const voiceConfig = buildDebateVoiceConfig();
+    if (podcastModeEnabled) {
+      if (!podcastMC) {
+        Alert.alert('Choose an MC', 'Podcast Mode requires an MC text provider.');
+        return;
+      }
+      if (!hasVerifiedElevenLabs) {
+        Alert.alert('Verify ElevenLabs', 'Podcast Mode requires a verified ElevenLabs API key for the MC voice.');
+        return;
+      }
+      if (!voiceConfig?.podcast?.mcVoice) {
+        Alert.alert('Choose an MC Voice', 'Choose an ElevenLabs voice for the podcast MC before starting.');
+        return;
+      }
+    }
     if (voiceDebateEnabled) {
       const missingVoices = aiConfigsWithModels.filter((ai) => !voiceConfig?.debaterVoices[ai.id]);
       if (!hasVerifiedElevenLabs) {
@@ -556,8 +774,12 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   };
 
   const handleAINext = () => {
-    if (selectedAIs.length < requiredDebaterCount) {
-      Alert.alert(`Select ${requiredDebaterCount} AIs`, `Please select ${requiredDebaterCount} debaters for ${selectedPreset.shortLabel}.`);
+    if (!areRequiredDebaterSlotsFilled) {
+      Alert.alert(`Fill ${requiredDebaterCount} Slots`, `Please fill ${requiredDebaterCount} debater slots for ${selectedPreset.shortLabel}.`);
+      return;
+    }
+    if (podcastModeEnabled && !podcastMC) {
+      Alert.alert('Choose an MC', 'Podcast Mode requires an MC text provider.');
       return;
     }
     if (access.isDemo) {
@@ -777,18 +999,28 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
             customTopic={customTopic}
             topicMode={topicMode}
             configuredAIs={configuredAIs}
+            debaterSlots={debaterSlots}
             selectedAIs={selectedAIs}
             maxAIs={maxAIs}
             isPremium={access.isPremium || access.isInTrial}
             aiPersonalities={aiPersonalities}
             selectedModels={selectedModels}
-            onToggleAI={handleToggleAI}
-            onRemoveAI={handleRemoveAI}
+            pendingSelectionTarget={pendingSelectionTarget}
+            podcastModeEnabled={podcastModeEnabled}
+            podcastMC={podcastMC}
+            onTogglePodcastMode={handlePodcastModeToggle}
+            onRequestDebaterSlot={handleRequestDebaterSlot}
+            onRemoveDebaterSlot={handleRemoveDebaterSlot}
+            onRequestPodcastMC={handleRequestPodcastMC}
+            onRemovePodcastMC={handleRemovePodcastMC}
+            onSelectProvider={handleProviderSelection}
             onPersonalityChange={handlePersonalityChange}
             onModelChange={handleModelChange}
             onAddAI={() => navigation.navigate('APIConfig')}
             onNext={handleAINext}
             onBack={() => setCurrentStep('topic')}
+            onTeamGridLayout={(y) => { teamGridYRef.current = y; }}
+            onProviderSelectorLayout={(y) => { providerSelectorYRef.current = y; }}
           />
         )}
 
@@ -885,7 +1117,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
             onBack={() => setCurrentStep('ai')}
             civility={civility}
             onChangeCivility={(v)=>setCivility(v)}
-            voiceConfigAvailable={hasVerifiedElevenLabs}
+            voiceConfigAvailable={hasVerifiedElevenLabs || podcastModeEnabled}
             voiceEnabled={voiceDebateEnabled}
             voiceOptions={debateVoiceOptions}
             voiceSelections={debateVoiceSelections}
@@ -893,6 +1125,10 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
             voiceError={debateVoiceError}
             onToggleVoiceEnabled={handleVoiceDebateToggle}
             onVoiceSelect={handleDebateVoiceSelect}
+            podcastModeEnabled={podcastModeEnabled}
+            podcastMC={podcastMC}
+            podcastMCVoice={podcastMCVoice}
+            onPodcastMCVoiceSelect={handlePodcastMCVoiceSelect}
             onReloadVoices={loadDebateVoices}
           />
         )}

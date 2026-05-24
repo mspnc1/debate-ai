@@ -1,7 +1,7 @@
 import { DebateOrchestrator, DebateStatus } from '@/services/debate/DebateOrchestrator';
 import { DEBATE_CONSTANTS } from '@/config/debateConstants';
 import { getPresetForFormat } from '@/config/debate/formats';
-import type { AI, Message } from '@/types';
+import type { AI, DebateVoiceConfig, Message } from '@/types';
 import { setProviderVerificationError } from '@/store/streamingSlice';
 
 const mockMergeAvailabilitiesStrict = jest.fn();
@@ -341,6 +341,64 @@ describe('DebateOrchestrator', () => {
       messageIndex: 0,
       messageLabel: 'Proposition Opening Speech',
       phase: 'opening',
+    }));
+
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  it('emits a podcast intro interstitial before the opening audience stance', async () => {
+    jest.useFakeTimers();
+    const aiService = {
+      getAdapter: jest.fn(),
+      sendMessage: jest.fn().mockResolvedValue({ response: "Welcome to tonight's debate.", modelUsed: 'gpt-5' }),
+    };
+    const voiceConfig: DebateVoiceConfig = {
+      enabled: true,
+      providerId: 'elevenlabs',
+      debaterVoices: {},
+      podcast: {
+        enabled: true,
+        scriptMode: 'byok_ai',
+        outputMode: 'playlist',
+        mc: {
+          id: 'mc-1',
+          provider: 'openai',
+          name: 'Podcast MC',
+          model: 'gpt-5',
+        },
+        mcVoice: {
+          voiceId: 'voice-host',
+          voiceName: 'Host Voice',
+        },
+      },
+    };
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    const events: Array<{ type: string; data: Record<string, unknown> }> = [];
+    orchestrator.addEventListener(event => events.push({ type: event.type, data: event.data }));
+
+    await orchestrator.initializeDebate('AI ethics', participants, {}, {
+      formatId: 'oxford',
+      rounds: 3,
+      voiceConfig,
+    });
+    await orchestrator.startDebate([]);
+
+    const introMessage = events[1].data.message as Message;
+    expect(events[1].type).toBe('message_added');
+    expect(introMessage.content).toBe("Welcome to tonight's debate.");
+    expect(introMessage.metadata?.debateInterstitial).toMatchObject({
+      kind: 'intro',
+      generatedByProvider: 'openai',
+      generatedByModel: 'gpt-5',
+      usedTemplateFallback: false,
+    });
+    expect(events[2]).toEqual(expect.objectContaining({
+      type: 'voting_started',
+      data: expect.objectContaining({
+        voteKind: 'audience_stance',
+        audienceVoteStage: 'initial',
+      }),
     }));
 
     jest.clearAllTimers();

@@ -4,7 +4,7 @@
  * Coordinates between all other debate services and manages state transitions
  */
 
-import { AI, Message, ChatSession, Citation, type DebateSpeechMetadata, type DebateVoiceConfig } from '../../types';
+import { AI, Message, ChatSession, Citation, type DebateInterstitialKind, type DebateSpeechMetadata, type DebateVoiceConfig } from '../../types';
 import { AIService } from '../aiAdapter';
 import { DebateRulesEngine } from './DebateRulesEngine';
 import { VotingService } from './VotingService';
@@ -37,6 +37,7 @@ import { ensureAnswerContent } from '@/utils/citationUtils';
 import { resolveProviderModelId } from '@/config/modelConfigs';
 import { buildPersonalityRuntime, mergeRuntimeModelParameters } from '@/services/personality';
 import { applyDebateOutputTokenCap, getDebateSpeechLengthGuidance } from './debateSpeechLength';
+import { createDebateInterstitialMessage } from './DebateInterstitialService';
 
 export interface DebateSession {
   id: string;
@@ -153,6 +154,34 @@ export class DebateOrchestrator {
     if (adapter?.config) {
       adapter.config.webSearchEnabled = this.getWebSearchEnabled();
     }
+  }
+
+  private async addDebateInterstitial(
+    kind: DebateInterstitialKind,
+    options: {
+      completedMessageSpec?: MessageSpec;
+      nextMessageSpec?: MessageSpec;
+      votingLabel?: string;
+      winnerName?: string;
+      audienceResult?: AudienceDecisionResult;
+    } = {}
+  ): Promise<void> {
+    if (!this.session?.voiceConfig?.podcast?.enabled) return;
+
+    const message = await createDebateInterstitialMessage({
+      aiService: this.aiService,
+      session: this.session,
+      kind,
+      ...options,
+    });
+
+    if (!message) return;
+    this.emitEvent({
+      type: 'message_added',
+      data: { message },
+      timestamp: Date.now(),
+    });
+    this.currentMessages = [...this.currentMessages, message];
   }
 
   private getRequiredParticipantCount(preset: PresetConfig): number {
@@ -497,6 +526,10 @@ export class DebateOrchestrator {
     
     // Store the initial messages
     this.currentMessages = [...existingMessages];
+
+    await this.addDebateInterstitial('intro', {
+      nextMessageSpec: this.session.preset.messages[0],
+    });
 
     if (this.votingService?.isAudienceStanceVoteModel() && !this.votingService.hasAudienceVote('initial')) {
       this.showAudienceStanceVoting('initial');
@@ -866,7 +899,7 @@ export class DebateOrchestrator {
           }
         }
 
-        this.continueAfterMessage(messageIndex, this.currentMessages, true);
+        await this.continueAfterMessage(messageIndex, this.currentMessages, true);
       } else {
         // Apply expert parameters when enabled; otherwise use personality model parameters.
         try {
@@ -936,7 +969,7 @@ export class DebateOrchestrator {
         });
         this.emitTypingStoppedForAI(currentAI);
 
-        this.continueAfterMessage(messageIndex, this.currentMessages, false);
+        await this.continueAfterMessage(messageIndex, this.currentMessages, false);
       }
 
     } catch (error) {
@@ -1117,13 +1150,17 @@ export class DebateOrchestrator {
   /**
    * Advance the debate after a message resolves.
    */
-  private continueAfterMessage(messageIndex: number, messages: Message[], usedStreaming: boolean): void {
+  private async continueAfterMessage(messageIndex: number, messages: Message[], usedStreaming: boolean): Promise<void> {
     if (!this.session) return;
 
     const messageSpec = this.session.preset.messages[messageIndex];
     if (messageSpec?.voteAfter && !this.votingService?.isAudienceStanceVoteModel()) {
       this.currentVoteIndex = this.rulesEngine.getVoteIndex(messageIndex);
       const isFinalRoundVote = this.currentVoteIndex === this.session.totalRounds;
+      await this.addDebateInterstitial('vote_segue', {
+        completedMessageSpec: messageSpec,
+        votingLabel: this.votingService?.getVotingLabel(this.currentVoteIndex) || messageSpec.votingLabel,
+      });
       if (isFinalRoundVote) {
         this.endDebate();
       } else {
@@ -1134,19 +1171,33 @@ export class DebateOrchestrator {
 
     const nextMessageIndex = messageIndex + 1;
     if (this.shouldPauseForAudienceReview(messageIndex)) {
+      const isFinalReview = nextMessageIndex >= this.session.totalMessages;
+      await this.addDebateInterstitial(isFinalReview ? 'vote_segue' : 'phase_segue', {
+        completedMessageSpec: messageSpec,
+        nextMessageSpec: this.session.preset.messages[nextMessageIndex],
+        votingLabel: isFinalReview ? 'Final Audience Vote' : undefined,
+      });
       this.pauseForAudienceReview(
         messageIndex,
-        messages,
+        this.currentMessages.length >= messages.length ? this.currentMessages : messages,
         nextMessageIndex < this.session.totalMessages ? nextMessageIndex : undefined
       );
       return;
     }
 
     if (nextMessageIndex < this.session.totalMessages && this.session.status === DebateStatus.ACTIVE) {
+      const nextMessageSpec = this.session.preset.messages[nextMessageIndex];
+      if (nextMessageSpec && nextMessageSpec.phase !== messageSpec?.phase) {
+        await this.addDebateInterstitial('phase_segue', {
+          completedMessageSpec: messageSpec,
+          nextMessageSpec,
+        });
+      }
+      const nextMessages = this.currentMessages.length >= messages.length ? this.currentMessages : messages;
       const delay = usedStreaming
         ? DEBATE_CONSTANTS.DELAYS.POST_STREAM_PAUSE
         : DEBATE_CONSTANTS.DELAYS.AI_RESPONSE;
-      this.scheduleNextMessage(nextMessageIndex, messages, delay);
+      this.scheduleNextMessage(nextMessageIndex, nextMessages, delay);
     } else {
       this.endDebate();
     }
@@ -1274,7 +1325,7 @@ export class DebateOrchestrator {
     // Check if all rounds are complete
     if (this.votingService.areAllRoundsVoted()) {
       // Declare overall winner based on scores (no more voting)
-      this.declareOverallWinner();
+      await this.declareOverallWinner();
     } else {
       // Continue the debate after voting
       this.updateSessionStatus(DebateStatus.ACTIVE);
@@ -1337,7 +1388,7 @@ export class DebateOrchestrator {
       return;
     }
 
-    this.declareAudienceDecision();
+    await this.declareAudienceDecision();
   }
   
   /**
@@ -1361,7 +1412,7 @@ export class DebateOrchestrator {
     this.scheduleNextMessage(nextMessageIndex, this.currentMessages, delay);
   }
 
-  private declareAudienceDecision(): void {
+  private async declareAudienceDecision(): Promise<void> {
     if (!this.votingService || !this.session) return;
 
     const audienceResult = this.votingService.getAudienceDecisionResult();
@@ -1377,6 +1428,10 @@ export class DebateOrchestrator {
     }
 
     const scores = this.votingService.calculateScores();
+    await this.addDebateInterstitial('winner', {
+      audienceResult,
+      winnerName: audienceResult.winningSideLabel,
+    });
     const winnerMessage: Message = {
       id: `msg_${Date.now()}_audience_decision`,
       sender: 'Debate Host',
@@ -1413,7 +1468,7 @@ export class DebateOrchestrator {
   /**
    * Declare overall winner based on scores
    */
-  private declareOverallWinner(): void {
+  private async declareOverallWinner(): Promise<void> {
     if (!this.votingService || !this.session) return;
     
     const scores = this.votingService.calculateScores();
@@ -1436,6 +1491,9 @@ export class DebateOrchestrator {
       const tiedAIs = sortedAIs
         .filter(([_, score]) => score.roundWins === winnerScore.roundWins)
         .map(([_, score]) => score.name);
+      await this.addDebateInterstitial('winner', {
+        winnerName: tiedAIs.join(' and '),
+      });
       winnerMessage = {
         id: `msg_${Date.now()}_overall_winner`,
         sender: 'Debate Host',
@@ -1444,6 +1502,9 @@ export class DebateOrchestrator {
         timestamp: Date.now(),
       };
     } else {
+      await this.addDebateInterstitial('winner', {
+        winnerName: winnerScore.name,
+      });
       winnerMessage = {
         id: `msg_${Date.now()}_overall_winner`,
         sender: 'Debate Host',
@@ -1531,7 +1592,7 @@ export class DebateOrchestrator {
 
     if (this.votingService?.isAudienceStanceVoteModel()) {
       if (this.votingService.hasAudienceVote('final')) {
-        this.declareAudienceDecision();
+        void this.declareAudienceDecision();
         return;
       }
 
@@ -1560,7 +1621,7 @@ export class DebateOrchestrator {
     }
 
     if (this.votingService?.areAllRoundsVoted()) {
-      this.declareOverallWinner();
+      void this.declareOverallWinner();
       return;
     }
     

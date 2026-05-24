@@ -130,6 +130,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     [readyVoicePackCandidates]
   );
   const shouldOfferVoicePack = Boolean(voiceConfig?.enabled && voicePackCandidates.length > 0);
+  const isPodcastPlaylist = Boolean(voiceConfig?.podcast?.enabled);
 
   const handleOpenVoicePackModal = useCallback(() => {
     if (voicePackCandidates.length === 0) {
@@ -495,12 +496,13 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         participants: selectedAIs,
         candidates: voicePackCandidates,
         selectedCandidateIds: voicePackSelectedIds,
+        playlistKind: isPodcastPlaylist ? 'debate_podcast_playlist' : 'debate_voice_pack',
       });
 
       await dispatch(addToMediaGalleryWithCleanup(entry)).unwrap();
       setVoicePackModalVisible(false);
       setVoicePackSelectedIds([]);
-      ErrorService.showSuccess('Voice pack saved to Gallery.', 'debate');
+      ErrorService.showSuccess(isPodcastPlaylist ? 'Podcast playlist saved to Gallery.' : 'Voice pack saved to Gallery.', 'debate');
       navigation.navigate('CreateSession', {
         focusMediaId: entry.id,
         galleryTab: 'audio',
@@ -516,6 +518,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     navigation,
     selectedAIs,
     session.session?.id,
+    isPodcastPlaylist,
     voicePackCandidates,
     voicePackSelectedIds,
   ]);
@@ -624,6 +627,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
               onStartOver={handleVictoryStartOver}
               onSaveVoicePack={shouldOfferVoicePack ? handleOpenVoicePackModal : undefined}
               voicePackClipCount={voicePackCandidates.length}
+              voicePackActionLabel={isPodcastPlaylist ? 'Podcast' : 'Voice Pack'}
               topic={displayedTopic}
               participants={selectedAIs}
               messages={messages.messages}
@@ -662,6 +666,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
             onStartOver={handleVictoryStartOver}
             onSaveVoicePack={shouldOfferVoicePack ? handleOpenVoicePackModal : undefined}
             voicePackClipCount={voicePackCandidates.length}
+            voicePackActionLabel={isPodcastPlaylist ? 'Podcast' : 'Voice Pack'}
             topic={topicSelection.finalTopic}
             participants={selectedAIs}
             messages={messages.messages}
@@ -971,6 +976,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         selectedIds={voicePackSelectedIds}
         isSaving={isSavingVoicePack}
         canRetryAudio={debateVoice.canRetryAudio}
+        isPodcastPlaylist={isPodcastPlaylist}
         onToggleClip={handleToggleVoicePackClip}
         onSelectAllReady={() => setVoicePackSelectedIds(readyVoicePackIds)}
         onClearSelection={() => setVoicePackSelectedIds([])}

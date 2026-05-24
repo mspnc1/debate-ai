@@ -13,7 +13,7 @@ import { Typography } from '../../molecules';
 import { useTheme, type Theme } from '../../../theme';
 
 export interface SystemAnnouncementProps {
-  type: 'topic' | 'exchange-winner' | 'debate-complete' | 'overall-winner' | 'debate-start' | 'audience-stance';
+  type: 'topic' | 'exchange-winner' | 'debate-complete' | 'overall-winner' | 'debate-start' | 'audience-stance' | 'mc';
   label?: string;
   content: string;
   icon?: string | ImageSourcePropType;
@@ -40,6 +40,17 @@ export const getSystemAnnouncementPalette = (
   const neutralSurface = theme.colors.card;
 
   switch (type) {
+    case 'mc':
+      return {
+        gradient: isDark
+          ? [theme.colors.card, theme.colors.surface]
+          : [theme.colors.primary[50], theme.colors.card],
+        borderColor: isDark ? theme.colors.primary[500] : theme.colors.primary[200],
+        backgroundColor: neutralSurface,
+        labelColor: isDark ? theme.colors.primary[300] : theme.colors.primary[700],
+        contentColor: theme.colors.text.primary,
+        iconColor: isDark ? theme.colors.primary[300] : theme.colors.primary[700],
+      };
     case 'audience-stance':
       return {
         gradient: isDark
@@ -141,6 +152,8 @@ export const SystemAnnouncement: React.FC<SystemAnnouncementProps> = ({
         return '🥊';
       case 'audience-stance':
         return '◉';
+      case 'mc':
+        return '🎙️';
       case 'exchange-winner':
         return '🎯';
       case 'debate-complete':

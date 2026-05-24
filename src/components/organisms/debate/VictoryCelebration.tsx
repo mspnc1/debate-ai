@@ -44,6 +44,7 @@ export interface VictoryCelebrationProps {
   onStartOver: () => void;
   onSaveVoicePack?: () => void;
   voicePackClipCount?: number;
+  voicePackActionLabel?: string;
   topic?: string;
   participants?: AI[];
   messages?: Message[];
@@ -60,6 +61,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
   onStartOver,
   onSaveVoicePack,
   voicePackClipCount = 0,
+  voicePackActionLabel = 'Voice Pack',
   topic,
   participants,
   messages,
@@ -257,7 +259,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                       />
                       {onSaveVoicePack && voicePackClipCount > 0 && (
                         <VictoryActionButton
-                          title="Voice Pack"
+                          title={voicePackActionLabel}
                           icon="albums-outline"
                           onPress={onSaveVoicePack}
                           variant="secondary"
@@ -489,7 +491,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                     />
                     {onSaveVoicePack && voicePackClipCount > 0 && (
                       <VictoryActionButton
-                        title="Voice Pack"
+                        title={voicePackActionLabel}
                         icon="albums-outline"
                         onPress={onSaveVoicePack}
                         variant="secondary"

@@ -103,10 +103,28 @@ export interface DebateVoiceSelection {
   voiceName: string;
 }
 
+export type DebateInterstitialKind = 'intro' | 'phase_segue' | 'vote_segue' | 'winner';
+
+export interface DebatePodcastMCConfig {
+  id: string;
+  provider: AIProvider;
+  name: string;
+  model: string;
+}
+
+export interface DebatePodcastConfig {
+  enabled: true;
+  scriptMode: 'byok_ai';
+  outputMode: 'playlist';
+  mc: DebatePodcastMCConfig;
+  mcVoice: DebateVoiceSelection;
+}
+
 export interface DebateVoiceConfig {
   enabled: true;
   providerId: 'elevenlabs';
   debaterVoices: Record<string, DebateVoiceSelection>;
+  podcast?: DebatePodcastConfig;
 }
 
 export interface DebateAudioMetadata {
@@ -118,6 +136,14 @@ export interface DebateAudioMetadata {
   mimeType?: string;
   uri?: string;
   error?: string;
+}
+
+export interface DebateInterstitialMetadata {
+  kind: DebateInterstitialKind;
+  label: string;
+  generatedByProvider?: AIProvider;
+  generatedByModel?: string;
+  usedTemplateFallback?: boolean;
 }
 
 export interface MessageMetadata {
@@ -142,6 +168,9 @@ export interface MessageMetadata {
 
   // Debate speech role metadata
   debateSpeech?: DebateSpeechMetadata;
+
+  // Debate podcast MC/interstitial metadata
+  debateInterstitial?: DebateInterstitialMetadata;
 
   // Debate TTS generation metadata
   debateAudio?: DebateAudioMetadata;

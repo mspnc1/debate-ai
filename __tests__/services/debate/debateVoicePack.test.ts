@@ -85,9 +85,50 @@ describe('debateVoicePack', () => {
     expect(candidates[1]).toMatchObject({
       id: 'failed',
       status: 'failed',
+      role: 'debater',
       speakerId: 'google',
       speakerName: 'Gemini',
       error: 'Too long',
+    });
+  });
+
+  it('collects podcast MC interstitial candidates separately from debaters', () => {
+    const mcMessage: Message = {
+      id: 'mc-intro',
+      sender: 'Debate MC',
+      senderType: 'user',
+      content: 'Welcome to the debate.',
+      timestamp: 900,
+      attachments: [{ type: 'audio', uri: 'file:///debate/mc.mp3', mimeType: 'audio/mpeg' }],
+      metadata: {
+        debateInterstitial: {
+          kind: 'intro',
+          label: 'MC Introduction',
+          usedTemplateFallback: false,
+        },
+        debateAudio: {
+          status: 'ready',
+          voiceId: 'voice-host',
+          voiceName: 'Host',
+          uri: 'file:///debate/mc.mp3',
+          mimeType: 'audio/mpeg',
+        },
+      },
+    };
+
+    const candidates = getDebateVoicePackCandidates([mcMessage, createDebateMessage({ id: 'debater' })]);
+
+    expect(candidates[0]).toMatchObject({
+      id: 'mc-intro',
+      role: 'mc',
+      speakerId: 'podcast-mc',
+      speakerName: 'Debate MC',
+      speechLabel: 'MC Introduction',
+      status: 'ready',
+    });
+    expect(candidates[1]).toMatchObject({
+      id: 'debater',
+      role: 'debater',
     });
   });
 
@@ -163,5 +204,70 @@ describe('debateVoicePack', () => {
       to: '/tmp/gallery-voice-packs/debate_voice_pack_debate_1_123456/002_msg_2_google.mp3',
     });
     expect(entry.uri).toBe(entry.voicePack?.clips[0].uri);
+  });
+
+  it('creates a podcast playlist manifest when MC clips are included', async () => {
+    const mcMessage: Message = {
+      id: 'mc-winner',
+      sender: 'Debate MC',
+      senderType: 'user',
+      content: 'The decision is in.',
+      timestamp: 3000,
+      attachments: [{ type: 'audio', uri: 'file:///debate/mc-winner.mp3', mimeType: 'audio/mpeg' }],
+      metadata: {
+        debateInterstitial: {
+          kind: 'winner',
+          label: 'MC Winner Announcement',
+          usedTemplateFallback: true,
+        },
+        debateAudio: {
+          status: 'ready',
+          voiceId: 'voice-host',
+          voiceName: 'Host',
+          uri: 'file:///debate/mc-winner.mp3',
+          mimeType: 'audio/mpeg',
+        },
+      },
+    };
+    const debaterMessage = createDebateMessage({
+      id: 'msg_1_openai',
+      attachments: [{ type: 'audio', uri: 'file:///debate/msg_1.mp3', mimeType: 'audio/mpeg' }],
+      metadata: {
+        providerId: 'openai',
+        debateSpeech: { speaker: 'aff', label: 'Opening statement' },
+        debateAudio: {
+          status: 'ready',
+          voiceId: 'voice_1',
+          voiceName: 'Aria',
+          uri: 'file:///debate/msg_1.mp3',
+          mimeType: 'audio/mpeg',
+        },
+      },
+    });
+    const candidates = getDebateVoicePackCandidates([mcMessage, debaterMessage]);
+    const copyAsync = jest.fn().mockResolvedValue(undefined) as unknown as typeof FileSystem.copyAsync;
+
+    const entry = await createDebateVoicePackGalleryEntry({
+      sessionId: 'debate_1',
+      topic: 'Resolved: podcasts matter.',
+      participants,
+      candidates,
+      selectedCandidateIds: ['mc-winner', 'msg_1_openai'],
+      playlistKind: 'debate_podcast_playlist',
+    }, {
+      now: () => 789,
+      copyAsync,
+    });
+
+    expect(entry).toMatchObject({
+      id: 'debate_podcast_debate_1_789',
+      modelId: 'debate_podcast_playlist',
+      operation: 'debate_podcast_playlist',
+      prompt: 'Podcast playlist: Resolved: podcasts matter.',
+      voicePack: {
+        kind: 'debate_podcast_playlist',
+      },
+    });
+    expect(entry.voicePack?.clips.map((clip) => clip.role)).toEqual(['mc', 'debater']);
   });
 });

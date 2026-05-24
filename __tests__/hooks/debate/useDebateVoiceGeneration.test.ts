@@ -160,4 +160,54 @@ describe('useDebateVoiceGeneration', () => {
 
     expect(store.getState().chat.currentSession?.messages[0].metadata?.debateAudio?.error).toBe('quota exceeded');
   });
+
+  it('uses the MC voice for podcast interstitial messages', async () => {
+    const mcMessage: Message = {
+      id: 'mc-intro',
+      sender: 'Debate MC',
+      senderType: 'user',
+      content: 'Welcome to the debate.',
+      timestamp: 2,
+      metadata: {
+        debateInterstitial: {
+          kind: 'intro',
+          label: 'MC Introduction',
+          usedTemplateFallback: false,
+        },
+      },
+    };
+    const podcastVoiceConfig: DebateVoiceConfig = {
+      ...voiceConfig,
+      podcast: {
+        enabled: true,
+        scriptMode: 'byok_ai',
+        outputMode: 'playlist',
+        mc: {
+          id: 'mc-1',
+          provider: 'openai',
+          name: 'Podcast MC',
+          model: 'gpt-5',
+        },
+        mcVoice: {
+          voiceId: 'voice-host',
+          voiceName: 'Host Voice',
+        },
+      },
+    };
+
+    renderHookWithProviders(
+      ({ messages }) => useDebateVoiceGeneration({ sessionId: 'debate-1', voiceConfig: podcastVoiceConfig, messages }),
+      { preloadedState, initialProps: { messages: [mcMessage] } }
+    );
+
+    await waitFor(() => {
+      expect(generateDebateVoiceAudio).toHaveBeenCalledWith(expect.objectContaining({
+        message: mcMessage,
+        voice: {
+          voiceId: 'voice-host',
+          voiceName: 'Host Voice',
+        },
+      }));
+    });
+  });
 });

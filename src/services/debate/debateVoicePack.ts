@@ -17,6 +17,7 @@ export interface DebateVoicePackCandidate {
   message: Message;
   order: number;
   status: DebateVoicePackCandidateStatus;
+  role: 'debater' | 'mc';
   speakerId?: string;
   speakerName: string;
   speechLabel?: string;
@@ -33,6 +34,7 @@ interface CreateDebateVoicePackGalleryEntryRequest {
   participants: AI[];
   candidates: DebateVoicePackCandidate[];
   selectedCandidateIds: string[];
+  playlistKind?: 'debate_voice_pack' | 'debate_podcast_playlist';
   pauseMs?: number;
 }
 
@@ -57,10 +59,16 @@ function getAudioAttachment(message: Message): MessageAttachment | undefined {
 }
 
 function getSpeakerId(message: Message): string | undefined {
+  if (message.metadata?.debateInterstitial) {
+    return 'podcast-mc';
+  }
   return message.metadata?.providerId;
 }
 
 function getSpeakerName(message: Message): string {
+  if (message.metadata?.debateInterstitial) {
+    return 'Debate MC';
+  }
   return message.sender.replace(/\s+\([^)]*\)$/, '');
 }
 
@@ -80,21 +88,23 @@ function getCandidateStatus(message: Message): DebateVoicePackCandidateStatus {
 
 export function getDebateVoicePackCandidates(messages: Message[]): DebateVoicePackCandidate[] {
   return messages
-    .filter((message) => message.senderType === 'ai' && Boolean(message.metadata?.debateSpeech))
+    .filter((message) => Boolean(message.metadata?.debateSpeech || message.metadata?.debateInterstitial))
     .map((message, index) => {
       const attachment = getAudioAttachment(message);
       const audio = message.metadata?.debateAudio;
       const uri = attachment?.uri || (audio?.status === 'ready' ? audio.uri : undefined);
       const mimeType = attachment?.mimeType || audio?.mimeType;
+      const interstitial = message.metadata?.debateInterstitial;
 
       return {
         id: message.id,
         message,
         order: index,
         status: getCandidateStatus(message),
+        role: interstitial ? 'mc' : 'debater',
         speakerId: getSpeakerId(message),
         speakerName: getSpeakerName(message),
-        speechLabel: message.metadata?.debateSpeech?.label,
+        speechLabel: interstitial?.label || message.metadata?.debateSpeech?.label,
         voiceName: audio?.voiceName,
         textPreview: getTextPreview(message.content),
         uri,
@@ -134,6 +144,7 @@ async function copyCandidateToVoicePack(
     order: index,
     speakerId: candidate.speakerId,
     speakerName: candidate.speakerName,
+    role: candidate.role,
     speechLabel: candidate.speechLabel,
     voiceName: candidate.voiceName,
     textPreview: candidate.textPreview,
@@ -151,7 +162,10 @@ export async function createDebateVoicePackGalleryEntry(
   const now = dependencies.now || Date.now;
   const copyAsync = dependencies.copyAsync || FileSystem.copyAsync;
   const createdAt = now();
-  const id = `debate_voice_pack_${sanitizePathSegment(request.sessionId)}_${createdAt}`;
+  const playlistKind = request.playlistKind || 'debate_voice_pack';
+  const isPodcastPlaylist = playlistKind === 'debate_podcast_playlist';
+  const idPrefix = isPodcastPlaylist ? 'debate_podcast' : 'debate_voice_pack';
+  const id = `${idPrefix}_${sanitizePathSegment(request.sessionId)}_${createdAt}`;
   const pauseMs = request.pauseMs ?? DEBATE_VOICE_PACK_PAUSE_MS;
   const selectedIds = new Set(request.selectedCandidateIds);
   const selectedCandidates = request.candidates
@@ -171,21 +185,21 @@ export async function createDebateVoicePackGalleryEntry(
   );
 
   const topic = request.topic.trim() || 'AI Debate';
-  const prompt = `Voice pack: ${topic}`;
+  const prompt = `${isPodcastPlaylist ? 'Podcast playlist' : 'Voice pack'}: ${topic}`;
 
   return {
     id,
     mediaType: 'audio',
     providerId: 'elevenlabs',
-    modelId: 'debate_voice_pack',
-    operation: 'debate_voice_pack',
+    modelId: isPodcastPlaylist ? 'debate_podcast_playlist' : 'debate_voice_pack',
+    operation: isPodcastPlaylist ? 'debate_podcast_playlist' : 'debate_voice_pack',
     prompt,
     uri: clips[0].uri,
     mimeType: clips[0].mimeType,
     status: 'succeeded',
     createdAt,
     voicePack: {
-      kind: 'debate_voice_pack',
+      kind: playlistKind,
       version: 1,
       sessionId: request.sessionId,
       topic,
