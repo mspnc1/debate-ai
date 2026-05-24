@@ -10,12 +10,15 @@ export interface DebateTurnTimelineProps {
   currentMessageIndex: number;
   currentTurnLabel?: string;
   showCurrentSummary?: boolean;
+  showRailHeader?: boolean;
   embedded?: boolean;
 }
 
 const CHIP_GAP = 8;
 const MIN_CHIP_WIDTH = 124;
 const MAX_CHIP_WIDTH = 168;
+const EMBEDDED_MIN_CHIP_WIDTH = 108;
+const EMBEDDED_MAX_CHIP_WIDTH = 148;
 
 export const getDebateTimelineActiveIndex = (currentMessageIndex: number, messageCount: number): number => (
   messageCount > 0
@@ -44,6 +47,7 @@ export const DebateTurnTimeline: React.FC<DebateTurnTimelineProps> = ({
   currentMessageIndex,
   currentTurnLabel,
   showCurrentSummary = true,
+  showRailHeader = true,
   embedded = false,
 }) => {
   const { theme, isDark } = useTheme();
@@ -52,8 +56,10 @@ export const DebateTurnTimeline: React.FC<DebateTurnTimelineProps> = ({
 
   const activeIndex = getDebateTimelineActiveIndex(currentMessageIndex, messages.length);
   const activeMessage = messages[activeIndex];
-  const chipWidth = Math.min(MAX_CHIP_WIDTH, Math.max(MIN_CHIP_WIDTH, Math.round(width * 0.36)));
-  const viewportWidth = Math.max(0, width - 32);
+  const chipMinWidth = embedded ? EMBEDDED_MIN_CHIP_WIDTH : MIN_CHIP_WIDTH;
+  const chipMaxWidth = embedded ? EMBEDDED_MAX_CHIP_WIDTH : MAX_CHIP_WIDTH;
+  const chipWidth = Math.min(chipMaxWidth, Math.max(chipMinWidth, Math.round(width * (embedded ? 0.31 : 0.36))));
+  const viewportWidth = Math.max(0, width - (embedded ? 28 : 32));
   const railRightPadding = Math.max(16, viewportWidth - chipWidth);
 
   useEffect(() => {
@@ -85,14 +91,16 @@ export const DebateTurnTimeline: React.FC<DebateTurnTimelineProps> = ({
         },
       ]}
     >
-      <View style={styles.headerRow}>
-        <Typography variant="caption" weight="semibold" color="secondary">
-          Speech Order
-        </Typography>
-        <Typography variant="caption" color="secondary">
-          {activeIndex + 1}/{messages.length}
-        </Typography>
-      </View>
+      {showRailHeader && (
+        <View style={styles.headerRow}>
+          <Typography variant="caption" weight="semibold" color="secondary">
+            Speech Order
+          </Typography>
+          <Typography variant="caption" color="secondary">
+            {activeIndex + 1}/{messages.length}
+          </Typography>
+        </View>
+      )}
 
       {showCurrentSummary && (
         <View
@@ -147,6 +155,7 @@ export const DebateTurnTimeline: React.FC<DebateTurnTimelineProps> = ({
               key={`${message.label}-${index}`}
               style={[
                 styles.turnChip,
+                embedded && styles.embeddedTurnChip,
                 { width: chipWidth },
                 {
                   backgroundColor,
@@ -186,7 +195,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
     borderBottomWidth: 0,
     paddingHorizontal: 0,
-    paddingTop: 4,
+    paddingTop: 3,
     paddingBottom: 0,
   },
   headerRow: {
@@ -221,5 +230,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 10,
     paddingVertical: 8,
+  },
+  embeddedTurnChip: {
+    minHeight: 52,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
   },
 });

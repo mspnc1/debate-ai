@@ -31,11 +31,13 @@ describe('DebateTurnTimeline', () => {
         messages={preset.messages}
         currentMessageIndex={1}
         showCurrentSummary={false}
+        showRailHeader={false}
         embedded
       />
     );
 
-    expect(getByText('Speech Order')).toBeTruthy();
+    expect(getByText('Opposition Opening Speech')).toBeTruthy();
+    expect(queryByText('Speech Order')).toBeNull();
     expect(queryByText('Current step')).toBeNull();
   });
 

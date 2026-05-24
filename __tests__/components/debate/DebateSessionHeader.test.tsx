@@ -13,16 +13,16 @@ const teams: DebateSessionHeaderTeam[] = [
     side: 'aff',
     label: 'Affirmative',
     participants: [
-      { id: 'gemini', name: 'Gemini', personaLabel: 'Clear, Engaging Educator With Extra Long Style Name' },
-      { id: 'claude', name: 'Claude', personaLabel: 'Default' },
+      { id: 'gemini', name: 'Gemini', personaLabel: 'Clear, Engaging Educator With Extra Long Style Name', personaIcon: '🎓' },
+      { id: 'claude', name: 'Claude' },
     ],
   },
   {
     side: 'neg',
     label: 'Opposition',
     participants: [
-      { id: 'mistral', name: 'Mistral', personaLabel: 'Crossfire Analyst' },
-      { id: 'chatgpt', name: 'ChatGPT', personaLabel: 'Socratic Coach' },
+      { id: 'mistral', name: 'Mistral', personaLabel: 'Crossfire Analyst', personaIcon: '🎯' },
+      { id: 'chatgpt', name: 'ChatGPT', personaLabel: 'Socratic Coach', personaIcon: '💬' },
     ],
   },
 ];
@@ -32,7 +32,7 @@ describe('DebateSessionHeader', () => {
     const preset = getPresetForFormat('oxford', 'standard');
     const motion = 'Nuclear energy is the best climate solution when measured against urgency, reliability, and total grid emissions.';
 
-    const { getByText, getAllByText, getByTestId } = renderWithProviders(
+    const { getByText, getAllByText, getByTestId, queryByText } = renderWithProviders(
       <DebateSessionHeader
         topic={`Motion: ${motion}`}
         teams={teams}
@@ -54,7 +54,9 @@ describe('DebateSessionHeader', () => {
     expect(getAllByText('Second Proposition Speech').length).toBeGreaterThan(0);
     expect(getAllByText('Affirmative').length).toBeGreaterThan(1);
     expect(getByText('Gemini')).toBeTruthy();
-    expect(getByText('Clear, Engaging Educator With Extra Long Style Name').props.numberOfLines).toBe(1);
+    expect(getByText('🎓')).toBeTruthy();
+    expect(queryByText('Clear, Engaging Educator With Extra Long Style Name')).toBeNull();
+    expect(queryByText('Speech Order')).toBeNull();
     expect(getByText('Opposition')).toBeTruthy();
   });
 

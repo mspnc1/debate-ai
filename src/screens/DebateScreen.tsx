@@ -436,11 +436,15 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     return `${ai.name} (${p.name})`;
   };
 
-  const getPersonaLabel = useCallback((ai: AI) => {
+  const getPersonaHeaderMeta = useCallback((ai: AI) => {
     const pid = initialPersonalities?.[ai.id] || ai.personality;
     if (!pid || pid === 'default') return undefined;
     const persona = getMergedPersonality(pid);
-    return persona?.name;
+    if (!persona) return undefined;
+    return {
+      label: persona.name,
+      icon: persona.emoji,
+    };
   }, [getMergedPersonality, initialPersonalities]);
 
   const voteResults = voting.voteRecords.map((record) => {
@@ -534,18 +538,22 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
           }
           return side === 'aff' ? index % 2 === 0 : index % 2 === 1;
         })
-        .map((ai) => ({
-          id: ai.id,
-          name: ai.name,
-          personaLabel: getPersonaLabel(ai),
-        })),
+        .map((ai) => {
+          const personaMeta = getPersonaHeaderMeta(ai);
+          return {
+            id: ai.id,
+            name: ai.name,
+            personaLabel: personaMeta?.label,
+            personaIcon: personaMeta?.icon,
+          };
+        }),
     });
 
     return [
       buildTeam('aff', 'Affirmative'),
       buildTeam('neg', 'Opposition'),
     ];
-  }, [activePreset?.teamSize, getPersonaLabel, selectedAIs]);
+  }, [activePreset?.teamSize, getPersonaHeaderMeta, selectedAIs]);
 
   const genericHeaderSubtitle = selectedAIs.length >= 2
     ? `${selectedAIs[0].name} vs ${selectedAIs[1].name}`
@@ -699,9 +707,9 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
                 backgroundColor: theme.colors.card,
                 borderTopWidth: 1,
                 borderColor: theme.colors.border,
-                paddingHorizontal: 20,
-                paddingTop: 14,
-                paddingBottom: 16,
+                paddingHorizontal: 16,
+                paddingTop: 10,
+                paddingBottom: 12,
                 shadowColor: theme.colors.shadowDark,
                 shadowOpacity: 0.18,
                 shadowRadius: 14,
@@ -709,7 +717,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
                 elevation: 8,
               }}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
                 <View
                   style={{
                     width: 8,
@@ -730,10 +738,10 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
                   {flow.continuation.isFinalReview ? 'Final review' : 'Review checkpoint'}
                 </Typography>
               </View>
-              <Typography variant="subtitle" weight="bold" style={{ marginBottom: 4 }}>
+              <Typography variant="body" weight="bold" numberOfLines={1} style={{ marginBottom: 2 }}>
                 {flow.continuation.title}
               </Typography>
-              <Typography variant="body" color="secondary" style={{ marginBottom: 14 }}>
+              <Typography variant="caption" color="secondary" numberOfLines={2} style={{ marginBottom: 10 }}>
                 {flow.continuation.message}
               </Typography>
               <Pressable
@@ -743,7 +751,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
                 accessibilityLabel={flow.continuation.buttonLabel}
                 accessibilityHint="Continues the debate after you finish reviewing the current speeches."
                 style={({ pressed }) => ({
-                  minHeight: 48,
+                  minHeight: 42,
                   borderRadius: 8,
                   backgroundColor: theme.colors.primary[500],
                   alignItems: 'center',

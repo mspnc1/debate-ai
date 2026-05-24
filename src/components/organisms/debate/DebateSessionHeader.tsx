@@ -11,6 +11,7 @@ export interface DebateSessionHeaderParticipant {
   id: string;
   name: string;
   personaLabel?: string;
+  personaIcon?: string;
 }
 
 export interface DebateSessionHeaderTeam {
@@ -147,18 +148,35 @@ export const DebateSessionHeader: React.FC<DebateSessionHeaderProps> = ({
                 <Typography variant="caption" color="secondary" weight="semibold" numberOfLines={1}>
                   {team.label}
                 </Typography>
-                {team.participants.map((participant) => (
-                  <View key={participant.id} style={styles.participantRow}>
-                    <Typography variant="caption" weight="semibold" numberOfLines={1} style={styles.participantName}>
-                      {participant.name}
-                    </Typography>
-                    {participant.personaLabel && (
-                      <Typography variant="caption" color="secondary" numberOfLines={1} style={styles.personaText}>
-                        {participant.personaLabel}
-                      </Typography>
-                    )}
-                  </View>
-                ))}
+                <View style={styles.participantLine}>
+                  {team.participants.map((participant, index) => (
+                    <React.Fragment key={participant.id}>
+                      {index > 0 && (
+                        <Typography variant="caption" color="secondary" style={styles.participantJoiner}>
+                          +
+                        </Typography>
+                      )}
+                      <View
+                        style={styles.participantToken}
+                        accessible
+                        accessibilityLabel={participant.personaLabel
+                          ? `${participant.name}, ${participant.personaLabel} personality`
+                          : participant.name}
+                      >
+                        {participant.personaIcon && (
+                          <View style={styles.personaIconBadge}>
+                            <Typography variant="caption" numberOfLines={1} style={styles.personaIconText}>
+                              {participant.personaIcon}
+                            </Typography>
+                          </View>
+                        )}
+                        <Typography variant="caption" weight="semibold" numberOfLines={1} style={styles.participantName}>
+                          {participant.name}
+                        </Typography>
+                      </View>
+                    </React.Fragment>
+                  ))}
+                </View>
               </View>
             </View>
           );
@@ -202,6 +220,7 @@ export const DebateSessionHeader: React.FC<DebateSessionHeaderProps> = ({
           currentMessageIndex={currentMessageIndex}
           currentTurnLabel={currentTurnLabel}
           showCurrentSummary={false}
+          showRailHeader={false}
           embedded
         />
       )}
@@ -217,7 +236,7 @@ const createStyles = (theme: Theme, isDark: boolean, topInset: number) => StyleS
     borderBottomColor: theme.colors.border,
     paddingTop: topInset + 6,
     paddingHorizontal: 14,
-    paddingBottom: 10,
+    paddingBottom: 8,
     ...Platform.select({
       ios: {
         shadowColor: theme.colors.shadowDark,
@@ -231,15 +250,15 @@ const createStyles = (theme: Theme, isDark: boolean, topInset: number) => StyleS
     }),
   },
   topRow: {
-    minHeight: 40,
+    minHeight: 34,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   backButton: {
-    minHeight: 36,
+    minHeight: 32,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -255,7 +274,7 @@ const createStyles = (theme: Theme, isDark: boolean, topInset: number) => StyleS
     flexShrink: 1,
   },
   demoBadge: {
-    minHeight: 28,
+    minHeight: 24,
     justifyContent: 'center',
     borderRadius: 6,
     paddingHorizontal: 8,
@@ -268,9 +287,9 @@ const createStyles = (theme: Theme, isDark: boolean, topInset: number) => StyleS
     marginRight: 4,
   },
   motionBlock: {
-    minHeight: 76,
+    minHeight: 62,
     justifyContent: 'center',
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
   overline: {
     textTransform: 'uppercase',
@@ -278,8 +297,8 @@ const createStyles = (theme: Theme, isDark: boolean, topInset: number) => StyleS
     marginBottom: 2,
   },
   motionText: {
-    fontSize: 22,
-    lineHeight: 27,
+    fontSize: 20,
+    lineHeight: 24,
     letterSpacing: 0,
   },
   teamGrid: {
@@ -292,7 +311,7 @@ const createStyles = (theme: Theme, isDark: boolean, topInset: number) => StyleS
   },
   teamCard: {
     flex: 1,
-    minHeight: 66,
+    minHeight: 48,
     borderRadius: 8,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
@@ -306,25 +325,50 @@ const createStyles = (theme: Theme, isDark: boolean, topInset: number) => StyleS
     minWidth: 0,
     justifyContent: 'center',
     paddingHorizontal: 9,
-    paddingVertical: 7,
+    paddingVertical: 6,
   },
-  participantRow: {
-    minHeight: 18,
-    justifyContent: 'center',
+  participantLine: {
+    minHeight: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    minWidth: 0,
   },
   participantName: {
+    flexShrink: 1,
     letterSpacing: 0,
   },
-  personaText: {
-    marginTop: -1,
+  participantJoiner: {
+    flexShrink: 0,
+  },
+  participantToken: {
+    minWidth: 0,
+    flexShrink: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  personaIconBadge: {
+    width: 19,
+    height: 19,
+    borderRadius: 9.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: isDark ? theme.colors.overlays.medium : theme.colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+  },
+  personaIconText: {
+    fontSize: 11,
+    lineHeight: 15,
   },
   turnBlock: {
-    minHeight: 54,
+    minHeight: 46,
     borderRadius: 8,
     borderWidth: StyleSheet.hairlineWidth,
-    marginTop: 8,
+    marginTop: 6,
     paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingVertical: 7,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
