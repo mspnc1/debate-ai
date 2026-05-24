@@ -36,7 +36,7 @@ describe('usePreDebateValidation', () => {
     jest.clearAllMocks();
   });
 
-  it('returns isReady false when fewer than two providers are configured', () => {
+  it('returns isReady true when one provider is configured', () => {
     const { result } = renderHookWithProviders(() => usePreDebateValidation(), {
       preloadedState: {
         settings: {
@@ -46,7 +46,7 @@ describe('usePreDebateValidation', () => {
       },
     });
 
-    expect(result.current.isReady).toBe(false);
+    expect(result.current.isReady).toBe(true);
     expect(result.current.configuredCount).toBe(1);
     expect(result.current.isDemo).toBe(false);
   });
@@ -122,6 +122,6 @@ describe('usePreDebateValidation', () => {
     });
 
     expect(result.current.configuredCount).toBe(1);
-    expect(result.current.isReady).toBe(false);
+    expect(result.current.isReady).toBe(true);
   });
 });
