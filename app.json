@@ -78,7 +78,12 @@
       "./plugins/withEdgeToEdgeSystemBars",
       "./plugins/withFirebaseClang",
       "expo-video",
-      "expo-audio"
+      [
+        "expo-audio",
+        {
+          "enableBackgroundPlayback": true
+        }
+      ]
     ],
     "extra": {
       "eas": {

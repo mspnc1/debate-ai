@@ -226,6 +226,9 @@ jest.mock('expo-audio', () => {
         player.currentTime = seconds;
         player.didJustFinish = false;
       }),
+      setActiveForLockScreen: jest.fn(),
+      updateLockScreenMetadata: jest.fn(),
+      clearLockScreenControls: jest.fn(),
       __finish: jest.fn(() => {
         player.playing = false;
         player.currentTime = player.duration;
@@ -237,6 +240,7 @@ jest.mock('expo-audio', () => {
   };
 
   return {
+    setAudioModeAsync: jest.fn().mockResolvedValue(undefined),
     useAudioPlayer: jest.fn(() => {
       const playerRef = React.useRef<ReturnType<typeof createAudioPlayer> | null>(null);
       if (!playerRef.current) {

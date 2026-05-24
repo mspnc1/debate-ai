@@ -2,8 +2,12 @@ import React from 'react';
 import { fireEvent, waitFor } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import useWindowDimensions from 'react-native/Libraries/Utilities/useWindowDimensions';
+import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
+import { resetBackgroundAudioPlaybackForTesting } from '@/services/audio/backgroundAudioPlayback';
 
 const mockUseWindowDimensions = useWindowDimensions as jest.Mock;
+const mockedSetAudioModeAsync = setAudioModeAsync as jest.Mock;
+const mockedUseAudioPlayer = useAudioPlayer as jest.Mock;
 
 // Mock Clipboard
 const mockSetStringAsync = jest.fn().mockResolvedValue(undefined);
@@ -100,6 +104,7 @@ describe('DebateMessageBubble', () => {
 
   beforeEach(() => {
     mockUseWindowDimensions.mockReturnValue({ width: 375, height: 812 });
+    resetBackgroundAudioPlaybackForTesting();
     mockStreamingState = {
       content: 'Test message',
       isStreaming: false,
@@ -191,6 +196,48 @@ describe('DebateMessageBubble', () => {
 
       expect(getByTestId('debate-audio-play')).toBeTruthy();
       expect(getByText('Ready · Voice One')).toBeTruthy();
+    });
+
+    it('activates background playback for ready debate audio', async () => {
+      const message = createMessage({
+        senderType: 'ai',
+        metadata: {
+          debateAudio: {
+            status: 'ready',
+            voiceId: 'voice-1',
+            voiceName: 'Voice One',
+            uri: 'file:///debate/msg-1.mp3',
+            mimeType: 'audio/mpeg',
+          },
+        },
+        attachments: [
+          { type: 'audio', uri: 'file:///debate/msg-1.mp3', mimeType: 'audio/mpeg' },
+        ],
+      });
+
+      const { getByTestId } = renderWithProviders(
+        <DebateMessageBubble message={message} index={0} />
+      );
+      const player = mockedUseAudioPlayer.mock.results[0].value;
+
+      fireEvent.press(getByTestId('debate-audio-play'));
+
+      await waitFor(() => {
+        expect(mockedSetAudioModeAsync).toHaveBeenCalledWith(expect.objectContaining({
+          shouldPlayInBackground: true,
+          interruptionMode: 'doNotMix',
+        }));
+        expect(player.setActiveForLockScreen).toHaveBeenCalledWith(
+          true,
+          expect.objectContaining({
+            title: 'Claude (Analytical)',
+            artist: 'Voice One',
+            albumTitle: 'Debate',
+          }),
+          expect.any(Object)
+        );
+        expect(player.play).toHaveBeenCalledTimes(1);
+      });
     });
 
     it('renders retry action for failed debate audio', () => {

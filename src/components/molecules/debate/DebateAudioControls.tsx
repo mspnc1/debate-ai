@@ -5,12 +5,21 @@ import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '@/components/molecules/common/Typography';
 import { useTheme } from '@/theme';
+import {
+  clearBackgroundAudioPlayer,
+  forgetBackgroundAudioPlayer,
+  pauseBackgroundAudioPlayer,
+  playWithBackgroundAudio,
+} from '@/services/audio/backgroundAudioPlayback';
 
 type PlaybackPhase = 'idle' | 'playing' | 'paused' | 'ended';
 
 interface DebateAudioControlsProps {
   uri: string;
   voiceName?: string;
+  title?: string;
+  artist?: string;
+  albumTitle?: string;
 }
 
 function formatTime(seconds: number): string {
@@ -27,19 +36,38 @@ function getPlaybackPhase(status: ReturnType<typeof useAudioPlayerStatus>): Play
   return 'idle';
 }
 
-export const DebateAudioControls: React.FC<DebateAudioControlsProps> = ({ uri, voiceName }) => {
+export const DebateAudioControls: React.FC<DebateAudioControlsProps> = ({
+  uri,
+  voiceName,
+  title,
+  artist,
+  albumTitle,
+}) => {
   const { theme, isDark } = useTheme();
   const player = useAudioPlayer(uri, { updateInterval: 250 });
   const status = useAudioPlayerStatus(player);
   const [phase, setPhase] = useState<PlaybackPhase>('idle');
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekValue, setSeekValue] = useState(0);
+  const lockScreenMetadata = useMemo(() => ({
+    title: title || 'Debate audio',
+    artist: artist || voiceName,
+    albumTitle: albumTitle || 'Debate',
+  }), [albumTitle, artist, title, voiceName]);
 
   useEffect(() => {
+    const nextPhase = getPlaybackPhase(status);
     if (!isSeeking) {
-      setPhase(getPlaybackPhase(status));
+      setPhase(nextPhase);
     }
-  }, [isSeeking, status]);
+    if (nextPhase === 'ended') {
+      clearBackgroundAudioPlayer(player);
+    }
+  }, [isSeeking, player, status]);
+
+  useEffect(() => () => {
+    forgetBackgroundAudioPlayer(player);
+  }, [player]);
 
   const duration = Number.isFinite(status.duration) && status.duration > 0 ? status.duration : 0;
   const currentTime = isSeeking ? seekValue : Math.max(0, status.currentTime || 0);
@@ -51,13 +79,13 @@ export const DebateAudioControls: React.FC<DebateAudioControlsProps> = ({ uri, v
     await player.seekTo(0, 0, 0).catch(() => undefined);
     setPhase('playing');
     requestAnimationFrame(() => {
-      player.play();
+      void playWithBackgroundAudio(player, lockScreenMetadata);
     });
-  }, [player]);
+  }, [lockScreenMetadata, player]);
 
   const handlePlayPress = useCallback(() => {
     if (phase === 'playing') {
-      player.pause();
+      pauseBackgroundAudioPlayer(player, { clearControls: true });
       setPhase('paused');
       return;
     }
@@ -67,9 +95,9 @@ export const DebateAudioControls: React.FC<DebateAudioControlsProps> = ({ uri, v
       return;
     }
 
-    player.play();
+    void playWithBackgroundAudio(player, lockScreenMetadata);
     setPhase('playing');
-  }, [phase, playFromStart, player]);
+  }, [lockScreenMetadata, phase, playFromStart, player]);
 
   const seekToTime = useCallback((value: number, shouldResume: boolean) => {
     if (!canSeek) return;
@@ -77,13 +105,13 @@ export const DebateAudioControls: React.FC<DebateAudioControlsProps> = ({ uri, v
     const seek = player.seekTo(clamped, 0, 0);
     void seek.catch(() => undefined).finally(() => {
       if (shouldResume) {
-        player.play();
+        void playWithBackgroundAudio(player, lockScreenMetadata);
         setPhase('playing');
       } else {
         setPhase(clamped > 0 ? 'paused' : 'idle');
       }
     });
-  }, [canSeek, duration, player]);
+  }, [canSeek, duration, lockScreenMetadata, player]);
 
   const handleSeekStart = useCallback(() => {
     setIsSeeking(true);

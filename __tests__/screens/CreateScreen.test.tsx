@@ -13,8 +13,9 @@ import {
 } from '@/services/images/fileCache';
 import * as Sharing from 'expo-sharing';
 import { useVideoPlayer } from 'expo-video';
-import { useAudioPlayer } from 'expo-audio';
+import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import CreateScreen from '@/screens/CreateScreen';
+import { resetBackgroundAudioPlaybackForTesting } from '@/services/audio/backgroundAudioPlayback';
 
 type MockRootState = {
   settings: {
@@ -216,6 +217,7 @@ const mockedLoadBase64FromFileUri = loadBase64FromFileUri as jest.Mock;
 const mockedPersistImageUri = persistImageUri as jest.Mock;
 const mockedUseVideoPlayer = useVideoPlayer as jest.Mock;
 const mockedUseAudioPlayer = useAudioPlayer as jest.Mock;
+const mockedSetAudioModeAsync = setAudioModeAsync as jest.Mock;
 
 type MockVideoPlayer = {
   play: jest.Mock;
@@ -229,6 +231,8 @@ type MockAudioPlayer = {
   play: jest.Mock;
   pause: jest.Mock;
   seekTo: jest.Mock;
+  setActiveForLockScreen: jest.Mock;
+  clearLockScreenControls: jest.Mock;
   currentTime: number;
   __finish: () => void;
 };
@@ -277,6 +281,7 @@ describe('CreateScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    resetBackgroundAudioPlaybackForTesting();
     mockDispatch.mockClear();
     mockNavigate.mockClear();
     mockGoBack.mockClear();
@@ -387,7 +392,22 @@ describe('CreateScreen', () => {
       const firstPlayer = mockedUseAudioPlayer.mock.results[0].value as MockAudioPlayer;
 
       fireEvent.press(getByLabelText('Play audio'));
-      expect(firstPlayer.play).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(firstPlayer.play).toHaveBeenCalledTimes(1);
+        expect(mockedSetAudioModeAsync).toHaveBeenCalledWith(expect.objectContaining({
+          shouldPlayInBackground: true,
+          interruptionMode: 'doNotMix',
+        }));
+        expect(firstPlayer.setActiveForLockScreen).toHaveBeenCalledWith(
+          true,
+          expect.objectContaining({
+            title: 'A replayable audio clip',
+            artist: 'ElevenLabs',
+            albumTitle: 'Symposium AI',
+          }),
+          expect.any(Object)
+        );
+      });
 
       await waitFor(() => {
         expect(getByLabelText('Pause audio')).toBeTruthy();
@@ -577,7 +597,18 @@ describe('CreateScreen', () => {
       fireEvent.press(getByLabelText('Play voice pack'));
       const player = mockedUseAudioPlayer.mock.results[0].value as MockAudioPlayer;
 
-      expect(player.play).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(player.play).toHaveBeenCalledTimes(1);
+        expect(player.setActiveForLockScreen).toHaveBeenCalledWith(
+          true,
+          expect.objectContaining({
+            title: 'Opening statement',
+            artist: 'ChatGPT',
+            albumTitle: 'Debate voice pack',
+          }),
+          expect.any(Object)
+        );
+      });
 
       fireEvent.press(getByLabelText('Next voice clip'));
 
@@ -588,6 +619,15 @@ describe('CreateScreen', () => {
         ].value as MockAudioPlayer;
         expect(nextPlayer).not.toBe(player);
         expect(nextPlayer.play).toHaveBeenCalledTimes(1);
+        expect(nextPlayer.setActiveForLockScreen).toHaveBeenCalledWith(
+          true,
+          expect.objectContaining({
+            title: 'Opening response',
+            artist: 'Gemini',
+            albumTitle: 'Debate voice pack',
+          }),
+          expect.any(Object)
+        );
         expect(player.pause).not.toHaveBeenCalled();
       });
     });

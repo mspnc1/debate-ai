@@ -71,6 +71,13 @@ import type { DebateVoicePackManifest } from '../types/media';
 import { RootStackParamList, AIProvider } from '../types';
 import { ImageService, GeneratedImage } from '../services/images/ImageService';
 import APIKeyService from '../services/APIKeyService';
+import {
+  clearBackgroundAudioPlayer,
+  forgetBackgroundAudioPlayer,
+  pauseBackgroundAudioPlayer,
+  playWithBackgroundAudio,
+  type BackgroundAudioMetadata,
+} from '../services/audio/backgroundAudioPlayback';
 import { buildEnhancedPrompt } from '../config/create/stylePresets';
 import { mapSizeToProvider } from '../config/create/sizeOptions';
 import {
@@ -261,10 +268,12 @@ function VideoPreview({
 
 function AudioPreview({
   uri,
+  metadata,
   theme,
   isDark,
 }: {
   uri: string;
+  metadata: BackgroundAudioMetadata;
   theme: ReturnType<typeof useTheme>['theme'];
   isDark: boolean;
 }) {
@@ -288,6 +297,7 @@ function AudioPreview({
     <AudioPreviewPlayer
       key={`${uri}-${playerGeneration}`}
       uri={uri}
+      metadata={metadata}
       theme={theme}
       isDark={isDark}
       resetRequest={resetRequest}
@@ -298,12 +308,14 @@ function AudioPreview({
 
 function AudioPreviewPlayer({
   uri,
+  metadata,
   theme,
   isDark,
   resetRequest,
   onResetPlayer,
 }: {
   uri: string;
+  metadata: BackgroundAudioMetadata;
   theme: ReturnType<typeof useTheme>['theme'];
   isDark: boolean;
   resetRequest: AudioPlayerResetRequest;
@@ -328,11 +340,15 @@ function AudioPreviewPlayer({
 
   useEffect(() => {
     setPlaybackPhase(statusPhase);
-  }, [statusPhase]);
+    if (statusPhase === 'ended') {
+      clearBackgroundAudioPlayer(player);
+    }
+  }, [player, statusPhase]);
 
   useEffect(() => () => {
+    forgetBackgroundAudioPlayer(player);
     isMountedRef.current = false;
-  }, []);
+  }, [player]);
 
   useEffect(() => {
     if (resetRequest.id === 0) {
@@ -345,7 +361,7 @@ function AudioPreviewPlayer({
       void player.seekTo(nextTime, 0, 0).catch(() => undefined).finally(() => {
         if (cancelled) return;
         if (resetRequest.shouldPlay) {
-          player.play();
+          void playWithBackgroundAudio(player, metadata);
           if (isMountedRef.current) {
             setPlaybackPhase('playing');
           }
@@ -361,11 +377,11 @@ function AudioPreviewPlayer({
       cancelled = true;
       clearTimeout(autoPlayTimer);
     };
-  }, [duration, player, resetRequest]);
+  }, [duration, metadata, player, resetRequest]);
 
   const handlePress = useCallback(() => {
     if (playbackPhase === 'playing') {
-      player.pause();
+      pauseBackgroundAudioPlayer(player, { clearControls: true });
       setPlaybackPhase('paused');
       return;
     }
@@ -375,9 +391,9 @@ function AudioPreviewPlayer({
       return;
     }
 
-    player.play();
+    void playWithBackgroundAudio(player, metadata);
     setPlaybackPhase('playing');
-  }, [onResetPlayer, playbackPhase, player]);
+  }, [metadata, onResetPlayer, playbackPhase, player]);
 
   const seekToTime = useCallback((nextTime: number, shouldResume: boolean) => {
     const clampedTime = clampAudioTime(nextTime, duration);
@@ -390,7 +406,7 @@ function AudioPreviewPlayer({
     void player.seekTo(clampedTime, 0, 0).catch(() => undefined).finally(() => {
       if (!isMountedRef.current) return;
       if (shouldResume) {
-        player.play();
+        void playWithBackgroundAudio(player, metadata);
         setPlaybackPhase('playing');
         return;
       }
@@ -401,7 +417,7 @@ function AudioPreviewPlayer({
         setPlaybackPhase(clampedTime > 0 ? 'paused' : 'idle');
       }
     });
-  }, [duration, onResetPlayer, playbackPhase, player, statusPhase]);
+  }, [duration, metadata, onResetPlayer, playbackPhase, player, statusPhase]);
 
   const handleSeekStart = useCallback(() => {
     wasPlayingBeforeScrubRef.current = playbackPhase === 'playing';
@@ -676,6 +692,7 @@ function VoicePackPreview({
       <VoicePackClipPlayer
         key={`${currentClip.id}-${currentIndex}`}
         clip={currentClip}
+        manifest={manifest}
         shouldPlay={isPlaying && !isWaitingForNextClip}
         theme={theme}
         isDark={isDark}
@@ -687,12 +704,14 @@ function VoicePackPreview({
 
 function VoicePackClipPlayer({
   clip,
+  manifest,
   shouldPlay,
   theme,
   isDark,
   onEnded,
 }: {
   clip: DebateVoicePackManifest['clips'][number];
+  manifest: DebateVoicePackManifest;
   shouldPlay: boolean;
   theme: ReturnType<typeof useTheme>['theme'];
   isDark: boolean;
@@ -711,6 +730,15 @@ function VoicePackClipPlayer({
   const canSeek = duration > 0;
   const audioTrackColor = isDark ? theme.colors.border : theme.colors.primary[100];
   const audioAccentColor = isDark ? theme.colors.primary[300] : theme.colors.primary[700];
+  const lockScreenMetadata = useMemo(() => ({
+    title: clip.speechLabel || manifest.topic || 'Debate voice pack',
+    artist: clip.voiceName ? `${clip.speakerName} · ${clip.voiceName}` : clip.speakerName,
+    albumTitle: manifest.kind === 'debate_podcast_playlist' ? 'Debate podcast' : 'Debate voice pack',
+  }), [clip.speakerName, clip.speechLabel, clip.voiceName, manifest.kind, manifest.topic]);
+
+  useEffect(() => () => {
+    forgetBackgroundAudioPlayer(player);
+  }, [player]);
 
   useEffect(() => {
     const previousCommand = playbackCommandRef.current;
@@ -724,30 +752,31 @@ function VoicePackClipPlayer({
     playbackCommandRef.current = { clipUri: clip.uri, shouldPlay };
 
     if (shouldPlay) {
-      player.play();
+      void playWithBackgroundAudio(player, lockScreenMetadata);
     } else if (previousCommand?.shouldPlay && playbackIntentChanged) {
-      player.pause();
+      pauseBackgroundAudioPlayer(player, { clearControls: true });
     }
-  }, [clip.uri, player, shouldPlay]);
+  }, [clip.uri, lockScreenMetadata, player, shouldPlay]);
 
   useEffect(() => {
     if (statusPhase === 'ended' && !endedNotifiedRef.current) {
       endedNotifiedRef.current = true;
+      clearBackgroundAudioPlayer(player);
       onEnded();
     } else if (statusPhase !== 'ended') {
       endedNotifiedRef.current = false;
     }
-  }, [onEnded, statusPhase]);
+  }, [onEnded, player, statusPhase]);
 
   const handleSeekComplete = useCallback((nextTime: number) => {
     setScrubTime(null);
     const clampedTime = clampAudioTime(nextTime, duration);
     void player.seekTo(clampedTime, 0, 0).catch(() => undefined).finally(() => {
       if (shouldPlay) {
-        player.play();
+        void playWithBackgroundAudio(player, lockScreenMetadata);
       }
     });
-  }, [duration, player, shouldPlay]);
+  }, [duration, lockScreenMetadata, player, shouldPlay]);
 
   return (
     <View style={styles.voicePackClipPanel}>
@@ -791,6 +820,14 @@ function getMediaProviderDisplayName(providerId: string): string {
   if (providerId === 'runway') return 'Runway';
   if (providerId === 'elevenlabs') return 'ElevenLabs';
   return providerId;
+}
+
+function buildGeneratedAudioMetadata(entry: GeneratedMediaEntry): BackgroundAudioMetadata {
+  return {
+    title: entry.prompt || 'Generated audio',
+    artist: getMediaProviderDisplayName(entry.providerId),
+    albumTitle: 'Symposium AI',
+  };
 }
 
 function isImageProvider(providerId: string): providerId is AIProvider {
@@ -1868,7 +1905,12 @@ export default function CreateScreen() {
           ) : isVoicePack ? (
             <VoicePackPreview manifest={item.voicePack} theme={theme} isDark={isDark} />
           ) : (
-            <AudioPreview uri={item.uri} theme={theme} isDark={isDark} />
+            <AudioPreview
+              uri={item.uri}
+              metadata={buildGeneratedAudioMetadata(item)}
+              theme={theme}
+              isDark={isDark}
+            />
           )}
 
           <View style={[styles.providerBadge, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
@@ -2347,8 +2389,20 @@ export default function CreateScreen() {
             {selectedAsset.type === 'audio' && (
               selectedVoicePack ? (
                 <VoicePackPreview manifest={selectedVoicePack} theme={theme} isDark={isDark} />
+              ) : selectedMediaEntry ? (
+                <AudioPreview
+                  uri={selectedAsset.uri}
+                  metadata={buildGeneratedAudioMetadata(selectedMediaEntry)}
+                  theme={theme}
+                  isDark={isDark}
+                />
               ) : (
-                <AudioPreview uri={selectedAsset.uri} theme={theme} isDark={isDark} />
+                <AudioPreview
+                  uri={selectedAsset.uri}
+                  metadata={{ title, artist: providerLabel, albumTitle: 'Symposium AI' }}
+                  theme={theme}
+                  isDark={isDark}
+                />
               )
             )}
 

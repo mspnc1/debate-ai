@@ -292,7 +292,13 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
           </Box>
         )}
         {!isStreaming && debateAudio?.status === 'ready' && audioAttachment && (
-          <DebateAudioControls uri={audioAttachment.uri} voiceName={debateAudio.voiceName} />
+          <DebateAudioControls
+            uri={audioAttachment.uri}
+            voiceName={debateAudio.voiceName}
+            title={message.sender}
+            artist={debateAudio.voiceName}
+            albumTitle="Debate"
+          />
         )}
         {!isStreaming && debateAudio?.status === 'failed' && (
           <Box
