@@ -3,8 +3,8 @@
  * Handles slot-first AI selection for debates.
  */
 
-import React, { useCallback, useMemo } from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { StyleSheet, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../theme';
@@ -18,6 +18,12 @@ import { getModelById, resolveProviderModelId } from '@/config/modelConfigs';
 type DebaterSlot = AIConfig | null;
 type PendingSelectionTarget = { kind: 'debater'; index: number } | { kind: 'mc' };
 type SlotSide = 'proposition' | 'opposition';
+type ModelEditorTarget = {
+  key: string;
+  ai: AIConfig;
+  label: string;
+  helper: string;
+};
 
 interface DebateAISelectorProps {
   selectedTopic: string;
@@ -74,6 +80,9 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
   onProviderSelectorLayout,
 }) => {
   const { theme, isDark } = useTheme();
+  const { width } = useWindowDimensions();
+  const [activeModelKey, setActiveModelKey] = useState<string | null>(null);
+  const isCompactLayout = width < 620;
 
   const nextButtonTitle = isPremium ? 'Next: Set the Tone ->' : 'Start Debate';
   const requiredSlots = debaterSlots.slice(0, maxAIs);
@@ -167,6 +176,8 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
     return index % 2 === 0 ? 'proposition' : 'opposition';
   }, [maxAIs]);
 
+  const getSlotKey = (index: number) => `debater-${index}`;
+
   const getTeamSlots = (side: SlotSide) =>
     Array.from({ length: maxAIs }, (_, index) => ({
       index,
@@ -175,6 +186,31 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
       slotNumber: Math.floor(index / 2) + 1,
       side: getSlotSide(index),
     })).filter(slot => slot.side === side);
+
+  const activeModelTarget = useMemo<ModelEditorTarget | null>(() => {
+    if (!activeModelKey) return null;
+    if (activeModelKey === 'mc') {
+      return podcastMC
+        ? {
+          key: 'mc',
+          ai: podcastMC,
+          label: 'Podcast MC',
+          helper: 'This model writes the podcast-style intro, segues, and winner copy with your key.',
+        }
+        : null;
+    }
+
+    const slotIndex = Number(activeModelKey.replace('debater-', ''));
+    const ai = Number.isInteger(slotIndex) ? debaterSlots[slotIndex] : null;
+    return ai
+      ? {
+        key: activeModelKey,
+        ai,
+        label: getSlotLabel(slotIndex),
+        helper: 'This model applies only to this debater slot.',
+      }
+      : null;
+  }, [activeModelKey, debaterSlots, getSlotLabel, podcastMC]);
 
   const providerSubtitle = useMemo(() => {
     if (pendingSelectionTarget?.kind === 'mc') {
@@ -186,74 +222,130 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
     return 'Tap Add or Change on a slot, then choose a provider below.';
   }, [getSlotLabel, pendingSelectionTarget]);
 
-  const renderModelControl = (ai: AIConfig, subtitle: string) => {
-    if (!onModelChange) return null;
-    const selectedModel = selectedModels[ai.id] || selectedModels[ai.provider] || ai.model;
+  const handleRequestDebater = (index: number) => {
+    setActiveModelKey(null);
+    onRequestDebaterSlot(index);
+  };
 
+  const handleRequestMC = () => {
+    setActiveModelKey(null);
+    onRequestPodcastMC();
+  };
+
+  const handleRemoveDebater = (index: number) => {
+    const slotKey = getSlotKey(index);
+    setActiveModelKey(current => current === slotKey ? null : current);
+    onRemoveDebaterSlot(index);
+  };
+
+  const handleRemoveMC = () => {
+    setActiveModelKey(current => current === 'mc' ? null : current);
+    onRemovePodcastMC();
+  };
+
+  const toggleModelEditor = (key: string) => {
+    setActiveModelKey(current => current === key ? null : key);
+  };
+
+  const renderSlotAction = (
+    label: string,
+    icon: keyof typeof Ionicons.glyphMap,
+    onPress: () => void,
+    options: { accentColor: string; selected?: boolean; danger?: boolean } = { accentColor: theme.colors.primary[500] },
+  ) => {
+    const color = options.danger
+      ? theme.colors.error[500]
+      : options.selected
+        ? options.accentColor
+        : theme.colors.text.secondary;
     return (
-      <View
+      <TouchableOpacity
+        onPress={onPress}
+        accessibilityRole="button"
         style={[
-          styles.modelControl,
+          styles.slotAction,
           {
-            borderColor: isDark ? theme.colors.primary[700] : theme.colors.primary[200],
-            backgroundColor: isDark ? theme.colors.overlays.medium : theme.colors.primary[50],
+            borderColor: options.selected ? options.accentColor : theme.colors.border,
+            backgroundColor: options.selected
+              ? `${options.accentColor}18`
+              : (isDark ? theme.colors.overlays.soft : theme.colors.surface),
           },
         ]}
       >
-        <View style={styles.modelControlHeader}>
-          <Ionicons name="swap-horizontal-outline" size={16} color={theme.colors.primary[500]} />
-          <View style={styles.modelControlCopy}>
-            <Typography variant="caption" weight="semibold" numberOfLines={1}>
-              Model
-            </Typography>
-            <Typography variant="caption" color="secondary" numberOfLines={1}>
-              {subtitle}
-            </Typography>
-          </View>
-        </View>
-        <ModelSelectorEnhanced
-          providerId={ai.provider}
-          selectedModel={selectedModel}
-          onSelectModel={(modelId) => onModelChange(ai.id, modelId)}
-          compactMode
-          aiName={ai.name}
-          showPricing
-        />
-      </View>
+        <Ionicons name={icon} size={14} color={color} />
+        <Typography
+          variant="caption"
+          weight="semibold"
+          numberOfLines={1}
+          style={{ color }}
+        >
+          {label}
+        </Typography>
+      </TouchableOpacity>
     );
   };
+
+  const renderModelPill = (ai: AIConfig, accentColor: string) => (
+    <View
+      style={[
+        styles.modelPill,
+        {
+          borderColor: `${accentColor}44`,
+          backgroundColor: isDark ? theme.colors.overlays.soft : `${accentColor}10`,
+        },
+      ]}
+    >
+      <Ionicons name="hardware-chip-outline" size={13} color={accentColor} />
+      <Typography
+        variant="caption"
+        weight="medium"
+        numberOfLines={1}
+        style={{ color: isDark ? theme.colors.text.primary : theme.colors.text.secondary }}
+      >
+        {getModelName(ai)}
+      </Typography>
+    </View>
+  );
 
   const renderFilledSlot = (
     ai: AIConfig,
     label: string,
+    slotKey: string,
     accentColor: string,
     onChange: () => void,
     onRemove: () => void,
-  ) => (
-    <View style={styles.filledSlotContent}>
-      <View style={styles.slotHeaderRow}>
-        <View style={styles.slotCopy}>
-          <Typography variant="body" weight="semibold" numberOfLines={1}>
-            {ai.name}
-          </Typography>
-          <Typography variant="caption" color="secondary" numberOfLines={1}>
-            {label} • {getModelName(ai)}
-          </Typography>
+  ) => {
+    const modelSelected = activeModelKey === slotKey;
+    return (
+      <View style={styles.filledSlotContent}>
+        <View style={styles.slotHeaderRow}>
+          <View style={styles.slotCopy}>
+            <Typography variant="body" weight="semibold" numberOfLines={1}>
+              {ai.name}
+            </Typography>
+            <Typography variant="caption" color="secondary" numberOfLines={1}>
+              {label}
+            </Typography>
+          </View>
+          <Ionicons name="checkmark-circle" size={20} color={accentColor} />
         </View>
-        <Ionicons name="checkmark-circle" size={20} color={accentColor} />
+
+        {renderModelPill(ai, accentColor)}
+
+        <View style={styles.slotActions}>
+          {renderSlotAction('Change', 'swap-horizontal-outline', onChange, { accentColor })}
+          {renderSlotAction('Model', 'options-outline', () => toggleModelEditor(slotKey), { accentColor, selected: modelSelected })}
+          {renderSlotAction('Remove', 'close-outline', onRemove, { accentColor, danger: true })}
+        </View>
       </View>
-      <View style={styles.slotActions}>
-        <Button title="Change" onPress={onChange} variant="secondary" size="small" style={styles.slotActionButton} />
-        <Button title="Remove" onPress={onRemove} variant="ghost" size="small" style={styles.slotActionButton} />
-      </View>
-      {renderModelControl(ai, `Applies only to ${label}`)}
-    </View>
-  );
+    );
+  };
 
   const renderEmptySlot = (
     index: number,
     label: string,
     isPending: boolean,
+    accentColor: string,
   ) => (
     <View style={styles.emptySlotContent}>
       <View style={styles.slotCopy}>
@@ -264,14 +356,27 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
           {label}
         </Typography>
       </View>
-      <Button
-        title="Add"
-        onPress={() => onRequestDebaterSlot(index)}
-        variant={isPending ? 'primary' : 'tonal'}
-        size="small"
-        style={styles.addSlotButton}
+      <TouchableOpacity
+        onPress={() => handleRequestDebater(index)}
+        accessibilityRole="button"
         accessibilityLabel={`Add ${label}`}
-      />
+        style={[
+          styles.addSlotButton,
+          {
+            borderColor: accentColor,
+            backgroundColor: isPending ? accentColor : (isDark ? theme.colors.overlays.soft : `${accentColor}10`),
+          },
+        ]}
+      >
+        <Ionicons name="add" size={18} color={isPending ? theme.colors.text.white : accentColor} />
+        <Typography
+          variant="caption"
+          weight="semibold"
+          style={{ color: isPending ? theme.colors.text.white : accentColor }}
+        >
+          Add
+        </Typography>
+      </TouchableOpacity>
     </View>
   );
 
@@ -289,6 +394,7 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
       <View
         style={[
           styles.teamColumn,
+          isCompactLayout && styles.teamColumnCompact,
           {
             borderColor: theme.colors.border,
             backgroundColor: isDark ? theme.colors.overlays.soft : theme.colors.surface,
@@ -300,23 +406,25 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
             <Ionicons name={iconName} size={16} color={accentColor} />
           </View>
           <View style={styles.teamHeaderText}>
-            <Typography variant="caption" weight="semibold" numberOfLines={1}>
+            <Typography variant="body" weight="semibold" numberOfLines={1}>
               {title}
             </Typography>
             <Typography variant="caption" color="secondary" numberOfLines={1}>
               {role}
             </Typography>
           </View>
+          {!isCompactLayout && (
+            <Typography variant="caption" color="secondary" numberOfLines={1}>
+              {description}
+            </Typography>
+          )}
         </View>
-
-        <Typography variant="caption" color="secondary" style={styles.teamDescription} numberOfLines={2}>
-          {description}
-        </Typography>
 
         <View style={styles.slotList}>
           {slots.map((slot) => {
             const isPending = pendingSelectionTarget?.kind === 'debater' && pendingSelectionTarget.index === slot.index;
             const isFilled = Boolean(slot.ai);
+            const slotKey = getSlotKey(slot.index);
 
             return (
               <View
@@ -354,17 +462,71 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
                     ? renderFilledSlot(
                       slot.ai,
                       slot.label,
+                      slotKey,
                       accentColor,
-                      () => onRequestDebaterSlot(slot.index),
-                      () => onRemoveDebaterSlot(slot.index),
+                      () => handleRequestDebater(slot.index),
+                      () => handleRemoveDebater(slot.index),
                     )
-                    : renderEmptySlot(slot.index, slot.label, isPending)}
+                    : renderEmptySlot(slot.index, slot.label, isPending, accentColor)}
                 </View>
               </View>
             );
           })}
         </View>
       </View>
+    );
+  };
+
+  const renderActiveModelEditor = () => {
+    if (!activeModelTarget || !onModelChange) return null;
+    const selectedModel = selectedModels[activeModelTarget.ai.id]
+      || selectedModels[activeModelTarget.ai.provider]
+      || activeModelTarget.ai.model;
+
+    return (
+      <Box
+        style={[
+          styles.modelEditor,
+          {
+            borderColor: theme.colors.primary[300],
+            backgroundColor: isDark ? theme.colors.overlays.soft : theme.colors.surface,
+          },
+        ]}
+      >
+        <View style={styles.modelEditorHeader}>
+          <View style={styles.modelEditorTitle}>
+            <Typography variant="body" weight="semibold" numberOfLines={1}>
+              {activeModelTarget.label} model
+            </Typography>
+            <Typography variant="caption" color="secondary" numberOfLines={2}>
+              {activeModelTarget.helper}
+            </Typography>
+          </View>
+          <TouchableOpacity
+            onPress={() => setActiveModelKey(null)}
+            accessibilityRole="button"
+            accessibilityLabel="Close model editor"
+            style={[
+              styles.closeModelButton,
+              {
+                borderColor: theme.colors.border,
+                backgroundColor: isDark ? theme.colors.overlays.medium : theme.colors.card,
+              },
+            ]}
+          >
+            <Ionicons name="close" size={16} color={theme.colors.text.secondary} />
+          </TouchableOpacity>
+        </View>
+
+        <ModelSelectorEnhanced
+          providerId={activeModelTarget.ai.provider}
+          selectedModel={selectedModel}
+          onSelectModel={(modelId) => onModelChange(activeModelTarget.ai.id, modelId)}
+          compactMode={false}
+          aiName={activeModelTarget.ai.name}
+          showPricing
+        />
+      </Box>
     );
   };
 
@@ -430,9 +592,10 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
                   renderFilledSlot(
                     podcastMC,
                     'Podcast MC',
+                    'mc',
                     theme.colors.primary[500],
-                    onRequestPodcastMC,
-                    onRemovePodcastMC,
+                    handleRequestMC,
+                    handleRemoveMC,
                   )
                 ) : (
                   <View style={styles.emptySlotContent}>
@@ -444,13 +607,33 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
                         Select a text provider/model for interstitial scripts.
                       </Typography>
                     </View>
-                    <Button
-                      title="Add MC"
-                      onPress={onRequestPodcastMC}
-                      variant={pendingSelectionTarget?.kind === 'mc' ? 'primary' : 'tonal'}
-                      size="small"
-                      style={styles.addSlotButton}
-                    />
+                    <TouchableOpacity
+                      onPress={handleRequestMC}
+                      accessibilityRole="button"
+                      accessibilityLabel="Add podcast MC"
+                      style={[
+                        styles.addSlotButton,
+                        {
+                          borderColor: theme.colors.primary[500],
+                          backgroundColor: pendingSelectionTarget?.kind === 'mc'
+                            ? theme.colors.primary[500]
+                            : (isDark ? theme.colors.overlays.soft : theme.colors.primary[50]),
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name="add"
+                        size={18}
+                        color={pendingSelectionTarget?.kind === 'mc' ? theme.colors.text.white : theme.colors.primary[500]}
+                      />
+                      <Typography
+                        variant="caption"
+                        weight="semibold"
+                        style={{ color: pendingSelectionTarget?.kind === 'mc' ? theme.colors.text.white : theme.colors.primary[500] }}
+                      >
+                        Add MC
+                      </Typography>
+                    </TouchableOpacity>
                   </View>
                 )}
               </View>
@@ -473,7 +656,7 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
                 Debate Teams
               </Typography>
               <Typography variant="caption" color="secondary" numberOfLines={2}>
-                Fill each slot directly. Changing or removing one slot keeps the others intact.
+                Fill each slot directly. Use Model only when you want to override the default.
               </Typography>
             </View>
             <View
@@ -492,7 +675,7 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
             </View>
           </View>
 
-          <View style={styles.teamColumns}>
+          <View style={[styles.teamColumns, isCompactLayout && styles.teamColumnsCompact]}>
             {renderTeamColumn(
               'proposition',
               'Proposition',
@@ -511,6 +694,8 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
             )}
           </View>
         </Box>
+
+        {renderActiveModelEditor()}
       </View>
 
       {liveSearchStatus && (
@@ -609,7 +794,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   mcSlot: {
-    minHeight: 72,
+    minHeight: 76,
     borderRadius: 10,
     borderWidth: 1,
     padding: 10,
@@ -617,9 +802,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   mcIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -655,13 +840,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
+  teamColumnsCompact: {
+    flexDirection: 'column',
+  },
   teamColumn: {
     flex: 1,
     minWidth: 0,
     borderRadius: 10,
     borderWidth: 1,
     padding: 10,
-    gap: 8,
+    gap: 10,
+  },
+  teamColumnCompact: {
+    width: '100%',
   },
   teamHeader: {
     flexDirection: 'row',
@@ -679,29 +870,26 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  teamDescription: {
-    minHeight: 34,
-  },
   slotList: {
     gap: 8,
   },
   teamSlot: {
-    minHeight: 72,
-    borderRadius: 8,
+    minHeight: 76,
+    borderRadius: 10,
     borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
+    gap: 10,
   },
   slotNumber: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
+    marginTop: 1,
   },
   slotBody: {
     flex: 1,
@@ -718,38 +906,75 @@ const styles = StyleSheet.create({
     minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   slotHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  slotActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  slotActionButton: {
-    flex: 1,
-    minHeight: 34,
-  },
-  addSlotButton: {
-    minHeight: 34,
-  },
-  modelControl: {
-    borderRadius: 10,
+  modelPill: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    minHeight: 28,
+    borderRadius: 999,
     borderWidth: 1,
-    padding: 10,
-    gap: 8,
-  },
-  modelControlHeader: {
+    paddingHorizontal: 9,
+    paddingVertical: 5,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 5,
+  },
+  slotActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
-  modelControlCopy: {
+  slotAction: {
+    flexGrow: 1,
+    minWidth: 76,
+    minHeight: 34,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  addSlotButton: {
+    minWidth: 86,
+    minHeight: 38,
+    borderRadius: 9,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  modelEditor: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    gap: 12,
+  },
+  modelEditorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  modelEditorTitle: {
     flex: 1,
     minWidth: 0,
+  },
+  closeModelButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   providerSelector: {
     marginTop: 18,
