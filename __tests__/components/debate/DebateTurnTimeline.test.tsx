@@ -15,7 +15,7 @@ describe('DebateTurnTimeline', () => {
     );
 
     expect(getByText('Speech Order')).toBeTruthy();
-    expect(getByText('3/8')).toBeTruthy();
+    expect(getByText(`3/${preset.messages.length}`)).toBeTruthy();
     expect(getAllByText('Cross-Examination (CX)').length).toBeGreaterThan(0);
     expect(getAllByText('Affirmative · answers').length).toBeGreaterThan(0);
   });
