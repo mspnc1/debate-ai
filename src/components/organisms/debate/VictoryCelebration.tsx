@@ -157,7 +157,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{
                 flexGrow: 1,
-                justifyContent: 'center',
+                justifyContent: 'flex-start',
                 alignItems: 'center',
                 paddingVertical: 24,
                 paddingHorizontal: 16,
@@ -335,7 +335,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{
               flexGrow: 1,
-              justifyContent: 'center',
+              justifyContent: 'flex-start',
               alignItems: 'center',
               paddingVertical: 24,
               paddingHorizontal: 16,

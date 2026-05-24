@@ -162,6 +162,7 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
       }
       
       case 'typing_started':
+        updateTurnStatus();
         if (event.data.aiName) {
           dispatch(setTypingAI({ ai: event.data.aiName as string, isTyping: true }));
         }

@@ -1,6 +1,10 @@
 import React from 'react';
 import { renderWithProviders } from '../../../test-utils/renderWithProviders';
-import { DebateTurnTimeline } from '@/components/organisms/debate/DebateTurnTimeline';
+import {
+  DebateTurnTimeline,
+  getDebateTimelineActiveIndex,
+  getDebateTimelineLeftOffset,
+} from '@/components/organisms/debate/DebateTurnTimeline';
 import { getPresetForFormat } from '@/config/debate/formats';
 
 describe('DebateTurnTimeline', () => {
@@ -18,5 +22,29 @@ describe('DebateTurnTimeline', () => {
     expect(getByText(`3/${preset.messages.length}`)).toBeTruthy();
     expect(getAllByText('Cross-Examination (CX)').length).toBeGreaterThan(0);
     expect(getAllByText('Affirmative · answers').length).toBeGreaterThan(0);
+  });
+
+  it('can hide the duplicated current-step summary when embedded in a richer header', () => {
+    const preset = getPresetForFormat('oxford', 'short');
+    const { queryByText, getByText } = renderWithProviders(
+      <DebateTurnTimeline
+        messages={preset.messages}
+        currentMessageIndex={1}
+        showCurrentSummary={false}
+        embedded
+      />
+    );
+
+    expect(getByText('Speech Order')).toBeTruthy();
+    expect(queryByText('Current step')).toBeNull();
+  });
+
+  it('clamps active index and computes a left-locked rail offset', () => {
+    const preset = getPresetForFormat('lincoln_douglas', 'standard');
+
+    expect(getDebateTimelineActiveIndex(-4, preset.messages.length)).toBe(0);
+    expect(getDebateTimelineActiveIndex(99, preset.messages.length)).toBe(preset.messages.length - 1);
+    expect(getDebateTimelineLeftOffset(0, 124)).toBe(0);
+    expect(getDebateTimelineLeftOffset(2, 124)).toBe(264);
   });
 });

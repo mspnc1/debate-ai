@@ -4,6 +4,7 @@
  */
 
 export { DebateHeader } from './DebateHeader';
+export { DebateSessionHeader } from './DebateSessionHeader';
 export { TopicSelector } from './TopicSelector';
 export { DebateMessageList } from './DebateMessageList';
 export { DebateTurnTimeline } from './DebateTurnTimeline';
@@ -28,6 +29,11 @@ export { DebateSetupSummary } from './DebateSetupSummary';
 export { DebateStepIndicator } from './DebateStepIndicator';
 
 export type { DebateHeaderProps } from './DebateHeader';
+export type {
+  DebateSessionHeaderParticipant,
+  DebateSessionHeaderProps,
+  DebateSessionHeaderTeam,
+} from './DebateSessionHeader';
 export type { TopicSelectorProps } from './TopicSelector';
 export type { DebateMessageListProps } from './DebateMessageList';
 export type { DebateTurnTimelineProps } from './DebateTurnTimeline';

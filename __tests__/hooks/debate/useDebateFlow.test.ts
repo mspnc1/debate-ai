@@ -109,6 +109,27 @@ describe('useDebateFlow', () => {
 
     act(() => {
       orchestrator.emit({
+        type: 'typing_started',
+        data: {
+          aiName: 'Claude',
+          messageIndex: 2,
+          messageLabel: 'Proposition Floor Speech',
+          phase: 'rebuttal',
+        },
+        timestamp: Date.now(),
+      });
+    });
+    expect(store.getState().chat.typingAIs).toContain('Claude');
+    expect(result.current.currentMessageIndex).toBe(2);
+    expect(result.current.currentTurnLabel).toBe('Proposition Floor Speech');
+
+    act(() => {
+      orchestrator.emit({ type: 'typing_stopped', data: { aiName: 'Claude' }, timestamp: Date.now() });
+    });
+    expect(store.getState().chat.typingAIs).not.toContain('Claude');
+
+    act(() => {
+      orchestrator.emit({
         type: 'stream_started',
         data: {
           messageId: 'm1',

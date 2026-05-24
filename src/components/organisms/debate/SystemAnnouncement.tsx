@@ -10,7 +10,7 @@ import Animated, {
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Typography } from '../../molecules';
-import { useTheme } from '../../../theme';
+import { useTheme, type Theme } from '../../../theme';
 
 export interface SystemAnnouncementProps {
   type: 'topic' | 'exchange-winner' | 'debate-complete' | 'overall-winner' | 'debate-start' | 'audience-stance';
@@ -22,6 +22,83 @@ export interface SystemAnnouncementProps {
   animation?: 'fade' | 'slide-up' | 'scale';
   onDismiss?: () => void;
 }
+
+interface AnnouncementPalette {
+  gradient: [string, string];
+  borderColor: string;
+  backgroundColor: string;
+  labelColor: string;
+  contentColor: string;
+  iconColor: string;
+}
+
+export const getSystemAnnouncementPalette = (
+  theme: Theme,
+  isDark: boolean,
+  type: SystemAnnouncementProps['type']
+): AnnouncementPalette => {
+  const neutralSurface = theme.colors.card;
+
+  switch (type) {
+    case 'audience-stance':
+      return {
+        gradient: isDark
+          ? [theme.colors.card, theme.colors.surface]
+          : [theme.colors.primary[50], theme.colors.card],
+        borderColor: isDark ? theme.colors.primary[500] : theme.colors.primary[200],
+        backgroundColor: isDark ? theme.colors.card : theme.colors.primary[50],
+        labelColor: isDark ? theme.colors.primary[300] : theme.colors.primary[700],
+        contentColor: theme.colors.text.primary,
+        iconColor: isDark ? theme.colors.primary[300] : theme.colors.primary[600],
+      };
+    case 'exchange-winner':
+      return {
+        gradient: isDark
+          ? [theme.colors.card, theme.colors.surface]
+          : [theme.colors.success[50], theme.colors.card],
+        borderColor: isDark ? theme.colors.success[600] : theme.colors.success[200],
+        backgroundColor: neutralSurface,
+        labelColor: isDark ? theme.colors.success[300] : theme.colors.success[700],
+        contentColor: theme.colors.text.primary,
+        iconColor: isDark ? theme.colors.success[300] : theme.colors.success[700],
+      };
+    case 'debate-complete':
+      return {
+        gradient: isDark
+          ? [theme.colors.card, theme.colors.surface]
+          : [theme.colors.warning[50], theme.colors.card],
+        borderColor: isDark ? theme.colors.warning[600] : theme.colors.warning[200],
+        backgroundColor: neutralSurface,
+        labelColor: isDark ? theme.colors.warning[300] : theme.colors.warning[700],
+        contentColor: theme.colors.text.primary,
+        iconColor: isDark ? theme.colors.warning[300] : theme.colors.warning[700],
+      };
+    case 'overall-winner':
+      return {
+        gradient: isDark
+          ? [theme.colors.card, theme.colors.surface]
+          : [theme.colors.warning[50], theme.colors.card],
+        borderColor: isDark ? theme.colors.warning[500] : theme.colors.warning[300],
+        backgroundColor: neutralSurface,
+        labelColor: isDark ? theme.colors.warning[300] : theme.colors.warning[800],
+        contentColor: theme.colors.text.primary,
+        iconColor: isDark ? theme.colors.warning[300] : theme.colors.warning[800],
+      };
+    case 'debate-start':
+    case 'topic':
+    default:
+      return {
+        gradient: isDark
+          ? [theme.colors.card, theme.colors.surface]
+          : [theme.colors.info[50], theme.colors.card],
+        borderColor: isDark ? theme.colors.info[700] : theme.colors.info[200],
+        backgroundColor: neutralSurface,
+        labelColor: isDark ? theme.colors.info[300] : theme.colors.info[700],
+        contentColor: theme.colors.text.primary,
+        iconColor: isDark ? theme.colors.info[300] : theme.colors.info[700],
+      };
+  }
+};
 
 export const SystemAnnouncement: React.FC<SystemAnnouncementProps> = ({
   type,
@@ -35,6 +112,7 @@ export const SystemAnnouncement: React.FC<SystemAnnouncementProps> = ({
   const { theme, isDark } = useTheme();
   const scale = useSharedValue(0.95);
   const isAudienceCue = type === 'audience-stance';
+  const palette = getSystemAnnouncementPalette(theme, isDark, type);
   
   useEffect(() => {
     scale.value = withSpring(1, { damping: 15 });
@@ -52,25 +130,6 @@ export const SystemAnnouncement: React.FC<SystemAnnouncementProps> = ({
         return FadeInDown.duration(300);
       default:
         return FadeInDown.duration(400);
-    }
-  };
-  
-  const getDefaultGradient = (): [string, string] => {
-    switch (type) {
-      case 'topic':
-        return [theme.colors.semantic.primary, theme.colors.semantic.secondary];
-      case 'debate-start':
-        return [theme.colors.semantic.info, theme.colors.semantic.primary];
-      case 'audience-stance':
-        return [theme.colors.semantic.info, theme.colors.semantic.success];
-      case 'exchange-winner':
-        return [theme.colors.semantic.success, theme.colors.semantic.info];
-      case 'debate-complete':
-        return [theme.colors.semantic.warning, theme.colors.semantic.error];
-      case 'overall-winner':
-        return [theme.colors.semantic.gold, theme.colors.semantic.secondary];
-      default:
-        return [theme.colors.semantic.primary, theme.colors.semantic.secondary];
     }
   };
   
@@ -101,18 +160,19 @@ export const SystemAnnouncement: React.FC<SystemAnnouncementProps> = ({
     >
       <Animated.View style={animatedStyle}>
         <BlurView
-          intensity={isAudienceCue ? (isDark ? 90 : 70) : (isDark ? 80 : 60)}
+          intensity={isAudienceCue ? (isDark ? 28 : 18) : (isDark ? 24 : 16)}
           style={[
             styles.blurContainer,
-            isAudienceCue && styles.audienceContainer,
-            isAudienceCue && {
-              borderColor: isDark ? theme.colors.primary[500] : theme.colors.primary[200],
-              backgroundColor: isDark ? theme.colors.overlays.soft : theme.colors.primary[50],
+            styles.announcementContainer,
+            {
+              borderColor: palette.borderColor,
+              backgroundColor: palette.backgroundColor,
             },
+            isAudienceCue && styles.audienceContainer,
           ]}
         >
           <LinearGradient
-            colors={gradient || getDefaultGradient()}
+            colors={gradient || palette.gradient}
             style={[
               styles.gradientOverlay,
               isAudienceCue && styles.audienceGradient,
@@ -126,7 +186,7 @@ export const SystemAnnouncement: React.FC<SystemAnnouncementProps> = ({
                   styles.label,
                   isAudienceCue && styles.audienceLabel,
                   {
-                    color: brandColor || (isAudienceCue ? theme.colors.primary[400] : theme.colors.text.secondary),
+                    color: brandColor || palette.labelColor,
                   },
                 ]}
                 selectable
@@ -146,9 +206,7 @@ export const SystemAnnouncement: React.FC<SystemAnnouncementProps> = ({
                     variant="title"
                     style={[
                       styles.icon,
-                      isAudienceCue && {
-                        color: theme.colors.primary[400],
-                      },
+                      { color: palette.iconColor },
                     ]}
                   >
                     {displayIcon}
@@ -162,6 +220,7 @@ export const SystemAnnouncement: React.FC<SystemAnnouncementProps> = ({
                 style={[
                   styles.content,
                   isAudienceCue && styles.audienceContent,
+                  { color: palette.contentColor },
                 ]}
                 selectable
               >
@@ -181,11 +240,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
   },
   blurContainer: {
-    borderRadius: 16,
+    borderRadius: 8,
     overflow: 'hidden',
   },
-  audienceContainer: {
+  announcementContainer: {
     borderWidth: 1,
+  },
+  audienceContainer: {
     shadowColor: 'rgba(0,0,0,0.18)',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,

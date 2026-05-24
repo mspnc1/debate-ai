@@ -5,7 +5,7 @@ import { renderWithProviders } from '../../test-utils/renderWithProviders';
 import { createAppStore, showSheet } from '@/store';
 import type { AI, Message } from '@/types';
 import { getPresetForFormat } from '@/config/debate/formats';
-import type { DebateTurnTimelineProps } from '@/components/organisms/debate/DebateTurnTimeline';
+import type { DebateSessionHeaderProps } from '@/components/organisms/debate/DebateSessionHeader';
 
 // Mock ErrorService
 const mockHandleWithToast = jest.fn();
@@ -39,7 +39,7 @@ let mockTopicSelectorProps: any;
 let mockDebateMessageListProps: any;
 let mockVotingInterfaceProps: any;
 let mockScoreDisplayProps: any;
-let mockDebateTurnTimelineProps: DebateTurnTimelineProps | undefined;
+let mockDebateSessionHeaderProps: DebateSessionHeaderProps | undefined;
 let mockDemoBannerProps: any;
 let mockDemoSamplesBarProps: any;
 let mockVictoryProps: any;
@@ -99,9 +99,9 @@ jest.mock('@/components/organisms', () => {
       mockDebateMessageListProps = props;
       return React.createElement(Text, { testID: 'debate-message-list' }, `messages:${props.messages?.length ?? 0}`);
     },
-    DebateTurnTimeline: (props: DebateTurnTimelineProps) => {
-      mockDebateTurnTimelineProps = props;
-      return React.createElement(Text, { testID: 'debate-turn-timeline' }, 'timeline');
+    DebateSessionHeader: (props: DebateSessionHeaderProps) => {
+      mockDebateSessionHeaderProps = props;
+      return React.createElement(Text, { testID: 'debate-session-header' }, 'session-header');
     },
     VotingInterface: (props: any) => {
       mockVotingInterfaceProps = props;
@@ -236,7 +236,7 @@ beforeEach(() => {
   mockDebateMessageListProps = undefined;
   mockVotingInterfaceProps = undefined;
   mockScoreDisplayProps = undefined;
-  mockDebateTurnTimelineProps = undefined;
+  mockDebateSessionHeaderProps = undefined;
   mockDemoBannerProps = undefined;
   mockDemoSamplesBarProps = undefined;
   mockVictoryProps = undefined;
@@ -454,6 +454,7 @@ describe('DebateScreen', () => {
         ],
       },
       session: { isInitialized: true, session: { topic: 'Topic', preset }, orchestrator: {} },
+      routeParams: { formatId: 'lincoln_douglas' },
       voting: {
         isVoting: true,
         scores: {
@@ -468,10 +469,15 @@ describe('DebateScreen', () => {
     await flushMicrotasks();
 
     expect(mockDebateMessageListProps.messages).toHaveLength(1);
-    expect(mockDebateTurnTimelineProps.messages).toHaveLength(preset.messages.length);
-    expect(mockDebateTurnTimelineProps.currentMessageIndex).toBe(2);
-    expect(mockHeaderProps.subtitle).toBe('Claude vs GPT-4');
-    expect(mockHeaderProps.subtitle).not.toContain('Turn:');
+    expect(mockDebateSessionHeaderProps).toBeDefined();
+    expect(mockDebateSessionHeaderProps?.timelineMessages).toHaveLength(preset.messages.length);
+    expect(mockDebateSessionHeaderProps?.currentMessageIndex).toBe(2);
+    expect(mockDebateSessionHeaderProps?.currentTurnLabel).toBe('Cross-Examination (CX) · answering');
+    expect(mockDebateSessionHeaderProps?.activeSideLabel).toBe('Affirmative · answers');
+    expect(mockDebateSessionHeaderProps?.presetLabel).toContain('Lincoln-Douglas');
+    expect(mockDebateSessionHeaderProps?.teams[0].participants[0].name).toBe('Claude');
+    expect(mockDebateSessionHeaderProps?.teams[1].participants[0].name).toBe('GPT-4');
+    expect(mockHeaderProps).toBeUndefined();
     expect(mockVotingInterfaceProps).toBeDefined();
     expect(mockVotingInterfaceProps.voteCriterion).toBe('Opening Statements: choose who gave the clearer motion framing.');
     expect(mockScoreDisplayProps.scores.left.roundWins).toBe(1);
@@ -604,12 +610,55 @@ describe('DebateScreen', () => {
     await flushMicrotasks();
 
     expect(mockVictoryProps).toBeDefined();
+    expect(mockDebateSessionHeaderProps).toBeDefined();
+    expect(mockDebateSessionHeaderProps?.currentTurnLabel).toBe('Debate complete');
+    expect(mockDebateSessionHeaderProps?.activeSideLabel).toBe('Claude won');
+    expect(mockDebateSessionHeaderProps?.timelineMessages).toHaveLength(0);
+    expect(mockHeaderProps).toBeUndefined();
 
     act(() => {
       mockVictoryProps.onViewTranscript();
     });
 
     expect(mockTranscriptModalProps.visible).toBe(true);
+  });
+
+  it('uses the debate session header for Oxford audience decision victory', async () => {
+    const preset = getPresetForFormat('oxford', 'short');
+
+    renderScreen({
+      flow: { isDebateEnded: true, currentMessageIndex: preset.messages.length - 1 },
+      messages: {
+        messages: [
+          { id: '1', sender: 'Host', senderType: 'ai', content: 'Summary', timestamp: 1 } as Message,
+        ],
+      },
+      session: { isInitialized: true, session: { topic: 'Pineapple on pizza is acceptable.', preset }, orchestrator: {} },
+      voting: {
+        voteKind: 'audience_stance',
+        audienceResult: {
+          initialStance: 'against',
+          finalStance: 'against',
+          winningSide: 'neg',
+          winningSideLabel: 'Opposition',
+          resultVerb: 'held',
+          summary: 'Opposition held the audience at Against.',
+          winningParticipantIds: ['right'],
+        },
+        scores: {},
+      },
+      routeParams: { formatId: 'oxford' },
+    });
+
+    await flushMicrotasks();
+
+    expect(mockVictoryProps).toBeDefined();
+    expect(mockDebateSessionHeaderProps).toBeDefined();
+    expect(mockDebateSessionHeaderProps?.currentTurnLabel).toBe('Audience decision');
+    expect(mockDebateSessionHeaderProps?.activeSideLabel).toBe('Opposition won');
+    expect(mockDebateSessionHeaderProps?.timelineMessages).toHaveLength(0);
+    expect(mockDebateSessionHeaderProps?.topic).toBe('Pineapple on pizza is acceptable.');
+    expect(mockHeaderProps).toBeUndefined();
   });
 
   it('starts a rematch with the same debate configuration', async () => {

@@ -170,6 +170,46 @@ describe('DebateOrchestrator', () => {
     jest.useRealTimers();
   });
 
+  it('emits typing while a streaming turn is being prepared', async () => {
+    jest.useFakeTimers();
+    const adapter = {
+      config: {},
+      getCapabilities: jest.fn(() => ({ streaming: true })),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => ''),
+    };
+
+    const aiService = {
+      getAdapter: jest.fn(() => adapter),
+      sendMessage: jest.fn(),
+    };
+
+    mockStreamingService.streamResponse.mockImplementation(async (_config, _onChunk, onComplete) => {
+      onComplete?.('Prepared response');
+    });
+
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    const events: Array<{ type: string; data: Record<string, unknown> }> = [];
+    orchestrator.addEventListener(event => events.push({ type: event.type, data: event.data }));
+
+    await orchestrator.initializeDebate('Climate policy', participants, {}, { formatId: 'lincoln_douglas', rounds: 3 });
+    await orchestrator.startDebate([]);
+
+    const eventTypes = events.map(event => event.type);
+    expect(events.find(event => event.type === 'typing_started')?.data).toEqual(expect.objectContaining({
+      aiName: 'Claude',
+      messageIndex: 0,
+      messageLabel: 'Affirmative Constructive (AC)',
+      phase: 'constructive',
+    }));
+    expect(eventTypes.indexOf('typing_started')).toBeLessThan(eventTypes.indexOf('message_added'));
+    expect(eventTypes.indexOf('typing_started')).toBeLessThan(eventTypes.indexOf('stream_started'));
+    expect(eventTypes.indexOf('typing_stopped')).toBeGreaterThan(eventTypes.indexOf('stream_started'));
+
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
   it('passes selected debate personality and model parameters into the adapter', async () => {
     jest.useFakeTimers();
     const adapter = {
@@ -267,9 +307,13 @@ describe('DebateOrchestrator', () => {
     };
     const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
     const votingEvents: Array<Record<string, unknown>> = [];
+    const typingEvents: Array<Record<string, unknown>> = [];
     orchestrator.addEventListener(event => {
       if (event.type === 'voting_started' || event.type === 'voting_completed') {
         votingEvents.push(event.data);
+      }
+      if (event.type === 'typing_started') {
+        typingEvents.push(event.data);
       }
     });
 
@@ -291,6 +335,12 @@ describe('DebateOrchestrator', () => {
     expect(votingEvents[1]).toEqual(expect.objectContaining({
       voteKind: 'audience_stance',
       audienceVoteStage: 'initial',
+    }));
+    expect(typingEvents[0]).toEqual(expect.objectContaining({
+      aiName: 'Claude',
+      messageIndex: 0,
+      messageLabel: 'Proposition Opening Speech',
+      phase: 'opening',
     }));
 
     jest.clearAllTimers();

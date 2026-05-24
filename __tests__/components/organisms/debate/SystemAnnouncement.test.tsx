@@ -1,6 +1,10 @@
 import React from 'react';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
-import { SystemAnnouncement } from '@/components/organisms/debate/SystemAnnouncement';
+import {
+  getSystemAnnouncementPalette,
+  SystemAnnouncement,
+} from '@/components/organisms/debate/SystemAnnouncement';
+import { darkTheme, lightTheme } from '@/theme';
 
 jest.mock('expo-blur', () => ({
   BlurView: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -33,6 +37,19 @@ describe('SystemAnnouncement', () => {
     );
 
     expect(getByText('ROUND 1')).toBeTruthy();
+  });
+
+  it('uses opaque, theme-aware audience stance colors in light and dark modes', () => {
+    const darkPalette = getSystemAnnouncementPalette(darkTheme, true, 'audience-stance');
+    const lightPalette = getSystemAnnouncementPalette(lightTheme, false, 'audience-stance');
+
+    expect(darkPalette.gradient).toEqual([darkTheme.colors.card, darkTheme.colors.surface]);
+    expect(darkPalette.contentColor).toBe(darkTheme.colors.text.primary);
+    expect(darkPalette.labelColor).toBe(darkTheme.colors.primary[300]);
+    expect(darkPalette.gradient.join(' ')).not.toContain('rgba');
+    expect(lightPalette.gradient).toEqual([lightTheme.colors.primary[50], lightTheme.colors.card]);
+    expect(lightPalette.contentColor).toBe(lightTheme.colors.text.primary);
+    expect(lightPalette.labelColor).toBe(lightTheme.colors.primary[700]);
   });
 
   it('renders custom icon when provided', () => {

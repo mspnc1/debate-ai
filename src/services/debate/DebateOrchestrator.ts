@@ -179,6 +179,49 @@ export class DebateOrchestrator {
     return (slot * 2) + (messageSpec.speaker === 'aff' ? 0 : 1);
   }
 
+  private getTurnEventData(messageIndex: number, messageSpec: MessageSpec): Record<string, unknown> {
+    return {
+      messageIndex,
+      phase: messageSpec.phase,
+      messageLabel: messageSpec.label,
+      cxRole: messageSpec.cxRole,
+    };
+  }
+
+  private getSpeakerForMessage(messageIndex: number): { ai: AI; messageSpec: MessageSpec } | null {
+    if (!this.session) return null;
+
+    const messageSpec = this.session.preset.messages[messageIndex];
+    if (!messageSpec) return null;
+
+    const ai = this.session.participants[this.getParticipantIndexForMessage(messageSpec)];
+    if (!ai) return null;
+
+    return { ai, messageSpec };
+  }
+
+  private emitTypingStartedForMessage(messageIndex: number): void {
+    const turn = this.getSpeakerForMessage(messageIndex);
+    if (!turn) return;
+
+    this.emitEvent({
+      type: 'typing_started',
+      data: {
+        aiName: turn.ai.name,
+        ...this.getTurnEventData(messageIndex, turn.messageSpec),
+      },
+      timestamp: Date.now(),
+    });
+  }
+
+  private emitTypingStoppedForAI(ai: AI): void {
+    this.emitEvent({
+      type: 'typing_stopped',
+      data: { aiName: ai.name },
+      timestamp: Date.now(),
+    });
+  }
+
   private getParticipantsForSide(side: DebateSideId): AI[] {
     if (!this.session) return [];
     const preset = this.session.preset;
@@ -523,6 +566,7 @@ export class DebateOrchestrator {
     this.session.currentAIIndex = aiIndex;
     this.session.messageIndex = messageIndex;
     this.session.messageCount = messageIndex + 1;
+    this.emitTypingStartedForMessage(messageIndex);
 
     try {
       const stances = this.session.stances;
@@ -688,6 +732,7 @@ export class DebateOrchestrator {
           data: { messageId, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole },
           timestamp: Date.now(),
         });
+        this.emitTypingStoppedForAI(currentAI);
 
         const streamingService = getStreamingService();
         let finalContent = '';
@@ -823,9 +868,6 @@ export class DebateOrchestrator {
 
         this.continueAfterMessage(messageIndex, this.currentMessages, true);
       } else {
-        // Non-streaming fallback (retain existing typing behavior)
-        this.emitEvent({ type: 'typing_started', data: { aiName: currentAI.name }, timestamp: Date.now() });
-
         // Apply expert parameters when enabled; otherwise use personality model parameters.
         try {
           if (runtimeParameters && adapter) {
@@ -892,7 +934,7 @@ export class DebateOrchestrator {
           data: { message: aiMessage, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole },
           timestamp: Date.now(),
         });
-        this.emitEvent({ type: 'typing_stopped', data: { aiName: currentAI.name }, timestamp: Date.now() });
+        this.emitTypingStoppedForAI(currentAI);
 
         this.continueAfterMessage(messageIndex, this.currentMessages, false);
       }
@@ -1127,6 +1169,7 @@ export class DebateOrchestrator {
     }
 
     this.updateSessionStatus(DebateStatus.ACTIVE);
+    this.emitTypingStartedForMessage(pending.nextMessageIndex);
     this.scheduleNextMessage(
       pending.nextMessageIndex,
       pending.messages,
@@ -1289,6 +1332,7 @@ export class DebateOrchestrator {
 
     if (stage === 'initial') {
       this.updateSessionStatus(DebateStatus.ACTIVE);
+      this.emitTypingStartedForMessage(0);
       this.scheduleNextMessage(0, this.currentMessages, DEBATE_CONSTANTS.DELAYS.VOTING_CONTINUATION);
       return;
     }
@@ -1313,6 +1357,7 @@ export class DebateOrchestrator {
     const delay = DEBATE_CONSTANTS.DELAYS.VOTING_CONTINUATION;
     
     // Schedule the next message with the accumulated messages
+    this.emitTypingStartedForMessage(nextMessageIndex);
     this.scheduleNextMessage(nextMessageIndex, this.currentMessages, delay);
   }
 

@@ -29,7 +29,8 @@ import {
   DebateMessageList,
   VotingInterface,
   ScoreDisplay,
-  DebateTurnTimeline,
+  DebateSessionHeader,
+  type DebateSessionHeaderTeam,
 } from '../components/organisms';
 import { VictoryCelebration } from '../components/organisms/debate/VictoryCelebration';
 import { DebateVoicePackModal } from '../components/organisms/debate/DebateVoicePackModal';
@@ -52,7 +53,8 @@ import AppendToPackService from '@/services/demo/AppendToPackService';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store';
 import { DebateRecordPickerModal } from '@/components/organisms/demo/DebateRecordPickerModal';
-import { getPresetForFormat, getPresetIdForRounds } from '@/config/debate/formats';
+import { FORMATS, getPresetForFormat, getPresetIdForRounds } from '@/config/debate/formats';
+import { getDebateSpeakerRoleLabel } from '@/utils/debateLabels';
 import {
   createDebateVoicePackGalleryEntry,
   getDebateVoicePackCandidates,
@@ -433,6 +435,13 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     return `${ai.name} (${p.name})`;
   };
 
+  const getPersonaLabel = useCallback((ai: AI) => {
+    const pid = initialPersonalities?.[ai.id] || ai.personality;
+    if (!pid || pid === 'default') return undefined;
+    const persona = getMergedPersonality(pid);
+    return persona?.name;
+  }, [getMergedPersonality, initialPersonalities]);
+
   const voteResults = voting.voteRecords.map((record) => {
     const winnerAI = selectedAIs.find((ai) => ai.id === record.winnerId);
     return {
@@ -447,11 +456,21 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   // Show topic picker only if no topic was provided and debate hasn't started
   const showTopicPicker = !initialTopic && (!session.isInitialized || (!flow.isDebateActive && !flow.isDebateEnded));
   
-  const activePreset = session.session?.preset || getPresetForFormat(formatId || 'oxford', getPresetIdForRounds(exchanges || rounds || 3));
+  const activeFormatId = session.session?.format?.id || formatId || 'oxford';
+  const activePreset = session.session?.preset || getPresetForFormat(activeFormatId, getPresetIdForRounds(exchanges || rounds || 3));
+  const activeFormatName = session.session?.format?.name || FORMATS[activeFormatId].name;
   const isAudienceStanceDebate = activePreset?.voteModel === 'audience_stance' || voting.voteKind === 'audience_stance' || Boolean(voting.audienceResult);
 
   // Check if we're showing victory screen
   const hasScores = !isAudienceStanceDebate && voting.scores && Object.keys(voting.scores).length > 0;
+  const winningScoreEntry = voting.scores && Object.keys(voting.scores).length > 0
+    ? Object.entries(voting.scores).reduce((prev, current) =>
+      prev[1].roundWins > current[1].roundWins ? prev : current
+    )
+    : undefined;
+  const winningScoreAI = winningScoreEntry
+    ? selectedAIs.find(ai => ai.id === winningScoreEntry[0]) || selectedAIs[0]
+    : undefined;
   const hasOverallWinner = hasScores && voting.isOverallVote && !voting.isVoting;
   const isShowingVictory = (isAudienceStanceDebate && flow.isDebateEnded && voting.audienceResult) || (flow.isDebateEnded && hasScores) || hasOverallWinner;
   
@@ -500,17 +519,34 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     voicePackCandidates,
     voicePackSelectedIds,
   ]);
-  const getTeamLabel = (side: 'aff' | 'neg') => selectedAIs
-    .filter((_, index) => {
-      if ((activePreset?.teamSize || 1) <= 1) {
-        return side === 'aff' ? index === 0 : index === 1;
-      }
-      return side === 'aff' ? index % 2 === 0 : index % 2 === 1;
-    })
-    .map(displayName)
-    .join(' + ');
-  const vsLine = selectedAIs.length >= 2 ? `${getTeamLabel('aff')} vs ${getTeamLabel('neg')}` : '';
-  const headerSubtitle = vsLine || undefined;
+  const debateTeams = useMemo<DebateSessionHeaderTeam[]>(() => {
+    const teamSize = activePreset?.teamSize || 1;
+    const buildTeam = (side: 'aff' | 'neg', label: string): DebateSessionHeaderTeam => ({
+      side,
+      label,
+      participants: selectedAIs
+        .filter((_, index) => {
+          if (teamSize <= 1) {
+            return side === 'aff' ? index === 0 : index === 1;
+          }
+          return side === 'aff' ? index % 2 === 0 : index % 2 === 1;
+        })
+        .map((ai) => ({
+          id: ai.id,
+          name: ai.name,
+          personaLabel: getPersonaLabel(ai),
+        })),
+    });
+
+    return [
+      buildTeam('aff', 'Affirmative'),
+      buildTeam('neg', 'Opposition'),
+    ];
+  }, [activePreset?.teamSize, getPersonaLabel, selectedAIs]);
+
+  const genericHeaderSubtitle = selectedAIs.length >= 2
+    ? `${selectedAIs[0].name} vs ${selectedAIs[1].name}`
+    : undefined;
 
   const renderContent = () => {
     const bottomInset = votingOverlayHeight + scoreOverlayHeight + continuationOverlayHeight;
@@ -597,10 +633,8 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
       }
 
       // Determine winner from scores
-      const winner = Object.entries(voting.scores || {}).reduce((prev, current) => 
-        prev[1].roundWins > current[1].roundWins ? prev : current
-      );
-      const winnerAI = selectedAIs.find(ai => ai.id === winner[0]) || selectedAIs[0];
+      const winner = winningScoreEntry;
+      const winnerAI = winningScoreAI || selectedAIs[0];
       
       return (
         <Animated.View 
@@ -618,8 +652,8 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
                   topic: topicSelection.finalTopic || 'Debate Topic',
                 }))
                 : [
-                  { round: 1, winner: winner[1].name, topic: topicSelection.finalTopic || 'Debate Topic' },
-                  { round: 2, winner: winner[1].name, topic: topicSelection.finalTopic || 'Debate Topic' },
+                  { round: 1, winner: winner?.[1].name || winnerAI.name, topic: topicSelection.finalTopic || 'Debate Topic' },
+                  { round: 2, winner: winner?.[1].name || winnerAI.name, topic: topicSelection.finalTopic || 'Debate Topic' },
                 ])
             ]}
             voteResults={voteResults}
@@ -637,22 +671,12 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     }
     
     if (flow.isDebateActive || flow.isDebateEnded) {
-      const timelineMessages = session.session?.preset?.messages || [];
-
       return (
         <Animated.View 
           entering={FadeIn.duration(400)}
           layout={Layout.springify()}
           style={{ flex: 1 }}
         >
-          {timelineMessages.length > 0 && (
-            <DebateTurnTimeline
-              messages={timelineMessages}
-              currentMessageIndex={flow.currentMessageIndex}
-              currentTurnLabel={flow.currentTurnLabel}
-            />
-          )}
-
           <DebateMessageList
             messages={messages.messages}
             typingAIs={messages.typingAIs}
@@ -795,78 +819,116 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
       ErrorService.handleWithToast(new Error(voting.error), { feature: 'debate' });
     }
   }, [voting.error]);
+
+  const timelineMessages = session.session?.preset?.messages || activePreset?.messages || [];
+  const activeTimelineIndex = timelineMessages.length > 0
+    ? Math.min(Math.max(flow.currentMessageIndex, 0), timelineMessages.length - 1)
+    : 0;
+  const activeTimelineMessage = timelineMessages[activeTimelineIndex];
+  const debatePresetLabel = `${activeFormatName} · ${activePreset.shortLabel || activePreset.label}`;
+  const showDebateSessionHeader = flow.isDebateActive || flow.isDebateEnded;
+  const headerTimelineMessages = isShowingVictory ? [] : timelineMessages;
+  const headerCurrentMessageIndex = isShowingVictory && timelineMessages.length > 0
+    ? timelineMessages.length - 1
+    : flow.currentMessageIndex;
+  const headerCurrentTurnLabel = isShowingVictory
+    ? (voting.audienceResult ? 'Audience decision' : 'Debate complete')
+    : flow.currentTurnLabel;
+  const headerActiveSideLabel = isShowingVictory
+    ? (
+      voting.audienceResult
+        ? `${voting.audienceResult.winningSideLabel} won`
+        : winningScoreAI
+          ? `${winningScoreAI.name} won`
+          : 'Final result'
+    )
+    : activeTimelineMessage ? getDebateSpeakerRoleLabel(activeTimelineMessage) : undefined;
+  const recordAction = recordModeEnabled ? {
+    label: isRecording ? 'Stop' : 'Record',
+    onPress: async () => {
+      if (isRecording) {
+        try {
+          const res = RecordController.stop();
+          if (res && res.session) {
+            const sessionData = res.session as { id?: string };
+            const json = JSON.stringify(sessionData, null, 2);
+            console.warn('[DEMO_RECORDING_DEBATE]', json);
+            try { await Clipboard.setStringAsync(json); } catch (e) { console.warn('clipboard failed', e); }
+            try {
+              const fileName = `${sessionData.id || 'debate'}_${Date.now()}.json`.replace(/[^a-zA-Z0-9_.-]/g, '_');
+              const path = `${FileSystem.cacheDirectory}${fileName}`;
+              await FileSystem.writeAsStringAsync(path, json, { encoding: FileSystem.EncodingType.UTF8 });
+              if (await Sharing.isAvailableAsync()) {
+                await Sharing.shareAsync(path, { mimeType: 'application/json' });
+              }
+            } catch (e) { console.warn('share failed', e); }
+            try {
+              Alert.alert(
+                'Recording captured',
+                'Copied to clipboard, saved to a temp file, and printed to logs.',
+                [
+                  { text: 'OK' },
+                  { text: 'Append to Pack (dev)', onPress: async () => {
+                    try {
+                      const resp = await AppendToPackService.append(sessionData);
+                      if (!resp.ok) {
+                        Alert.alert('Append failed', resp.error || 'Unknown error. Is dev packer server running on :8889?');
+                      } else {
+                        Alert.alert('Appended', 'Recording appended to pack.');
+                      }
+                    } catch (e) {
+                      Alert.alert('Append error', (e as Error)?.message || String(e));
+                    }
+                  }},
+                ]
+              );
+            } catch (e) { console.warn('append alert failed', e); }
+          }
+        } finally {
+          setIsRecording(false);
+        }
+      } else {
+        setPickerVisible(true);
+      }
+    },
+    variant: isRecording ? 'danger' as const : 'primary' as const,
+  } : undefined;
   
   return (
     <SafeAreaView style={{
       flex: 1,
       backgroundColor: theme.colors.background,
     }} edges={['left', 'right', 'bottom']}>
-      {(() => {
-      return (
+      {showDebateSessionHeader ? (
+        <DebateSessionHeader
+          topic={displayedTopic}
+          teams={debateTeams}
+          presetLabel={debatePresetLabel}
+          currentMessageIndex={headerCurrentMessageIndex}
+          totalMessages={timelineMessages.length}
+          currentTurnLabel={headerCurrentTurnLabel}
+          activeSideLabel={headerActiveSideLabel}
+          timelineMessages={headerTimelineMessages}
+          onBack={handleStartOver}
+          rightElement={<HeaderActions variant="default" helpTopicId="debate-arena" />}
+          recordAction={recordAction}
+          showDemoBadge={isDemo}
+        />
+      ) : (
         <Header
           variant="gradient"
           title={displayedTopic.startsWith('Motion:') ? displayedTopic : `Motion: ${displayedTopic}`}
-          subtitle={headerSubtitle}
+          subtitle={genericHeaderSubtitle}
           showBackButton={true}
           onBack={handleStartOver}
           showTime={false}
           showDate={false}
           animated={true}
           rightElement={<HeaderActions variant="gradient" helpTopicId="debate-arena" />}
-          actionButton={recordModeEnabled ? {
-            label: isRecording ? 'Stop' : 'Record',
-            onPress: async () => {
-              if (isRecording) {
-                try {
-                  const res = RecordController.stop();
-                  if (res && res.session) {
-                    const sessionData = res.session as { id?: string };
-                    const json = JSON.stringify(sessionData, null, 2);
-                    console.warn('[DEMO_RECORDING_DEBATE]', json);
-                    try { await Clipboard.setStringAsync(json); } catch (e) { console.warn('clipboard failed', e); }
-                    try {
-                      const fileName = `${sessionData.id || 'debate'}_${Date.now()}.json`.replace(/[^a-zA-Z0-9_.-]/g, '_');
-                      const path = `${FileSystem.cacheDirectory}${fileName}`;
-                      await FileSystem.writeAsStringAsync(path, json, { encoding: FileSystem.EncodingType.UTF8 });
-                      if (await Sharing.isAvailableAsync()) {
-                        await Sharing.shareAsync(path, { mimeType: 'application/json' });
-                      }
-                    } catch (e) { console.warn('share failed', e); }
-                    try {
-                      Alert.alert(
-                        'Recording captured',
-                        'Copied to clipboard, saved to a temp file, and printed to logs.',
-                        [
-                          { text: 'OK' },
-                          { text: 'Append to Pack (dev)', onPress: async () => {
-                            try {
-                              const resp = await AppendToPackService.append(sessionData);
-                              if (!resp.ok) {
-                                Alert.alert('Append failed', resp.error || 'Unknown error. Is dev packer server running on :8889?');
-                              } else {
-                                Alert.alert('Appended', 'Recording appended to pack.');
-                              }
-                            } catch (e) {
-                              Alert.alert('Append error', (e as Error)?.message || String(e));
-                            }
-                          }},
-                        ]
-                      );
-                    } catch (e) { console.warn('append alert failed', e); }
-                  }
-                } finally {
-                  setIsRecording(false);
-                }
-              } else {
-                setPickerVisible(true);
-              }
-            },
-            variant: isRecording ? 'danger' : 'primary',
-          } : undefined}
+          actionButton={recordAction}
           showDemoBadge={isDemo}
         />
-      );
-      })()}
+      )}
       
       {/* Topic moved into header */}
       

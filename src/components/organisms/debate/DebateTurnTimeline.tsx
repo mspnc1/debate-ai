@@ -9,11 +9,23 @@ export interface DebateTurnTimelineProps {
   messages: MessageSpec[];
   currentMessageIndex: number;
   currentTurnLabel?: string;
+  showCurrentSummary?: boolean;
+  embedded?: boolean;
 }
 
 const CHIP_GAP = 8;
 const MIN_CHIP_WIDTH = 124;
 const MAX_CHIP_WIDTH = 168;
+
+export const getDebateTimelineActiveIndex = (currentMessageIndex: number, messageCount: number): number => (
+  messageCount > 0
+    ? Math.min(Math.max(currentMessageIndex, 0), messageCount - 1)
+    : 0
+);
+
+export const getDebateTimelineLeftOffset = (activeIndex: number, chipWidth: number): number =>
+  Math.max(0, activeIndex * (chipWidth + CHIP_GAP));
+
 const scheduleFrame = (callback: (timestamp: number) => void): number =>
   typeof requestAnimationFrame === 'function'
     ? requestAnimationFrame(callback)
@@ -31,30 +43,32 @@ export const DebateTurnTimeline: React.FC<DebateTurnTimelineProps> = ({
   messages,
   currentMessageIndex,
   currentTurnLabel,
+  showCurrentSummary = true,
+  embedded = false,
 }) => {
   const { theme, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
 
-  const activeIndex = messages.length > 0
-    ? Math.min(Math.max(currentMessageIndex, 0), messages.length - 1)
-    : 0;
+  const activeIndex = getDebateTimelineActiveIndex(currentMessageIndex, messages.length);
   const activeMessage = messages[activeIndex];
   const chipWidth = Math.min(MAX_CHIP_WIDTH, Math.max(MIN_CHIP_WIDTH, Math.round(width * 0.36)));
+  const viewportWidth = Math.max(0, width - 32);
+  const railRightPadding = Math.max(16, viewportWidth - chipWidth);
 
   useEffect(() => {
     if (messages.length === 0) return undefined;
 
     const frame = scheduleFrame(() => {
-      const centeredOffset = activeIndex * (chipWidth + CHIP_GAP) - Math.max(0, (width - chipWidth) / 2);
+      const leftLockedOffset = getDebateTimelineLeftOffset(activeIndex, chipWidth);
       scrollRef.current?.scrollTo({
-        x: Math.max(0, centeredOffset),
+        x: Math.max(0, leftLockedOffset),
         animated: true,
       });
     });
 
     return () => cancelFrame(frame);
-  }, [activeIndex, chipWidth, messages.length, width]);
+  }, [activeIndex, chipWidth, messages.length]);
 
   if (!activeMessage) {
     return null;
@@ -64,9 +78,10 @@ export const DebateTurnTimeline: React.FC<DebateTurnTimelineProps> = ({
     <View
       style={[
         styles.container,
+        embedded && styles.embeddedContainer,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.border,
+          backgroundColor: embedded ? 'transparent' : theme.colors.surface,
+          borderColor: embedded ? 'transparent' : theme.colors.border,
         },
       ]}
     >
@@ -79,33 +94,38 @@ export const DebateTurnTimeline: React.FC<DebateTurnTimelineProps> = ({
         </Typography>
       </View>
 
-      <View
-        style={[
-          styles.activeSummary,
-          {
-            backgroundColor: isDark ? theme.colors.overlays.soft : theme.colors.primary[50],
-            borderColor: theme.colors.border,
-          },
-        ]}
-      >
-        <View style={styles.activeCopy}>
-          <Typography variant="caption" color="secondary">
-            Current step
-          </Typography>
-          <Typography variant="body" weight="semibold" numberOfLines={1}>
-            {currentTurnLabel || activeMessage.label}
+      {showCurrentSummary && (
+        <View
+          style={[
+            styles.activeSummary,
+            {
+              backgroundColor: isDark ? theme.colors.overlays.soft : theme.colors.primary[50],
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <View style={styles.activeCopy}>
+            <Typography variant="caption" color="secondary">
+              Current step
+            </Typography>
+            <Typography variant="body" weight="semibold" numberOfLines={1}>
+              {currentTurnLabel || activeMessage.label}
+            </Typography>
+          </View>
+          <Typography variant="caption" weight="semibold" color="brand" numberOfLines={1}>
+            {getDebateSpeakerRoleLabel(activeMessage)}
           </Typography>
         </View>
-        <Typography variant="caption" weight="semibold" color="brand" numberOfLines={1}>
-          {getDebateSpeakerRoleLabel(activeMessage)}
-        </Typography>
-      </View>
+      )}
 
       <ScrollView
         ref={scrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingRight: railRightPadding },
+        ]}
         testID="debate-turn-timeline-scroll"
       >
         {messages.map((message, index) => {
@@ -114,12 +134,12 @@ export const DebateTurnTimeline: React.FC<DebateTurnTimelineProps> = ({
           const borderColor = isCurrent
             ? theme.colors.primary[500]
             : isComplete
-              ? theme.colors.success[500]
+              ? theme.colors.border
               : theme.colors.border;
           const backgroundColor = isCurrent
             ? (isDark ? theme.colors.overlays.medium : theme.colors.primary[50])
             : isComplete
-              ? theme.colors.semantic.success
+              ? (isDark ? theme.colors.overlays.soft : theme.colors.gray[100])
               : theme.colors.card;
 
           return (
@@ -161,6 +181,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 10,
+  },
+  embeddedContainer: {
+    borderTopWidth: 0,
+    borderBottomWidth: 0,
+    paddingHorizontal: 0,
+    paddingTop: 4,
+    paddingBottom: 0,
   },
   headerRow: {
     flexDirection: 'row',
