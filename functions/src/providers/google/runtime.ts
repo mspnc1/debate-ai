@@ -22,6 +22,7 @@ import {
   getBase64Data,
   mapGeminiFinishReason,
 } from '../base-runtime';
+import { buildGeminiGenerationConfig } from './thinking';
 
 // ============================================================================
 // Gemini Message Types
@@ -111,13 +112,15 @@ export class GoogleRuntime implements ProviderRuntime {
   buildRequest(request: ProviderRequest, apiKey: string): BuiltRequest {
     const contents = this.transformMessages(request);
     const systemPrompt = this.extractSystemPrompt(request);
+    const model = request.model || 'gemini-2.0-flash';
 
     const body: Record<string, unknown> = {
       contents,
-      generationConfig: {
+      generationConfig: buildGeminiGenerationConfig({
+        model,
         temperature: request.temperature ?? 0.7,
-        maxOutputTokens: request.maxTokens ?? 8192,
-      },
+        maxTokens: request.maxTokens,
+      }),
     };
 
     // Add system instruction as top-level field
@@ -138,7 +141,6 @@ export class GoogleRuntime implements ProviderRuntime {
       }
     }
 
-    const model = request.model || 'gemini-2.0-flash';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${apiKey}&alt=sse`;
 
     return {

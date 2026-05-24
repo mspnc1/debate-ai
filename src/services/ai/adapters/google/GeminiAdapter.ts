@@ -8,6 +8,7 @@ import {
 } from '../../types/adapter.types';
 import EventSource from 'react-native-sse';
 import { extractSSEErrorMessage } from '../../utils/extractSSEErrorMessage';
+import { buildGeminiGenerationConfig, extractGeminiText } from './geminiGenerationConfig';
 
 export class GeminiAdapter extends BaseAdapter {
   getCapabilities(): AdapterCapabilities {
@@ -106,20 +107,15 @@ export class GeminiAdapter extends BaseAdapter {
     ];
 
     try {
-      // Build request body
       const requestBody: Record<string, unknown> = {
         contents,
-        generationConfig: (() => {
-          const cfg: Record<string, unknown> = {
-            temperature: this.config.parameters?.temperature ?? 0.7,
-            topP: this.config.parameters?.topP ?? 0.95,
-            topK: this.config.parameters?.topK ?? 40,
-          };
-          if (this.config.parameters?.maxTokens) {
-            cfg.maxOutputTokens = this.config.parameters.maxTokens;
-          }
-          return cfg;
-        })(),
+        generationConfig: buildGeminiGenerationConfig({
+          model: resolvedModel,
+          temperature: this.config.parameters?.temperature ?? 0.7,
+          topP: this.config.parameters?.topP ?? 0.95,
+          topK: this.config.parameters?.topK ?? 40,
+          maxTokens: this.config.parameters?.maxTokens,
+        }),
       };
 
       // Add Google Search grounding tool when web search is enabled
@@ -145,7 +141,7 @@ export class GeminiAdapter extends BaseAdapter {
 
       const data = await response.json();
 
-      const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      const responseText = extractGeminiText(data.candidates?.[0]?.content?.parts);
       if (!responseText) {
         throw new Error('No response from Gemini');
       }
@@ -249,17 +245,16 @@ export class GeminiAdapter extends BaseAdapter {
       }
     ];
 
-    const requestBody = JSON.stringify((() => {
-      const cfg: Record<string, unknown> = {
+    const requestBody = JSON.stringify({
+      contents,
+      generationConfig: buildGeminiGenerationConfig({
+        model: resolvedModel,
         temperature: this.config.parameters?.temperature ?? 0.7,
         topP: this.config.parameters?.topP ?? 0.95,
         topK: this.config.parameters?.topK ?? 40,
-      };
-      if (this.config.parameters?.maxTokens) {
-        cfg.maxOutputTokens = this.config.parameters.maxTokens;
-      }
-      return { contents, generationConfig: cfg };
-    })());
+        maxTokens: this.config.parameters?.maxTokens,
+      }),
+    });
 
     // Create EventSource for SSE streaming (React Native)
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${resolvedModel}:streamGenerateContent?alt=sse&key=${this.config.apiKey}`;
@@ -285,7 +280,7 @@ export class GeminiAdapter extends BaseAdapter {
         const line = event.data;
         if (!line) return;
         const data = JSON.parse(line);
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text as string | undefined;
+        const text = extractGeminiText(data.candidates?.[0]?.content?.parts);
         if (text) {
           if (resolver) { const r = resolver; resolver = null; r({ value: text, done: false }); }
           else eventQueue.push(text);

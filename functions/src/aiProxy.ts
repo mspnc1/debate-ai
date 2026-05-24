@@ -2,6 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDecryptedApiKey, encryptionKey } from './apiKeys';
 import { recordUsageInternal } from './usageTracking';
 import { normalizeProviderTemperature, resolveProviderModelId } from './modelRegistry';
+import { buildGeminiGenerationConfig } from './providers/google/thinking';
 
 // Provider API endpoints
 const PROVIDER_CONFIGS: Record<string, {
@@ -705,13 +706,11 @@ async function callGemini(
       };
     });
 
-  // Build request body
-  // For Gemini "thinking" models (2.5 Pro, 3 Pro), thinking tokens consume part of
-  // the output budget. Set a generous default to ensure room for both thinking and output.
-  const generationConfig: Record<string, unknown> = {
+  const generationConfig = buildGeminiGenerationConfig({
+    model: modelId,
     temperature,
-    maxOutputTokens: maxTokens ?? 8192,
-  };
+    maxTokens,
+  });
 
   const requestBody: Record<string, unknown> = {
     contents,

@@ -3,6 +3,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { getDecryptedApiKey, encryptionKey } from './apiKeys';
 import { normalizeProviderTemperature, resolveProviderModelId } from './modelRegistry';
 import { recordUsageInternal } from './usageTracking';
+import { buildGeminiGenerationConfig } from './providers/google/thinking';
 import {
   type ToolDefinition,
   type ToolChoice,
@@ -558,10 +559,11 @@ async function streamGemini(
       };
     });
 
-  const generationConfig: Record<string, unknown> = {
+  const generationConfig = buildGeminiGenerationConfig({
+    model: modelId,
     temperature,
-    maxOutputTokens: maxTokens ?? 8192,
-  };
+    maxTokens,
+  });
 
   const requestBody: Record<string, unknown> = {
     contents,

@@ -127,7 +127,33 @@ describe('GeminiAdapter sendMessage', () => {
       topP: 0.8,
       topK: 32,
       maxOutputTokens: 1024,
+      thinkingConfig: { thinkingBudget: 0 },
     });
+  });
+
+  it('concatenates all Gemini text parts in non-streaming responses', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        candidates: [
+          {
+            content: {
+              parts: [
+                { text: 'First part. ' },
+                { text: 'Second part.' },
+              ],
+            },
+          },
+        ],
+      }),
+    });
+
+    const adapter = new GeminiAdapter(baseConfig);
+
+    const response = await adapter.sendMessage('Use multiple parts');
+
+    expect(typeof response).toBe('object');
+    expect(typeof response === 'object' ? response.response : response).toBe('First part. Second part.');
   });
 
   it('delegates to handleApiError when Gemini responds with failure', async () => {
@@ -179,6 +205,34 @@ describe('GeminiAdapter streamMessage', () => {
     const completion = await completionPromise;
     expect(completion.done).toBe(true);
     expect(eventSource?.closed).toBe(true);
+  });
+
+  it('yields all text parts in a streamed Gemini event', async () => {
+    const adapter = new GeminiAdapter(baseConfig);
+    const iterator = adapter.streamMessage('Stream multipart event');
+
+    const firstChunkPromise = iterator.next();
+
+    emitChunk({
+      candidates: [
+        {
+          content: {
+            parts: [
+              { text: 'part one ' },
+              { text: 'part two' },
+            ],
+          },
+        },
+      ],
+    });
+    const firstChunk = await firstChunkPromise;
+    expect(firstChunk.value).toBe('part one part two');
+
+    const completionPromise = iterator.next();
+    emitChunk({
+      candidates: [{ finishReason: 'STOP' }],
+    });
+    await expect(completionPromise).resolves.toMatchObject({ done: true });
   });
 
   it('rejects when the SSE stream reports an error', async () => {
