@@ -31,7 +31,7 @@ import { isValidProviderId } from '../utils/typeGuards';
 // import { DEBATE_TOPICS } from '../constants/debateTopics';
 import { usePreDebateValidation } from '../hooks/debate';
 import { Card } from '@/components/molecules';
-import { FORMATS, getPresetForFormat, getPresetIdForRounds, type DebateFormatId } from '../config/debate/formats';
+import { FORMATS, getPresetForFormat, getPresetIdForRounds, type DebateFormatId, type PresetConfig } from '../config/debate/formats';
 import { TrialBanner } from '@/components/molecules/subscription/TrialBanner';
 import { DemoBanner } from '@/components/molecules/subscription/DemoBanner';
 import { showSheet } from '@/store';
@@ -39,7 +39,6 @@ import { RecordController } from '@/services/demo/RecordController';
 import { DebateRecordPickerModal } from '@/components/organisms/demo/DebateRecordPickerModal';
 import { DemoDebatePickerModal } from '@/components/organisms/demo/DemoDebatePickerModal';
 import { DemoContentService } from '@/services/demo/DemoContentService';
-import { getDebateSideLabel } from '@/utils/debateLabels';
 
 interface DebateSetupScreenProps {
   navigation: {
@@ -54,6 +53,18 @@ interface DebateSetupScreenProps {
     };
   };
 }
+
+const PRESET_BUTTON_LABELS: Record<string, string> = {
+  short: 'Short',
+  standard: 'Standard',
+  long: 'Extended',
+};
+
+const getPresetVoteLabels = (preset: PresetConfig): string[] => (
+  preset.messages
+    .filter((message) => message.voteAfter)
+    .map((message) => message.votingLabel || message.label)
+);
 
 const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route }) => {
   const { theme } = useTheme();
@@ -148,15 +159,10 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     preset: getPresetForFormat(formatId, getPresetIdForRounds(rounds)),
   })), [formatId]);
   const selectedPreset = getPresetForFormat(formatId, getPresetIdForRounds(exchanges));
-  const speechOrderPreview = useMemo(() => selectedPreset.messages.map((message) => {
-    const side = getDebateSideLabel(message.speaker);
-    const role = message.cxRole === 'questioner'
-      ? ' asks'
-      : message.cxRole === 'answerer'
-        ? ' answers'
-        : '';
-    return `${side}: ${message.label}${role}`;
-  }).join(' → '), [selectedPreset]);
+  const presetSummary = useMemo(() => (
+    `${selectedPreset.messages.length} turns · ${selectedPreset.voteCount} votes · ${selectedPreset.description}`
+  ), [selectedPreset]);
+  const presetVoteLabels = useMemo(() => getPresetVoteLabels(selectedPreset), [selectedPreset]);
   
   // Debate mode always requires exactly 2 AIs
   const maxAIs = 2;
@@ -434,10 +440,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
             <Card shadow style={{ marginBottom: theme.spacing.md }}>
               <Box style={{ marginBottom: theme.spacing.sm }}>
                 <Typography variant="subtitle" weight="semibold" style={{ marginBottom: 4 }}>
-                  💭 Choose Your Motion
-                </Typography>
-                <Typography variant="caption" color="secondary">
-                  Presets, custom input, or let fate decide
+                  💭 Motion
                 </Typography>
               </Box>
               <DebateTopicSelector
@@ -463,14 +466,11 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
               <Box style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
                 <Box style={{ flex: 1 }}>
                   <Typography variant="subtitle" weight="semibold" style={{ marginBottom: 4 }}>
-                    ⚙️ Debate Configuration
-                  </Typography>
-                  <Typography variant="caption" color="secondary">
-                    Choose format and preset
+                    ⚙️ Debate
                   </Typography>
                 </Box>
                 <Button
-                  title="📊 Stats"
+                  title="Stats"
                   onPress={() => navigation.navigate('Stats')}
                   variant="ghost"
                   size="small"
@@ -488,7 +488,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
                 </Box>
                 <Box style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
                   <Button
-                    title={`${formatId === 'oxford' ? 'Oxford' : formatId === 'lincoln_douglas' ? 'Lincoln–Douglas' : formatId === 'policy' ? 'Policy' : 'Socratic'}`}
+                    title={FORMATS[formatId].name}
                     onPress={() => setFormatModalVisible(true)}
                     variant="tonal"
                     size="medium"
@@ -497,9 +497,6 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
                     rightIcon="chevron-down"
                   />
                 </Box>
-                <Typography variant="caption" color="secondary" style={{ marginTop: 6 }}>
-                  {FORMATS[formatId].description}
-                </Typography>
               </Box>
 
               {/* Preset selector (legacy 3, 5, 7 values still route through rounds) */}
@@ -511,7 +508,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
                   {presetOptions.map(({ rounds: n, preset }) => (
                     <Button
                       key={n}
-                      title={preset.label}
+                      title={PRESET_BUTTON_LABELS[preset.id] || preset.label}
                       onPress={() => setExchanges(n)}
                       variant={n === exchanges ? 'primary' : 'tonal'}
                       size="small"
@@ -520,11 +517,34 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
                   ))}
                 </Box>
                 <Typography variant="caption" color="secondary" style={{ marginTop: 6 }}>
-                  {selectedPreset.shortLabel} · {selectedPreset.messages.length} speeches · {selectedPreset.voteCount} votes
+                  {presetSummary}
                 </Typography>
-                <Typography variant="caption" color="secondary" numberOfLines={4} style={{ marginTop: 6, lineHeight: 17 }}>
-                  {speechOrderPreview}
-                </Typography>
+                <Box style={{ marginTop: 8 }}>
+                  <Typography variant="caption" color="secondary" style={{ marginBottom: 6 }}>
+                    Vote points
+                  </Typography>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <Box style={{ flexDirection: 'row', gap: 6, paddingRight: theme.spacing.sm }}>
+                      {presetVoteLabels.map((label, index) => (
+                        <Box
+                          key={`${label}-${index}`}
+                          style={{
+                            borderWidth: 1,
+                            borderColor: theme.colors.border,
+                            borderRadius: 999,
+                            paddingHorizontal: 10,
+                            paddingVertical: 5,
+                            backgroundColor: theme.colors.surface,
+                          }}
+                        >
+                          <Typography variant="caption" color="secondary">
+                            {label}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  </ScrollView>
+                </Box>
               </Box>
             </Card>
 

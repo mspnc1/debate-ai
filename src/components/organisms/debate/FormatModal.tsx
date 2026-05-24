@@ -8,7 +8,12 @@ import { BlurView } from 'expo-blur';
 import { useTheme } from '../../../theme';
 import { Typography } from '../../molecules';
 import { SheetHeader } from '@/components/molecules';
-import { FORMATS, type DebateFormatId, type FormatSpec } from '../../../config/debate/formats';
+import {
+  SELECTABLE_FORMATS,
+  type DebateFormatId,
+  type FormatSpec,
+  type SelectableDebateFormatId,
+} from '../../../config/debate/formats';
 
 export interface FormatModalProps {
   visible: boolean;
@@ -19,28 +24,23 @@ export interface FormatModalProps {
 
 export const FormatModal: React.FC<FormatModalProps> = ({ visible, selected, onSelect, onClose }) => {
   const { theme, isDark } = useTheme();
-  const entries = Object.entries(FORMATS) as [DebateFormatId, FormatSpec][];
+  const entries = Object.entries(SELECTABLE_FORMATS) as [SelectableDebateFormatId, FormatSpec][];
 
-  const HIGHLIGHTS: Record<DebateFormatId, string[]> = {
+  const HIGHLIGHTS: Record<SelectableDebateFormatId, string[]> = {
     oxford: [
-      '⚖️ Best for traditional topics and formal arguments',
-      '⏱️ Equal speaking time with balanced structure',
-      '🎯 Clear pro/con positions make it easy to follow',
+      '⚖️ Motion debate with proposition and opposition sides',
+      '🗣️ Opening speeches, floor debate, and closing speeches',
+      '🎯 Clear public-forum structure without forensic acronyms',
     ],
     lincoln_douglas: [
       '🤔 Great for ethical dilemmas and moral questions',
-      '💭 Explores underlying values and principles',
-      '📚 Inspired by the historic Lincoln-Douglas debates',
+      '💭 AC, CX, NC/1NR, 1AR, NR/2NR, and 2AR structure',
+      '📚 Values and criteria decide the clash',
     ],
     policy: [
       '📊 Perfect for policy proposals and real-world issues',
-      '🔬 Emphasizes facts, data, and research',
-      '💡 Solution-oriented with practical outcomes',
-    ],
-    socratic: [
-      '❓ Ideal for exploring complex concepts',
-      '🤝 Collaborative discovery through dialogue',
-      '🧠 Deepens understanding by questioning assumptions',
+      '🔬 1AC, 1NC, 2AC, 2NC, 1NR, 1AR, 2NR, and 2AR',
+      '💡 Cross-examination keeps the plan and burdens clear',
     ],
   };
 

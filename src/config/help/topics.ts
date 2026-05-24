@@ -91,20 +91,17 @@ Each AI will present arguments, respond to their opponent, and try to make the m
     title: "Debate Formats",
     icon: "list",
     category: "debate-arena",
-    shortDescription: "Four distinct debate styles to choose from",
-    content: `Symposium AI offers four debate formats, each with a unique style:
+    shortDescription: "Three structured debate styles to choose from",
+    content: `Symposium AI offers three structured debate formats:
 
 Oxford Format:
-Classic formal debate with structured opening statements, rebuttals, and closing arguments. Best for: Traditional debates on policy or ethics.
+Motion debate with proposition and opposition opening speeches, floor debate, and closing speeches. Best for: Public-facing debates on policy or ethics.
 
 Lincoln-Douglas:
-Philosophical debate focusing on values and ethics. One-on-one format emphasizing moral reasoning. Best for: Ethical dilemmas and value-based topics.
+Philosophical debate focusing on values and ethics. Uses AC, CX, NC/1NR, 1AR, NR/2NR, and 2AR structure. Best for: Ethical dilemmas and value-based topics.
 
 Policy Debate:
-Data-driven debate with emphasis on evidence and practical solutions. Includes plan proposals and counter-plans. Best for: Current events and real-world issues.
-
-Socratic Method:
-Inquiry-based dialogue through thoughtful questions. AIs challenge each other's assumptions. Best for: Exploring complex ideas and definitions.`,
+Data-driven debate with emphasis on evidence and practical solutions. Uses 1AC, 1NC, 2AC, 2NC, 1NR, 1AR, 2NR, and 2AR speech order. Best for: Current events and real-world issues.`,
     relatedTopics: ["debate-arena", "debate-voting"],
   },
 

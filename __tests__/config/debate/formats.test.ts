@@ -1,5 +1,6 @@
 import {
   FORMATS,
+  SELECTABLE_FORMATS,
   getPresetForFormat,
   getPresetIdForRounds,
   type PhaseId,
@@ -17,6 +18,11 @@ const VALID_PHASES = new Set<PhaseId>([
 ]);
 
 describe('debate format definitions', () => {
+  it('keeps Socratic loadable for legacy sessions but out of selectable formats', () => {
+    expect(FORMATS.socratic).toBeDefined();
+    expect(Object.keys(SELECTABLE_FORMATS)).toEqual(['oxford', 'lincoln_douglas', 'policy']);
+  });
+
   it('defines populated presets with valid message roles and vote counts', () => {
     Object.values(FORMATS).forEach((format) => {
       expect(format.presets.length).toBeGreaterThan(0);
@@ -41,16 +47,21 @@ describe('debate format definitions', () => {
     });
   });
 
-  it('keeps Oxford short as opening, rebuttal, and closing exchanges', () => {
+  it('keeps Oxford short as opening speeches, floor debate, and closing speeches', () => {
     const preset = getPresetForFormat('oxford', 'short');
 
     expect(preset.messages.map((message) => `${message.speaker}:${message.phase}:${message.label}`)).toEqual([
-      'aff:opening:Opening Statement',
-      'neg:opening:Opening Statement',
-      'aff:rebuttal:Rebuttal',
-      'neg:rebuttal:Rebuttal',
-      'aff:closing:Closing Statement',
-      'neg:closing:Closing Statement',
+      'aff:opening:Proposition Opening Speech',
+      'neg:opening:Opposition Opening Speech',
+      'aff:rebuttal:Proposition Floor Speech',
+      'neg:rebuttal:Opposition Floor Speech',
+      'aff:closing:Proposition Closing Speech',
+      'neg:closing:Opposition Closing Speech',
+    ]);
+    expect(preset.messages.filter((message) => message.voteAfter).map((message) => message.votingLabel)).toEqual([
+      'Opening Speeches',
+      'Floor Debate',
+      'Closing Speeches',
     ]);
   });
 
@@ -66,11 +77,12 @@ describe('debate format definitions', () => {
       { label: 'Affirmative Constructive (AC)', phase: 'constructive', speaker: 'aff', cxRole: undefined },
       { label: 'Cross-Examination (CX)', phase: 'cross_examination', speaker: 'neg', cxRole: 'questioner' },
       { label: 'Cross-Examination (CX)', phase: 'cross_examination', speaker: 'aff', cxRole: 'answerer' },
-      { label: 'Negative Constructive (NC)', phase: 'constructive', speaker: 'neg', cxRole: undefined },
+      { label: 'Negative Constructive / 1NR (NC/1NR)', phase: 'constructive', speaker: 'neg', cxRole: undefined },
       { label: 'Cross-Examination (CX)', phase: 'cross_examination', speaker: 'aff', cxRole: 'questioner' },
       { label: 'Cross-Examination (CX)', phase: 'cross_examination', speaker: 'neg', cxRole: 'answerer' },
-      { label: 'Affirmative Rebuttal (AR)', phase: 'rebuttal', speaker: 'aff', cxRole: undefined },
-      { label: 'Negative Rebuttal (NR)', phase: 'final_rebuttal', speaker: 'neg', cxRole: undefined },
+      { label: 'First Affirmative Rebuttal (1AR)', phase: 'rebuttal', speaker: 'aff', cxRole: undefined },
+      { label: 'Negative Rebuttal / 2NR (NR/2NR)', phase: 'rebuttal', speaker: 'neg', cxRole: undefined },
+      { label: 'Second Affirmative Rebuttal (2AR)', phase: 'final_rebuttal', speaker: 'aff', cxRole: undefined },
     ]);
   });
 
@@ -85,7 +97,11 @@ describe('debate format definitions', () => {
       'aff:CX after 1NC:questioner',
       'neg:CX after 1NC:answerer',
       'aff:2AC:speech',
+      'neg:CX after 2AC:questioner',
+      'aff:CX after 2AC:answerer',
       'neg:2NC:speech',
+      'aff:CX after 2NC:questioner',
+      'neg:CX after 2NC:answerer',
       'neg:1NR:speech',
       'aff:1AR:speech',
       'neg:2NR:speech',

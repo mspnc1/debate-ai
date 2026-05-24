@@ -46,54 +46,46 @@ describe('FormatModal', () => {
       expect(getByText('Choose Debate Format')).toBeTruthy();
     });
 
-    it('renders all debate format options', () => {
-      const { getByText } = renderWithProviders(<FormatModal {...defaultProps} />);
+    it('renders selectable debate format options', () => {
+      const { getByText, queryByText } = renderWithProviders(<FormatModal {...defaultProps} />);
 
       expect(getByText('Oxford')).toBeTruthy();
       expect(getByText('Lincoln-Douglas')).toBeTruthy();
       expect(getByText('Policy')).toBeTruthy();
-      expect(getByText('Socratic')).toBeTruthy();
+      expect(queryByText('Socratic')).toBeNull();
     });
 
     it('renders format descriptions', () => {
-      const { getByText } = renderWithProviders(<FormatModal {...defaultProps} />);
+      const { getByText, queryByText } = renderWithProviders(<FormatModal {...defaultProps} />);
 
-      expect(getByText(/Classic formal debate/i)).toBeTruthy();
+      expect(getByText(/Oxford-style motion debate/i)).toBeTruthy();
       expect(getByText(/Philosophical debate/i)).toBeTruthy();
       expect(getByText(/Data-driven debate/i)).toBeTruthy();
-      expect(getByText(/Inquiry-based dialogue/i)).toBeTruthy();
+      expect(queryByText(/Inquiry-based dialogue/i)).toBeNull();
     });
 
     it('renders Oxford format highlights', () => {
-      const { getByText } = renderWithProviders(<FormatModal {...defaultProps} />);
+      const { getByText, getAllByText } = renderWithProviders(<FormatModal {...defaultProps} />);
 
-      expect(getByText(/Best for traditional topics/i)).toBeTruthy();
-      expect(getByText(/Equal speaking time/i)).toBeTruthy();
-      expect(getByText(/Clear pro\/con positions/i)).toBeTruthy();
+      expect(getByText(/Motion debate with proposition/i)).toBeTruthy();
+      expect(getAllByText(/Opening speeches, floor debate/i).length).toBeGreaterThan(0);
+      expect(getByText(/without forensic acronyms/i)).toBeTruthy();
     });
 
     it('renders Lincoln-Douglas format highlights', () => {
       const { getByText } = renderWithProviders(<FormatModal {...defaultProps} />);
 
       expect(getByText(/Great for ethical dilemmas/i)).toBeTruthy();
-      expect(getByText(/Explores underlying values/i)).toBeTruthy();
-      expect(getByText(/historic Lincoln-Douglas debates/i)).toBeTruthy();
+      expect(getByText(/AC, CX, NC\/1NR/i)).toBeTruthy();
+      expect(getByText(/Values and criteria/i)).toBeTruthy();
     });
 
     it('renders Policy format highlights', () => {
       const { getByText } = renderWithProviders(<FormatModal {...defaultProps} />);
 
       expect(getByText(/Perfect for policy proposals/i)).toBeTruthy();
-      expect(getByText(/Emphasizes facts, data/i)).toBeTruthy();
-      expect(getByText(/Solution-oriented/i)).toBeTruthy();
-    });
-
-    it('renders Socratic format highlights', () => {
-      const { getByText } = renderWithProviders(<FormatModal {...defaultProps} />);
-
-      expect(getByText(/Ideal for exploring complex concepts/i)).toBeTruthy();
-      expect(getByText(/Collaborative discovery/i)).toBeTruthy();
-      expect(getByText(/Deepens understanding/i)).toBeTruthy();
+      expect(getByText(/1AC, 1NC, 2AC/i)).toBeTruthy();
+      expect(getByText(/Cross-examination keeps/i)).toBeTruthy();
     });
   });
 
@@ -125,14 +117,6 @@ describe('FormatModal', () => {
       expect(policyOption).toBeTruthy();
     });
 
-    it('highlights the selected format (Socratic)', () => {
-      const { getByText } = renderWithProviders(
-        <FormatModal {...defaultProps} selected="socratic" />
-      );
-
-      const socraticOption = getByText('Socratic').parent;
-      expect(socraticOption).toBeTruthy();
-    });
   });
 
   describe('User Interactions', () => {
@@ -160,15 +144,6 @@ describe('FormatModal', () => {
       fireEvent.press(getByText('Policy'));
 
       expect(mockOnSelect).toHaveBeenCalledWith('policy');
-      expect(mockOnClose).toHaveBeenCalled();
-    });
-
-    it('calls onSelect and onClose when Socratic format is pressed', () => {
-      const { getByText } = renderWithProviders(<FormatModal {...defaultProps} />);
-
-      fireEvent.press(getByText('Socratic'));
-
-      expect(mockOnSelect).toHaveBeenCalledWith('socratic');
       expect(mockOnClose).toHaveBeenCalled();
     });
 
@@ -249,15 +224,16 @@ describe('FormatModal', () => {
     });
 
     it('renders correctly with different selected formats', () => {
-      const { rerender, getByText } = renderWithProviders(
+      const { rerender, getByText, queryByText } = renderWithProviders(
         <FormatModal {...defaultProps} selected="oxford" />
       );
 
       expect(getByText('Oxford')).toBeTruthy();
 
-      rerender(<FormatModal {...defaultProps} selected="socratic" />);
+      rerender(<FormatModal {...defaultProps} selected="policy" />);
 
-      expect(getByText('Socratic')).toBeTruthy();
+      expect(getByText('Policy')).toBeTruthy();
+      expect(queryByText('Socratic')).toBeNull();
     });
 
     it('handles undefined callbacks gracefully', () => {

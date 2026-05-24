@@ -321,14 +321,32 @@ describe('DebateSetupScreen', () => {
     expect(testIds.indexOf('header')).toBeLessThan(testIds.indexOf('trial-banner'));
   });
 
-  it('shows preset labels and speech-order preview for the selected debate format', () => {
+  it('shows compact preset labels and format-native vote point labels', () => {
     const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
 
     expect(renderResult.getByText('Short')).toBeTruthy();
     expect(renderResult.getByText('Standard')).toBeTruthy();
     expect(renderResult.getByText('Extended')).toBeTruthy();
-    expect(renderResult.getByText('3 Rounds · 6 speeches · 3 votes')).toBeTruthy();
-    expect(renderResult.getByText('Affirmative: Opening Statement → Negative: Opening Statement → Affirmative: Rebuttal → Negative: Rebuttal → Affirmative: Closing Statement → Negative: Closing Statement')).toBeTruthy();
+    expect(renderResult.getByText('6 turns · 3 votes · ~5 min')).toBeTruthy();
+    expect(renderResult.getByText('Vote points')).toBeTruthy();
+    expect(renderResult.getByText('Opening Speeches')).toBeTruthy();
+    expect(renderResult.getByText('Floor Debate')).toBeTruthy();
+    expect(renderResult.getByText('Closing Speeches')).toBeTruthy();
+
+    fireEvent.press(renderResult.getByText('Standard'));
+
+    expect(renderResult.getByText('10 turns · 3 votes · ~10 min')).toBeTruthy();
+    expect(renderResult.queryByText('3 rebuttal rounds')).toBeNull();
+    expect(renderResult.queryByText('First Rebuttals')).toBeNull();
+
+    fireEvent.press(renderResult.getByText('Extended'));
+
+    expect(renderResult.getByText('14 turns · 3 votes · ~15 min')).toBeTruthy();
+    expect(renderResult.queryByText('4 rebuttal rounds')).toBeNull();
+    expect(renderResult.queryByText('Final Rebuttals')).toBeNull();
+    expect(renderResult.queryByText('Choose format and preset')).toBeNull();
+    expect(renderResult.queryByText('Oxford-style motion debate with opening speeches, floor debate, and closing speeches')).toBeNull();
+    expect(renderResult.queryByText('Affirmative: Opening Statement → Negative: Opening Statement → Affirmative: Rebuttal → Negative: Rebuttal → Affirmative: Closing Statement → Negative: Closing Statement')).toBeNull();
   });
 
   it('progresses from topic to AI step with valid selection', async () => {

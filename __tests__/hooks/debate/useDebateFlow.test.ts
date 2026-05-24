@@ -99,7 +99,7 @@ describe('useDebateFlow', () => {
     expect(result.current.maxRounds).toBe(3);
     expect(result.current.totalMessages).toBe(6);
     expect(result.current.currentMessageIndex).toBe(0);
-    expect(result.current.currentTurnLabel).toBe('Opening Statement');
+    expect(result.current.currentTurnLabel).toBe('Proposition Opening Speech');
 
     act(() => {
       orchestrator.emit({ type: 'round_changed', data: { round: 2 }, timestamp: Date.now() });

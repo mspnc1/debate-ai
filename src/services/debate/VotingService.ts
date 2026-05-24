@@ -104,6 +104,9 @@ export class VotingService {
   private buildVoteCriterion(label: string, phase: PhaseId): string {
     switch (this.formatId) {
       case 'lincoln_douglas':
+        if (label === 'AC + CX' || label === 'NC/1NR + CX') {
+          return `${label}: choose who better established and defended their value, criterion, definitions, and contentions through cross-examination.`;
+        }
         if (phase === 'constructive') {
           return `${label}: choose who better established their value, criterion, definitions, and initial burden.`;
         }
@@ -115,11 +118,14 @@ export class VotingService {
         }
         return `${label}: choose who better answered attacks, extended key value arguments, and weighed the round.`;
       case 'policy':
-        if (label === 'First Constructives') {
-          return `${label}: choose who better framed the plan or opposition, core harms, links, and initial solvency claims.`;
+        if (label === '1AC + CX' || label === '1NC + CX' || label === '1NC') {
+          return `${label}: choose who better framed the plan or opposition, core harms, links, burden, and solvency claims.`;
         }
-        if (label === 'Second Constructives') {
+        if (label === '2AC + CX' || label === '2NC + CX' || label === '2NC') {
           return `${label}: choose who better developed clash on solvency, disadvantages, counterplans, and comparative advantage.`;
+        }
+        if (label === '2AR') {
+          return `${label}: choose who better extended winning arguments, compared impacts, and explained the ballot.`;
         }
         if (phase === 'cross_examination') {
           return `${label}: choose who turned cross-examination into useful concessions or clearer burden analysis.`;

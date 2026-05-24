@@ -93,7 +93,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-debate-formats-difference',
     question: 'What\'s the difference between debate formats?',
     answer:
-      'Oxford is traditional formal debate. Lincoln-Douglas focuses on values and ethics. Policy emphasizes evidence and practical solutions. Socratic uses questions to explore ideas. Each format produces different styles of argument and exchange.',
+      'Oxford is a motion debate with proposition and opposition speeches. Lincoln-Douglas focuses on values and ethics using constructive, cross-examination, and rebuttal speeches. Policy emphasizes evidence, plans, burdens, cross-examination, and rebuttal order.',
     category: 'debate-arena',
     relatedTopic: 'debate-formats',
   },

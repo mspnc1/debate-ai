@@ -246,9 +246,9 @@ describe('DebateOrchestrator', () => {
     await orchestrator.executeDebateMessage(1, []);
 
     expect(aiService.sendMessage.mock.calls[0][0]).toBe('claude');
-    expect(aiService.sendMessage.mock.calls[0][1]).toContain('Turn: Opening Statement');
+    expect(aiService.sendMessage.mock.calls[0][1]).toContain('Turn: Proposition Opening Speech');
     expect(aiService.sendMessage.mock.calls[1][0]).toBe('openai');
-    expect(aiService.sendMessage.mock.calls[1][1]).toContain('Turn: Opening Statement');
+    expect(aiService.sendMessage.mock.calls[1][1]).toContain('Turn: Opposition Opening Speech');
 
     jest.clearAllTimers();
     jest.useRealTimers();
@@ -291,7 +291,7 @@ describe('DebateOrchestrator', () => {
       formatId: 'lincoln_douglas',
       presetId: 'standard',
       messageIndex: 1,
-      totalMessages: 8,
+      totalMessages: 9,
       phase: 'cross_examination',
       speaker: 'neg',
       cxRole: 'questioner',
@@ -328,14 +328,14 @@ describe('DebateOrchestrator', () => {
     });
 
     await orchestrator.executeDebateMessage(4, []);
-    await orchestrator.executeDebateMessage(8, []);
+    await orchestrator.executeDebateMessage(12, []);
 
     expect(aiService.sendMessage.mock.calls[0][0]).toBe('claude');
     expect(aiService.sendMessage.mock.calls[0][1]).toContain('Turn: CX after 1NC');
     expect(aiService.sendMessage.mock.calls[0][1]).toContain('Ask pointed questions');
     expect(aiService.sendMessage.mock.calls[1][0]).toBe('openai');
     expect(aiService.sendMessage.mock.calls[1][1]).toContain('Turn: 1NR');
-    expect(orchestrator.getSession()?.messageIndex).toBe(8);
+    expect(orchestrator.getSession()?.messageIndex).toBe(12);
 
     jest.clearAllTimers();
     jest.useRealTimers();

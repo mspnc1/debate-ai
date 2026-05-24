@@ -2,6 +2,7 @@
 // Each format defines explicit speeches, speaker roles, and vote checkpoints.
 
 export type DebateFormatId = 'oxford' | 'lincoln_douglas' | 'policy' | 'socratic';
+export type SelectableDebateFormatId = Exclude<DebateFormatId, 'socratic'>;
 
 export type PhaseId =
   | 'opening'
@@ -41,77 +42,76 @@ export interface FormatSpec {
 }
 
 const oxfordGuidance: Partial<Record<PhaseId, string>> = {
-  opening: 'Opening: state your case clearly. No headings or lists.',
-  rebuttal: 'Rebuttal: answer specific claims; maintain stance; no meta.',
-  final_rebuttal: 'Final rebuttal: reinforce strongest points. No new arguments.',
-  closing: 'Closing: reinforce strongest point; no new claims; concise.',
+  opening: 'Opening speech: frame the motion and establish your side clearly.',
+  rebuttal: 'Floor debate: answer the other side directly and develop the clash on the motion.',
+  closing: 'Closing speech: summarize the decisive reasons to vote for your side; no new claims.',
 };
 
 const oxfordShort: PresetConfig = {
   id: 'short',
   label: 'Short',
-  shortLabel: '3 Rounds',
+  shortLabel: 'Short Oxford',
   description: '~5 min',
   voteCount: 3,
   messages: [
-    { label: 'Opening Statement', phase: 'opening', speaker: 'aff' },
-    { label: 'Opening Statement', phase: 'opening', speaker: 'neg', voteAfter: true, votingLabel: 'Opening Statements' },
-    { label: 'Rebuttal', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'Rebuttal', phase: 'rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'Rebuttals' },
-    { label: 'Closing Statement', phase: 'closing', speaker: 'aff' },
-    { label: 'Closing Statement', phase: 'closing', speaker: 'neg', voteAfter: true, votingLabel: 'Closing Statements' },
+    { label: 'Proposition Opening Speech', phase: 'opening', speaker: 'aff' },
+    { label: 'Opposition Opening Speech', phase: 'opening', speaker: 'neg', voteAfter: true, votingLabel: 'Opening Speeches' },
+    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff' },
+    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'Floor Debate' },
+    { label: 'Proposition Closing Speech', phase: 'closing', speaker: 'aff' },
+    { label: 'Opposition Closing Speech', phase: 'closing', speaker: 'neg', voteAfter: true, votingLabel: 'Closing Speeches' },
   ],
 };
 
 const oxfordStandard: PresetConfig = {
   id: 'standard',
   label: 'Standard',
-  shortLabel: '5 Rounds',
+  shortLabel: 'Standard Oxford',
   description: '~10 min',
-  voteCount: 5,
+  voteCount: 3,
   messages: [
-    { label: 'Opening Statement', phase: 'opening', speaker: 'aff' },
-    { label: 'Opening Statement', phase: 'opening', speaker: 'neg', voteAfter: true, votingLabel: 'Opening Statements' },
-    { label: 'First Rebuttal', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'First Rebuttal', phase: 'rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'First Rebuttals' },
-    { label: 'Second Rebuttal', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'Second Rebuttal', phase: 'rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'Second Rebuttals' },
-    { label: 'Third Rebuttal', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'Third Rebuttal', phase: 'rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'Third Rebuttals' },
-    { label: 'Closing Statement', phase: 'closing', speaker: 'aff' },
-    { label: 'Closing Statement', phase: 'closing', speaker: 'neg', voteAfter: true, votingLabel: 'Closing Statements' },
+    { label: 'Proposition Opening Speech', phase: 'opening', speaker: 'aff' },
+    { label: 'Opposition Opening Speech', phase: 'opening', speaker: 'neg', voteAfter: true, votingLabel: 'Opening Speeches' },
+    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff' },
+    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg' },
+    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff' },
+    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg' },
+    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff' },
+    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'Floor Debate' },
+    { label: 'Proposition Closing Speech', phase: 'closing', speaker: 'aff' },
+    { label: 'Opposition Closing Speech', phase: 'closing', speaker: 'neg', voteAfter: true, votingLabel: 'Closing Speeches' },
   ],
 };
 
 const oxfordLong: PresetConfig = {
   id: 'long',
   label: 'Extended',
-  shortLabel: '7 Rounds',
+  shortLabel: 'Extended Oxford',
   description: '~15 min',
-  voteCount: 7,
+  voteCount: 3,
   messages: [
-    { label: 'Opening Statement', phase: 'opening', speaker: 'aff' },
-    { label: 'Opening Statement', phase: 'opening', speaker: 'neg', voteAfter: true, votingLabel: 'Opening Statements' },
-    { label: 'First Rebuttal', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'First Rebuttal', phase: 'rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'First Rebuttals' },
-    { label: 'Second Rebuttal', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'Second Rebuttal', phase: 'rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'Second Rebuttals' },
-    { label: 'Third Rebuttal', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'Third Rebuttal', phase: 'rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'Third Rebuttals' },
-    { label: 'Fourth Rebuttal', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'Fourth Rebuttal', phase: 'rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'Fourth Rebuttals' },
-    { label: 'Final Rebuttal', phase: 'final_rebuttal', speaker: 'aff' },
-    { label: 'Final Rebuttal', phase: 'final_rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'Final Rebuttals' },
-    { label: 'Closing Statement', phase: 'closing', speaker: 'aff' },
-    { label: 'Closing Statement', phase: 'closing', speaker: 'neg', voteAfter: true, votingLabel: 'Closing Statements' },
+    { label: 'Proposition Opening Speech', phase: 'opening', speaker: 'aff' },
+    { label: 'Opposition Opening Speech', phase: 'opening', speaker: 'neg', voteAfter: true, votingLabel: 'Opening Speeches' },
+    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff' },
+    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg' },
+    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff' },
+    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg' },
+    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff' },
+    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg' },
+    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff' },
+    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg' },
+    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff' },
+    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'Floor Debate' },
+    { label: 'Proposition Closing Speech', phase: 'closing', speaker: 'aff' },
+    { label: 'Opposition Closing Speech', phase: 'closing', speaker: 'neg', voteAfter: true, votingLabel: 'Closing Speeches' },
   ],
 };
 
 export const OXFORD_FORMAT: FormatSpec = {
   id: 'oxford',
   name: 'Oxford',
-  description: 'Classic formal debate with structured arguments and clear positions',
-  stepLabel: 'Rounds',
+  description: 'Oxford-style motion debate with opening speeches, floor debate, and closing speeches',
+  stepLabel: 'Speeches',
   presets: [oxfordShort, oxfordStandard, oxfordLong],
   guidance: oxfordGuidance,
 };
@@ -127,51 +127,53 @@ const lincolnDouglasGuidance: Partial<Record<PhaseId, string>> = {
 const lincolnDouglasShort: PresetConfig = {
   id: 'short',
   label: 'Short LD',
-  shortLabel: '4 Speeches',
+  shortLabel: 'Short LD',
   description: '~5 min',
-  voteCount: 3,
+  voteCount: 4,
   messages: [
     { label: 'Affirmative Constructive (AC)', phase: 'constructive', speaker: 'aff' },
-    { label: 'Negative Constructive (NC)', phase: 'constructive', speaker: 'neg', voteAfter: true, votingLabel: 'Constructives' },
-    { label: 'Affirmative Rebuttal (AR)', phase: 'rebuttal', speaker: 'aff', voteAfter: true, votingLabel: 'Affirmative Rebuttal' },
-    { label: 'Negative Rebuttal (NR)', phase: 'final_rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'Final Rebuttal' },
+    { label: 'Negative Constructive / 1NR (NC/1NR)', phase: 'constructive', speaker: 'neg', voteAfter: true, votingLabel: 'Constructives' },
+    { label: 'First Affirmative Rebuttal (1AR)', phase: 'rebuttal', speaker: 'aff', voteAfter: true, votingLabel: '1AR' },
+    { label: 'Negative Rebuttal / 2NR (NR/2NR)', phase: 'rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'NR/2NR' },
+    { label: 'Second Affirmative Rebuttal (2AR)', phase: 'final_rebuttal', speaker: 'aff', voteAfter: true, votingLabel: '2AR' },
   ],
 };
 
 const lincolnDouglasStandard: PresetConfig = {
   id: 'standard',
   label: 'Standard LD',
-  shortLabel: '6 Speeches',
+  shortLabel: 'Full LD',
   description: '~10 min',
-  voteCount: 3,
+  voteCount: 5,
   messages: [
     { label: 'Affirmative Constructive (AC)', phase: 'constructive', speaker: 'aff' },
     { label: 'Cross-Examination (CX)', phase: 'cross_examination', speaker: 'neg', cxRole: 'questioner' },
-    { label: 'Cross-Examination (CX)', phase: 'cross_examination', speaker: 'aff', cxRole: 'answerer' },
-    { label: 'Negative Constructive (NC)', phase: 'constructive', speaker: 'neg', voteAfter: true, votingLabel: 'Constructives' },
+    { label: 'Cross-Examination (CX)', phase: 'cross_examination', speaker: 'aff', cxRole: 'answerer', voteAfter: true, votingLabel: 'AC + CX' },
+    { label: 'Negative Constructive / 1NR (NC/1NR)', phase: 'constructive', speaker: 'neg' },
     { label: 'Cross-Examination (CX)', phase: 'cross_examination', speaker: 'aff', cxRole: 'questioner' },
-    { label: 'Cross-Examination (CX)', phase: 'cross_examination', speaker: 'neg', cxRole: 'answerer', voteAfter: true, votingLabel: 'Cross-Examination' },
-    { label: 'Affirmative Rebuttal (AR)', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'Negative Rebuttal (NR)', phase: 'final_rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'Rebuttals' },
+    { label: 'Cross-Examination (CX)', phase: 'cross_examination', speaker: 'neg', cxRole: 'answerer', voteAfter: true, votingLabel: 'NC/1NR + CX' },
+    { label: 'First Affirmative Rebuttal (1AR)', phase: 'rebuttal', speaker: 'aff', voteAfter: true, votingLabel: '1AR' },
+    { label: 'Negative Rebuttal / 2NR (NR/2NR)', phase: 'rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'NR/2NR' },
+    { label: 'Second Affirmative Rebuttal (2AR)', phase: 'final_rebuttal', speaker: 'aff', voteAfter: true, votingLabel: '2AR' },
   ],
 };
 
 const lincolnDouglasLong: PresetConfig = {
   id: 'long',
   label: 'Extended LD',
-  shortLabel: '7 Speeches',
+  shortLabel: 'Full LD',
   description: '~15 min',
-  voteCount: 3,
+  voteCount: 5,
   messages: [
     { label: 'Affirmative Constructive (AC)', phase: 'constructive', speaker: 'aff' },
     { label: 'Cross-Examination (CX)', phase: 'cross_examination', speaker: 'neg', cxRole: 'questioner' },
-    { label: 'Cross-Examination (CX)', phase: 'cross_examination', speaker: 'aff', cxRole: 'answerer' },
-    { label: 'Negative Constructive (NC)', phase: 'constructive', speaker: 'neg' },
+    { label: 'Cross-Examination (CX)', phase: 'cross_examination', speaker: 'aff', cxRole: 'answerer', voteAfter: true, votingLabel: 'AC + CX' },
+    { label: 'Negative Constructive / 1NR (NC/1NR)', phase: 'constructive', speaker: 'neg' },
     { label: 'Cross-Examination (CX)', phase: 'cross_examination', speaker: 'aff', cxRole: 'questioner' },
-    { label: 'Cross-Examination (CX)', phase: 'cross_examination', speaker: 'neg', cxRole: 'answerer', voteAfter: true, votingLabel: 'Constructives' },
-    { label: 'Affirmative Rebuttal (AR)', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'Negative Rebuttal (NR)', phase: 'rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'Rebuttals' },
-    { label: 'Second Affirmative Rebuttal (2AR)', phase: 'final_rebuttal', speaker: 'aff', voteAfter: true, votingLabel: 'Final Rebuttal' },
+    { label: 'Cross-Examination (CX)', phase: 'cross_examination', speaker: 'neg', cxRole: 'answerer', voteAfter: true, votingLabel: 'NC/1NR + CX' },
+    { label: 'First Affirmative Rebuttal (1AR)', phase: 'rebuttal', speaker: 'aff', voteAfter: true, votingLabel: '1AR' },
+    { label: 'Negative Rebuttal / 2NR (NR/2NR)', phase: 'rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'NR/2NR' },
+    { label: 'Second Affirmative Rebuttal (2AR)', phase: 'final_rebuttal', speaker: 'aff', voteAfter: true, votingLabel: '2AR' },
   ],
 };
 
@@ -194,16 +196,18 @@ const policyGuidance: Partial<Record<PhaseId, string>> = {
 const policyShort: PresetConfig = {
   id: 'short',
   label: 'Short Policy',
-  shortLabel: '6 Speeches',
+  shortLabel: '8 Speeches',
   description: '~5 min',
   voteCount: 3,
   messages: [
     { label: 'First Affirmative Constructive (1AC)', phase: 'constructive', speaker: 'aff' },
-    { label: 'First Negative Constructive (1NC)', phase: 'constructive', speaker: 'neg', voteAfter: true, votingLabel: 'First Constructives' },
+    { label: 'First Negative Constructive (1NC)', phase: 'constructive', speaker: 'neg', voteAfter: true, votingLabel: '1NC' },
     { label: 'Second Affirmative Constructive (2AC)', phase: 'constructive', speaker: 'aff' },
-    { label: 'Second Negative Constructive (2NC)', phase: 'constructive', speaker: 'neg', voteAfter: true, votingLabel: 'Second Constructives' },
+    { label: 'Second Negative Constructive (2NC)', phase: 'constructive', speaker: 'neg', voteAfter: true, votingLabel: '2NC' },
+    { label: 'First Negative Rebuttal (1NR)', phase: 'rebuttal', speaker: 'neg' },
     { label: 'First Affirmative Rebuttal (1AR)', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'Second Negative Rebuttal (2NR)', phase: 'rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'Rebuttals' },
+    { label: 'Second Negative Rebuttal (2NR)', phase: 'rebuttal', speaker: 'neg' },
+    { label: 'Second Affirmative Rebuttal (2AR)', phase: 'closing', speaker: 'aff', voteAfter: true, votingLabel: '2AR' },
   ],
 };
 
@@ -212,46 +216,50 @@ const policyStandard: PresetConfig = {
   label: 'Standard Policy',
   shortLabel: '8 Speeches + CX',
   description: '~10 min',
-  voteCount: 3,
+  voteCount: 5,
   messages: [
     { label: '1AC', phase: 'constructive', speaker: 'aff' },
     { label: 'CX after 1AC', phase: 'cross_examination', speaker: 'neg', cxRole: 'questioner' },
-    { label: 'CX after 1AC', phase: 'cross_examination', speaker: 'aff', cxRole: 'answerer' },
+    { label: 'CX after 1AC', phase: 'cross_examination', speaker: 'aff', cxRole: 'answerer', voteAfter: true, votingLabel: '1AC + CX' },
     { label: '1NC', phase: 'constructive', speaker: 'neg' },
     { label: 'CX after 1NC', phase: 'cross_examination', speaker: 'aff', cxRole: 'questioner' },
-    { label: 'CX after 1NC', phase: 'cross_examination', speaker: 'neg', cxRole: 'answerer', voteAfter: true, votingLabel: 'First Constructives' },
+    { label: 'CX after 1NC', phase: 'cross_examination', speaker: 'neg', cxRole: 'answerer', voteAfter: true, votingLabel: '1NC + CX' },
     { label: '2AC', phase: 'constructive', speaker: 'aff' },
-    { label: '2NC', phase: 'constructive', speaker: 'neg', voteAfter: true, votingLabel: 'Second Constructives' },
+    { label: 'CX after 2AC', phase: 'cross_examination', speaker: 'neg', cxRole: 'questioner' },
+    { label: 'CX after 2AC', phase: 'cross_examination', speaker: 'aff', cxRole: 'answerer', voteAfter: true, votingLabel: '2AC + CX' },
+    { label: '2NC', phase: 'constructive', speaker: 'neg' },
+    { label: 'CX after 2NC', phase: 'cross_examination', speaker: 'aff', cxRole: 'questioner' },
+    { label: 'CX after 2NC', phase: 'cross_examination', speaker: 'neg', cxRole: 'answerer', voteAfter: true, votingLabel: '2NC + CX' },
     { label: '1NR', phase: 'rebuttal', speaker: 'neg' },
     { label: '1AR', phase: 'rebuttal', speaker: 'aff' },
     { label: '2NR', phase: 'rebuttal', speaker: 'neg' },
-    { label: '2AR', phase: 'closing', speaker: 'aff', voteAfter: true, votingLabel: 'Rebuttals' },
+    { label: '2AR', phase: 'closing', speaker: 'aff', voteAfter: true, votingLabel: '2AR' },
   ],
 };
 
 const policyLong: PresetConfig = {
   id: 'long',
   label: 'Extended Policy',
-  shortLabel: '12 Speeches',
+  shortLabel: '8 Speeches + CX',
   description: '~15 min',
-  voteCount: 3,
+  voteCount: 5,
   messages: [
     { label: '1AC', phase: 'constructive', speaker: 'aff' },
     { label: 'CX after 1AC', phase: 'cross_examination', speaker: 'neg', cxRole: 'questioner' },
-    { label: 'CX after 1AC', phase: 'cross_examination', speaker: 'aff', cxRole: 'answerer' },
+    { label: 'CX after 1AC', phase: 'cross_examination', speaker: 'aff', cxRole: 'answerer', voteAfter: true, votingLabel: '1AC + CX' },
     { label: '1NC', phase: 'constructive', speaker: 'neg' },
     { label: 'CX after 1NC', phase: 'cross_examination', speaker: 'aff', cxRole: 'questioner' },
-    { label: 'CX after 1NC', phase: 'cross_examination', speaker: 'neg', cxRole: 'answerer', voteAfter: true, votingLabel: 'First Constructives' },
+    { label: 'CX after 1NC', phase: 'cross_examination', speaker: 'neg', cxRole: 'answerer', voteAfter: true, votingLabel: '1NC + CX' },
     { label: '2AC', phase: 'constructive', speaker: 'aff' },
     { label: 'CX after 2AC', phase: 'cross_examination', speaker: 'neg', cxRole: 'questioner' },
-    { label: 'CX after 2AC', phase: 'cross_examination', speaker: 'aff', cxRole: 'answerer' },
+    { label: 'CX after 2AC', phase: 'cross_examination', speaker: 'aff', cxRole: 'answerer', voteAfter: true, votingLabel: '2AC + CX' },
     { label: '2NC', phase: 'constructive', speaker: 'neg' },
     { label: 'CX after 2NC', phase: 'cross_examination', speaker: 'aff', cxRole: 'questioner' },
-    { label: 'CX after 2NC', phase: 'cross_examination', speaker: 'neg', cxRole: 'answerer', voteAfter: true, votingLabel: 'Second Constructives' },
+    { label: 'CX after 2NC', phase: 'cross_examination', speaker: 'neg', cxRole: 'answerer', voteAfter: true, votingLabel: '2NC + CX' },
     { label: '1NR', phase: 'rebuttal', speaker: 'neg' },
     { label: '1AR', phase: 'rebuttal', speaker: 'aff' },
     { label: '2NR', phase: 'rebuttal', speaker: 'neg' },
-    { label: '2AR', phase: 'closing', speaker: 'aff', voteAfter: true, votingLabel: 'Rebuttals' },
+    { label: '2AR', phase: 'closing', speaker: 'aff', voteAfter: true, votingLabel: '2AR' },
   ],
 };
 
@@ -340,6 +348,12 @@ export const FORMATS: Record<DebateFormatId, FormatSpec> = {
   lincoln_douglas: LINCOLN_DOUGLAS_FORMAT,
   policy: POLICY_FORMAT,
   socratic: SOCRATIC_FORMAT,
+};
+
+export const SELECTABLE_FORMATS: Record<SelectableDebateFormatId, FormatSpec> = {
+  oxford: OXFORD_FORMAT,
+  lincoln_douglas: LINCOLN_DOUGLAS_FORMAT,
+  policy: POLICY_FORMAT,
 };
 
 export function getFormat(id: DebateFormatId): FormatSpec {

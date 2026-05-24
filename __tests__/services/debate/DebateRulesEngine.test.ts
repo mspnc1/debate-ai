@@ -27,10 +27,10 @@ describe('DebateRulesEngine', () => {
     const preset = getPresetForFormat('lincoln_douglas', 'standard');
     const engine = new DebateRulesEngine(preset);
 
-    expect(engine.shouldVoteAfter(3)).toBe(true);
-    expect(engine.shouldVoteAfter(4)).toBe(false);
+    expect(engine.shouldVoteAfter(2)).toBe(true);
+    expect(engine.shouldVoteAfter(3)).toBe(false);
     expect(engine.getVoteIndex(5)).toBe(2);
-    expect(engine.getVotingLabel(2)).toBe('Cross-Examination');
+    expect(engine.getVotingLabel(2)).toBe('NC/1NR + CX');
   });
 
   it('derives round metadata and signals voting on new rounds', () => {

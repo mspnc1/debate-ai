@@ -24,7 +24,7 @@ describe('VotingService', () => {
     expect(scores.claude.isOverallWinner).toBe(true);
     expect(scores.gpt4.isOverallWinner).toBe(false);
     expect(service.getRoundVote(2)?.winnerId).toBe('gpt4');
-    expect(service.getRoundVote(2)?.votingLabel).toBe('Rebuttals');
+    expect(service.getRoundVote(2)?.votingLabel).toBe('Floor Debate');
     expect(service.getVoteRecords()).toHaveLength(3);
     expect(service.getVotesMap()).toEqual({ '1': 'claude', '2': 'gpt4', '3': 'claude', overall: 'claude' });
   });
@@ -47,19 +47,19 @@ describe('VotingService', () => {
   it('provides contextual prompts based on round and overall vote', () => {
     const service = new VotingService(participants, oxfordShort);
 
-    expect(service.getVotingPrompt(2, false, false)).toBe('Who had the stronger rebuttals?');
-    expect(service.getVotingPrompt(3, true, false)).toBe('Who had the stronger closing statements?');
+    expect(service.getVotingPrompt(2, false, false)).toBe('Who had the stronger floor debate?');
+    expect(service.getVotingPrompt(3, true, false)).toBe('Who had the stronger closing speeches?');
     expect(service.getVotingPrompt(3, true, true)).toBe('Choose the overall winner');
-    expect(service.getWinnerMessage(1, 'claude', false)).toBe('Opening Statements: Claude');
-    expect(service.getWinnerMessage(3, 'gpt4', true)).toBe('Closing Statements: GPT-4o');
+    expect(service.getWinnerMessage(1, 'claude', false)).toBe('Opening Speeches: Claude');
+    expect(service.getWinnerMessage(3, 'gpt4', true)).toBe('Closing Speeches: GPT-4o');
     expect(service.getOverallWinnerMessage('gpt4')).toBe('OVERALL WINNER: GPT-4o!\n\nGPT-4o won the debate.');
   });
 
   it('maps legacy round counts to preset ids when constructed with a format', () => {
     const service = new VotingService(participants, LINCOLN_DOUGLAS_FORMAT, 5);
 
-    expect(service.getTotalVotes()).toBe(3);
-    expect(service.getVotingPrompt(2, false, false)).toBe('Who had the stronger cross-examination?');
+    expect(service.getTotalVotes()).toBe(5);
+    expect(service.getVotingPrompt(2, false, false)).toBe('Who had the stronger nc/1nr + cx?');
   });
 
   it('provides format-specific vote criteria', () => {
@@ -86,7 +86,7 @@ describe('VotingService', () => {
     expect(new Set([openingCriterion, rebuttalCriterion, closingCriterion]).size).toBe(3);
 
     expect(service.recordRoundVote(2, 'gpt4')).toMatchObject({
-      votingLabel: 'Rebuttals',
+      votingLabel: 'Floor Debate',
       criterion: rebuttalCriterion,
     });
   });
