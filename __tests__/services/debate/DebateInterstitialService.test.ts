@@ -61,6 +61,7 @@ const createSession = (): DebateSession => {
 
 describe('DebateInterstitialService', () => {
   it('generates metadata-first MC copy with the selected BYOK provider and model', async () => {
+    const forbiddenBrand = ['Intelligence', 'Squared'].join(' ');
     const aiService = {
       sendMessage: jest.fn().mockResolvedValue({
         response: 'Welcome to the debate. Tonight, the motion is tested by two sharply opposed advocates.',
@@ -84,6 +85,15 @@ describe('DebateInterstitialService', () => {
       expect.objectContaining({ maxTokens: 140 }),
       'gpt-5'
     );
+    expect(aiService.sendMessage).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.stringContaining(forbiddenBrand),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
+    );
     expect(message).toMatchObject({
       sender: 'Debate MC',
       senderType: 'user',
@@ -97,6 +107,40 @@ describe('DebateInterstitialService', () => {
           usedTemplateFallback: false,
         },
       },
+    });
+  });
+
+  it('opens local intro templates with the Symposium AI debate arena line', () => {
+    const copy = buildDebateInterstitialTemplate({
+      session: createSession(),
+      kind: 'intro',
+    });
+
+    expect(copy).toContain('Welcome to the Symposium AI Debate Arena: where ideas converge, and understanding emerges.');
+    expect(copy).toContain('The motion is: Resolved: public transit should be free.');
+  });
+
+  it('falls back to local copy if generated copy references a third-party debate brand', async () => {
+    const forbiddenBrand = ['Intelligence', 'Squared'].join(' ');
+    const aiService = {
+      sendMessage: jest.fn().mockResolvedValue({
+        response: `${forbiddenBrand} welcomes you to this debate.`,
+        modelUsed: 'gpt-5',
+      }),
+    };
+
+    const message = await createDebateInterstitialMessage({
+      aiService: aiService as unknown as AIService,
+      session: createSession(),
+      kind: 'intro',
+      now: () => 321,
+    });
+
+    expect(message?.content).toContain('Welcome to the Symposium AI Debate Arena');
+    expect(message?.content).not.toContain(forbiddenBrand);
+    expect(message?.metadata?.debateInterstitial).toMatchObject({
+      kind: 'intro',
+      usedTemplateFallback: true,
     });
   });
 

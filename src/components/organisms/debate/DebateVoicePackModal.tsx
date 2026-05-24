@@ -2,15 +2,20 @@ import React from 'react';
 import {
   ActivityIndicator,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
+  StatusBar,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '@/components/molecules';
 import { useTheme } from '@/theme';
 import type { DebateVoicePackCandidate } from '@/services/debate';
+
+const FOOTER_PADDING = 16;
 
 interface DebateVoicePackModalProps {
   visible: boolean;
@@ -49,10 +54,12 @@ export const DebateVoicePackModal: React.FC<DebateVoicePackModalProps> = ({
   onSave,
 }) => {
   const { theme, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const selectedSet = new Set(selectedIds);
   const readyCount = candidates.filter((candidate) => candidate.status === 'ready').length;
   const selectedCount = selectedIds.length;
   const canSave = selectedCount > 0 && !isSaving;
+  const bottomSystemInset = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 0);
 
   if (!visible) return null;
 
@@ -61,9 +68,15 @@ export const DebateVoicePackModal: React.FC<DebateVoicePackModalProps> = ({
       visible={visible}
       animationType="slide"
       presentationStyle="pageSheet"
+      statusBarTranslucent={false}
+      navigationBarTranslucent={false}
       onRequestClose={onClose}
     >
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={theme.colors.background}
+        />
         <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
           <View style={styles.headerText}>
             <Typography variant="subtitle" weight="semibold">
@@ -171,7 +184,17 @@ export const DebateVoicePackModal: React.FC<DebateVoicePackModalProps> = ({
           })}
         </ScrollView>
 
-        <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
+        <View
+          testID="voice-pack-footer"
+          style={[
+            styles.footer,
+            {
+              borderTopColor: theme.colors.border,
+              backgroundColor: theme.colors.background,
+              paddingBottom: FOOTER_PADDING + bottomSystemInset,
+            },
+          ]}
+        >
           <TouchableOpacity
             style={[
               styles.saveButton,
@@ -268,7 +291,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     borderTopWidth: 1,
-    padding: 16,
+    padding: FOOTER_PADDING,
   },
   saveButton: {
     minHeight: 50,

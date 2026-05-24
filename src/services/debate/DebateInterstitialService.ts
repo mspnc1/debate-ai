@@ -8,6 +8,8 @@ const MC_PARAMETERS: Partial<ModelParameters> = {
   temperature: 0.45,
   maxTokens: 140,
 };
+const MC_INTRO_OPENING_LINE = 'Welcome to the Symposium AI Debate Arena: where ideas converge, and understanding emerges.';
+const THIRD_PARTY_DEBATE_BRAND_PATTERN = new RegExp(['Intelligence', 'Squared'].join('[-\\s]+'), 'i');
 
 const PHASE_LABELS: Record<PhaseId, string> = {
   opening: 'opening speeches',
@@ -60,11 +62,13 @@ function labelForKind(kind: DebateInterstitialKind): string {
 }
 
 function cleanGeneratedScript(text: string): string {
-  return text
+  const cleaned = text
     .replace(/^["'\s]+|["'\s]+$/g, '')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 700);
+
+  return THIRD_PARTY_DEBATE_BRAND_PATTERN.test(cleaned) ? '' : cleaned;
 }
 
 export function buildDebateInterstitialTemplate(input: Omit<CreateDebateInterstitialInput, 'aiService' | 'now'>): string {
@@ -76,7 +80,7 @@ export function buildDebateInterstitialTemplate(input: Omit<CreateDebateIntersti
 
   switch (kind) {
     case 'intro':
-      return `Welcome to the debate. The motion is: ${session.topic}. Speaking for the motion: ${proposition}. Speaking against it: ${opposition}. We begin with the opening frame.`;
+      return `${MC_INTRO_OPENING_LINE} The motion is: ${session.topic}. Speaking for the motion: ${proposition}. Speaking against it: ${opposition}. We begin with the opening frame.`;
     case 'phase_segue':
       return `That concludes ${completedPhase || 'this phase'}. Next, the debate moves to ${nextPhase || 'the next phase'}, where the clash on the motion should sharpen.`;
     case 'vote_segue':
@@ -97,7 +101,9 @@ function buildPrompt(input: Omit<CreateDebateInterstitialInput, 'aiService' | 'n
 
   return [
     'Write one concise podcast host interstitial for an AI debate.',
-    'Style: polished, neutral, Intelligence Squared-like, no markdown, no stage directions, one paragraph, 1-3 sentences.',
+    'Style: polished, neutral, no markdown, no stage directions, one paragraph, 1-3 sentences.',
+    'Do not reference third-party debate brands or programs.',
+    kind === 'intro' ? `Intro opening line to preserve: ${MC_INTRO_OPENING_LINE}` : undefined,
     `Cue: ${kind}.`,
     `Motion: ${session.topic}`,
     `Format: ${session.format.name} / ${session.preset.shortLabel}.`,
