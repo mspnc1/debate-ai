@@ -1,4 +1,5 @@
 import React from 'react';
+import { fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { DebateAISelector } from '@/components/organisms/debate/DebateAISelector';
 import type { AIConfig } from '@/types';
@@ -31,7 +32,19 @@ jest.mock('@/components/organisms/home/DynamicAISelector', () => ({
 }));
 
 jest.mock('@/components/organisms/home/ModelSelectorEnhanced', () => ({
-  ModelSelectorEnhanced: () => null,
+  ModelSelectorEnhanced: ({ aiName, onSelectModel, selectedModel }: {
+    aiName: string;
+    onSelectModel: (modelId: string) => void;
+    selectedModel: string;
+  }) => {
+    const React = require('react');
+    const { TouchableOpacity, Text } = require('react-native');
+    return React.createElement(
+      TouchableOpacity,
+      { onPress: () => onSelectModel('mock-model'), testID: `model-selector-${aiName}` },
+      React.createElement(Text, null, `Model selector for ${aiName}: ${selectedModel}`),
+    );
+  },
 }));
 
 describe('DebateAISelector', () => {
@@ -121,6 +134,30 @@ describe('DebateAISelector', () => {
 
     dynamicAISelectorProps?.onToggleAI(mockAIs[0]);
     expect(defaultProps.onSelectProvider).toHaveBeenCalledWith(mockAIs[0]);
+  });
+
+  it('opens a slot-local model selector and applies model changes', () => {
+    const onModelChange = jest.fn();
+    const slotAI = { ...mockAIs[0], id: 'openai-slot' };
+    const { getAllByText, getByText, getByTestId, queryByText } = renderWithProviders(
+      <DebateAISelector
+        {...defaultProps}
+        debaterSlots={[slotAI, mockAIs[1]]}
+        selectedAIs={[slotAI, mockAIs[1]]}
+        selectedModels={{ [slotAI.id]: 'gpt-5.5' }}
+        onModelChange={onModelChange}
+      />
+    );
+
+    expect(queryByText('Proposition 1 model')).toBeNull();
+
+    fireEvent.press(getAllByText('Model')[0]);
+
+    expect(getByText('Proposition 1 model')).toBeTruthy();
+    expect(getByText('Model selector for ChatGPT: gpt-5.5')).toBeTruthy();
+
+    fireEvent.press(getByTestId('model-selector-ChatGPT'));
+    expect(onModelChange).toHaveBeenCalledWith('openai-slot', 'mock-model');
   });
 
   it('shows the MC slot only when podcast mode is enabled', () => {

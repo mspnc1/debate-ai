@@ -18,12 +18,6 @@ import { getModelById, resolveProviderModelId } from '@/config/modelConfigs';
 type DebaterSlot = AIConfig | null;
 type PendingSelectionTarget = { kind: 'debater'; index: number } | { kind: 'mc' };
 type SlotSide = 'proposition' | 'opposition';
-type ModelEditorTarget = {
-  key: string;
-  ai: AIConfig;
-  label: string;
-  helper: string;
-};
 
 interface DebateAISelectorProps {
   selectedTopic: string;
@@ -187,31 +181,6 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
       side: getSlotSide(index),
     })).filter(slot => slot.side === side);
 
-  const activeModelTarget = useMemo<ModelEditorTarget | null>(() => {
-    if (!activeModelKey) return null;
-    if (activeModelKey === 'mc') {
-      return podcastMC
-        ? {
-          key: 'mc',
-          ai: podcastMC,
-          label: 'Podcast MC',
-          helper: 'This model writes the podcast-style intro, segues, and winner copy with your key.',
-        }
-        : null;
-    }
-
-    const slotIndex = Number(activeModelKey.replace('debater-', ''));
-    const ai = Number.isInteger(slotIndex) ? debaterSlots[slotIndex] : null;
-    return ai
-      ? {
-        key: activeModelKey,
-        ai,
-        label: getSlotLabel(slotIndex),
-        helper: 'This model applies only to this debater slot.',
-      }
-      : null;
-  }, [activeModelKey, debaterSlots, getSlotLabel, podcastMC]);
-
   const providerSubtitle = useMemo(() => {
     if (pendingSelectionTarget?.kind === 'mc') {
       return 'Choose the host model that will write podcast interstitials with your key.';
@@ -307,6 +276,63 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
     </View>
   );
 
+  const renderModelEditor = (
+    ai: AIConfig,
+    label: string,
+    helper: string,
+  ) => {
+    if (!onModelChange) return null;
+    const selectedModel = selectedModels[ai.id]
+      || selectedModels[ai.provider]
+      || ai.model;
+
+    return (
+      <Box
+        style={[
+          styles.modelEditor,
+          {
+            borderColor: theme.colors.primary[300],
+            backgroundColor: isDark ? theme.colors.overlays.soft : theme.colors.surface,
+          },
+        ]}
+      >
+        <View style={styles.modelEditorHeader}>
+          <View style={styles.modelEditorTitle}>
+            <Typography variant="body" weight="semibold" numberOfLines={1}>
+              {label} model
+            </Typography>
+            <Typography variant="caption" color="secondary" numberOfLines={2}>
+              {helper}
+            </Typography>
+          </View>
+          <TouchableOpacity
+            onPress={() => setActiveModelKey(null)}
+            accessibilityRole="button"
+            accessibilityLabel="Close model editor"
+            style={[
+              styles.closeModelButton,
+              {
+                borderColor: theme.colors.border,
+                backgroundColor: isDark ? theme.colors.overlays.medium : theme.colors.card,
+              },
+            ]}
+          >
+            <Ionicons name="close" size={16} color={theme.colors.text.secondary} />
+          </TouchableOpacity>
+        </View>
+
+        <ModelSelectorEnhanced
+          providerId={ai.provider}
+          selectedModel={selectedModel}
+          onSelectModel={(modelId) => onModelChange(ai.id, modelId)}
+          compactMode={false}
+          aiName={ai.name}
+          showPricing
+        />
+      </Box>
+    );
+  };
+
   const renderFilledSlot = (
     ai: AIConfig,
     label: string,
@@ -334,9 +360,17 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
 
         <View style={styles.slotActions}>
           {renderSlotAction('Change', 'swap-horizontal-outline', onChange, { accentColor })}
-          {renderSlotAction('Model', 'options-outline', () => toggleModelEditor(slotKey), { accentColor, selected: modelSelected })}
+          {onModelChange && renderSlotAction('Model', 'options-outline', () => toggleModelEditor(slotKey), { accentColor, selected: modelSelected })}
           {renderSlotAction('Remove', 'close-outline', onRemove, { accentColor, danger: true })}
         </View>
+
+        {modelSelected && renderModelEditor(
+          ai,
+          label,
+          slotKey === 'mc'
+            ? 'This model writes the podcast-style intro, segues, and winner copy with your key.'
+            : 'This model applies only to this debater slot.',
+        )}
       </View>
     );
   };
@@ -474,59 +508,6 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
           })}
         </View>
       </View>
-    );
-  };
-
-  const renderActiveModelEditor = () => {
-    if (!activeModelTarget || !onModelChange) return null;
-    const selectedModel = selectedModels[activeModelTarget.ai.id]
-      || selectedModels[activeModelTarget.ai.provider]
-      || activeModelTarget.ai.model;
-
-    return (
-      <Box
-        style={[
-          styles.modelEditor,
-          {
-            borderColor: theme.colors.primary[300],
-            backgroundColor: isDark ? theme.colors.overlays.soft : theme.colors.surface,
-          },
-        ]}
-      >
-        <View style={styles.modelEditorHeader}>
-          <View style={styles.modelEditorTitle}>
-            <Typography variant="body" weight="semibold" numberOfLines={1}>
-              {activeModelTarget.label} model
-            </Typography>
-            <Typography variant="caption" color="secondary" numberOfLines={2}>
-              {activeModelTarget.helper}
-            </Typography>
-          </View>
-          <TouchableOpacity
-            onPress={() => setActiveModelKey(null)}
-            accessibilityRole="button"
-            accessibilityLabel="Close model editor"
-            style={[
-              styles.closeModelButton,
-              {
-                borderColor: theme.colors.border,
-                backgroundColor: isDark ? theme.colors.overlays.medium : theme.colors.card,
-              },
-            ]}
-          >
-            <Ionicons name="close" size={16} color={theme.colors.text.secondary} />
-          </TouchableOpacity>
-        </View>
-
-        <ModelSelectorEnhanced
-          providerId={activeModelTarget.ai.provider}
-          selectedModel={selectedModel}
-          onSelectModel={(modelId) => onModelChange(activeModelTarget.ai.id, modelId)}
-          compactMode={false}
-          aiName={activeModelTarget.ai.name}
-          showPricing
-        />
-      </Box>
     );
   };
 
@@ -694,8 +675,6 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
             )}
           </View>
         </Box>
-
-        {renderActiveModelEditor()}
       </View>
 
       {liveSearchStatus && (
