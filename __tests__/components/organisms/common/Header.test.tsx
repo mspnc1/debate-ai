@@ -190,7 +190,7 @@ describe('Header', () => {
     );
 
     expect(getByTestId('ipad-gradient-header')).toHaveStyle({
-      minHeight: 132,
+      minHeight: 140,
     });
   });
 

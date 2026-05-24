@@ -171,6 +171,8 @@ export const HEADER_HEIGHT = 65;
 const PHONE_GRADIENT_HEIGHT = 132;
 const PHONE_GRADIENT_DEMO_BADGE_EXTRA_HEIGHT = 8;
 const PHONE_GRADIENT_LONG_MOTION_EXTRA_HEIGHT = 24;
+const TABLET_GRADIENT_CONTENT_MIN_HEIGHT = 140;
+const TABLET_GRADIENT_LONG_MOTION_EXTRA_HEIGHT = 16;
 const COMPACT_HEIGHT = 50;
 const TABLET_COMPACT_HEIGHT = 60;
 const GRADIENT_TOP_ROW_HEIGHT = 40;
@@ -229,7 +231,7 @@ const getGradientContentMinimumHeight = (
     bottomPadding +
     badgeReserve;
 
-  return Math.max(PHONE_GRADIENT_HEIGHT + extraHeight, contentHeight);
+  return Math.max(TABLET_GRADIENT_CONTENT_MIN_HEIGHT + extraHeight, contentHeight);
 };
 
 /**
@@ -317,8 +319,12 @@ export const Header: React.FC<HeaderProps> = ({
   const isDebateMotionHeader = /^\s*Motion:/i.test(title);
   const gradientExtraHeight = variant === 'gradient'
     ? Math.max(
-      isDebateMotionHeader && hasSubtitle ? PHONE_GRADIENT_LONG_MOTION_EXTRA_HEIGHT : 0,
-      showDemoBadge ? PHONE_GRADIENT_DEMO_BADGE_EXTRA_HEIGHT : 0
+      isDebateMotionHeader && hasSubtitle
+        ? isTablet
+          ? TABLET_GRADIENT_LONG_MOTION_EXTRA_HEIGHT
+          : PHONE_GRADIENT_LONG_MOTION_EXTRA_HEIGHT
+        : 0,
+      showDemoBadge && !isTablet ? PHONE_GRADIENT_DEMO_BADGE_EXTRA_HEIGHT : 0
     )
     : 0;
   const gradientHorizontalPadding = theme.spacing.lg;
