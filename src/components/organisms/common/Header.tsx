@@ -168,8 +168,9 @@ export interface HeaderProps {
 
 // Base header heights - will be scaled for tablets
 export const HEADER_HEIGHT = 65;
-const PHONE_GRADIENT_HEIGHT = 140;
-const PHONE_GRADIENT_LONG_MOTION_EXTRA_HEIGHT = 16;
+const PHONE_GRADIENT_HEIGHT = 132;
+const PHONE_GRADIENT_DEMO_BADGE_EXTRA_HEIGHT = 8;
+const PHONE_GRADIENT_LONG_MOTION_EXTRA_HEIGHT = 24;
 const COMPACT_HEIGHT = 50;
 const TABLET_COMPACT_HEIGHT = 60;
 const GRADIENT_TOP_ROW_HEIGHT = 40;
@@ -216,8 +217,8 @@ const getGradientContentMinimumHeight = (
   const titleBlockHeight = isDebateMotionHeader && hasSubtitle
     ? 64
     : hasSubtitle
-      ? 50
-      : 46;
+      ? 44
+      : 40;
   const subtitleBlockHeight = hasSubtitle ? 24 : 0;
   const badgeReserve = showDemoBadge ? spacingXs : 0;
   const contentHeight =
@@ -314,8 +315,11 @@ export const Header: React.FC<HeaderProps> = ({
   const { timeBasedGreeting, welcomeMessage } = useGreeting();
   const hasSubtitle = Boolean(subtitle);
   const isDebateMotionHeader = /^\s*Motion:/i.test(title);
-  const gradientExtraHeight = variant === 'gradient' && isDebateMotionHeader && hasSubtitle
-    ? PHONE_GRADIENT_LONG_MOTION_EXTRA_HEIGHT
+  const gradientExtraHeight = variant === 'gradient'
+    ? Math.max(
+      isDebateMotionHeader && hasSubtitle ? PHONE_GRADIENT_LONG_MOTION_EXTRA_HEIGHT : 0,
+      showDemoBadge ? PHONE_GRADIENT_DEMO_BADGE_EXTRA_HEIGHT : 0
+    )
     : 0;
   const gradientHorizontalPadding = theme.spacing.lg;
   const gradientContentBottomPadding = showDemoBadge

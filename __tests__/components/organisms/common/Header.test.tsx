@@ -140,7 +140,24 @@ describe('Header', () => {
     expect(getByTestId('header-right-actions')).toBeTruthy();
   });
 
-  it('keeps normal phone gradient headers compact', () => {
+  it('keeps standard phone gradient headers compact', () => {
+    const { getByTestId } = renderWithProviders(
+      <Header
+        testID="standard-gradient-header"
+        title="Time for reflection"
+        subtitle="Or avoidance. Your call."
+        variant="gradient"
+        showDate
+        rightElement={<Text testID="header-right-actions">Actions</Text>}
+      />
+    );
+
+    expect(getByTestId('standard-gradient-header')).toHaveStyle({
+      minHeight: 132,
+    });
+  });
+
+  it('reserves badge room without deepening every phone gradient header', () => {
     const { getByTestId } = renderWithProviders(
       <Header
         testID="normal-gradient-header"
@@ -173,7 +190,7 @@ describe('Header', () => {
     );
 
     expect(getByTestId('ipad-gradient-header')).toHaveStyle({
-      minHeight: 140,
+      minHeight: 132,
     });
   });
 
