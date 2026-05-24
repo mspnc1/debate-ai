@@ -25,11 +25,21 @@ export interface DebateMessageListProps {
   onRetryAudio?: (message: Message) => void;
 }
 
+type DetectedAnnouncementType =
+  | 'topic'
+  | 'exchange-winner'
+  | 'debate-complete'
+  | 'overall-winner'
+  | 'debate-start'
+  | 'audience-stance';
+
 // Helper functions moved outside component for performance
-const detectType = (msg: Message): 'topic' | 'exchange-winner' | 'debate-complete' | 'overall-winner' | 'debate-start' | null => {
+const detectType = (msg: Message): DetectedAnnouncementType | null => {
   if (msg.sender !== 'Debate Host' && msg.sender !== 'System') return null;
   
   const content = msg.content.toLowerCase();
+
+  if (content.includes('audience stance') || content.includes('audience vote')) return 'audience-stance';
   
   // Check for legacy round winner format: "Round X: Name" and map to exchange-winner
   if (/round\s+\d+:\s*\w+/i.test(msg.content)) return 'exchange-winner';
@@ -49,10 +59,14 @@ const detectType = (msg: Message): 'topic' | 'exchange-winner' | 'debate-complet
   return null;
 };
 
-const getLabel = (type: string): string => {
+const getLabel = (type: DetectedAnnouncementType, content = ''): string => {
   switch (type) {
     case 'topic': return 'DEBATE TOPIC';
     case 'debate-start': return 'DEBATE BEGINS';
+    case 'audience-stance':
+      return content.toLowerCase().includes('final audience')
+        ? 'FINAL AUDIENCE VOTE'
+        : 'OPENING AUDIENCE STANCE';
     case 'exchange-winner': return 'EXCHANGE RESULT';
     case 'debate-complete': return 'DEBATE ENDED';
     case 'overall-winner': return 'CHAMPION';
@@ -60,10 +74,11 @@ const getLabel = (type: string): string => {
   }
 };
 
-const getIcon = (type: string): string => {
+const getIcon = (type: DetectedAnnouncementType): string => {
   switch (type) {
     case 'topic': return ''; // No icon for cleaner look
     case 'debate-start': return '🥊';
+    case 'audience-stance': return '◉';
     case 'exchange-winner': return '🎯';
     case 'debate-complete': return '🏁';
     case 'overall-winner': return '🏆';
@@ -112,9 +127,9 @@ const MessageItem = memo<{
   
   if (systemType) {
     return (
-    <SystemAnnouncement
+      <SystemAnnouncement
         type={systemType}
-        label={getLabel(systemType)}
+        label={getLabel(systemType, message.content)}
         content={message.content}
         icon={getIcon(systemType)}
         animation="slide-up"
