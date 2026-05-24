@@ -22,6 +22,32 @@ export interface PromptContext {
 
 type CxRole = 'questioner' | 'answerer';
 
+const getDebateIntensityDirective = (civilityLevel?: 1 | 2 | 3 | 4 | 5): string => {
+  if (!civilityLevel) return '';
+
+  if (civilityLevel <= 2) {
+    return [
+      'Debate intensity: Friendly.',
+      'Be charitable and warm while still disagreeing clearly.',
+      'Steelman the opponent before answering, use light wit, and avoid ridicule, contempt, or gotcha framing.',
+    ].join(' ');
+  }
+
+  if (civilityLevel >= 5) {
+    return [
+      'Debate intensity: Hostile.',
+      'Attack assumptions, expose weak logic, press contradictions, and make the clash feel high-stakes.',
+      'Use sharp cross-examination pressure and direct language, but do not use insults, slurs, stereotypes, or personal attacks.',
+    ].join(' ');
+  }
+
+  return [
+    'Debate intensity: Neutral.',
+    'Be professional, concise, evidence-first, and direct.',
+    'Challenge claims without warmth-padding or theatrical aggression.',
+  ].join(' ');
+};
+
 const getFormatPhaseConstraint = (
   formatId: FormatSpec['id'] | undefined,
   phase: PhaseId,
@@ -104,9 +130,7 @@ export class DebatePromptBuilder {
     const base = guidance || '';
     const prev = previousMessage ? `${DEBATE_CONSTANTS.PROMPT_MARKERS.PREVIOUS_SPEAKER}"${previousMessage}"` : '';
     const isSocratic = format?.id === 'socratic';
-    const tone = civilityLevel
-      ? `Debate style: ${civilityLevel <= 2 ? 'friendly wit' : civilityLevel >= 5 ? 'spicy, pointed, and respectful' : 'neutral and professional'}. Avoid insults, stereotyping, or personal attacks.`
-      : '';
+    const tone = getDebateIntensityDirective(civilityLevel);
     // Generate a compact per-turn style nudge from customized personality data.
     let styleNudge = '';
     if (customizedTone || customizedDebateProfile) {

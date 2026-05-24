@@ -186,7 +186,7 @@ export interface ChatSession {
     rounds?: number;
     tempo?: 'streaming' | 'fixed';
     postStreamPauseMs?: number;
-    civility?: 1 | 2 | 3 | 4 | 5; // 1=friendly banter, 5=spicy but respectful
+    civility?: 1 | 2 | 3 | 4 | 5; // 1=friendly, 3=neutral, 5=hostile but bounded
     voteResults?: DebateVoteResult[];
     audienceResult?: AudienceDecisionResult;
     voiceConfig?: DebateVoiceConfig;

@@ -46,5 +46,7 @@ describe('DebatePersonalitySelector', () => {
   it('renders personality selector', () => {
     const { getByText } = renderWithProviders(<DebatePersonalitySelector {...defaultProps} />);
     expect(getByText('Back to AI Selection')).toBeTruthy();
+    expect(getByText('Debate Intensity')).toBeTruthy();
+    expect(getByText('Hostile')).toBeTruthy();
   });
 });

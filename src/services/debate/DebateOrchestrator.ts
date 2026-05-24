@@ -352,7 +352,7 @@ export class DebateOrchestrator {
 
     const totalRounds = preset.voteCount;
     const totalMessages = preset.messages.length;
-    const civility = (options?.civility as 1|2|3|4|5) || 1;
+    const civility = (options?.civility as 1|2|3|4|5) || 3;
     const stances: { [aiId: string]: 'pro' | 'con' } = {};
     resolvedParticipants.forEach((participant, index) => {
       const side = this.getSideForParticipantIndex(index, preset);

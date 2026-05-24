@@ -32,7 +32,9 @@ describe('DebatePromptBuilder', () => {
     expect(prompt).toContain('Use PG-13 observational satire');
     expect(prompt).toContain('mild profanity is allowed sparingly');
     expect(prompt).not.toContain('PG humor');
-    expect(prompt).toContain('Debate style: spicy, pointed, and respectful');
+    expect(prompt).toContain('Debate intensity: Hostile.');
+    expect(prompt).toContain('Attack assumptions, expose weak logic');
+    expect(prompt).toContain('do not use insults, slurs, stereotypes, or personal attacks');
     expect(prompt).toContain('Length: 126-180 words maximum');
     expect(prompt).toContain(DEBATE_CONSTANTS.PROMPT_MARKERS.PREVIOUS_SPEAKER);
   });

@@ -174,7 +174,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   const [formatId, setFormatId] = useState<DebateFormatId>('oxford');
   const [exchanges, setExchanges] = useState<number>(3);
   // Removed: category/preset inline picker (using DebateTopicSelector instead)
-  const [civility, setCivility] = useState<1|2|3|4|5>(1);
+  const [civility, setCivility] = useState<1|2|3|4|5>(3);
   const [formatModalVisible, setFormatModalVisible] = useState(false);
   // Removed category UI for now to prioritize proven UX
   const [recordPickerVisible, setRecordPickerVisible] = useState(false);
@@ -353,7 +353,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
       setSelectedModels(selectedModelsFromStore || {});
       setFormatId('oxford');
       setExchanges(3);
-      setCivility(1);
+      setCivility(3);
       setVoiceDebateEnabled(false);
       setDebateVoiceSelections({});
       dispatch(clearPreservedTopic());

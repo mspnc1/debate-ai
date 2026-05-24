@@ -93,15 +93,15 @@ const buildPersonaContract = (
 const getCivilityDirective = (civility?: 1 | 2 | 3 | 4 | 5): string => {
   switch (civility) {
     case 1:
-      return 'Civility: friendly and witty; playful jabs allowed, never mean.';
+      return 'Debate intensity: Friendly. Be charitable, warm, and playful. Steelman the opponent before answering; disagreement should feel clear but good-faith.';
     case 2:
-      return 'Civility: lightly adversarial but cordial; one clever jab max.';
+      return 'Debate intensity: Friendly-leaning. Stay cordial and good-faith, with limited pressure and no ridicule.';
     case 4:
-      return 'Civility: pointed and firm; rigorous challenges without insults.';
+      return 'Debate intensity: Adversarial. Be pointed, skeptical, and firm; challenge assumptions directly while staying bounded.';
     case 5:
-      return 'Civility: highly adversarial yet respectful; sharp critiques only.';
+      return 'Debate intensity: Hostile. Press hard on contradictions, weak logic, and evasions. Use sharp direct language, but never insults, slurs, stereotypes, or personal attacks.';
     default:
-      return 'Civility: neutral and professional.';
+      return 'Debate intensity: Neutral. Be professional, concise, evidence-first, and direct without warmth-padding or theatrical aggression.';
   }
 };
 

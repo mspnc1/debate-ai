@@ -189,7 +189,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         {
           formatId: formatId || 'oxford',
           rounds: (exchanges || rounds || 3),
-          civility: (civility as 1|2|3|4|5) || 1,
+          civility: (civility as 1|2|3|4|5) || 3,
           mergedPersonalities,
           voiceConfig,
         }

@@ -92,16 +92,16 @@ export const DebatePersonalitySelector: React.FC<DebatePersonalitySelectorProps>
       
       <SectionHeader title="Set the Tone" subtitle="Choose personality styles for the debate" icon="🎭" />
       
-      {/* Debate style selector under headline */}
+      {/* Debate intensity selector under headline */}
       <View style={{ marginBottom: theme.spacing.lg, padding: theme.spacing.md, backgroundColor: theme.colors.card, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border }}>
-        <Typography variant="subtitle" weight="semibold">Debate Style</Typography>
+        <Typography variant="subtitle" weight="semibold">Debate Intensity</Typography>
         <View style={{ flexDirection: 'row', gap: 8, marginTop: theme.spacing.sm }}>
           <Button title="Friendly" onPress={() => onChangeCivility(1)} variant={civility === 1 ? 'primary' : 'secondary'} size="small" />
           <Button title="Neutral" onPress={() => onChangeCivility(3)} variant={civility === 3 ? 'primary' : 'secondary'} size="small" />
-          <Button title="Spicy" onPress={() => onChangeCivility(5)} variant={civility === 5 ? 'primary' : 'secondary'} size="small" />
+          <Button title="Hostile" onPress={() => onChangeCivility(5)} variant={civility === 5 ? 'primary' : 'secondary'} size="small" />
         </View>
         <Typography variant="caption" color="secondary" style={{ marginTop: 8 }}>
-          Controls how adversarial the debaters sound; spicy stays respectful.
+          Controls how confrontational the arguments are; hostile still forbids insults and personal attacks.
         </Typography>
       </View>
       
