@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, ScrollView } from 'react-native';
 import { act, fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
 import {
@@ -449,6 +449,37 @@ describe('DebateSetupScreen', () => {
     const providerToggle = renderResult.getAllByText('Streaming On')[0];
     fireEvent.press(providerToggle);
     expect(mockDispatch).toHaveBeenCalledWith(setProviderStreamingPreference({ providerId: 'claude', enabled: false }));
+  });
+
+  it('resets scroll position when moving from debaters to personality setup', async () => {
+    const scrollToSpy = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {});
+    const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
+
+    act(() => {
+      topicSelectorProps.onTopicSelect('Climate Action');
+    });
+    await flush();
+    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
+    await flush();
+
+    const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
+    const openaiConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'openai');
+    act(() => {
+      aiSelectorProps.onToggleAI(claudeConfig);
+      aiSelectorProps.onToggleAI(openaiConfig);
+    });
+    await flush();
+
+    await act(async () => {
+      await aiSelectorProps.onNext();
+    });
+    await flush();
+
+    expect(stepIndicatorProps.currentStep).toBe('personality');
+    expect(personalitySelectorProps).toBeDefined();
+    expect(scrollToSpy).toHaveBeenCalledWith({ y: 0, animated: false });
+
+    scrollToSpy.mockRestore();
   });
 
   it('opens demo debate picker and navigates with selected sample', async () => {

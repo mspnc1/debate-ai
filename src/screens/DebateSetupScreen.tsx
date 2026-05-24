@@ -340,6 +340,10 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     dispatch(clearPreservedTopic());
   };
 
+  const scrollSetupToTop = useCallback((animated = false) => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated });
+  }, []);
+
   useEffect(() => {
     const params = routeParams;
     if (!params) return;
@@ -357,7 +361,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
       setVoiceDebateEnabled(false);
       setDebateVoiceSelections({});
       dispatch(clearPreservedTopic());
-      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+      scrollSetupToTop(false);
       return;
     }
 
@@ -381,13 +385,14 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
       }
 
       setCurrentStep('topic');
-      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+      scrollSetupToTop(false);
     }
   }, [
     configuredAIs,
     dispatch,
     routeParams,
     selectedModelsFromStore,
+    scrollSetupToTop,
   ]);
   
   const handleToggleAI = (ai: AIConfig) => {
@@ -569,6 +574,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     }
     // Premium / live flow continues to personality configuration
     setCurrentStep('personality');
+    scrollSetupToTop(false);
   };
   
   return (
