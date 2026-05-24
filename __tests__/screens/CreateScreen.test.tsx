@@ -578,9 +578,21 @@ describe('CreateScreen', () => {
       const player = mockedUseAudioPlayer.mock.results[0].value as MockAudioPlayer;
 
       expect(player.play).toHaveBeenCalledTimes(1);
+
+      fireEvent.press(getByLabelText('Next voice clip'));
+
+      await waitFor(() => {
+        expect(getByText('Clip 2 of 2 • Gemini')).toBeTruthy();
+        const nextPlayer = mockedUseAudioPlayer.mock.results[
+          mockedUseAudioPlayer.mock.results.length - 1
+        ].value as MockAudioPlayer;
+        expect(nextPlayer).not.toBe(player);
+        expect(nextPlayer.play).toHaveBeenCalledTimes(1);
+        expect(player.pause).not.toHaveBeenCalled();
+      });
     });
 
-    it('does not loop when a ready voice pack clip player re-renders while paused', () => {
+    it('does not pause voice pack players during paused re-renders or unmount', () => {
       let audioPlayerId = 0;
       let forceRenderOnPause = true;
       const pauseCalls = jest.fn();
@@ -661,6 +673,11 @@ describe('CreateScreen', () => {
         unmountScreen = unmount;
 
         expect(getByText('Clip 1 of 1 • ChatGPT')).toBeTruthy();
+        expect(pauseCalls).not.toHaveBeenCalled();
+
+        forceRenderOnPause = false;
+        unmountScreen();
+        unmountScreen = undefined;
         expect(pauseCalls).not.toHaveBeenCalled();
       } finally {
         forceRenderOnPause = false;
