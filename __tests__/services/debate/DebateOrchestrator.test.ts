@@ -330,6 +330,19 @@ describe('DebateOrchestrator', () => {
     ]);
     expect(aiService.sendMessage.mock.calls[2][1]).toContain('Turn: Second Proposition Speech');
     expect(aiService.sendMessage.mock.calls[3][1]).toContain('Turn: Second Opposition Speech');
+    expect(aiService.sendMessage.mock.calls[2][1]).toContain('Role brief: You are the Second Proposition speaker for Proposition (FOR).');
+    expect(aiService.sendMessage.mock.calls[2][1]).toContain('Teammate: Claude.');
+    expect(aiService.sendMessage.mock.calls[2][1]).toContain('Opposing team: GPT-4, Grok.');
+    expect(aiService.sendMessage.mock.calls[2][1]).toContain('Audience context: the user casts an opening stance');
+    expect(adapter.setTemporaryPersonality).toHaveBeenCalledWith(expect.objectContaining({
+      systemPrompt: expect.stringContaining('Your team role: Second Proposition speaker'),
+    }));
+    expect(adapter.setTemporaryPersonality).toHaveBeenCalledWith(expect.objectContaining({
+      systemPrompt: expect.stringContaining('Teammate on Proposition (FOR): Claude'),
+    }));
+    expect(adapter.setTemporaryPersonality).toHaveBeenCalledWith(expect.objectContaining({
+      systemPrompt: expect.stringContaining('Opposing team: GPT-4, Grok'),
+    }));
 
     jest.clearAllTimers();
     jest.useRealTimers();

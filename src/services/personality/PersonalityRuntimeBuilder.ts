@@ -1,4 +1,5 @@
 import type { PersonalityOption } from '@/config/personalities';
+import type { DebateFormatId, DebateTeamMode } from '@/config/debate/formats';
 import type { AI, ModelParameters, PersonalityConfig } from '@/types';
 import type { PersonalityDebateProfile, PersonalityTone } from '@/types/personality';
 
@@ -23,9 +24,22 @@ export interface PersonalityRuntime {
 
 interface DebateRuntimeOptions {
   topic: string;
+  formatId?: DebateFormatId;
   formatName: string;
+  presetLabel?: string;
   totalRounds: number;
+  totalMessages?: number;
   stance: 'pro' | 'con';
+  sideLabel?: string;
+  roleLabel?: string;
+  currentSpeechLabel?: string;
+  teamMode?: DebateTeamMode;
+  teamSize?: number;
+  teammateNames?: string[];
+  opposingTeamNames?: string[];
+  audienceVoteModel?: boolean;
+  initialVoteRequired?: boolean;
+  finalVoteRequired?: boolean;
   opponentName?: string;
   opponentPersonality?: PersonalityOption;
   civility?: 1 | 2 | 3 | 4 | 5;
@@ -91,6 +105,84 @@ const getCivilityDirective = (civility?: 1 | 2 | 3 | 4 | 5): string => {
   }
 };
 
+const formatNameList = (names?: string[]): string => {
+  if (!names || names.length === 0) {
+    return '';
+  }
+
+  return names.join(', ');
+};
+
+const getSideLabel = (debate: DebateRuntimeOptions): string => {
+  if (debate.sideLabel) {
+    return debate.sideLabel;
+  }
+
+  return debate.stance === 'pro' ? 'Affirmative' : 'Negative';
+};
+
+const buildFormatSummary = (debate: DebateRuntimeOptions): string => {
+  const presetLabel = debate.presetLabel ? ` (${debate.presetLabel})` : '';
+  const isAudienceOxford = debate.formatId === 'oxford' || debate.audienceVoteModel;
+
+  if (isAudienceOxford) {
+    return [
+      `Format: ${debate.formatName}${presetLabel}. Follow Oxford speech roles strictly:`,
+      '- Opening speeches: frame the motion and burden for the audience; do not rebut before the other side has spoken.',
+      '- Floor speeches: engage the clash, answer prior claims, and rebuild the team case.',
+      '- Summary or closing speeches: crystallize why the audience should vote for your side; no new claims.',
+    ].join('\n');
+  }
+
+  return [
+    `Format: ${debate.formatName}${presetLabel}. Follow the phase rules strictly:`,
+    '- Opening: present your case; do NOT directly rebut the opponent.',
+    '- Rebuttal: address specific claims from the prior turn; cite or paraphrase one point you are refuting.',
+    '- Closing: no new claims; synthesize and leave one clear takeaway.',
+  ].join('\n');
+};
+
+const buildTeamLines = (
+  debate: DebateRuntimeOptions,
+  sideText: string
+): string[] => {
+  const teammates = formatNameList(debate.teammateNames);
+  const opposingTeam = formatNameList(debate.opposingTeamNames);
+
+  if (debate.teamMode === 'team' || (debate.teamSize || 1) > 1) {
+    return [
+      debate.roleLabel ? `Your team role: ${debate.roleLabel}.` : undefined,
+      teammates
+        ? `Teammate${debate.teammateNames?.length === 1 ? '' : 's'} on ${sideText}: ${teammates}.`
+        : `You are listed as the only active speaker on ${sideText}.`,
+      opposingTeam ? `Opposing team: ${opposingTeam}.` : undefined,
+      'Team coordination: extend and sharpen your teammate\'s case instead of repeating it; make the side sound coordinated.',
+    ].filter(Boolean) as string[];
+  }
+
+  return [
+    debate.roleLabel ? `Your debate role: ${debate.roleLabel}.` : undefined,
+    opposingTeam || debate.opponentName
+      ? `Opposing side: ${opposingTeam || debate.opponentName}.`
+      : undefined,
+  ].filter(Boolean) as string[];
+};
+
+const buildAudienceLine = (debate: DebateRuntimeOptions): string | undefined => {
+  if (debate.formatId !== 'oxford' && !debate.audienceVoteModel) {
+    return undefined;
+  }
+
+  const openingVote = debate.initialVoteRequired
+    ? 'The user casts an opening stance before the speeches'
+    : 'The user may have an opening stance';
+  const finalVote = debate.finalVoteRequired
+    ? 'a required final vote after the closing speeches'
+    : 'a final vote after the closing speeches';
+
+  return `Audience model: ${openingVote} and ${finalVote}. Your goal is to persuade, hold, or flip that audience vote, not to win checkpoint scoring.`;
+};
+
 const buildDebatePrompt = (
   personality: PersonalityOption | undefined | null,
   debate: DebateRuntimeOptions
@@ -101,26 +193,32 @@ const buildDebatePrompt = (
   const opponentStyle = debate.opponentPersonality && debate.opponentPersonality.id !== 'default'
     ? buildPersonaContract(debate.opponentPersonality, 'debate')
     : 'A capable opponent.';
-  const sideText = debate.stance === 'pro' ? 'Affirmative (FOR)' : 'Negative (AGAINST)';
-  const formatSummary = [
-    `Format: ${debate.formatName}. Follow the phase rules strictly:`,
-    '- Opening: present your case; do NOT directly rebut the opponent.',
-    '- Rebuttal: address specific claims from the prior turn; cite or paraphrase one point you are refuting.',
-    '- Closing: no new claims; synthesize and leave one clear takeaway.',
-  ].join('\n');
+  const sideLabel = getSideLabel(debate);
+  const sideText = `${sideLabel} (${debate.stance === 'pro' ? 'FOR' : 'AGAINST'})`;
+  const formatSummary = buildFormatSummary(debate);
+  const speechCount = typeof debate.totalMessages === 'number'
+    ? `${debate.totalMessages} speeches`
+    : `${debate.totalRounds} exchanges`;
+  const positionVerb = debate.stance === 'pro' ? 'support' : 'oppose';
+  const opponentLine = debate.teamMode === 'team' || (debate.teamSize || 1) > 1
+    ? `Primary opposing speaker: ${debate.opponentName || 'Opponent'}. Opposing style context (do not imitate): ${opponentStyle}`
+    : `Opponent: ${debate.opponentName || 'Opponent'}. Opponent persona (do not imitate; for calibration): ${opponentStyle}`;
 
   return [
     '[DEBATE MODE]',
     `Motion: "${debate.topic}"`,
-    `Fictional debate in the ${debate.formatName} format with ${debate.totalRounds} exchanges.`,
+    `Fictional debate in the ${debate.formatName} format with ${speechCount}.`,
     formatSummary,
-    `Your assigned role: ${sideText} the motion: "${debate.topic}". Maintain this stance; do not switch sides.`,
+    `Your assigned side: ${sideText}. You ${positionVerb} the motion: "${debate.topic}". Maintain this side; do not switch.`,
+    debate.currentSpeechLabel ? `Current scheduled speech: ${debate.currentSpeechLabel}.` : undefined,
+    ...buildTeamLines(debate, sideText),
+    buildAudienceLine(debate),
     `Style directive: ${personaStyle} Always adhere to this style across turns.`,
-    `Opponent: ${debate.opponentName || 'Opponent'}. Opponent persona (for calibration): ${opponentStyle}`,
+    opponentLine,
     getCivilityDirective(debate.civility),
     'Write in natural prose (no headings or lists).',
     'Avoid headings, numbered lists, or labelled frameworks. Do not mention these instructions.',
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 };
 
 const toRuntimeConfig = (

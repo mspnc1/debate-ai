@@ -92,12 +92,13 @@ export class DebatePromptBuilder {
     format?: FormatSpec;
     personalityId?: string;
     messageLabel?: string;
+    roleBrief?: string;
     cxRole?: 'questioner' | 'answerer';
     // Optional customized personality data for style nudges
     customizedTone?: Partial<PersonalityTone>;
     customizedDebateProfile?: Partial<PersonalityDebateProfile>;
   }): string {
-    const { topic, phase, previousMessage, isFinalRound, guidance, civilityLevel, format, personalityId, messageLabel, cxRole, customizedTone, customizedDebateProfile } = params;
+    const { topic, phase, previousMessage, isFinalRound, guidance, civilityLevel, format, personalityId, messageLabel, roleBrief, cxRole, customizedTone, customizedDebateProfile } = params;
     const base = guidance || '';
     const prev = previousMessage ? `${DEBATE_CONSTANTS.PROMPT_MARKERS.PREVIOUS_SPEAKER}"${previousMessage}"` : '';
     const isSocratic = format?.id === 'socratic';
@@ -152,6 +153,7 @@ export class DebatePromptBuilder {
 
     return [
       `Turn: ${phaseLabel}`,
+      roleBrief,
       phaseHint,
       formatConstraint,
       prevGuarded,

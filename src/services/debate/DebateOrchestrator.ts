@@ -78,6 +78,16 @@ export interface DebateError {
   retryable: boolean;
 }
 
+interface DebateRoleContext {
+  sideLabel: string;
+  sidePosition: 'FOR' | 'AGAINST';
+  roleLabel: string;
+  teammateNames: string[];
+  opposingTeamNames: string[];
+  primaryOpponent?: AI;
+  roleBrief: string;
+}
+
 export interface DebateEvent {
   type:
     | 'message_added'
@@ -171,6 +181,82 @@ export class DebateOrchestrator {
     const currentSide = this.getSideForParticipantIndex(aiIndex, this.session.preset);
     const opposingSide: DebateSideId = currentSide === 'aff' ? 'neg' : 'aff';
     return this.getParticipantsForSide(opposingSide)[0];
+  }
+
+  private getSideLabel(side: DebateSideId): string {
+    if (this.session?.format.id === 'oxford') {
+      return side === 'aff' ? 'Proposition' : 'Opposition';
+    }
+
+    return side === 'aff' ? 'Affirmative' : 'Negative';
+  }
+
+  private getOrdinalLabel(value: number): string {
+    const labels = ['First', 'Second', 'Third', 'Fourth'];
+    return labels[value - 1] || `Speaker ${value}`;
+  }
+
+  private buildRoleContext(aiIndex: number, messageSpec: MessageSpec): DebateRoleContext {
+    if (!this.session) {
+      const fallbackSide = messageSpec.speaker;
+      const fallbackSideLabel = fallbackSide === 'aff' ? 'Affirmative' : 'Negative';
+      const fallbackPosition = fallbackSide === 'aff' ? 'FOR' : 'AGAINST';
+      return {
+        sideLabel: fallbackSideLabel,
+        sidePosition: fallbackPosition,
+        roleLabel: `${fallbackSideLabel} speaker`,
+        teammateNames: [],
+        opposingTeamNames: [],
+        roleBrief: `Role brief: You are the ${fallbackSideLabel} speaker (${fallbackPosition}).`,
+      };
+    }
+
+    const { participants, preset } = this.session;
+    const currentAI = participants[aiIndex];
+    const side = this.getSideForParticipantIndex(aiIndex, preset);
+    const opposingSide: DebateSideId = side === 'aff' ? 'neg' : 'aff';
+    const sideLabel = this.getSideLabel(side);
+    const opposingSideLabel = this.getSideLabel(opposingSide);
+    const sidePosition: 'FOR' | 'AGAINST' = side === 'aff' ? 'FOR' : 'AGAINST';
+    const teamSize = preset.teamSize || 1;
+    const speakerNumber = (messageSpec.speakerSlot ?? 0) + 1;
+    const roleLabel = teamSize > 1
+      ? `${this.getOrdinalLabel(speakerNumber)} ${sideLabel} speaker`
+      : `${sideLabel} speaker`;
+    const teammateNames = this.getParticipantsForSide(side)
+      .filter(participant => participant.id !== currentAI?.id)
+      .map(participant => participant.name);
+    const opposingTeam = this.getParticipantsForSide(opposingSide);
+    const opposingTeamNames = opposingTeam.map(participant => participant.name);
+    const primaryOpponent = opposingTeam[0];
+    const isAudienceVoteModel = preset.voteModel === 'audience_stance';
+
+    const roleLines = [
+      `Role brief: You are the ${roleLabel} for ${sideLabel} (${sidePosition}).`,
+      teamSize > 1 && teammateNames.length > 0
+        ? `Teammate${teammateNames.length === 1 ? '' : 's'}: ${teammateNames.join(', ')}.`
+        : undefined,
+      opposingTeamNames.length > 0
+        ? `${teamSize > 1 ? 'Opposing team' : `Opposing ${opposingSideLabel} side`}: ${opposingTeamNames.join(', ')}.`
+        : undefined,
+      teamSize > 1
+        ? 'Coordinate with your teammate by extending the shared team case instead of repeating it.'
+        : undefined,
+      isAudienceVoteModel
+        ? 'Audience context: the user casts an opening stance before the first speech and a final vote after the closing speeches.'
+        : undefined,
+      `Current speech: ${messageSpec.label}.`,
+    ].filter(Boolean);
+
+    return {
+      sideLabel,
+      sidePosition,
+      roleLabel,
+      teammateNames,
+      opposingTeamNames,
+      primaryOpponent,
+      roleBrief: roleLines.join('\n'),
+    };
   }
 
   private buildAIResponseMetadata(
@@ -419,9 +505,10 @@ export class DebateOrchestrator {
 
     try {
       const stances = this.session.stances;
-      // Build per‑turn prompt; include Role Brief only the first time this AI speaks
+      // Build per-turn prompt with the orchestrator-resolved speech role.
       const personalityId = personalities[currentAI.id] || 'default';
       const previousMessage = this.promptBuilder.extractPreviousMessage(existingMessages, currentAI);
+      const roleContext = this.buildRoleContext(aiIndex, messageSpec);
       const minimal = this.promptBuilder.buildTurnPrompt({
         topic,
         phase,
@@ -432,6 +519,7 @@ export class DebateOrchestrator {
         civilityLevel: civility,
         personalityId,
         messageLabel: messageSpec.label,
+        roleBrief: roleContext.roleBrief,
         cxRole: messageSpec.cxRole,
       });
       const contextualPrompt = minimal;
@@ -467,7 +555,7 @@ export class DebateOrchestrator {
 
       const stance = stances[currentAI.id] || (aiIndex === 0 ? 'pro' : 'con');
       const persona = this.session?.mergedPersonalities?.[personalityId] || getPersonality(personalityId);
-      const opponent = this.getOpposingParticipant(aiIndex) || participants.find((_, idx) => idx !== aiIndex) || participants[(aiIndex + 1) % participants.length];
+      const opponent = roleContext.primaryOpponent || this.getOpposingParticipant(aiIndex) || participants.find((_, idx) => idx !== aiIndex) || participants[(aiIndex + 1) % participants.length];
       const opponentPersonalityId = personalities[opponent?.id || ''] || 'default';
       const opponentPersona = this.session?.mergedPersonalities?.[opponentPersonalityId] || getPersonality(opponentPersonalityId);
       const runtime = buildPersonalityRuntime({
@@ -476,9 +564,22 @@ export class DebateOrchestrator {
         ai: currentAI,
         debate: {
           topic,
+          formatId: format.id,
           formatName: format.name,
+          presetLabel: preset.label,
           totalRounds,
+          totalMessages: this.session.totalMessages,
           stance,
+          sideLabel: roleContext.sideLabel,
+          roleLabel: roleContext.roleLabel,
+          currentSpeechLabel: messageSpec.label,
+          teamMode: preset.teamMode,
+          teamSize: preset.teamSize,
+          teammateNames: roleContext.teammateNames,
+          opposingTeamNames: roleContext.opposingTeamNames,
+          audienceVoteModel: preset.voteModel === 'audience_stance',
+          initialVoteRequired: preset.initialVoteRequired,
+          finalVoteRequired: preset.finalVoteRequired,
           opponentName: opponent?.name || 'Opponent',
           opponentPersonality: opponentPersona,
           civility,

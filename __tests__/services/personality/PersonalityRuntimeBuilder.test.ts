@@ -92,6 +92,42 @@ describe('PersonalityRuntimeBuilder', () => {
     }));
   });
 
+  it('builds Oxford team-aware debate prompts', () => {
+    const runtime = buildPersonalityRuntime({
+      mode: 'debate',
+      personality: getPersonality('default'),
+      ai,
+      debate: {
+        topic: 'Privacy is dead in the digital age.',
+        formatId: 'oxford',
+        formatName: 'Oxford',
+        presetLabel: 'Full',
+        totalRounds: 2,
+        totalMessages: 6,
+        stance: 'pro',
+        sideLabel: 'Proposition',
+        roleLabel: 'Second Proposition speaker',
+        currentSpeechLabel: 'Second Proposition Speech',
+        teamMode: 'team',
+        teamSize: 2,
+        teammateNames: ['ChatGPT'],
+        opposingTeamNames: ['Gemini', 'Grok'],
+        audienceVoteModel: true,
+        initialVoteRequired: true,
+        finalVoteRequired: true,
+      },
+    });
+
+    expect(runtime.personalityConfig?.systemPrompt).toContain('Oxford (Full)');
+    expect(runtime.personalityConfig?.systemPrompt).toContain('6 speeches');
+    expect(runtime.personalityConfig?.systemPrompt).toContain('Proposition (FOR)');
+    expect(runtime.personalityConfig?.systemPrompt).toContain('Your team role: Second Proposition speaker');
+    expect(runtime.personalityConfig?.systemPrompt).toContain('Teammate on Proposition (FOR): ChatGPT');
+    expect(runtime.personalityConfig?.systemPrompt).toContain('Opposing team: Gemini, Grok');
+    expect(runtime.personalityConfig?.systemPrompt).toContain('opening stance before the speeches');
+    expect(runtime.personalityConfig?.systemPrompt).toContain('final vote after the closing speeches');
+  });
+
   it('lets expert parameters override personality model parameters', () => {
     expect(mergeRuntimeModelParameters(
       true,

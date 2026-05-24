@@ -35,6 +35,27 @@ describe('DebatePromptBuilder', () => {
     expect(prompt).toContain(DEBATE_CONSTANTS.PROMPT_MARKERS.PREVIOUS_SPEAKER);
   });
 
+  it('includes orchestrator-provided role briefs in turn prompts', () => {
+    const prompt = builder.buildTurnPrompt({
+      topic: 'Privacy is dead in the digital age.',
+      phase: 'rebuttal',
+      format: OXFORD_FORMAT,
+      messageLabel: 'Second Proposition Speech',
+      roleBrief: [
+        'Role brief: You are the Second Proposition speaker for Proposition (FOR).',
+        'Teammate: Claude.',
+        'Opposing team: GPT-4o, Gemini.',
+        'Coordinate with your teammate by extending the shared team case instead of repeating it.',
+      ].join('\n'),
+    });
+
+    expect(prompt).toContain('Turn: Second Proposition Speech');
+    expect(prompt).toContain('Second Proposition speaker');
+    expect(prompt).toContain('Teammate: Claude');
+    expect(prompt).toContain('Opposing team: GPT-4o, Gemini');
+    expect(prompt).toContain('Oxford floor debate');
+  });
+
   it('adds Lincoln-Douglas value and criterion constraints', () => {
     const prompt = builder.buildTurnPrompt({
       topic: 'Civil disobedience is morally justified.',
