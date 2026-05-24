@@ -61,9 +61,11 @@ const PRESET_BUTTON_LABELS: Record<string, string> = {
 };
 
 const getPresetVoteLabels = (preset: PresetConfig): string[] => (
-  preset.messages
-    .filter((message) => message.voteAfter)
-    .map((message) => message.votingLabel || message.label)
+  preset.voteModel === 'audience_stance'
+    ? ['Opening stance', 'Final vote']
+    : preset.messages
+      .filter((message) => message.voteAfter)
+      .map((message) => message.votingLabel || message.label)
 );
 
 const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route }) => {
@@ -159,13 +161,19 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     preset: getPresetForFormat(formatId, getPresetIdForRounds(rounds)),
   })), [formatId]);
   const selectedPreset = getPresetForFormat(formatId, getPresetIdForRounds(exchanges));
+  const requiredDebaterCount = (selectedPreset.teamSize || 1) * 2;
   const presetSummary = useMemo(() => (
-    `${selectedPreset.messages.length} turns · ${selectedPreset.voteCount} votes · ${selectedPreset.description}`
+    selectedPreset.voteModel === 'audience_stance'
+      ? `${selectedPreset.messages.length} speeches · opening + final audience vote · ${selectedPreset.description}`
+      : `${selectedPreset.messages.length} turns · ${selectedPreset.voteCount} votes · ${selectedPreset.description}`
   ), [selectedPreset]);
   const presetVoteLabels = useMemo(() => getPresetVoteLabels(selectedPreset), [selectedPreset]);
   
-  // Debate mode always requires exactly 2 AIs
-  const maxAIs = 2;
+  const maxAIs = requiredDebaterCount;
+
+  useEffect(() => {
+    setSelectedAIs((current) => current.slice(0, maxAIs));
+  }, [maxAIs]);
 
   // Save topic when navigating away
   useEffect(() => {
@@ -283,8 +291,8 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   }));
 
   const handleStartDebate = () => {
-    if (selectedAIs.length < 2) {
-      Alert.alert('Select More AIs', 'You need at least 2 AIs for a debate!');
+    if (selectedAIs.length < requiredDebaterCount) {
+      Alert.alert('Select More AIs', `${selectedPreset.shortLabel} requires ${requiredDebaterCount} debaters.`);
       return;
     }
 
@@ -348,8 +356,8 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   };
 
   const handleAINext = () => {
-    if (selectedAIs.length < 2) {
-      Alert.alert('Select 2 AIs', 'Please select exactly 2 AIs for the debate!');
+    if (selectedAIs.length < requiredDebaterCount) {
+      Alert.alert(`Select ${requiredDebaterCount} AIs`, `Please select ${requiredDebaterCount} debaters for ${selectedPreset.shortLabel}.`);
       return;
     }
     if (access.isDemo) {
@@ -508,7 +516,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
                   {presetOptions.map(({ rounds: n, preset }) => (
                     <Button
                       key={n}
-                      title={PRESET_BUTTON_LABELS[preset.id] || preset.label}
+                      title={formatId === 'oxford' ? preset.label : PRESET_BUTTON_LABELS[preset.id] || preset.label}
                       onPress={() => setExchanges(n)}
                       variant={n === exchanges ? 'primary' : 'tonal'}
                       size="small"
@@ -521,7 +529,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
                 </Typography>
                 <Box style={{ marginTop: 8 }}>
                   <Typography variant="caption" color="secondary" style={{ marginBottom: 6 }}>
-                    Vote points
+                    {selectedPreset.voteModel === 'audience_stance' ? 'Audience votes' : 'Vote points'}
                   </Typography>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     <Box style={{ flexDirection: 'row', gap: 6, paddingRight: theme.spacing.sm }}>

@@ -40,14 +40,20 @@ describe('debate format definitions', () => {
           }
         });
 
-        expect(preset.voteCount).toBe(
-          preset.messages.filter((message) => message.voteAfter).length
-        );
+        if (preset.voteModel === 'audience_stance') {
+          expect(preset.voteCount).toBe(2);
+          expect(preset.initialVoteRequired).toBe(true);
+          expect(preset.finalVoteRequired).toBe(true);
+        } else {
+          expect(preset.voteCount).toBe(
+            preset.messages.filter((message) => message.voteAfter).length
+          );
+        }
       });
     });
   });
 
-  it('keeps Oxford short as opening speeches, floor debate, and closing speeches', () => {
+  it('keeps Oxford classic as audience-voted opening, floor, and closing speeches', () => {
     const preset = getPresetForFormat('oxford', 'short');
 
     expect(preset.messages.map((message) => `${message.speaker}:${message.phase}:${message.label}`)).toEqual([
@@ -58,11 +64,23 @@ describe('debate format definitions', () => {
       'aff:closing:Proposition Closing Speech',
       'neg:closing:Opposition Closing Speech',
     ]);
-    expect(preset.messages.filter((message) => message.voteAfter).map((message) => message.votingLabel)).toEqual([
-      'Opening Speeches',
-      'Floor Debate',
-      'Closing Speeches',
-    ]);
+    expect(preset.voteModel).toBe('audience_stance');
+    expect(preset.teamMode).toBe('duel');
+    expect(preset.teamSize).toBe(1);
+    expect(preset.messages.some((message) => message.voteAfter)).toBe(false);
+  });
+
+  it('defines Oxford full and extended as 2v2 team formats', () => {
+    const full = getPresetForFormat('oxford', 'standard');
+    const extended = getPresetForFormat('oxford', 'long');
+
+    [full, extended].forEach((preset) => {
+      expect(preset.voteModel).toBe('audience_stance');
+      expect(preset.teamMode).toBe('team');
+      expect(preset.teamSize).toBe(2);
+      expect(preset.messages.map((message) => message.speakerSlot)).toContain(1);
+      expect(preset.messages.some((message) => message.voteAfter)).toBe(false);
+    });
   });
 
   it('keeps Lincoln-Douglas standard cross-examination roles explicit', () => {

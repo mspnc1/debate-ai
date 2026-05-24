@@ -112,7 +112,7 @@ describe('DebateOrchestrator', () => {
     });
 
     const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
-    const session = await orchestrator.initializeDebate('AI ethics', participants, {}, { rounds: 1 });
+    const session = await orchestrator.initializeDebate('AI ethics', participants, {}, { formatId: 'lincoln_douglas', rounds: 3 });
     expect(session.status).toBe(DebateStatus.ACTIVE);
 
     const events: string[] = [];
@@ -158,7 +158,7 @@ describe('DebateOrchestrator', () => {
 
     const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
 
-    await orchestrator.initializeDebate('Climate policy', participants, {}, { rounds: 1 });
+    await orchestrator.initializeDebate('Climate policy', participants, {}, { formatId: 'lincoln_douglas', rounds: 3 });
     await orchestrator.startDebate([]);
 
     expect(aiService.sendMessage).not.toHaveBeenCalled();
@@ -189,7 +189,7 @@ describe('DebateOrchestrator', () => {
     });
 
     const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
-    await orchestrator.initializeDebate('AI regulation should be stricter.', participants, { claude: 'george' }, { rounds: 1, civility: 5 });
+    await orchestrator.initializeDebate('AI regulation should be stricter.', participants, { claude: 'george' }, { formatId: 'lincoln_douglas', rounds: 3, civility: 5 });
     await orchestrator.startDebate([]);
 
     expect(adapter.setTemporaryPersonality).toHaveBeenCalledWith(expect.objectContaining({
@@ -249,6 +249,87 @@ describe('DebateOrchestrator', () => {
     expect(aiService.sendMessage.mock.calls[0][1]).toContain('Turn: Proposition Opening Speech');
     expect(aiService.sendMessage.mock.calls[1][0]).toBe('openai');
     expect(aiService.sendMessage.mock.calls[1][1]).toContain('Turn: Opposition Opening Speech');
+
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  it('requires opening audience stance before an Oxford debate starts', async () => {
+    jest.useFakeTimers();
+    const aiService = {
+      getAdapter: jest.fn(),
+      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+    };
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    const votingEvents: Array<Record<string, unknown>> = [];
+    orchestrator.addEventListener(event => {
+      if (event.type === 'voting_started' || event.type === 'voting_completed') {
+        votingEvents.push(event.data);
+      }
+    });
+
+    await orchestrator.initializeDebate('AI ethics', participants, {}, {
+      formatId: 'oxford',
+      rounds: 3,
+    });
+    await orchestrator.startDebate([]);
+
+    expect(aiService.sendMessage).not.toHaveBeenCalled();
+    expect(votingEvents[0]).toEqual(expect.objectContaining({
+      voteKind: 'audience_stance',
+      audienceVoteStage: 'initial',
+      votingLabel: 'Opening Audience Stance',
+    }));
+
+    await orchestrator.recordVote(0, 'undecided');
+
+    expect(votingEvents[1]).toEqual(expect.objectContaining({
+      voteKind: 'audience_stance',
+      audienceVoteStage: 'initial',
+    }));
+
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  it('maps Oxford full speeches across 2v2 proposition and opposition slots', async () => {
+    jest.useFakeTimers();
+    const adapter = {
+      config: {} as Record<string, unknown>,
+      getCapabilities: jest.fn(() => ({ streaming: false })),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => ''),
+    };
+    const aiService = {
+      getAdapter: jest.fn(() => adapter),
+      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+    };
+    const teamParticipants: AI[] = [
+      participants[0],
+      participants[1],
+      { id: 'gemini', provider: 'google', name: 'Gemini', model: 'gemini-3.5-flash' } as AI,
+      { id: 'grok', provider: 'grok', name: 'Grok', model: 'grok-4' } as AI,
+    ];
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+
+    await orchestrator.initializeDebate('AI ethics', teamParticipants, {}, {
+      formatId: 'oxford',
+      rounds: 5,
+    });
+
+    await orchestrator.executeDebateMessage(0, []);
+    await orchestrator.executeDebateMessage(1, []);
+    await orchestrator.executeDebateMessage(2, []);
+    await orchestrator.executeDebateMessage(3, []);
+
+    expect(aiService.sendMessage.mock.calls.map((call) => call[0])).toEqual([
+      'claude',
+      'openai',
+      'google',
+      'grok',
+    ]);
+    expect(aiService.sendMessage.mock.calls[2][1]).toContain('Turn: Second Proposition Speech');
+    expect(aiService.sendMessage.mock.calls[3][1]).toContain('Turn: Second Opposition Speech');
 
     jest.clearAllTimers();
     jest.useRealTimers();
@@ -412,7 +493,7 @@ describe('DebateOrchestrator', () => {
       });
 
       const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
-      await orchestrator.initializeDebate('AI ethics', participants, {}, { rounds: 1 });
+      await orchestrator.initializeDebate('AI ethics', participants, {}, { formatId: 'lincoln_douglas', rounds: 3 });
       await orchestrator.startDebate([]);
 
       expect(adapter.config.webSearchEnabled).toBe(true);
@@ -449,7 +530,7 @@ describe('DebateOrchestrator', () => {
       });
 
       const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
-      await orchestrator.initializeDebate('AI ethics', participants, {}, { rounds: 1 });
+      await orchestrator.initializeDebate('AI ethics', participants, {}, { formatId: 'lincoln_douglas', rounds: 3 });
       await orchestrator.startDebate([]);
 
       expect(adapter.config.webSearchEnabled).toBe(false);
@@ -486,7 +567,7 @@ describe('DebateOrchestrator', () => {
       });
 
       const first = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
-      await first.initializeDebate('AI ethics', participants, {}, { rounds: 1 });
+      await first.initializeDebate('AI ethics', participants, {}, { formatId: 'lincoln_douglas', rounds: 3 });
       await first.startDebate([]);
       expect(adapter.config.webSearchEnabled).toBe(true);
 
@@ -499,7 +580,7 @@ describe('DebateOrchestrator', () => {
       });
 
       const second = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
-      await second.initializeDebate('AI ethics', participants, {}, { rounds: 1 });
+      await second.initializeDebate('AI ethics', participants, {}, { formatId: 'lincoln_douglas', rounds: 3 });
       await second.startDebate([]);
       expect(adapter.config.webSearchEnabled).toBe(false);
 
@@ -546,7 +627,7 @@ describe('DebateOrchestrator', () => {
         if (event.type === 'message_added') addedMessages.push(event.data);
       });
 
-      await orchestrator.initializeDebate('AI ethics', participants, {}, { rounds: 1 });
+      await orchestrator.initializeDebate('AI ethics', participants, {}, { formatId: 'lincoln_douglas', rounds: 3 });
       await orchestrator.startDebate([]);
 
     expect(aiService.sendMessage).toHaveBeenCalledWith(

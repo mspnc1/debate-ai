@@ -85,7 +85,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-what-is-debate-arena',
     question: 'What is the AI Debate Arena?',
     answer:
-      'The AI Debate Arena is our signature feature where two AIs debate any topic you choose. You select the topic, format, and debaters, then watch them exchange arguments in real-time. After the debate, you can vote on who made the better case.',
+      'The AI Debate Arena is our signature feature where AIs debate any motion you choose. You select the motion, format, and debaters, then watch them exchange arguments in real-time. Oxford debates use opening and final audience votes; other formats use checkpoint voting.',
     category: 'debate-arena',
     relatedTopic: 'debate-arena',
   },
@@ -93,7 +93,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-debate-formats-difference',
     question: 'What\'s the difference between debate formats?',
     answer:
-      'Oxford is a motion debate with proposition and opposition speeches. Lincoln-Douglas focuses on values and ethics using constructive, cross-examination, and rebuttal speeches. Policy emphasizes evidence, plans, burdens, cross-examination, and rebuttal order.',
+      'Oxford is an audience-voted motion debate: Classic is 1v1, while Full and Extended use 2v2 proposition/opposition teams. Lincoln-Douglas focuses on values and ethics using constructive, cross-examination, and rebuttal speeches. Policy emphasizes evidence, plans, burdens, cross-examination, and rebuttal order.',
     category: 'debate-arena',
     relatedTopic: 'debate-formats',
   },
@@ -109,7 +109,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-debate-not-starting',
     question: 'Why won\'t my debate start?',
     answer:
-      'Ensure you have at least two AIs configured with valid API keys. Both AIs must be selected for the debate. Check that you\'ve chosen a topic and format. If issues persist, verify your API keys are working in regular chat first.',
+      'Ensure you have enough AIs configured with valid API keys for the selected format. Most debates need two debaters, while Oxford Full and Extended need four team slots. Check that you\'ve chosen a motion and format. If issues persist, verify your API keys are working in regular chat first.',
     category: 'debate-arena',
     relatedTopic: 'debate-arena',
   },

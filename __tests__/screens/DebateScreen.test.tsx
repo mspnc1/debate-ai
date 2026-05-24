@@ -272,6 +272,9 @@ const createVotingState = (overrides: Record<string, unknown> = {}) => ({
   isVoting: false,
   isOverallVote: false,
   isFinalVote: false,
+  voteKind: 'checkpoint',
+  audienceVoteStage: undefined,
+  audienceResult: undefined,
   votingRound: 1,
   scores: null,
   voteRecords: [],
@@ -418,7 +421,7 @@ describe('DebateScreen', () => {
       expect.any(Object),
       expect.objectContaining({ formatId: 'oxford' })
     );
-    expect(addHostMessage).toHaveBeenCalledWith(expect.stringContaining('opens the debate'));
+    expect(addHostMessage).toHaveBeenCalledWith(expect.stringContaining('opening audience stance'));
     expect(startDebate).toHaveBeenCalled();
     jest.useRealTimers();
   });
@@ -553,6 +556,7 @@ describe('DebateScreen', () => {
         isOverallVote: true,
         isVoting: false,
       },
+      routeParams: { formatId: 'policy' },
     });
 
     await flushMicrotasks();
@@ -632,6 +636,7 @@ describe('DebateScreen', () => {
         isOverallVote: true,
         isVoting: false,
       },
+      routeParams: { formatId: 'policy' },
     });
 
     await flushMicrotasks();
@@ -663,6 +668,7 @@ describe('DebateScreen', () => {
         isOverallVote: true,
         isVoting: false,
       },
+      routeParams: { formatId: 'policy' },
     });
 
     await flushMicrotasks();

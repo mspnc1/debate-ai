@@ -49,7 +49,7 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
   const { theme } = useTheme();
 
   const nextButtonTitle = isPremium ? "Next: Set the Tone →" : "Start Debate ⚔️";
-  const isNextEnabled = selectedAIs.length === 2;
+  const isNextEnabled = selectedAIs.length === maxAIs;
 
   const getEffectiveModelId = useCallback((ai: AIConfig): string => (
     resolveProviderModelId(ai.provider, selectedModels[ai.id] || ai.model)
@@ -79,10 +79,11 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
       return null;
     }
 
-    if (selectedSearchInfo.length < 2) {
+    if (selectedSearchInfo.length < maxAIs) {
+      const remaining = maxAIs - selectedSearchInfo.length;
       return {
         tone: 'neutral' as const,
-        text: 'Live Search: select one more debater to check availability.',
+        text: `Live Search: select ${remaining} more ${remaining === 1 ? 'debater' : 'debaters'} to check availability.`,
       };
     }
 
@@ -102,13 +103,24 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
       tone: 'unavailable' as const,
       text: `Live Search unavailable: ${names} ${unsupported.length === 1 ? 'does' : 'do'} not support it.`,
     };
-  }, [selectedSearchInfo]);
+  }, [maxAIs, selectedSearchInfo]);
 
   const liveSearchStatusColor = liveSearchStatus?.tone === 'enabled'
     ? theme.colors.success[600]
     : liveSearchStatus?.tone === 'unavailable'
       ? theme.colors.warning[600]
       : theme.colors.text.secondary;
+
+  const getSlotLabel = (index: number): string => {
+    if (maxAIs <= 2) {
+      return index === 0 ? 'Proposition' : 'Opposition';
+    }
+
+    const speakerNumber = Math.floor(index / 2) + 1;
+    return index % 2 === 0
+      ? `Proposition ${speakerNumber}`
+      : `Opposition ${speakerNumber}`;
+  };
 
   return (
     <Animated.View entering={FadeIn}>
@@ -133,7 +145,7 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
         maxAIs={maxAIs}
         onToggleAI={onToggleAI}
         onAddAI={onAddAI}
-        customSubtitle="Select exactly 2 AIs for the debate"
+        customSubtitle={`Select exactly ${maxAIs} ${maxAIs === 2 ? 'AIs' : 'debaters'} for this format`}
         hideStartButton={true}
         aiPersonalities={aiPersonalities}
         selectedModels={selectedModels}
@@ -143,6 +155,42 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
           ? { text: 'Live Search', color: theme.colors.success[600] }
           : undefined}
       />
+
+      {selectedAIs.length > 0 && (
+        <Box
+          style={{
+            marginTop: theme.spacing.md,
+            padding: theme.spacing.md,
+            borderRadius: theme.borderRadius.sm,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            backgroundColor: theme.colors.surface,
+            gap: 8,
+          }}
+        >
+          <Typography variant="caption" color="secondary" weight="semibold">
+            Team slots fill in selection order
+          </Typography>
+          {selectedAIs.map((ai, index) => (
+            <Box
+              key={`${ai.id}-${index}`}
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 12,
+              }}
+            >
+              <Typography variant="caption" color="secondary">
+                {getSlotLabel(index)}
+              </Typography>
+              <Typography variant="caption" weight="semibold">
+                {ai.name}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      )}
 
       {liveSearchStatus && (
         <Box

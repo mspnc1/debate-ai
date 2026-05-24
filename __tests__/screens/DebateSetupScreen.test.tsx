@@ -324,24 +324,23 @@ describe('DebateSetupScreen', () => {
   it('shows compact preset labels and format-native vote point labels', () => {
     const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
 
-    expect(renderResult.getByText('Short')).toBeTruthy();
-    expect(renderResult.getByText('Standard')).toBeTruthy();
+    expect(renderResult.getByText('Classic')).toBeTruthy();
+    expect(renderResult.getByText('Full')).toBeTruthy();
     expect(renderResult.getByText('Extended')).toBeTruthy();
-    expect(renderResult.getByText('6 turns · 3 votes · ~5 min')).toBeTruthy();
-    expect(renderResult.getByText('Vote points')).toBeTruthy();
-    expect(renderResult.getByText('Opening Speeches')).toBeTruthy();
-    expect(renderResult.getByText('Floor Debate')).toBeTruthy();
-    expect(renderResult.getByText('Closing Speeches')).toBeTruthy();
+    expect(renderResult.getByText('6 speeches · opening + final audience vote · 1v1 · audience vote')).toBeTruthy();
+    expect(renderResult.getByText('Audience votes')).toBeTruthy();
+    expect(renderResult.getByText('Opening stance')).toBeTruthy();
+    expect(renderResult.getByText('Final vote')).toBeTruthy();
 
-    fireEvent.press(renderResult.getByText('Standard'));
+    fireEvent.press(renderResult.getByText('Full'));
 
-    expect(renderResult.getByText('10 turns · 3 votes · ~10 min')).toBeTruthy();
+    expect(renderResult.getByText('6 speeches · opening + final audience vote · 2v2 teams · audience vote')).toBeTruthy();
     expect(renderResult.queryByText('3 rebuttal rounds')).toBeNull();
     expect(renderResult.queryByText('First Rebuttals')).toBeNull();
 
     fireEvent.press(renderResult.getByText('Extended'));
 
-    expect(renderResult.getByText('14 turns · 3 votes · ~15 min')).toBeTruthy();
+    expect(renderResult.getByText('8 speeches · opening + final audience vote · 2v2 teams · longer floor')).toBeTruthy();
     expect(renderResult.queryByText('4 rebuttal rounds')).toBeNull();
     expect(renderResult.queryByText('Final Rebuttals')).toBeNull();
     expect(renderResult.queryByText('Choose format and preset')).toBeNull();

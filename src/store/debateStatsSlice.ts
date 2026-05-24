@@ -27,6 +27,7 @@ export interface DebateRound {
   roundWinners: { [round: number]: string };
   voteResults?: DebateVoteResult[];
   overallWinner?: string;
+  overallWinners?: string[];
   timestamp: number;
 }
 
@@ -127,11 +128,16 @@ const debateStatsSlice = createSlice({
       }
     },
     
-    recordOverallWinner: (state, action: PayloadAction<{ winnerId: string }>) => {
+    recordOverallWinner: (state, action: PayloadAction<{ winnerId: string; winnerIds?: string[] }>) => {
       const { winnerId } = action.payload;
+      const winnerIds = action.payload.winnerIds && action.payload.winnerIds.length > 0
+        ? action.payload.winnerIds
+        : [winnerId];
+      const winnerSet = new Set(winnerIds);
       
       if (state.currentDebate) {
         state.currentDebate.overallWinner = winnerId;
+        state.currentDebate.overallWinners = winnerIds;
         
         // Update stats for all participants
         state.currentDebate.participants.forEach(aiId => {
@@ -150,7 +156,7 @@ const debateStatsSlice = createSlice({
             state.stats[aiId].topics[topic].participated += 1;
             
             // Update winner/loser stats
-            if (aiId === winnerId) {
+            if (winnerSet.has(aiId)) {
               state.stats[aiId].overallWins += 1;
               state.stats[aiId].topics[topic].won += 1;
             } else {

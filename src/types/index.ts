@@ -1,6 +1,13 @@
 // Core type definitions for Symposium AI
 
-import type { DebateFormatId, PhaseId } from '../config/debate/formats';
+import type {
+  AudienceDecisionResult,
+  AudienceStance,
+  AudienceVoteStage,
+  DebateFormatId,
+  DebateSideId,
+  PhaseId,
+} from '../config/debate/formats';
 
 export type AIProvider = 'claude' | 'openai' | 'chatgpt' | 'google' | 'perplexity' | 'mistral' | 'cohere' | 'deepseek' | 'grok';
 export type UIMode = 'simple' | 'expert';
@@ -74,6 +81,9 @@ export interface DebateVoteResult {
   votingLabel: string;
   criterion: string;
   timestamp: number;
+  voteKind?: 'checkpoint' | 'audience_stance';
+  audienceVoteStage?: AudienceVoteStage;
+  audienceStance?: AudienceStance;
 }
 
 export interface DebateSpeechMetadata {
@@ -82,7 +92,8 @@ export interface DebateSpeechMetadata {
   messageIndex: number;
   totalMessages: number;
   phase: PhaseId;
-  speaker: 'aff' | 'neg';
+  speaker: DebateSideId;
+  speakerSlot?: number;
   cxRole?: 'questioner' | 'answerer';
   label: string;
 }
@@ -152,6 +163,7 @@ export interface ChatSession {
     postStreamPauseMs?: number;
     civility?: 1 | 2 | 3 | 4 | 5; // 1=friendly banter, 5=hostile
     voteResults?: DebateVoteResult[];
+    audienceResult?: AudienceDecisionResult;
   };
 }
 

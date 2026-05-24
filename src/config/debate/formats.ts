@@ -1,8 +1,23 @@
 // Debate format specifications - message-sequence architecture.
-// Each format defines explicit speeches, speaker roles, and vote checkpoints.
+// Each format defines explicit speeches, speaker roles, and voting model.
 
 export type DebateFormatId = 'oxford' | 'lincoln_douglas' | 'policy' | 'socratic';
 export type SelectableDebateFormatId = Exclude<DebateFormatId, 'socratic'>;
+export type DebateSideId = 'aff' | 'neg';
+export type DebateVoteModel = 'checkpoint' | 'audience_stance';
+export type DebateTeamMode = 'duel' | 'team';
+export type AudienceStance = 'for' | 'against' | 'undecided';
+export type AudienceVoteStage = 'initial' | 'final';
+
+export interface AudienceDecisionResult {
+  initialStance: AudienceStance;
+  finalStance: Exclude<AudienceStance, 'undecided'>;
+  winningSide: DebateSideId;
+  winningSideLabel: string;
+  resultVerb: 'persuaded' | 'held' | 'flipped';
+  summary: string;
+  winningParticipantIds: string[];
+}
 
 export type PhaseId =
   | 'opening'
@@ -17,7 +32,8 @@ export type PhaseId =
 export interface MessageSpec {
   label: string;
   phase: PhaseId;
-  speaker: 'aff' | 'neg';
+  speaker: DebateSideId;
+  speakerSlot?: number;
   cxRole?: 'questioner' | 'answerer';
   voteAfter?: boolean;
   votingLabel?: string;
@@ -30,6 +46,11 @@ export interface PresetConfig {
   description: string;
   messages: MessageSpec[];
   voteCount: number;
+  voteModel?: DebateVoteModel;
+  teamMode?: DebateTeamMode;
+  teamSize?: number;
+  initialVoteRequired?: boolean;
+  finalVoteRequired?: boolean;
 }
 
 export interface FormatSpec {
@@ -42,44 +63,50 @@ export interface FormatSpec {
 }
 
 const oxfordGuidance: Partial<Record<PhaseId, string>> = {
-  opening: 'Opening speech: frame the motion and establish your side clearly.',
+  opening: 'Opening speech: frame the motion and establish your side clearly for the audience.',
   rebuttal: 'Floor debate: answer the other side directly and develop the clash on the motion.',
-  closing: 'Closing speech: summarize the decisive reasons to vote for your side; no new claims.',
+  closing: 'Closing speech: summarize the decisive reasons for the audience to vote with your side; no new claims.',
 };
 
 const oxfordShort: PresetConfig = {
   id: 'short',
-  label: 'Short',
-  shortLabel: 'Short Oxford',
-  description: '~5 min',
-  voteCount: 3,
+  label: 'Classic',
+  shortLabel: 'Classic Oxford',
+  description: '1v1 · audience vote',
+  voteCount: 2,
+  voteModel: 'audience_stance',
+  teamMode: 'duel',
+  teamSize: 1,
+  initialVoteRequired: true,
+  finalVoteRequired: true,
   messages: [
-    { label: 'Proposition Opening Speech', phase: 'opening', speaker: 'aff' },
-    { label: 'Opposition Opening Speech', phase: 'opening', speaker: 'neg', voteAfter: true, votingLabel: 'Opening Speeches' },
+    { label: 'Proposition Opening Speech', phase: 'opening', speaker: 'aff', speakerSlot: 0 },
+    { label: 'Opposition Opening Speech', phase: 'opening', speaker: 'neg', speakerSlot: 0 },
     { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'Floor Debate' },
-    { label: 'Proposition Closing Speech', phase: 'closing', speaker: 'aff' },
-    { label: 'Opposition Closing Speech', phase: 'closing', speaker: 'neg', voteAfter: true, votingLabel: 'Closing Speeches' },
+    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg' },
+    { label: 'Proposition Closing Speech', phase: 'closing', speaker: 'aff', speakerSlot: 0 },
+    { label: 'Opposition Closing Speech', phase: 'closing', speaker: 'neg', speakerSlot: 0 },
   ],
 };
 
 const oxfordStandard: PresetConfig = {
   id: 'standard',
-  label: 'Standard',
-  shortLabel: 'Standard Oxford',
-  description: '~10 min',
-  voteCount: 3,
+  label: 'Full',
+  shortLabel: 'Full Oxford',
+  description: '2v2 teams · audience vote',
+  voteCount: 2,
+  voteModel: 'audience_stance',
+  teamMode: 'team',
+  teamSize: 2,
+  initialVoteRequired: true,
+  finalVoteRequired: true,
   messages: [
-    { label: 'Proposition Opening Speech', phase: 'opening', speaker: 'aff' },
-    { label: 'Opposition Opening Speech', phase: 'opening', speaker: 'neg', voteAfter: true, votingLabel: 'Opening Speeches' },
-    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg' },
-    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg' },
-    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'Floor Debate' },
-    { label: 'Proposition Closing Speech', phase: 'closing', speaker: 'aff' },
-    { label: 'Opposition Closing Speech', phase: 'closing', speaker: 'neg', voteAfter: true, votingLabel: 'Closing Speeches' },
+    { label: 'First Proposition Speech', phase: 'opening', speaker: 'aff', speakerSlot: 0 },
+    { label: 'First Opposition Speech', phase: 'opening', speaker: 'neg', speakerSlot: 0 },
+    { label: 'Second Proposition Speech', phase: 'rebuttal', speaker: 'aff', speakerSlot: 1 },
+    { label: 'Second Opposition Speech', phase: 'rebuttal', speaker: 'neg', speakerSlot: 1 },
+    { label: 'Proposition Summary Speech', phase: 'closing', speaker: 'aff', speakerSlot: 0 },
+    { label: 'Opposition Summary Speech', phase: 'closing', speaker: 'neg', speakerSlot: 0 },
   ],
 };
 
@@ -87,23 +114,22 @@ const oxfordLong: PresetConfig = {
   id: 'long',
   label: 'Extended',
   shortLabel: 'Extended Oxford',
-  description: '~15 min',
-  voteCount: 3,
+  description: '2v2 teams · longer floor',
+  voteCount: 2,
+  voteModel: 'audience_stance',
+  teamMode: 'team',
+  teamSize: 2,
+  initialVoteRequired: true,
+  finalVoteRequired: true,
   messages: [
-    { label: 'Proposition Opening Speech', phase: 'opening', speaker: 'aff' },
-    { label: 'Opposition Opening Speech', phase: 'opening', speaker: 'neg', voteAfter: true, votingLabel: 'Opening Speeches' },
-    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg' },
-    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg' },
-    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg' },
-    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg' },
-    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg', voteAfter: true, votingLabel: 'Floor Debate' },
-    { label: 'Proposition Closing Speech', phase: 'closing', speaker: 'aff' },
-    { label: 'Opposition Closing Speech', phase: 'closing', speaker: 'neg', voteAfter: true, votingLabel: 'Closing Speeches' },
+    { label: 'First Proposition Speech', phase: 'opening', speaker: 'aff', speakerSlot: 0 },
+    { label: 'First Opposition Speech', phase: 'opening', speaker: 'neg', speakerSlot: 0 },
+    { label: 'Second Proposition Speech', phase: 'rebuttal', speaker: 'aff', speakerSlot: 1 },
+    { label: 'Second Opposition Speech', phase: 'rebuttal', speaker: 'neg', speakerSlot: 1 },
+    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff', speakerSlot: 0 },
+    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg', speakerSlot: 0 },
+    { label: 'Proposition Summary Speech', phase: 'closing', speaker: 'aff', speakerSlot: 1 },
+    { label: 'Opposition Summary Speech', phase: 'closing', speaker: 'neg', speakerSlot: 1 },
   ],
 };
 

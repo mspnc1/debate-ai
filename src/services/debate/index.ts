@@ -27,6 +27,9 @@ export type {
 } from './DebateRulesEngine';
 
 export type {
+  AudienceDecisionResult,
+  AudienceStance,
+  AudienceVoteStage,
   VoteRecord,
   ScoreBoard,
   VotingState,

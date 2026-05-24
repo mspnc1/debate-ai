@@ -55,13 +55,13 @@ const getFormatPhaseConstraint = (
       return '';
     case 'oxford':
       if (phase === 'opening') {
-        return 'Oxford opening speech: frame the motion and burden clearly. Build your case without rebutting yet.';
+        return 'Oxford opening speech: frame the motion and burden clearly for the audience. Build your case without rebutting yet.';
       }
       if (phase === 'rebuttal' || phase === 'final_rebuttal') {
         return 'Oxford floor debate: answer prior claims, test the clash, and rebuild your side of the motion.';
       }
       if (phase === 'closing') {
-        return 'Oxford closing speech: crystallize the voters and do not introduce new claims.';
+        return 'Oxford closing speech: crystallize why the audience should vote with your side and do not introduce new claims.';
       }
       return '';
     case 'socratic':

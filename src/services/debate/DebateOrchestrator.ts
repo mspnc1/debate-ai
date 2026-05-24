@@ -16,6 +16,10 @@ import { store } from '../../store';
 import { getStreamingService } from '../streaming/StreamingService';
 import { setProviderVerificationError } from '../../store/streamingSlice';
 import {
+  type AudienceDecisionResult,
+  type AudienceStance,
+  type AudienceVoteStage,
+  type DebateSideId,
   getFormat,
   getPresetForFormat,
   getPresetIdForRounds,
@@ -53,6 +57,7 @@ export interface DebateSession {
   preset: PresetConfig;
   presetId: string;
   stances: { [aiId: string]: 'pro' | 'con' };
+  audienceResult?: AudienceDecisionResult;
   webSearchEnabled?: boolean; // Auto-enabled when both AIs support it
 }
 
@@ -104,6 +109,7 @@ export class DebateOrchestrator {
   private timeouts: Map<string, NodeJS.Timeout> = new Map();
   private currentMessages: Message[] = [];
   private currentVoteIndex = 0;
+  private currentAudienceVoteStage?: AudienceVoteStage;
   
   constructor(aiService: AIService) {
     this.aiService = aiService;
@@ -119,6 +125,52 @@ export class DebateOrchestrator {
     if (adapter?.config) {
       adapter.config.webSearchEnabled = this.getWebSearchEnabled();
     }
+  }
+
+  private getRequiredParticipantCount(preset: PresetConfig): number {
+    return (preset.teamSize || 1) * 2;
+  }
+
+  private getSideForParticipantIndex(index: number, preset: PresetConfig): DebateSideId {
+    const teamSize = preset.teamSize || 1;
+    if (teamSize <= 1) {
+      return index === 0 ? 'aff' : 'neg';
+    }
+    return index % 2 === 0 ? 'aff' : 'neg';
+  }
+
+  private getParticipantIndexForMessage(messageSpec: MessageSpec): number {
+    if (!this.session) return messageSpec.speaker === 'aff' ? 0 : 1;
+
+    const teamSize = this.session.preset.teamSize || 1;
+    if (teamSize <= 1) {
+      return messageSpec.speaker === 'aff' ? 0 : 1;
+    }
+
+    const slot = Math.min(Math.max(messageSpec.speakerSlot ?? 0, 0), teamSize - 1);
+    return (slot * 2) + (messageSpec.speaker === 'aff' ? 0 : 1);
+  }
+
+  private getParticipantsForSide(side: DebateSideId): AI[] {
+    if (!this.session) return [];
+    const preset = this.session.preset;
+    const teamSize = preset.teamSize || 1;
+    if (teamSize <= 1) {
+      return side === 'aff'
+        ? this.session.participants.slice(0, 1)
+        : this.session.participants.slice(1, 2);
+    }
+
+    return this.session.participants.filter((_, index) => (
+      this.getSideForParticipantIndex(index, preset) === side
+    ));
+  }
+
+  private getOpposingParticipant(aiIndex: number): AI | undefined {
+    if (!this.session) return undefined;
+    const currentSide = this.getSideForParticipantIndex(aiIndex, this.session.preset);
+    const opposingSide: DebateSideId = currentSide === 'aff' ? 'neg' : 'aff';
+    return this.getParticipantsForSide(opposingSide)[0];
   }
 
   private buildAIResponseMetadata(
@@ -160,6 +212,7 @@ export class DebateOrchestrator {
       totalMessages: this.session.totalMessages,
       phase: messageSpec.phase,
       speaker: messageSpec.speaker,
+      ...(typeof messageSpec.speakerSlot === 'number' ? { speakerSlot: messageSpec.speakerSlot } : {}),
       ...(messageSpec.cxRole ? { cxRole: messageSpec.cxRole } : {}),
       label: messageSpec.label,
     };
@@ -182,9 +235,19 @@ export class DebateOrchestrator {
       mergedPersonalities?: Record<string, PersonalityOption>;
     }
   ): Promise<DebateSession> {
+    // Resolve configuration
+    const formatId = options?.formatId || 'oxford';
+    const format = getFormat(formatId);
+    const presetId = options?.presetId || getPresetIdForRounds(options?.rounds);
+    const preset = getPresetForFormat(formatId, presetId);
+
     // Validate debate setup
     const validation = this.rulesEngine.validateDebateSetup(participants, topic);
-    if (!validation.valid) {
+    const requiredParticipants = this.getRequiredParticipantCount(preset);
+    if (participants.length < requiredParticipants) {
+      validation.errors.push(`${preset.shortLabel} requires ${requiredParticipants} debaters.`);
+    }
+    if (!validation.valid || validation.errors.length > 0) {
       throw new AppError({
         code: ErrorCode.VALIDATION_REQUIRED,
         message: `Invalid debate setup: ${validation.errors.join(', ')}`,
@@ -192,23 +255,20 @@ export class DebateOrchestrator {
         recoverable: true,
       });
     }
-    
-    const resolvedParticipants = participants.map(participant => ({
+
+    const resolvedParticipants = participants.slice(0, requiredParticipants).map(participant => ({
       ...participant,
       model: resolveProviderModelId(participant.provider, participant.model) || participant.model,
     }));
 
-    // Resolve configuration
-    const formatId = options?.formatId || 'oxford';
-    const format = getFormat(formatId);
-    const presetId = options?.presetId || getPresetIdForRounds(options?.rounds);
-    const preset = getPresetForFormat(formatId, presetId);
     const totalRounds = preset.voteCount;
     const totalMessages = preset.messages.length;
     const civility = (options?.civility as 1|2|3|4|5) || 1;
     const stances: { [aiId: string]: 'pro' | 'con' } = {};
-    if (resolvedParticipants[0]) stances[resolvedParticipants[0].id] = options?.stances?.[resolvedParticipants[0].id] || 'pro';
-    if (resolvedParticipants[1]) stances[resolvedParticipants[1].id] = options?.stances?.[resolvedParticipants[1].id] || 'con';
+    resolvedParticipants.forEach((participant, index) => {
+      const side = this.getSideForParticipantIndex(index, preset);
+      stances[participant.id] = options?.stances?.[participant.id] || (side === 'aff' ? 'pro' : 'con');
+    });
 
     // Require both resolved debater models to support web search.
     const webSearchAvailability = mergeAvailabilitiesStrict(
@@ -241,6 +301,7 @@ export class DebateOrchestrator {
 
     this.session = session;
     this.currentVoteIndex = 0;
+    this.currentAudienceVoteStage = undefined;
     this.currentMessages = [];
     
     // Initialize services
@@ -286,6 +347,11 @@ export class DebateOrchestrator {
     
     // Store the initial messages
     this.currentMessages = [...existingMessages];
+
+    if (this.votingService?.isAudienceStanceVoteModel() && !this.votingService.hasAudienceVote('initial')) {
+      this.showAudienceStanceVoting('initial');
+      return;
+    }
     
     await this.executeDebateMessage(0, this.currentMessages);
   }
@@ -322,14 +388,18 @@ export class DebateOrchestrator {
     }
 
     // Check if we need to show voting from the prior completed speech group.
-    if (this.currentVoteIndex > 0 && !this.votingService.hasVotedForRound(this.currentVoteIndex)) {
+    if (!this.votingService.isAudienceStanceVoteModel() && this.currentVoteIndex > 0 && !this.votingService.hasVotedForRound(this.currentVoteIndex)) {
       const isFinalRoundVote = this.currentVoteIndex === this.session.totalRounds;
       this.showVotingForRound(this.currentVoteIndex, isFinalRoundVote);
       return;
     }
 
-    const aiIndex = messageSpec.speaker === 'aff' ? 0 : 1;
+    const aiIndex = this.getParticipantIndexForMessage(messageSpec);
     const currentAI = participants[aiIndex];
+    if (!currentAI) {
+      this.endDebate();
+      return;
+    }
     const phase = messageSpec.phase;
     const debateSpeech = this.buildDebateSpeechMetadata(messageIndex, messageSpec);
     const currentRound = this.currentVoteIndex + 1;
@@ -397,7 +467,7 @@ export class DebateOrchestrator {
 
       const stance = stances[currentAI.id] || (aiIndex === 0 ? 'pro' : 'con');
       const persona = this.session?.mergedPersonalities?.[personalityId] || getPersonality(personalityId);
-      const opponent = participants.find((_, idx) => idx !== aiIndex) || participants[(aiIndex + 1) % participants.length];
+      const opponent = this.getOpposingParticipant(aiIndex) || participants.find((_, idx) => idx !== aiIndex) || participants[(aiIndex + 1) % participants.length];
       const opponentPersonalityId = personalities[opponent?.id || ''] || 'default';
       const opponentPersona = this.session?.mergedPersonalities?.[opponentPersonalityId] || getPersonality(opponentPersonalityId);
       const runtime = buildPersonalityRuntime({
@@ -818,7 +888,7 @@ export class DebateOrchestrator {
     if (!this.session) return;
 
     const messageSpec = this.session.preset.messages[messageIndex];
-    if (messageSpec?.voteAfter) {
+    if (messageSpec?.voteAfter && !this.votingService?.isAudienceStanceVoteModel()) {
       this.currentVoteIndex = this.rulesEngine.getVoteIndex(messageIndex);
       const isFinalRoundVote = this.currentVoteIndex === this.session.totalRounds;
       if (isFinalRoundVote) {
@@ -858,6 +928,31 @@ export class DebateOrchestrator {
       timestamp: Date.now(),
     });
   }
+
+  /**
+   * Show required Oxford audience stance voting.
+   */
+  private showAudienceStanceVoting(stage: AudienceVoteStage): void {
+    if (!this.votingService) return;
+
+    this.currentAudienceVoteStage = stage;
+    this.updateSessionStatus(DebateStatus.VOTING_ROUND);
+
+    this.emitEvent({
+      type: 'voting_started',
+      data: {
+        round: stage === 'initial' ? 0 : 1,
+        isFinalRound: stage === 'final',
+        isOverallVote: stage === 'final',
+        voteKind: 'audience_stance',
+        audienceVoteStage: stage,
+        votingLabel: stage === 'initial' ? 'Opening Audience Stance' : 'Final Audience Vote',
+        voteCriterion: this.votingService.getAudienceVoteCriterion(stage),
+        audienceVoteOptions: this.votingService.getAudienceVoteOptions(stage),
+      },
+      timestamp: Date.now(),
+    });
+  }
   
   /**
    * Record a vote and continue the debate
@@ -870,6 +965,11 @@ export class DebateOrchestrator {
         userMessage: 'Voting is not available. Please restart the debate.',
         recoverable: true,
       });
+    }
+
+    if (this.votingService.isAudienceStanceVoteModel()) {
+      await this.recordAudienceVote(winnerId as AudienceStance);
+      return;
     }
     
     // Record round vote
@@ -916,6 +1016,61 @@ export class DebateOrchestrator {
       this.resumeDebateAfterVoting();
     }
   }
+
+  private async recordAudienceVote(stance: AudienceStance): Promise<void> {
+    if (!this.votingService || !this.session || !this.currentAudienceVoteStage) {
+      throw new AppError({
+        code: ErrorCode.APP_SESSION_NOT_FOUND,
+        message: 'No active audience voting session',
+        userMessage: 'Voting is not available. Please restart the debate.',
+        recoverable: true,
+      });
+    }
+
+    const stage = this.currentAudienceVoteStage;
+    const voteRecord = this.votingService.recordAudienceVote(stage, stance);
+    const stageLabel = stage === 'initial' ? 'Opening audience stance' : 'Final audience vote';
+    const voteMessage: Message = {
+      id: `msg_${Date.now()}_audience_${stage}`,
+      sender: 'Debate Host',
+      senderType: 'user',
+      content: `${stageLabel}: ${voteRecord.winnerName}`,
+      timestamp: Date.now(),
+      metadata: {
+        debateVote: voteRecord,
+      },
+    };
+
+    this.emitEvent({
+      type: 'message_added',
+      data: { message: voteMessage },
+      timestamp: Date.now(),
+    });
+    this.currentMessages = [...this.currentMessages, voteMessage];
+
+    this.emitEvent({
+      type: 'voting_completed',
+      data: {
+        round: voteRecord.round,
+        winnerId: voteRecord.winnerId,
+        voteRecord,
+        voteKind: 'audience_stance',
+        audienceVoteStage: stage,
+        audienceResult: this.votingService.getAudienceDecisionResult(),
+      },
+      timestamp: Date.now(),
+    });
+
+    this.currentAudienceVoteStage = undefined;
+
+    if (stage === 'initial') {
+      this.updateSessionStatus(DebateStatus.ACTIVE);
+      this.scheduleNextMessage(0, this.currentMessages, DEBATE_CONSTANTS.DELAYS.VOTING_CONTINUATION);
+      return;
+    }
+
+    this.declareAudienceDecision();
+  }
   
   /**
    * Resume debate after voting is complete
@@ -935,6 +1090,55 @@ export class DebateOrchestrator {
     
     // Schedule the next message with the accumulated messages
     this.scheduleNextMessage(nextMessageIndex, this.currentMessages, delay);
+  }
+
+  private declareAudienceDecision(): void {
+    if (!this.votingService || !this.session) return;
+
+    const audienceResult = this.votingService.getAudienceDecisionResult();
+    if (!audienceResult) {
+      this.showAudienceStanceVoting('final');
+      return;
+    }
+
+    this.session.audienceResult = audienceResult;
+    const [winnerId] = audienceResult.winningParticipantIds;
+    if (winnerId) {
+      this.votingService.recordOverallWinner(winnerId, audienceResult.winningParticipantIds);
+    }
+
+    const scores = this.votingService.calculateScores();
+    const winnerMessage: Message = {
+      id: `msg_${Date.now()}_audience_decision`,
+      sender: 'Debate Host',
+      senderType: 'user',
+      content: `\n🏛️ **AUDIENCE DECISION: ${audienceResult.winningSideLabel}!**\n\n${audienceResult.summary}`,
+      timestamp: Date.now(),
+    };
+
+    this.updateSessionStatus(DebateStatus.COMPLETED);
+
+    this.emitEvent({
+      type: 'message_added',
+      data: { message: winnerMessage },
+      timestamp: Date.now(),
+    });
+    this.currentMessages = [...this.currentMessages, winnerMessage];
+
+    this.emitEvent({
+      type: 'debate_ended',
+      data: {
+        session: this.session,
+        overallWinner: winnerId,
+        overallWinnerIds: audienceResult.winningParticipantIds,
+        finalScores: scores,
+        voteRecords: this.votingService.getVoteRecords(),
+        audienceResult,
+      },
+      timestamp: Date.now(),
+    });
+
+    this.saveDebateToHistory();
   }
   
   /**
@@ -1032,6 +1236,7 @@ export class DebateOrchestrator {
           postStreamPauseMs: DEBATE_CONSTANTS.DELAYS.POST_STREAM_PAUSE,
           civility: this.session.civility,
           voteResults: this.votingService?.getVoteRecords(),
+          audienceResult: this.session.audienceResult,
         }
       };
       
@@ -1047,6 +1252,36 @@ export class DebateOrchestrator {
    */
   endDebate(): void {
     if (!this.session) return;
+
+    if (this.votingService?.isAudienceStanceVoteModel()) {
+      if (this.votingService.hasAudienceVote('final')) {
+        this.declareAudienceDecision();
+        return;
+      }
+
+      this.updateSessionStatus(DebateStatus.VOTING_ROUND);
+
+      // Clear any pending timeouts
+      this.timeouts.forEach(timeout => clearTimeout(timeout));
+      this.timeouts.clear();
+
+      const endMessage: Message = {
+        id: `msg_${Date.now()}_end`,
+        sender: 'Debate Host',
+        senderType: 'user',
+        content: 'The debate is complete. Cast your final audience vote.',
+        timestamp: Date.now(),
+      };
+
+      this.emitEvent({
+        type: 'message_added',
+        data: { message: endMessage },
+        timestamp: Date.now(),
+      });
+      this.currentMessages = [...this.currentMessages, endMessage];
+      this.showAudienceStanceVoting('final');
+      return;
+    }
 
     if (this.votingService?.areAllRoundsVoted()) {
       this.declareOverallWinner();
@@ -1157,5 +1392,6 @@ export class DebateOrchestrator {
     this.eventHandlers = [];
     this.currentMessages = [];
     this.currentVoteIndex = 0;
+    this.currentAudienceVoteStage = undefined;
   }
 }

@@ -84,8 +84,11 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const handleNativeShare = async () => {
     try {
       const { Share } = await import('react-native');
+      const resultText = winner?.name
+        ? ` and ${winner.name} won`
+        : '';
       await Share.share({
-        message: `🤖 ${participants.map(p => p.name).join(' vs ')} debated "${topic}" and ${winner?.name} won! Create your own AI debate at SymposiumAI.app`,
+        message: `🤖 ${participants.map(p => p.name).join(' vs ')} debated "${topic}"${resultText}! Create your own AI debate at SymposiumAI.app`,
         url: 'https://debateai.app',
         title: 'Symposium AI - AI Debate Results',
       });

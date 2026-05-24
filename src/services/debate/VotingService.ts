@@ -6,6 +6,10 @@
 import { AI, type DebateVoteResult } from '../../types';
 import { DEBATE_CONSTANTS } from '../../config/debateConstants';
 import {
+  type AudienceDecisionResult,
+  type AudienceStance,
+  type AudienceVoteStage,
+  type DebateSideId,
   getPresetForFormat,
   getPresetIdForRounds,
   type DebateFormatId,
@@ -35,6 +39,8 @@ export interface VotingState {
   isOverallVote: boolean;
 }
 
+export type { AudienceDecisionResult, AudienceStance, AudienceVoteStage };
+
 interface VoteCheckpoint {
   label: string;
   prompt: string;
@@ -56,7 +62,9 @@ export class VotingService {
   private voteCheckpoints: VoteCheckpoint[];
   private totalVotes: number;
   private votes: Map<number, VoteRecord> = new Map();
+  private audienceVotes: Partial<Record<AudienceVoteStage, VoteRecord>> = {};
   private overallWinner?: string;
+  private overallWinnerIds: string[] = [];
 
   constructor(
     participants: AI[],
@@ -81,10 +89,19 @@ export class VotingService {
       this.preset = getPresetForFormat('oxford', 'short');
     }
 
-    this.voteCheckpoints = this.preset.messages
-      .filter((message) => message.voteAfter)
-      .map((message) => this.buildVoteCheckpoint(message));
-    this.totalVotes = this.voteCheckpoints.length;
+    if (this.isAudienceStanceVoteModel()) {
+      this.voteCheckpoints = [];
+      this.totalVotes = Number(this.preset.initialVoteRequired) + Number(this.preset.finalVoteRequired);
+    } else {
+      this.voteCheckpoints = this.preset.messages
+        .filter((message) => message.voteAfter)
+        .map((message) => this.buildVoteCheckpoint(message));
+      this.totalVotes = this.voteCheckpoints.length;
+    }
+  }
+
+  isAudienceStanceVoteModel(): boolean {
+    return this.preset.voteModel === 'audience_stance';
   }
 
   private buildVoteCheckpoint(message: MessageSpec): VoteCheckpoint {
@@ -167,8 +184,43 @@ export class VotingService {
         return 'Final decision: choose who most improved understanding through clear questions, direct answers, and useful synthesis.';
       case 'oxford':
       default:
-        return 'Final decision: weigh the checkpoint wins and choose who carried the motion more convincingly overall.';
+        return this.isAudienceStanceVoteModel()
+          ? 'Final audience vote: choose where you stand on the motion after hearing both sides.'
+          : 'Final decision: weigh the checkpoint wins and choose who carried the motion more convincingly overall.';
     }
+  }
+
+  getAudienceVotingPrompt(stage: AudienceVoteStage): string {
+    return stage === 'initial'
+      ? 'Before the debate, where do you stand on the motion?'
+      : 'After hearing the debate, where do you stand now?';
+  }
+
+  getAudienceVoteCriterion(stage: AudienceVoteStage): string {
+    return stage === 'initial'
+      ? 'Opening audience stance: mark your starting point before any arguments are heard.'
+      : 'Final audience vote: choose the side that has persuaded you by the end of the debate.';
+  }
+
+  getAudienceVoteOptions(stage: AudienceVoteStage): Array<{
+    id: AudienceStance;
+    label: string;
+    description: string;
+  }> {
+    const options: Array<{
+      id: AudienceStance;
+      label: string;
+      description: string;
+    }> = [
+      { id: 'for', label: 'For', description: 'You currently support the motion.' },
+      { id: 'against', label: 'Against', description: 'You currently oppose the motion.' },
+    ];
+
+    if (stage === 'initial') {
+      options.push({ id: 'undecided', label: 'Undecided', description: 'You want to hear the arguments first.' });
+    }
+
+    return options;
   }
 
   getVoteCriterion(roundOrIsOverallVote: number | boolean = 1, maybeIsOverallVote: boolean = false): string {
@@ -187,6 +239,10 @@ export class VotingService {
   }
 
   recordRoundVote(round: number, winnerId: string): VoteRecord {
+    if (this.isAudienceStanceVoteModel()) {
+      throw new Error('Oxford audience-stance debates do not record checkpoint winners.');
+    }
+
     const winner = this.participants.find((ai) => ai.id === winnerId);
     const voteRecord: VoteRecord = {
       round,
@@ -201,8 +257,34 @@ export class VotingService {
     return voteRecord;
   }
 
-  recordOverallWinner(winnerId: string): void {
+  recordAudienceVote(stage: AudienceVoteStage, stance: AudienceStance): VoteRecord {
+    if (!this.isAudienceStanceVoteModel()) {
+      throw new Error('Audience stance voting is only available for audience-vote debate presets.');
+    }
+
+    if (stage === 'final' && stance === 'undecided') {
+      throw new Error('Final Oxford audience vote must be For or Against.');
+    }
+
+    const voteRecord: VoteRecord = {
+      round: stage === 'initial' ? 0 : 1,
+      winnerId: stance,
+      winnerName: this.getAudienceStanceLabel(stance),
+      votingLabel: stage === 'initial' ? 'Opening Audience Stance' : 'Final Audience Vote',
+      criterion: this.getAudienceVoteCriterion(stage),
+      timestamp: Date.now(),
+      voteKind: 'audience_stance',
+      audienceVoteStage: stage,
+      audienceStance: stance,
+    };
+
+    this.audienceVotes[stage] = voteRecord;
+    return voteRecord;
+  }
+
+  recordOverallWinner(winnerId: string, winnerIds: string[] = [winnerId]): void {
     this.overallWinner = winnerId;
+    this.overallWinnerIds = winnerIds;
   }
 
   getRoundVote(round: number): VoteRecord | undefined {
@@ -210,6 +292,12 @@ export class VotingService {
   }
 
   getVoteRecords(): VoteRecord[] {
+    if (this.isAudienceStanceVoteModel()) {
+      return (['initial', 'final'] as AudienceVoteStage[])
+        .map((stage) => this.audienceVotes[stage])
+        .filter((vote): vote is VoteRecord => Boolean(vote));
+    }
+
     return Array.from(this.votes.values()).sort((a, b) => a.round - b.round);
   }
 
@@ -219,6 +307,19 @@ export class VotingService {
 
   getVotesMap(): { [key: string]: string } {
     const votesMap: { [key: string]: string } = {};
+    if (this.isAudienceStanceVoteModel()) {
+      if (this.audienceVotes.initial?.audienceStance) {
+        votesMap.initial = this.audienceVotes.initial.audienceStance;
+      }
+      if (this.audienceVotes.final?.audienceStance) {
+        votesMap.final = this.audienceVotes.final.audienceStance;
+      }
+      if (this.overallWinner) {
+        votesMap.overall = this.overallWinner;
+      }
+      return votesMap;
+    }
+
     this.votes.forEach((vote, round) => {
       votesMap[round.toString()] = vote.winnerId;
     });
@@ -230,6 +331,30 @@ export class VotingService {
 
   calculateScores(): ScoreBoard {
     const scoreBoard: ScoreBoard = {};
+
+    if (this.isAudienceStanceVoteModel()) {
+      const result = this.getAudienceDecisionResult();
+      if (!result) {
+        return scoreBoard;
+      }
+      const winningSide = result?.winningSide;
+      const affName = this.getSideLabel('aff');
+      const negName = this.getSideLabel('neg');
+
+      scoreBoard.aff = {
+        name: affName,
+        roundWins: winningSide === 'aff' ? 1 : 0,
+        roundsWon: winningSide === 'aff' ? [1] : [],
+        isOverallWinner: winningSide === 'aff',
+      };
+      scoreBoard.neg = {
+        name: negName,
+        roundWins: winningSide === 'neg' ? 1 : 0,
+        roundsWon: winningSide === 'neg' ? [1] : [],
+        isOverallWinner: winningSide === 'neg',
+      };
+      return scoreBoard;
+    }
 
     this.participants.forEach((ai) => {
       scoreBoard[ai.id] = {
@@ -281,6 +406,13 @@ export class VotingService {
   }
 
   areAllRoundsVoted(): boolean {
+    if (this.isAudienceStanceVoteModel()) {
+      return Boolean(
+        (!this.preset.initialVoteRequired || this.audienceVotes.initial) &&
+        (!this.preset.finalVoteRequired || this.audienceVotes.final)
+      );
+    }
+
     for (let round = 1; round <= this.totalVotes; round += 1) {
       if (!this.hasVotedForRound(round)) {
         return false;
@@ -290,6 +422,10 @@ export class VotingService {
   }
 
   getNextVotingRound(): number | null {
+    if (this.isAudienceStanceVoteModel()) {
+      return this.areAllRoundsVoted() ? null : 1;
+    }
+
     for (let round = 1; round <= this.totalVotes; round += 1) {
       if (!this.hasVotedForRound(round)) {
         return round;
@@ -304,7 +440,9 @@ export class VotingService {
 
   reset(): void {
     this.votes.clear();
+    this.audienceVotes = {};
     this.overallWinner = undefined;
+    this.overallWinnerIds = [];
   }
 
   getVotingStats(): {
@@ -313,11 +451,94 @@ export class VotingService {
     remainingRounds: number;
     hasOverallWinner: boolean;
   } {
+    const votedRounds = this.isAudienceStanceVoteModel()
+      ? this.getVoteRecords().length
+      : this.votes.size;
     return {
       totalRounds: this.totalVotes,
-      votedRounds: this.votes.size,
-      remainingRounds: this.totalVotes - this.votes.size,
+      votedRounds,
+      remainingRounds: this.totalVotes - votedRounds,
       hasOverallWinner: !!this.overallWinner,
     };
+  }
+
+  hasAudienceVote(stage: AudienceVoteStage): boolean {
+    return Boolean(this.audienceVotes[stage]);
+  }
+
+  getAudienceVote(stage: AudienceVoteStage): VoteRecord | undefined {
+    return this.audienceVotes[stage];
+  }
+
+  getAudienceDecisionResult(): AudienceDecisionResult | undefined {
+    const initial = this.audienceVotes.initial?.audienceStance;
+    const final = this.audienceVotes.final?.audienceStance;
+    if (!initial || !final || final === 'undecided') {
+      return undefined;
+    }
+
+    const winningSide: DebateSideId = final === 'for' ? 'aff' : 'neg';
+    const winningParticipantIds = this.getSideParticipants(winningSide).map((participant) => participant.id);
+    const resultVerb = initial === 'undecided'
+      ? 'persuaded'
+      : initial === final
+        ? 'held'
+        : 'flipped';
+    const winningSideLabel = this.getSideLabel(winningSide);
+    const summary = this.buildAudienceResultSummary(initial, final, winningSideLabel, resultVerb);
+
+    return {
+      initialStance: initial,
+      finalStance: final,
+      winningSide,
+      winningSideLabel,
+      resultVerb,
+      summary,
+      winningParticipantIds,
+    };
+  }
+
+  getOverallWinnerIds(): string[] {
+    return [...this.overallWinnerIds];
+  }
+
+  private getAudienceStanceLabel(stance: AudienceStance): string {
+    if (stance === 'for') return 'For';
+    if (stance === 'against') return 'Against';
+    return 'Undecided';
+  }
+
+  private getSideLabel(side: DebateSideId): string {
+    return side === 'aff' ? 'Proposition' : 'Opposition';
+  }
+
+  private getSideParticipants(side: DebateSideId): AI[] {
+    const teamSize = this.preset.teamSize || 1;
+    if (teamSize <= 1) {
+      return side === 'aff'
+        ? this.participants.slice(0, 1)
+        : this.participants.slice(1, 2);
+    }
+
+    return this.participants.filter((_, index) => {
+      const sideForIndex: DebateSideId = index % 2 === 0 ? 'aff' : 'neg';
+      return sideForIndex === side;
+    });
+  }
+
+  private buildAudienceResultSummary(
+    initial: AudienceStance,
+    final: Exclude<AudienceStance, 'undecided'>,
+    sideLabel: string,
+    resultVerb: AudienceDecisionResult['resultVerb']
+  ): string {
+    const finalLabel = this.getAudienceStanceLabel(final);
+    if (resultVerb === 'persuaded') {
+      return `${sideLabel} persuaded the audience from Undecided to ${finalLabel}.`;
+    }
+    if (resultVerb === 'flipped') {
+      return `${sideLabel} flipped the audience from ${this.getAudienceStanceLabel(initial)} to ${finalLabel}.`;
+    }
+    return `${sideLabel} held the audience at ${finalLabel}.`;
   }
 }

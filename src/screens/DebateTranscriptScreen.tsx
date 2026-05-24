@@ -81,6 +81,7 @@ const DebateTranscriptScreen: React.FC<DebateTranscriptScreenProps> = ({ navigat
         participants={session.selectedAIs.map(ai => ({ id: ai.id, name: ai.name }))}
         messages={session.messages}
         voteResults={session.debateConfig?.voteResults}
+        audienceResult={session.debateConfig?.audienceResult}
         winner={winner}
         scores={scores}
       />

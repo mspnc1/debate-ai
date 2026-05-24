@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
@@ -18,12 +18,15 @@ import { Typography, AIProviderTile } from '../../molecules';
 import { useTheme } from '../../../theme';
 import { AI } from '../../../types';
 import { ScoreBoard } from '../../../services/debate';
+import type { AudienceStance, AudienceVoteStage } from '../../../config/debate/formats';
 
 export interface VotingInterfaceProps {
   participants: AI[];
   isOverallVote: boolean;
   isFinalVote: boolean;
   votingRound: number;
+  voteKind?: 'checkpoint' | 'audience_stance';
+  audienceVoteStage?: AudienceVoteStage;
   scores?: ScoreBoard | null;
   votingPrompt: string;
   voteCriterion?: string;
@@ -36,6 +39,8 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
   isOverallVote,
   isFinalVote: _isFinalVote,
   votingRound: _votingRound,
+  voteKind = 'checkpoint',
+  audienceVoteStage,
   scores,
   votingPrompt,
   voteCriterion,
@@ -137,6 +142,72 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
     ...(Platform.OS === 'ios' ? theme.shadows.md : {}),
   };
 
+  const audienceOptions: Array<{
+    id: AudienceStance;
+    label: string;
+    description: string;
+  }> = audienceVoteStage === 'initial'
+    ? [
+      { id: 'for', label: 'For', description: 'I support the motion.' },
+      { id: 'against', label: 'Against', description: 'I oppose the motion.' },
+      { id: 'undecided', label: 'Undecided', description: 'I want to hear the arguments first.' },
+    ]
+    : [
+      { id: 'for', label: 'For', description: 'The proposition persuaded me.' },
+      { id: 'against', label: 'Against', description: 'The opposition persuaded me.' },
+    ];
+
+  const renderAudienceVoteButtons = () => (
+    <View style={styles.audienceButtons}>
+      {audienceOptions.map((option) => (
+        <TouchableOpacity
+          key={option.id}
+          onPress={() => onVote(option.id)}
+          activeOpacity={0.82}
+          accessibilityRole="button"
+          accessibilityLabel={option.label}
+          style={[
+            styles.audienceButton,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Typography variant="body" weight="bold" align="center">
+            {option.label}
+          </Typography>
+          <Typography
+            variant="caption"
+            color="secondary"
+            align="center"
+            style={styles.audienceButtonDescription}
+          >
+            {option.description}
+          </Typography>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  const renderParticipantVoteButtons = () => (
+    <View style={styles.votingButtons}>
+      {participants.map((ai) => {
+        return (
+          <AIProviderTile
+            key={ai.id}
+            ai={ai}
+            size="large"
+            tileStyle="gradient"
+            showName={false}
+            onPress={() => onVote(ai.id)}
+            style={dynamicVoteButtonStyles}
+          />
+        );
+      })}
+    </View>
+  );
+
   return (
     <Animated.View 
       entering={FadeInDown.duration(300)}
@@ -169,21 +240,7 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
 
               {renderCurrentScores()}
 
-              <View style={styles.votingButtons}>
-                {participants.map((ai) => {
-                  return (
-                    <AIProviderTile
-                      key={ai.id}
-                      ai={ai}
-                      size="large"
-                      tileStyle="gradient"
-                      showName={false}
-                      onPress={() => onVote(ai.id)}
-                      style={dynamicVoteButtonStyles}
-                    />
-                  );
-                })}
-              </View>
+              {voteKind === 'audience_stance' ? renderAudienceVoteButtons() : renderParticipantVoteButtons()}
             </LinearGradient>
           </BlurView>
         ) : (
@@ -208,21 +265,7 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
 
             {renderCurrentScores()}
 
-            <View style={styles.votingButtons}>
-              {participants.map((ai) => {
-                return (
-                  <AIProviderTile
-                    key={ai.id}
-                    ai={ai}
-                    size="large"
-                    tileStyle="gradient"
-                    showName={false}
-                    onPress={() => onVote(ai.id)}
-                    style={dynamicVoteButtonStyles}
-                  />
-                );
-              })}
-            </View>
+            {voteKind === 'audience_stance' ? renderAudienceVoteButtons() : renderParticipantVoteButtons()}
           </LinearGradient>
         )}
       </Animated.View>
@@ -284,6 +327,19 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     minHeight: 50, // Further reduced for more compact design
+  },
+  audienceButtons: {
+    gap: 10,
+  },
+  audienceButton: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  audienceButtonDescription: {
+    marginTop: 4,
+    lineHeight: 17,
   },
   buttonGradient: {
     paddingVertical: 4, // Further reduced padding

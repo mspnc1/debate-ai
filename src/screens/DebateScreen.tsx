@@ -48,6 +48,7 @@ import AppendToPackService from '@/services/demo/AppendToPackService';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store';
 import { DebateRecordPickerModal } from '@/components/organisms/demo/DebateRecordPickerModal';
+import { getPresetForFormat, getPresetIdForRounds } from '@/config/debate/formats';
 // Topic block is now rendered inside header
 // Controls modal removed – using Start Over action directly
 
@@ -183,7 +184,9 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
       
       // Add initial host message
       messages.addHostMessage(
-        `${selectedAIs[0].name} opens the debate.`
+        (formatId || 'oxford') === 'oxford'
+          ? 'Cast your opening audience stance before the first speech.'
+          : `${selectedAIs[0].name} opens the debate.`
       );
       
       // Small delay to ensure Redux has updated
@@ -372,14 +375,26 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   // Show topic picker only if no topic was provided and debate hasn't started
   const showTopicPicker = !initialTopic && (!session.isInitialized || (!flow.isDebateActive && !flow.isDebateEnded));
   
+  const activePreset = session.session?.preset || getPresetForFormat(formatId || 'oxford', getPresetIdForRounds(exchanges || rounds || 3));
+  const isAudienceStanceDebate = activePreset?.voteModel === 'audience_stance' || voting.voteKind === 'audience_stance' || Boolean(voting.audienceResult);
+
   // Check if we're showing victory screen
-  const hasScores = voting.scores && Object.keys(voting.scores).length > 0;
+  const hasScores = !isAudienceStanceDebate && voting.scores && Object.keys(voting.scores).length > 0;
   const hasOverallWinner = hasScores && voting.isOverallVote && !voting.isVoting;
-  const isShowingVictory = (flow.isDebateEnded && hasScores) || hasOverallWinner;
+  const isShowingVictory = (isAudienceStanceDebate && flow.isDebateEnded && voting.audienceResult) || (flow.isDebateEnded && hasScores) || hasOverallWinner;
   
   // Determine what to show based on debate state
   const displayedTopic = session.session?.topic || topicSelection.finalTopic || initialTopic || 'Debate Motion';
-  const vsLine = selectedAIs.length >= 2 ? `${displayName(selectedAIs[0])} vs ${displayName(selectedAIs[1])}` : '';
+  const getTeamLabel = (side: 'aff' | 'neg') => selectedAIs
+    .filter((_, index) => {
+      if ((activePreset?.teamSize || 1) <= 1) {
+        return side === 'aff' ? index === 0 : index === 1;
+      }
+      return side === 'aff' ? index % 2 === 0 : index % 2 === 1;
+    })
+    .map(displayName)
+    .join(' + ');
+  const vsLine = selectedAIs.length >= 2 ? `${getTeamLabel('aff')} vs ${getTeamLabel('neg')}` : '';
   const headerSubtitle = vsLine || undefined;
 
   const renderContent = () => {
@@ -442,6 +457,28 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     
     // Show victory celebration if debate ended and we have scores, or if overall winner determined
     if (isShowingVictory) {
+      if (isAudienceStanceDebate && voting.audienceResult) {
+        return (
+          <Animated.View
+            entering={FadeIn.duration(500)}
+            style={{ flex: 1 }}
+          >
+            <VictoryCelebration
+              scores={voting.scores || {}}
+              rounds={[]}
+              audienceResult={voting.audienceResult}
+              voteResults={voteResults}
+              onViewTranscript={handleViewTranscript}
+              onRematch={handleRematch}
+              onStartOver={handleVictoryStartOver}
+              topic={displayedTopic}
+              participants={selectedAIs}
+              messages={messages.messages}
+            />
+          </Animated.View>
+        );
+      }
+
       // Determine winner from scores
       const winner = Object.entries(voting.scores || {}).reduce((prev, current) => 
         prev[1].roundWins > current[1].roundWins ? prev : current
@@ -514,6 +551,8 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
                 isOverallVote={voting.isOverallVote}
                 isFinalVote={voting.isFinalVote}
                 votingRound={voting.votingRound}
+                voteKind={voting.voteKind}
+                audienceVoteStage={voting.audienceVoteStage}
                 scores={voting.scores || undefined}
                 votingPrompt={voting.getVotingPrompt()}
                 voteCriterion={voting.getVoteCriterion()}
@@ -523,7 +562,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
           )}
           
           {/* Show scoreboard persistently after first round */}
-          {voting.scores && Object.keys(voting.scores).length > 0 && (
+          {!isAudienceStanceDebate && voting.scores && Object.keys(voting.scores).length > 0 && (
             <Animated.View 
               entering={FadeIn.delay(200).duration(300)}
               layout={Layout.springify()}
@@ -676,6 +715,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         participants={selectedAIs.map(ai => ({ id: ai.id, name: displayName(ai) }))}
         messages={messages.messages}
         voteResults={voteResults}
+        audienceResult={voting.audienceResult}
         winner={voting.scores && Object.keys(voting.scores).length > 0 ? (() => {
           const winner = Object.entries(voting.scores).reduce((prev, current) => 
             prev[1].roundWins > current[1].roundWins ? prev : current

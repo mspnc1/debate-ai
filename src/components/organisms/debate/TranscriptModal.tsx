@@ -24,6 +24,7 @@ import { SheetHeader } from '@/components/molecules';
 import { CitationSources } from '@/components/organisms/common/CitationSources';
 import { useTheme } from '../../../theme';
 import type { Citation, DebateVoteResult, Message } from '../../../types';
+import type { AudienceDecisionResult, AudienceStance } from '../../../config/debate/formats';
 import { AI_BRAND_COLORS } from '../../../constants/aiColors';
 import { ErrorService } from '@/services/errors/ErrorService';
 import { normalizeCitations } from '@/utils/citationUtils';
@@ -36,6 +37,7 @@ export interface TranscriptModalProps {
   participants: { id: string; name: string }[];
   messages: Message[];
   voteResults?: DebateVoteResult[];
+  audienceResult?: AudienceDecisionResult;
   winner?: { id: string; name: string };
   scores?: Record<string, { name: string; roundWins: number }>;
 }
@@ -73,6 +75,12 @@ const getSpeechDisplayLabel = (message: Message): string | undefined => {
 const getParticipantClassName = (name: string): string =>
   name.toLowerCase().replace(/[^a-z0-9_-]+/g, '');
 
+const getStanceLabel = (stance: AudienceStance): string => {
+  if (stance === 'for') return 'For';
+  if (stance === 'against') return 'Against';
+  return 'Undecided';
+};
+
 export const TranscriptModal: React.FC<TranscriptModalProps> = ({
   visible,
   onClose,
@@ -80,6 +88,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
   participants,
   messages,
   voteResults,
+  audienceResult,
   winner,
   scores,
 }) => {
@@ -93,9 +102,10 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
   const debateMessages = messages.filter(
     (msg) => msg.sender !== 'Debate Host' && msg.sender !== 'System'
   );
-  const displayedVoteResults = voteResults && voteResults.length > 0
+  const displayedVoteResults = (voteResults && voteResults.length > 0
     ? voteResults
-    : getVoteResultsFromMessages(messages);
+    : getVoteResultsFromMessages(messages))
+    .filter((vote) => !audienceResult || vote.voteKind !== 'audience_stance');
 
   // Get AI brand color for styling
   const getAIColor = (aiName: string) => {
@@ -431,6 +441,29 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
   </div>
 
   ${
+    audienceResult
+      ? `
+  <div class="vote-results">
+    <div class="vote-results-title">Oxford Audience Decision</div>
+    <div class="vote-result">
+      <div class="vote-result-header">
+        <span>Started</span>
+        <span>${escapeHTML(getStanceLabel(audienceResult.initialStance))}</span>
+      </div>
+    </div>
+    <div class="vote-result">
+      <div class="vote-result-header">
+        <span>Finished</span>
+        <span>${escapeHTML(getStanceLabel(audienceResult.finalStance))}</span>
+      </div>
+      <div class="vote-criterion">${escapeHTML(audienceResult.summary)}</div>
+    </div>
+  </div>
+  `
+      : ''
+  }
+
+  ${
     displayedVoteResults.length > 0
       ? `
   <div class="vote-results">
@@ -490,7 +523,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
   </div>
   
   ${
-    winner && scores
+    !audienceResult && winner && scores
       ? `
   <div class="winner-section">
     <div class="winner-title">🏆 DEBATE CHAMPION 🏆</div>
@@ -636,6 +669,41 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
 
         {/* Messages */}
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          {audienceResult && (
+            <View
+              style={[
+                styles.voteResultsCard,
+                {
+                  backgroundColor: isDark
+                    ? theme.colors.overlays.soft
+                    : theme.colors.overlays.soft,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
+              <Typography variant="subtitle" weight="semibold" style={styles.voteResultsTitle}>
+                Oxford Audience Decision
+              </Typography>
+              <View style={styles.voteResultHeader}>
+                <Typography variant="caption" color="secondary">Started</Typography>
+                <Typography variant="caption" weight="semibold">
+                  {getStanceLabel(audienceResult.initialStance)}
+                </Typography>
+              </View>
+              <View style={[styles.voteResultItem, { borderTopColor: theme.colors.border }]}>
+                <View style={styles.voteResultHeader}>
+                  <Typography variant="caption" color="secondary">Finished</Typography>
+                  <Typography variant="caption" weight="semibold">
+                    {getStanceLabel(audienceResult.finalStance)}
+                  </Typography>
+                </View>
+                <Typography variant="caption" color="secondary" style={styles.voteResultCriterion}>
+                  {audienceResult.summary}
+                </Typography>
+              </View>
+            </View>
+          )}
+
           {displayedVoteResults.length > 0 && (
             <View
               style={[
@@ -730,7 +798,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
           })}
 
           {/* Winner section if available */}
-          {winner && scores && (
+          {!audienceResult && winner && scores && (
             <LinearGradient
               colors={theme.colors.gradients.premium}
               style={styles.winnerCard}

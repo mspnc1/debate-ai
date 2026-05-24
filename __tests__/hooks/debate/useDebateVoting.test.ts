@@ -25,6 +25,8 @@ class MockVotingService {
   calculateScores = jest.fn(() => this.scores);
   getVotingPrompt = jest.fn(() => this.prompt);
   getVoteCriterion = jest.fn(() => 'Opening: choose who framed the motion more clearly.');
+  getAudienceVotingPrompt = jest.fn((stage: string) => `${stage} audience prompt`);
+  getAudienceVoteCriterion = jest.fn((stage: string) => `${stage} audience criterion`);
   getVotingLabel = jest.fn(() => 'Opening');
   getVoteRecords = jest.fn(() => this.voteRecords);
   hasVotedForRound = jest.fn((round: number) => this.voted.has(round));
@@ -147,6 +149,64 @@ describe('useDebateVoting', () => {
     expect(store.getState().debateStats.history).toHaveLength(1);
     expect(store.getState().debateStats.history[0]?.overallWinner).toBe('gpt4');
     expect(result.current.isVoting).toBe(false);
+  });
+
+  it('handles Oxford audience stance voting without recording round winners', async () => {
+    const orchestrator = new MockOrchestrator();
+    const { result, store } = renderHookWithProviders(() => useDebateVoting(orchestrator as unknown as never, []), {
+      preloadedState: baseState,
+    });
+
+    store.dispatch(startDebate({ debateId: 'debate-1', topic: 'AI', participants: ['claude', 'gpt4'] }));
+
+    act(() => {
+      orchestrator.emit({
+        type: 'voting_started',
+        data: {
+          round: 0,
+          voteKind: 'audience_stance',
+          audienceVoteStage: 'initial',
+          isFinalRound: false,
+          isOverallVote: false,
+        },
+        timestamp: Date.now(),
+      });
+    });
+
+    expect(result.current.voteKind).toBe('audience_stance');
+    expect(result.current.audienceVoteStage).toBe('initial');
+    expect(result.current.getVotingPrompt()).toBe('initial audience prompt');
+    expect(result.current.getVoteCriterion()).toBe('initial audience criterion');
+
+    await act(async () => {
+      await result.current.recordVote('undecided');
+    });
+
+    expect(orchestrator.recordVote).toHaveBeenCalledWith(0, 'undecided', false);
+    expect(store.getState().debateStats.currentDebate?.roundWinners).toEqual({});
+
+    act(() => {
+      orchestrator.emit({
+        type: 'debate_ended',
+        data: {
+          overallWinner: 'claude',
+          overallWinnerIds: ['claude'],
+          audienceResult: {
+            initialStance: 'undecided',
+            finalStance: 'for',
+            winningSide: 'aff',
+            winningSideLabel: 'Proposition',
+            resultVerb: 'persuaded',
+            summary: 'Proposition persuaded the audience.',
+            winningParticipantIds: ['claude'],
+          },
+        },
+        timestamp: Date.now(),
+      });
+    });
+
+    expect(result.current.audienceResult?.winningSideLabel).toBe('Proposition');
+    expect(store.getState().debateStats.history[0]?.overallWinners).toEqual(['claude']);
   });
 
   it('handles missing orchestrator, vote failures, and helper fallbacks', async () => {

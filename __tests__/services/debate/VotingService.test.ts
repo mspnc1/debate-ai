@@ -8,9 +8,10 @@ describe('VotingService', () => {
     { id: 'gpt4', provider: 'openai', name: 'GPT-4o', model: 'gpt-4o' },
   ];
   const oxfordShort = getPresetForFormat('oxford', 'short');
+  const policyShort = getPresetForFormat('policy', 'short');
 
   it('records round winners and calculates scores', () => {
-    const service = new VotingService(participants, oxfordShort);
+    const service = new VotingService(participants, policyShort, 'policy');
 
     service.recordRoundVote(1, 'claude');
     service.recordRoundVote(2, 'gpt4');
@@ -24,13 +25,13 @@ describe('VotingService', () => {
     expect(scores.claude.isOverallWinner).toBe(true);
     expect(scores.gpt4.isOverallWinner).toBe(false);
     expect(service.getRoundVote(2)?.winnerId).toBe('gpt4');
-    expect(service.getRoundVote(2)?.votingLabel).toBe('Floor Debate');
+    expect(service.getRoundVote(2)?.votingLabel).toBe('2NC');
     expect(service.getVoteRecords()).toHaveLength(3);
     expect(service.getVotesMap()).toEqual({ '1': 'claude', '2': 'gpt4', '3': 'claude', overall: 'claude' });
   });
 
   it('tracks completion state across rounds', () => {
-    const service = new VotingService(participants, oxfordShort);
+    const service = new VotingService(participants, policyShort, 'policy');
     expect(service.areAllRoundsVoted()).toBe(false);
 
     service.recordRoundVote(1, 'claude');
@@ -45,13 +46,13 @@ describe('VotingService', () => {
   });
 
   it('provides contextual prompts based on round and overall vote', () => {
-    const service = new VotingService(participants, oxfordShort);
+    const service = new VotingService(participants, policyShort, 'policy');
 
-    expect(service.getVotingPrompt(2, false, false)).toBe('Who had the stronger floor debate?');
-    expect(service.getVotingPrompt(3, true, false)).toBe('Who had the stronger closing speeches?');
+    expect(service.getVotingPrompt(2, false, false)).toBe('Who had the stronger 2nc?');
+    expect(service.getVotingPrompt(3, true, false)).toBe('Who had the stronger 2ar?');
     expect(service.getVotingPrompt(3, true, true)).toBe('Choose the overall winner');
-    expect(service.getWinnerMessage(1, 'claude', false)).toBe('Opening Speeches: Claude');
-    expect(service.getWinnerMessage(3, 'gpt4', true)).toBe('Closing Speeches: GPT-4o');
+    expect(service.getWinnerMessage(1, 'claude', false)).toBe('1NC: Claude');
+    expect(service.getWinnerMessage(3, 'gpt4', true)).toBe('2AR: GPT-4o');
     expect(service.getOverallWinnerMessage('gpt4')).toBe('OVERALL WINNER: GPT-4o!\n\nGPT-4o won the debate.');
   });
 
@@ -74,20 +75,48 @@ describe('VotingService', () => {
   });
 
   it('uses distinct vote guidance for each checkpoint and records it', () => {
-    const service = new VotingService(participants, oxfordShort);
+    const service = new VotingService(participants, policyShort, 'policy');
 
     const openingCriterion = service.getVoteCriterion(1);
     const rebuttalCriterion = service.getVoteCriterion(2);
     const closingCriterion = service.getVoteCriterion(3);
 
-    expect(openingCriterion).toContain('motion framing');
-    expect(rebuttalCriterion).toContain('answered the other side');
-    expect(closingCriterion).toContain('summary of voters');
+    expect(openingCriterion).toContain('plan or opposition');
+    expect(rebuttalCriterion).toContain('solvency');
+    expect(closingCriterion).toContain('extended winning arguments');
     expect(new Set([openingCriterion, rebuttalCriterion, closingCriterion]).size).toBe(3);
 
     expect(service.recordRoundVote(2, 'gpt4')).toMatchObject({
-      votingLabel: 'Floor Debate',
+      votingLabel: '2NC',
       criterion: rebuttalCriterion,
     });
+  });
+
+  it('records Oxford opening and final audience stance votes', () => {
+    const service = new VotingService(participants, oxfordShort, 'oxford');
+
+    expect(service.isAudienceStanceVoteModel()).toBe(true);
+    expect(service.areAllRoundsVoted()).toBe(false);
+    expect(service.getAudienceVotingPrompt('initial')).toContain('Before the debate');
+    expect(service.getAudienceVoteOptions('initial').map((option) => option.id)).toEqual(['for', 'against', 'undecided']);
+    expect(service.getAudienceVoteOptions('final').map((option) => option.id)).toEqual(['for', 'against']);
+
+    service.recordAudienceVote('initial', 'undecided');
+    expect(service.areAllRoundsVoted()).toBe(false);
+
+    service.recordAudienceVote('final', 'for');
+    const result = service.getAudienceDecisionResult();
+
+    expect(service.areAllRoundsVoted()).toBe(true);
+    expect(result).toMatchObject({
+      initialStance: 'undecided',
+      finalStance: 'for',
+      winningSide: 'aff',
+      winningSideLabel: 'Proposition',
+      resultVerb: 'persuaded',
+      winningParticipantIds: ['claude'],
+    });
+    expect(service.calculateScores().aff.roundWins).toBe(1);
+    expect(service.getVoteRecords()).toHaveLength(2);
   });
 });

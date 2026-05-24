@@ -22,6 +22,7 @@ import { useTheme } from '../../../theme';
 import { AI_BRAND_COLORS } from '../../../constants/aiColors';
 import { AI, type DebateVoteResult, Message } from '../../../types';
 import { ScoreBoard } from '../../../services/debate';
+import type { AudienceDecisionResult, AudienceStance } from '../../../config/debate/formats';
 import ShareModal from './ShareModal';
 import { analytics } from '../../../services/analytics';
 import { shareIncentives } from '../../../services/shareIncentives';
@@ -33,9 +34,10 @@ export interface RoundResult {
 }
 
 export interface VictoryCelebrationProps {
-  winner: AI;
+  winner?: AI;
   scores: ScoreBoard;
   rounds: RoundResult[];
+  audienceResult?: AudienceDecisionResult;
   voteResults?: DebateVoteResult[];
   onViewTranscript: () => void;
   onRematch: () => void;
@@ -49,6 +51,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
   winner,
   scores,
   rounds,
+  audienceResult,
   voteResults = [],
   onViewTranscript,
   onRematch,
@@ -92,6 +95,10 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
   
   // Get winner colors from current text provider IDs and common aliases.
   const getWinnerColors = () => {
+    if (!winner) {
+      return theme.colors.primary;
+    }
+
     const winnerKey = (winner.id === 'openai' || winner.id === 'chatgpt') ? 'openai' : 
                      winner.id === 'claude' ? 'claude' :
                      (winner.id === 'gemini' || winner.id === 'google') ? 'gemini' :
@@ -117,6 +124,189 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
     backgroundColor: theme.colors.surface,
     ...theme.shadows.lg,
   };
+
+  const stanceLabel = (stance: AudienceStance): string => {
+    if (stance === 'for') return 'For';
+    if (stance === 'against') return 'Against';
+    return 'Undecided';
+  };
+
+  const renderAudienceDecision = () => {
+    if (!audienceResult) return null;
+
+    const winningTeam = participants?.filter((_, index) => {
+      if (audienceResult.winningSide === 'aff') return index % 2 === 0;
+      return index % 2 === 1;
+    }) || [];
+
+    return (
+      <View style={StyleSheet.absoluteFillObject}>
+        <BlurView intensity={90} style={styles.backdrop}>
+          <LinearGradient
+            colors={isDark
+              ? [theme.colors.overlays.backdrop, theme.colors.overlays.backdropDark]
+              : [theme.colors.overlays.backdrop, theme.colors.overlays.backdropDark]
+            }
+            style={styles.gradientBackdrop}
+          >
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{
+                flexGrow: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+                paddingVertical: 24,
+                paddingHorizontal: 16,
+              }}
+            >
+              <Animated.View entering={ZoomIn.springify()} style={dynamicCardStyles}>
+                <Animated.View style={[styles.trophyContainer, trophyStyle]}>
+                  <Ionicons name="podium" size={64} color={winnerColors[500]} />
+                  <View style={[
+                    styles.glowEffect,
+                    { backgroundColor: `${winnerColors[400]}40` },
+                  ]} />
+                </Animated.View>
+
+                <Animated.View style={[styles.content, contentStyle]}>
+                  <Typography
+                    variant="caption"
+                    weight="semibold"
+                    align="center"
+                    color="secondary"
+                    style={styles.championLabel}
+                  >
+                    OXFORD AUDIENCE DECISION
+                  </Typography>
+
+                  <LinearGradient
+                    colors={[winnerColors[400], winnerColors[600]]}
+                    style={styles.winnerNameContainer}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Typography
+                      variant="title"
+                      weight="bold"
+                      align="center"
+                      style={{
+                        ...styles.winnerName,
+                        color: theme.colors.text.white,
+                      }}
+                    >
+                      {audienceResult.winningSideLabel}
+                    </Typography>
+                  </LinearGradient>
+
+                  <Typography
+                    variant="body"
+                    align="center"
+                    color="secondary"
+                    style={styles.audienceSummary}
+                  >
+                    {audienceResult.summary}
+                  </Typography>
+
+                  <View style={[styles.audienceStanceCard, { borderColor: theme.colors.border }]}>
+                    <View style={styles.audienceStanceRow}>
+                      <Typography variant="caption" color="secondary">Started</Typography>
+                      <Typography variant="body" weight="bold">
+                        {stanceLabel(audienceResult.initialStance)}
+                      </Typography>
+                    </View>
+                    <View style={[styles.audienceStanceDivider, { backgroundColor: theme.colors.border }]} />
+                    <View style={styles.audienceStanceRow}>
+                      <Typography variant="caption" color="secondary">Finished</Typography>
+                      <Typography variant="body" weight="bold">
+                        {stanceLabel(audienceResult.finalStance)}
+                      </Typography>
+                    </View>
+                  </View>
+
+                  {winningTeam.length > 0 && (
+                    <View style={styles.audienceTeam}>
+                      <Typography variant="caption" color="secondary" weight="semibold" align="center">
+                        Winning side
+                      </Typography>
+                      <Typography variant="body" weight="semibold" align="center">
+                        {winningTeam.map((ai) => ai.name).join(' + ')}
+                      </Typography>
+                    </View>
+                  )}
+
+                  <View style={styles.actions}>
+                    <VictoryActionButton
+                      title="Rematch"
+                      icon="refresh"
+                      onPress={onRematch}
+                      variant="primary"
+                      colors={[winnerColors[400], winnerColors[600]]}
+                      testID="victory-rematch"
+                    />
+                    <View style={styles.secondaryActions}>
+                      <VictoryActionButton
+                        title="Transcript"
+                        icon="document-text-outline"
+                        onPress={onViewTranscript}
+                        variant="secondary"
+                        testID="victory-transcript"
+                      />
+                      <VictoryActionButton
+                        title="Share"
+                        icon="share-social-outline"
+                        onPress={() => setShowShareCard(true)}
+                        variant="secondary"
+                        testID="victory-share"
+                      />
+                    </View>
+                    <VictoryActionButton
+                      title="Start Over"
+                      icon="arrow-back-circle-outline"
+                      onPress={onStartOver}
+                      variant="ghost"
+                      testID="victory-start-over"
+                    />
+                  </View>
+                </Animated.View>
+              </Animated.View>
+            </ScrollView>
+          </LinearGradient>
+        </BlurView>
+
+        <ShareModal
+          visible={showShareCard}
+          topic={topic || 'AI Debate'}
+          participants={participants || []}
+          messages={messages || []}
+          winner={winner}
+          scores={scores}
+          onShare={async (platform?: string) => {
+            analytics.trackShare(
+              platform || 'unknown',
+              'debate_image_card',
+              true,
+              {
+                topic: topic || 'AI Debate',
+                winner: audienceResult.winningSideLabel,
+                participant_count: participants?.length || 0,
+              }
+            );
+            await shareIncentives.recordShare();
+            setShowShareCard(false);
+          }}
+          onClose={() => setShowShareCard(false)}
+        />
+      </View>
+    );
+  };
+
+  if (audienceResult) {
+    return renderAudienceDecision();
+  }
+
+  if (!winner) {
+    return null;
+  }
   
   return (
     <View style={StyleSheet.absoluteFillObject}>
@@ -469,6 +659,30 @@ const styles = StyleSheet.create({
   },
   winnerName: {
     fontSize: 24,
+  },
+  audienceSummary: {
+    lineHeight: 22,
+    marginBottom: 18,
+  },
+  audienceStanceCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    flexDirection: 'row',
+    marginBottom: 18,
+    padding: 14,
+    width: '100%',
+  },
+  audienceStanceRow: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 4,
+  },
+  audienceStanceDivider: {
+    width: StyleSheet.hairlineWidth,
+  },
+  audienceTeam: {
+    gap: 6,
+    marginBottom: 22,
   },
   scoreContainer: {
     width: '100%',

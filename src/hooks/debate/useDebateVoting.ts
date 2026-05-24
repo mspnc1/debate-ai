@@ -6,7 +6,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useDispatch } from 'react-redux';
 import { recordRoundWinner, recordOverallWinner } from '../../store';
-import { DebateOrchestrator, DebateEvent, ScoreBoard } from '../../services/debate';
+import { DebateOrchestrator, DebateEvent, ScoreBoard, type AudienceDecisionResult, type AudienceVoteStage } from '../../services/debate';
 import { AI, type DebateVoteResult } from '../../types';
 
 export interface UseDebateVotingReturn {
@@ -14,6 +14,9 @@ export interface UseDebateVotingReturn {
   votingRound: number;
   isFinalVote: boolean;
   isOverallVote: boolean;
+  voteKind: 'checkpoint' | 'audience_stance';
+  audienceVoteStage?: AudienceVoteStage;
+  audienceResult?: AudienceDecisionResult;
   scores: ScoreBoard | null;
   voteRecords: DebateVoteResult[];
   hasVotedForRound: (round: number) => boolean;
@@ -33,6 +36,9 @@ export const useDebateVoting = (
   const [votingRound, setVotingRound] = useState(0);
   const [isFinalVote, setIsFinalVote] = useState(false);
   const [isOverallVote, setIsOverallVote] = useState(false);
+  const [voteKind, setVoteKind] = useState<'checkpoint' | 'audience_stance'>('checkpoint');
+  const [audienceVoteStage, setAudienceVoteStage] = useState<AudienceVoteStage | undefined>(undefined);
+  const [audienceResult, setAudienceResult] = useState<AudienceDecisionResult | undefined>(undefined);
   const [scores, setScores] = useState<ScoreBoard | null>(null);
   const [voteRecords, setVoteRecords] = useState<DebateVoteResult[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +53,12 @@ export const useDebateVoting = (
         }
         setIsFinalVote(!!event.data.isFinalRound);
         setIsOverallVote(!!event.data.isOverallVote);
+        setVoteKind(event.data.voteKind === 'audience_stance' ? 'audience_stance' : 'checkpoint');
+        setAudienceVoteStage(
+          event.data.audienceVoteStage === 'initial' || event.data.audienceVoteStage === 'final'
+            ? event.data.audienceVoteStage
+            : undefined
+        );
         break;
         
       case 'voting_completed':
@@ -62,13 +74,28 @@ export const useDebateVoting = (
             voteRecord,
           ].sort((a, b) => a.round - b.round));
         }
+        if (event.data.audienceResult) {
+          setAudienceResult(event.data.audienceResult as AudienceDecisionResult);
+        }
         break;
         
       case 'debate_ended':
         setIsVoting(false);
+        if (event.data.finalScores) {
+          setScores(event.data.finalScores as ScoreBoard);
+        }
+        if (event.data.audienceResult) {
+          setAudienceResult(event.data.audienceResult as AudienceDecisionResult);
+        }
         // Dispatch the overall winner to Redux if provided
         if (event.data.overallWinner) {
-          dispatch(recordOverallWinner({ winnerId: event.data.overallWinner as string }));
+          const winnerIds = Array.isArray(event.data.overallWinnerIds)
+            ? (event.data.overallWinnerIds as string[])
+            : undefined;
+          dispatch(recordOverallWinner({
+            winnerId: event.data.overallWinner as string,
+            ...(winnerIds ? { winnerIds } : {}),
+          }));
         }
         // Note: Stats are persisted in App.tsx which is always mounted
         break;
@@ -127,7 +154,7 @@ export const useDebateVoting = (
       // This must happen before orchestrator.recordVote because on the final round,
       // the orchestrator will emit debate_ended which triggers recordOverallWinner
       // and clears currentDebate. If we dispatch after, currentDebate is already gone.
-      if (!isOverallVote) {
+      if (voteKind !== 'audience_stance' && !isOverallVote) {
         const votingService = orchestrator.getVotingService();
         dispatch(recordRoundWinner({
           round: votingRound,
@@ -149,28 +176,34 @@ export const useDebateVoting = (
       const errorMessage = err instanceof Error ? err.message : 'Failed to record vote';
       setError(errorMessage);
     }
-  }, [orchestrator, votingRound, isOverallVote, dispatch]);
+  }, [orchestrator, votingRound, isOverallVote, voteKind, dispatch]);
   
   // Get voting prompt text
   const getVotingPrompt = useCallback((): string => {
     if (orchestrator) {
       const votingService = orchestrator.getVotingService();
       if (votingService) {
+        if (voteKind === 'audience_stance' && audienceVoteStage) {
+          return votingService.getAudienceVotingPrompt(audienceVoteStage);
+        }
         return votingService.getVotingPrompt(votingRound, isFinalVote, isOverallVote);
       }
     }
     return '';
-  }, [orchestrator, votingRound, isFinalVote, isOverallVote]);
+  }, [orchestrator, votingRound, isFinalVote, isOverallVote, voteKind, audienceVoteStage]);
 
   const getVoteCriterion = useCallback((): string => {
     if (orchestrator) {
       const votingService = orchestrator.getVotingService();
       if (votingService) {
+        if (voteKind === 'audience_stance' && audienceVoteStage) {
+          return votingService.getAudienceVoteCriterion(audienceVoteStage);
+        }
         return votingService.getVoteCriterion(votingRound, isOverallVote);
       }
     }
     return '';
-  }, [orchestrator, votingRound, isOverallVote]);
+  }, [orchestrator, votingRound, isOverallVote, voteKind, audienceVoteStage]);
   
   // Initialize scores when orchestrator is available
   useEffect(() => {
@@ -182,6 +215,9 @@ export const useDebateVoting = (
     votingRound,
     isFinalVote,
     isOverallVote,
+    voteKind,
+    audienceVoteStage,
+    audienceResult,
     scores,
     voteRecords,
     hasVotedForRound,

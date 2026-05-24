@@ -74,15 +74,15 @@ export const HELP_TOPICS: Record<string, HelpTopic> = {
 
 How It Works:
 1. Choose a motion (preset, custom, or surprise)
-2. Select two AI debaters from your configured providers
-3. Pick a debate format and number of exchanges
+2. Select the required AI debaters from your configured providers
+3. Pick a debate format and preset
 4. Watch the debate unfold in real time
 
 Demo vs Live:
 - Demo mode plays curated, pre-recorded debates
 - Start a trial or subscription to run live debates with your API keys
 
-Each AI will present arguments, respond to their opponent, and try to make the most compelling case. You can vote on who made the better argument after the debate concludes.`,
+Each AI will present arguments, respond to their opponent, and try to make the most compelling case. Oxford debates ask for your stance before and after the speeches; other formats ask you to vote at format-specific checkpoints.`,
     relatedTopics: ["debate-formats", "debate-voting", "debate-stats"],
   },
 
@@ -95,7 +95,7 @@ Each AI will present arguments, respond to their opponent, and try to make the m
     content: `Symposium AI offers three structured debate formats:
 
 Oxford Format:
-Motion debate with proposition and opposition opening speeches, floor debate, and closing speeches. Best for: Public-facing debates on policy or ethics.
+Audience-voted motion debate with proposition and opposition speeches. Classic is 1v1; Full and Extended use 2v2 teams. You vote before the first speech and again after the closing speeches. Best for: Public-facing debates on policy or ethics.
 
 Lincoln-Douglas:
 Philosophical debate focusing on values and ethics. Uses AC, CX, NC/1NR, 1AR, NR/2NR, and 2AR structure. Best for: Ethical dilemmas and value-based topics.
@@ -111,7 +111,13 @@ Data-driven debate with emphasis on evidence and practical solutions. Uses 1AC, 
     icon: "trophy",
     category: "debate-arena",
     shortDescription: "How to judge and vote on debates",
-    content: `After each debate, you can vote on which AI made the more compelling argument.
+    content: `Voting depends on the debate format.
+
+Oxford Voting:
+Oxford uses an audience model. You cast an opening stance before the first speech, then a required final vote after the debate. The result shows whether the proposition or opposition persuaded, held, or flipped the audience.
+
+Checkpoint Voting:
+Lincoln-Douglas and Policy use format-specific checkpoint votes. At each checkpoint, choose which debater handled that part of the debate more effectively.
 
 Voting Criteria:
 Consider these factors when deciding your vote:
@@ -122,7 +128,7 @@ Consider these factors when deciding your vote:
 - Adherence to the debate format
 
 Your Vote Matters:
-Voting helps you engage critically with the debate content and track which AIs perform best on different topics.
+Voting helps you engage critically with the debate content and track which AIs or teams perform best on different topics.
 
 Debate History:
 All your debates and votes are saved in your history, so you can review past debates and see patterns in AI performance.`,
@@ -145,7 +151,7 @@ Transcript Contents:
 - Debate motion and date
 - AI participants
 - Full exchange in order
-- Final winner and round scores (if available)`,
+- Final audience decision or round scores (if available)`,
     relatedTopics: ["debate-arena", "debate-voting"],
   },
 
