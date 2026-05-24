@@ -134,4 +134,19 @@ describe('VictoryCelebration', () => {
 
     expect(getByTestId('share-modal')).toBeTruthy();
   });
+
+  it('renders the voice pack action when voiced clips are available', () => {
+    const onSaveVoicePack = jest.fn();
+    const { getByTestId } = renderWithProviders(
+      <VictoryCelebration
+        {...defaultProps}
+        onSaveVoicePack={onSaveVoicePack}
+        voicePackClipCount={2}
+      />
+    );
+
+    fireEvent.press(getByTestId('victory-voice-pack'));
+
+    expect(onSaveVoicePack).toHaveBeenCalledTimes(1);
+  });
 });

@@ -8,7 +8,8 @@ export type CreateMediaOperation =
   | 'text_to_video'
   | 'image_to_video'
   | 'text_to_speech'
-  | 'sound_effect';
+  | 'sound_effect'
+  | 'debate_voice_pack';
 
 export type CreateMediaAssetStatus =
   | 'queued'
@@ -59,4 +60,36 @@ export interface MediaProviderOptionsResponse {
   voiceNextPageToken?: string | null;
   models?: MediaProviderModelOption[];
   error?: string;
+}
+
+export interface DebateVoicePackParticipant {
+  id: string;
+  name: string;
+}
+
+export interface DebateVoicePackClip {
+  id: string;
+  messageId: string;
+  order: number;
+  speakerId?: string;
+  speakerName: string;
+  speechLabel?: string;
+  voiceName?: string;
+  textPreview: string;
+  uri: string;
+  mimeType: string;
+  fileName: string;
+  pauseAfterMs: number;
+}
+
+export interface DebateVoicePackManifest {
+  kind: 'debate_voice_pack';
+  version: 1;
+  sessionId: string;
+  topic: string;
+  participants: DebateVoicePackParticipant[];
+  clips: DebateVoicePackClip[];
+  pauseMs: number;
+  directoryUri?: string;
+  createdAt: number;
 }

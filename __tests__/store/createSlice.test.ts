@@ -1213,6 +1213,60 @@ describe('createSlice', () => {
       expect(FileSystem.deleteAsync).toHaveBeenCalledWith(mockMedia.uri, { idempotent: true });
     });
 
+    it('removeFromMediaGalleryWithCleanup deletes a voice pack directory', async () => {
+      const voicePackMedia: GeneratedMediaEntry = {
+        id: 'voice_pack_1',
+        mediaType: 'audio',
+        providerId: 'elevenlabs',
+        modelId: 'debate_voice_pack',
+        operation: 'debate_voice_pack',
+        prompt: 'Voice pack: Resolved',
+        uri: 'file:///documents/gallery-voice-packs/voice_pack_1/001_msg.mp3',
+        mimeType: 'audio/mpeg',
+        status: 'succeeded',
+        createdAt: 123,
+        voicePack: {
+          kind: 'debate_voice_pack',
+          version: 1,
+          sessionId: 'debate_1',
+          topic: 'Resolved',
+          participants: [{ id: 'openai', name: 'ChatGPT' }],
+          clips: [{
+            id: 'clip_1',
+            messageId: 'msg_1',
+            order: 0,
+            speakerId: 'openai',
+            speakerName: 'ChatGPT',
+            textPreview: 'Opening statement.',
+            uri: 'file:///documents/gallery-voice-packs/voice_pack_1/001_msg.mp3',
+            mimeType: 'audio/mpeg',
+            fileName: '001_msg.mp3',
+            pauseAfterMs: 900,
+          }],
+          pauseMs: 900,
+          directoryUri: 'file:///documents/gallery-voice-packs/voice_pack_1/',
+          createdAt: 123,
+        },
+      };
+      const store = configureStore({
+        reducer: { create: reducer },
+        preloadedState: {
+          create: {
+            ...initialState,
+            mediaGallery: [voicePackMedia],
+          },
+        },
+      });
+
+      await store.dispatch(removeFromMediaGalleryWithCleanup(voicePackMedia.id));
+
+      expect(store.getState().create.mediaGallery).toEqual([]);
+      expect(FileSystem.deleteAsync).toHaveBeenCalledWith(
+        'file:///documents/gallery-voice-packs/voice_pack_1/',
+        { idempotent: true }
+      );
+    });
+
     it('clearMediaGalleryWithCleanup deletes all local media files outside the reducer', async () => {
       const audioMedia: GeneratedMediaEntry = {
         ...mockMedia,

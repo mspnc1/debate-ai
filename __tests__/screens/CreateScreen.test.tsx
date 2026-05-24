@@ -506,6 +506,80 @@ describe('CreateScreen', () => {
       });
     });
 
+    it('renders and plays a debate voice pack from the audio gallery', async () => {
+      const voicePackEntry = {
+        id: 'voice_pack_focus',
+        mediaType: 'audio',
+        providerId: 'elevenlabs',
+        modelId: 'debate_voice_pack',
+        operation: 'debate_voice_pack',
+        prompt: 'Voice pack: Resolved: testing matters.',
+        uri: 'file:///packs/voice_pack_focus/001.mp3',
+        mimeType: 'audio/mpeg',
+        status: 'succeeded',
+        createdAt: Date.now(),
+        voicePack: {
+          kind: 'debate_voice_pack',
+          version: 1,
+          sessionId: 'debate_1',
+          topic: 'Resolved: testing matters.',
+          participants: [{ id: 'openai', name: 'ChatGPT' }],
+          clips: [
+            {
+              id: 'clip_1',
+              messageId: 'msg_1',
+              order: 0,
+              speakerId: 'openai',
+              speakerName: 'ChatGPT',
+              speechLabel: 'Opening statement',
+              textPreview: 'Opening statement.',
+              uri: 'file:///packs/voice_pack_focus/001.mp3',
+              mimeType: 'audio/mpeg',
+              fileName: '001.mp3',
+              pauseAfterMs: 900,
+            },
+            {
+              id: 'clip_2',
+              messageId: 'msg_2',
+              order: 1,
+              speakerId: 'google',
+              speakerName: 'Gemini',
+              speechLabel: 'Opening response',
+              textPreview: 'Opening response.',
+              uri: 'file:///packs/voice_pack_focus/002.mp3',
+              mimeType: 'audio/mpeg',
+              fileName: '002.mp3',
+              pauseAfterMs: 900,
+            },
+          ],
+          pauseMs: 900,
+          directoryUri: 'file:///packs/voice_pack_focus/',
+          createdAt: Date.now(),
+        },
+      };
+      mockRouteParams = { focusMediaId: voicePackEntry.id, galleryTab: 'audio' };
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          create: {
+            ...baseState.create,
+            gallery: [],
+            mediaGallery: [voicePackEntry],
+          },
+        })
+      );
+
+      const { getByLabelText, getByText } = renderWithProviders(<CreateScreen />);
+
+      expect(getByText('Clip 1 of 2 • ChatGPT')).toBeTruthy();
+      expect(getByText('2 clips • 0.9s pauses')).toBeTruthy();
+
+      fireEvent.press(getByLabelText('Play voice pack'));
+      const player = mockedUseAudioPlayer.mock.results[0].value as MockAudioPlayer;
+
+      expect(player.play).toHaveBeenCalledTimes(1);
+    });
+
     it('opens video playback only from the asset detail preview', async () => {
       mockRouteParams = {};
       const videoEntry = {

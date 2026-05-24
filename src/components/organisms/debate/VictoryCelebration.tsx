@@ -42,6 +42,8 @@ export interface VictoryCelebrationProps {
   onViewTranscript: () => void;
   onRematch: () => void;
   onStartOver: () => void;
+  onSaveVoicePack?: () => void;
+  voicePackClipCount?: number;
   topic?: string;
   participants?: AI[];
   messages?: Message[];
@@ -56,6 +58,8 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
   onViewTranscript,
   onRematch,
   onStartOver,
+  onSaveVoicePack,
+  voicePackClipCount = 0,
   topic,
   participants,
   messages,
@@ -251,6 +255,15 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                         variant="secondary"
                         testID="victory-transcript"
                       />
+                      {onSaveVoicePack && voicePackClipCount > 0 && (
+                        <VictoryActionButton
+                          title="Voice Pack"
+                          icon="albums-outline"
+                          onPress={onSaveVoicePack}
+                          variant="secondary"
+                          testID="victory-voice-pack"
+                        />
+                      )}
                       <VictoryActionButton
                         title="Share"
                         icon="share-social-outline"
@@ -474,6 +487,15 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                       variant="secondary"
                       testID="victory-transcript"
                     />
+                    {onSaveVoicePack && voicePackClipCount > 0 && (
+                      <VictoryActionButton
+                        title="Voice Pack"
+                        icon="albums-outline"
+                        onPress={onSaveVoicePack}
+                        variant="secondary"
+                        testID="victory-voice-pack"
+                      />
+                    )}
                     <VictoryActionButton
                       title="Share"
                       icon="share-social-outline"
@@ -773,11 +795,13 @@ const styles = StyleSheet.create({
   },
   secondaryActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
     width: '100%',
   },
   secondaryAction: {
     flex: 1,
+    minWidth: 110,
   },
   ghostAction: {
     minHeight: 44,

@@ -67,6 +67,7 @@ import type {
   GallerySortMode,
   GalleryTab,
 } from '../store/createSlice';
+import type { DebateVoicePackManifest } from '../types/media';
 import { RootStackParamList, AIProvider } from '../types';
 import { ImageService, GeneratedImage } from '../services/images/ImageService';
 import APIKeyService from '../services/APIKeyService';
@@ -154,6 +155,10 @@ type AudioPlayerResetRequest = {
 
 const AUDIO_END_EPSILON_SECONDS = 0.05;
 const AUDIO_SKIP_SECONDS = 1;
+
+function isVoicePackEntry(entry: GeneratedMediaEntry): entry is GeneratedMediaEntry & { voicePack: DebateVoicePackManifest } {
+  return entry.voicePack?.kind === 'debate_voice_pack';
+}
 
 function getAudioPhase(status: ReturnType<typeof useAudioPlayerStatus>): AudioPlaybackPhase {
   if (status.playing) return 'playing';
@@ -518,6 +523,262 @@ function AudioPreviewPlayer({
   );
 }
 
+function VoicePackPreview({
+  manifest,
+  theme,
+  isDark,
+}: {
+  manifest: DebateVoicePackManifest;
+  theme: ReturnType<typeof useTheme>['theme'];
+  isDark: boolean;
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isWaitingForNextClip, setIsWaitingForNextClip] = useState(false);
+  const [packEnded, setPackEnded] = useState(false);
+  const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clips = manifest.clips;
+  const currentClip = clips[currentIndex];
+  const audioSurfaceColor = isDark ? theme.colors.overlays.medium : theme.colors.primary[50];
+  const audioAccentColor = isDark ? theme.colors.primary[300] : theme.colors.primary[700];
+  const canGoPrevious = currentIndex > 0;
+  const canGoNext = currentIndex < clips.length - 1;
+
+  const clearAdvanceTimer = useCallback(() => {
+    if (advanceTimerRef.current) {
+      clearTimeout(advanceTimerRef.current);
+      advanceTimerRef.current = null;
+    }
+    setIsWaitingForNextClip(false);
+  }, []);
+
+  useEffect(() => () => {
+    if (advanceTimerRef.current) {
+      clearTimeout(advanceTimerRef.current);
+    }
+  }, []);
+
+  const moveToClip = useCallback((nextIndex: number, shouldPlay: boolean) => {
+    clearAdvanceTimer();
+    setPackEnded(false);
+    setCurrentIndex(Math.max(0, Math.min(nextIndex, clips.length - 1)));
+    setIsPlaying(shouldPlay);
+  }, [clearAdvanceTimer, clips.length]);
+
+  const handleClipEnded = useCallback(() => {
+    if (!isPlaying) return;
+    if (currentIndex >= clips.length - 1) {
+      clearAdvanceTimer();
+      setIsPlaying(false);
+      setPackEnded(true);
+      return;
+    }
+
+    setIsWaitingForNextClip(true);
+    const pauseMs = currentClip?.pauseAfterMs ?? manifest.pauseMs;
+    advanceTimerRef.current = setTimeout(() => {
+      advanceTimerRef.current = null;
+      setIsWaitingForNextClip(false);
+      setCurrentIndex((index) => Math.min(index + 1, clips.length - 1));
+    }, pauseMs);
+  }, [clearAdvanceTimer, clips.length, currentClip?.pauseAfterMs, currentIndex, isPlaying, manifest.pauseMs]);
+
+  const handlePlayPause = useCallback(() => {
+    if (isPlaying) {
+      clearAdvanceTimer();
+      setIsPlaying(false);
+      return;
+    }
+
+    if (packEnded) {
+      setCurrentIndex(0);
+      setPackEnded(false);
+    }
+    setIsPlaying(true);
+  }, [clearAdvanceTimer, isPlaying, packEnded]);
+
+  if (!currentClip) {
+    return (
+      <View style={[styles.voicePackPreview, { backgroundColor: audioSurfaceColor }]}>
+        <Typography variant="body" color="secondary">
+          Voice pack has no clips.
+        </Typography>
+      </View>
+    );
+  }
+
+  const playbackLabel = isWaitingForNextClip
+    ? 'Pause between speakers'
+    : packEnded
+      ? 'Replay voice pack'
+      : isPlaying
+        ? `Playing ${currentClip.speakerName}`
+        : `Ready: ${currentClip.speakerName}`;
+
+  return (
+    <View style={[styles.voicePackPreview, { backgroundColor: audioSurfaceColor }]}>
+      <View style={styles.voicePackHeader}>
+        <View style={styles.voicePackTitleText}>
+          <Typography variant="body" weight="semibold" numberOfLines={1}>
+            {manifest.topic}
+          </Typography>
+          <Typography variant="caption" color="secondary" numberOfLines={1}>
+            Clip {currentIndex + 1} of {clips.length} • {currentClip.speakerName}
+          </Typography>
+        </View>
+        <View style={[styles.voicePackBadge, { backgroundColor: theme.colors.surface }]}>
+          <Ionicons name="albums-outline" size={15} color={audioAccentColor} />
+          <Typography variant="caption" weight="semibold" style={{ color: audioAccentColor }}>
+            Pack
+          </Typography>
+        </View>
+      </View>
+
+      <View style={styles.audioControlsRow}>
+        <TouchableOpacity
+          style={[
+            styles.audioSecondaryControlButton,
+            { backgroundColor: theme.colors.surface, opacity: canGoPrevious ? 1 : 0.45 },
+          ]}
+          onPress={() => moveToClip(currentIndex - 1, isPlaying)}
+          disabled={!canGoPrevious}
+          accessibilityRole="button"
+          accessibilityLabel="Previous voice clip"
+        >
+          <Ionicons name="play-skip-back" size={22} color={audioAccentColor} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.audioControlButton, { backgroundColor: theme.colors.primary[500] }]}
+          onPress={handlePlayPause}
+          accessibilityRole="button"
+          accessibilityLabel={isPlaying ? 'Pause voice pack' : packEnded ? 'Replay voice pack' : 'Play voice pack'}
+        >
+          <Ionicons name={isPlaying ? 'pause' : packEnded ? 'refresh' : 'play'} size={30} color="#FFFFFF" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.audioSecondaryControlButton,
+            { backgroundColor: theme.colors.surface, opacity: canGoNext ? 1 : 0.45 },
+          ]}
+          onPress={() => moveToClip(currentIndex + 1, isPlaying)}
+          disabled={!canGoNext}
+          accessibilityRole="button"
+          accessibilityLabel="Next voice clip"
+        >
+          <Ionicons name="play-skip-forward" size={22} color={audioAccentColor} />
+        </TouchableOpacity>
+      </View>
+
+      <Typography variant="caption" color="secondary" align="center">
+        {playbackLabel}
+      </Typography>
+
+      <VoicePackClipPlayer
+        key={`${currentClip.id}-${currentIndex}`}
+        clip={currentClip}
+        shouldPlay={isPlaying && !isWaitingForNextClip}
+        theme={theme}
+        isDark={isDark}
+        onEnded={handleClipEnded}
+      />
+    </View>
+  );
+}
+
+function VoicePackClipPlayer({
+  clip,
+  shouldPlay,
+  theme,
+  isDark,
+  onEnded,
+}: {
+  clip: DebateVoicePackManifest['clips'][number];
+  shouldPlay: boolean;
+  theme: ReturnType<typeof useTheme>['theme'];
+  isDark: boolean;
+  onEnded: () => void;
+}) {
+  const player = useAudioPlayer(clip.uri, { updateInterval: 250 });
+  const status = useAudioPlayerStatus(player);
+  const statusPhase = getAudioPhase(status);
+  const endedNotifiedRef = useRef(false);
+  const [scrubTime, setScrubTime] = useState<number | null>(null);
+  const duration = Number.isFinite(status.duration) && status.duration > 0 ? status.duration : 0;
+  const currentTime = clampAudioTime(status.currentTime, duration);
+  const displayedTime = clampAudioTime(scrubTime ?? currentTime, duration);
+  const canSeek = duration > 0;
+  const audioTrackColor = isDark ? theme.colors.border : theme.colors.primary[100];
+  const audioAccentColor = isDark ? theme.colors.primary[300] : theme.colors.primary[700];
+
+  useEffect(() => {
+    if (shouldPlay) {
+      player.play();
+      return;
+    }
+    player.pause();
+  }, [player, shouldPlay]);
+
+  useEffect(() => () => {
+    player.pause();
+  }, [player]);
+
+  useEffect(() => {
+    if (statusPhase === 'ended' && !endedNotifiedRef.current) {
+      endedNotifiedRef.current = true;
+      onEnded();
+    } else if (statusPhase !== 'ended') {
+      endedNotifiedRef.current = false;
+    }
+  }, [onEnded, statusPhase]);
+
+  const handleSeekComplete = useCallback((nextTime: number) => {
+    setScrubTime(null);
+    const clampedTime = clampAudioTime(nextTime, duration);
+    void player.seekTo(clampedTime, 0, 0).catch(() => undefined).finally(() => {
+      if (shouldPlay) {
+        player.play();
+      }
+    });
+  }, [duration, player, shouldPlay]);
+
+  return (
+    <View style={styles.voicePackClipPanel}>
+      <Typography variant="caption" color="secondary" numberOfLines={1}>
+        {clip.speechLabel || clip.textPreview}
+      </Typography>
+      <View style={styles.audioProgressRow}>
+        <Typography variant="caption" color="secondary" style={styles.audioTimeText}>
+          {formatPlaybackTime(displayedTime)}
+        </Typography>
+        <Slider
+          style={styles.audioProgressSlider}
+          value={displayedTime}
+          minimumValue={0}
+          maximumValue={duration || 1}
+          disabled={!canSeek}
+          onSlidingStart={() => setScrubTime(displayedTime)}
+          onValueChange={(nextTime) => setScrubTime(clampAudioTime(nextTime, duration))}
+          onSlidingComplete={handleSeekComplete}
+          minimumTrackTintColor={theme.colors.primary[500]}
+          maximumTrackTintColor={audioTrackColor}
+          thumbTintColor={audioAccentColor}
+          accessibilityLabel="Voice pack clip playback position"
+          accessibilityRole="adjustable"
+          accessibilityValue={{
+            min: 0,
+            max: duration || 1,
+            now: displayedTime,
+            text: `${formatPlaybackTime(displayedTime)} of ${formatPlaybackTime(duration)}`,
+          }}
+        />
+        <Typography variant="caption" color="secondary" style={styles.audioTimeText}>
+          {formatPlaybackTime(duration)}
+        </Typography>
+      </View>
+    </View>
+  );
+}
+
 function getMediaProviderDisplayName(providerId: string): string {
   if (providerId === 'runway') return 'Runway';
   if (providerId === 'elevenlabs') return 'ElevenLabs';
@@ -547,6 +808,8 @@ function getGalleryAssetModelLabel(asset: GalleryAsset): string {
     const image = asset.entry as GeneratedImageEntry;
     return getImageModelDisplayName(image.provider, image.model);
   }
+  const media = asset.entry as GeneratedMediaEntry;
+  if (isVoicePackEntry(media)) return 'Debate voice pack';
   return asset.modelId;
 }
 
@@ -563,6 +826,13 @@ function formatGalleryDate(timestamp: number): string {
 function formatGalleryDuration(durationSeconds?: number): string | undefined {
   if (!durationSeconds) return undefined;
   return `${durationSeconds}s`;
+}
+
+function formatVoicePackSummary(entry: GeneratedMediaEntry): string | undefined {
+  if (!isVoicePackEntry(entry)) return undefined;
+  const clipCount = entry.voicePack.clips.length;
+  const pauseSeconds = entry.voicePack.pauseMs / 1000;
+  return `${clipCount} clip${clipCount === 1 ? '' : 's'} • ${pauseSeconds.toFixed(1)}s pauses`;
 }
 
 function buildFilterOptions(assets: GalleryAsset[], field: 'providerId' | 'modelId' | 'operation'): string[] {
@@ -1097,6 +1367,10 @@ export default function CreateScreen() {
 
     setSavingMediaId(mediaId);
     try {
+      if (isVoicePackEntry(media)) {
+        ErrorService.showInfo('Voice packs are saved for in-app Gallery playback. Export a single audio file can be added later.', 'create');
+        return;
+      }
       if (media.uri.startsWith('http')) {
         await MediaSaveService.saveRemoteUrl(media.uri, { album: 'Symposium AI' });
       } else {
@@ -1118,6 +1392,10 @@ export default function CreateScreen() {
 
     setSharingMediaId(mediaId);
     try {
+      if (isVoicePackEntry(media)) {
+        ErrorService.showInfo('Voice packs play as curated clips in the Gallery. Single-file sharing can be added later.', 'create');
+        return;
+      }
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(media.uri, {
           mimeType: media.mimeType,
@@ -1176,6 +1454,9 @@ export default function CreateScreen() {
     }
 
     const media = asset.entry as GeneratedMediaEntry;
+    if (isVoicePackEntry(media)) {
+      throw new Error('Voice packs are saved for in-app Gallery playback.');
+    }
     if (media.uri.startsWith('http')) {
       await MediaSaveService.saveRemoteUrl(media.uri, { album: 'Symposium AI' });
     } else {
@@ -1494,45 +1775,50 @@ export default function CreateScreen() {
   const renderMediaItem = useCallback(({ item }: { item: GeneratedMediaEntry }) => {
     const isSelected = selectedMediaId === item.id;
     const isVideo = item.mediaType === 'video';
+    const isVoicePack = isVoicePackEntry(item);
     const isSharing = sharingMediaId === item.id;
     const isSaving = savingMediaId === item.id;
     const isVideoPlaying = isVideo && Boolean(videoPlaybackStates[item.id]?.isPlaying);
     const shouldShowActions = isSelected && !isVideoPlaying;
     const mediaActionButtons = (
       <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => handleSaveMediaToPhotos(item.id)}
-          disabled={isSaving}
-          accessibilityRole="button"
-          accessibilityLabel={`Save ${item.mediaType}`}
-        >
-          {isSaving ? (
-            <ActivityIndicator color={isVideo ? theme.colors.primary[500] : '#FFFFFF'} size="small" />
-          ) : (
-            <Ionicons name="download-outline" size={24} color={isVideo ? theme.colors.text.primary : '#FFFFFF'} />
-          )}
-          <Typography variant="caption" style={{ color: isVideo ? theme.colors.text.primary : '#FFFFFF', marginTop: 4 }}>
-            Save
-          </Typography>
-        </TouchableOpacity>
+        {!isVoicePack && (
+          <>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleSaveMediaToPhotos(item.id)}
+              disabled={isSaving}
+              accessibilityRole="button"
+              accessibilityLabel={`Save ${item.mediaType}`}
+            >
+              {isSaving ? (
+                <ActivityIndicator color={isVideo ? theme.colors.primary[500] : '#FFFFFF'} size="small" />
+              ) : (
+                <Ionicons name="download-outline" size={24} color={isVideo ? theme.colors.text.primary : '#FFFFFF'} />
+              )}
+              <Typography variant="caption" style={{ color: isVideo ? theme.colors.text.primary : '#FFFFFF', marginTop: 4 }}>
+                Save
+              </Typography>
+            </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => handleShareMedia(item.id)}
-          disabled={isSharing}
-          accessibilityRole="button"
-          accessibilityLabel={`Share ${item.mediaType}`}
-        >
-          {isSharing ? (
-            <ActivityIndicator color={isVideo ? theme.colors.primary[500] : '#FFFFFF'} size="small" />
-          ) : (
-            <Ionicons name="share-outline" size={24} color={isVideo ? theme.colors.text.primary : '#FFFFFF'} />
-          )}
-          <Typography variant="caption" style={{ color: isVideo ? theme.colors.text.primary : '#FFFFFF', marginTop: 4 }}>
-            Share
-          </Typography>
-        </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleShareMedia(item.id)}
+              disabled={isSharing}
+              accessibilityRole="button"
+              accessibilityLabel={`Share ${item.mediaType}`}
+            >
+              {isSharing ? (
+                <ActivityIndicator color={isVideo ? theme.colors.primary[500] : '#FFFFFF'} size="small" />
+              ) : (
+                <Ionicons name="share-outline" size={24} color={isVideo ? theme.colors.text.primary : '#FFFFFF'} />
+              )}
+              <Typography variant="caption" style={{ color: isVideo ? theme.colors.text.primary : '#FFFFFF', marginTop: 4 }}>
+                Share
+              </Typography>
+            </TouchableOpacity>
+          </>
+        )}
 
         <TouchableOpacity
           style={styles.actionButton}
@@ -1568,13 +1854,15 @@ export default function CreateScreen() {
               style={styles.videoPreview}
               onPlaybackStateChange={handleVideoPlaybackStateChange}
             />
+          ) : isVoicePack ? (
+            <VoicePackPreview manifest={item.voicePack} theme={theme} isDark={isDark} />
           ) : (
             <AudioPreview uri={item.uri} theme={theme} isDark={isDark} />
           )}
 
           <View style={[styles.providerBadge, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
             <Typography variant="caption" style={{ color: '#FFFFFF' }}>
-              {isVideo ? 'Runway' : 'ElevenLabs'} • {item.modelId}
+              {isVideo ? 'Runway' : 'ElevenLabs'} • {isVoicePack ? 'Voice Pack' : item.modelId}
             </Typography>
           </View>
 
@@ -1650,6 +1938,9 @@ export default function CreateScreen() {
     const isAudioRow = galleryTab === 'audio';
     const isVideo = item.type === 'video';
     const isAudio = item.type === 'audio';
+    const mediaEntry = item.source === 'media' ? item.entry as GeneratedMediaEntry : undefined;
+    const voicePackSummary = mediaEntry ? formatVoicePackSummary(mediaEntry) : undefined;
+    const subtitle = voicePackSummary || `${providerLabel} • ${modelLabel}${formatGalleryDuration(item.durationSeconds) ? ` • ${formatGalleryDuration(item.durationSeconds)}` : ''}`;
 
     return (
       <TouchableOpacity
@@ -1672,14 +1963,14 @@ export default function CreateScreen() {
         {isAudioRow ? (
           <>
             <View style={[styles.audioLibraryIcon, { backgroundColor: primaryTintBackground }]}>
-              <Ionicons name="musical-notes-outline" size={22} color={primaryAccentColor} />
+              <Ionicons name={voicePackSummary ? 'albums-outline' : 'musical-notes-outline'} size={22} color={primaryAccentColor} />
             </View>
             <View style={styles.audioLibraryText}>
               <Typography variant="body" weight="semibold" numberOfLines={1}>
                 {title}
               </Typography>
               <Typography variant="caption" color="secondary" numberOfLines={1}>
-                {providerLabel} • {modelLabel}{formatGalleryDuration(item.durationSeconds) ? ` • ${formatGalleryDuration(item.durationSeconds)}` : ''}
+                {subtitle}
               </Typography>
             </View>
           </>
@@ -1993,6 +2284,12 @@ export default function CreateScreen() {
     const title = selectedAsset.originalPrompt || selectedAsset.prompt || getGalleryAssetTypeLabel(selectedAsset.type);
     const providerLabel = getGalleryAssetProviderLabel(selectedAsset);
     const modelLabel = getGalleryAssetModelLabel(selectedAsset);
+    const selectedMediaEntry = selectedAsset.source === 'media'
+      ? selectedAsset.entry as GeneratedMediaEntry
+      : undefined;
+    const selectedVoicePack = selectedMediaEntry && isVoicePackEntry(selectedMediaEntry)
+      ? selectedMediaEntry.voicePack
+      : undefined;
     const isSavingSelected = selectedAsset.source === 'image'
       ? savingImage
       : savingMediaId === selectedAsset.id;
@@ -2037,7 +2334,11 @@ export default function CreateScreen() {
               />
             )}
             {selectedAsset.type === 'audio' && (
-              <AudioPreview uri={selectedAsset.uri} theme={theme} isDark={isDark} />
+              selectedVoicePack ? (
+                <VoicePackPreview manifest={selectedVoicePack} theme={theme} isDark={isDark} />
+              ) : (
+                <AudioPreview uri={selectedAsset.uri} theme={theme} isDark={isDark} />
+              )
             )}
 
             <View style={[styles.detailPanel, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
@@ -2054,10 +2355,12 @@ export default function CreateScreen() {
                 {renderDetailRow('Provider', providerLabel)}
                 {renderDetailRow('Model', modelLabel)}
                 {renderDetailRow('Operation', selectedAsset.operation?.replace(/_/g, ' '))}
+                {selectedVoicePack && renderDetailRow('Clips', String(selectedVoicePack.clips.length))}
+                {selectedVoicePack && renderDetailRow('Pause', `${(selectedVoicePack.pauseMs / 1000).toFixed(1)}s between speakers`)}
                 {renderDetailRow('Duration', formatGalleryDuration(selectedAsset.durationSeconds))}
                 {renderDetailRow('Created', formatGalleryDate(selectedAsset.createdAt))}
                 {renderDetailRow('Status', selectedAsset.status)}
-                {renderDetailRow('MIME', selectedAsset.mimeType)}
+                {renderDetailRow('MIME', selectedVoicePack ? 'Voice pack manifest' : selectedAsset.mimeType)}
               </View>
             </View>
           </ScrollView>
@@ -2527,6 +2830,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 24,
     gap: 18,
+  },
+  voicePackPreview: {
+    width: IMAGE_SIZE,
+    minHeight: 238,
+    paddingHorizontal: 20,
+    paddingVertical: 22,
+    gap: 14,
+  },
+  voicePackHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  voicePackTitleText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  voicePackBadge: {
+    minHeight: 30,
+    borderRadius: 15,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  voicePackClipPanel: {
+    gap: 8,
   },
   audioControlsRow: {
     flexDirection: 'row',

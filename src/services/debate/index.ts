@@ -18,6 +18,11 @@ export {
   DebateVoiceGenerationError,
   generateDebateVoiceAudio,
 } from './DebateVoiceService';
+export {
+  DEBATE_VOICE_PACK_PAUSE_MS,
+  createDebateVoicePackGalleryEntry,
+  getDebateVoicePackCandidates,
+} from './debateVoicePack';
 export { sanitizeDebateSpeechForTTS } from './debateAudioSanitizer';
 export {
   applyDebateOutputTokenCap,
@@ -49,6 +54,11 @@ export type {
 export type {
   PromptContext,
 } from './DebatePromptBuilder';
+
+export type {
+  DebateVoicePackCandidate,
+  DebateVoicePackCandidateStatus,
+} from './debateVoicePack';
 
 export type {
   DebateFormatId,

@@ -10,6 +10,7 @@ import type {
   CreateMediaAssetStatus,
   CreateMediaOperation,
   CreateMediaType,
+  DebateVoicePackManifest,
   CreateTab,
   MediaProviderId,
 } from '../types/media';
@@ -125,6 +126,7 @@ export interface GeneratedMediaEntry {
   createdAt: number;
   expiresAt?: number;
   error?: string;
+  voicePack?: DebateVoicePackManifest;
 }
 
 export function normalizeGalleryAssets(
@@ -441,6 +443,24 @@ function dedupeMediaGalleryEntries(entries: GeneratedMediaEntry[]): GeneratedMed
 
 async function deleteGeneratedMediaFile(entry?: GeneratedMediaEntry): Promise<void> {
   if (!entry?.uri) return;
+  if (entry.voicePack) {
+    if (entry.voicePack.directoryUri) {
+      try {
+        await FileSystem.deleteAsync(entry.voicePack.directoryUri, { idempotent: true });
+        return;
+      } catch {
+        // Fall through to deleting individual clips.
+      }
+    }
+
+    const uris = Array.from(new Set([
+      entry.uri,
+      ...entry.voicePack.clips.map((clip) => clip.uri),
+    ]));
+    await Promise.all(uris.map((uri) => deleteMediaFile(uri)));
+    return;
+  }
+
   await deleteMediaFile(entry.uri);
 }
 

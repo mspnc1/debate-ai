@@ -12,6 +12,7 @@ export { ScoreDisplay } from './ScoreDisplay';
 export { SystemAnnouncement } from './SystemAnnouncement';
 export { RichTopicInput } from './RichTopicInput';
 export { VictoryCelebration } from './VictoryCelebration';
+export { DebateVoicePackModal } from './DebateVoicePackModal';
 export { DebateTopic } from './DebateTopic';
 export { default as ShareModal } from './ShareModal';
 export { FormatModal } from './FormatModal';
