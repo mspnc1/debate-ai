@@ -1,4 +1,8 @@
-import { generateDebateVoiceAudio, DebateVoiceGenerationError } from '@/services/debate/DebateVoiceService';
+import {
+  DEBATE_AUDIO_TTS_PROMPT_LIMIT,
+  generateDebateVoiceAudio,
+  DebateVoiceGenerationError,
+} from '@/services/debate/DebateVoiceService';
 import type { Message } from '@/types';
 
 const message: Message = {
@@ -76,6 +80,25 @@ describe('generateDebateVoiceAudio', () => {
       voice: { voiceId: 'voice-1', voiceName: 'Voice One' },
     }, { generateAudio })).rejects.toMatchObject({
       code: 'empty_speech',
+    } satisfies Partial<DebateVoiceGenerationError>);
+
+    expect(generateAudio).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized debate turns before generating long audio clips', async () => {
+    const generateAudio = jest.fn();
+    const oversizedMessage = {
+      ...message,
+      content: 'word '.repeat(DEBATE_AUDIO_TTS_PROMPT_LIMIT),
+    };
+
+    await expect(generateDebateVoiceAudio({
+      apiKey: 'key',
+      sessionId: 'debate-1',
+      message: oversizedMessage,
+      voice: { voiceId: 'voice-1', voiceName: 'Voice One' },
+    }, { generateAudio })).rejects.toMatchObject({
+      code: 'speech_too_long',
     } satisfies Partial<DebateVoiceGenerationError>);
 
     expect(generateAudio).not.toHaveBeenCalled();

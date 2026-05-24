@@ -64,6 +64,7 @@ describe('PersonalityRuntimeBuilder', () => {
     expect(runtime.personalityConfig?.systemPrompt).toContain('Affirmative (FOR)');
     expect(runtime.personalityConfig?.systemPrompt).toContain('Contradiction first');
     expect(runtime.personalityConfig?.systemPrompt).toContain('Mild profanity is allowed sparingly');
+    expect(runtime.personalityConfig?.systemPrompt).toContain('Keep each scheduled speech compact');
     expect(runtime.personalityConfig?.systemPrompt).not.toContain('PG humor');
   });
 

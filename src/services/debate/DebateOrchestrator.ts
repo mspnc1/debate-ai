@@ -36,6 +36,7 @@ import { mergeAvailabilitiesStrict } from '@/hooks/multimodal/useModalityAvailab
 import { ensureAnswerContent } from '@/utils/citationUtils';
 import { resolveProviderModelId } from '@/config/modelConfigs';
 import { buildPersonalityRuntime, mergeRuntimeModelParameters } from '@/services/personality';
+import { applyDebateOutputTokenCap, getDebateSpeechLengthGuidance } from './debateSpeechLength';
 
 export interface DebateSession {
   id: string;
@@ -512,6 +513,12 @@ export class DebateOrchestrator {
       const personalityId = personalities[currentAI.id] || 'default';
       const previousMessage = this.promptBuilder.extractPreviousMessage(existingMessages, currentAI);
       const roleContext = this.buildRoleContext(aiIndex, messageSpec);
+      const speechLength = getDebateSpeechLengthGuidance({
+        formatId: format.id,
+        presetId: preset.id,
+        phase,
+        cxRole: messageSpec.cxRole,
+      });
       const minimal = this.promptBuilder.buildTurnPrompt({
         topic,
         phase,
@@ -519,6 +526,7 @@ export class DebateOrchestrator {
         isFinalRound: phase === 'closing' || messageIndex >= maxMessages - 2,
         guidance: format.guidance[phase] ?? '',
         format,
+        presetId: preset.id,
         civilityLevel: civility,
         personalityId,
         messageLabel: messageSpec.label,
@@ -588,10 +596,14 @@ export class DebateOrchestrator {
           civility,
         },
       });
-      const runtimeParameters = mergeRuntimeModelParameters(
-        expert.enabled,
-        expert.parameters,
-        runtime.modelParameters
+      const runtimeParameters = applyDebateOutputTokenCap(
+        mergeRuntimeModelParameters(
+          expert.enabled,
+          expert.parameters,
+          runtime.modelParameters
+        ),
+        speechLength.maxTokens,
+        expert.enabled
       );
 
       // Compose a stance-aware, persona- and format-inflected system prompt for this AI

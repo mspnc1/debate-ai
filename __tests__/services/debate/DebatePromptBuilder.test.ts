@@ -20,8 +20,9 @@ describe('DebatePromptBuilder', () => {
       previousMessage: 'The opponent argued that AI removes teachers.',
       isFinalRound: false,
       guidance: 'Stay factual and cite evidence.',
-      civilityLevel: 4,
+      civilityLevel: 5,
       format: OXFORD_FORMAT,
+      presetId: 'short',
       personalityId: 'george',
     });
 
@@ -31,7 +32,8 @@ describe('DebatePromptBuilder', () => {
     expect(prompt).toContain('Use PG-13 observational satire');
     expect(prompt).toContain('mild profanity is allowed sparingly');
     expect(prompt).not.toContain('PG humor');
-    expect(prompt).toContain('Tone: neutral and professional');
+    expect(prompt).toContain('Debate style: spicy, pointed, and respectful');
+    expect(prompt).toContain('Length: 126-180 words maximum');
     expect(prompt).toContain(DEBATE_CONSTANTS.PROMPT_MARKERS.PREVIOUS_SPEAKER);
   });
 

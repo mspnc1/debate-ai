@@ -199,7 +199,11 @@ describe('DebateOrchestrator', () => {
     expect(adapter.setTemporaryPersonality).toHaveBeenCalledWith(expect.objectContaining({
       systemPrompt: expect.stringContaining('Affirmative (FOR)'),
     }));
-    expect(adapter.config.parameters).toEqual(expect.objectContaining({ temperature: 0.9 }));
+    expect(adapter.config.parameters).toEqual(expect.objectContaining({
+      temperature: 0.9,
+      maxTokens: expect.any(Number),
+    }));
+    expect(adapter.config.parameters.maxTokens).toBeLessThan(600);
 
     jest.clearAllTimers();
     jest.useRealTimers();
@@ -247,6 +251,7 @@ describe('DebateOrchestrator', () => {
 
     expect(aiService.sendMessage.mock.calls[0][0]).toBe('claude');
     expect(aiService.sendMessage.mock.calls[0][1]).toContain('Turn: Proposition Opening Speech');
+    expect(aiService.sendMessage.mock.calls[0][1]).toContain('Length: 154-220 words maximum');
     expect(aiService.sendMessage.mock.calls[1][0]).toBe('openai');
     expect(aiService.sendMessage.mock.calls[1][1]).toContain('Turn: Opposition Opening Speech');
 

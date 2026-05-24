@@ -10,6 +10,8 @@ import { sanitizeDebateSpeechForTTS } from './debateAudioSanitizer';
 
 export type DebateVoiceErrorCode = 'empty_speech' | 'speech_too_long' | 'generation_failed';
 
+export const DEBATE_AUDIO_TTS_PROMPT_LIMIT = Math.min(3000, ELEVENLABS_DEFAULT_TTS_PROMPT_LIMIT);
+
 export class DebateVoiceGenerationError extends Error {
   code: DebateVoiceErrorCode;
 
@@ -53,10 +55,10 @@ export async function generateDebateVoiceAudio(
   if (!spokenText) {
     throw new DebateVoiceGenerationError('empty_speech', 'There is no speakable text for this debate turn.');
   }
-  if (spokenText.length > ELEVENLABS_DEFAULT_TTS_PROMPT_LIMIT) {
+  if (spokenText.length > DEBATE_AUDIO_TTS_PROMPT_LIMIT) {
     throw new DebateVoiceGenerationError(
       'speech_too_long',
-      `This debate turn is too long for ElevenLabs text to speech (${spokenText.length}/${ELEVENLABS_DEFAULT_TTS_PROMPT_LIMIT} characters).`
+      `This debate turn is too long for debate audio (${spokenText.length}/${DEBATE_AUDIO_TTS_PROMPT_LIMIT} characters).`
     );
   }
 

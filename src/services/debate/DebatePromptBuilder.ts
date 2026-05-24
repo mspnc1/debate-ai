@@ -7,6 +7,7 @@ import { AI, Message, PersonalityTone, PersonalityDebateProfile } from '../../ty
 import { DEBATE_CONSTANTS } from '../../config/debateConstants';
 import type { FormatSpec, PhaseId } from '../../config/debate/formats';
 import { generateStyleNudge } from '@/lib/personality';
+import { getDebateSpeechLengthGuidance } from './debateSpeechLength';
 
 export interface PromptContext {
   topic: string;
@@ -90,6 +91,7 @@ export class DebatePromptBuilder {
     guidance?: string; // from FormatSpec
     civilityLevel?: 1 | 2 | 3 | 4 | 5;
     format?: FormatSpec;
+    presetId?: string;
     personalityId?: string;
     messageLabel?: string;
     roleBrief?: string;
@@ -98,13 +100,12 @@ export class DebatePromptBuilder {
     customizedTone?: Partial<PersonalityTone>;
     customizedDebateProfile?: Partial<PersonalityDebateProfile>;
   }): string {
-    const { topic, phase, previousMessage, isFinalRound, guidance, civilityLevel, format, personalityId, messageLabel, roleBrief, cxRole, customizedTone, customizedDebateProfile } = params;
+    const { topic, phase, previousMessage, isFinalRound, guidance, civilityLevel, format, presetId, personalityId, messageLabel, roleBrief, cxRole, customizedTone, customizedDebateProfile } = params;
     const base = guidance || '';
     const prev = previousMessage ? `${DEBATE_CONSTANTS.PROMPT_MARKERS.PREVIOUS_SPEAKER}"${previousMessage}"` : '';
     const isSocratic = format?.id === 'socratic';
-    // Do not enforce numeric word bounds; keep guidance general to avoid truncation
     const tone = civilityLevel
-      ? `Tone: ${civilityLevel <= 2 ? 'friendly wit' : civilityLevel >= 5 ? 'sharp but respectful' : 'neutral and professional'}. Avoid insults or stereotyping.`
+      ? `Debate style: ${civilityLevel <= 2 ? 'friendly wit' : civilityLevel >= 5 ? 'spicy, pointed, and respectful' : 'neutral and professional'}. Avoid insults, stereotyping, or personal attacks.`
       : '';
     // Generate a compact per-turn style nudge from customized personality data.
     let styleNudge = '';
@@ -147,6 +148,12 @@ export class DebatePromptBuilder {
     } as const;
     const phaseHint = hintMap[phase];
     const formatConstraint = getFormatPhaseConstraint(format?.id, phase, cxRole);
+    const lengthGuidance = getDebateSpeechLengthGuidance({
+      formatId: format?.id,
+      presetId,
+      phase,
+      cxRole,
+    }).directive;
 
     // Final-round cue (duplicated here for emphasis)
     const finalCue = isFinalRound && phase === 'closing' ? 'Closing: reinforce your strongest point; no new claims; concise.' : '';
@@ -156,6 +163,7 @@ export class DebatePromptBuilder {
       roleBrief,
       phaseHint,
       formatConstraint,
+      lengthGuidance,
       prevGuarded,
       base,
       `Respond about "${topic}". Maintain your assigned stance strictly; do not switch sides.`,

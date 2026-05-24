@@ -14,10 +14,15 @@ export { DebaterSelectionService } from './DebaterSelectionService';
 export { PersonalityService } from './PersonalityService';
 export { DebateSetupService } from './DebateSetupService';
 export {
+  DEBATE_AUDIO_TTS_PROMPT_LIMIT,
   DebateVoiceGenerationError,
   generateDebateVoiceAudio,
 } from './DebateVoiceService';
 export { sanitizeDebateSpeechForTTS } from './debateAudioSanitizer';
+export {
+  applyDebateOutputTokenCap,
+  getDebateSpeechLengthGuidance,
+} from './debateSpeechLength';
 
 export type { 
   DebateSession,
