@@ -580,6 +580,97 @@ describe('CreateScreen', () => {
       expect(player.play).toHaveBeenCalledTimes(1);
     });
 
+    it('does not loop when a ready voice pack clip player re-renders while paused', () => {
+      let audioPlayerId = 0;
+      let forceRenderOnPause = true;
+      const pauseCalls = jest.fn();
+      const defaultAudioPlayerImplementation = mockedUseAudioPlayer.getMockImplementation();
+      mockedUseAudioPlayer.mockImplementation(() => {
+        const [, forceRender] = React.useState(0);
+        const player = {
+          id: `unstable-audio-player-${audioPlayerId += 1}`,
+          playing: false,
+          currentTime: 0,
+          duration: 5,
+          didJustFinish: false,
+          play: jest.fn(),
+          pause: jest.fn(() => {
+            pauseCalls();
+            if (forceRenderOnPause) {
+              forceRender((value) => value + 1);
+            }
+          }),
+          seekTo: jest.fn(async () => undefined),
+          __finish: jest.fn(),
+        };
+
+        return player;
+      });
+
+      const voicePackEntry = {
+        id: 'voice_pack_focus',
+        mediaType: 'audio',
+        providerId: 'elevenlabs',
+        modelId: 'debate_voice_pack',
+        operation: 'debate_voice_pack',
+        prompt: 'Voice pack: Resolved: testing matters.',
+        uri: 'file:///packs/voice_pack_focus/001.mp3',
+        mimeType: 'audio/mpeg',
+        status: 'succeeded',
+        createdAt: Date.now(),
+        voicePack: {
+          kind: 'debate_voice_pack',
+          version: 1,
+          sessionId: 'debate_1',
+          topic: 'Resolved: testing matters.',
+          participants: [{ id: 'openai', name: 'ChatGPT' }],
+          clips: [
+            {
+              id: 'clip_1',
+              messageId: 'msg_1',
+              order: 0,
+              speakerId: 'openai',
+              speakerName: 'ChatGPT',
+              speechLabel: 'Opening statement',
+              textPreview: 'Opening statement.',
+              uri: 'file:///packs/voice_pack_focus/001.mp3',
+              mimeType: 'audio/mpeg',
+              fileName: '001.mp3',
+              pauseAfterMs: 900,
+            },
+          ],
+          pauseMs: 900,
+          directoryUri: 'file:///packs/voice_pack_focus/',
+          createdAt: Date.now(),
+        },
+      };
+      const voicePackState = {
+        ...baseState,
+        create: {
+          ...baseState.create,
+          gallery: [],
+          mediaGallery: [voicePackEntry],
+        },
+      };
+      mockRouteParams = { focusMediaId: voicePackEntry.id, galleryTab: 'audio' };
+      mockUseSelector.mockImplementation((selector) => selector(voicePackState));
+
+      let unmountScreen: (() => void) | undefined;
+      try {
+        const { getByText, unmount } = renderWithProviders(<CreateScreen />);
+        unmountScreen = unmount;
+
+        expect(getByText('Clip 1 of 1 • ChatGPT')).toBeTruthy();
+        expect(pauseCalls).not.toHaveBeenCalled();
+      } finally {
+        forceRenderOnPause = false;
+        unmountScreen?.();
+        if (defaultAudioPlayerImplementation) {
+          mockedUseAudioPlayer.mockImplementation(defaultAudioPlayerImplementation);
+        }
+      }
+    });
+
     it('opens video playback only from the asset detail preview', async () => {
       mockRouteParams = {};
       const videoEntry = {

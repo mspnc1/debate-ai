@@ -698,10 +698,13 @@ function VoicePackClipPlayer({
   isDark: boolean;
   onEnded: () => void;
 }) {
-  const player = useAudioPlayer(clip.uri, { updateInterval: 250 });
+  const audioPlayerOptions = useMemo(() => ({ updateInterval: 250 }), []);
+  const player = useAudioPlayer(clip.uri, audioPlayerOptions);
   const status = useAudioPlayerStatus(player);
   const statusPhase = getAudioPhase(status);
   const endedNotifiedRef = useRef(false);
+  const latestPlayerRef = useRef(player);
+  const playbackCommandRef = useRef({ clipUri: clip.uri, shouldPlay });
   const [scrubTime, setScrubTime] = useState<number | null>(null);
   const duration = Number.isFinite(status.duration) && status.duration > 0 ? status.duration : 0;
   const currentTime = clampAudioTime(status.currentTime, duration);
@@ -711,16 +714,30 @@ function VoicePackClipPlayer({
   const audioAccentColor = isDark ? theme.colors.primary[300] : theme.colors.primary[700];
 
   useEffect(() => {
-    if (shouldPlay) {
-      player.play();
+    latestPlayerRef.current = player;
+  }, [player]);
+
+  useEffect(() => {
+    const previousCommand = playbackCommandRef.current;
+    const clipChanged = previousCommand.clipUri !== clip.uri;
+    const playbackIntentChanged = previousCommand.shouldPlay !== shouldPlay;
+
+    if (!clipChanged && !playbackIntentChanged) {
       return;
     }
-    player.pause();
-  }, [player, shouldPlay]);
+
+    playbackCommandRef.current = { clipUri: clip.uri, shouldPlay };
+
+    if (shouldPlay) {
+      player.play();
+    } else if (playbackIntentChanged) {
+      player.pause();
+    }
+  }, [clip.uri, player, shouldPlay]);
 
   useEffect(() => () => {
-    player.pause();
-  }, [player]);
+    latestPlayerRef.current.pause();
+  }, []);
 
   useEffect(() => {
     if (statusPhase === 'ended' && !endedNotifiedRef.current) {
