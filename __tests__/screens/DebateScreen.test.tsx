@@ -459,8 +459,8 @@ describe('DebateScreen', () => {
       round: 1,
       winnerId: 'left',
       winnerName: 'Claude',
-      votingLabel: 'Constructives',
-      criterion: 'Constructives: choose who better established their value and criterion.',
+      votingLabel: 'Value constructives',
+      criterion: 'Value constructives: choose who better established and defended their value, criterion, definitions, and contentions.',
       timestamp: 100,
     }];
 
@@ -480,6 +480,7 @@ describe('DebateScreen', () => {
           right: { name: 'GPT-4', roundWins: 0, roundsWon: [], isOverallWinner: false },
         },
         voteRecords,
+        getVoteCriterion: jest.fn().mockReturnValue('Value constructives: choose who better established and defended their value, criterion, definitions, and contentions.'),
         recordVote,
       },
     });
@@ -497,7 +498,7 @@ describe('DebateScreen', () => {
     expect(mockDebateSessionHeaderProps?.teams[1].participants[0].name).toBe('GPT-4');
     expect(mockHeaderProps).toBeUndefined();
     expect(mockVotingInterfaceProps).toBeDefined();
-    expect(mockVotingInterfaceProps.voteCriterion).toBe('Opening Statements: choose who gave the clearer motion framing.');
+    expect(mockVotingInterfaceProps.voteCriterion).toBe('Value constructives: choose who better established and defended their value, criterion, definitions, and contentions.');
     expect(mockScoreDisplayProps.scores.left.roundWins).toBe(1);
 
     mockVotingInterfaceProps.onVote('left');

@@ -78,7 +78,7 @@ describe('FormatModal', () => {
 
       expect(getByText(/Great for ethical dilemmas/i)).toBeTruthy();
       expect(getByText(/AC, CX, NC\/1NR/i)).toBeTruthy();
-      expect(getByText(/Values and criteria/i)).toBeTruthy();
+      expect(getByText(/values, criteria, and ballot weighing/i)).toBeTruthy();
     });
 
     it('renders Policy format highlights', () => {
@@ -86,7 +86,7 @@ describe('FormatModal', () => {
 
       expect(getByText(/Perfect for policy proposals/i)).toBeTruthy();
       expect(getByText(/1AC, 1NC, 2AC/i)).toBeTruthy();
-      expect(getByText(/Cross-examination keeps/i)).toBeTruthy();
+      expect(getByText(/plan text, solvency, impacts, and drops/i)).toBeTruthy();
     });
   });
 

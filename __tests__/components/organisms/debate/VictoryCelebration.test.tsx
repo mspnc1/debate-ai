@@ -71,8 +71,8 @@ describe('VictoryCelebration', () => {
         round: 1,
         winnerId: 'gemini',
         winnerName: 'Gemini',
-        votingLabel: 'Constructives',
-        criterion: 'Constructives: choose who better established their value and criterion.',
+        votingLabel: 'Value constructives',
+        criterion: 'Value constructives: choose who better established and defended their value, criterion, definitions, and contentions.',
         timestamp: 100,
       },
     ],
@@ -95,9 +95,9 @@ describe('VictoryCelebration', () => {
 
     expect(getByText('DEBATE CHAMPION')).toBeTruthy();
     expect(getAllByText('Gemini').length).toBeGreaterThan(0);
-    expect(getByText('Vote Decisions')).toBeTruthy();
-    expect(getByText('Constructives')).toBeTruthy();
-    expect(getByText('Constructives: choose who better established their value and criterion.')).toBeTruthy();
+    expect(getByText('Judge Decisions')).toBeTruthy();
+    expect(getByText('Value constructives')).toBeTruthy();
+    expect(getByText('Value constructives: choose who better established and defended their value, criterion, definitions, and contentions.')).toBeTruthy();
     expect(getByTestId('victory-rematch')).toBeTruthy();
     expect(getByTestId('victory-transcript')).toBeTruthy();
     expect(getByTestId('victory-share')).toBeTruthy();

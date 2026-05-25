@@ -52,9 +52,9 @@ const DebateTranscriptScreen: React.FC<DebateTranscriptScreenProps> = ({ navigat
       }
     }
     
-    // Extract scores - count round wins per AI
+    // Extract scores from old round wording and newer judge-checkpoint wording.
     session.selectedAIs.forEach(ai => {
-      const roundWins = (winnerMessage.content.match(new RegExp(`${ai.name}.*?(\\d+)\\s+round`, 'i')) || [])[1];
+      const roundWins = (winnerMessage.content.match(new RegExp(`${ai.name}.*?(\\d+)\\s+(?:round|judge checkpoint)`, 'i')) || [])[1];
       scores[ai.id] = {
         name: ai.name,
         roundWins: parseInt(roundWins || '0', 10)

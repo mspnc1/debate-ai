@@ -109,19 +109,66 @@ export class VotingService {
 
     return {
       label,
-      prompt: this.buildVotingPrompt(label),
+      prompt: this.buildVotingPrompt(label, message.phase),
       criterion: this.buildVoteCriterion(label, message.phase),
     };
   }
 
-  private buildVotingPrompt(label: string): string {
-    return `Who had the stronger ${label.toLowerCase()}?`;
+  private buildVotingPrompt(label: string, phase?: PhaseId): string {
+    const normalized = label.toLowerCase();
+
+    switch (this.formatId) {
+      case 'lincoln_douglas':
+        if (normalized.includes('2ar')) {
+          return 'Who gave the clearer Lincoln-Douglas ballot story in the 2AR?';
+        }
+        if (normalized.includes('nr/2nr')) {
+          return 'Who better collapsed the Lincoln-Douglas value clash in the NR/2NR?';
+        }
+        if (normalized.includes('1ar')) {
+          return 'Who better recovered and weighed the affirmative case in the 1AR?';
+        }
+        if (normalized.includes('nc/1nr')) {
+          return 'Who better handled the negative value framework and CX?';
+        }
+        return 'Who better established the Lincoln-Douglas value framework?';
+      case 'policy':
+        if (normalized.includes('2ar')) {
+          return 'Who gave the clearer policy ballot story in the 2AR?';
+        }
+        if (normalized.includes('2nc')) {
+          return 'Who better developed policy clash on solvency, impacts, and burdens?';
+        }
+        if (normalized.includes('1nc')) {
+          return 'Who better framed the negative burden, links, and case clash?';
+        }
+        if (normalized.includes('2ac')) {
+          return 'Who better rebuilt solvency and answered the negative positions?';
+        }
+        if (normalized.includes('1ac')) {
+          return 'Who better established plan, harms, solvency, and impacts?';
+        }
+        return 'Who better handled the policy checkpoint?';
+      case 'socratic':
+        if (phase === 'synthesis' || phase === 'closing') {
+          return 'Who produced the clearer synthesis?';
+        }
+        return `Who advanced the inquiry more clearly in ${label.toLowerCase()}?`;
+      case 'oxford':
+      default:
+        return `Who had the stronger ${label.toLowerCase()}?`;
+    }
   }
 
   private buildVoteCriterion(label: string, phase: PhaseId): string {
+    const normalized = label.toLowerCase();
+
     switch (this.formatId) {
       case 'lincoln_douglas':
-        if (label === 'AC + CX' || label === 'NC/1NR + CX') {
+        if (normalized.includes('value constructives')) {
+          return `${label}: choose who better established and defended their value, criterion, definitions, and contentions.`;
+        }
+        if (normalized.includes('ac value') || normalized.includes('nc/1nr value')) {
           return `${label}: choose who better established and defended their value, criterion, definitions, and contentions through cross-examination.`;
         }
         if (phase === 'constructive') {
@@ -131,23 +178,23 @@ export class VotingService {
           return `${label}: choose who used questions and answers to expose weaknesses, clarify standards, and protect their case.`;
         }
         if (phase === 'final_rebuttal') {
-          return `${label}: choose who crystallized the value clash and gave the clearer reason to prefer their criterion.`;
+          return `${label}: choose who crystallized the value clash, compared voters, and gave the clearer reason to prefer their criterion on the ballot.`;
         }
-        return `${label}: choose who better answered attacks, extended key value arguments, and weighed the round.`;
+        return `${label}: choose who better answered attacks, extended key value arguments, weighed standards, and explained the ballot.`;
       case 'policy':
-        if (label === '1AC + CX' || label === '1NC + CX' || label === '1NC') {
+        if (normalized.includes('1ac') || normalized.includes('1nc')) {
           return `${label}: choose who better framed the plan or opposition, core harms, links, burden, and solvency claims.`;
         }
-        if (label === '2AC + CX' || label === '2NC + CX' || label === '2NC') {
-          return `${label}: choose who better developed clash on solvency, disadvantages, counterplans, and comparative advantage.`;
+        if (normalized.includes('2ac') || normalized.includes('2nc')) {
+          return `${label}: choose who better developed clash on solvency, disadvantages, counterplans, impact links, and comparative advantage.`;
         }
-        if (label === '2AR') {
-          return `${label}: choose who better extended winning arguments, compared impacts, and explained the ballot.`;
+        if (normalized.includes('2ar')) {
+          return `${label}: choose who better extended winning arguments, compared impacts, handled dropped arguments, and explained the ballot.`;
         }
         if (phase === 'cross_examination') {
           return `${label}: choose who turned cross-examination into useful concessions or clearer burden analysis.`;
         }
-        return `${label}: choose who better extended winning arguments, compared impacts, and explained the ballot.`;
+        return `${label}: choose who better extended winning arguments, compared impacts, identified drops, and explained the ballot.`;
       case 'socratic':
         if (label === 'Initial Framing') {
           return `${label}: choose who framed the central assumption or definition more clearly.`;

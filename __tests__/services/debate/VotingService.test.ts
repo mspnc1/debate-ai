@@ -8,6 +8,7 @@ describe('VotingService', () => {
     { id: 'gpt4', provider: 'openai', name: 'GPT-4o', model: 'gpt-4o' },
   ];
   const oxfordShort = getPresetForFormat('oxford', 'short');
+  const lincolnDouglasShort = getPresetForFormat('lincoln_douglas', 'short');
   const policyShort = getPresetForFormat('policy', 'short');
 
   it('records round winners and calculates scores', () => {
@@ -25,7 +26,7 @@ describe('VotingService', () => {
     expect(scores.claude.isOverallWinner).toBe(true);
     expect(scores.gpt4.isOverallWinner).toBe(false);
     expect(service.getRoundVote(2)?.winnerId).toBe('gpt4');
-    expect(service.getRoundVote(2)?.votingLabel).toBe('2NC');
+    expect(service.getRoundVote(2)?.votingLabel).toBe('2NC policy clash');
     expect(service.getVoteRecords()).toHaveLength(3);
     expect(service.getVotesMap()).toEqual({ '1': 'claude', '2': 'gpt4', '3': 'claude', overall: 'claude' });
   });
@@ -48,11 +49,11 @@ describe('VotingService', () => {
   it('provides contextual prompts based on round and overall vote', () => {
     const service = new VotingService(participants, policyShort, 'policy');
 
-    expect(service.getVotingPrompt(2, false, false)).toBe('Who had the stronger 2nc?');
-    expect(service.getVotingPrompt(3, true, false)).toBe('Who had the stronger 2ar?');
+    expect(service.getVotingPrompt(2, false, false)).toBe('Who better developed policy clash on solvency, impacts, and burdens?');
+    expect(service.getVotingPrompt(3, true, false)).toBe('Who gave the clearer policy ballot story in the 2AR?');
     expect(service.getVotingPrompt(3, true, true)).toBe('Choose the overall winner');
-    expect(service.getWinnerMessage(1, 'claude', false)).toBe('1NC: Claude');
-    expect(service.getWinnerMessage(3, 'gpt4', true)).toBe('2AR: GPT-4o');
+    expect(service.getWinnerMessage(1, 'claude', false)).toBe('1NC plan clash: Claude');
+    expect(service.getWinnerMessage(3, 'gpt4', true)).toBe('2AR ballot: GPT-4o');
     expect(service.getOverallWinnerMessage('gpt4')).toBe('OVERALL WINNER: GPT-4o!\n\nGPT-4o won the debate.');
   });
 
@@ -60,7 +61,7 @@ describe('VotingService', () => {
     const service = new VotingService(participants, LINCOLN_DOUGLAS_FORMAT, 5);
 
     expect(service.getTotalVotes()).toBe(5);
-    expect(service.getVotingPrompt(2, false, false)).toBe('Who had the stronger nc/1nr + cx?');
+    expect(service.getVotingPrompt(2, false, false)).toBe('Who better handled the negative value framework and CX?');
   });
 
   it('provides format-specific vote criteria', () => {
@@ -72,6 +73,10 @@ describe('VotingService', () => {
     expect(policyService.getVoteCriterion(1)).toContain('core harms');
     expect(presetService.getVoteCriterion(true)).toContain('Final decision');
     expect(presetService.getVoteCriterion(true)).toContain('improved understanding');
+
+    const ldShortService = new VotingService(participants, lincolnDouglasShort, 'lincoln_douglas');
+    expect(ldShortService.getVoteCriterion(1)).toContain('value, criterion, definitions, and contentions.');
+    expect(ldShortService.getVoteCriterion(1)).not.toContain('cross-examination');
   });
 
   it('uses distinct vote guidance for each checkpoint and records it', () => {
@@ -83,11 +88,11 @@ describe('VotingService', () => {
 
     expect(openingCriterion).toContain('plan or opposition');
     expect(rebuttalCriterion).toContain('solvency');
-    expect(closingCriterion).toContain('extended winning arguments');
+    expect(closingCriterion).toContain('dropped arguments');
     expect(new Set([openingCriterion, rebuttalCriterion, closingCriterion]).size).toBe(3);
 
     expect(service.recordRoundVote(2, 'gpt4')).toMatchObject({
-      votingLabel: '2NC',
+      votingLabel: '2NC policy clash',
       criterion: rebuttalCriterion,
     });
   });

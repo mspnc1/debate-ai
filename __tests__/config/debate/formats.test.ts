@@ -120,6 +120,14 @@ describe('debate format definitions', () => {
   it('keeps Lincoln-Douglas standard cross-examination roles explicit', () => {
     const preset = getPresetForFormat('lincoln_douglas', 'standard');
 
+    expect(preset.description).toBe('Full value round with CX after each constructive');
+    expect(preset.messages.filter((message) => message.voteAfter).map((message) => message.votingLabel)).toEqual([
+      'AC value + CX',
+      'NC/1NR value + CX',
+      '1AR value clash',
+      'NR/2NR weighing',
+      '2AR ballot',
+    ]);
     expect(preset.messages.map((message) => ({
       label: message.label,
       phase: message.phase,
@@ -141,6 +149,14 @@ describe('debate format definitions', () => {
   it('keeps Policy standard cross-examination and rebuttal order', () => {
     const preset = getPresetForFormat('policy', 'standard');
 
+    expect(preset.description).toBe('Full policy round with CX after each constructive');
+    expect(preset.messages.filter((message) => message.voteAfter).map((message) => message.votingLabel)).toEqual([
+      '1AC plan + CX',
+      '1NC burden + CX',
+      '2AC solvency + CX',
+      '2NC impact + CX',
+      '2AR ballot',
+    ]);
     expect(preset.messages.map((message) => `${message.speaker}:${message.label}:${message.cxRole ?? 'speech'}`)).toEqual([
       'aff:1AC:speech',
       'neg:CX after 1AC:questioner',

@@ -1681,7 +1681,7 @@ export class DebateOrchestrator {
         id: `msg_${Date.now()}_overall_winner`,
         sender: 'Debate Host',
         senderType: 'user',
-        content: `\n🏆 **DEBATE ENDED IN A TIE!**\n\n${tiedAIs.join(' and ')} both won ${winnerScore.roundWins} ${winnerScore.roundWins === 1 ? 'round' : 'rounds'}!`,
+        content: `\n🏆 **DEBATE ENDED IN A TIE!**\n\n${tiedAIs.join(' and ')} both won ${winnerScore.roundWins} ${winnerScore.roundWins === 1 ? 'judge checkpoint' : 'judge checkpoints'}!`,
         timestamp: Date.now(),
       };
     } else {
@@ -1692,7 +1692,7 @@ export class DebateOrchestrator {
         id: `msg_${Date.now()}_overall_winner`,
         sender: 'Debate Host',
         senderType: 'user',
-        content: `\n🏆 **OVERALL WINNER: ${winnerScore.name}!**\n\n${winnerScore.name} won ${winnerScore.roundWins} out of ${this.session.totalRounds} rounds!`,
+        content: `\n🏆 **OVERALL WINNER: ${winnerScore.name}!**\n\n${winnerScore.name} won ${winnerScore.roundWins} out of ${this.session.totalRounds} judge checkpoints!`,
         timestamp: Date.now(),
       };
     }

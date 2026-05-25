@@ -138,15 +138,15 @@ describe('TranscriptModal', () => {
           id: 'vote-1',
           sender: 'Debate Host',
           senderType: 'user',
-          content: 'Constructives: Claude',
+          content: 'Value constructives: Claude',
           timestamp: Date.now(),
           metadata: {
             debateVote: {
               round: 1,
               winnerId: 'claude',
               winnerName: 'Claude',
-              votingLabel: 'Constructives',
-              criterion: 'Constructives: choose who better established their value and criterion.',
+              votingLabel: 'Value constructives',
+              criterion: 'Value constructives: choose who better established and defended their value, criterion, definitions, and contentions.',
               timestamp: 100,
             },
           },
@@ -157,10 +157,10 @@ describe('TranscriptModal', () => {
         <TranscriptModal {...defaultProps} messages={messagesWithVote} />
       );
 
-      expect(queryByText('Constructives: Claude')).toBeNull();
-      expect(getByText('Vote Decisions')).toBeTruthy();
-      expect(getByText('Constructives')).toBeTruthy();
-      expect(getByText('Constructives: choose who better established their value and criterion.')).toBeTruthy();
+      expect(queryByText('Value constructives: Claude')).toBeNull();
+      expect(getByText('Judge Decisions')).toBeTruthy();
+      expect(getByText('Value constructives')).toBeTruthy();
+      expect(getByText('Value constructives: choose who better established and defended their value, criterion, definitions, and contentions.')).toBeTruthy();
     });
 
     it('renders debate messages', () => {

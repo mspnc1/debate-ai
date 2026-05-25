@@ -51,33 +51,75 @@ const getDebateIntensityDirective = (civilityLevel?: 1 | 2 | 3 | 4 | 5): string 
 const getFormatPhaseConstraint = (
   formatId: FormatSpec['id'] | undefined,
   phase: PhaseId,
-  cxRole?: CxRole
+  cxRole?: CxRole,
+  messageLabel?: string
 ): string => {
+  const label = (messageLabel || '').toLowerCase();
+
   switch (formatId) {
     case 'lincoln_douglas':
       if (phase === 'constructive') {
+        if (label.includes('ac') || label.includes('affirmative constructive')) {
+          return 'Lincoln-Douglas AC contract: define key terms, name one central value, state a criterion, and build contentions that link back to that criterion. Do not offer a policy plan or solvency mechanism.';
+        }
+        if (label.includes('nc') || label.includes('1nr') || label.includes('negative constructive')) {
+          return 'Lincoln-Douglas NC/1NR contract: answer the affirmative value and criterion, offer or defend the negative standard, then build negative contentions under that standard. Do not drift into a policy plan.';
+        }
         return 'Lincoln-Douglas structure: define the central value and criterion, then organize contentions under that standard. Do not drift into a policy plan.';
       }
       if (phase === 'cross_examination') {
         return cxRole === 'questioner'
-          ? 'Lincoln-Douglas CX: test definitions, the value criterion, and whether contentions actually link back to that standard.'
-          : 'Lincoln-Douglas CX: answer directly, defend your value and criterion, and do not introduce a new constructive case.';
+          ? 'Lincoln-Douglas CX: ask concise questions that force commitments on definitions, value, criterion, links, and conceded contentions. Do not make speeches.'
+          : 'Lincoln-Douglas CX: answer directly, protect your value and criterion, clarify concessions, and do not introduce a new constructive case.';
       }
       if (phase === 'rebuttal' || phase === 'final_rebuttal' || phase === 'closing') {
+        if (label.includes('1ar')) {
+          return 'Lincoln-Douglas 1AR contract: rebuild the affirmative case, answer NC/1NR attacks, and compare standards explicitly. Do not add new contention shells.';
+        }
+        if (label.includes('nr/2nr') || label.includes('2nr')) {
+          return 'Lincoln-Douglas NR/2NR contract: collapse to the winning value and criterion clash, extend decisive turns, and explain why affirmative burdens fail. Do not add a new constructive case.';
+        }
+        if (label.includes('2ar')) {
+          return 'Lincoln-Douglas 2AR ballot contract: crystallize the value and criterion, compare voters, and give the judge a clear reason for the affirmative ballot. No new claims.';
+        }
         return 'Lincoln-Douglas weighing: compare the value clash and criterion directly; explain why your standard decides the round.';
       }
       return '';
     case 'policy':
       if (phase === 'constructive') {
+        if (label.includes('1ac') || label.includes('first affirmative constructive')) {
+          return 'Policy 1AC contract: state the plan text or affirmative advocacy, explain harms, inherency or burden, solvency, and impact links. Use selective support, not a laundry list.';
+        }
+        if (label.includes('1nc') || label.includes('first negative constructive')) {
+          return 'Policy 1NC contract: answer the case and establish negative offense such as disadvantages, counterplan or status quo burden, topicality, or solvency deficits. Keep links and impacts explicit.';
+        }
+        if (label.includes('2ac') || label.includes('second affirmative constructive')) {
+          return 'Policy 2AC contract: answer 1NC positions, rebuild plan solvency, answer disadvantages or counterplans, and extend affirmative advantages.';
+        }
+        if (label.includes('2nc') || label.includes('second negative constructive')) {
+          return 'Policy 2NC contract: develop the negative\'s best positions, extend link and impact stories, answer 2AC recovery, and prepare a clean 2NR collapse.';
+        }
         return 'Policy structure: identify the plan, counterplan, or status quo burden; explain solvency, harms or advantages, and impact links.';
       }
       if (phase === 'cross_examination') {
         return cxRole === 'questioner'
-          ? 'Policy CX: clarify plan text, solvency mechanism, burden, and the impact chain.'
-          : 'Policy CX: answer concessions directly, defend the plan, counterplan, or burden, and do not evade.';
+          ? 'Policy CX: ask concise questions that clarify plan text and press solvency mechanism, burden, links, and impact chain concessions. Do not give mini-speeches.'
+          : 'Policy CX: answer concessions directly, defend the plan, counterplan, or burden, and do not introduce new off-case positions.';
       }
       if (phase === 'rebuttal' || phase === 'final_rebuttal' || phase === 'closing') {
-        return 'Policy weighing: compare impacts, collapse to the winning issues, and state the decision rule.';
+        if (label.includes('1nr')) {
+          return 'Policy 1NR contract: extend a compact negative position, answer 2AC responses, and set up the 2NR without adding new off-case positions.';
+        }
+        if (label.includes('1ar')) {
+          return 'Policy 1AR contract: cover the flow efficiently, rebuild key affirmative offense, and answer negative voters. Do not add a new plan.';
+        }
+        if (label.includes('2nr')) {
+          return 'Policy 2NR ballot contract: collapse to the winning negative issues, compare impacts, identify dropped arguments, and explain the decision rule.';
+        }
+        if (label.includes('2ar')) {
+          return 'Policy 2AR ballot contract: collapse to the winning affirmative issues, answer the 2NR, compare impacts, handle dropped arguments, and explain why the plan wins.';
+        }
+        return 'Policy weighing: compare impacts, collapse to the winning issues, identify dropped arguments, and state the decision rule.';
       }
       return '';
     case 'oxford':
@@ -178,7 +220,7 @@ export class DebatePromptBuilder {
     const formatAwarePhaseHint = format?.id === 'oxford' && phase === 'question'
       ? 'Answer the audience question directly in a short response. Do not ask a new question.'
       : phaseHint;
-    const formatConstraint = getFormatPhaseConstraint(format?.id, phase, cxRole);
+    const formatConstraint = getFormatPhaseConstraint(format?.id, phase, cxRole, messageLabel);
     const audienceQuestionLine = audienceQuestion
       ? `Audience question for your side: "${audienceQuestion}"`
       : '';

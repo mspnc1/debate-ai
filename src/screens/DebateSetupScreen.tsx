@@ -85,6 +85,9 @@ const getOxfordPresetSummary = (preset: PresetConfig): string => {
   return `${preset.messages.length} ${unit} · ${middle} · ${preset.description}`;
 };
 
+const getCheckpointPresetSummary = (preset: PresetConfig): string =>
+  `${preset.messages.length} turns · ${preset.voteCount} judge checkpoints · ${preset.description}`;
+
 const DEBATE_SLOT_ID_MARKER = '-debater-slot-';
 
 const isDebateSlotId = (id: string): boolean => id.includes(DEBATE_SLOT_ID_MARKER);
@@ -261,7 +264,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   const presetSummary = useMemo(() => (
     selectedPreset.voteModel === 'audience_stance'
       ? getOxfordPresetSummary(selectedPreset)
-      : `${selectedPreset.messages.length} turns · ${selectedPreset.voteCount} votes · ${selectedPreset.description}`
+      : getCheckpointPresetSummary(selectedPreset)
   ), [selectedPreset]);
   const presetVoteLabels = useMemo(() => getPresetVoteLabels(selectedPreset), [selectedPreset]);
   
@@ -1017,7 +1020,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
                 </Typography>
                 <Box style={{ marginTop: 8 }}>
                   <Typography variant="caption" color="secondary" style={{ marginBottom: 6 }}>
-                    {selectedPreset.voteModel === 'audience_stance' ? 'Audience checkpoints' : 'Vote points'}
+                    {selectedPreset.voteModel === 'audience_stance' ? 'Audience checkpoints' : 'Judge checkpoints'}
                   </Typography>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     <Box style={{ flexDirection: 'row', gap: 6, paddingRight: theme.spacing.sm }}>

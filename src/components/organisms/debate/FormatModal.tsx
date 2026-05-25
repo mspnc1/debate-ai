@@ -35,12 +35,12 @@ export const FormatModal: React.FC<FormatModalProps> = ({ visible, selected, onS
     lincoln_douglas: [
       '🤔 Great for ethical dilemmas and moral questions',
       '💭 AC, CX, NC/1NR, 1AR, NR/2NR, and 2AR structure',
-      '📚 Values and criteria decide the clash',
+      '📚 Judge checkpoints focus on values, criteria, and ballot weighing',
     ],
     policy: [
       '📊 Perfect for policy proposals and real-world issues',
       '🔬 1AC, 1NC, 2AC, 2NC, 1NR, 1AR, 2NR, and 2AR',
-      '💡 Cross-examination keeps the plan and burdens clear',
+      '💡 Judge checkpoints focus on plan text, solvency, impacts, and drops',
     ],
   };
 

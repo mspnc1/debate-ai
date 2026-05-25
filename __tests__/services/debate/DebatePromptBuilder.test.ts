@@ -71,6 +71,40 @@ describe('DebatePromptBuilder', () => {
     expect(prompt).toContain('Do not drift into a policy plan');
   });
 
+  it('adds Lincoln-Douglas speech-specific contracts for AC, NC/1NR, 1AR, and 2AR', () => {
+    const ac = builder.buildTurnPrompt({
+      topic: 'Civil disobedience is morally justified.',
+      phase: 'constructive',
+      format: LINCOLN_DOUGLAS_FORMAT,
+      messageLabel: 'Affirmative Constructive (AC)',
+    });
+    const nc = builder.buildTurnPrompt({
+      topic: 'Civil disobedience is morally justified.',
+      phase: 'constructive',
+      format: LINCOLN_DOUGLAS_FORMAT,
+      messageLabel: 'Negative Constructive / 1NR (NC/1NR)',
+    });
+    const firstAffirmativeRebuttal = builder.buildTurnPrompt({
+      topic: 'Civil disobedience is morally justified.',
+      phase: 'rebuttal',
+      format: LINCOLN_DOUGLAS_FORMAT,
+      messageLabel: 'First Affirmative Rebuttal (1AR)',
+    });
+    const secondAffirmativeRebuttal = builder.buildTurnPrompt({
+      topic: 'Civil disobedience is morally justified.',
+      phase: 'final_rebuttal',
+      format: LINCOLN_DOUGLAS_FORMAT,
+      messageLabel: 'Second Affirmative Rebuttal (2AR)',
+    });
+
+    expect(ac).toContain('name one central value, state a criterion');
+    expect(ac).toContain('Do not offer a policy plan');
+    expect(nc).toContain('answer the affirmative value and criterion');
+    expect(firstAffirmativeRebuttal).toContain('rebuild the affirmative case');
+    expect(firstAffirmativeRebuttal).toContain('Do not add new contention shells');
+    expect(secondAffirmativeRebuttal).toContain('give the judge a clear reason for the affirmative ballot');
+  });
+
   it('adds Policy cross-examination and weighing constraints', () => {
     const cxPrompt = builder.buildTurnPrompt({
       topic: 'The city should adopt congestion pricing.',
@@ -89,6 +123,40 @@ describe('DebatePromptBuilder', () => {
     expect(cxPrompt).toContain('impact chain');
     expect(rebuttalPrompt).toContain('compare impacts');
     expect(rebuttalPrompt).toContain('decision rule');
+  });
+
+  it('adds Policy speech-specific contracts for 1AC, 2AC, 2NR, and 2AR', () => {
+    const firstAffirmativeConstructive = builder.buildTurnPrompt({
+      topic: 'The city should adopt congestion pricing.',
+      phase: 'constructive',
+      format: POLICY_FORMAT,
+      messageLabel: '1AC',
+    });
+    const secondAffirmativeConstructive = builder.buildTurnPrompt({
+      topic: 'The city should adopt congestion pricing.',
+      phase: 'constructive',
+      format: POLICY_FORMAT,
+      messageLabel: '2AC',
+    });
+    const secondNegativeRebuttal = builder.buildTurnPrompt({
+      topic: 'The city should adopt congestion pricing.',
+      phase: 'rebuttal',
+      format: POLICY_FORMAT,
+      messageLabel: '2NR',
+    });
+    const secondAffirmativeRebuttal = builder.buildTurnPrompt({
+      topic: 'The city should adopt congestion pricing.',
+      phase: 'closing',
+      format: POLICY_FORMAT,
+      messageLabel: '2AR',
+    });
+
+    expect(firstAffirmativeConstructive).toContain('state the plan text');
+    expect(firstAffirmativeConstructive).toContain('harms, inherency or burden, solvency, and impact links');
+    expect(secondAffirmativeConstructive).toContain('rebuild plan solvency');
+    expect(secondNegativeRebuttal).toContain('identify dropped arguments');
+    expect(secondAffirmativeRebuttal).toContain('handle dropped arguments');
+    expect(secondAffirmativeRebuttal).toContain('explain why the plan wins');
   });
 
   it('keeps Socratic turns question-led and assumption-focused', () => {

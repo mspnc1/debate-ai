@@ -467,7 +467,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
     displayedVoteResults.length > 0
       ? `
   <div class="vote-results">
-    <div class="vote-results-title">Vote Decisions</div>
+    <div class="vote-results-title">Judge Decisions</div>
     ${displayedVoteResults
       .map((vote) => `
     <div class="vote-result">
@@ -717,7 +717,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
               ]}
             >
               <Typography variant="subtitle" weight="semibold" style={styles.voteResultsTitle}>
-                Vote Decisions
+                Judge Decisions
               </Typography>
               {displayedVoteResults.map((vote, index) => (
                 <View

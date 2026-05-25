@@ -30,7 +30,7 @@ describe('DebateRulesEngine', () => {
     expect(engine.shouldVoteAfter(2)).toBe(true);
     expect(engine.shouldVoteAfter(3)).toBe(false);
     expect(engine.getVoteIndex(5)).toBe(2);
-    expect(engine.getVotingLabel(2)).toBe('NC/1NR + CX');
+    expect(engine.getVotingLabel(2)).toBe('NC/1NR value + CX');
   });
 
   it('derives round metadata and signals voting on new rounds', () => {

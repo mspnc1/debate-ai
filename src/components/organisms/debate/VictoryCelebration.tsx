@@ -404,7 +404,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                               weight="bold"
                               style={{ color: isWinner ? winnerColors[600] : theme.colors.text.primary }}
                             >
-                              {score.roundWins} {score.roundWins === 1 ? 'round' : 'rounds'}
+                              {score.roundWins} {score.roundWins === 1 ? 'checkpoint' : 'checkpoints'}
                             </Typography>
                           </View>
                           
@@ -435,7 +435,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                       align="center"
                       style={styles.voteBreakdownTitle}
                     >
-                      Vote Decisions
+                      Judge Decisions
                     </Typography>
                     {voteResults.map((vote) => (
                       <View key={vote.round} style={styles.voteResultRow}>
