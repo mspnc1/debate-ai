@@ -23,7 +23,6 @@ interface DebateVoicePackModalProps {
   selectedIds: string[];
   isSaving: boolean;
   canRetryAudio: boolean;
-  isPodcastPlaylist?: boolean;
   onToggleClip: (id: string) => void;
   onSelectAllReady: () => void;
   onClearSelection: () => void;
@@ -45,7 +44,6 @@ export const DebateVoicePackModal: React.FC<DebateVoicePackModalProps> = ({
   selectedIds,
   isSaving,
   canRetryAudio,
-  isPodcastPlaylist = false,
   onToggleClip,
   onSelectAllReady,
   onClearSelection,
@@ -80,13 +78,13 @@ export const DebateVoicePackModal: React.FC<DebateVoicePackModalProps> = ({
         <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
           <View style={styles.headerText}>
             <Typography variant="subtitle" weight="semibold">
-              {isPodcastPlaylist ? 'Save Podcast Playlist' : 'Save Voice Pack'}
+              Generate Podcast File
             </Typography>
             <Typography variant="caption" color="secondary">
               {selectedCount} selected • {readyCount} ready
             </Typography>
           </View>
-          <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close voice pack setup">
+          <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close podcast generation">
             <Ionicons name="close-outline" size={28} color={theme.colors.text.primary} />
           </TouchableOpacity>
         </View>
@@ -203,16 +201,16 @@ export const DebateVoicePackModal: React.FC<DebateVoicePackModalProps> = ({
             onPress={onSave}
             disabled={!canSave}
             accessibilityRole="button"
-            accessibilityLabel={isPodcastPlaylist ? 'Save selected clips as a podcast playlist' : 'Save selected clips as a voice pack'}
+            accessibilityLabel="Generate selected clips as a podcast file"
             testID="voice-pack-save"
           >
             {isSaving ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Ionicons name="albums-outline" size={20} color="#FFFFFF" />
+              <Ionicons name="musical-notes-outline" size={20} color="#FFFFFF" />
             )}
             <Typography variant="button" weight="semibold" style={{ color: '#FFFFFF' }}>
-              {isSaving ? 'Saving...' : 'Save to Gallery'}
+              {isSaving ? 'Generating...' : 'Generate Podcast File'}
             </Typography>
           </TouchableOpacity>
         </View>

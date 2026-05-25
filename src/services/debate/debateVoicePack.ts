@@ -2,13 +2,14 @@ import * as FileSystem from 'expo-file-system/legacy';
 import type { GeneratedMediaEntry } from '@/store/createSlice';
 import { getMediaExtension } from '@/services/media/mediaFileCache';
 import type { AI, Message, MessageAttachment } from '@/types';
-import type { DebateVoicePackClip, DebateVoicePackParticipant } from '@/types/media';
+import type { DebateVoicePackClip, DebateVoicePackCompiledAudio, DebateVoicePackManifest, DebateVoicePackParticipant } from '@/types/media';
 
 export const DEBATE_VOICE_PACK_PAUSE_MS = 900;
 
 const baseDirectory = FileSystem.documentDirectory || FileSystem.cacheDirectory || '';
 const normalizedBaseDirectory = baseDirectory.endsWith('/') ? baseDirectory : `${baseDirectory}/`;
 const VOICE_PACK_ROOT_DIR = `${normalizedBaseDirectory}gallery-voice-packs/`;
+const PODCAST_ROOT_DIR = `${normalizedBaseDirectory}gallery-podcasts/`;
 
 export type DebateVoicePackCandidateStatus = 'ready' | 'generating' | 'failed' | 'missing';
 
@@ -41,6 +42,25 @@ interface CreateDebateVoicePackGalleryEntryRequest {
 interface CreateDebateVoicePackGalleryEntryDependencies {
   now?: () => number;
   copyAsync?: typeof FileSystem.copyAsync;
+}
+
+interface BuildDebatePodcastCompilePlanRequest {
+  sessionId: string;
+  topic: string;
+  participants: AI[];
+  candidates: DebateVoicePackCandidate[];
+  selectedCandidateIds: string[];
+  pauseMs?: number;
+}
+
+interface BuildDebatePodcastCompilePlanDependencies {
+  now?: () => number;
+}
+
+export interface DebatePodcastCompilePlan {
+  id: string;
+  manifest: DebateVoicePackManifest;
+  selectedClipCount: number;
 }
 
 function sanitizePathSegment(value: string): string {
@@ -121,6 +141,44 @@ function getParticipantSummary(participants: AI[]): DebateVoicePackParticipant[]
   }));
 }
 
+function getSelectedReadyCandidates(
+  candidates: DebateVoicePackCandidate[],
+  selectedCandidateIds: string[]
+): DebateVoicePackCandidate[] {
+  const selectedIds = new Set(selectedCandidateIds);
+  return candidates
+    .filter((candidate) => selectedIds.has(candidate.id) && candidate.status === 'ready')
+    .sort((a, b) => a.order - b.order);
+}
+
+function getCandidateFileName(candidate: DebateVoicePackCandidate, index: number): string {
+  const extension = getMediaExtension(candidate.mimeType || 'audio/mpeg', 'audio');
+  return `${String(index + 1).padStart(3, '0')}_${sanitizePathSegment(candidate.message.id)}.${extension}`;
+}
+
+function mapCandidateToClip(
+  candidate: DebateVoicePackCandidate,
+  index: number,
+  uri: string,
+  pauseMs: number
+): DebateVoicePackClip {
+  return {
+    id: `${candidate.message.id}_${index}`,
+    messageId: candidate.message.id,
+    order: index,
+    speakerId: candidate.speakerId,
+    speakerName: candidate.speakerName,
+    role: candidate.role,
+    speechLabel: candidate.speechLabel,
+    voiceName: candidate.voiceName,
+    textPreview: candidate.textPreview,
+    uri,
+    mimeType: candidate.mimeType || 'audio/mpeg',
+    fileName: getCandidateFileName(candidate, index),
+    pauseAfterMs: pauseMs,
+  };
+}
+
 async function copyCandidateToVoicePack(
   candidate: DebateVoicePackCandidate,
   index: number,
@@ -132,26 +190,73 @@ async function copyCandidateToVoicePack(
     throw new Error(`Voice clip for ${candidate.speakerName} is unavailable.`);
   }
 
-  const extension = getMediaExtension(candidate.mimeType, 'audio');
-  const fileName = `${String(index + 1).padStart(3, '0')}_${sanitizePathSegment(candidate.message.id)}.${extension}`;
+  const fileName = getCandidateFileName(candidate, index);
   const targetUri = `${targetDirectory}${fileName}`;
 
   await copyAsync({ from: candidate.uri, to: targetUri });
 
+  return mapCandidateToClip(candidate, index, targetUri, pauseMs);
+}
+
+export function buildDebatePodcastCompilePlan(
+  request: BuildDebatePodcastCompilePlanRequest,
+  dependencies: BuildDebatePodcastCompilePlanDependencies = {}
+): DebatePodcastCompilePlan {
+  const now = dependencies.now || Date.now;
+  const createdAt = now();
+  const id = `debate_podcast_${sanitizePathSegment(request.sessionId)}_${createdAt}`;
+  const pauseMs = request.pauseMs ?? DEBATE_VOICE_PACK_PAUSE_MS;
+  const selectedCandidates = getSelectedReadyCandidates(request.candidates, request.selectedCandidateIds);
+
+  if (selectedCandidates.length === 0) {
+    throw new Error('Select at least one ready voice clip before generating a podcast file.');
+  }
+
+  const missingClip = selectedCandidates.find((candidate) => !candidate.uri || !candidate.mimeType);
+  if (missingClip) {
+    throw new Error(`Voice clip for ${missingClip.speakerName} is unavailable.`);
+  }
+
+  const topic = request.topic.trim() || 'AI Debate';
+  const directoryUri = `${PODCAST_ROOT_DIR}${id}/`;
+  const clips = selectedCandidates.map((candidate, index) => (
+    mapCandidateToClip(candidate, index, candidate.uri || '', pauseMs)
+  ));
+
   return {
-    id: `${candidate.message.id}_${index}`,
-    messageId: candidate.message.id,
-    order: index,
-    speakerId: candidate.speakerId,
-    speakerName: candidate.speakerName,
-    role: candidate.role,
-    speechLabel: candidate.speechLabel,
-    voiceName: candidate.voiceName,
-    textPreview: candidate.textPreview,
-    uri: targetUri,
-    mimeType: candidate.mimeType,
-    fileName,
-    pauseAfterMs: pauseMs,
+    id,
+    selectedClipCount: clips.length,
+    manifest: {
+      kind: 'debate_podcast_playlist',
+      version: 1,
+      sessionId: request.sessionId,
+      topic,
+      participants: getParticipantSummary(request.participants),
+      clips,
+      pauseMs,
+      directoryUri,
+      createdAt,
+    },
+  };
+}
+
+export function createDebatePodcastGalleryEntry(
+  plan: DebatePodcastCompilePlan,
+  compiledAudio: DebateVoicePackCompiledAudio
+): GeneratedMediaEntry {
+  return {
+    id: plan.id,
+    mediaType: 'audio',
+    providerId: 'elevenlabs',
+    modelId: 'debate_podcast',
+    operation: 'debate_podcast_playlist',
+    prompt: `Debate podcast: ${plan.manifest.topic}`,
+    uri: compiledAudio.uri,
+    remoteUrl: compiledAudio.remoteUrl,
+    mimeType: compiledAudio.mimeType,
+    status: 'succeeded',
+    createdAt: compiledAudio.createdAt,
+    expiresAt: compiledAudio.expiresAt,
   };
 }
 
@@ -167,10 +272,7 @@ export async function createDebateVoicePackGalleryEntry(
   const idPrefix = isPodcastPlaylist ? 'debate_podcast' : 'debate_voice_pack';
   const id = `${idPrefix}_${sanitizePathSegment(request.sessionId)}_${createdAt}`;
   const pauseMs = request.pauseMs ?? DEBATE_VOICE_PACK_PAUSE_MS;
-  const selectedIds = new Set(request.selectedCandidateIds);
-  const selectedCandidates = request.candidates
-    .filter((candidate) => selectedIds.has(candidate.id) && candidate.status === 'ready')
-    .sort((a, b) => a.order - b.order);
+  const selectedCandidates = getSelectedReadyCandidates(request.candidates, request.selectedCandidateIds);
 
   if (selectedCandidates.length === 0) {
     throw new Error('Select at least one ready voice clip before saving a voice pack.');

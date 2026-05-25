@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert } from 'react-native';
-import { act, fireEvent } from '@testing-library/react-native';
+import { act, fireEvent, waitFor } from '@testing-library/react-native';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
 import { createAppStore, showSheet } from '@/store';
 import type { AI, Message } from '@/types';
@@ -11,13 +11,14 @@ import type { DebateSessionHeaderProps } from '@/components/organisms/debate/Deb
 const mockHandleWithToast = jest.fn();
 const mockShowInfo = jest.fn();
 const mockShowWarning = jest.fn();
+const mockShowSuccess = jest.fn();
 
 jest.mock('@/services/errors/ErrorService', () => ({
   ErrorService: {
     handleWithToast: (...args: unknown[]) => mockHandleWithToast(...args),
     showInfo: (...args: unknown[]) => mockShowInfo(...args),
     showWarning: (...args: unknown[]) => mockShowWarning(...args),
-    showSuccess: jest.fn(),
+    showSuccess: (...args: unknown[]) => mockShowSuccess(...args),
   },
 }));
 
@@ -33,6 +34,7 @@ const mockUseDebateVoting = jest.fn();
 const mockUseTopicSelection = jest.fn();
 const mockUseDebateMessages = jest.fn();
 const mockUseDebateVoiceGeneration = jest.fn();
+const mockCompileDebateVoicePack = jest.fn();
 
 let mockHeaderProps: any;
 let mockTopicSelectorProps: any;
@@ -200,6 +202,13 @@ jest.mock('@/services/demo/AppendToPackService', () => ({
   },
 }));
 
+jest.mock('@/services/debate/debateAudioCompileService', () => ({
+  __esModule: true,
+  default: {
+    compileDebateVoicePack: (...args: unknown[]) => mockCompileDebateVoicePack(...args),
+  },
+}));
+
 jest.mock('@/hooks/usePersonality', () => ({
   usePersonality: () => ({
     isLoading: false,
@@ -339,7 +348,7 @@ const renderScreen = (options: RenderOptions = {}) => {
   mockUseTopicSelection.mockReturnValue(topicSelectionState);
   mockUseDebateMessages.mockReturnValue(messagesState);
   mockUseDebateVoiceGeneration.mockReturnValue({
-    canRetryAudio: jest.fn().mockReturnValue(false),
+    canRetryAudio: false,
     retryMessageAudio: jest.fn(),
   });
   mockFeatureAccess.mockReturnValue({ isDemo: false, ...featureAccess });
@@ -659,6 +668,104 @@ describe('DebateScreen', () => {
     expect(mockDebateSessionHeaderProps?.timelineMessages).toHaveLength(0);
     expect(mockDebateSessionHeaderProps?.topic).toBe('Pineapple on pizza is acceptable.');
     expect(mockHeaderProps).toBeUndefined();
+  });
+
+  it('generates a selected-clips podcast file and navigates to the finished Gallery audio item', async () => {
+    const compiledAudio = {
+      id: 'compile-job-1',
+      uri: 'file:///documents/gallery-podcasts/debate_podcast_debate_1_1000/compiled.mp3',
+      mimeType: 'audio/mpeg',
+      fileName: 'compiled.mp3',
+      createdAt: 2000,
+      remoteUrl: 'https://signed.example/debate-podcast.mp3',
+      storagePath: 'debate-audio-compile/user/job/output/debate-podcast.mp3',
+      expiresAt: 3000,
+    };
+    mockCompileDebateVoicePack.mockResolvedValueOnce(compiledAudio);
+
+    const voicedMessage: Message = {
+      id: 'msg_1_openai',
+      sender: 'Claude (Default)',
+      senderType: 'ai',
+      content: 'Opening statement.',
+      timestamp: 1,
+      attachments: [{ type: 'audio', uri: 'file:///debate/msg_1.mp3', mimeType: 'audio/mpeg' }],
+      metadata: {
+        providerId: 'left',
+        debateSpeech: { speaker: 'aff', label: 'Opening statement' },
+        debateAudio: {
+          status: 'ready',
+          voiceId: 'voice-1',
+          voiceName: 'Aria',
+          uri: 'file:///debate/msg_1.mp3',
+          mimeType: 'audio/mpeg',
+        },
+      },
+    };
+
+    const { renderResult, navigation, store } = renderScreen({
+      flow: { isDebateEnded: true },
+      messages: { messages: [voicedMessage] },
+      session: { isInitialized: true, session: { id: 'debate_1', topic: 'Resolved: podcasts matter.' }, orchestrator: {} },
+      voting: {
+        scores: {
+          left: { name: 'Claude', roundWins: 1, roundsWon: [1], isOverallWinner: true },
+        },
+        isOverallVote: true,
+        isVoting: false,
+      },
+      routeParams: {
+        topic: 'Resolved: podcasts matter.',
+        formatId: 'policy',
+        voiceConfig: {
+          enabled: true,
+          providerId: 'elevenlabs',
+          debaterVoices: {
+            left: { voiceId: 'voice-1', voiceName: 'Aria' },
+          },
+        },
+      },
+    });
+
+    await flushMicrotasks();
+
+    expect(mockVictoryProps.voicePackActionLabel).toBe('Podcast');
+
+    act(() => {
+      mockVictoryProps.onSaveVoicePack();
+    });
+
+    expect(renderResult.getAllByText('Generate Podcast File').length).toBeGreaterThan(0);
+
+    await act(async () => {
+      fireEvent.press(renderResult.getByTestId('voice-pack-save'));
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockCompileDebateVoicePack).toHaveBeenCalledWith(expect.objectContaining({
+        kind: 'debate_podcast_playlist',
+        topic: 'Resolved: podcasts matter.',
+        clips: [expect.objectContaining({
+          messageId: 'msg_1_openai',
+          uri: 'file:///debate/msg_1.mp3',
+        })],
+      }));
+      expect(store.getState().create.mediaGallery[0]).toMatchObject({
+        mediaType: 'audio',
+        modelId: 'debate_podcast',
+        operation: 'debate_podcast_playlist',
+        prompt: 'Debate podcast: Resolved: podcasts matter.',
+        uri: compiledAudio.uri,
+        mimeType: compiledAudio.mimeType,
+      });
+      expect(store.getState().create.mediaGallery[0].voicePack).toBeUndefined();
+      expect(mockShowSuccess).toHaveBeenCalledWith('Podcast file generated and saved to Gallery.', 'debate');
+      expect(navigation.navigate).toHaveBeenCalledWith('CreateSession', {
+        focusMediaId: store.getState().create.mediaGallery[0].id,
+        galleryTab: 'audio',
+      });
+    });
   });
 
   it('starts a rematch with the same debate configuration', async () => {

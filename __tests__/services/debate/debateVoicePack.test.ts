@@ -1,5 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import {
+  buildDebatePodcastCompilePlan,
+  createDebatePodcastGalleryEntry,
   createDebateVoicePackGalleryEntry,
   DEBATE_VOICE_PACK_PAUSE_MS,
   getDebateVoicePackCandidates,
@@ -269,5 +271,120 @@ describe('debateVoicePack', () => {
       },
     });
     expect(entry.voicePack?.clips.map((clip) => clip.role)).toEqual(['mc', 'debater']);
+  });
+
+  it('builds a transient podcast compile plan from selected ready clips', () => {
+    const messages = [
+      createDebateMessage({
+        id: 'msg_1_openai',
+        attachments: [{ type: 'audio', uri: 'file:///debate/msg_1.mp3', mimeType: 'audio/mpeg' }],
+        metadata: {
+          providerId: 'openai',
+          debateSpeech: { speaker: 'aff', label: 'Opening statement' },
+          debateAudio: {
+            status: 'ready',
+            voiceId: 'voice_1',
+            voiceName: 'Aria',
+            uri: 'file:///debate/msg_1.mp3',
+            mimeType: 'audio/mpeg',
+          },
+        },
+      }),
+      createDebateMessage({
+        id: 'msg_2_google',
+        sender: 'Gemini (Default)',
+        content: 'Opening response for the negative side.',
+        attachments: [{ type: 'audio', uri: 'file:///debate/msg_2.mp3', mimeType: 'audio/mpeg' }],
+        metadata: {
+          providerId: 'google',
+          debateSpeech: { speaker: 'neg', label: 'Opening response' },
+          debateAudio: {
+            status: 'ready',
+            voiceId: 'voice_2',
+            voiceName: 'Roger',
+            uri: 'file:///debate/msg_2.mp3',
+            mimeType: 'audio/mpeg',
+          },
+        },
+      }),
+    ];
+    const candidates = getDebateVoicePackCandidates(messages);
+
+    const plan = buildDebatePodcastCompilePlan({
+      sessionId: 'debate_1',
+      topic: 'Resolved: podcasts matter.',
+      participants,
+      candidates,
+      selectedCandidateIds: ['msg_2_google', 'msg_1_openai'],
+    }, {
+      now: () => 456,
+    });
+
+    expect(plan.id).toBe('debate_podcast_debate_1_456');
+    expect(plan.manifest).toMatchObject({
+      kind: 'debate_podcast_playlist',
+      sessionId: 'debate_1',
+      topic: 'Resolved: podcasts matter.',
+      directoryUri: '/tmp/gallery-podcasts/debate_podcast_debate_1_456/',
+    });
+    expect(plan.manifest.clips.map((clip) => clip.uri)).toEqual([
+      'file:///debate/msg_1.mp3',
+      'file:///debate/msg_2.mp3',
+    ]);
+    expect(plan.manifest.clips.every((clip) => clip.pauseAfterMs === DEBATE_VOICE_PACK_PAUSE_MS)).toBe(true);
+  });
+
+  it('creates a final podcast Gallery entry without retaining a voice pack manifest', () => {
+    const plan = buildDebatePodcastCompilePlan({
+      sessionId: 'debate_1',
+      topic: 'Resolved: podcasts matter.',
+      participants,
+      candidates: getDebateVoicePackCandidates([
+        createDebateMessage({
+          id: 'msg_1_openai',
+          attachments: [{ type: 'audio', uri: 'file:///debate/msg_1.mp3', mimeType: 'audio/mpeg' }],
+          metadata: {
+            providerId: 'openai',
+            debateSpeech: { speaker: 'aff', label: 'Opening statement' },
+            debateAudio: {
+              status: 'ready',
+              voiceId: 'voice_1',
+              voiceName: 'Aria',
+              uri: 'file:///debate/msg_1.mp3',
+              mimeType: 'audio/mpeg',
+            },
+          },
+        }),
+      ]),
+      selectedCandidateIds: ['msg_1_openai'],
+    }, {
+      now: () => 456,
+    });
+
+    const entry = createDebatePodcastGalleryEntry(plan, {
+      id: 'compile-job-1',
+      uri: 'file:///podcasts/compiled.mp3',
+      mimeType: 'audio/mpeg',
+      fileName: 'compiled.mp3',
+      createdAt: 789,
+      remoteUrl: 'https://signed.example/output.mp3',
+      storagePath: 'debate-audio-compile/user/job/output/debate-podcast.mp3',
+      expiresAt: 999,
+    });
+
+    expect(entry).toMatchObject({
+      id: 'debate_podcast_debate_1_456',
+      mediaType: 'audio',
+      providerId: 'elevenlabs',
+      modelId: 'debate_podcast',
+      operation: 'debate_podcast_playlist',
+      prompt: 'Debate podcast: Resolved: podcasts matter.',
+      uri: 'file:///podcasts/compiled.mp3',
+      mimeType: 'audio/mpeg',
+      status: 'succeeded',
+      createdAt: 789,
+      expiresAt: 999,
+    });
+    expect(entry.voicePack).toBeUndefined();
   });
 });

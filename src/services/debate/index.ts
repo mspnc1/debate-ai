@@ -20,6 +20,8 @@ export {
 } from './DebateVoiceService';
 export {
   DEBATE_VOICE_PACK_PAUSE_MS,
+  buildDebatePodcastCompilePlan,
+  createDebatePodcastGalleryEntry,
   createDebateVoicePackGalleryEntry,
   getDebateVoicePackCandidates,
 } from './debateVoicePack';
@@ -60,6 +62,7 @@ export type {
 } from './DebatePromptBuilder';
 
 export type {
+  DebatePodcastCompilePlan,
   DebateVoicePackCandidate,
   DebateVoicePackCandidateStatus,
 } from './debateVoicePack';

@@ -52,7 +52,6 @@ import {
   GeneratedMediaEntry,
   hydrateMediaGallery,
   markCreateActivitySeen,
-  addToMediaGalleryWithCleanup,
   removeFromMediaGalleryWithCleanup,
   persistMediaGallery,
   LOCAL_GALLERY_ASSET_LIMIT,
@@ -97,7 +96,6 @@ import {
 } from '../services/images/fileCache';
 import MediaSaveService from '../services/media/MediaSaveService';
 import { getMediaShareUti } from '../services/media/mediaFileCache';
-import DebateAudioCompileService from '../services/debate/debateAudioCompileService';
 import useFeatureAccess from '../hooks/useFeatureAccess';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
@@ -167,12 +165,6 @@ const AUDIO_SKIP_SECONDS = 1;
 
 function isVoicePackEntry(entry: GeneratedMediaEntry): entry is GeneratedMediaEntry & { voicePack: DebateVoicePackManifest } {
   return entry.voicePack?.kind === 'debate_voice_pack' || entry.voicePack?.kind === 'debate_podcast_playlist';
-}
-
-function getCompiledVoicePackAudio(entry: GeneratedMediaEntry) {
-  if (!isVoicePackEntry(entry)) return undefined;
-  const compiled = entry.voicePack.compiledAudio;
-  return compiled?.uri ? compiled : undefined;
 }
 
 function getAudioPhase(status: ReturnType<typeof useAudioPlayerStatus>): AudioPlaybackPhase {
@@ -865,6 +857,9 @@ function getGalleryAssetModelLabel(asset: GalleryAsset): string {
   if (isVoicePackEntry(media)) {
     return media.voicePack.kind === 'debate_podcast_playlist' ? 'Debate podcast' : 'Debate voice pack';
   }
+  if (media.operation === 'debate_podcast_playlist') {
+    return 'Debate podcast';
+  }
   return asset.modelId;
 }
 
@@ -949,7 +944,6 @@ export default function CreateScreen() {
   const [savingMediaId, setSavingMediaId] = useState<string | null>(null);
   const [sharingImageId, setSharingImageId] = useState<string | null>(null);
   const [sharingMediaId, setSharingMediaId] = useState<string | null>(null);
-  const [compilingVoicePackId, setCompilingVoicePackId] = useState<string | null>(null);
   const [refiningImage, setRefiningImage] = useState<GeneratedImageEntry | null>(null);
   const [videoPlaybackStates, setVideoPlaybackStates] = useState<Record<string, VideoPlaybackState>>({});
   const [galleryTab, setGalleryTab] = useState<GalleryTab>(route.params?.galleryTab || 'all');
@@ -1425,12 +1419,8 @@ export default function CreateScreen() {
     setSavingMediaId(mediaId);
     try {
       if (isVoicePackEntry(media)) {
-        const compiled = getCompiledVoicePackAudio(media);
-        if (!compiled) {
-          ErrorService.showInfo('Compile this voice pack before saving it as a single audio file.', 'create');
-          return;
-        }
-        await MediaSaveService.saveFileUri(compiled.uri, { album: 'Symposium AI' });
+        ErrorService.showInfo('This legacy voice pack can play in the app, but podcast files are generated from the completed debate.', 'create');
+        return;
       } else if (media.uri.startsWith('http')) {
         await MediaSaveService.saveRemoteUrl(media.uri, { album: 'Symposium AI' });
       } else {
@@ -1453,25 +1443,7 @@ export default function CreateScreen() {
     setSharingMediaId(mediaId);
     try {
       if (isVoicePackEntry(media)) {
-        const compiled = getCompiledVoicePackAudio(media);
-        if (!compiled) {
-          ErrorService.showInfo('Compile this voice pack before sharing it as a single audio file.', 'create');
-          return;
-        }
-        if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(compiled.uri, {
-            mimeType: compiled.mimeType,
-            UTI: Platform.OS === 'ios' ? getMediaShareUti(compiled.mimeType) : undefined,
-            dialogTitle: 'Share debate podcast',
-          });
-          return;
-        }
-
-        await Share.share({
-          url: compiled.uri,
-          message: `Debate podcast: "${media.voicePack.topic}"`,
-          title: 'Share debate podcast',
-        });
+        ErrorService.showInfo('This legacy voice pack can play in the app, but podcast files are generated from the completed debate.', 'create');
         return;
       }
       if (await Sharing.isAvailableAsync()) {
@@ -1533,12 +1505,7 @@ export default function CreateScreen() {
 
     const media = asset.entry as GeneratedMediaEntry;
     if (isVoicePackEntry(media)) {
-      const compiled = getCompiledVoicePackAudio(media);
-      if (!compiled) {
-        throw new Error('Compile this voice pack before saving it as a single audio file.');
-      }
-      await MediaSaveService.saveFileUri(compiled.uri, { album: 'Symposium AI' });
-      return;
+      throw new Error('This legacy voice pack can play in the app, but podcast files are generated from the completed debate.');
     }
     if (media.uri.startsWith('http')) {
       await MediaSaveService.saveRemoteUrl(media.uri, { album: 'Symposium AI' });
@@ -1546,35 +1513,6 @@ export default function CreateScreen() {
       await MediaSaveService.saveFileUri(media.uri, { album: 'Symposium AI' });
     }
   }, [getResolvedGalleryImage]);
-
-  const handleCompileVoicePack = useCallback(async (mediaId: string) => {
-    const media = mediaGallery.find((entry) => entry.id === mediaId);
-    if (!media || !isVoicePackEntry(media)) return;
-
-    setCompilingVoicePackId(mediaId);
-    try {
-      const compiledAudio = await DebateAudioCompileService.compileDebateVoicePack(media.voicePack);
-      const updatedEntry: GeneratedMediaEntry = {
-        ...media,
-        uri: compiledAudio.uri,
-        mimeType: compiledAudio.mimeType,
-        remoteUrl: compiledAudio.remoteUrl,
-        expiresAt: compiledAudio.expiresAt,
-        voicePack: {
-          ...media.voicePack,
-          compiledAudio,
-        },
-      };
-      await dispatch(addToMediaGalleryWithCleanup(updatedEntry));
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      ErrorService.showSuccess('Podcast audio compiled and saved in Gallery.', 'create');
-    } catch (error) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      ErrorService.handleWithToast(error, { feature: 'create' });
-    } finally {
-      setCompilingVoicePackId(null);
-    }
-  }, [dispatch, mediaGallery]);
 
   const handleSaveAsset = useCallback(async (asset: GalleryAsset) => {
     if (asset.source === 'image') {
@@ -1892,6 +1830,11 @@ export default function CreateScreen() {
     const isSaving = savingMediaId === item.id;
     const isVideoPlaying = isVideo && Boolean(videoPlaybackStates[item.id]?.isPlaying);
     const shouldShowActions = isSelected && !isVideoPlaying;
+    const mediaBadgeLabel = isVoicePack
+      ? 'Voice Pack'
+      : item.operation === 'debate_podcast_playlist'
+        ? 'Podcast'
+        : item.modelId;
     const mediaActionButtons = (
       <View style={styles.actionButtons}>
         {!isVoicePack && (
@@ -1979,7 +1922,7 @@ export default function CreateScreen() {
 
           <View style={[styles.providerBadge, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
             <Typography variant="caption" style={{ color: '#FFFFFF' }}>
-              {isVideo ? 'Runway' : 'ElevenLabs'} • {isVoicePack ? 'Voice Pack' : item.modelId}
+              {isVideo ? 'Runway' : 'ElevenLabs'} • {mediaBadgeLabel}
             </Typography>
           </View>
 
@@ -2407,14 +2350,12 @@ export default function CreateScreen() {
     const selectedVoicePack = selectedMediaEntry && isVoicePackEntry(selectedMediaEntry)
       ? selectedMediaEntry.voicePack
       : undefined;
-    const compiledVoicePackAudio = selectedMediaEntry ? getCompiledVoicePackAudio(selectedMediaEntry) : undefined;
     const isSavingSelected = selectedAsset.source === 'image'
       ? savingImage
       : savingMediaId === selectedAsset.id;
     const isSharingSelected = selectedAsset.source === 'image'
       ? sharingImageId === selectedAsset.id
       : sharingMediaId === selectedAsset.id;
-    const isCompilingSelected = compilingVoicePackId === selectedAsset.id;
 
     return (
       <Modal
@@ -2488,35 +2429,15 @@ export default function CreateScreen() {
                 {renderDetailRow('Operation', selectedAsset.operation?.replace(/_/g, ' '))}
                 {selectedVoicePack && renderDetailRow('Clips', String(selectedVoicePack.clips.length))}
                 {selectedVoicePack && renderDetailRow('Pause', `${(selectedVoicePack.pauseMs / 1000).toFixed(1)}s between speakers`)}
-                {selectedVoicePack && renderDetailRow('Compiled', compiledVoicePackAudio ? 'Ready' : 'Not yet')}
                 {renderDetailRow('Duration', formatGalleryDuration(selectedAsset.durationSeconds))}
                 {renderDetailRow('Created', formatGalleryDate(selectedAsset.createdAt))}
                 {renderDetailRow('Status', selectedAsset.status)}
-                {renderDetailRow('MIME', selectedVoicePack ? (compiledVoicePackAudio?.mimeType || 'Voice pack manifest') : selectedAsset.mimeType)}
+                {renderDetailRow('MIME', selectedVoicePack ? 'Voice pack manifest' : selectedAsset.mimeType)}
               </View>
             </View>
           </ScrollView>
 
           <View style={[styles.detailActions, { paddingBottom: insets.bottom + 12, borderTopColor: theme.colors.border }]}>
-            {selectedVoicePack && (
-              <TouchableOpacity
-                style={[styles.detailActionButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-                onPress={() => handleCompileVoicePack(selectedAsset.id)}
-                disabled={isCompilingSelected}
-                accessibilityRole="button"
-                accessibilityLabel={compiledVoicePackAudio ? 'Recompile voice pack audio' : 'Compile voice pack audio'}
-              >
-                {isCompilingSelected ? (
-                  <ActivityIndicator size="small" color={theme.colors.primary[500]} />
-                ) : (
-                  <Ionicons name="build-outline" size={22} color={theme.colors.text.primary} />
-                )}
-                <Typography variant="caption" weight="semibold">
-                  {compiledVoicePackAudio ? 'Recompile' : 'Compile'}
-                </Typography>
-              </TouchableOpacity>
-            )}
-
             <TouchableOpacity
               style={[styles.detailActionButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
               onPress={() => handleSaveAsset(selectedAsset)}

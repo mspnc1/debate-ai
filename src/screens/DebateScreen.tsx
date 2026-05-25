@@ -56,10 +56,12 @@ import { DebateRecordPickerModal } from '@/components/organisms/demo/DebateRecor
 import { FORMATS, getPresetForFormat, getPresetIdForRounds } from '@/config/debate/formats';
 import { getDebateSpeakerRoleLabel } from '@/utils/debateLabels';
 import {
-  createDebateVoicePackGalleryEntry,
+  buildDebatePodcastCompilePlan,
+  createDebatePodcastGalleryEntry,
   getDebateVoicePackCandidates,
   type DebateVoicePackCandidate,
 } from '@/services/debate';
+import DebateAudioCompileService from '@/services/debate/debateAudioCompileService';
 // Topic block is now rendered inside header
 // Controls modal removed – using Start Over action directly
 
@@ -101,6 +103,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   const [voicePackModalVisible, setVoicePackModalVisible] = useState(false);
   const [voicePackSelectedIds, setVoicePackSelectedIds] = useState<string[]>([]);
   const [isSavingVoicePack, setIsSavingVoicePack] = useState(false);
+  const [pendingGalleryFocusMediaId, setPendingGalleryFocusMediaId] = useState<string | null>(null);
   const selectedSampleRef = React.useRef<DemoDebate | null>(null);
   // No custom controls modal
   
@@ -129,12 +132,11 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     () => readyVoicePackCandidates.map((candidate) => candidate.id),
     [readyVoicePackCandidates]
   );
-  const shouldOfferVoicePack = Boolean(voiceConfig?.enabled && voicePackCandidates.length > 0);
-  const isPodcastPlaylist = Boolean(voiceConfig?.podcast?.enabled);
+  const shouldOfferPodcastGeneration = Boolean(voiceConfig?.enabled && voicePackCandidates.length > 0);
 
   const handleOpenVoicePackModal = useCallback(() => {
     if (voicePackCandidates.length === 0) {
-      ErrorService.showInfo('No voiced debate turns are available yet.', 'debate');
+      ErrorService.showInfo('No voiced debate clips are available yet.', 'debate');
       return;
     }
 
@@ -158,6 +160,22 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     if (!voicePackModalVisible) return;
     setVoicePackSelectedIds((current) => current.filter((id) => readyVoicePackIds.includes(id)));
   }, [readyVoicePackIds, voicePackModalVisible]);
+
+  useEffect(() => {
+    if (!pendingGalleryFocusMediaId || voicePackModalVisible) return;
+
+    const navigationTimer = setTimeout(() => {
+      navigation.navigate('CreateSession', {
+        focusMediaId: pendingGalleryFocusMediaId,
+        galleryTab: 'audio',
+      });
+      setPendingGalleryFocusMediaId(null);
+    }, 50);
+
+    return () => {
+      clearTimeout(navigationTimer);
+    };
+  }, [navigation, pendingGalleryFocusMediaId, voicePackModalVisible]);
 
   useEffect(() => {
     if (demoSample) {
@@ -481,9 +499,9 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   
   // Determine what to show based on debate state
   const displayedTopic = session.session?.topic || topicSelection.finalTopic || initialTopic || 'Debate Motion';
-  const handleSaveVoicePack = useCallback(async () => {
+  const handleGeneratePodcastFile = useCallback(async () => {
     if (!session.session?.id) {
-      ErrorService.showWarning('Debate session is not ready for voice pack export.', 'debate');
+      ErrorService.showWarning('Debate session is not ready for podcast generation.', 'debate');
       return;
     }
 
@@ -494,23 +512,21 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
 
     setIsSavingVoicePack(true);
     try {
-      const entry = await createDebateVoicePackGalleryEntry({
+      const plan = buildDebatePodcastCompilePlan({
         sessionId: session.session.id,
         topic: displayedTopic,
         participants: selectedAIs,
         candidates: voicePackCandidates,
         selectedCandidateIds: voicePackSelectedIds,
-        playlistKind: isPodcastPlaylist ? 'debate_podcast_playlist' : 'debate_voice_pack',
       });
+      const compiledAudio = await DebateAudioCompileService.compileDebateVoicePack(plan.manifest);
+      const entry = createDebatePodcastGalleryEntry(plan, compiledAudio);
 
       await dispatch(addToMediaGalleryWithCleanup(entry)).unwrap();
       setVoicePackModalVisible(false);
       setVoicePackSelectedIds([]);
-      ErrorService.showSuccess(isPodcastPlaylist ? 'Podcast playlist saved to Gallery.' : 'Voice pack saved to Gallery.', 'debate');
-      navigation.navigate('CreateSession', {
-        focusMediaId: entry.id,
-        galleryTab: 'audio',
-      });
+      ErrorService.showSuccess('Podcast file generated and saved to Gallery.', 'debate');
+      setPendingGalleryFocusMediaId(entry.id);
     } catch (error) {
       ErrorService.handleWithToast(error, { feature: 'debate' });
     } finally {
@@ -519,10 +535,8 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   }, [
     dispatch,
     displayedTopic,
-    navigation,
     selectedAIs,
     session.session?.id,
-    isPodcastPlaylist,
     voicePackCandidates,
     voicePackSelectedIds,
   ]);
@@ -633,9 +647,9 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
               onViewTranscript={handleViewTranscript}
               onRematch={handleRematch}
               onStartOver={handleVictoryStartOver}
-              onSaveVoicePack={shouldOfferVoicePack ? handleOpenVoicePackModal : undefined}
+              onSaveVoicePack={shouldOfferPodcastGeneration ? handleOpenVoicePackModal : undefined}
               voicePackClipCount={voicePackCandidates.length}
-              voicePackActionLabel={isPodcastPlaylist ? 'Podcast' : 'Voice Pack'}
+              voicePackActionLabel="Podcast"
               topic={displayedTopic}
               participants={selectedAIs}
               messages={messages.messages}
@@ -672,9 +686,9 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
             onViewTranscript={handleViewTranscript}
             onRematch={handleRematch}
             onStartOver={handleVictoryStartOver}
-            onSaveVoicePack={shouldOfferVoicePack ? handleOpenVoicePackModal : undefined}
+            onSaveVoicePack={shouldOfferPodcastGeneration ? handleOpenVoicePackModal : undefined}
             voicePackClipCount={voicePackCandidates.length}
-            voicePackActionLabel={isPodcastPlaylist ? 'Podcast' : 'Voice Pack'}
+            voicePackActionLabel="Podcast"
             topic={topicSelection.finalTopic}
             participants={selectedAIs}
             messages={messages.messages}
@@ -984,13 +998,12 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         selectedIds={voicePackSelectedIds}
         isSaving={isSavingVoicePack}
         canRetryAudio={debateVoice.canRetryAudio}
-        isPodcastPlaylist={isPodcastPlaylist}
         onToggleClip={handleToggleVoicePackClip}
         onSelectAllReady={() => setVoicePackSelectedIds(readyVoicePackIds)}
         onClearSelection={() => setVoicePackSelectedIds([])}
         onRetryClip={handleRetryVoicePackClip}
         onClose={() => setVoicePackModalVisible(false)}
-        onSave={handleSaveVoicePack}
+        onSave={handleGeneratePodcastFile}
       />
       
       {/* Transcript Modal */}
