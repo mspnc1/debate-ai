@@ -349,9 +349,23 @@ describe('DebateOrchestrator', () => {
 
   it('emits a podcast intro interstitial after the opening audience stance', async () => {
     jest.useFakeTimers();
-    const aiService = {
-      getAdapter: jest.fn(),
+    const mcAdapter = {
+      config: {} as Record<string, unknown>,
       sendMessage: jest.fn().mockResolvedValue({ response: "Welcome to tonight's debate.", modelUsed: 'gpt-5' }),
+      setTemporaryPersonality: jest.fn(),
+    };
+    const turnAdapter = {
+      config: {} as Record<string, unknown>,
+      getCapabilities: jest.fn(() => ({ streaming: false })),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => ''),
+    };
+    const aiService = {
+      getAdapter: jest.fn((provider: string) => (provider === 'claude' ? turnAdapter : undefined)),
+      ensureAdapter: jest.fn(async (adapterId: string) => (
+        adapterId.startsWith('podcast-mc:') ? mcAdapter : turnAdapter
+      )),
+      sendMessage: jest.fn().mockResolvedValue({ response: 'Opening argument delivered.', modelUsed: 'claude-3-opus' }),
     };
     const voiceConfig: DebateVoiceConfig = {
       enabled: true,
@@ -384,6 +398,7 @@ describe('DebateOrchestrator', () => {
     });
     await orchestrator.startDebate([]);
 
+    expect(mcAdapter.sendMessage).not.toHaveBeenCalled();
     expect(aiService.sendMessage).not.toHaveBeenCalled();
     expect(events.some((event) => (
       event.type === 'message_added' &&
@@ -411,18 +426,47 @@ describe('DebateOrchestrator', () => {
     expect(introIndex).toBeGreaterThan(voteCompletedIndex);
 
     const introMessage = events[introIndex].data.message as Message;
-    expect(aiService.sendMessage).not.toHaveBeenCalled();
-    expect(introMessage.content).toContain('Welcome to the Symposium AI Debate Arena');
+    expect(aiService.ensureAdapter).toHaveBeenCalledWith('podcast-mc:mc-1:gpt-5', 'openai', 'gpt-5');
+    expect(mcAdapter.sendMessage).toHaveBeenCalledWith(
+      expect.stringContaining('Write one concise podcast host interstitial'),
+      [],
+      undefined,
+      undefined,
+      'gpt-5'
+    );
+    expect(aiService.sendMessage).toHaveBeenCalledWith(
+      'claude',
+      expect.any(String),
+      [],
+      expect.any(Object),
+      undefined,
+      undefined,
+      true
+    );
+    expect(mcAdapter.sendMessage.mock.invocationCallOrder[0]).toBeLessThan(
+      aiService.sendMessage.mock.invocationCallOrder[0]
+    );
+    expect(introMessage.content).toBe("Welcome to tonight's debate.");
     expect(introMessage.metadata?.debateInterstitial).toMatchObject({
       kind: 'intro',
       generatedByProvider: 'openai',
-      usedTemplateFallback: true,
+      generatedByModel: 'gpt-5',
+      usedTemplateFallback: false,
     });
     expect(events[introIndex + 1]).toEqual(expect.objectContaining({
       type: 'typing_started',
       data: expect.objectContaining({
         messageIndex: 0,
         messageLabel: 'Affirmative Opening Statement',
+      }),
+    }));
+    expect(events[introIndex + 2]).toEqual(expect.objectContaining({
+      type: 'message_added',
+      data: expect.objectContaining({
+        message: expect.objectContaining({
+          senderType: 'ai',
+          content: 'Opening argument delivered.',
+        }),
       }),
     }));
 

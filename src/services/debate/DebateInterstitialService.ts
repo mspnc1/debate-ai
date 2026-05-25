@@ -32,7 +32,6 @@ export interface CreateDebateInterstitialInput {
   winnerName?: string;
   audienceResult?: AudienceDecisionResult;
   recentMcMessages?: string[];
-  useTemplateFallbackOnly?: boolean;
   now?: () => number;
 }
 
@@ -405,33 +404,31 @@ export async function createDebateInterstitialMessage(input: CreateDebateInterst
   let webSearchApplied = false;
   const mcParameters = getMcParameters(input.kind);
 
-  if (!input.useTemplateFallbackOnly) {
-    try {
-      const webSearchConfig = await configureMcWebSearch(input.aiService, input.session, mcWebSearchEnabled, mcParameters);
-      adapter = webSearchConfig.adapter;
-      snapshot = webSearchConfig.snapshot;
-      webSearchApplied = mcWebSearchEnabled && Boolean(adapter?.config);
+  try {
+    const webSearchConfig = await configureMcWebSearch(input.aiService, input.session, mcWebSearchEnabled, mcParameters);
+    adapter = webSearchConfig.adapter;
+    snapshot = webSearchConfig.snapshot;
+    webSearchApplied = mcWebSearchEnabled && Boolean(adapter?.config);
 
-      const result = await sendMcPrompt(input, adapter, mcParameters);
-      const generated = cleanGeneratedScript(result.response);
-      if (
-        generated &&
-        (input.kind !== 'audience_question' ||
-          generatedCopyIncludesAudienceQuestion(generated, input.session, input.nextMessageSpec)) &&
-        !generatedCopyPrematurelyJudgesSide(generated, input)
-      ) {
-        content = generated;
-        usedTemplateFallback = false;
-        generatedByModel = result.modelUsed || podcast.mc.model;
-        citations = mcWebSearchEnabled && result.metadata?.citations?.length
-          ? result.metadata.citations
-          : undefined;
-      }
-    } catch {
-      usedTemplateFallback = true;
-    } finally {
-      restoreMcWebSearch(adapter, snapshot);
+    const result = await sendMcPrompt(input, adapter, mcParameters);
+    const generated = cleanGeneratedScript(result.response);
+    if (
+      generated &&
+      (input.kind !== 'audience_question' ||
+        generatedCopyIncludesAudienceQuestion(generated, input.session, input.nextMessageSpec)) &&
+      !generatedCopyPrematurelyJudgesSide(generated, input)
+    ) {
+      content = generated;
+      usedTemplateFallback = false;
+      generatedByModel = result.modelUsed || podcast.mc.model;
+      citations = mcWebSearchEnabled && result.metadata?.citations?.length
+        ? result.metadata.citations
+        : undefined;
     }
+  } catch {
+    usedTemplateFallback = true;
+  } finally {
+    restoreMcWebSearch(adapter, snapshot);
   }
 
   return {
