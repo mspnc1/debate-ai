@@ -591,7 +591,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
 
     return [
       buildTeam('aff', 'Affirmative'),
-      buildTeam('neg', 'Opposition'),
+      buildTeam('neg', 'Negative'),
     ];
   }, [activePreset?.teamSize, getPersonaHeaderMeta, selectedAIs]);
 
@@ -661,26 +661,21 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     if (isShowingVictory) {
       if (isAudienceStanceDebate && voting.audienceResult) {
         return (
-          <Animated.View
-            entering={FadeIn.duration(500)}
-            style={{ flex: 1 }}
-          >
-            <VictoryCelebration
-              scores={voting.scores || {}}
-              rounds={[]}
-              audienceResult={voting.audienceResult}
-              voteResults={voteResults}
-              onViewTranscript={handleViewTranscript}
-              onRematch={handleRematch}
-              onStartOver={handleVictoryStartOver}
-              onSaveVoicePack={shouldOfferPodcastGeneration ? handleOpenVoicePackModal : undefined}
-              voicePackClipCount={voicePackCandidates.length}
-              voicePackActionLabel="Podcast"
-              topic={displayedTopic}
-              participants={selectedAIs}
-              messages={messages.messages}
-            />
-          </Animated.View>
+          <VictoryCelebration
+            scores={voting.scores || {}}
+            rounds={[]}
+            audienceResult={voting.audienceResult}
+            voteResults={voteResults}
+            onViewTranscript={handleViewTranscript}
+            onRematch={handleRematch}
+            onStartOver={handleVictoryStartOver}
+            onSaveVoicePack={shouldOfferPodcastGeneration ? handleOpenVoicePackModal : undefined}
+            voicePackClipCount={voicePackCandidates.length}
+            voicePackActionLabel="Podcast"
+            topic={displayedTopic}
+            participants={selectedAIs}
+            messages={messages.messages}
+          />
         );
       }
 
@@ -689,37 +684,32 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
       const winnerAI = winningScoreAI || selectedAIs[0];
       
       return (
-        <Animated.View 
-          entering={FadeIn.duration(500)}
-          style={{ flex: 1 }}
-        >
-          <VictoryCelebration
-            winner={winnerAI}
-            scores={voting.scores || {}}
-            rounds={[
-              ...(voteResults.length > 0
-                ? voteResults.map((record) => ({
-                  round: record.round,
-                  winner: record.winnerName || record.winnerId,
-                  topic: topicSelection.finalTopic || 'Debate Topic',
-                }))
-                : [
-                  { round: 1, winner: winner?.[1].name || winnerAI.name, topic: topicSelection.finalTopic || 'Debate Topic' },
-                  { round: 2, winner: winner?.[1].name || winnerAI.name, topic: topicSelection.finalTopic || 'Debate Topic' },
-                ])
-            ]}
-            voteResults={voteResults}
-            onViewTranscript={handleViewTranscript}
-            onRematch={handleRematch}
-            onStartOver={handleVictoryStartOver}
-            onSaveVoicePack={shouldOfferPodcastGeneration ? handleOpenVoicePackModal : undefined}
-            voicePackClipCount={voicePackCandidates.length}
-            voicePackActionLabel="Podcast"
-            topic={topicSelection.finalTopic}
-            participants={selectedAIs}
-            messages={messages.messages}
-          />
-        </Animated.View>
+        <VictoryCelebration
+          winner={winnerAI}
+          scores={voting.scores || {}}
+          rounds={[
+            ...(voteResults.length > 0
+              ? voteResults.map((record) => ({
+                round: record.round,
+                winner: record.winnerName || record.winnerId,
+                topic: topicSelection.finalTopic || 'Debate Topic',
+              }))
+              : [
+                { round: 1, winner: winner?.[1].name || winnerAI.name, topic: topicSelection.finalTopic || 'Debate Topic' },
+                { round: 2, winner: winner?.[1].name || winnerAI.name, topic: topicSelection.finalTopic || 'Debate Topic' },
+              ])
+          ]}
+          voteResults={voteResults}
+          onViewTranscript={handleViewTranscript}
+          onRematch={handleRematch}
+          onStartOver={handleVictoryStartOver}
+          onSaveVoicePack={shouldOfferPodcastGeneration ? handleOpenVoicePackModal : undefined}
+          voicePackClipCount={voicePackCandidates.length}
+          voicePackActionLabel="Podcast"
+          topic={topicSelection.finalTopic}
+          participants={selectedAIs}
+          messages={messages.messages}
+        />
       );
     }
     

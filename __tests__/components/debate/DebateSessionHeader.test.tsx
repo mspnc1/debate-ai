@@ -19,7 +19,7 @@ const teams: DebateSessionHeaderTeam[] = [
   },
   {
     side: 'neg',
-    label: 'Opposition',
+    label: 'Negative',
     participants: [
       { id: 'mistral', name: 'Mistral', personaLabel: 'Crossfire Analyst', personaIcon: '🎯' },
       { id: 'chatgpt', name: 'ChatGPT', personaLabel: 'Socratic Coach', personaIcon: '💬' },
@@ -39,7 +39,7 @@ describe('DebateSessionHeader', () => {
         presetLabel="Oxford · Full Oxford"
         currentMessageIndex={2}
         totalMessages={preset.messages.length}
-        currentTurnLabel="Second Proposition Speech"
+        currentTurnLabel="Second Affirmative Speech"
         activeSideLabel="Affirmative"
         timelineMessages={preset.messages}
         onBack={jest.fn()}
@@ -51,13 +51,13 @@ describe('DebateSessionHeader', () => {
     expect(getByText(motion).props.numberOfLines).toBe(2);
     expect(getAllByText('3/6').length).toBeGreaterThan(0);
     expect(getByText('Oxford · Full Oxford')).toBeTruthy();
-    expect(getAllByText('Second Proposition Speech').length).toBeGreaterThan(0);
+    expect(getAllByText('Second Affirmative Speech').length).toBeGreaterThan(0);
     expect(getAllByText('Affirmative').length).toBeGreaterThan(1);
     expect(getByText('Gemini')).toBeTruthy();
     expect(getByText('🎓')).toBeTruthy();
     expect(queryByText('Clear, Engaging Educator With Extra Long Style Name')).toBeNull();
     expect(queryByText('Speech Order')).toBeNull();
-    expect(getByText('Opposition')).toBeTruthy();
+    expect(getAllByText('Negative').length).toBeGreaterThan(0);
   });
 
   it('keeps the back action available in the custom debate header', () => {

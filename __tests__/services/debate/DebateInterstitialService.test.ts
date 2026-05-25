@@ -173,14 +173,14 @@ describe('DebateInterstitialService', () => {
         initialStance: 'undecided',
         finalStance: 'for',
         winningSide: 'aff',
-        winningSideLabel: 'Proposition',
+        winningSideLabel: 'Affirmative',
         resultVerb: 'persuaded',
         summary: 'The audience moved toward the proposition after closing speeches.',
         winningParticipantIds: ['openai-slot-1'],
       },
     });
 
-    expect(copy).toContain('The audience decision is in: Proposition.');
+    expect(copy).toContain('The audience decision is in: Affirmative.');
     expect(copy).toContain('The audience moved toward the proposition');
   });
 });

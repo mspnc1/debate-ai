@@ -509,7 +509,7 @@ export class VotingService {
   }
 
   private getSideLabel(side: DebateSideId): string {
-    return side === 'aff' ? 'Proposition' : 'Opposition';
+    return side === 'aff' ? 'Affirmative' : 'Negative';
   }
 
   private getSideParticipants(side: DebateSideId): AI[] {

@@ -4,16 +4,16 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import Animated, {
   FadeIn,
-  ZoomIn,
   useAnimatedStyle,
   withSpring,
   withSequence,
   withDelay,
   useSharedValue,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Typography } from '../../molecules';
@@ -66,6 +66,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
   messages,
 }) => {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [showShareCard, setShowShareCard] = useState(false);
   const trophyScale = useSharedValue(0);
   const trophyRotation = useSharedValue(0);
@@ -124,11 +125,16 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
     1
   );
   
-  const dynamicCardStyles = {
-    ...styles.card,
-    backgroundColor: theme.colors.surface,
-    ...theme.shadows.lg,
-  };
+  const bottomSystemInset = Math.max(insets.bottom, Platform.OS === 'android' ? 72 : 0);
+  const scrollContentStyle = [
+    styles.scrollContent,
+    { paddingBottom: 40 + bottomSystemInset },
+  ];
+  const dynamicCardStyles = [
+    styles.card,
+    { backgroundColor: theme.colors.surface },
+    theme.shadows.lg,
+  ];
 
   const stanceLabel = (stance: AudienceStance): string => {
     if (stance === 'for') return 'For';
@@ -148,10 +154,13 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
       <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
         <ScrollView
           style={styles.scrollView}
+          contentInsetAdjustmentBehavior="never"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={scrollContentStyle}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
         >
-              <Animated.View entering={ZoomIn.springify()} style={dynamicCardStyles}>
+              <View style={dynamicCardStyles}>
                 <Animated.View style={[styles.trophyContainer, trophyStyle]}>
                   <Ionicons name="podium" size={64} color={winnerColors[500]} />
                   <View style={[
@@ -269,7 +278,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                     />
                   </View>
                 </Animated.View>
-              </Animated.View>
+              </View>
         </ScrollView>
 
         <ShareModal
@@ -311,10 +320,13 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
     <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
       <ScrollView
         style={styles.scrollView}
+        contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={scrollContentStyle}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled
       >
-            <Animated.View entering={ZoomIn.springify()} style={dynamicCardStyles}>
+            <View style={dynamicCardStyles}>
               <Animated.View style={[styles.trophyContainer, trophyStyle]}>
                 <Ionicons name="trophy" size={64} color={winnerColors[500]} />
                 <View style={[
@@ -486,7 +498,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                   />
                 </View>
               </Animated.View>
-            </Animated.View>
+            </View>
       </ScrollView>
       
       {/* Share Modal */}
@@ -608,15 +620,18 @@ const VictoryActionButton: React.FC<VictoryActionButtonProps> = ({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    alignSelf: 'stretch',
   },
   scrollView: {
     flex: 1,
+    alignSelf: 'stretch',
     width: '100%',
   },
   scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'flex-start',
     alignItems: 'center',
     paddingTop: 12,
-    paddingBottom: 40,
     paddingHorizontal: 16,
   },
   card: {

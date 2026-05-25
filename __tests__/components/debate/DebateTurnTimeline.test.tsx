@@ -38,7 +38,7 @@ describe('DebateTurnTimeline', () => {
       />
     );
 
-    expect(getByText('Opposition Opening Speech')).toBeTruthy();
+    expect(getByText('Negative Opening Speech')).toBeTruthy();
     expect(queryByText('Speech Order')).toBeNull();
     expect(queryByText('Current step')).toBeNull();
   });

@@ -173,11 +173,11 @@ describe('DebateAISelector', () => {
       />
     );
 
-    expect(queryByText('Proposition 1 model')).toBeNull();
+    expect(queryByText('Affirmative 1 model')).toBeNull();
 
     fireEvent.press(getAllByText('Model')[0]);
 
-    expect(getByText('Proposition 1 model')).toBeTruthy();
+    expect(getByText('Affirmative 1 model')).toBeTruthy();
     expect(getByText('Model selector for ChatGPT: gpt-5.5')).toBeTruthy();
 
     fireEvent.press(getByTestId('model-selector-ChatGPT'));

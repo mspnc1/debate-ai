@@ -44,17 +44,17 @@ describe('DebatePromptBuilder', () => {
       topic: 'Privacy is dead in the digital age.',
       phase: 'rebuttal',
       format: OXFORD_FORMAT,
-      messageLabel: 'Second Proposition Speech',
+      messageLabel: 'Second Affirmative Speech',
       roleBrief: [
-        'Role brief: You are the Second Proposition speaker for Proposition (FOR).',
+        'Role brief: You are the Second Affirmative speaker for Affirmative (FOR).',
         'Teammate: Claude.',
         'Opposing team: GPT-4o, Gemini.',
         'Coordinate with your teammate by extending the shared team case instead of repeating it.',
       ].join('\n'),
     });
 
-    expect(prompt).toContain('Turn: Second Proposition Speech');
-    expect(prompt).toContain('Second Proposition speaker');
+    expect(prompt).toContain('Turn: Second Affirmative Speech');
+    expect(prompt).toContain('Second Affirmative speaker');
     expect(prompt).toContain('Teammate: Claude');
     expect(prompt).toContain('Opposing team: GPT-4o, Gemini');
     expect(prompt).toContain('Oxford floor debate');

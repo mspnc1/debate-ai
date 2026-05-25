@@ -57,12 +57,12 @@ describe('debate format definitions', () => {
     const preset = getPresetForFormat('oxford', 'short');
 
     expect(preset.messages.map((message) => `${message.speaker}:${message.phase}:${message.label}`)).toEqual([
-      'aff:opening:Proposition Opening Speech',
-      'neg:opening:Opposition Opening Speech',
-      'aff:rebuttal:Proposition Floor Speech',
-      'neg:rebuttal:Opposition Floor Speech',
-      'aff:closing:Proposition Closing Speech',
-      'neg:closing:Opposition Closing Speech',
+      'aff:opening:Affirmative Opening Speech',
+      'neg:opening:Negative Opening Speech',
+      'aff:rebuttal:Affirmative Floor Speech',
+      'neg:rebuttal:Negative Floor Speech',
+      'aff:closing:Affirmative Closing Speech',
+      'neg:closing:Negative Closing Speech',
     ]);
     expect(preset.voteModel).toBe('audience_stance');
     expect(preset.teamMode).toBe('duel');

@@ -112,7 +112,7 @@ describe('VotingService', () => {
       initialStance: 'undecided',
       finalStance: 'for',
       winningSide: 'aff',
-      winningSideLabel: 'Proposition',
+      winningSideLabel: 'Affirmative',
       resultVerb: 'persuaded',
       winningParticipantIds: ['claude'],
     });

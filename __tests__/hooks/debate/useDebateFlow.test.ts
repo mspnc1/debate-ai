@@ -100,7 +100,7 @@ describe('useDebateFlow', () => {
     expect(result.current.maxRounds).toBe(3);
     expect(result.current.totalMessages).toBe(6);
     expect(result.current.currentMessageIndex).toBe(0);
-    expect(result.current.currentTurnLabel).toBe('Proposition Opening Speech');
+    expect(result.current.currentTurnLabel).toBe('Affirmative Opening Speech');
 
     act(() => {
       orchestrator.emit({ type: 'round_changed', data: { round: 2 }, timestamp: Date.now() });
@@ -113,7 +113,7 @@ describe('useDebateFlow', () => {
         data: {
           aiName: 'Claude',
           messageIndex: 2,
-          messageLabel: 'Proposition Floor Speech',
+          messageLabel: 'Affirmative Floor Speech',
           phase: 'rebuttal',
         },
         timestamp: Date.now(),
@@ -121,7 +121,7 @@ describe('useDebateFlow', () => {
     });
     expect(store.getState().chat.typingAIs).toContain('Claude');
     expect(result.current.currentMessageIndex).toBe(2);
-    expect(result.current.currentTurnLabel).toBe('Proposition Floor Speech');
+    expect(result.current.currentTurnLabel).toBe('Affirmative Floor Speech');
 
     act(() => {
       orchestrator.emit({ type: 'typing_stopped', data: { aiName: 'Claude' }, timestamp: Date.now() });

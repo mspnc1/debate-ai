@@ -275,7 +275,7 @@ export class DebateOrchestrator {
 
   private getSideLabel(side: DebateSideId): string {
     if (this.session?.format.id === 'oxford') {
-      return side === 'aff' ? 'Proposition' : 'Opposition';
+      return side === 'aff' ? 'Affirmative' : 'Negative';
     }
 
     return side === 'aff' ? 'Affirmative' : 'Negative';

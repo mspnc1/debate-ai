@@ -148,7 +148,7 @@ describe('VictoryCelebration', () => {
     };
     const contentStyle = StyleSheet.flatten(scrollViewProps.contentContainerStyle);
 
-    expect(contentStyle?.justifyContent).toBeUndefined();
+    expect(contentStyle?.justifyContent).toBe('flex-start');
     expect(contentStyle?.paddingTop).toBe(12);
     expect(contentStyle?.paddingBottom).toBeGreaterThanOrEqual(40);
   });
@@ -158,9 +158,9 @@ describe('VictoryCelebration', () => {
       initialStance: 'for',
       finalStance: 'for',
       winningSide: 'aff',
-      winningSideLabel: 'Proposition',
+      winningSideLabel: 'Affirmative',
       resultVerb: 'held',
-      summary: 'Proposition held the audience at For.',
+      summary: 'Affirmative held the audience at For.',
       winningParticipantIds: ['google'],
     };
     const { UNSAFE_getByType, getByTestId } = renderWithProviders(
@@ -179,7 +179,7 @@ describe('VictoryCelebration', () => {
     };
     const contentStyle = StyleSheet.flatten(scrollViewProps.contentContainerStyle);
 
-    expect(contentStyle?.justifyContent).toBeUndefined();
+    expect(contentStyle?.justifyContent).toBe('flex-start');
     expect(getByTestId('victory-rematch')).toBeTruthy();
     expect(getByTestId('victory-voice-pack')).toBeTruthy();
     expect(getByTestId('victory-start-over')).toBeTruthy();

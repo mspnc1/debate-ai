@@ -195,9 +195,9 @@ describe('useDebateVoting', () => {
             initialStance: 'undecided',
             finalStance: 'for',
             winningSide: 'aff',
-            winningSideLabel: 'Proposition',
+            winningSideLabel: 'Affirmative',
             resultVerb: 'persuaded',
-            summary: 'Proposition persuaded the audience.',
+            summary: 'Affirmative persuaded the audience.',
             winningParticipantIds: ['claude'],
           },
         },
@@ -205,7 +205,7 @@ describe('useDebateVoting', () => {
       });
     });
 
-    expect(result.current.audienceResult?.winningSideLabel).toBe('Proposition');
+    expect(result.current.audienceResult?.winningSideLabel).toBe('Affirmative');
     expect(store.getState().debateStats.history[0]?.overallWinners).toEqual(['claude']);
   });
 

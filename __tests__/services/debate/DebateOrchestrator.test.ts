@@ -290,10 +290,10 @@ describe('DebateOrchestrator', () => {
     await orchestrator.executeDebateMessage(1, []);
 
     expect(aiService.sendMessage.mock.calls[0][0]).toBe('claude');
-    expect(aiService.sendMessage.mock.calls[0][1]).toContain('Turn: Proposition Opening Speech');
+    expect(aiService.sendMessage.mock.calls[0][1]).toContain('Turn: Affirmative Opening Speech');
     expect(aiService.sendMessage.mock.calls[0][1]).toContain('Length: 154-220 words maximum');
     expect(aiService.sendMessage.mock.calls[1][0]).toBe('openai');
-    expect(aiService.sendMessage.mock.calls[1][1]).toContain('Turn: Opposition Opening Speech');
+    expect(aiService.sendMessage.mock.calls[1][1]).toContain('Turn: Negative Opening Speech');
 
     jest.clearAllTimers();
     jest.useRealTimers();
@@ -339,7 +339,7 @@ describe('DebateOrchestrator', () => {
     expect(typingEvents[0]).toEqual(expect.objectContaining({
       aiName: 'Claude',
       messageIndex: 0,
-      messageLabel: 'Proposition Opening Speech',
+      messageLabel: 'Affirmative Opening Speech',
       phase: 'opening',
     }));
 
@@ -547,17 +547,17 @@ describe('DebateOrchestrator', () => {
       'google',
       'grok',
     ]);
-    expect(aiService.sendMessage.mock.calls[2][1]).toContain('Turn: Second Proposition Speech');
-    expect(aiService.sendMessage.mock.calls[3][1]).toContain('Turn: Second Opposition Speech');
-    expect(aiService.sendMessage.mock.calls[2][1]).toContain('Role brief: You are the Second Proposition speaker for Proposition (FOR).');
+    expect(aiService.sendMessage.mock.calls[2][1]).toContain('Turn: Second Affirmative Speech');
+    expect(aiService.sendMessage.mock.calls[3][1]).toContain('Turn: Second Negative Speech');
+    expect(aiService.sendMessage.mock.calls[2][1]).toContain('Role brief: You are the Second Affirmative speaker for Affirmative (FOR).');
     expect(aiService.sendMessage.mock.calls[2][1]).toContain('Teammate: Claude.');
     expect(aiService.sendMessage.mock.calls[2][1]).toContain('Opposing team: GPT-4, Grok.');
     expect(aiService.sendMessage.mock.calls[2][1]).toContain('Audience context: the user casts an opening stance');
     expect(adapter.setTemporaryPersonality).toHaveBeenCalledWith(expect.objectContaining({
-      systemPrompt: expect.stringContaining('Your team role: Second Proposition speaker'),
+      systemPrompt: expect.stringContaining('Your team role: Second Affirmative speaker'),
     }));
     expect(adapter.setTemporaryPersonality).toHaveBeenCalledWith(expect.objectContaining({
-      systemPrompt: expect.stringContaining('Teammate on Proposition (FOR): Claude'),
+      systemPrompt: expect.stringContaining('Teammate on Affirmative (FOR): Claude'),
     }));
     expect(adapter.setTemporaryPersonality).toHaveBeenCalledWith(expect.objectContaining({
       systemPrompt: expect.stringContaining('Opposing team: GPT-4, Grok'),

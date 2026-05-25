@@ -108,9 +108,9 @@ describe('PersonalityRuntimeBuilder', () => {
         totalRounds: 2,
         totalMessages: 6,
         stance: 'pro',
-        sideLabel: 'Proposition',
-        roleLabel: 'Second Proposition speaker',
-        currentSpeechLabel: 'Second Proposition Speech',
+        sideLabel: 'Affirmative',
+        roleLabel: 'Second Affirmative speaker',
+        currentSpeechLabel: 'Second Affirmative Speech',
         teamMode: 'team',
         teamSize: 2,
         teammateNames: ['ChatGPT'],
@@ -123,9 +123,9 @@ describe('PersonalityRuntimeBuilder', () => {
 
     expect(runtime.personalityConfig?.systemPrompt).toContain('Oxford (Full)');
     expect(runtime.personalityConfig?.systemPrompt).toContain('6 speeches');
-    expect(runtime.personalityConfig?.systemPrompt).toContain('Proposition (FOR)');
-    expect(runtime.personalityConfig?.systemPrompt).toContain('Your team role: Second Proposition speaker');
-    expect(runtime.personalityConfig?.systemPrompt).toContain('Teammate on Proposition (FOR): ChatGPT');
+    expect(runtime.personalityConfig?.systemPrompt).toContain('Affirmative (FOR)');
+    expect(runtime.personalityConfig?.systemPrompt).toContain('Your team role: Second Affirmative speaker');
+    expect(runtime.personalityConfig?.systemPrompt).toContain('Teammate on Affirmative (FOR): ChatGPT');
     expect(runtime.personalityConfig?.systemPrompt).toContain('Opposing team: Gemini, Grok');
     expect(runtime.personalityConfig?.systemPrompt).toContain('opening stance before the speeches');
     expect(runtime.personalityConfig?.systemPrompt).toContain('final vote after the closing speeches');

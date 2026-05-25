@@ -154,13 +154,13 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
 
   const getSlotLabel = useCallback((index: number): string => {
     if (maxAIs <= 2) {
-      return index === 0 ? 'Proposition 1' : 'Opposition 1';
+      return index === 0 ? 'Affirmative 1' : 'Negative 1';
     }
 
     const speakerNumber = Math.floor(index / 2) + 1;
     return index % 2 === 0
-      ? `Proposition ${speakerNumber}`
-      : `Opposition ${speakerNumber}`;
+      ? `Affirmative ${speakerNumber}`
+      : `Negative ${speakerNumber}`;
   }, [maxAIs]);
 
   const getSlotSide = useCallback((index: number): SlotSide => {
@@ -663,7 +663,7 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
           <View style={[styles.teamColumns, isCompactLayout && styles.teamColumnsCompact]}>
             {renderTeamColumn(
               'proposition',
-              'Proposition',
+              'Affirmative',
               'Affirmative',
               'Argues for the motion',
               'arrow-up-circle-outline',
@@ -671,7 +671,7 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
             )}
             {renderTeamColumn(
               'opposition',
-              'Opposition',
+              'Negative',
               'Negative',
               'Argues against the motion',
               'remove-circle-outline',

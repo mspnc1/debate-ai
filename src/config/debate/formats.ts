@@ -80,12 +80,12 @@ const oxfordShort: PresetConfig = {
   initialVoteRequired: true,
   finalVoteRequired: true,
   messages: [
-    { label: 'Proposition Opening Speech', phase: 'opening', speaker: 'aff', speakerSlot: 0 },
-    { label: 'Opposition Opening Speech', phase: 'opening', speaker: 'neg', speakerSlot: 0 },
-    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff' },
-    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg' },
-    { label: 'Proposition Closing Speech', phase: 'closing', speaker: 'aff', speakerSlot: 0 },
-    { label: 'Opposition Closing Speech', phase: 'closing', speaker: 'neg', speakerSlot: 0 },
+    { label: 'Affirmative Opening Speech', phase: 'opening', speaker: 'aff', speakerSlot: 0 },
+    { label: 'Negative Opening Speech', phase: 'opening', speaker: 'neg', speakerSlot: 0 },
+    { label: 'Affirmative Floor Speech', phase: 'rebuttal', speaker: 'aff' },
+    { label: 'Negative Floor Speech', phase: 'rebuttal', speaker: 'neg' },
+    { label: 'Affirmative Closing Speech', phase: 'closing', speaker: 'aff', speakerSlot: 0 },
+    { label: 'Negative Closing Speech', phase: 'closing', speaker: 'neg', speakerSlot: 0 },
   ],
 };
 
@@ -101,12 +101,12 @@ const oxfordStandard: PresetConfig = {
   initialVoteRequired: true,
   finalVoteRequired: true,
   messages: [
-    { label: 'First Proposition Speech', phase: 'opening', speaker: 'aff', speakerSlot: 0 },
-    { label: 'First Opposition Speech', phase: 'opening', speaker: 'neg', speakerSlot: 0 },
-    { label: 'Second Proposition Speech', phase: 'rebuttal', speaker: 'aff', speakerSlot: 1 },
-    { label: 'Second Opposition Speech', phase: 'rebuttal', speaker: 'neg', speakerSlot: 1 },
-    { label: 'Proposition Summary Speech', phase: 'closing', speaker: 'aff', speakerSlot: 0 },
-    { label: 'Opposition Summary Speech', phase: 'closing', speaker: 'neg', speakerSlot: 0 },
+    { label: 'First Affirmative Speech', phase: 'opening', speaker: 'aff', speakerSlot: 0 },
+    { label: 'First Negative Speech', phase: 'opening', speaker: 'neg', speakerSlot: 0 },
+    { label: 'Second Affirmative Speech', phase: 'rebuttal', speaker: 'aff', speakerSlot: 1 },
+    { label: 'Second Negative Speech', phase: 'rebuttal', speaker: 'neg', speakerSlot: 1 },
+    { label: 'Affirmative Summary Speech', phase: 'closing', speaker: 'aff', speakerSlot: 0 },
+    { label: 'Negative Summary Speech', phase: 'closing', speaker: 'neg', speakerSlot: 0 },
   ],
 };
 
@@ -122,14 +122,14 @@ const oxfordLong: PresetConfig = {
   initialVoteRequired: true,
   finalVoteRequired: true,
   messages: [
-    { label: 'First Proposition Speech', phase: 'opening', speaker: 'aff', speakerSlot: 0 },
-    { label: 'First Opposition Speech', phase: 'opening', speaker: 'neg', speakerSlot: 0 },
-    { label: 'Second Proposition Speech', phase: 'rebuttal', speaker: 'aff', speakerSlot: 1 },
-    { label: 'Second Opposition Speech', phase: 'rebuttal', speaker: 'neg', speakerSlot: 1 },
-    { label: 'Proposition Floor Speech', phase: 'rebuttal', speaker: 'aff', speakerSlot: 0 },
-    { label: 'Opposition Floor Speech', phase: 'rebuttal', speaker: 'neg', speakerSlot: 0 },
-    { label: 'Proposition Summary Speech', phase: 'closing', speaker: 'aff', speakerSlot: 1 },
-    { label: 'Opposition Summary Speech', phase: 'closing', speaker: 'neg', speakerSlot: 1 },
+    { label: 'First Affirmative Speech', phase: 'opening', speaker: 'aff', speakerSlot: 0 },
+    { label: 'First Negative Speech', phase: 'opening', speaker: 'neg', speakerSlot: 0 },
+    { label: 'Second Affirmative Speech', phase: 'rebuttal', speaker: 'aff', speakerSlot: 1 },
+    { label: 'Second Negative Speech', phase: 'rebuttal', speaker: 'neg', speakerSlot: 1 },
+    { label: 'Affirmative Floor Speech', phase: 'rebuttal', speaker: 'aff', speakerSlot: 0 },
+    { label: 'Negative Floor Speech', phase: 'rebuttal', speaker: 'neg', speakerSlot: 0 },
+    { label: 'Affirmative Summary Speech', phase: 'closing', speaker: 'aff', speakerSlot: 1 },
+    { label: 'Negative Summary Speech', phase: 'closing', speaker: 'neg', speakerSlot: 1 },
   ],
 };
 
