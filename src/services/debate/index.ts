@@ -38,6 +38,7 @@ export {
 export type { 
   DebateSession,
   DebateError,
+  DebateAudienceQuestionsPrompt,
   DebateContinuationPrompt,
   DebateEvent,
   DebateEventHandler,
@@ -71,6 +72,7 @@ export type {
   DebateFormatId,
   FormatSpec,
   MessageSpec,
+  OxfordAudienceQuestions,
   PhaseId,
   PresetConfig,
 } from '../../config/debate/formats';

@@ -44,10 +44,11 @@ jest.mock('@/components/molecules', () => {
 });
 
 jest.mock('@/components/organisms/debate/SystemAnnouncement', () => ({
-  SystemAnnouncement: ({ content, type }: any) => {
+  SystemAnnouncement: ({ content, label, type }: { content: string; label?: string; type: string }) => {
     const React = require('react');
     const { View, Text } = require('react-native');
     return React.createElement(View, { testID: `system-${type}` },
+      label ? React.createElement(Text, null, label) : null,
       React.createElement(Text, null, content)
     );
   },
@@ -180,6 +181,31 @@ describe('DebateMessageList', () => {
       const { getByTestId } = renderWithProviders(<DebateMessageList {...defaultProps} />);
       expect(getByTestId('message-1')).toBeTruthy();
       expect(getByTestId('message-2')).toBeTruthy();
+    });
+
+    it('detects submitted audience questions as a dedicated announcement', () => {
+      const messages: Message[] = [
+        {
+          id: 'audience-questions',
+          sender: 'Debate Host',
+          senderType: 'user',
+          content: 'Audience questions submitted:\n\nAffirmative: Should we also ban vaping?\n\nNegative: Why not ban smoking?',
+          timestamp: Date.now(),
+          metadata: {
+            debateAudienceQuestions: {
+              aff: 'Should we also ban vaping?',
+              neg: 'Why not ban smoking?',
+            },
+          },
+        },
+      ];
+
+      const { getByTestId, getByText } = renderWithProviders(
+        <DebateMessageList {...defaultProps} messages={messages} />
+      );
+
+      expect(getByTestId('system-audience-questions')).toBeTruthy();
+      expect(getByText('AUDIENCE Q&A')).toBeTruthy();
     });
   });
 

@@ -66,11 +66,24 @@ const PRESET_BUTTON_LABELS: Record<string, string> = {
 
 const getPresetVoteLabels = (preset: PresetConfig): string[] => (
   preset.voteModel === 'audience_stance'
-    ? ['Opening stance', 'Final vote']
+    ? [
+      'Opening stance',
+      ...(preset.audienceQuestionCheckpoint ? ['Audience questions'] : []),
+      'Final vote',
+    ]
     : preset.messages
       .filter((message) => message.voteAfter)
       .map((message) => message.votingLabel || message.label)
 );
+
+const getOxfordPresetSummary = (preset: PresetConfig): string => {
+  const unit = preset.audienceQuestionCheckpoint ? 'turns' : 'speeches';
+  const middle = preset.audienceQuestionCheckpoint
+    ? 'opening + audience questions + final vote'
+    : 'opening + final audience vote';
+
+  return `${preset.messages.length} ${unit} · ${middle} · ${preset.description}`;
+};
 
 const DEBATE_SLOT_ID_MARKER = '-debater-slot-';
 
@@ -246,7 +259,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   const requiredDebaterCount = getRequiredDebaterCountForPreset(selectedPreset);
   const presetSummary = useMemo(() => (
     selectedPreset.voteModel === 'audience_stance'
-      ? `${selectedPreset.messages.length} speeches · opening + final audience vote · ${selectedPreset.description}`
+      ? getOxfordPresetSummary(selectedPreset)
       : `${selectedPreset.messages.length} turns · ${selectedPreset.voteCount} votes · ${selectedPreset.description}`
   ), [selectedPreset]);
   const presetVoteLabels = useMemo(() => getPresetVoteLabels(selectedPreset), [selectedPreset]);
@@ -983,7 +996,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
                 </Typography>
                 <Box style={{ marginTop: 8 }}>
                   <Typography variant="caption" color="secondary" style={{ marginBottom: 6 }}>
-                    {selectedPreset.voteModel === 'audience_stance' ? 'Audience votes' : 'Vote points'}
+                    {selectedPreset.voteModel === 'audience_stance' ? 'Audience checkpoints' : 'Vote points'}
                   </Typography>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     <Box style={{ flexDirection: 'row', gap: 6, paddingRight: theme.spacing.sm }}>

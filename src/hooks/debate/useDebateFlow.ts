@@ -13,8 +13,9 @@ import {
   endStreaming,
   streamingError,
 } from '../../store/streamingSlice';
-import { DebateOrchestrator, DebateEvent, DebateStatus, type DebateContinuationPrompt } from '../../services/debate';
+import { DebateOrchestrator, DebateEvent, DebateStatus, type DebateAudienceQuestionsPrompt, type DebateContinuationPrompt } from '../../services/debate';
 import type { PhaseId } from '../../services/debate';
+import type { OxfordAudienceQuestions } from '@/config/debate/formats';
 import { RecordController } from '@/services/demo/RecordController';
 import { ensureAnswerContent } from '@/utils/citationUtils';
 import { Message } from '../../types';
@@ -25,6 +26,8 @@ export interface UseDebateFlowReturn {
   startDebate: () => Promise<void>;
   continueDebate: () => void;
   continuation: DebateContinuationPrompt | null;
+  audienceQuestionsPrompt: DebateAudienceQuestionsPrompt | null;
+  submitAudienceQuestions: (questions: OxfordAudienceQuestions) => void;
   error: string | null;
   currentRound: number;
   maxRounds: number;
@@ -86,6 +89,7 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const [totalMessages, setTotalMessages] = useState(0);
   const [continuation, setContinuation] = useState<DebateContinuationPrompt | null>(null);
+  const [audienceQuestionsPrompt, setAudienceQuestionsPrompt] = useState<DebateAudienceQuestionsPrompt | null>(null);
   
   // Use ref to track if we've started the debate to prevent multiple starts
   const hasStartedRef = useRef(false);
@@ -252,6 +256,7 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
         setCurrentPhase(undefined);
         setCurrentCxRole(undefined);
         setContinuation(null);
+        setAudienceQuestionsPrompt(null);
         break;
       }
 
@@ -280,6 +285,7 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
           completedMessageIndex,
           ...(typeof nextMessageIndex === 'number' ? { nextMessageIndex } : {}),
         });
+        setAudienceQuestionsPrompt(null);
         setCurrentMessageLabel(title);
         setCurrentPhase(undefined);
         setCurrentCxRole(undefined);
@@ -287,6 +293,48 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
         setIsDebateActive(true);
         break;
       }
+
+      case 'audience_questions_requested': {
+        const title = typeof event.data.title === 'string'
+          ? event.data.title
+          : 'Audience questions';
+        const message = typeof event.data.message === 'string'
+          ? event.data.message
+          : 'Enter one question for each side before the debate continues.';
+        const completedMessageIndex = typeof event.data.completedMessageIndex === 'number'
+          ? event.data.completedMessageIndex
+          : 0;
+        const nextMessageIndex = typeof event.data.nextMessageIndex === 'number'
+          ? event.data.nextMessageIndex
+          : completedMessageIndex + 1;
+        const affirmativeLabel = typeof event.data.affirmativeLabel === 'string'
+          ? event.data.affirmativeLabel
+          : 'Affirmative';
+        const negativeLabel = typeof event.data.negativeLabel === 'string'
+          ? event.data.negativeLabel
+          : 'Negative';
+
+        setAudienceQuestionsPrompt({
+          title,
+          message,
+          completedMessageIndex,
+          nextMessageIndex,
+          affirmativeLabel,
+          negativeLabel,
+          required: true,
+        });
+        setContinuation(null);
+        setCurrentMessageLabel(title);
+        setCurrentPhase(undefined);
+        setCurrentCxRole(undefined);
+        setCurrentMessageIndex(completedMessageIndex);
+        setIsDebateActive(true);
+        break;
+      }
+
+      case 'audience_questions_submitted':
+        setAudienceQuestionsPrompt(null);
+        break;
       
       case 'error_occurred':
         if (event.data.error) {
@@ -336,6 +384,11 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
     setContinuation(null);
     orchestrator?.continueDebate();
   }, [orchestrator]);
+
+  const submitAudienceQuestions = useCallback((questions: OxfordAudienceQuestions): void => {
+    orchestrator?.submitAudienceQuestions(questions);
+    setAudienceQuestionsPrompt(null);
+  }, [orchestrator]);
   
   // Start debate function
   const startDebate = useCallback(async (): Promise<void> => {
@@ -379,6 +432,8 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
     startDebate,
     continueDebate,
     continuation,
+    audienceQuestionsPrompt,
+    submitAudienceQuestions,
     error,
     currentRound,
     maxRounds,

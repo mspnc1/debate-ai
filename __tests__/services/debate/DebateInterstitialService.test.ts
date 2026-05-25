@@ -12,6 +12,12 @@ const participants: AI[] = [
   { id: 'claude-slot-1', provider: 'claude', name: 'Claude', model: 'opus-4.1' },
 ];
 
+const teamParticipants: AI[] = [
+  ...participants,
+  { id: 'google-slot-2', provider: 'google', name: 'Gemini', model: 'gemini-3.5-flash' },
+  { id: 'grok-slot-2', provider: 'grok', name: 'Grok', model: 'grok-4' },
+];
+
 const createSession = (): DebateSession => {
   const format = getFormat('oxford');
   const preset = getPresetForFormat('oxford', 'short');
@@ -55,6 +61,24 @@ const createSession = (): DebateSession => {
           voiceName: 'Host',
         },
       },
+    },
+  };
+};
+
+const createAudienceQuestionSession = (): DebateSession => {
+  const base = createSession();
+  const preset = getPresetForFormat('oxford', 'long');
+
+  return {
+    ...base,
+    participants: teamParticipants,
+    preset,
+    presetId: preset.id,
+    totalRounds: preset.voteCount,
+    totalMessages: preset.messages.length,
+    audienceQuestions: {
+      aff: 'How would your side pay for this?',
+      neg: 'Why is the status quo enough?',
     },
   };
 };
@@ -182,5 +206,43 @@ describe('DebateInterstitialService', () => {
 
     expect(copy).toContain('The audience decision is in: Affirmative.');
     expect(copy).toContain('The audience moved toward the proposition');
+  });
+
+  it('reads the submitted audience question in local Q&A templates', () => {
+    const session = createAudienceQuestionSession();
+    const copy = buildDebateInterstitialTemplate({
+      session,
+      kind: 'audience_question',
+      nextMessageSpec: session.preset.messages[4],
+    });
+
+    expect(copy).toContain('ChatGPT');
+    expect(copy).toContain('Affirmative');
+    expect(copy).toContain('How would your side pay for this?');
+  });
+
+  it('falls back when generated Q&A copy omits the submitted question', async () => {
+    const session = createAudienceQuestionSession();
+    const aiService = {
+      sendMessage: jest.fn().mockResolvedValue({
+        response: 'We now move to a sharp audience exchange.',
+        modelUsed: 'gpt-5',
+      }),
+    };
+
+    const message = await createDebateInterstitialMessage({
+      aiService: aiService as unknown as AIService,
+      session,
+      kind: 'audience_question',
+      nextMessageSpec: session.preset.messages[4],
+      now: () => 654,
+    });
+
+    expect(message?.content).toContain('How would your side pay for this?');
+    expect(message?.metadata?.debateInterstitial).toMatchObject({
+      kind: 'audience_question',
+      label: 'MC Audience Question',
+      usedTemplateFallback: true,
+    });
   });
 });

@@ -20,6 +20,7 @@ import {
   type AudienceStance,
   type AudienceVoteStage,
   type DebateSideId,
+  type OxfordAudienceQuestions,
   getFormat,
   getPresetForFormat,
   getPresetIdForRounds,
@@ -60,6 +61,7 @@ export interface DebateSession {
   presetId: string;
   stances: { [aiId: string]: 'pro' | 'con' };
   audienceResult?: AudienceDecisionResult;
+  audienceQuestions?: OxfordAudienceQuestions;
   webSearchEnabled?: boolean; // Auto-enabled when both AIs support it
   voiceConfig?: DebateVoiceConfig;
 }
@@ -95,6 +97,20 @@ interface PendingDebateContinuation extends DebateContinuationPrompt {
   messages: Message[];
 }
 
+export interface DebateAudienceQuestionsPrompt {
+  title: string;
+  message: string;
+  completedMessageIndex: number;
+  nextMessageIndex: number;
+  affirmativeLabel: string;
+  negativeLabel: string;
+  required: true;
+}
+
+interface PendingAudienceQuestions extends DebateAudienceQuestionsPrompt {
+  messages: Message[];
+}
+
 interface DebateRoleContext {
   sideLabel: string;
   sidePosition: 'FOR' | 'AGAINST';
@@ -120,7 +136,9 @@ export interface DebateEvent {
     | 'stream_chunk'
     | 'stream_completed'
     | 'stream_error'
-    | 'continuation_required';
+    | 'continuation_required'
+    | 'audience_questions_requested'
+    | 'audience_questions_submitted';
   data: Record<string, unknown>;
   timestamp: number;
 }
@@ -139,6 +157,7 @@ export class DebateOrchestrator {
   private currentVoteIndex = 0;
   private currentAudienceVoteStage?: AudienceVoteStage;
   private pendingContinuation: PendingDebateContinuation | null = null;
+  private pendingAudienceQuestions: PendingAudienceQuestions | null = null;
   
   constructor(aiService: AIService) {
     this.aiService = aiService;
@@ -349,6 +368,13 @@ export class DebateOrchestrator {
     };
   }
 
+  private getAudienceQuestionForMessage(messageSpec: MessageSpec): string | undefined {
+    const target = messageSpec.audienceQuestionTarget;
+    if (!target || !this.session?.audienceQuestions) return undefined;
+
+    return this.session.audienceQuestions[target];
+  }
+
   private buildAIResponseMetadata(
     ai: AI,
     modelUsed?: string,
@@ -390,6 +416,7 @@ export class DebateOrchestrator {
       speaker: messageSpec.speaker,
       ...(typeof messageSpec.speakerSlot === 'number' ? { speakerSlot: messageSpec.speakerSlot } : {}),
       ...(messageSpec.cxRole ? { cxRole: messageSpec.cxRole } : {}),
+      ...(messageSpec.audienceQuestionTarget ? { audienceQuestionTarget: messageSpec.audienceQuestionTarget } : {}),
       label: messageSpec.label,
     };
   }
@@ -481,6 +508,7 @@ export class DebateOrchestrator {
     this.currentVoteIndex = 0;
     this.currentAudienceVoteStage = undefined;
     this.pendingContinuation = null;
+    this.pendingAudienceQuestions = null;
     this.currentMessages = [];
     
     // Initialize services
@@ -585,6 +613,7 @@ export class DebateOrchestrator {
     }
     const phase = messageSpec.phase;
     const debateSpeech = this.buildDebateSpeechMetadata(messageIndex, messageSpec);
+    const audienceQuestion = this.getAudienceQuestionForMessage(messageSpec);
     const currentRound = this.currentVoteIndex + 1;
 
     if (currentRound !== this.session.currentRound) {
@@ -599,13 +628,36 @@ export class DebateOrchestrator {
     this.session.currentAIIndex = aiIndex;
     this.session.messageIndex = messageIndex;
     this.session.messageCount = messageIndex + 1;
-    this.emitTypingStartedForMessage(messageIndex);
 
     try {
+      let turnMessages = existingMessages;
+      if (audienceQuestion && this.session.voiceConfig?.podcast?.enabled) {
+        if (this.currentMessages.length < existingMessages.length) {
+          this.currentMessages = [...existingMessages];
+        }
+        const knownMessages = this.currentMessages;
+        const questionCueAlreadyExists = knownMessages.some((message) => (
+          message.metadata?.debateInterstitial?.kind === 'audience_question' &&
+          message.content.includes(audienceQuestion)
+        ));
+
+        if (!questionCueAlreadyExists) {
+          await this.addDebateInterstitial('audience_question', {
+            nextMessageSpec: messageSpec,
+          });
+        }
+
+        if (this.currentMessages.length >= existingMessages.length) {
+          turnMessages = this.currentMessages;
+        }
+      }
+
+      this.emitTypingStartedForMessage(messageIndex);
+
       const stances = this.session.stances;
       // Build per-turn prompt with the orchestrator-resolved speech role.
       const personalityId = personalities[currentAI.id] || 'default';
-      const previousMessage = this.promptBuilder.extractPreviousMessage(existingMessages, currentAI);
+      const previousMessage = this.promptBuilder.extractPreviousMessage(turnMessages, currentAI);
       const roleContext = this.buildRoleContext(aiIndex, messageSpec);
       const speechLength = getDebateSpeechLengthGuidance({
         formatId: format.id,
@@ -626,11 +678,12 @@ export class DebateOrchestrator {
         messageLabel: messageSpec.label,
         roleBrief: roleContext.roleBrief,
         cxRole: messageSpec.cxRole,
+        audienceQuestion,
       });
       const contextualPrompt = minimal;
 
       // Get debate-only conversation slice
-      const debateMessages = existingMessages.filter(msg => msg.timestamp >= (this.session?.startTime || 0));
+      const debateMessages = turnMessages.filter(msg => msg.timestamp >= (this.session?.startTime || 0));
 
       // Prefer streaming if adapter supports it
       let adapter = this.aiService.getAdapter(currentAI.provider);
@@ -754,7 +807,7 @@ export class DebateOrchestrator {
         };
 
         const messageId = placeholderMessage.id;
-        this.currentMessages = [...existingMessages, placeholderMessage];
+        this.currentMessages = [...turnMessages, placeholderMessage];
         this.emitEvent({
           type: 'message_added',
           data: { message: placeholderMessage, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole },
@@ -819,7 +872,7 @@ export class DebateOrchestrator {
             content: finalContent,
             metadata: this.buildAIResponseMetadata(currentAI, currentAI.model, capturedCitations, debateSpeech),
           };
-          this.currentMessages = [...existingMessages, updated];
+          this.currentMessages = [...turnMessages, updated];
         } else {
           // Determine if we should fallback to non-streaming
           const msgStr = String(errorForFallback || '');
@@ -872,7 +925,7 @@ export class DebateOrchestrator {
                 content: normalizedAnswer.content,
                 metadata: this.buildAIResponseMetadata(currentAI, currentAI.model, normalizedAnswer.citations, debateSpeech),
               };
-              this.currentMessages = [...existingMessages, updated];
+              this.currentMessages = [...turnMessages, updated];
             } catch {
               // As last resort, append a host error message so the flow continues
               const errorMessage: Message = {
@@ -883,7 +936,7 @@ export class DebateOrchestrator {
                 timestamp: Date.now(),
               };
               this.emitEvent({ type: 'message_added', data: { message: errorMessage, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
-              this.currentMessages = [...existingMessages, placeholderMessage, errorMessage];
+              this.currentMessages = [...turnMessages, placeholderMessage, errorMessage];
             }
           } else {
             // Non-recoverable error: add a host error message
@@ -895,7 +948,7 @@ export class DebateOrchestrator {
               timestamp: Date.now(),
             };
             this.emitEvent({ type: 'message_added', data: { message: errorMessage, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
-            this.currentMessages = [...existingMessages, placeholderMessage, errorMessage];
+            this.currentMessages = [...turnMessages, placeholderMessage, errorMessage];
           }
         }
 
@@ -961,7 +1014,7 @@ export class DebateOrchestrator {
           timestamp: Date.now(),
           metadata: this.buildAIResponseMetadata(currentAI, modelUsed, normalizedAnswer.citations, debateSpeech),
         };
-        this.currentMessages = [...existingMessages, aiMessage];
+        this.currentMessages = [...turnMessages, aiMessage];
         this.emitEvent({
           type: 'message_added',
           data: { message: aiMessage, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole },
@@ -1098,12 +1151,28 @@ export class DebateOrchestrator {
     return completedSpeechCount % 2 === 0 || completedSpeechCount >= this.session.totalMessages;
   }
 
+  private shouldRequestAudienceQuestions(messageIndex: number): boolean {
+    if (!this.session || !this.votingService?.isAudienceStanceVoteModel()) {
+      return false;
+    }
+
+    const checkpoint = this.session.preset.audienceQuestionCheckpoint;
+    return Boolean(
+      checkpoint &&
+      checkpoint.required &&
+      checkpoint.afterMessageIndex === messageIndex &&
+      !this.session.audienceQuestions
+    );
+  }
+
   private getAudienceReviewTitle(messageSpec?: MessageSpec): string {
     switch (messageSpec?.phase) {
       case 'opening':
         return 'Opening speeches complete';
       case 'rebuttal':
         return 'Floor speeches complete';
+      case 'question':
+        return 'Audience Q&A complete';
       case 'closing':
         return 'Closing speeches complete';
       default:
@@ -1146,6 +1215,39 @@ export class DebateOrchestrator {
       timestamp: Date.now(),
     });
   }
+
+  private requestAudienceQuestions(
+    messageIndex: number,
+    messages: Message[],
+    nextMessageIndex: number
+  ): void {
+    if (!this.session) return;
+
+    this.timeouts.forEach(timeout => clearTimeout(timeout));
+    this.timeouts.clear();
+
+    const prompt: DebateAudienceQuestionsPrompt = {
+      title: 'Audience questions',
+      message: 'Enter one question for each side. The teams will answer before summaries.',
+      completedMessageIndex: messageIndex,
+      nextMessageIndex,
+      affirmativeLabel: 'Affirmative',
+      negativeLabel: 'Negative',
+      required: true,
+    };
+
+    this.pendingAudienceQuestions = {
+      ...prompt,
+      messages,
+    };
+    this.updateSessionStatus(DebateStatus.PAUSED_FOR_REVIEW);
+
+    this.emitEvent({
+      type: 'audience_questions_requested',
+      data: { ...prompt },
+      timestamp: Date.now(),
+    });
+  }
   
   /**
    * Advance the debate after a message resolves.
@@ -1170,6 +1272,19 @@ export class DebateOrchestrator {
     }
 
     const nextMessageIndex = messageIndex + 1;
+    if (this.shouldRequestAudienceQuestions(messageIndex) && nextMessageIndex < this.session.totalMessages) {
+      await this.addDebateInterstitial('phase_segue', {
+        completedMessageSpec: messageSpec,
+        nextMessageSpec: this.session.preset.messages[nextMessageIndex],
+      });
+      this.requestAudienceQuestions(
+        messageIndex,
+        this.currentMessages.length >= messages.length ? this.currentMessages : messages,
+        nextMessageIndex
+      );
+      return;
+    }
+
     if (this.shouldPauseForAudienceReview(messageIndex)) {
       const isFinalReview = nextMessageIndex >= this.session.totalMessages;
       await this.addDebateInterstitial(isFinalReview ? 'vote_segue' : 'phase_segue', {
@@ -1224,6 +1339,70 @@ export class DebateOrchestrator {
     this.scheduleNextMessage(
       pending.nextMessageIndex,
       pending.messages,
+      DEBATE_CONSTANTS.DELAYS.VOTING_CONTINUATION
+    );
+  }
+
+  submitAudienceQuestions(questions: OxfordAudienceQuestions): void {
+    if (!this.session || !this.pendingAudienceQuestions) {
+      throw new AppError({
+        code: ErrorCode.APP_SESSION_NOT_FOUND,
+        message: 'No active audience question checkpoint',
+        userMessage: 'Audience questions are not available right now.',
+        recoverable: true,
+      });
+    }
+
+    const audienceQuestions: OxfordAudienceQuestions = {
+      aff: typeof questions.aff === 'string' ? questions.aff.trim() : '',
+      neg: typeof questions.neg === 'string' ? questions.neg.trim() : '',
+    };
+
+    if (!audienceQuestions.aff || !audienceQuestions.neg) {
+      throw new AppError({
+        code: ErrorCode.VALIDATION_REQUIRED,
+        message: 'Both Oxford audience questions are required',
+        userMessage: 'Enter a question for both the Affirmative and Negative teams.',
+        recoverable: true,
+      });
+    }
+
+    const pending = this.pendingAudienceQuestions;
+    this.pendingAudienceQuestions = null;
+    this.session.audienceQuestions = audienceQuestions;
+
+    const questionMessage: Message = {
+      id: `msg_${Date.now()}_audience_questions`,
+      sender: 'Debate Host',
+      senderType: 'user',
+      content: [
+        'Audience questions submitted:',
+        `Affirmative: ${audienceQuestions.aff}`,
+        `Negative: ${audienceQuestions.neg}`,
+      ].join('\n\n'),
+      timestamp: Date.now(),
+      metadata: {
+        debateAudienceQuestions: audienceQuestions,
+      },
+    };
+
+    this.currentMessages = [...pending.messages, questionMessage];
+    this.emitEvent({
+      type: 'message_added',
+      data: { message: questionMessage },
+      timestamp: Date.now(),
+    });
+    this.emitEvent({
+      type: 'audience_questions_submitted',
+      data: { audienceQuestions },
+      timestamp: Date.now(),
+    });
+
+    this.updateSessionStatus(DebateStatus.ACTIVE);
+    this.emitTypingStartedForMessage(pending.nextMessageIndex);
+    this.scheduleNextMessage(
+      pending.nextMessageIndex,
+      this.currentMessages,
       DEBATE_CONSTANTS.DELAYS.VOTING_CONTINUATION
     );
   }
@@ -1573,6 +1752,7 @@ export class DebateOrchestrator {
           civility: this.session.civility,
           voteResults: this.votingService?.getVoteRecords(),
           audienceResult: this.session.audienceResult,
+          audienceQuestions: this.session.audienceQuestions,
           voiceConfig: this.session.voiceConfig,
         }
       };

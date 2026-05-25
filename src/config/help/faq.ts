@@ -93,7 +93,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-debate-formats-difference',
     question: 'What\'s the difference between debate formats?',
     answer:
-      'Oxford is an audience-voted motion debate: Classic is 1v1, while Full and Extended use 2v2 proposition/opposition teams. Lincoln-Douglas focuses on values and ethics using constructive, cross-examination, and rebuttal speeches. Policy emphasizes evidence, plans, burdens, cross-examination, and rebuttal order.',
+      'Oxford is an audience-voted motion debate with 1v1, 2v2, and 2v2 + Q&A presets. The Q&A preset asks you for one audience question per side after the first arguments. Lincoln-Douglas focuses on values and ethics using constructive, cross-examination, and rebuttal speeches. Policy emphasizes evidence, plans, burdens, cross-examination, and rebuttal order.',
     category: 'debate-arena',
     relatedTopic: 'debate-formats',
   },
@@ -109,7 +109,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-debate-not-starting',
     question: 'Why won\'t my debate start?',
     answer:
-      'Ensure you have enough AIs configured with valid API keys for the selected format. Most debates need two debaters, while Oxford Full and Extended need four team slots. Check that you\'ve chosen a motion and format. If issues persist, verify your API keys are working in regular chat first.',
+      'Ensure you have enough AIs configured with valid API keys for the selected format. Oxford 1v1 needs two debaters, while Oxford 2v2 and 2v2 + Q&A need four team slots. Check that you\'ve chosen a motion and format. If issues persist, verify your API keys are working in regular chat first.',
     category: 'debate-arena',
     relatedTopic: 'debate-arena',
   },

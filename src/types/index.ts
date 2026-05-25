@@ -6,6 +6,7 @@ import type {
   AudienceVoteStage,
   DebateFormatId,
   DebateSideId,
+  OxfordAudienceQuestions,
   PhaseId,
 } from '../config/debate/formats';
 
@@ -95,6 +96,7 @@ export interface DebateSpeechMetadata {
   speaker: DebateSideId;
   speakerSlot?: number;
   cxRole?: 'questioner' | 'answerer';
+  audienceQuestionTarget?: DebateSideId;
   label: string;
 }
 
@@ -103,7 +105,7 @@ export interface DebateVoiceSelection {
   voiceName: string;
 }
 
-export type DebateInterstitialKind = 'intro' | 'phase_segue' | 'vote_segue' | 'winner';
+export type DebateInterstitialKind = 'intro' | 'phase_segue' | 'audience_question' | 'vote_segue' | 'winner';
 
 export interface DebatePodcastMCConfig {
   id: string;
@@ -172,6 +174,9 @@ export interface MessageMetadata {
   // Debate podcast MC/interstitial metadata
   debateInterstitial?: DebateInterstitialMetadata;
 
+  // Oxford audience Q&A checkpoint metadata
+  debateAudienceQuestions?: OxfordAudienceQuestions;
+
   // Debate TTS generation metadata
   debateAudio?: DebateAudioMetadata;
 }
@@ -218,6 +223,7 @@ export interface ChatSession {
     civility?: 1 | 2 | 3 | 4 | 5; // 1=friendly, 3=neutral, 5=hostile but bounded
     voteResults?: DebateVoteResult[];
     audienceResult?: AudienceDecisionResult;
+    audienceQuestions?: OxfordAudienceQuestions;
     voiceConfig?: DebateVoiceConfig;
   };
 }

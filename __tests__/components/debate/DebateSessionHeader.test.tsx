@@ -36,10 +36,10 @@ describe('DebateSessionHeader', () => {
       <DebateSessionHeader
         topic={`Motion: ${motion}`}
         teams={teams}
-        presetLabel="Oxford · Full Oxford"
+        presetLabel="Oxford · 2v2"
         currentMessageIndex={2}
         totalMessages={preset.messages.length}
-        currentTurnLabel="Second Affirmative Speech"
+        currentTurnLabel="Second Affirmative First Argument"
         activeSideLabel="Affirmative"
         timelineMessages={preset.messages}
         onBack={jest.fn()}
@@ -50,8 +50,8 @@ describe('DebateSessionHeader', () => {
     expect(getByTestId('debate-session-header')).toBeTruthy();
     expect(getByText(motion).props.numberOfLines).toBe(2);
     expect(getAllByText('3/6').length).toBeGreaterThan(0);
-    expect(getByText('Oxford · Full Oxford')).toBeTruthy();
-    expect(getAllByText('Second Affirmative Speech').length).toBeGreaterThan(0);
+    expect(getByText('Oxford · 2v2')).toBeTruthy();
+    expect(getAllByText('Second Affirmative First Argument').length).toBeGreaterThan(0);
     expect(getAllByText('Affirmative').length).toBeGreaterThan(1);
     expect(getByText('Gemini')).toBeTruthy();
     expect(getByText('🎓')).toBeTruthy();
@@ -67,7 +67,7 @@ describe('DebateSessionHeader', () => {
       <DebateSessionHeader
         topic="Homework should be abolished."
         teams={teams}
-        presetLabel="Oxford · Classic Oxford"
+        presetLabel="Oxford · 1v1"
         currentMessageIndex={0}
         totalMessages={preset.messages.length}
         activeSideLabel="Affirmative"

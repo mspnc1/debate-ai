@@ -28,6 +28,7 @@ import {
   TopicSelector,
   DebateMessageList,
   VotingInterface,
+  AudienceQuestionsModal,
   ScoreDisplay,
   DebateSessionHeader,
   type DebateSessionHeaderTeam,
@@ -53,7 +54,7 @@ import AppendToPackService from '@/services/demo/AppendToPackService';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store';
 import { DebateRecordPickerModal } from '@/components/organisms/demo/DebateRecordPickerModal';
-import { FORMATS, getPresetForFormat, getPresetIdForRounds } from '@/config/debate/formats';
+import { FORMATS, getPresetForFormat, getPresetIdForRounds, type OxfordAudienceQuestions } from '@/config/debate/formats';
 import { getDebateSpeakerRoleLabel } from '@/utils/debateLabels';
 import {
   buildDebatePodcastCompilePlan,
@@ -372,6 +373,14 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
       ErrorService.handleWithToast(error, { feature: 'debate' });
     }
   };
+
+  const handleSubmitAudienceQuestions = useCallback((questions: OxfordAudienceQuestions) => {
+    try {
+      flow.submitAudienceQuestions(questions);
+    } catch (error) {
+      ErrorService.handleWithToast(error, { feature: 'debate' });
+    }
+  }, [flow]);
   
   // Handle Start Over with confirmation
   const stopDebateNow = useCallback(() => {
@@ -1021,6 +1030,14 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         onRetryClip={handleRetryVoicePackClip}
         onClose={handleCloseVoicePackModal}
         onSave={handleGeneratePodcastFile}
+      />
+      <AudienceQuestionsModal
+        visible={Boolean(flow.audienceQuestionsPrompt)}
+        title={flow.audienceQuestionsPrompt?.title}
+        message={flow.audienceQuestionsPrompt?.message}
+        affirmativeLabel={flow.audienceQuestionsPrompt?.affirmativeLabel}
+        negativeLabel={flow.audienceQuestionsPrompt?.negativeLabel}
+        onSubmit={handleSubmitAudienceQuestions}
       />
       
       {/* Transcript Modal */}

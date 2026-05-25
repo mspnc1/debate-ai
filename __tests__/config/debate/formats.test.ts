@@ -38,6 +38,10 @@ describe('debate format definitions', () => {
             expect(['questioner', 'answerer']).toContain(message.cxRole);
             expect(message.phase).toBe('cross_examination');
           }
+          if (message.audienceQuestionTarget) {
+            expect(['aff', 'neg']).toContain(message.audienceQuestionTarget);
+            expect(message.phase).toBe('question');
+          }
         });
 
         if (preset.voteModel === 'audience_stance') {
@@ -53,12 +57,14 @@ describe('debate format definitions', () => {
     });
   });
 
-  it('keeps Oxford classic as audience-voted opening, floor, and closing speeches', () => {
+  it('keeps Oxford 1v1 as audience-voted opening, floor, and closing speeches', () => {
     const preset = getPresetForFormat('oxford', 'short');
 
+    expect(preset.label).toBe('1v1');
+    expect(preset.shortLabel).toBe('1v1');
     expect(preset.messages.map((message) => `${message.speaker}:${message.phase}:${message.label}`)).toEqual([
-      'aff:opening:Affirmative Opening Speech',
-      'neg:opening:Negative Opening Speech',
+      'aff:opening:Affirmative Opening Statement',
+      'neg:opening:Negative Opening Statement',
       'aff:rebuttal:Affirmative Floor Speech',
       'neg:rebuttal:Negative Floor Speech',
       'aff:closing:Affirmative Closing Speech',
@@ -70,17 +76,45 @@ describe('debate format definitions', () => {
     expect(preset.messages.some((message) => message.voteAfter)).toBe(false);
   });
 
-  it('defines Oxford full and extended as 2v2 team formats', () => {
+  it('defines Oxford 2v2 and Q&A as 2v2 team formats', () => {
     const full = getPresetForFormat('oxford', 'standard');
-    const extended = getPresetForFormat('oxford', 'long');
+    const qAndA = getPresetForFormat('oxford', 'long');
 
-    [full, extended].forEach((preset) => {
+    expect(full.label).toBe('2v2');
+    expect(qAndA.label).toBe('2v2 + Q&A');
+
+    [full, qAndA].forEach((preset) => {
       expect(preset.voteModel).toBe('audience_stance');
       expect(preset.teamMode).toBe('team');
       expect(preset.teamSize).toBe(2);
       expect(preset.messages.map((message) => message.speakerSlot)).toContain(1);
       expect(preset.messages.some((message) => message.voteAfter)).toBe(false);
     });
+  });
+
+  it('adds Oxford audience Q&A turns after first arguments', () => {
+    const preset = getPresetForFormat('oxford', 'long');
+
+    expect(preset.audienceQuestionCheckpoint).toEqual({
+      afterMessageIndex: 3,
+      required: true,
+    });
+    expect(preset.messages.map((message) => ({
+      label: message.label,
+      phase: message.phase,
+      speaker: message.speaker,
+      speakerSlot: message.speakerSlot,
+      audienceQuestionTarget: message.audienceQuestionTarget,
+    }))).toEqual([
+      { label: 'Affirmative Opening Statement', phase: 'opening', speaker: 'aff', speakerSlot: 0, audienceQuestionTarget: undefined },
+      { label: 'Negative Opening Statement', phase: 'opening', speaker: 'neg', speakerSlot: 0, audienceQuestionTarget: undefined },
+      { label: 'Affirmative First Argument', phase: 'rebuttal', speaker: 'aff', speakerSlot: 1, audienceQuestionTarget: undefined },
+      { label: 'Negative First Argument', phase: 'rebuttal', speaker: 'neg', speakerSlot: 1, audienceQuestionTarget: undefined },
+      { label: 'Affirmative Audience Question Response', phase: 'question', speaker: 'aff', speakerSlot: 0, audienceQuestionTarget: 'aff' },
+      { label: 'Negative Audience Question Response', phase: 'question', speaker: 'neg', speakerSlot: 0, audienceQuestionTarget: 'neg' },
+      { label: 'Affirmative Summary Speech', phase: 'closing', speaker: 'aff', speakerSlot: 1, audienceQuestionTarget: undefined },
+      { label: 'Negative Summary Speech', phase: 'closing', speaker: 'neg', speakerSlot: 1, audienceQuestionTarget: undefined },
+    ]);
   });
 
   it('keeps Lincoln-Douglas standard cross-examination roles explicit', () => {

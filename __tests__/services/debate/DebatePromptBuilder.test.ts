@@ -102,6 +102,22 @@ describe('DebatePromptBuilder', () => {
     expect(prompt).toContain('surface assumptions');
   });
 
+  it('treats Oxford question turns as audience question responses', () => {
+    const prompt = builder.buildTurnPrompt({
+      topic: 'Public transit should be free.',
+      phase: 'question',
+      format: OXFORD_FORMAT,
+      messageLabel: 'Affirmative Audience Question Response',
+      audienceQuestion: 'How would you fund the program?',
+    });
+
+    expect(prompt).toContain('Turn: Affirmative Audience Question Response');
+    expect(prompt).toContain('Answer the audience question directly');
+    expect(prompt).toContain('Audience question for your side: "How would you fund the program?"');
+    expect(prompt).toContain('Oxford audience Q&A');
+    expect(prompt).not.toContain('Pose one focused question');
+  });
+
   it('extracts previous opponent message while skipping current speaker', () => {
     const messages: Message[] = [
       {

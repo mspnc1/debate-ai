@@ -8,6 +8,12 @@ export type DebateVoteModel = 'checkpoint' | 'audience_stance';
 export type DebateTeamMode = 'duel' | 'team';
 export type AudienceStance = 'for' | 'against' | 'undecided';
 export type AudienceVoteStage = 'initial' | 'final';
+export type OxfordAudienceQuestions = Record<DebateSideId, string>;
+
+export interface AudienceQuestionCheckpoint {
+  afterMessageIndex: number;
+  required: true;
+}
 
 export interface AudienceDecisionResult {
   initialStance: AudienceStance;
@@ -37,6 +43,7 @@ export interface MessageSpec {
   cxRole?: 'questioner' | 'answerer';
   voteAfter?: boolean;
   votingLabel?: string;
+  audienceQuestionTarget?: DebateSideId;
 }
 
 export interface PresetConfig {
@@ -51,6 +58,7 @@ export interface PresetConfig {
   teamSize?: number;
   initialVoteRequired?: boolean;
   finalVoteRequired?: boolean;
+  audienceQuestionCheckpoint?: AudienceQuestionCheckpoint;
 }
 
 export interface FormatSpec {
@@ -70,8 +78,8 @@ const oxfordGuidance: Partial<Record<PhaseId, string>> = {
 
 const oxfordShort: PresetConfig = {
   id: 'short',
-  label: 'Classic',
-  shortLabel: 'Classic Oxford',
+  label: '1v1',
+  shortLabel: '1v1',
   description: '1v1 · audience vote',
   voteCount: 2,
   voteModel: 'audience_stance',
@@ -80,8 +88,8 @@ const oxfordShort: PresetConfig = {
   initialVoteRequired: true,
   finalVoteRequired: true,
   messages: [
-    { label: 'Affirmative Opening Speech', phase: 'opening', speaker: 'aff', speakerSlot: 0 },
-    { label: 'Negative Opening Speech', phase: 'opening', speaker: 'neg', speakerSlot: 0 },
+    { label: 'Affirmative Opening Statement', phase: 'opening', speaker: 'aff', speakerSlot: 0 },
+    { label: 'Negative Opening Statement', phase: 'opening', speaker: 'neg', speakerSlot: 0 },
     { label: 'Affirmative Floor Speech', phase: 'rebuttal', speaker: 'aff' },
     { label: 'Negative Floor Speech', phase: 'rebuttal', speaker: 'neg' },
     { label: 'Affirmative Closing Speech', phase: 'closing', speaker: 'aff', speakerSlot: 0 },
@@ -91,8 +99,8 @@ const oxfordShort: PresetConfig = {
 
 const oxfordStandard: PresetConfig = {
   id: 'standard',
-  label: 'Full',
-  shortLabel: 'Full Oxford',
+  label: '2v2',
+  shortLabel: '2v2',
   description: '2v2 teams · audience vote',
   voteCount: 2,
   voteModel: 'audience_stance',
@@ -101,10 +109,10 @@ const oxfordStandard: PresetConfig = {
   initialVoteRequired: true,
   finalVoteRequired: true,
   messages: [
-    { label: 'First Affirmative Speech', phase: 'opening', speaker: 'aff', speakerSlot: 0 },
-    { label: 'First Negative Speech', phase: 'opening', speaker: 'neg', speakerSlot: 0 },
-    { label: 'Second Affirmative Speech', phase: 'rebuttal', speaker: 'aff', speakerSlot: 1 },
-    { label: 'Second Negative Speech', phase: 'rebuttal', speaker: 'neg', speakerSlot: 1 },
+    { label: 'First Affirmative Opening Statement', phase: 'opening', speaker: 'aff', speakerSlot: 0 },
+    { label: 'First Negative Opening Statement', phase: 'opening', speaker: 'neg', speakerSlot: 0 },
+    { label: 'Second Affirmative First Argument', phase: 'rebuttal', speaker: 'aff', speakerSlot: 1 },
+    { label: 'Second Negative First Argument', phase: 'rebuttal', speaker: 'neg', speakerSlot: 1 },
     { label: 'Affirmative Summary Speech', phase: 'closing', speaker: 'aff', speakerSlot: 0 },
     { label: 'Negative Summary Speech', phase: 'closing', speaker: 'neg', speakerSlot: 0 },
   ],
@@ -112,22 +120,23 @@ const oxfordStandard: PresetConfig = {
 
 const oxfordLong: PresetConfig = {
   id: 'long',
-  label: 'Extended',
-  shortLabel: 'Extended Oxford',
-  description: '2v2 teams · longer floor',
+  label: '2v2 + Q&A',
+  shortLabel: '2v2 + Q&A',
+  description: '2v2 teams',
   voteCount: 2,
   voteModel: 'audience_stance',
   teamMode: 'team',
   teamSize: 2,
   initialVoteRequired: true,
   finalVoteRequired: true,
+  audienceQuestionCheckpoint: { afterMessageIndex: 3, required: true },
   messages: [
-    { label: 'First Affirmative Speech', phase: 'opening', speaker: 'aff', speakerSlot: 0 },
-    { label: 'First Negative Speech', phase: 'opening', speaker: 'neg', speakerSlot: 0 },
-    { label: 'Second Affirmative Speech', phase: 'rebuttal', speaker: 'aff', speakerSlot: 1 },
-    { label: 'Second Negative Speech', phase: 'rebuttal', speaker: 'neg', speakerSlot: 1 },
-    { label: 'Affirmative Floor Speech', phase: 'rebuttal', speaker: 'aff', speakerSlot: 0 },
-    { label: 'Negative Floor Speech', phase: 'rebuttal', speaker: 'neg', speakerSlot: 0 },
+    { label: 'Affirmative Opening Statement', phase: 'opening', speaker: 'aff', speakerSlot: 0 },
+    { label: 'Negative Opening Statement', phase: 'opening', speaker: 'neg', speakerSlot: 0 },
+    { label: 'Affirmative First Argument', phase: 'rebuttal', speaker: 'aff', speakerSlot: 1 },
+    { label: 'Negative First Argument', phase: 'rebuttal', speaker: 'neg', speakerSlot: 1 },
+    { label: 'Affirmative Audience Question Response', phase: 'question', speaker: 'aff', speakerSlot: 0, audienceQuestionTarget: 'aff' },
+    { label: 'Negative Audience Question Response', phase: 'question', speaker: 'neg', speakerSlot: 0, audienceQuestionTarget: 'neg' },
     { label: 'Affirmative Summary Speech', phase: 'closing', speaker: 'aff', speakerSlot: 1 },
     { label: 'Negative Summary Speech', phase: 'closing', speaker: 'neg', speakerSlot: 1 },
   ],

@@ -32,6 +32,7 @@ class MockOrchestrator {
   };
   public startDebate = jest.fn(async () => undefined);
   public continueDebate = jest.fn();
+  public submitAudienceQuestions = jest.fn();
   private handlers = new Set<EventHandler>();
 
   addEventListener(handler: EventHandler) {
@@ -100,7 +101,7 @@ describe('useDebateFlow', () => {
     expect(result.current.maxRounds).toBe(3);
     expect(result.current.totalMessages).toBe(6);
     expect(result.current.currentMessageIndex).toBe(0);
-    expect(result.current.currentTurnLabel).toBe('Affirmative Opening Speech');
+    expect(result.current.currentTurnLabel).toBe('Affirmative Opening Statement');
 
     act(() => {
       orchestrator.emit({ type: 'round_changed', data: { round: 2 }, timestamp: Date.now() });
@@ -317,6 +318,52 @@ describe('useDebateFlow', () => {
 
     expect(orchestrator.continueDebate).toHaveBeenCalledTimes(1);
     expect(result.current.continuation).toBeNull();
+  });
+
+  it('surfaces audience question prompts and submits questions to the orchestrator', () => {
+    const orchestrator = new MockOrchestrator();
+    const { result } = renderHookWithProviders(() => useDebateFlow(orchestrator as unknown as never), {
+      preloadedState: baseState,
+    });
+
+    act(() => {
+      orchestrator.emit({
+        type: 'audience_questions_requested',
+        data: {
+          title: 'Audience questions',
+          message: 'Enter one question for each side.',
+          completedMessageIndex: 3,
+          nextMessageIndex: 4,
+          affirmativeLabel: 'Affirmative',
+          negativeLabel: 'Negative',
+          required: true,
+        },
+        timestamp: Date.now(),
+      });
+    });
+
+    expect(result.current.isDebateActive).toBe(true);
+    expect(result.current.currentMessageIndex).toBe(3);
+    expect(result.current.currentTurnLabel).toBe('Audience questions');
+    expect(result.current.continuation).toBeNull();
+    expect(result.current.audienceQuestionsPrompt).toEqual(expect.objectContaining({
+      title: 'Audience questions',
+      nextMessageIndex: 4,
+      required: true,
+    }));
+
+    act(() => {
+      result.current.submitAudienceQuestions({
+        aff: 'Question for aff?',
+        neg: 'Question for neg?',
+      });
+    });
+
+    expect(orchestrator.submitAudienceQuestions).toHaveBeenCalledWith({
+      aff: 'Question for aff?',
+      neg: 'Question for neg?',
+    });
+    expect(result.current.audienceQuestionsPrompt).toBeNull();
   });
 
   it('handles start errors, retries, and early exits', async () => {

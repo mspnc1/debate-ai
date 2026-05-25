@@ -1,5 +1,5 @@
 import type { AI, DebateInterstitialKind, Message, ModelParameters } from '@/types';
-import type { AudienceDecisionResult, MessageSpec, PhaseId, PresetConfig } from '@/config/debate/formats';
+import type { AudienceDecisionResult, DebateSideId, MessageSpec, PhaseId, PresetConfig } from '@/config/debate/formats';
 import { AIService } from '@/services/aiAdapter';
 import type { DebateSession } from './DebateOrchestrator';
 
@@ -48,12 +48,58 @@ function namesFor(participants: AI[]): string {
   return `${participants.slice(0, -1).map((participant) => participant.name).join(', ')} and ${participants[participants.length - 1].name}`;
 }
 
+function getParticipantForMessageSpec(participants: AI[], preset: PresetConfig, messageSpec?: MessageSpec): AI | undefined {
+  if (!messageSpec) return undefined;
+
+  const teamSize = preset.teamSize || 1;
+  if (teamSize <= 1) {
+    return participants[messageSpec.speaker === 'aff' ? 0 : 1];
+  }
+
+  const slot = Math.min(Math.max(messageSpec.speakerSlot ?? 0, 0), teamSize - 1);
+  const participantIndex = (slot * 2) + (messageSpec.speaker === 'aff' ? 0 : 1);
+  return participants[participantIndex];
+}
+
+function sideLabelFor(side?: DebateSideId): string {
+  return side === 'neg' ? 'Negative' : 'Affirmative';
+}
+
+function getAudienceQuestionCue(
+  session: DebateSession,
+  nextMessageSpec?: MessageSpec
+): { question?: string; responderName?: string; side: DebateSideId; sideLabel: string } {
+  const side = nextMessageSpec?.audienceQuestionTarget || nextMessageSpec?.speaker || 'aff';
+  return {
+    question: session.audienceQuestions?.[side],
+    responderName: getParticipantForMessageSpec(session.participants, session.preset, nextMessageSpec)?.name,
+    side,
+    sideLabel: sideLabelFor(side),
+  };
+}
+
+function normalizeForContainment(value: string): string {
+  return value.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function generatedCopyIncludesAudienceQuestion(
+  text: string,
+  session: DebateSession,
+  nextMessageSpec?: MessageSpec
+): boolean {
+  const question = getAudienceQuestionCue(session, nextMessageSpec).question;
+  if (!question) return true;
+  return normalizeForContainment(text).includes(normalizeForContainment(question));
+}
+
 function labelForKind(kind: DebateInterstitialKind): string {
   switch (kind) {
     case 'intro':
       return 'MC Introduction';
     case 'phase_segue':
       return 'MC Segue';
+    case 'audience_question':
+      return 'MC Audience Question';
     case 'vote_segue':
       return 'MC Voting Cue';
     case 'winner':
@@ -77,12 +123,24 @@ export function buildDebateInterstitialTemplate(input: Omit<CreateDebateIntersti
   const opposition = namesFor(getSideParticipants(session.participants, session.preset, 'neg'));
   const nextPhase = nextMessageSpec ? PHASE_LABELS[nextMessageSpec.phase] : undefined;
   const completedPhase = completedMessageSpec ? PHASE_LABELS[completedMessageSpec.phase] : undefined;
+  const audienceQuestionCue = getAudienceQuestionCue(session, nextMessageSpec);
 
   switch (kind) {
     case 'intro':
       return `${MC_INTRO_OPENING_LINE} The motion is: ${session.topic}. Speaking for the motion: ${proposition}. Speaking against it: ${opposition}. We begin with the opening frame.`;
     case 'phase_segue':
+      if (nextMessageSpec?.phase === 'question' && !session.audienceQuestions) {
+        return `That concludes ${completedPhase || 'this phase'}. We will collect audience questions now, and each side will hear its question from the MC before answering.`;
+      }
       return `That concludes ${completedPhase || 'this phase'}. Next, the debate moves to ${nextPhase || 'the next phase'}, where the clash on the motion should sharpen.`;
+    case 'audience_question':
+      if (audienceQuestionCue.question) {
+        const responderPrefix = audienceQuestionCue.responderName
+          ? `${audienceQuestionCue.responderName}, for the ${audienceQuestionCue.sideLabel}, the audience asks`
+          : `The audience question for the ${audienceQuestionCue.sideLabel} side is`;
+        return `${responderPrefix}: ${audienceQuestionCue.question}`;
+      }
+      return `We now move to the audience question for the ${audienceQuestionCue.sideLabel} side.`;
     case 'vote_segue':
       return `We pause now for ${votingLabel || 'the next vote'}. Consider which side did more to advance its burden before the debate continues.`;
     case 'winner':
@@ -98,11 +156,13 @@ function buildPrompt(input: Omit<CreateDebateInterstitialInput, 'aiService' | 'n
   const { session, kind, completedMessageSpec, nextMessageSpec, votingLabel, winnerName, audienceResult } = input;
   const proposition = namesFor(getSideParticipants(session.participants, session.preset, 'aff'));
   const opposition = namesFor(getSideParticipants(session.participants, session.preset, 'neg'));
+  const audienceQuestionCue = getAudienceQuestionCue(session, nextMessageSpec);
 
   return [
     'Write one concise podcast host interstitial for an AI debate.',
     'Style: polished, neutral, no markdown, no stage directions, one paragraph, 1-3 sentences.',
     'Do not reference third-party debate brands or programs.',
+    kind === 'audience_question' ? 'Audience Q&A requirement: read the submitted question aloud exactly before the answerer responds.' : undefined,
     kind === 'intro' ? `Intro opening line to preserve: ${MC_INTRO_OPENING_LINE}` : undefined,
     `Cue: ${kind}.`,
     `Motion: ${session.topic}`,
@@ -111,6 +171,9 @@ function buildPrompt(input: Omit<CreateDebateInterstitialInput, 'aiService' | 'n
     `Against the motion: ${opposition}.`,
     completedMessageSpec ? `Completed speech: ${completedMessageSpec.label}.` : undefined,
     nextMessageSpec ? `Next speech: ${nextMessageSpec.label}.` : undefined,
+    kind === 'audience_question' && audienceQuestionCue.responderName ? `Answerer: ${audienceQuestionCue.responderName}.` : undefined,
+    kind === 'audience_question' ? `Target side: ${audienceQuestionCue.sideLabel}.` : undefined,
+    kind === 'audience_question' && audienceQuestionCue.question ? `Submitted question to read aloud exactly: ${audienceQuestionCue.question}` : undefined,
     votingLabel ? `Voting cue: ${votingLabel}.` : undefined,
     winnerName ? `Winner: ${winnerName}.` : undefined,
     audienceResult ? `Audience result: ${audienceResult.winningSideLabel}; ${audienceResult.summary}` : undefined,
@@ -139,7 +202,11 @@ export async function createDebateInterstitialMessage(input: CreateDebateInterst
       podcast.mc.model
     );
     const generated = cleanGeneratedScript(result.response);
-    if (generated) {
+    if (
+      generated &&
+      (input.kind !== 'audience_question' ||
+        generatedCopyIncludesAudienceQuestion(generated, input.session, input.nextMessageSpec))
+    ) {
       content = generated;
       usedTemplateFallback = false;
       generatedByModel = result.modelUsed || podcast.mc.model;

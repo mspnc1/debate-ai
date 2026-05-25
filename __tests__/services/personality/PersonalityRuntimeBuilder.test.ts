@@ -104,7 +104,7 @@ describe('PersonalityRuntimeBuilder', () => {
         topic: 'Privacy is dead in the digital age.',
         formatId: 'oxford',
         formatName: 'Oxford',
-        presetLabel: 'Full',
+        presetLabel: '2v2',
         totalRounds: 2,
         totalMessages: 6,
         stance: 'pro',
@@ -121,7 +121,7 @@ describe('PersonalityRuntimeBuilder', () => {
       },
     });
 
-    expect(runtime.personalityConfig?.systemPrompt).toContain('Oxford (Full)');
+    expect(runtime.personalityConfig?.systemPrompt).toContain('Oxford (2v2)');
     expect(runtime.personalityConfig?.systemPrompt).toContain('6 speeches');
     expect(runtime.personalityConfig?.systemPrompt).toContain('Affirmative (FOR)');
     expect(runtime.personalityConfig?.systemPrompt).toContain('Your team role: Second Affirmative speaker');

@@ -87,6 +87,9 @@ const getFormatPhaseConstraint = (
       if (phase === 'rebuttal' || phase === 'final_rebuttal') {
         return 'Oxford floor debate: answer prior claims, test the clash, and rebuild your side of the motion.';
       }
+      if (phase === 'question') {
+        return 'Oxford audience Q&A: answer the audience question addressed to your side directly, then tie the answer back to why the audience should support your side.';
+      }
       if (phase === 'closing') {
         return 'Oxford closing speech: crystallize why the audience should vote with your side and do not introduce new claims.';
       }
@@ -122,11 +125,12 @@ export class DebatePromptBuilder {
     messageLabel?: string;
     roleBrief?: string;
     cxRole?: 'questioner' | 'answerer';
+    audienceQuestion?: string;
     // Optional customized personality data for style nudges
     customizedTone?: Partial<PersonalityTone>;
     customizedDebateProfile?: Partial<PersonalityDebateProfile>;
   }): string {
-    const { topic, phase, previousMessage, isFinalRound, guidance, civilityLevel, format, presetId, personalityId, messageLabel, roleBrief, cxRole, customizedTone, customizedDebateProfile } = params;
+    const { topic, phase, previousMessage, isFinalRound, guidance, civilityLevel, format, presetId, personalityId, messageLabel, roleBrief, cxRole, audienceQuestion, customizedTone, customizedDebateProfile } = params;
     const base = guidance || '';
     const prev = previousMessage ? `${DEBATE_CONSTANTS.PROMPT_MARKERS.PREVIOUS_SPEAKER}"${previousMessage}"` : '';
     const isSocratic = format?.id === 'socratic';
@@ -171,7 +175,13 @@ export class DebatePromptBuilder {
       synthesis: 'Identify the strongest insight or unresolved tension; be concise.',
     } as const;
     const phaseHint = hintMap[phase];
+    const formatAwarePhaseHint = format?.id === 'oxford' && phase === 'question'
+      ? 'Answer the audience question directly in a short response. Do not ask a new question.'
+      : phaseHint;
     const formatConstraint = getFormatPhaseConstraint(format?.id, phase, cxRole);
+    const audienceQuestionLine = audienceQuestion
+      ? `Audience question for your side: "${audienceQuestion}"`
+      : '';
     const lengthGuidance = getDebateSpeechLengthGuidance({
       formatId: format?.id,
       presetId,
@@ -185,8 +195,9 @@ export class DebatePromptBuilder {
     return [
       `Turn: ${phaseLabel}`,
       roleBrief,
-      phaseHint,
+      formatAwarePhaseHint,
       formatConstraint,
+      audienceQuestionLine,
       lengthGuidance,
       prevGuarded,
       base,

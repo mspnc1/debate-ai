@@ -13,7 +13,7 @@ import { Typography } from '../../molecules';
 import { useTheme, type Theme } from '../../../theme';
 
 export interface SystemAnnouncementProps {
-  type: 'topic' | 'exchange-winner' | 'debate-complete' | 'overall-winner' | 'debate-start' | 'audience-stance' | 'mc';
+  type: 'topic' | 'exchange-winner' | 'debate-complete' | 'overall-winner' | 'debate-start' | 'audience-stance' | 'audience-questions' | 'mc';
   label?: string;
   content: string;
   icon?: string | ImageSourcePropType;
@@ -31,6 +31,20 @@ interface AnnouncementPalette {
   contentColor: string;
   iconColor: string;
 }
+
+const parseAudienceQuestions = (content: string): { aff: string; neg: string } => {
+  const lines = content
+    .split(/\n+/)
+    .map(line => line.trim())
+    .filter(Boolean);
+  const affirmative = lines.find(line => line.toLowerCase().startsWith('affirmative:'));
+  const negative = lines.find(line => line.toLowerCase().startsWith('negative:'));
+
+  return {
+    aff: affirmative?.replace(/^affirmative:\s*/i, '') ?? '',
+    neg: negative?.replace(/^negative:\s*/i, '') ?? '',
+  };
+};
 
 export const getSystemAnnouncementPalette = (
   theme: Theme,
@@ -52,6 +66,7 @@ export const getSystemAnnouncementPalette = (
         iconColor: isDark ? theme.colors.primary[300] : theme.colors.primary[700],
       };
     case 'audience-stance':
+    case 'audience-questions':
       return {
         gradient: isDark
           ? [theme.colors.card, theme.colors.surface]
@@ -122,7 +137,9 @@ export const SystemAnnouncement: React.FC<SystemAnnouncementProps> = ({
 }) => {
   const { theme, isDark } = useTheme();
   const scale = useSharedValue(0.95);
-  const isAudienceCue = type === 'audience-stance';
+  const isAudienceQuestions = type === 'audience-questions';
+  const isAudienceCue = type === 'audience-stance' || isAudienceQuestions;
+  const audienceQuestions = isAudienceQuestions ? parseAudienceQuestions(content) : null;
   const palette = getSystemAnnouncementPalette(theme, isDark, type);
   
   useEffect(() => {
@@ -152,6 +169,8 @@ export const SystemAnnouncement: React.FC<SystemAnnouncementProps> = ({
         return '🥊';
       case 'audience-stance':
         return '◉';
+      case 'audience-questions':
+        return '?';
       case 'mc':
         return '🎙️';
       case 'exchange-winner':
@@ -211,6 +230,7 @@ export const SystemAnnouncement: React.FC<SystemAnnouncementProps> = ({
             <View style={[
               styles.contentRow,
               isAudienceCue && styles.audienceContentRow,
+              isAudienceQuestions && styles.audienceQuestionsContentRow,
             ]}>
               {(() => {
                 const displayIcon = typeof icon === 'string' ? icon : getDefaultIcon();
@@ -226,19 +246,66 @@ export const SystemAnnouncement: React.FC<SystemAnnouncementProps> = ({
                   </Typography>
                 ) : null;
               })()}
-              <Typography
-                variant={isAudienceCue ? 'caption' : 'body'}
-                weight={isAudienceCue ? 'semibold' : 'bold'}
-                align="center"
-                style={[
-                  styles.content,
-                  isAudienceCue && styles.audienceContent,
-                  { color: palette.contentColor },
-                ]}
-                selectable
-              >
-                {content}
-              </Typography>
+              {audienceQuestions ? (
+                <View style={styles.questionBlock}>
+                  <Typography
+                    variant="caption"
+                    weight="semibold"
+                    style={[styles.questionIntro, { color: palette.labelColor }]}
+                    selectable
+                  >
+                    Audience questions submitted
+                  </Typography>
+                  <View style={[styles.questionRow, { borderLeftColor: palette.borderColor }]}>
+                    <Typography
+                      variant="caption"
+                      weight="bold"
+                      style={[styles.questionSide, { color: palette.labelColor }]}
+                      selectable
+                    >
+                      Affirmative
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      style={[styles.questionText, { color: palette.contentColor }]}
+                      selectable
+                    >
+                      {audienceQuestions.aff}
+                    </Typography>
+                  </View>
+                  <View style={[styles.questionRow, { borderLeftColor: palette.borderColor }]}>
+                    <Typography
+                      variant="caption"
+                      weight="bold"
+                      style={[styles.questionSide, { color: palette.labelColor }]}
+                      selectable
+                    >
+                      Negative
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      style={[styles.questionText, { color: palette.contentColor }]}
+                      selectable
+                    >
+                      {audienceQuestions.neg}
+                    </Typography>
+                  </View>
+                </View>
+              ) : (
+                <Typography
+                  variant={isAudienceCue ? 'caption' : 'body'}
+                  weight={isAudienceCue ? 'semibold' : 'bold'}
+                  align="center"
+                  style={[
+                    styles.content,
+                    isAudienceCue && styles.audienceContent,
+                    { color: palette.contentColor },
+                  ]}
+                  selectable
+                >
+                  {content}
+                </Typography>
+              )}
             </View>
           </LinearGradient>
         </BlurView>
@@ -296,6 +363,9 @@ const styles = StyleSheet.create({
   audienceContentRow: {
     gap: 10,
   },
+  audienceQuestionsContentRow: {
+    alignItems: 'flex-start',
+  },
   icon: {
     fontSize: 24,
   },
@@ -306,5 +376,32 @@ const styles = StyleSheet.create({
   audienceContent: {
     fontSize: 14,
     lineHeight: 20,
+  },
+  questionBlock: {
+    flex: 1,
+    gap: 10,
+  },
+  questionIntro: {
+    fontSize: 12,
+    lineHeight: 16,
+    textTransform: 'uppercase',
+  },
+  questionRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    borderLeftWidth: 2,
+    paddingLeft: 10,
+    paddingVertical: 2,
+  },
+  questionSide: {
+    width: 82,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  questionText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
   },
 });

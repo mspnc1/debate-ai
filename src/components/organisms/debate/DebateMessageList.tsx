@@ -32,15 +32,18 @@ type DetectedAnnouncementType =
   | 'overall-winner'
   | 'debate-start'
   | 'audience-stance'
+  | 'audience-questions'
   | 'mc';
 
 // Helper functions moved outside component for performance
 const detectType = (msg: Message): DetectedAnnouncementType | null => {
   if (msg.metadata?.debateInterstitial) return 'mc';
+  if (msg.metadata?.debateAudienceQuestions) return 'audience-questions';
   if (msg.sender !== 'Debate Host' && msg.sender !== 'System') return null;
   
   const content = msg.content.toLowerCase();
 
+  if (content.includes('audience questions submitted')) return 'audience-questions';
   if (content.includes('audience stance') || content.includes('audience vote')) return 'audience-stance';
   
   // Check for legacy round winner format: "Round X: Name" and map to exchange-winner
@@ -69,6 +72,7 @@ const getLabel = (type: DetectedAnnouncementType, content = ''): string => {
       return content.toLowerCase().includes('final audience')
         ? 'FINAL AUDIENCE VOTE'
         : 'OPENING AUDIENCE STANCE';
+    case 'audience-questions': return 'AUDIENCE Q&A';
     case 'mc': return 'MC';
     case 'exchange-winner': return 'EXCHANGE RESULT';
     case 'debate-complete': return 'DEBATE ENDED';
@@ -82,6 +86,7 @@ const getIcon = (type: DetectedAnnouncementType): string => {
     case 'topic': return ''; // No icon for cleaner look
     case 'debate-start': return '🥊';
     case 'audience-stance': return '◉';
+    case 'audience-questions': return '?';
     case 'mc': return '🎙️';
     case 'exchange-winner': return '🎯';
     case 'debate-complete': return '🏁';
@@ -93,6 +98,7 @@ const getIcon = (type: DetectedAnnouncementType): string => {
 const getCitationMetadataKey = (message: Message): string => {
   const citations = message.metadata?.citations || [];
   const audio = message.metadata?.debateAudio;
+  const audienceQuestions = message.metadata?.debateAudienceQuestions;
   const audioAttachments = (message.attachments || [])
     .filter((attachment) => attachment.type === 'audio')
     .map((attachment) => `${attachment.uri}:${attachment.mimeType}`)
@@ -101,6 +107,7 @@ const getCitationMetadataKey = (message: Message): string => {
     message.metadata?.webSearchEnabled ? 'search' : 'no-search',
     citations.length,
     citations.map(citation => `${citation.index}:${citation.url}`).join('|'),
+    audienceQuestions ? `${audienceQuestions.aff}:${audienceQuestions.neg}` : 'no-audience-questions',
     audio ? `${audio.status}:${audio.voiceId}:${audio.uri || ''}:${audio.error || ''}` : 'no-audio',
     audioAttachments,
   ].join(':');

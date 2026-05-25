@@ -6,6 +6,7 @@ import { createAppStore, showSheet } from '@/store';
 import type { AI, Message } from '@/types';
 import { getPresetForFormat } from '@/config/debate/formats';
 import type { DebateSessionHeaderProps } from '@/components/organisms/debate/DebateSessionHeader';
+import type { AudienceQuestionsModalProps } from '@/components/organisms/debate/AudienceQuestionsModal';
 
 // Mock ErrorService
 const mockHandleWithToast = jest.fn();
@@ -40,6 +41,7 @@ let mockHeaderProps: any;
 let mockTopicSelectorProps: any;
 let mockDebateMessageListProps: any;
 let mockVotingInterfaceProps: any;
+let mockAudienceQuestionsModalProps: AudienceQuestionsModalProps | undefined;
 let mockScoreDisplayProps: any;
 let mockDebateSessionHeaderProps: DebateSessionHeaderProps | undefined;
 let mockDemoBannerProps: any;
@@ -108,6 +110,10 @@ jest.mock('@/components/organisms', () => {
     VotingInterface: (props: any) => {
       mockVotingInterfaceProps = props;
       return React.createElement(Text, { testID: 'voting-interface', onPress: () => props.onVote?.('left') }, 'voting');
+    },
+    AudienceQuestionsModal: (props: AudienceQuestionsModalProps) => {
+      mockAudienceQuestionsModalProps = props;
+      return React.createElement(Text, { testID: 'audience-questions-modal', onPress: () => props.onSubmit?.({ aff: 'Aff?', neg: 'Neg?' }) }, props.visible ? 'audience-questions-visible' : 'audience-questions-hidden');
     },
     ScoreDisplay: (props: any) => {
       mockScoreDisplayProps = props;
@@ -244,6 +250,7 @@ beforeEach(() => {
   mockTopicSelectorProps = undefined;
   mockDebateMessageListProps = undefined;
   mockVotingInterfaceProps = undefined;
+  mockAudienceQuestionsModalProps = undefined;
   mockScoreDisplayProps = undefined;
   mockDebateSessionHeaderProps = undefined;
   mockDemoBannerProps = undefined;
@@ -272,7 +279,9 @@ const createSessionState = (overrides: Record<string, unknown> = {}) => ({
 const createFlowState = (overrides: Record<string, unknown> = {}) => ({
   startDebate: jest.fn().mockResolvedValue(undefined),
   continueDebate: jest.fn(),
+  submitAudienceQuestions: jest.fn(),
   continuation: null,
+  audienceQuestionsPrompt: null,
   isDebateActive: false,
   isDebateEnded: false,
   currentMessageIndex: 0,
@@ -527,6 +536,49 @@ describe('DebateScreen', () => {
     fireEvent.press(renderResult.getByTestId('debate-continuation-button'));
 
     expect(continueDebate).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the audience questions modal and submits questions', async () => {
+    const submitAudienceQuestions = jest.fn();
+    const preset = getPresetForFormat('oxford', 'long');
+    const { renderResult } = renderScreen({
+      flow: {
+        isDebateActive: true,
+        audienceQuestionsPrompt: {
+          title: 'Audience questions',
+          message: 'Enter one question for each side.',
+          completedMessageIndex: 3,
+          nextMessageIndex: 4,
+          affirmativeLabel: 'Affirmative',
+          negativeLabel: 'Negative',
+          required: true,
+        },
+        submitAudienceQuestions,
+      },
+      messages: {
+        messages: [
+          { id: 'm1', sender: 'Claude', senderType: 'ai', content: 'Opening', timestamp: 1 } as Message,
+        ],
+      },
+      session: { isInitialized: true, session: { topic: 'Topic', preset }, orchestrator: {} },
+      routeParams: { formatId: 'oxford', rounds: 7 },
+    });
+
+    await flushMicrotasks();
+
+    expect(mockAudienceQuestionsModalProps).toEqual(expect.objectContaining({
+      visible: true,
+      title: 'Audience questions',
+      affirmativeLabel: 'Affirmative',
+      negativeLabel: 'Negative',
+    }));
+
+    fireEvent.press(renderResult.getByTestId('audience-questions-modal'));
+
+    expect(submitAudienceQuestions).toHaveBeenCalledWith({
+      aff: 'Aff?',
+      neg: 'Neg?',
+    });
   });
 
   it('shows alert when vote submission fails', async () => {

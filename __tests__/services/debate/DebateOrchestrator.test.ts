@@ -290,10 +290,10 @@ describe('DebateOrchestrator', () => {
     await orchestrator.executeDebateMessage(1, []);
 
     expect(aiService.sendMessage.mock.calls[0][0]).toBe('claude');
-    expect(aiService.sendMessage.mock.calls[0][1]).toContain('Turn: Affirmative Opening Speech');
+    expect(aiService.sendMessage.mock.calls[0][1]).toContain('Turn: Affirmative Opening Statement');
     expect(aiService.sendMessage.mock.calls[0][1]).toContain('Length: 154-220 words maximum');
     expect(aiService.sendMessage.mock.calls[1][0]).toBe('openai');
-    expect(aiService.sendMessage.mock.calls[1][1]).toContain('Turn: Negative Opening Speech');
+    expect(aiService.sendMessage.mock.calls[1][1]).toContain('Turn: Negative Opening Statement');
 
     jest.clearAllTimers();
     jest.useRealTimers();
@@ -339,7 +339,7 @@ describe('DebateOrchestrator', () => {
     expect(typingEvents[0]).toEqual(expect.objectContaining({
       aiName: 'Claude',
       messageIndex: 0,
-      messageLabel: 'Affirmative Opening Speech',
+      messageLabel: 'Affirmative Opening Statement',
       phase: 'opening',
     }));
 
@@ -547,8 +547,8 @@ describe('DebateOrchestrator', () => {
       'google',
       'grok',
     ]);
-    expect(aiService.sendMessage.mock.calls[2][1]).toContain('Turn: Second Affirmative Speech');
-    expect(aiService.sendMessage.mock.calls[3][1]).toContain('Turn: Second Negative Speech');
+    expect(aiService.sendMessage.mock.calls[2][1]).toContain('Turn: Second Affirmative First Argument');
+    expect(aiService.sendMessage.mock.calls[3][1]).toContain('Turn: Second Negative First Argument');
     expect(aiService.sendMessage.mock.calls[2][1]).toContain('Role brief: You are the Second Affirmative speaker for Affirmative (FOR).');
     expect(aiService.sendMessage.mock.calls[2][1]).toContain('Teammate: Claude.');
     expect(aiService.sendMessage.mock.calls[2][1]).toContain('Opposing team: GPT-4, Grok.');
@@ -561,6 +561,298 @@ describe('DebateOrchestrator', () => {
     }));
     expect(adapter.setTemporaryPersonality).toHaveBeenCalledWith(expect.objectContaining({
       systemPrompt: expect.stringContaining('Opposing team: GPT-4, Grok'),
+    }));
+
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  it('does not request audience questions for Oxford 1v1 or 2v2 presets', async () => {
+    jest.useFakeTimers();
+    const adapter = {
+      config: {} as Record<string, unknown>,
+      getCapabilities: jest.fn(() => ({ streaming: false })),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => ''),
+    };
+    const aiService = {
+      getAdapter: jest.fn(() => adapter),
+      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+    };
+    const teamParticipants: AI[] = [
+      participants[0],
+      participants[1],
+      { id: 'gemini', provider: 'google', name: 'Gemini', model: 'gemini-3.5-flash' } as AI,
+      { id: 'grok', provider: 'grok', name: 'Grok', model: 'grok-4' } as AI,
+    ];
+    const questionEvents: Array<Record<string, unknown>> = [];
+
+    const oneOnOne = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    oneOnOne.addEventListener(event => {
+      if (event.type === 'audience_questions_requested') questionEvents.push(event.data);
+    });
+    await oneOnOne.initializeDebate('AI ethics', participants, {}, {
+      formatId: 'oxford',
+      rounds: 3,
+    });
+    await oneOnOne.executeDebateMessage(3, []);
+
+    const twoOnTwo = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    twoOnTwo.addEventListener(event => {
+      if (event.type === 'audience_questions_requested') questionEvents.push(event.data);
+    });
+    await twoOnTwo.initializeDebate('AI ethics', teamParticipants, {}, {
+      formatId: 'oxford',
+      rounds: 5,
+    });
+    await twoOnTwo.executeDebateMessage(3, []);
+
+    expect(questionEvents).toHaveLength(0);
+
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  it('requests required audience questions after Oxford Q&A first arguments and injects them into answer turns', async () => {
+    jest.useFakeTimers();
+    const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+    const adapter = {
+      config: {} as Record<string, unknown>,
+      getCapabilities: jest.fn(() => ({ streaming: false })),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => ''),
+    };
+    const aiService = {
+      getAdapter: jest.fn(() => adapter),
+      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+    };
+    const teamParticipants: AI[] = [
+      participants[0],
+      participants[1],
+      { id: 'gemini', provider: 'google', name: 'Gemini', model: 'gemini-3.5-flash' } as AI,
+      { id: 'grok', provider: 'grok', name: 'Grok', model: 'grok-4' } as AI,
+    ];
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    const questionEvents: Array<Record<string, unknown>> = [];
+    const hostMessages: Message[] = [];
+    orchestrator.addEventListener(event => {
+      if (event.type === 'audience_questions_requested') {
+        questionEvents.push(event.data);
+      }
+      if (event.type === 'message_added') {
+        const message = event.data.message as Message | undefined;
+        if (message?.sender === 'Debate Host') {
+          hostMessages.push(message);
+        }
+      }
+    });
+
+    await orchestrator.initializeDebate('AI ethics', teamParticipants, {}, {
+      formatId: 'oxford',
+      rounds: 7,
+    });
+
+    await orchestrator.executeDebateMessage(0, []);
+    await orchestrator.executeDebateMessage(1, []);
+    await orchestrator.executeDebateMessage(2, []);
+
+    jest.clearAllTimers();
+    setTimeoutSpy.mockClear();
+
+    await orchestrator.executeDebateMessage(3, []);
+
+    expect(orchestrator.getSession()?.status).toBe(DebateStatus.PAUSED_FOR_REVIEW);
+    expect(questionEvents[0]).toEqual(expect.objectContaining({
+      title: 'Audience questions',
+      completedMessageIndex: 3,
+      nextMessageIndex: 4,
+      required: true,
+    }));
+    expect(setTimeoutSpy).not.toHaveBeenCalled();
+
+    orchestrator.submitAudienceQuestions({
+      aff: '  How would your side pay for this?  ',
+      neg: 'Why is the status quo enough?',
+    });
+
+    expect(orchestrator.getSession()?.audienceQuestions).toEqual({
+      aff: 'How would your side pay for this?',
+      neg: 'Why is the status quo enough?',
+    });
+    const audienceQuestionMessage = hostMessages.find((message) => (
+      message.content.includes('Audience questions submitted:')
+    ));
+    expect(audienceQuestionMessage?.content).toContain('Affirmative: How would your side pay for this?');
+    expect(audienceQuestionMessage?.content).toContain('Negative: Why is the status quo enough?');
+    expect(audienceQuestionMessage?.metadata?.debateAudienceQuestions).toEqual({
+      aff: 'How would your side pay for this?',
+      neg: 'Why is the status quo enough?',
+    });
+    expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), DEBATE_CONSTANTS.DELAYS.VOTING_CONTINUATION);
+
+    await orchestrator.executeDebateMessage(4, []);
+    await orchestrator.executeDebateMessage(5, []);
+
+    const affirmativeQuestionPrompt = aiService.sendMessage.mock.calls.find((call) => (
+      String(call[1]).includes('Turn: Affirmative Audience Question Response')
+    ))?.[1];
+    const negativeQuestionPrompt = aiService.sendMessage.mock.calls.find((call) => (
+      String(call[1]).includes('Turn: Negative Audience Question Response')
+    ))?.[1];
+
+    expect(affirmativeQuestionPrompt).toContain('Audience question for your side: "How would your side pay for this?"');
+    expect(affirmativeQuestionPrompt).not.toContain('Why is the status quo enough?');
+    expect(negativeQuestionPrompt).toContain('Audience question for your side: "Why is the status quo enough?"');
+    expect(negativeQuestionPrompt).not.toContain('How would your side pay for this?');
+
+    setTimeoutSpy.mockRestore();
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  it('adds MC audience question interstitials before podcast Q&A answers', async () => {
+    jest.useFakeTimers();
+    const adapter = {
+      config: {} as Record<string, unknown>,
+      getCapabilities: jest.fn(() => ({ streaming: false })),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => ''),
+    };
+    const aiService = {
+      getAdapter: jest.fn(() => adapter),
+      sendMessage: jest.fn().mockResolvedValue({ response: 'ok', modelUsed: 'gpt-5' }),
+    };
+    const teamParticipants: AI[] = [
+      participants[0],
+      participants[1],
+      { id: 'gemini', provider: 'google', name: 'Gemini', model: 'gemini-3.5-flash' } as AI,
+      { id: 'grok', provider: 'grok', name: 'Grok', model: 'grok-4' } as AI,
+    ];
+    const voiceConfig: DebateVoiceConfig = {
+      enabled: true,
+      providerId: 'elevenlabs',
+      debaterVoices: {},
+      podcast: {
+        enabled: true,
+        scriptMode: 'byok_ai',
+        outputMode: 'playlist',
+        mc: {
+          id: 'mc-1',
+          provider: 'openai',
+          name: 'Podcast MC',
+          model: 'gpt-5',
+        },
+        mcVoice: {
+          voiceId: 'voice-host',
+          voiceName: 'Host Voice',
+        },
+      },
+    };
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    const messageEvents: Message[] = [];
+    orchestrator.addEventListener(event => {
+      if (event.type === 'message_added' && event.data.message) {
+        messageEvents.push(event.data.message as Message);
+      }
+    });
+
+    await orchestrator.initializeDebate('AI ethics', teamParticipants, {}, {
+      formatId: 'oxford',
+      rounds: 7,
+      voiceConfig,
+    });
+    await orchestrator.executeDebateMessage(3, []);
+    orchestrator.submitAudienceQuestions({
+      aff: 'How would your side pay for this?',
+      neg: 'Why is the status quo enough?',
+    });
+
+    await orchestrator.executeDebateMessage(4, []);
+    await orchestrator.executeDebateMessage(5, []);
+
+    const audienceQuestionCues = messageEvents.filter((message) => (
+      message.metadata?.debateInterstitial?.kind === 'audience_question'
+    ));
+    expect(audienceQuestionCues).toHaveLength(2);
+    expect(audienceQuestionCues[0].content).toContain('Claude');
+    expect(audienceQuestionCues[0].content).toContain('How would your side pay for this?');
+    expect(audienceQuestionCues[1].content).toContain('GPT-4');
+    expect(audienceQuestionCues[1].content).toContain('Why is the status quo enough?');
+
+    const affCueIndex = messageEvents.indexOf(audienceQuestionCues[0]);
+    const affAnswerIndex = messageEvents.findIndex((message) => (
+      message.metadata?.debateSpeech?.label === 'Affirmative Audience Question Response'
+    ));
+    const negCueIndex = messageEvents.indexOf(audienceQuestionCues[1]);
+    const negAnswerIndex = messageEvents.findIndex((message) => (
+      message.metadata?.debateSpeech?.label === 'Negative Audience Question Response'
+    ));
+
+    expect(affCueIndex).toBeGreaterThanOrEqual(0);
+    expect(affCueIndex).toBeLessThan(affAnswerIndex);
+    expect(negCueIndex).toBeGreaterThanOrEqual(0);
+    expect(negCueIndex).toBeLessThan(negAnswerIndex);
+
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  it('keeps final Oxford review and final audience vote after Q&A summaries', async () => {
+    jest.useFakeTimers();
+    const adapter = {
+      config: {} as Record<string, unknown>,
+      getCapabilities: jest.fn(() => ({ streaming: false })),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => ''),
+    };
+    const aiService = {
+      getAdapter: jest.fn(() => adapter),
+      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+    };
+    const teamParticipants: AI[] = [
+      participants[0],
+      participants[1],
+      { id: 'gemini', provider: 'google', name: 'Gemini', model: 'gemini-3.5-flash' } as AI,
+      { id: 'grok', provider: 'grok', name: 'Grok', model: 'grok-4' } as AI,
+    ];
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    const continuationEvents: Array<Record<string, unknown>> = [];
+    const votingEvents: Array<Record<string, unknown>> = [];
+    orchestrator.addEventListener(event => {
+      if (event.type === 'continuation_required') {
+        continuationEvents.push(event.data);
+      }
+      if (event.type === 'voting_started') {
+        votingEvents.push(event.data);
+      }
+    });
+
+    await orchestrator.initializeDebate('AI ethics', teamParticipants, {}, {
+      formatId: 'oxford',
+      rounds: 7,
+    });
+    await orchestrator.executeDebateMessage(3, []);
+    orchestrator.submitAudienceQuestions({
+      aff: 'What is your strongest tradeoff?',
+      neg: 'What evidence would change your mind?',
+    });
+
+    continuationEvents.length = 0;
+    await orchestrator.executeDebateMessage(7, []);
+
+    expect(continuationEvents[0]).toEqual(expect.objectContaining({
+      title: 'Closing speeches complete',
+      buttonLabel: 'Cast Final Vote',
+      isFinalReview: true,
+      completedMessageIndex: 7,
+    }));
+
+    orchestrator.continueDebate();
+
+    expect(votingEvents[0]).toEqual(expect.objectContaining({
+      voteKind: 'audience_stance',
+      audienceVoteStage: 'final',
+      votingLabel: 'Final Audience Vote',
     }));
 
     jest.clearAllTimers();

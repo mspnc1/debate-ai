@@ -69,7 +69,7 @@ describe('FormatModal', () => {
 
       expect(getByText(/Motion debate with proposition/i)).toBeTruthy();
       expect(getAllByText(/Opening speeches, floor debate/i).length).toBeGreaterThan(0);
-      expect(getByText(/2v2 teams/i)).toBeTruthy();
+      expect(getByText(/2v2 \+ Q&A/i)).toBeTruthy();
       expect(getByText(/final audience vote/i)).toBeTruthy();
     });
 

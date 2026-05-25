@@ -95,7 +95,7 @@ Each AI will present arguments, respond to their opponent, and try to make the m
     content: `Symposium AI offers three structured debate formats:
 
 Oxford Format:
-Audience-voted motion debate with proposition and opposition speeches. Classic is 1v1; Full and Extended use 2v2 teams. You vote before the first speech and again after the closing speeches. Best for: Public-facing debates on policy or ethics.
+Audience-voted motion debate with proposition and opposition speeches. Choose 1v1, 2v2, or 2v2 + Q&A. In Q&A, you enter one audience question for each side after the first arguments. You vote before the first speech and again after the closing speeches. Best for: Public-facing debates on policy or ethics.
 
 Lincoln-Douglas:
 Philosophical debate focusing on values and ethics. Uses AC, CX, NC/1NR, 1AR, NR/2NR, and 2AR structure. Best for: Ethical dilemmas and value-based topics.

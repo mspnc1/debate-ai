@@ -29,8 +29,8 @@ export const FormatModal: React.FC<FormatModalProps> = ({ visible, selected, onS
   const HIGHLIGHTS: Record<SelectableDebateFormatId, string[]> = {
     oxford: [
       '⚖️ Motion debate with proposition and opposition sides',
-      '🗣️ Classic is 1v1; Full and Extended use 2v2 teams',
-      '🎯 Opening audience stance and final audience vote decide the result',
+      '🗣️ Choose 1v1, 2v2, or 2v2 + Q&A with audience questions',
+      '🎯 Opening stance and final audience vote decide the result',
     ],
     lincoln_douglas: [
       '🤔 Great for ethical dilemmas and moral questions',

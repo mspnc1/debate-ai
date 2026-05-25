@@ -52,6 +52,31 @@ describe('SystemAnnouncement', () => {
     expect(lightPalette.labelColor).toBe(lightTheme.colors.primary[700]);
   });
 
+  it('uses the audience palette for audience question announcements', () => {
+    const darkPalette = getSystemAnnouncementPalette(darkTheme, true, 'audience-questions');
+
+    expect(darkPalette.gradient).toEqual([darkTheme.colors.card, darkTheme.colors.surface]);
+    expect(darkPalette.borderColor).toBe(darkTheme.colors.primary[500]);
+    expect(darkPalette.contentColor).toBe(darkTheme.colors.text.primary);
+  });
+
+  it('renders audience questions as labeled rows', () => {
+    const { getByText } = renderWithProviders(
+      <SystemAnnouncement
+        type="audience-questions"
+        label="AUDIENCE Q&A"
+        content={'Audience questions submitted:\n\nAffirmative: Should we also ban vaping?\n\nNegative: Why not ban smoking?'}
+      />
+    );
+
+    expect(getByText('AUDIENCE Q&A')).toBeTruthy();
+    expect(getByText('Audience questions submitted')).toBeTruthy();
+    expect(getByText('Affirmative')).toBeTruthy();
+    expect(getByText('Should we also ban vaping?')).toBeTruthy();
+    expect(getByText('Negative')).toBeTruthy();
+    expect(getByText('Why not ban smoking?')).toBeTruthy();
+  });
+
   it('renders custom icon when provided', () => {
     const { getByText } = renderWithProviders(
       <SystemAnnouncement type="topic" content="Test" icon="🎉" />
