@@ -191,6 +191,10 @@ export class DebateOrchestrator {
       aiService: this.aiService,
       session: this.session,
       kind,
+      recentMcMessages: this.currentMessages
+        .filter((message) => Boolean(message.metadata?.debateInterstitial))
+        .slice(-3)
+        .map((message) => message.content),
       ...options,
     });
 

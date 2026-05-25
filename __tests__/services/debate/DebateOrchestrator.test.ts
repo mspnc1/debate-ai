@@ -405,6 +405,64 @@ describe('DebateOrchestrator', () => {
     jest.useRealTimers();
   });
 
+  it('keeps pre-vote MC interstitials neutral when generated podcast copy judges a side', async () => {
+    jest.useFakeTimers();
+    const aiService = {
+      getAdapter: jest.fn(),
+      sendMessage: jest.fn().mockResolvedValue({
+        response: 'The Affirmative is clearly stronger and already winning this debate.',
+        modelUsed: 'gpt-5',
+      }),
+    };
+    const voiceConfig: DebateVoiceConfig = {
+      enabled: true,
+      providerId: 'elevenlabs',
+      debaterVoices: {},
+      podcast: {
+        enabled: true,
+        scriptMode: 'byok_ai',
+        outputMode: 'playlist',
+        mc: {
+          id: 'mc-1',
+          provider: 'openai',
+          name: 'Podcast MC',
+          model: 'gpt-5',
+        },
+        mcVoice: {
+          voiceId: 'voice-host',
+          voiceName: 'Host Voice',
+        },
+      },
+    };
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    const mcMessages: Message[] = [];
+    orchestrator.addEventListener(event => {
+      if (event.type === 'message_added') {
+        const message = event.data.message as Message | undefined;
+        if (message?.metadata?.debateInterstitial) {
+          mcMessages.push(message);
+        }
+      }
+    });
+
+    await orchestrator.initializeDebate('AI ethics', participants, {}, {
+      formatId: 'oxford',
+      rounds: 3,
+      voiceConfig,
+    });
+    await orchestrator.startDebate([]);
+
+    expect(mcMessages[0].metadata?.debateInterstitial).toMatchObject({
+      kind: 'intro',
+      usedTemplateFallback: true,
+    });
+    expect(mcMessages[0].content).not.toContain('clearly stronger');
+    expect(mcMessages[0].content).not.toContain('already winning');
+
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
   it('pauses Oxford audience debates after speech pairs until the user continues', async () => {
     jest.useFakeTimers();
     const setTimeoutSpy = jest.spyOn(global, 'setTimeout');

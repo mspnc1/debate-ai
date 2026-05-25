@@ -1,15 +1,15 @@
-import type { AI, DebateInterstitialKind, Message, ModelParameters } from '@/types';
+import type { AI, Citation, DebateInterstitialKind, Message, ModelParameters } from '@/types';
 import type { AudienceDecisionResult, DebateSideId, MessageSpec, PhaseId, PresetConfig } from '@/config/debate/formats';
 import { AIService } from '@/services/aiAdapter';
+import { getModelById, resolveProviderModelId } from '@/config/modelConfigs';
 import type { DebateSession } from './DebateOrchestrator';
 
 const MC_SENDER = 'Debate MC';
-const MC_PARAMETERS: Partial<ModelParameters> = {
-  temperature: 0.45,
-  maxTokens: 140,
-};
+const MC_TEMPERATURE = 0.62;
 const MC_INTRO_OPENING_LINE = 'Welcome to the Symposium AI Debate Arena: where ideas converge, and understanding emerges.';
 const THIRD_PARTY_DEBATE_BRAND_PATTERN = new RegExp(['Intelligence', 'Squared'].join('[-\\s]+'), 'i');
+const PREMATURE_JUDGMENT_PATTERN = /\b(?:already\s+winning|winning\s+this|clearly\s+(?:ahead|stronger|superior|right|wrong)|more\s+(?:persuasive|factual|credible|convincing)|has\s+the\s+edge|takes?\s+the\s+lead|dominates?|prevails?|the\s+(?:right|wrong)\s+side)\b/i;
+const RECENT_MC_LIMIT = 3;
 
 const PHASE_LABELS: Record<PhaseId, string> = {
   opening: 'opening speeches',
@@ -31,8 +31,23 @@ export interface CreateDebateInterstitialInput {
   votingLabel?: string;
   winnerName?: string;
   audienceResult?: AudienceDecisionResult;
+  recentMcMessages?: string[];
   now?: () => number;
 }
+
+type McAdapter = {
+  config?: {
+    webSearchEnabled?: boolean;
+  };
+};
+
+type CitationBackedResult = {
+  response: string;
+  modelUsed?: string;
+  metadata?: {
+    citations?: Citation[];
+  };
+};
 
 function getSideParticipants(participants: AI[], preset: PresetConfig, side: 'aff' | 'neg'): AI[] {
   const teamSize = preset.teamSize || 1;
@@ -92,6 +107,18 @@ function generatedCopyIncludesAudienceQuestion(
   return normalizeForContainment(text).includes(normalizeForContainment(question));
 }
 
+function isPreResultKind(kind: DebateInterstitialKind): boolean {
+  return kind !== 'winner';
+}
+
+function generatedCopyPrematurelyJudgesSide(
+  text: string,
+  input: Omit<CreateDebateInterstitialInput, 'aiService' | 'now'>
+): boolean {
+  if (!isPreResultKind(input.kind) || input.winnerName || input.audienceResult) return false;
+  return PREMATURE_JUDGMENT_PATTERN.test(text);
+}
+
 function labelForKind(kind: DebateInterstitialKind): string {
   switch (kind) {
     case 'intro':
@@ -117,6 +144,73 @@ function cleanGeneratedScript(text: string): string {
   return THIRD_PARTY_DEBATE_BRAND_PATTERN.test(cleaned) ? '' : cleaned;
 }
 
+function getMcParameters(kind: DebateInterstitialKind): Partial<ModelParameters> {
+  const maxTokensByKind: Record<DebateInterstitialKind, number> = {
+    intro: 260,
+    phase_segue: 190,
+    audience_question: 120,
+    vote_segue: 140,
+    winner: 150,
+  };
+
+  return {
+    temperature: MC_TEMPERATURE,
+    maxTokens: maxTokensByKind[kind],
+  };
+}
+
+function getResolvedMcModel(session: DebateSession): string {
+  const mc = session.voiceConfig?.podcast?.mc;
+  if (!mc) return '';
+  return resolveProviderModelId(mc.provider, mc.model) || mc.model;
+}
+
+function mcModelSupportsWebSearch(session: DebateSession): boolean {
+  const mc = session.voiceConfig?.podcast?.mc;
+  if (!mc) return false;
+
+  const resolvedModel = getResolvedMcModel(session);
+  const model = getModelById(mc.provider, resolvedModel);
+  return Boolean(model?.supportsWebSearch);
+}
+
+async function configureMcWebSearch(
+  aiService: AIService,
+  session: DebateSession,
+  enabled: boolean
+): Promise<{ adapter?: McAdapter; previousWebSearchEnabled?: boolean }> {
+  const podcast = session.voiceConfig?.podcast;
+  if (!podcast) return {};
+
+  const resolvedModel = getResolvedMcModel(session);
+  const service = aiService as AIService & {
+    ensureAdapter?: (adapterId: string, provider?: string, model?: string) => Promise<McAdapter | undefined>;
+    getAdapter?: (provider: string) => McAdapter | undefined;
+  };
+  const adapter = service.ensureAdapter
+    ? await service.ensureAdapter.call(aiService, podcast.mc.provider, podcast.mc.provider, resolvedModel)
+    : service.getAdapter?.call(aiService, podcast.mc.provider);
+
+  if (!adapter?.config) return { adapter };
+
+  const previousWebSearchEnabled = adapter.config.webSearchEnabled;
+  adapter.config.webSearchEnabled = enabled;
+  return { adapter, previousWebSearchEnabled };
+}
+
+function restoreMcWebSearch(
+  adapter?: McAdapter,
+  previousWebSearchEnabled?: boolean
+): void {
+  if (!adapter?.config) return;
+
+  if (typeof previousWebSearchEnabled === 'undefined') {
+    delete adapter.config.webSearchEnabled;
+  } else {
+    adapter.config.webSearchEnabled = previousWebSearchEnabled;
+  }
+}
+
 export function buildDebateInterstitialTemplate(input: Omit<CreateDebateInterstitialInput, 'aiService' | 'now'>): string {
   const { session, kind, completedMessageSpec, nextMessageSpec, votingLabel, winnerName, audienceResult } = input;
   const proposition = namesFor(getSideParticipants(session.participants, session.preset, 'aff'));
@@ -127,12 +221,12 @@ export function buildDebateInterstitialTemplate(input: Omit<CreateDebateIntersti
 
   switch (kind) {
     case 'intro':
-      return `${MC_INTRO_OPENING_LINE} The motion is: ${session.topic}. Speaking for the motion: ${proposition}. Speaking against it: ${opposition}. We begin with the opening frame.`;
+      return `${MC_INTRO_OPENING_LINE} The motion is: ${session.topic}. This question sits at the intersection of public values, practical tradeoffs, and the choices people ask institutions to make. Speaking for the motion: ${proposition}. Speaking against it: ${opposition}.`;
     case 'phase_segue':
       if (nextMessageSpec?.phase === 'question' && !session.audienceQuestions) {
         return `That concludes ${completedPhase || 'this phase'}. We will collect audience questions now, and each side will hear its question from the MC before answering.`;
       }
-      return `That concludes ${completedPhase || 'this phase'}. Next, the debate moves to ${nextPhase || 'the next phase'}, where the clash on the motion should sharpen.`;
+      return `That concludes ${completedPhase || 'this phase'}. Next, the debate moves to ${nextPhase || 'the next phase'}, where the same motion is tested from a new angle without declaring either side ahead.`;
     case 'audience_question':
       if (audienceQuestionCue.question) {
         const responderPrefix = audienceQuestionCue.responderName
@@ -153,15 +247,32 @@ export function buildDebateInterstitialTemplate(input: Omit<CreateDebateIntersti
 
 function buildPrompt(input: Omit<CreateDebateInterstitialInput, 'aiService' | 'now'>): string {
   const template = buildDebateInterstitialTemplate(input);
-  const { session, kind, completedMessageSpec, nextMessageSpec, votingLabel, winnerName, audienceResult } = input;
+  const { session, kind, completedMessageSpec, nextMessageSpec, votingLabel, winnerName, audienceResult, recentMcMessages } = input;
   const proposition = namesFor(getSideParticipants(session.participants, session.preset, 'aff'));
   const opposition = namesFor(getSideParticipants(session.participants, session.preset, 'neg'));
   const audienceQuestionCue = getAudienceQuestionCue(session, nextMessageSpec);
+  const liveContextEnabled = mcModelSupportsWebSearch(session);
+  const recentLines = recentMcMessages?.slice(-RECENT_MC_LIMIT).filter(Boolean);
+  const beatInstructionMap: Record<DebateInterstitialKind, string> = {
+    intro: 'Intro beat: preserve the required opening line, then frame the motion with neutral public-radio context: why this issue matters, historical resonance or current stakes, and what tension the audience should listen for. Do not answer the motion.',
+    phase_segue: 'Segue beat: connect the completed phase to the next phase with color commentary about the debate structure or stakes. Do not score arguments or imply which side is ahead.',
+    audience_question: 'Audience Q&A beat: read the submitted question aloud exactly, then add at most one short neutral setup for the answering side. Do not reword the question.',
+    vote_segue: 'Voting beat: invite careful evaluation of burdens, clarity, and persuasion without telling the audience how to vote.',
+    winner: 'Winner beat: report the recorded result plainly and add only a concise closing reflection grounded in the provided result.',
+  };
 
   return [
     'Write one concise podcast host interstitial for an AI debate.',
-    'Style: polished, neutral, no markdown, no stage directions, one paragraph, 1-3 sentences.',
+    'Host voice: neutral public radio host; polished, vivid, grounded, and not comedic.',
+    'Use stakes framing, not argument framing: explain why people care, not which side is correct.',
+    'Style: no markdown, no stage directions, one paragraph.',
+    kind === 'intro' || kind === 'phase_segue' ? 'Length: 2-4 sentences.' : 'Length: 1-2 sentences.',
     'Do not reference third-party debate brands or programs.',
+    'Neutrality rule: do not say either side is stronger, more persuasive, more factual, ahead, winning, right, or wrong unless a vote/result has occurred.',
+    liveContextEnabled
+      ? 'Context mode: live web context is available. You may use broad current context if relevant, but keep it concise and do not include source lists or citation callouts in the script.'
+      : 'Context mode: broad context only. Do not make specific current claims, cite dates, quote statistics, or name recent events; use timeless historical or civic framing instead.',
+    beatInstructionMap[kind],
     kind === 'audience_question' ? 'Audience Q&A requirement: read the submitted question aloud exactly before the answerer responds.' : undefined,
     kind === 'intro' ? `Intro opening line to preserve: ${MC_INTRO_OPENING_LINE}` : undefined,
     `Cue: ${kind}.`,
@@ -177,6 +288,7 @@ function buildPrompt(input: Omit<CreateDebateInterstitialInput, 'aiService' | 'n
     votingLabel ? `Voting cue: ${votingLabel}.` : undefined,
     winnerName ? `Winner: ${winnerName}.` : undefined,
     audienceResult ? `Audience result: ${audienceResult.winningSideLabel}; ${audienceResult.summary}` : undefined,
+    recentLines && recentLines.length > 0 ? `Recent MC lines to avoid repeating:\n${recentLines.map((line, index) => `${index + 1}. ${line}`).join('\n')}` : undefined,
     `Fallback draft to improve: ${template}`,
   ].filter(Boolean).join('\n');
 }
@@ -187,32 +299,48 @@ export async function createDebateInterstitialMessage(input: CreateDebateInterst
 
   const now = input.now || Date.now;
   const template = buildDebateInterstitialTemplate(input);
+  const mcWebSearchEnabled = mcModelSupportsWebSearch(input.session);
   let content = template;
   let usedTemplateFallback = true;
   let generatedByModel: string | undefined;
+  let citations: Citation[] | undefined;
+  let adapter: McAdapter | undefined;
+  let previousWebSearchEnabled: boolean | undefined;
+  let webSearchApplied = false;
 
   try {
+    const webSearchConfig = await configureMcWebSearch(input.aiService, input.session, mcWebSearchEnabled);
+    adapter = webSearchConfig.adapter;
+    previousWebSearchEnabled = webSearchConfig.previousWebSearchEnabled;
+    webSearchApplied = mcWebSearchEnabled && Boolean(adapter?.config);
+
     const result = await input.aiService.sendMessage(
       podcast.mc.provider,
       buildPrompt(input),
       [],
       undefined,
       undefined,
-      MC_PARAMETERS,
-      podcast.mc.model
-    );
+      getMcParameters(input.kind),
+      getResolvedMcModel(input.session)
+    ) as CitationBackedResult;
     const generated = cleanGeneratedScript(result.response);
     if (
       generated &&
       (input.kind !== 'audience_question' ||
-        generatedCopyIncludesAudienceQuestion(generated, input.session, input.nextMessageSpec))
+        generatedCopyIncludesAudienceQuestion(generated, input.session, input.nextMessageSpec)) &&
+      !generatedCopyPrematurelyJudgesSide(generated, input)
     ) {
       content = generated;
       usedTemplateFallback = false;
       generatedByModel = result.modelUsed || podcast.mc.model;
+      citations = mcWebSearchEnabled && result.metadata?.citations?.length
+        ? result.metadata.citations
+        : undefined;
     }
   } catch {
     usedTemplateFallback = true;
+  } finally {
+    restoreMcWebSearch(adapter, previousWebSearchEnabled);
   }
 
   return {
@@ -229,6 +357,8 @@ export async function createDebateInterstitialMessage(input: CreateDebateInterst
         generatedByModel,
         usedTemplateFallback,
       },
+      ...(webSearchApplied && !usedTemplateFallback ? { webSearchEnabled: true } : {}),
+      ...(citations ? { citations } : {}),
     },
   };
 }
