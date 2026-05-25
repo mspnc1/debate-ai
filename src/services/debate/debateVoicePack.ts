@@ -4,7 +4,7 @@ import { getMediaExtension } from '@/services/media/mediaFileCache';
 import type { AI, Message, MessageAttachment } from '@/types';
 import type { DebateVoicePackClip, DebateVoicePackCompiledAudio, DebateVoicePackManifest, DebateVoicePackParticipant } from '@/types/media';
 
-export const DEBATE_VOICE_PACK_PAUSE_MS = 900;
+export const DEBATE_VOICE_PACK_PAUSE_MS = 1500;
 
 const baseDirectory = FileSystem.documentDirectory || FileSystem.cacheDirectory || '';
 const normalizedBaseDirectory = baseDirectory.endsWith('/') ? baseDirectory : `${baseDirectory}/`;

@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
 const {
   buildConcatFilter,
+  DEFAULT_DEBATE_AUDIO_PAUSE_MS,
   normalizeCompileClips,
 } = require('../lib/debateAudioCompile');
 
@@ -26,6 +27,20 @@ describe('debate audio compile helpers', () => {
         pauseAfterMs: 900,
       },
     ]);
+  });
+
+  it('defaults missing pauses to the debate handoff gap', () => {
+    const clips = normalizeCompileClips([
+      {
+        id: 'clip:1',
+        fileName: '001 opening.mp3',
+        mimeType: 'audio/mpeg',
+        sizeBytes: 1024,
+      },
+    ]);
+
+    assert.equal(clips[0].pauseAfterMs, DEFAULT_DEBATE_AUDIO_PAUSE_MS);
+    assert.equal(DEFAULT_DEBATE_AUDIO_PAUSE_MS, 1500);
   });
 
   it('builds a concat filter for mixed clip and silence inputs', () => {

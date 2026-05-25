@@ -20,6 +20,7 @@ const MAX_CLIPS = 80;
 const MAX_CLIP_BYTES = 25 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 250 * 1024 * 1024;
 const MAX_PAUSE_MS = 10_000;
+export const DEFAULT_DEBATE_AUDIO_PAUSE_MS = 1500;
 const UPLOAD_URL_TTL_MS = 30 * 60 * 1000;
 const DOWNLOAD_URL_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -126,7 +127,7 @@ export function normalizeCompileClips(rawClips: unknown): NormalizedCompileClip[
       min: 0,
       max: MAX_PAUSE_MS,
       optional: true,
-    }) ?? 0;
+    }) ?? DEFAULT_DEBATE_AUDIO_PAUSE_MS;
 
     return { id, fileName, mimeType, sizeBytes, pauseAfterMs };
   });
