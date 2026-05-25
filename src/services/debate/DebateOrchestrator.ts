@@ -175,6 +175,17 @@ export class DebateOrchestrator {
     }
   }
 
+  private getDebateConversationHistory(messages: Message[]): Message[] {
+    const sessionStartTime = this.session?.startTime || 0;
+
+    return messages.filter((message) => (
+      message.timestamp >= sessionStartTime &&
+      message.senderType === 'ai' &&
+      Boolean(message.content.trim()) &&
+      !message.metadata?.debateInterstitial
+    ));
+  }
+
   private async addDebateInterstitial(
     kind: DebateInterstitialKind,
     options: {
@@ -687,7 +698,7 @@ export class DebateOrchestrator {
       const contextualPrompt = minimal;
 
       // Get debate-only conversation slice
-      const debateMessages = turnMessages.filter(msg => msg.timestamp >= (this.session?.startTime || 0));
+      const debateMessages = this.getDebateConversationHistory(turnMessages);
 
       // Prefer streaming if adapter supports it
       let adapter = this.aiService.getAdapter(currentAI.provider);

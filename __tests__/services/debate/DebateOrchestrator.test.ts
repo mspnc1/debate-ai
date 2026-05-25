@@ -405,6 +405,58 @@ describe('DebateOrchestrator', () => {
     jest.useRealTimers();
   });
 
+  it('does not pass podcast MC copy as opening debater history', async () => {
+    jest.useFakeTimers();
+    const adapter = {
+      config: {} as Record<string, unknown>,
+      getCapabilities: jest.fn(() => ({ streaming: true })),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => ''),
+    };
+    const aiService = {
+      getAdapter: jest.fn(() => adapter),
+      sendMessage: jest.fn().mockResolvedValue({ response: "Welcome to tonight's debate.", modelUsed: 'gpt-5' }),
+    };
+    const voiceConfig: DebateVoiceConfig = {
+      enabled: true,
+      providerId: 'elevenlabs',
+      debaterVoices: {},
+      podcast: {
+        enabled: true,
+        scriptMode: 'byok_ai',
+        outputMode: 'playlist',
+        mc: {
+          id: 'mc-1',
+          provider: 'openai',
+          name: 'Podcast MC',
+          model: 'gpt-5',
+        },
+        mcVoice: {
+          voiceId: 'voice-host',
+          voiceName: 'Host Voice',
+        },
+      },
+    };
+
+    mockStreamingService.streamResponse.mockImplementation(async (_config, _onChunk, onComplete) => {
+      onComplete?.('Opening argument delivered.');
+    });
+
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    await orchestrator.initializeDebate('AI ethics', participants, {}, {
+      formatId: 'lincoln_douglas',
+      rounds: 3,
+      voiceConfig,
+    });
+    await orchestrator.startDebate([]);
+
+    const streamConfig = mockStreamingService.streamResponse.mock.calls[0][0] as { conversationHistory: Message[] };
+    expect(streamConfig.conversationHistory).toEqual([]);
+
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
   it('keeps pre-vote MC interstitials neutral when generated podcast copy judges a side', async () => {
     jest.useFakeTimers();
     const aiService = {
