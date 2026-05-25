@@ -154,6 +154,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   const debaterSlotCounterRef = useRef(0);
   const currentScrollYRef = useRef(0);
   const selectionReturnScrollYRef = useRef<number | null>(null);
+  const handledResetKeyRef = useRef<string | null>(null);
   const { rs } = useResponsive();
   const greeting = useGreeting({ screenCategory: 'debate' });
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
@@ -519,6 +520,12 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     if (!params) return;
 
     if (params.resetDebateSetup) {
+      const resetKey = params.resetKey ?? 'unkeyed-reset';
+      if (handledResetKeyRef.current === resetKey) {
+        return;
+      }
+      handledResetKeyRef.current = resetKey;
+
       setCurrentStep('topic');
       setDebaterSlots(Array.from({ length: DEFAULT_DEBATER_SLOT_COUNT }, () => null));
       setSelectedTopic('');

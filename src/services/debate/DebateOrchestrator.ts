@@ -218,6 +218,19 @@ export class DebateOrchestrator {
     this.currentMessages = [...this.currentMessages, message];
   }
 
+  private async addPodcastIntroInterstitial(): Promise<void> {
+    if (!this.session) return;
+
+    const introAlreadyExists = this.currentMessages.some((message) => (
+      message.metadata?.debateInterstitial?.kind === 'intro'
+    ));
+    if (introAlreadyExists) return;
+
+    await this.addDebateInterstitial('intro', {
+      nextMessageSpec: this.session.preset.messages[0],
+    });
+  }
+
   private getRequiredParticipantCount(preset: PresetConfig): number {
     return (preset.teamSize || 1) * 2;
   }
@@ -570,14 +583,12 @@ export class DebateOrchestrator {
     // Store the initial messages
     this.currentMessages = [...existingMessages];
 
-    await this.addDebateInterstitial('intro', {
-      nextMessageSpec: this.session.preset.messages[0],
-    });
-
     if (this.votingService?.isAudienceStanceVoteModel() && !this.votingService.hasAudienceVote('initial')) {
       this.showAudienceStanceVoting('initial');
       return;
     }
+
+    await this.addPodcastIntroInterstitial();
     
     await this.executeDebateMessage(0, this.currentMessages);
   }
@@ -1577,6 +1588,7 @@ export class DebateOrchestrator {
 
     if (stage === 'initial') {
       this.updateSessionStatus(DebateStatus.ACTIVE);
+      await this.addPodcastIntroInterstitial();
       this.emitTypingStartedForMessage(0);
       this.scheduleNextMessage(0, this.currentMessages, DEBATE_CONSTANTS.DELAYS.VOTING_CONTINUATION);
       return;

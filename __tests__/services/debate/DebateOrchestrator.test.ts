@@ -347,7 +347,7 @@ describe('DebateOrchestrator', () => {
     jest.useRealTimers();
   });
 
-  it('emits a podcast intro interstitial before the opening audience stance', async () => {
+  it('emits a podcast intro interstitial after the opening audience stance', async () => {
     jest.useFakeTimers();
     const aiService = {
       getAdapter: jest.fn(),
@@ -384,8 +384,33 @@ describe('DebateOrchestrator', () => {
     });
     await orchestrator.startDebate([]);
 
-    const introMessage = events[1].data.message as Message;
-    expect(events[1].type).toBe('message_added');
+    expect(aiService.sendMessage).not.toHaveBeenCalled();
+    expect(events.some((event) => (
+      event.type === 'message_added' &&
+      Boolean((event.data.message as Message | undefined)?.metadata?.debateInterstitial?.kind === 'intro')
+    ))).toBe(false);
+    expect(events[1]).toEqual(expect.objectContaining({
+      type: 'voting_started',
+      data: expect.objectContaining({
+        voteKind: 'audience_stance',
+        audienceVoteStage: 'initial',
+      }),
+    }));
+
+    await orchestrator.recordVote(0, 'undecided');
+
+    const voteCompletedIndex = events.findIndex((event) => (
+      event.type === 'voting_completed' &&
+      event.data.audienceVoteStage === 'initial'
+    ));
+    const introIndex = events.findIndex((event) => (
+      event.type === 'message_added' &&
+      (event.data.message as Message | undefined)?.metadata?.debateInterstitial?.kind === 'intro'
+    ));
+    expect(voteCompletedIndex).toBeGreaterThan(-1);
+    expect(introIndex).toBeGreaterThan(voteCompletedIndex);
+
+    const introMessage = events[introIndex].data.message as Message;
     expect(introMessage.content).toBe("Welcome to tonight's debate.");
     expect(introMessage.metadata?.debateInterstitial).toMatchObject({
       kind: 'intro',
@@ -393,11 +418,11 @@ describe('DebateOrchestrator', () => {
       generatedByModel: 'gpt-5',
       usedTemplateFallback: false,
     });
-    expect(events[2]).toEqual(expect.objectContaining({
-      type: 'voting_started',
+    expect(events[introIndex + 1]).toEqual(expect.objectContaining({
+      type: 'typing_started',
       data: expect.objectContaining({
-        voteKind: 'audience_stance',
-        audienceVoteStage: 'initial',
+        messageIndex: 0,
+        messageLabel: 'Affirmative Opening Statement',
       }),
     }));
 
@@ -503,6 +528,9 @@ describe('DebateOrchestrator', () => {
       voiceConfig,
     });
     await orchestrator.startDebate([]);
+    expect(mcMessages).toHaveLength(0);
+
+    await orchestrator.recordVote(0, 'undecided');
 
     expect(mcMessages[0].metadata?.debateInterstitial).toMatchObject({
       kind: 'intro',

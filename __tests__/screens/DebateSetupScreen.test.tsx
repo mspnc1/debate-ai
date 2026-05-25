@@ -915,6 +915,29 @@ describe('DebateSetupScreen', () => {
     expect(mockDispatch).toHaveBeenCalledWith(clearPreservedTopic());
   });
 
+  it('keeps Oxford preset changes after returning from a completed debate', async () => {
+    const { renderResult } = renderScreen({
+      featureAccess: { isDemo: false },
+      route: {
+        resetDebateSetup: true,
+        resetKey: 'reset-1',
+      },
+    });
+
+    await flush();
+
+    fireEvent.press(renderResult.getByText('2v2'));
+    await flush();
+
+    expect(renderResult.getByText('6 speeches · opening + final audience vote · 2v2 teams · audience vote')).toBeTruthy();
+
+    fireEvent.press(renderResult.getByText('2v2 + Q&A'));
+    await flush();
+
+    expect(renderResult.getByText('8 turns · opening + audience questions + final vote · 2v2 teams')).toBeTruthy();
+    expect(renderResult.getByText('Audience questions')).toBeTruthy();
+  });
+
   it('preserves topic on unmount and clears when starting debate', async () => {
     const firstRender = renderScreen({
       featureAccess: { isDemo: false },
