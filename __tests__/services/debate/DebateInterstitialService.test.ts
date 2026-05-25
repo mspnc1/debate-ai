@@ -186,6 +186,32 @@ describe('DebateInterstitialService', () => {
     expect(prompt).toContain('Do not make specific current claims, cite dates, quote statistics, or name recent events');
   });
 
+  it('does not expose internal cue keys in final-vote MC prompts', async () => {
+    const aiService = {
+      sendMessage: jest.fn().mockResolvedValue({
+        response: 'We pause now for the final audience vote, with the full debate in view.',
+        modelUsed: 'gpt-5',
+      }),
+    };
+
+    await createDebateInterstitialMessage({
+      aiService: aiService as unknown as AIService,
+      session: createSession(),
+      kind: 'vote_segue',
+      completedMessageSpec: { label: 'Closing', phase: 'closing', speaker: 'neg' },
+      votingLabel: 'Final Audience Vote',
+      now: () => 2351,
+    });
+
+    const prompt = aiService.sendMessage.mock.calls[0][1] as string;
+    expect(prompt).toContain('Host beat: voting setup.');
+    expect(prompt).toContain('Return only the exact words the host should say aloud.');
+    expect(prompt).toContain('Voting cue: Final Audience Vote.');
+    expect(prompt).not.toContain('Cue: vote_segue');
+    expect(prompt).not.toContain('vote_segue');
+    expect(prompt).not.toContain('Vote Segue');
+  });
+
   it('enables live web search only for supported MC models and stores returned citations', async () => {
     const adapter = { config: { webSearchEnabled: false } };
     const citations = [{ index: 1, url: 'https://example.com/context', title: 'Context source' }];
@@ -396,6 +422,31 @@ describe('DebateInterstitialService', () => {
     expect(message?.content).toContain('That concludes opening speeches.');
     expect(message?.metadata?.debateInterstitial).toMatchObject({
       kind: 'phase_segue',
+      usedTemplateFallback: true,
+    });
+  });
+
+  it('does not let internal vote cue labels leak into spoken MC copy', async () => {
+    const aiService = {
+      sendMessage: jest.fn().mockResolvedValue({
+        response: 'Vote Segue',
+        modelUsed: 'gpt-5',
+      }),
+    };
+
+    const message = await createDebateInterstitialMessage({
+      aiService: aiService as unknown as AIService,
+      session: createSession(),
+      kind: 'vote_segue',
+      completedMessageSpec: { label: 'Closing', phase: 'closing', speaker: 'neg' },
+      votingLabel: 'Final Audience Vote',
+      now: () => 457,
+    });
+
+    expect(message?.content).toContain('Final Audience Vote');
+    expect(message?.content).not.toMatch(/vote\s*segue/i);
+    expect(message?.metadata?.debateInterstitial).toMatchObject({
+      kind: 'vote_segue',
       usedTemplateFallback: true,
     });
   });

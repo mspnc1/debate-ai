@@ -9,6 +9,8 @@ const MC_TEMPERATURE = 0.62;
 const MC_INTRO_OPENING_LINE = 'Welcome to the Symposium AI Debate Arena: where ideas converge, and understanding emerges.';
 const THIRD_PARTY_DEBATE_BRAND_PATTERN = new RegExp(['Intelligence', 'Squared'].join('[-\\s]+'), 'i');
 const PREMATURE_JUDGMENT_PATTERN = /\b(?:already\s+winning|winning\s+this|clearly\s+(?:ahead|stronger|superior|right|wrong)|more\s+(?:persuasive|factual|credible|convincing)|has\s+the\s+edge|takes?\s+the\s+lead|dominates?|prevails?|the\s+(?:right|wrong)\s+side)\b/i;
+const INTERNAL_CUE_PREFIX_PATTERN = /^(?:cue|beat|label)?\s*:?\s*(?:vote[_\s-]*segue|phase[_\s-]*segue|mc\s+(?:voting\s+cue|segue|introduction|winner\s+announcement))\s*[:.-]?\s*/i;
+const INTERNAL_CUE_LEAK_PATTERN = /\b(?:vote[_\s-]*segue|phase[_\s-]*segue|mc\s+(?:voting\s+cue|segue|introduction|winner\s+announcement))\b/i;
 const RECENT_MC_LIMIT = 3;
 
 const PHASE_LABELS: Record<PhaseId, string> = {
@@ -164,9 +166,19 @@ function cleanGeneratedScript(text: string): string {
     .replace(/^["'\s]+|["'\s]+$/g, '')
     .replace(/\s+/g, ' ')
     .trim()
+    .replace(INTERNAL_CUE_PREFIX_PATTERN, '')
+    .trim()
     .slice(0, 700);
 
-  return THIRD_PARTY_DEBATE_BRAND_PATTERN.test(cleaned) ? '' : cleaned;
+  if (
+    !cleaned ||
+    THIRD_PARTY_DEBATE_BRAND_PATTERN.test(cleaned) ||
+    INTERNAL_CUE_LEAK_PATTERN.test(cleaned)
+  ) {
+    return '';
+  }
+
+  return cleaned;
 }
 
 function getMcParameters(kind: DebateInterstitialKind): Partial<ModelParameters> {
@@ -355,12 +367,20 @@ function buildPrompt(input: Omit<CreateDebateInterstitialInput, 'aiService' | 'n
     vote_segue: 'Voting beat: invite careful evaluation of burdens, clarity, and persuasion without telling the audience how to vote.',
     winner: 'Winner beat: report the recorded result plainly and add only a concise closing reflection grounded in the provided result.',
   };
+  const hostBeatMap: Record<DebateInterstitialKind, string> = {
+    intro: 'opening introduction',
+    phase_segue: 'phase transition',
+    audience_question: 'audience question setup',
+    vote_segue: 'voting setup',
+    winner: 'result announcement',
+  };
 
   return [
     'Write one concise podcast host interstitial for an AI debate.',
     'Host voice: neutral public radio host; polished, vivid, grounded, and not comedic.',
     'Use stakes framing, not argument framing: explain why people care, not which side is correct.',
-    'Style: no markdown, no stage directions, one paragraph.',
+    'Style: no markdown, no stage directions, no headings, no labels, one paragraph.',
+    'Return only the exact words the host should say aloud.',
     kind === 'intro' || kind === 'phase_segue' ? 'Length: 2-4 sentences.' : 'Length: 1-2 sentences.',
     'Do not reference third-party debate brands or programs.',
     'Neutrality rule: do not say either side is stronger, more persuasive, more factual, ahead, winning, right, or wrong unless a vote/result has occurred.',
@@ -370,7 +390,7 @@ function buildPrompt(input: Omit<CreateDebateInterstitialInput, 'aiService' | 'n
     beatInstructionMap[kind],
     kind === 'audience_question' ? 'Audience Q&A requirement: read the submitted question aloud exactly before the answerer responds.' : undefined,
     kind === 'intro' ? `Intro opening line to preserve: ${MC_INTRO_OPENING_LINE}` : undefined,
-    `Cue: ${kind}.`,
+    `Host beat: ${hostBeatMap[kind]}.`,
     `Motion: ${session.topic}`,
     `Format: ${session.format.name} / ${session.preset.shortLabel}.`,
     `For the motion: ${proposition}.`,
