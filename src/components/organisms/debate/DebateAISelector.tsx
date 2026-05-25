@@ -3,7 +3,7 @@
  * Handles slot-first AI selection for debates.
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { StyleSheet, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -76,6 +76,9 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
   const { theme, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const [activeModelKey, setActiveModelKey] = useState<string | null>(null);
+  const rootYRef = useRef(0);
+  const topStackYRef = useRef(0);
+  const teamMapYRef = useRef(0);
   const isCompactLayout = width < 620;
 
   const nextButtonTitle = isPremium ? 'Next: Set the Tone ->' : 'Start Debate';
@@ -219,6 +222,10 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
   const toggleModelEditor = (key: string) => {
     setActiveModelKey(current => current === key ? null : key);
   };
+
+  const reportTeamGridLayout = useCallback(() => {
+    onTeamGridLayout?.(rootYRef.current + topStackYRef.current + teamMapYRef.current);
+  }, [onTeamGridLayout]);
 
   const renderSlotAction = (
     label: string,
@@ -516,7 +523,14 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
   };
 
   return (
-    <Animated.View entering={FadeIn}>
+    <Animated.View
+      entering={FadeIn}
+      testID="debate-ai-selector-root"
+      onLayout={(event) => {
+        rootYRef.current = event.nativeEvent.layout.y;
+        reportTeamGridLayout();
+      }}
+    >
       <TouchableOpacity
         onPress={onBack}
         style={{
@@ -530,7 +544,11 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
       </TouchableOpacity>
 
       <View
-        onLayout={(event) => onTeamGridLayout?.(event.nativeEvent.layout.y)}
+        testID="debate-ai-selector-top-stack"
+        onLayout={(event) => {
+          topStackYRef.current = event.nativeEvent.layout.y;
+          reportTeamGridLayout();
+        }}
         style={styles.topStack}
       >
         <Box
@@ -627,6 +645,11 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
         </Box>
 
         <Box
+          testID="debate-team-grid"
+          onLayout={(event) => {
+            teamMapYRef.current = event.nativeEvent.layout.y;
+            reportTeamGridLayout();
+          }}
           style={[
             styles.teamMap,
             {

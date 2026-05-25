@@ -136,6 +136,8 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   const dispatch = useDispatch();
   const scrollViewRef = useRef<ScrollView>(null);
   const debaterSlotCounterRef = useRef(0);
+  const currentScrollYRef = useRef(0);
+  const selectionReturnScrollYRef = useRef<number | null>(null);
   const { rs } = useResponsive();
   const greeting = useGreeting({ screenCategory: 'debate' });
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
@@ -545,6 +547,16 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     scrollViewRef.current?.scrollTo({ y: Math.max(providerSelectorYRef.current - 16, 0), animated: true });
   }, []);
 
+  const scrollToSelectionReturnPoint = useCallback((fallback: () => void) => {
+    const returnY = selectionReturnScrollYRef.current;
+    selectionReturnScrollYRef.current = null;
+    if (returnY === null) {
+      fallback();
+      return;
+    }
+    scrollViewRef.current?.scrollTo({ y: Math.max(returnY, 0), animated: true });
+  }, []);
+
   const buildSlotAI = useCallback((ai: AIConfig): AIConfig => {
     const slotId = createDebateSlotId(ai.provider, debaterSlotCounterRef.current++);
     const selectedModel = selectedModels[ai.id] || selectedModels[ai.provider] || ai.model;
@@ -574,11 +586,13 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   }, [dispatch]);
 
   const handleRequestDebaterSlot = useCallback((index: number) => {
+    selectionReturnScrollYRef.current = currentScrollYRef.current;
     setPendingSelectionTarget({ kind: 'debater', index });
     setTimeout(scrollToProviderSelector, 50);
   }, [scrollToProviderSelector]);
 
   const handleRequestPodcastMC = useCallback(() => {
+    selectionReturnScrollYRef.current = currentScrollYRef.current;
     setPendingSelectionTarget({ kind: 'mc' });
     setTimeout(scrollToProviderSelector, 50);
   }, [scrollToProviderSelector]);
@@ -611,7 +625,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     }
 
     setPendingSelectionTarget(null);
-    setTimeout(scrollToTeamGrid, 75);
+    setTimeout(() => scrollToSelectionReturnPoint(scrollToTeamGrid), 75);
   }, [
     buildSlotAI,
     clearSlotState,
@@ -620,6 +634,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     maxAIs,
     pendingSelectionTarget,
     podcastMC?.id,
+    scrollToSelectionReturnPoint,
     scrollToTeamGrid,
     selectedModels,
   ]);
@@ -843,6 +858,10 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
           paddingBottom: rs('xl') * 3,
         }}
         showsVerticalScrollIndicator={false}
+        onScroll={(event) => {
+          currentScrollYRef.current = event.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
       >
         <ResponsiveContainer maxWidth="lg" center>
           {/* Step Indicator */}

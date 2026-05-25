@@ -425,6 +425,55 @@ describe('DebateSetupScreen', () => {
     jest.useRealTimers();
   });
 
+  it('returns to the Debate Teams anchor after filling a debater slot', async () => {
+    jest.useFakeTimers();
+    const scrollToSpy = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {});
+    const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
+
+    act(() => {
+      topicSelectorProps.onTopicSelect('Climate Action');
+    });
+    await flush();
+    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
+    await flush();
+
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+    scrollToSpy.mockClear();
+
+    fireEvent.scroll(renderResult.UNSAFE_getByType(ScrollView), {
+      nativeEvent: { contentOffset: { y: 820 } },
+    });
+
+    act(() => {
+      aiSelectorProps.onTeamGridLayout(640);
+      aiSelectorProps.onProviderSelectorLayout(1200);
+      aiSelectorProps.onRequestDebaterSlot(0);
+    });
+    await flush();
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+
+    expect(scrollToSpy).toHaveBeenCalledWith({ y: 1184, animated: true });
+    scrollToSpy.mockClear();
+
+    const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
+    act(() => {
+      aiSelectorProps.onSelectProvider(claudeConfig);
+    });
+    await flush();
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+
+    expect(scrollToSpy).toHaveBeenCalledWith({ y: 820, animated: true });
+
+    scrollToSpy.mockRestore();
+    jest.useRealTimers();
+  });
+
   it('adds same-provider debater slots and keeps streaming preferences provider-scoped', async () => {
     const { renderResult } = renderScreen({
       featureAccess: { isDemo: false },

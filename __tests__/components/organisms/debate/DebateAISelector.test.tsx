@@ -90,6 +90,28 @@ describe('DebateAISelector', () => {
     expect(getByText('Debate Teams')).toBeTruthy();
   });
 
+  it('reports the Debate Teams card as a cumulative team scroll anchor', () => {
+    const onTeamGridLayout = jest.fn();
+    const { getByTestId } = renderWithProviders(
+      <DebateAISelector
+        {...defaultProps}
+        onTeamGridLayout={onTeamGridLayout}
+      />
+    );
+
+    fireEvent(getByTestId('debate-ai-selector-root'), 'layout', {
+      nativeEvent: { layout: { y: 120 } },
+    });
+    fireEvent(getByTestId('debate-ai-selector-top-stack'), 'layout', {
+      nativeEvent: { layout: { y: 40 } },
+    });
+    fireEvent(getByTestId('debate-team-grid'), 'layout', {
+      nativeEvent: { layout: { y: 360 } },
+    });
+
+    expect(onTeamGridLayout).toHaveBeenLastCalledWith(520);
+  });
+
   it('provides live search card badges from effective model capability', () => {
     renderWithProviders(<DebateAISelector {...defaultProps} />);
 
