@@ -1,4 +1,5 @@
 import React from 'react';
+import { fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { DebatePersonalitySelector } from '@/components/organisms/debate/DebatePersonalitySelector';
 import type { AIConfig } from '@/types';
@@ -29,6 +30,9 @@ jest.mock('@/components/organisms/debate/PersonalityModal', () => ({
 describe('DebatePersonalitySelector', () => {
   const mockAIs: AIConfig[] = [
     { id: 'claude', provider: 'claude', name: 'Claude', apiKey: 'test', isConfigured: true },
+    { id: 'openai', provider: 'openai', name: 'ChatGPT', apiKey: 'test', isConfigured: true },
+    { id: 'mistral', provider: 'mistral', name: 'Mistral', apiKey: 'test', isConfigured: true },
+    { id: 'google', provider: 'google', name: 'Gemini', apiKey: 'test', isConfigured: true },
   ];
 
   const defaultProps = {
@@ -44,6 +48,10 @@ describe('DebatePersonalitySelector', () => {
     onChangeCivility: jest.fn(),
   };
 
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('renders personality selector', () => {
     const { getByText } = renderWithProviders(<DebatePersonalitySelector {...defaultProps} />);
     expect(getByText('Back to AI Selection')).toBeTruthy();
@@ -51,12 +59,51 @@ describe('DebatePersonalitySelector', () => {
     expect(getByText('Hostile')).toBeTruthy();
   });
 
-  it('renders a separate MC voice row in podcast mode', () => {
-    const { getByText } = renderWithProviders(
+  it('groups debaters by team and hides per-AI voice controls while Debate Voices is off', () => {
+    const onToggleVoiceEnabled = jest.fn();
+    const { getByText, queryByText } = renderWithProviders(
+      <DebatePersonalitySelector
+        {...defaultProps}
+        selectedAIs={mockAIs}
+        voiceConfigAvailable
+        voiceOptions={[{ id: 'voice-1', name: 'Voice One' } as MediaProviderVoiceOption]}
+        onToggleVoiceEnabled={onToggleVoiceEnabled}
+      />
+    );
+
+    expect(getByText('Affirmative')).toBeTruthy();
+    expect(getByText('Negative')).toBeTruthy();
+    expect(getByText('Affirmative 2')).toBeTruthy();
+    expect(getByText('Negative 2')).toBeTruthy();
+    expect(getByText('Optional debater audio. Leave it off for text-only debate content without an MC.')).toBeTruthy();
+    expect(queryByText('Voice (optional)')).toBeNull();
+    expect(queryByText('Optional, currently off')).toBeNull();
+
+    fireEvent.press(getByText('Off'));
+    expect(onToggleVoiceEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it('shows optional per-AI voice controls when Debate Voices is on', () => {
+    const { getAllByText, getByText } = renderWithProviders(
+      <DebatePersonalitySelector
+        {...defaultProps}
+        selectedAIs={mockAIs}
+        voiceConfigAvailable
+        voiceEnabled
+        voiceOptions={[{ id: 'voice-1', name: 'Voice One' } as MediaProviderVoiceOption]}
+      />
+    );
+
+    expect(getByText('Debate Voices')).toBeTruthy();
+    expect(getAllByText('Voice (optional)')).toHaveLength(mockAIs.length);
+    expect(getAllByText('Choose a voice')).toHaveLength(mockAIs.length);
+  });
+
+  it('renders a separate voice-only MC card in podcast mode', () => {
+    const { getByTestId, getByText, getAllByText } = renderWithProviders(
       <DebatePersonalitySelector
         {...defaultProps}
         voiceConfigAvailable
-        voiceEnabled
         voiceOptions={[{ id: 'voice-1', name: 'Host Voice' } as MediaProviderVoiceOption]}
         podcastModeEnabled
         podcastMC={{ id: 'mc-1', provider: 'openai', name: 'MC', model: 'gpt-5' }}
@@ -64,7 +111,11 @@ describe('DebatePersonalitySelector', () => {
       />
     );
 
+    expect(getByText('Podcast Mode requires a voice for every debater and the MC.')).toBeTruthy();
     expect(getByText('Podcast MC')).toBeTruthy();
     expect(getByText('Host Voice')).toBeTruthy();
+    expect(getByTestId('podcast-mc-voice-card')).toBeTruthy();
+    expect(getAllByText('Voice (required)')).toHaveLength(defaultProps.selectedAIs.length + 1);
+    expect(getAllByText('Personality')).toHaveLength(defaultProps.selectedAIs.length);
   });
 });

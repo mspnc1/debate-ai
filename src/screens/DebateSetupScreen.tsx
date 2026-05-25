@@ -250,6 +250,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   const [debateVoiceSelections, setDebateVoiceSelections] = useState<Record<string, DebateVoiceSelection>>({});
   const [debateVoicesLoading, setDebateVoicesLoading] = useState(false);
   const [debateVoiceError, setDebateVoiceError] = useState<string | null>(null);
+  const [debateVoicesLoadAttempted, setDebateVoicesLoadAttempted] = useState(false);
 
   const presetOptions = useMemo(() => [3, 5, 7].map((rounds) => ({
     rounds,
@@ -316,6 +317,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   const loadDebateVoices = useCallback(async () => {
     if (!hasVerifiedElevenLabs || debateVoicesLoading) return;
     try {
+      setDebateVoicesLoadAttempted(true);
       setDebateVoicesLoading(true);
       setDebateVoiceError(null);
       const key = await APIKeyService.getKey('elevenlabs');
@@ -343,12 +345,25 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
       setVoiceDebateEnabled(false);
       setDebateVoiceSelections({});
       setPodcastMCVoice(undefined);
+      setDebateVoicesLoadAttempted(false);
       return;
     }
-    if (currentStep === 'personality' && debateVoiceOptions.length === 0 && !debateVoicesLoading) {
+    if (
+      currentStep === 'personality'
+      && debateVoiceOptions.length === 0
+      && !debateVoicesLoading
+      && !debateVoicesLoadAttempted
+    ) {
       void loadDebateVoices();
     }
-  }, [currentStep, debateVoiceOptions.length, debateVoicesLoading, hasVerifiedElevenLabs, loadDebateVoices]);
+  }, [
+    currentStep,
+    debateVoiceOptions.length,
+    debateVoicesLoadAttempted,
+    debateVoicesLoading,
+    hasVerifiedElevenLabs,
+    loadDebateVoices,
+  ]);
 
   useEffect(() => {
     if (!hasVerifiedElevenLabs || debateVoiceOptions.length === 0) return;
@@ -514,6 +529,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
       setPodcastModeEnabled(false);
       setPodcastMC(null);
       setPodcastMCVoice(undefined);
+      setDebateVoicesLoadAttempted(false);
       setPendingSelectionTarget(null);
       setDebateVoiceSelections({});
       dispatch(clearPreservedTopic());
@@ -747,6 +763,11 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
       }
       if (!voiceConfig?.podcast?.mcVoice) {
         Alert.alert('Choose an MC Voice', 'Choose an ElevenLabs voice for the podcast MC before starting.');
+        return;
+      }
+      const missingDebaterVoices = aiConfigsWithModels.filter((ai) => !voiceConfig?.debaterVoices[ai.id]);
+      if (missingDebaterVoices.length > 0) {
+        Alert.alert('Choose Voices', 'Podcast Mode requires an ElevenLabs voice for each debater before starting.');
         return;
       }
     }

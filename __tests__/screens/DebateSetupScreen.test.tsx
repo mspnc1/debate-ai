@@ -802,6 +802,74 @@ describe('DebateSetupScreen', () => {
     }));
   });
 
+  it('requires every debater to have a voice when podcast mode is enabled', async () => {
+    mockListElevenLabsOptions.mockResolvedValue({
+      success: true,
+      providerId: 'elevenlabs',
+      voices: [],
+    });
+
+    const { renderResult, navigation } = renderScreen({
+      featureAccess: { isDemo: false },
+      state: {
+        settings: {
+          ...defaultState().settings,
+          apiKeys: {
+            ...defaultState().settings.apiKeys,
+            elevenlabs: { configured: true, maskedLabel: 'key', updatedAt: 1 },
+          },
+          verifiedProviders: ['elevenlabs'],
+        } as any,
+      },
+    });
+
+    act(() => {
+      topicSelectorProps.onTopicSelect('Climate Action');
+    });
+    await flush();
+    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
+    await flush();
+
+    const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
+    const openaiConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'openai');
+    const googleConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'google');
+    await selectDebaterSlot(0, claudeConfig);
+    await selectDebaterSlot(1, openaiConfig);
+
+    act(() => {
+      aiSelectorProps.onTogglePodcastMode(true);
+    });
+    await flush();
+    act(() => {
+      aiSelectorProps.onRequestPodcastMC();
+    });
+    await flush();
+    act(() => {
+      aiSelectorProps.onSelectProvider(googleConfig);
+    });
+    await flush();
+
+    await act(async () => {
+      await aiSelectorProps.onNext();
+    });
+    await flush();
+
+    act(() => {
+      personalitySelectorProps.onPodcastMCVoiceSelect({ id: 'voice-host', name: 'Host Voice' });
+    });
+    await flush();
+
+    await act(async () => {
+      await personalitySelectorProps.onStartDebate();
+    });
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Choose Voices',
+      'Podcast Mode requires an ElevenLabs voice for each debater before starting.',
+    );
+    expect(navigation.navigate).not.toHaveBeenCalledWith('Debate', expect.anything());
+  });
+
   it('shows alerts when missing selections', async () => {
     const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
 

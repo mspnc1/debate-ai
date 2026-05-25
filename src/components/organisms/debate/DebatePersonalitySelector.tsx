@@ -16,6 +16,7 @@ import { UNIVERSAL_PERSONALITIES } from '../../../config/personalities';
 import PersonalityModal from './PersonalityModal';
 
 type VoiceModalTarget = { kind: 'debater'; ai: AIConfig } | { kind: 'mc'; ai: AIConfig };
+type TeamSide = 'affirmative' | 'negative';
 
 interface DebatePersonalitySelectorProps {
   selectedTopic: string;
@@ -74,6 +75,10 @@ export const DebatePersonalitySelector: React.FC<DebatePersonalitySelectorProps>
   const [voiceModalTarget, setVoiceModalTarget] = useState<VoiceModalTarget | null>(null);
   const [voiceSearch, setVoiceSearch] = useState('');
   const voiceModalAI = voiceModalTarget?.ai || null;
+  const voicesRequired = podcastModeEnabled;
+  const showVoiceControls = voiceConfigAvailable || voicesRequired;
+  const voiceControlsActive = voicesRequired || voiceEnabled;
+  const voiceOptionsReady = voiceOptions.length > 0 && !voiceLoading && !voiceError;
 
   const normalizedVoiceSearch = voiceSearch.trim().toLowerCase();
   const filteredVoiceOptions = normalizedVoiceSearch
@@ -83,6 +88,52 @@ export const DebatePersonalitySelector: React.FC<DebatePersonalitySelectorProps>
       voice.category?.toLowerCase().includes(normalizedVoiceSearch)
     ))
     : voiceOptions;
+
+  const getSlotSide = (index: number): TeamSide => (
+    selectedAIs.length <= 2
+      ? index === 0 ? 'affirmative' : 'negative'
+      : index % 2 === 0 ? 'affirmative' : 'negative'
+  );
+
+  const getSlotLabel = (index: number): string => {
+    if (selectedAIs.length <= 2) {
+      return index === 0 ? 'Affirmative 1' : 'Negative 1';
+    }
+    return `${index % 2 === 0 ? 'Affirmative' : 'Negative'} ${Math.floor(index / 2) + 1}`;
+  };
+
+  const slots = selectedAIs.map((ai, index) => ({
+    ai,
+    index,
+    label: getSlotLabel(index),
+    side: getSlotSide(index),
+  }));
+
+  const teamGroups = [
+    {
+      id: 'affirmative' as const,
+      title: 'Affirmative',
+      subtitle: 'Argues for the motion',
+      accentColor: theme.colors.primary[500],
+      slots: slots.filter(slot => slot.side === 'affirmative'),
+    },
+    {
+      id: 'negative' as const,
+      title: 'Negative',
+      subtitle: 'Argues against the motion',
+      accentColor: theme.colors.warning[600],
+      slots: slots.filter(slot => slot.side === 'negative'),
+    },
+  ];
+
+  const openVoicePicker = (target: VoiceModalTarget) => {
+    if (!voiceControlsActive) {
+      onToggleVoiceEnabled?.(true);
+    }
+    if (!voiceOptionsReady) return;
+    setVoiceSearch('');
+    setVoiceModalTarget(target);
+  };
 
   // Topic not displayed in this step per latest requirements
 
@@ -101,7 +152,7 @@ export const DebatePersonalitySelector: React.FC<DebatePersonalitySelectorProps>
         <Typography variant="body" color="secondary">Back to AI Selection</Typography>
       </TouchableOpacity>
       
-      <SectionHeader title="Set the Tone" subtitle="Choose personality styles for the debate" icon="🎭" />
+      <SectionHeader title="Debater Styles" subtitle="Choose each AI's personality and voice in one place" icon="🎭" />
       
       {/* Debate intensity selector under headline */}
       <View style={{ marginBottom: theme.spacing.lg, padding: theme.spacing.md, backgroundColor: theme.colors.card, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border }}>
@@ -116,204 +167,246 @@ export const DebatePersonalitySelector: React.FC<DebatePersonalitySelectorProps>
         </Typography>
       </View>
       
-      {/* Personality Selection for Each AI (launch modal) */}
-      <View style={{ gap: theme.spacing.md }}>
-        {selectedAIs.map((ai) => {
-          const currentPersonality = aiPersonalities[ai.id] || 'default';
-          const personaMeta = UNIVERSAL_PERSONALITIES.find(p => p.id === currentPersonality) || UNIVERSAL_PERSONALITIES[0];
-          return (
-            <View 
-              key={ai.id}
-              style={{
-                backgroundColor: theme.colors.card,
-                borderRadius: theme.borderRadius.lg,
-                padding: theme.spacing.md,
-                borderWidth: 1,
-                borderColor: theme.colors.border,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.spacing.md }}>
-                <View style={{ marginRight: theme.spacing.md }}>
-                  <AIAvatar
-                    icon={ai.icon || ai.name.charAt(0)}
-                    iconType={ai.iconType || 'letter'}
-                    size="large"
-                    color={ai.color}
-                    isSelected={false}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Typography variant="body" weight="medium" style={{ marginBottom: 4 }}>
-                    Personality Selection
-                  </Typography>
-                  <Typography variant="caption" color="secondary">
-                    Selected: {personaMeta.emoji} {personaMeta.name}
-                  </Typography>
-                  {personaMeta.tagline && (
-                    <Typography variant="caption" color="disabled">
-                      {personaMeta.tagline}
-                    </Typography>
-                  )}
-                </View>
-              </View>
-              <TouchableOpacity
-                onPress={() => {
-                  setActiveAI(ai);
-                  setModalVisible(true);
-                }}
-                style={{
-                  alignSelf: 'flex-start',
-                  paddingHorizontal: theme.spacing.md,
-                  paddingVertical: theme.spacing.sm,
-                  borderRadius: theme.borderRadius.full,
-                  backgroundColor: theme.colors.surface,
-                  borderWidth: 1,
-                  borderColor: theme.colors.border,
-                }}
-              >
-                <Typography variant="caption" weight="medium">
-                  Choose Personality →
-                </Typography>
-              </TouchableOpacity>
+      {showVoiceControls && (
+        <View style={{ marginBottom: theme.spacing.lg, padding: theme.spacing.md, backgroundColor: theme.colors.card, borderRadius: 12, borderWidth: 1, borderColor: voicesRequired ? theme.colors.primary[400] : theme.colors.border }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: theme.spacing.md }}>
+            <View style={{ flex: 1 }}>
+              <Typography variant="subtitle" weight="semibold">
+                Debate Voices
+              </Typography>
+              <Typography variant="caption" color="secondary">
+                {voicesRequired
+                  ? 'Podcast Mode requires a voice for every debater and the MC.'
+                  : 'Optional debater audio. Leave it off for text-only debate content without an MC.'}
+              </Typography>
             </View>
-          );
-        })}
-      </View>
-
-      {voiceConfigAvailable && (
-        <View style={{ marginTop: theme.spacing.lg }}>
-          <SectionHeader title="Voiced Debate" subtitle="Use your ElevenLabs key for manual playback" icon="🗣️" />
-          <View style={{ backgroundColor: theme.colors.card, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, padding: theme.spacing.md }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: theme.spacing.md }}>
-              <View style={{ flex: 1 }}>
-                <Typography variant="body" weight="semibold">
-                  ElevenLabs voices
-                </Typography>
-                <Typography variant="caption" color="secondary">
-                  Your ElevenLabs account is billed for generated debate audio.
+            {voicesRequired ? (
+              <View style={{ paddingHorizontal: theme.spacing.sm, paddingVertical: 6, borderRadius: theme.borderRadius.full, backgroundColor: theme.colors.primary[500] }}>
+                <Typography variant="caption" weight="semibold" style={{ color: theme.colors.text.white }}>
+                  Required
                 </Typography>
               </View>
+            ) : (
               <Button
                 title={voiceEnabled ? 'On' : 'Off'}
                 onPress={() => onToggleVoiceEnabled?.(!voiceEnabled)}
                 variant={voiceEnabled ? 'primary' : 'secondary'}
                 size="small"
               />
+            )}
+          </View>
+
+          {voiceControlsActive && (
+            <View style={{ marginTop: theme.spacing.sm, gap: theme.spacing.xs }}>
+              {voiceLoading && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <ActivityIndicator size="small" color={theme.colors.primary[500]} />
+                  <Typography variant="caption" color="secondary">
+                    Loading ElevenLabs voices...
+                  </Typography>
+                </View>
+              )}
+
+              {voiceError && (
+                <View style={{ gap: theme.spacing.xs }}>
+                  <Typography variant="caption" style={{ color: theme.colors.error[600] }}>
+                    {voiceError}
+                  </Typography>
+                  <Button title="Retry voices" onPress={() => onReloadVoices?.()} variant="secondary" size="small" />
+                </View>
+              )}
+
+              {!voiceLoading && !voiceError && voiceOptions.length === 0 && (
+                <View style={{ gap: theme.spacing.xs }}>
+                  <Typography variant="caption" color="secondary">
+                    No ElevenLabs voices were available for this key.
+                  </Typography>
+                  <Button title="Reload voices" onPress={() => onReloadVoices?.()} variant="secondary" size="small" />
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+      )}
+
+      <View style={{ gap: theme.spacing.md }}>
+        {teamGroups.map((team) => (
+          <View
+            key={team.id}
+            style={{
+              backgroundColor: theme.colors.card,
+              borderRadius: theme.borderRadius.lg,
+              padding: theme.spacing.md,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+              gap: theme.spacing.md,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: theme.spacing.md }}>
+              <View style={{ flex: 1 }}>
+                <Typography variant="subtitle" weight="semibold">
+                  {team.title}
+                </Typography>
+                <Typography variant="caption" color="secondary">
+                  {team.subtitle}
+                </Typography>
+              </View>
+              <View style={{ paddingHorizontal: theme.spacing.sm, paddingVertical: 6, borderRadius: theme.borderRadius.full, backgroundColor: `${team.accentColor}22` }}>
+                <Typography variant="caption" weight="semibold" style={{ color: team.accentColor }}>
+                  {team.slots.length}
+                </Typography>
+              </View>
             </View>
 
-            {voiceEnabled && (
-              <View style={{ marginTop: theme.spacing.md, gap: theme.spacing.sm }}>
-                {voiceLoading && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <ActivityIndicator size="small" color={theme.colors.primary[500]} />
-                    <Typography variant="caption" color="secondary">
-                      Loading ElevenLabs voices...
-                    </Typography>
-                  </View>
-                )}
+            {team.slots.map((slot) => {
+              const { ai } = slot;
+              const currentPersonality = aiPersonalities[ai.id] || 'default';
+              const personaMeta = UNIVERSAL_PERSONALITIES.find(p => p.id === currentPersonality) || UNIVERSAL_PERSONALITIES[0];
+              const selectedVoice = voiceSelections[ai.id];
+              const voiceTitle = selectedVoice?.voiceName
+                || (voicesRequired ? 'Voice required' : voiceControlsActive ? 'Choose a voice' : 'Optional, currently off');
+              const voiceButtonTitle = selectedVoice
+                ? 'Change Voice'
+                : voiceControlsActive
+                  ? 'Choose Voice'
+                  : 'Enable Voice';
 
-                {voiceError && (
-                  <View style={{ gap: theme.spacing.xs }}>
-                    <Typography variant="caption" style={{ color: theme.colors.error[600] }}>
-                      {voiceError}
-                    </Typography>
-                    <Button title="Retry voices" onPress={() => onReloadVoices?.()} variant="secondary" size="small" />
-                  </View>
-                )}
-
-                {!voiceLoading && !voiceError && voiceOptions.length === 0 && (
-                  <View style={{ gap: theme.spacing.xs }}>
-                    <Typography variant="caption" color="secondary">
-                      No ElevenLabs voices were available for this key.
-                    </Typography>
-                    <Button title="Reload voices" onPress={() => onReloadVoices?.()} variant="secondary" size="small" />
-                  </View>
-                )}
-
-                {voiceOptions.length > 0 && selectedAIs.map((ai) => {
-                  const selectedVoice = voiceSelections[ai.id];
-                  return (
-                    <View
-                      key={`voice-${ai.id}`}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: theme.spacing.sm,
-                        paddingVertical: theme.spacing.sm,
-                        borderTopWidth: 1,
-                        borderTopColor: theme.colors.border,
-                      }}
-                    >
-                      <AIAvatar
-                        icon={ai.icon || ai.name.charAt(0)}
-                        iconType={ai.iconType || 'letter'}
-                        size="small"
-                        color={ai.color}
-                        isSelected={false}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <Typography variant="caption" weight="semibold">
-                          {ai.name}
-                        </Typography>
-                        <Typography variant="caption" color="secondary">
-                          {selectedVoice?.voiceName || 'Choose a voice'}
-                        </Typography>
-                      </View>
-                      <Button
-                        title="Choose"
-                        onPress={() => {
-                          setVoiceSearch('');
-                          setVoiceModalTarget({ kind: 'debater', ai });
-                        }}
-                        variant="tonal"
-                        size="small"
-                      />
-                    </View>
-                  );
-                })}
-
-                {voiceOptions.length > 0 && podcastModeEnabled && podcastMC && (
-                  <View
-                    key={`voice-mc-${podcastMC.id}`}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: theme.spacing.sm,
-                      paddingVertical: theme.spacing.sm,
-                      borderTopWidth: 1,
-                      borderTopColor: theme.colors.border,
-                    }}
-                  >
+              return (
+                <View
+                  key={ai.id}
+                  testID={`debater-style-card-${ai.id}`}
+                  style={{
+                    borderRadius: 12,
+                    padding: theme.spacing.md,
+                    borderWidth: 1,
+                    borderColor: team.accentColor,
+                    backgroundColor: theme.colors.surface,
+                    gap: theme.spacing.md,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
                     <AIAvatar
-                      icon="🎙️"
-                      size="small"
-                      color={podcastMC.color}
+                      icon={ai.icon || ai.name.charAt(0)}
+                      iconType={ai.iconType || 'letter'}
+                      size="large"
+                      color={ai.color}
                       isSelected={false}
                     />
                     <View style={{ flex: 1 }}>
-                      <Typography variant="caption" weight="semibold">
-                        Podcast MC
+                      <Typography variant="body" weight="semibold">
+                        {ai.name}
                       </Typography>
                       <Typography variant="caption" color="secondary">
-                        {podcastMCVoice?.voiceName || 'Choose a voice'}
+                        {slot.label}
                       </Typography>
                     </View>
-                    <Button
-                      title="Choose"
-                      onPress={() => {
-                        setVoiceSearch('');
-                        setVoiceModalTarget({ kind: 'mc', ai: podcastMC });
-                      }}
-                      variant="tonal"
-                      size="small"
-                    />
                   </View>
-                )}
-              </View>
-            )}
+
+                  <View style={{ gap: theme.spacing.xs }}>
+                    <Typography variant="caption" weight="semibold" color="secondary">
+                      Personality
+                    </Typography>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+                      <View style={{ flex: 1 }}>
+                        <Typography variant="body" weight="medium">
+                          {personaMeta.emoji} {personaMeta.name}
+                        </Typography>
+                        {personaMeta.tagline && (
+                          <Typography variant="caption" color="secondary" numberOfLines={2}>
+                            {personaMeta.tagline}
+                          </Typography>
+                        )}
+                      </View>
+                      <Button
+                        title="Change"
+                        onPress={() => {
+                          setActiveAI(ai);
+                          setModalVisible(true);
+                        }}
+                        variant="secondary"
+                        size="small"
+                      />
+                    </View>
+                  </View>
+
+                  {showVoiceControls && voiceControlsActive && (
+                    <View style={{ gap: theme.spacing.xs }}>
+                      <Typography variant="caption" weight="semibold" color="secondary">
+                        Voice {voicesRequired ? '(required)' : '(optional)'}
+                      </Typography>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+                        <View style={{ flex: 1 }}>
+                          <Typography variant="body" weight="medium">
+                            {voiceTitle}
+                          </Typography>
+                          <Typography variant="caption" color="secondary">
+                            {voicesRequired
+                              ? 'Required for the podcast playlist.'
+                              : 'Use only if you want generated debater audio.'}
+                          </Typography>
+                        </View>
+                        <Button
+                          title={voiceButtonTitle}
+                          onPress={() => openVoicePicker({ kind: 'debater', ai })}
+                          variant={voiceControlsActive ? 'tonal' : 'secondary'}
+                          size="small"
+                        />
+                      </View>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
           </View>
-        </View>
-      )}
+        ))}
+
+        {showVoiceControls && podcastModeEnabled && podcastMC && (
+          <View
+            testID="podcast-mc-voice-card"
+            style={{
+              backgroundColor: theme.colors.card,
+              borderRadius: theme.borderRadius.lg,
+              padding: theme.spacing.md,
+              borderWidth: 1,
+              borderColor: theme.colors.primary[400],
+              gap: theme.spacing.md,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
+              <AIAvatar
+                icon="🎙️"
+                size="large"
+                color={podcastMC.color}
+                isSelected={false}
+              />
+              <View style={{ flex: 1 }}>
+                <Typography variant="subtitle" weight="semibold">
+                  Podcast MC
+                </Typography>
+                <Typography variant="caption" color="secondary">
+                  Required host voice for intros, segues, and winner announcements.
+                </Typography>
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+              <View style={{ flex: 1 }}>
+                <Typography variant="caption" weight="semibold" color="secondary">
+                  Voice (required)
+                </Typography>
+                <Typography variant="body" weight="medium">
+                  {podcastMCVoice?.voiceName || 'Voice required'}
+                </Typography>
+              </View>
+              <Button
+                title={podcastMCVoice ? 'Change Voice' : 'Choose Voice'}
+                onPress={() => openVoicePicker({ kind: 'mc', ai: podcastMC })}
+                variant="tonal"
+                size="small"
+              />
+            </View>
+          </View>
+        )}
+      </View>
 
       {/* Modal */}
       <PersonalityModal
