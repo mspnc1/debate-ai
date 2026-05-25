@@ -16,6 +16,7 @@ import { useVideoPlayer } from 'expo-video';
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import CreateScreen from '@/screens/CreateScreen';
 import { resetBackgroundAudioPlaybackForTesting } from '@/services/audio/backgroundAudioPlayback';
+import DebateAudioCompileService from '@/services/debate/debateAudioCompileService';
 
 type MockRootState = {
   settings: {
@@ -137,6 +138,13 @@ jest.mock('@/services/APIKeyService', () => ({
   },
 }));
 
+jest.mock('@/services/debate/debateAudioCompileService', () => ({
+  __esModule: true,
+  default: {
+    compileDebateVoicePack: jest.fn(),
+  },
+}));
+
 jest.mock('@/config/create/stylePresets', () => ({
   buildEnhancedPrompt: (prompt: string) => prompt,
 }));
@@ -204,6 +212,7 @@ jest.mock('@/store/createSlice', () => {
     updateGenerationProgress: jest.fn((payload) => ({ type: 'create/updateGenerationProgress', payload })),
     completeGeneration: jest.fn(() => ({ type: 'create/completeGeneration' })),
     addToGalleryWithCleanup: jest.fn((entry) => ({ type: 'create/addToGalleryWithCleanup', payload: entry })),
+    addToMediaGalleryWithCleanup: jest.fn((entry) => ({ type: 'create/addToMediaGalleryWithCleanup', payload: entry })),
     removeFromGalleryWithCleanup: jest.fn((id) => ({ type: 'create/removeFromGalleryWithCleanup', payload: id })),
     removeFromMediaGalleryWithCleanup: jest.fn((id) => ({ type: 'create/removeFromMediaGalleryWithCleanup', payload: id })),
     persistGallery: jest.fn((gallery) => ({ type: 'create/persistGallery', payload: gallery })),
@@ -218,6 +227,7 @@ const mockedPersistImageUri = persistImageUri as jest.Mock;
 const mockedUseVideoPlayer = useVideoPlayer as jest.Mock;
 const mockedUseAudioPlayer = useAudioPlayer as jest.Mock;
 const mockedSetAudioModeAsync = setAudioModeAsync as jest.Mock;
+const mockedCompileDebateVoicePack = DebateAudioCompileService.compileDebateVoicePack as jest.Mock;
 
 type MockVideoPlayer = {
   play: jest.Mock;
@@ -629,6 +639,88 @@ describe('CreateScreen', () => {
           expect.any(Object)
         );
         expect(player.pause).not.toHaveBeenCalled();
+      });
+    });
+
+    it('compiles a voice pack into a single Gallery audio asset', async () => {
+      const createdAt = Date.now();
+      const voicePackEntry = {
+        id: 'voice_pack_compile',
+        mediaType: 'audio',
+        providerId: 'elevenlabs',
+        modelId: 'debate_podcast_playlist',
+        operation: 'debate_podcast_playlist',
+        prompt: 'Podcast playlist: Resolved: testing matters.',
+        uri: 'file:///packs/voice_pack_compile/001.mp3',
+        mimeType: 'audio/mpeg',
+        status: 'succeeded',
+        createdAt,
+        voicePack: {
+          kind: 'debate_podcast_playlist',
+          version: 1,
+          sessionId: 'debate_1',
+          topic: 'Resolved: testing matters.',
+          participants: [{ id: 'openai', name: 'ChatGPT' }],
+          clips: [
+            {
+              id: 'clip_1',
+              messageId: 'msg_1',
+              order: 0,
+              speakerId: 'openai',
+              speakerName: 'ChatGPT',
+              speechLabel: 'Opening statement',
+              textPreview: 'Opening statement.',
+              uri: 'file:///packs/voice_pack_compile/001.mp3',
+              mimeType: 'audio/mpeg',
+              fileName: '001.mp3',
+              pauseAfterMs: 900,
+            },
+          ],
+          pauseMs: 900,
+          directoryUri: 'file:///packs/voice_pack_compile/',
+          createdAt,
+        },
+      };
+      const compiledAudio = {
+        id: 'compile-job-1',
+        uri: 'file:///packs/voice_pack_compile/compiled_compile-job-1.mp3',
+        mimeType: 'audio/mpeg',
+        fileName: 'compiled_compile-job-1.mp3',
+        createdAt: createdAt + 10,
+        remoteUrl: 'https://signed.example/debate-podcast.mp3',
+        storagePath: 'debate-audio-compile/user/job/output/debate-podcast.mp3',
+        expiresAt: createdAt + 1000,
+      };
+      mockedCompileDebateVoicePack.mockResolvedValueOnce(compiledAudio);
+      mockRouteParams = { focusMediaId: voicePackEntry.id, galleryTab: 'audio' };
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          create: {
+            ...baseState.create,
+            gallery: [],
+            mediaGallery: [voicePackEntry],
+          },
+        })
+      );
+
+      const { getByLabelText } = renderWithProviders(<CreateScreen />);
+
+      fireEvent.press(getByLabelText('Compile voice pack audio'));
+
+      await waitFor(() => {
+        expect(mockedCompileDebateVoicePack).toHaveBeenCalledWith(voicePackEntry.voicePack);
+        expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({
+          type: 'create/addToMediaGalleryWithCleanup',
+          payload: expect.objectContaining({
+            id: voicePackEntry.id,
+            uri: compiledAudio.uri,
+            mimeType: compiledAudio.mimeType,
+            voicePack: expect.objectContaining({
+              compiledAudio,
+            }),
+          }),
+        }));
       });
     });
 

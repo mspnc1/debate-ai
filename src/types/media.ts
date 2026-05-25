@@ -84,6 +84,17 @@ export interface DebateVoicePackClip {
   pauseAfterMs: number;
 }
 
+export interface DebateVoicePackCompiledAudio {
+  id: string;
+  uri: string;
+  mimeType: string;
+  fileName: string;
+  createdAt: number;
+  remoteUrl?: string;
+  storagePath?: string;
+  expiresAt?: number;
+}
+
 export interface DebateVoicePackManifest {
   kind: 'debate_voice_pack' | 'debate_podcast_playlist';
   version: 1;
@@ -92,6 +103,7 @@ export interface DebateVoicePackManifest {
   participants: DebateVoicePackParticipant[];
   clips: DebateVoicePackClip[];
   pauseMs: number;
+  compiledAudio?: DebateVoicePackCompiledAudio;
   directoryUri?: string;
   createdAt: number;
 }

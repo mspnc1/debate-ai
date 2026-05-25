@@ -30,6 +30,10 @@ export {
   getMediaTaskStatus,
   listMediaProviderOptions,
 } from './mediaProxy';
+export {
+  createDebateAudioCompileSession,
+  compileDebateAudioPack,
+} from './debateAudioCompile';
 
 // Tool Execution (all server tools route through executeTool)
 export { executeTool } from './tools';

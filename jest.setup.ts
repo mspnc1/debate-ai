@@ -124,9 +124,11 @@ jest.mock('expo-file-system/legacy', () => ({
   makeDirectoryAsync: jest.fn().mockResolvedValue(undefined),
   deleteAsync: jest.fn().mockResolvedValue(undefined),
   downloadAsync: jest.fn(async (_from: string, to: string) => ({ uri: to, status: 200 })),
+  uploadAsync: jest.fn().mockResolvedValue({ status: 200, body: '', headers: {} }),
   documentDirectory: '/tmp',
   cacheDirectory: '/tmp/',
   EncodingType: { Base64: 'base64' },
+  FileSystemUploadType: { BINARY_CONTENT: 0, MULTIPART: 1 },
 }));
 
 jest.mock('expo-image-manipulator', () => ({
