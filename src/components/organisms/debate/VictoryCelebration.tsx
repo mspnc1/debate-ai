@@ -15,7 +15,6 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Typography } from '../../molecules';
 import { useTheme } from '../../../theme';
@@ -66,7 +65,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
   participants,
   messages,
 }) => {
-  const { theme, isDark } = useTheme();
+  const { theme } = useTheme();
   const [showShareCard, setShowShareCard] = useState(false);
   const trophyScale = useSharedValue(0);
   const trophyRotation = useSharedValue(0);
@@ -146,25 +145,11 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
     }) || [];
 
     return (
-      <View style={StyleSheet.absoluteFillObject}>
-        <BlurView intensity={90} style={styles.backdrop}>
-          <LinearGradient
-            colors={isDark
-              ? [theme.colors.overlays.backdrop, theme.colors.overlays.backdropDark]
-              : [theme.colors.overlays.backdrop, theme.colors.overlays.backdropDark]
-            }
-            style={styles.gradientBackdrop}
-          >
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{
-                flexGrow: 1,
-                justifyContent: 'flex-start',
-                alignItems: 'center',
-                paddingVertical: 24,
-                paddingHorizontal: 16,
-              }}
-            >
+      <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
               <Animated.View entering={ZoomIn.springify()} style={dynamicCardStyles}>
                 <Animated.View style={[styles.trophyContainer, trophyStyle]}>
                   <Ionicons name="podium" size={64} color={winnerColors[500]} />
@@ -284,9 +269,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                   </View>
                 </Animated.View>
               </Animated.View>
-            </ScrollView>
-          </LinearGradient>
-        </BlurView>
+        </ScrollView>
 
         <ShareModal
           visible={showShareCard}
@@ -324,25 +307,11 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
   }
   
   return (
-    <View style={StyleSheet.absoluteFillObject}>
-      <BlurView intensity={90} style={styles.backdrop}>
-        <LinearGradient
-          colors={isDark 
-            ? [theme.colors.overlays.backdrop, theme.colors.overlays.backdropDark]
-            : [theme.colors.overlays.backdrop, theme.colors.overlays.backdropDark]
-          }
-          style={styles.gradientBackdrop}
-        >
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{
-              flexGrow: 1,
-              justifyContent: 'flex-start',
-              alignItems: 'center',
-              paddingVertical: 24,
-              paddingHorizontal: 16,
-            }}
-          >
+    <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
             <Animated.View entering={ZoomIn.springify()} style={dynamicCardStyles}>
               <Animated.View style={[styles.trophyContainer, trophyStyle]}>
                 <Ionicons name="trophy" size={64} color={winnerColors[500]} />
@@ -516,9 +485,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                 </View>
               </Animated.View>
             </Animated.View>
-          </ScrollView>
-        </LinearGradient>
-      </BlurView>
+      </ScrollView>
       
       {/* Share Modal */}
       <ShareModal
@@ -637,13 +604,15 @@ const VictoryActionButton: React.FC<VictoryActionButtonProps> = ({
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
+  screen: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  gradientBackdrop: {
-    flex: 1,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
   },
   card: {
     borderRadius: 20,

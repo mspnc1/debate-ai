@@ -57,6 +57,7 @@ export const DebateVoicePackModal: React.FC<DebateVoicePackModalProps> = ({
   const readyCount = candidates.filter((candidate) => candidate.status === 'ready').length;
   const selectedCount = selectedIds.length;
   const canSave = selectedCount > 0 && !isSaving;
+  const topSystemInset = Math.max(insets.top, Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0);
   const bottomSystemInset = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 0);
 
   if (!visible) return null;
@@ -75,7 +76,13 @@ export const DebateVoicePackModal: React.FC<DebateVoicePackModalProps> = ({
           barStyle={isDark ? 'light-content' : 'dark-content'}
           backgroundColor={theme.colors.background}
         />
-        <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+        <View style={[
+          styles.header,
+          {
+            borderBottomColor: theme.colors.border,
+            paddingTop: 12 + topSystemInset,
+          },
+        ]}>
           <View style={styles.headerText}>
             <Typography variant="subtitle" weight="semibold">
               Generate Podcast File

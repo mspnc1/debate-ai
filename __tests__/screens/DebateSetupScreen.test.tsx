@@ -402,6 +402,29 @@ describe('DebateSetupScreen', () => {
     expect(stepIndicatorProps.currentStep).toBe('ai');
   });
 
+  it('resets scroll position when moving from topic to debater setup', async () => {
+    jest.useFakeTimers();
+    const scrollToSpy = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {});
+    const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
+
+    act(() => {
+      topicSelectorProps.onTopicSelect('Climate Action');
+    });
+    await flush();
+    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
+    await flush();
+
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+
+    expect(stepIndicatorProps.currentStep).toBe('ai');
+    expect(scrollToSpy).toHaveBeenCalledWith({ y: 0, animated: false });
+
+    scrollToSpy.mockRestore();
+    jest.useRealTimers();
+  });
+
   it('adds same-provider debater slots and keeps streaming preferences provider-scoped', async () => {
     const { renderResult } = renderScreen({
       featureAccess: { isDemo: false },

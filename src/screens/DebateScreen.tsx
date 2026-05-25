@@ -88,6 +88,13 @@ interface DebateScreenProps {
   };
 }
 
+const GALLERY_NAVIGATION_DELAY_MS = 450;
+
+function areStringArraysEqual(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) return false;
+  return left.every((value, index) => value === right[index]);
+}
+
 const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   const { theme } = useTheme();
   const dispatch = useDispatch<AppDispatch>();
@@ -140,9 +147,25 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
       return;
     }
 
-    setVoicePackSelectedIds(readyVoicePackIds);
+    setVoicePackSelectedIds((current) => (
+      areStringArraysEqual(current, readyVoicePackIds) ? current : readyVoicePackIds
+    ));
     setVoicePackModalVisible(true);
   }, [readyVoicePackIds, voicePackCandidates.length]);
+
+  const handleSelectAllReadyVoicePackClips = useCallback(() => {
+    setVoicePackSelectedIds((current) => (
+      areStringArraysEqual(current, readyVoicePackIds) ? current : readyVoicePackIds
+    ));
+  }, [readyVoicePackIds]);
+
+  const handleClearVoicePackSelection = useCallback(() => {
+    setVoicePackSelectedIds((current) => (current.length === 0 ? current : []));
+  }, []);
+
+  const handleCloseVoicePackModal = useCallback(() => {
+    setVoicePackModalVisible(false);
+  }, []);
 
   const handleToggleVoicePackClip = useCallback((id: string) => {
     setVoicePackSelectedIds((current) => (
@@ -158,7 +181,10 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
 
   useEffect(() => {
     if (!voicePackModalVisible) return;
-    setVoicePackSelectedIds((current) => current.filter((id) => readyVoicePackIds.includes(id)));
+    setVoicePackSelectedIds((current) => {
+      const nextSelectedIds = current.filter((id) => readyVoicePackIds.includes(id));
+      return areStringArraysEqual(current, nextSelectedIds) ? current : nextSelectedIds;
+    });
   }, [readyVoicePackIds, voicePackModalVisible]);
 
   useEffect(() => {
@@ -170,7 +196,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         galleryTab: 'audio',
       });
       setPendingGalleryFocusMediaId(null);
-    }, 50);
+    }, GALLERY_NAVIGATION_DELAY_MS);
 
     return () => {
       clearTimeout(navigationTimer);
@@ -853,7 +879,8 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     : 0;
   const activeTimelineMessage = timelineMessages[activeTimelineIndex];
   const debatePresetLabel = `${activeFormatName} · ${activePreset.shortLabel || activePreset.label}`;
-  const showDebateSessionHeader = flow.isDebateActive || flow.isDebateEnded;
+  const showDebateSessionHeader = (flow.isDebateActive || flow.isDebateEnded) && !isShowingVictory;
+  const showStandardHeader = !isShowingVictory;
   const headerTimelineMessages = isShowingVictory ? [] : timelineMessages;
   const headerCurrentMessageIndex = isShowingVictory && timelineMessages.length > 0
     ? timelineMessages.length - 1
@@ -925,7 +952,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     <SafeAreaView style={{
       flex: 1,
       backgroundColor: theme.colors.background,
-    }} edges={['left', 'right', 'bottom']}>
+    }} edges={isShowingVictory ? ['top', 'left', 'right', 'bottom'] : ['left', 'right', 'bottom']}>
       {showDebateSessionHeader ? (
         <DebateSessionHeader
           topic={displayedTopic}
@@ -941,7 +968,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
           recordAction={recordAction}
           showDemoBadge={isDemo}
         />
-      ) : (
+      ) : showStandardHeader ? (
         <Header
           variant="gradient"
           title={displayedTopic.startsWith('Motion:') ? displayedTopic : `Motion: ${displayedTopic}`}
@@ -955,7 +982,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
           actionButton={recordAction}
           showDemoBadge={isDemo}
         />
-      )}
+      ) : null}
       
       {/* Topic moved into header */}
       
@@ -999,10 +1026,10 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         isSaving={isSavingVoicePack}
         canRetryAudio={debateVoice.canRetryAudio}
         onToggleClip={handleToggleVoicePackClip}
-        onSelectAllReady={() => setVoicePackSelectedIds(readyVoicePackIds)}
-        onClearSelection={() => setVoicePackSelectedIds([])}
+        onSelectAllReady={handleSelectAllReadyVoicePackClips}
+        onClearSelection={handleClearVoicePackSelection}
         onRetryClip={handleRetryVoicePackClip}
-        onClose={() => setVoicePackModalVisible(false)}
+        onClose={handleCloseVoicePackModal}
         onSave={handleGeneratePodcastFile}
       />
       

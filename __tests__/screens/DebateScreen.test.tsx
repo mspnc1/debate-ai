@@ -619,10 +619,7 @@ describe('DebateScreen', () => {
     await flushMicrotasks();
 
     expect(mockVictoryProps).toBeDefined();
-    expect(mockDebateSessionHeaderProps).toBeDefined();
-    expect(mockDebateSessionHeaderProps?.currentTurnLabel).toBe('Debate complete');
-    expect(mockDebateSessionHeaderProps?.activeSideLabel).toBe('Claude won');
-    expect(mockDebateSessionHeaderProps?.timelineMessages).toHaveLength(0);
+    expect(mockDebateSessionHeaderProps).toBeUndefined();
     expect(mockHeaderProps).toBeUndefined();
 
     act(() => {
@@ -632,7 +629,7 @@ describe('DebateScreen', () => {
     expect(mockTranscriptModalProps.visible).toBe(true);
   });
 
-  it('uses the debate session header for Oxford audience decision victory', async () => {
+  it('hides debate headers for Oxford audience decision victory', async () => {
     const preset = getPresetForFormat('oxford', 'short');
 
     renderScreen({
@@ -662,11 +659,7 @@ describe('DebateScreen', () => {
     await flushMicrotasks();
 
     expect(mockVictoryProps).toBeDefined();
-    expect(mockDebateSessionHeaderProps).toBeDefined();
-    expect(mockDebateSessionHeaderProps?.currentTurnLabel).toBe('Audience decision');
-    expect(mockDebateSessionHeaderProps?.activeSideLabel).toBe('Opposition won');
-    expect(mockDebateSessionHeaderProps?.timelineMessages).toHaveLength(0);
-    expect(mockDebateSessionHeaderProps?.topic).toBe('Pineapple on pizza is acceptable.');
+    expect(mockDebateSessionHeaderProps).toBeUndefined();
     expect(mockHeaderProps).toBeUndefined();
   });
 
@@ -765,6 +758,71 @@ describe('DebateScreen', () => {
         focusMediaId: store.getState().create.mediaGallery[0].id,
         galleryTab: 'audio',
       });
+    });
+  });
+
+  it('keeps the podcast modal stable when debate messages are rebuilt during render', async () => {
+    const voicedMessage: Message = {
+      id: 'msg_1_openai',
+      sender: 'Claude (Default)',
+      senderType: 'ai',
+      content: 'Opening statement.',
+      timestamp: 1,
+      attachments: [{ type: 'audio', uri: 'file:///debate/msg_1.mp3', mimeType: 'audio/mpeg' }],
+      metadata: {
+        providerId: 'left',
+        debateSpeech: { speaker: 'aff', label: 'Opening statement' },
+        debateAudio: {
+          status: 'ready',
+          voiceId: 'voice-1',
+          voiceName: 'Aria',
+          uri: 'file:///debate/msg_1.mp3',
+          mimeType: 'audio/mpeg',
+        },
+      },
+    };
+
+    const { renderResult } = renderScreen({
+      flow: { isDebateEnded: true },
+      messages: { messages: [voicedMessage] },
+      session: { isInitialized: true, session: { id: 'debate_1', topic: 'Resolved: podcasts matter.' }, orchestrator: {} },
+      voting: {
+        scores: {
+          left: { name: 'Claude', roundWins: 1, roundsWon: [1], isOverallWinner: true },
+        },
+        isOverallVote: true,
+        isVoting: false,
+      },
+      routeParams: {
+        topic: 'Resolved: podcasts matter.',
+        formatId: 'policy',
+        voiceConfig: {
+          enabled: true,
+          providerId: 'elevenlabs',
+          debaterVoices: {
+            left: { voiceId: 'voice-1', voiceName: 'Aria' },
+          },
+        },
+      },
+    });
+
+    mockUseDebateMessages.mockImplementation(() => createMessagesState({
+      messages: [{
+        ...voicedMessage,
+        attachments: [...(voicedMessage.attachments || [])],
+        metadata: { ...voicedMessage.metadata },
+      }],
+    }));
+
+    await flushMicrotasks();
+
+    act(() => {
+      mockVictoryProps.onSaveVoicePack();
+    });
+
+    await waitFor(() => {
+      expect(renderResult.getAllByText('Generate Podcast File').length).toBeGreaterThan(0);
+      expect(renderResult.getByText('1 selected • 1 ready')).toBeTruthy();
     });
   });
 

@@ -83,6 +83,7 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
   const allDebaterSlotsFilled = requiredSlots.length === maxAIs && requiredSlots.every(Boolean);
   const filledDebaterCount = requiredSlots.filter(Boolean).length;
   const isNextEnabled = allDebaterSlotsFilled && (!podcastModeEnabled || Boolean(podcastMC));
+  const providerSelectorDisabled = allDebaterSlotsFilled && !pendingSelectionTarget;
 
   const getEffectiveModelId = useCallback((ai: AIConfig): string => (
     resolveProviderModelId(ai.provider, selectedModels[ai.id] || selectedModels[ai.provider] || ai.model)
@@ -182,6 +183,9 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
     })).filter(slot => slot.side === side);
 
   const providerSubtitle = useMemo(() => {
+    if (providerSelectorDisabled) {
+      return 'All debater slots are filled. Tap Change on a slot to replace a debater.';
+    }
     if (pendingSelectionTarget?.kind === 'mc') {
       return 'Choose the host model that will write podcast interstitials with your key.';
     }
@@ -189,7 +193,7 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
       return `Choose a provider for ${getSlotLabel(pendingSelectionTarget.index)}. You can reuse providers in multiple slots.`;
     }
     return 'Tap Add or Change on a slot, then choose a provider below.';
-  }, [getSlotLabel, pendingSelectionTarget]);
+  }, [getSlotLabel, pendingSelectionTarget, providerSelectorDisabled]);
 
   const handleRequestDebater = (index: number) => {
     setActiveModelKey(null);
@@ -704,7 +708,13 @@ export const DebateAISelector: React.FC<DebateAISelectorProps> = ({
 
       <View
         onLayout={(event) => onProviderSelectorLayout?.(event.nativeEvent.layout.y)}
-        style={styles.providerSelector}
+        pointerEvents={providerSelectorDisabled ? 'none' : 'auto'}
+        accessibilityState={{ disabled: providerSelectorDisabled }}
+        testID="debate-provider-selector"
+        style={[
+          styles.providerSelector,
+          providerSelectorDisabled && styles.providerSelectorDisabled,
+        ]}
       >
         <SectionHeader
           title="Provider Selector"
@@ -957,5 +967,8 @@ const styles = StyleSheet.create({
   },
   providerSelector: {
     marginTop: 18,
+  },
+  providerSelectorDisabled: {
+    opacity: 0.42,
   },
 });

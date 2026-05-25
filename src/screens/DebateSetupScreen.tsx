@@ -470,6 +470,18 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   }, []);
 
   useEffect(() => {
+    if (currentStep !== 'ai') return;
+
+    const scrollTimer = setTimeout(() => {
+      scrollSetupToTop(false);
+    }, 0);
+
+    return () => {
+      clearTimeout(scrollTimer);
+    };
+  }, [currentStep, scrollSetupToTop]);
+
+  useEffect(() => {
     const params = routeParams;
     if (!params) return;
 

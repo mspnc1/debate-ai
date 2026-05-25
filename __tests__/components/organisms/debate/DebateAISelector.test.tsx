@@ -136,6 +136,30 @@ describe('DebateAISelector', () => {
     expect(defaultProps.onSelectProvider).toHaveBeenCalledWith(mockAIs[0]);
   });
 
+  it('grays out provider selector after all debater slots are filled until a slot is being changed', () => {
+    const { getByTestId, getByText, rerender } = renderWithProviders(
+      <DebateAISelector
+        {...defaultProps}
+        debaterSlots={[mockAIs[0], mockAIs[1]]}
+        selectedAIs={[mockAIs[0], mockAIs[1]]}
+      />
+    );
+
+    expect(getByText('Provider Selector All debater slots are filled. Tap Change on a slot to replace a debater.')).toBeTruthy();
+    expect(getByTestId('debate-provider-selector').props.accessibilityState).toEqual({ disabled: true });
+
+    rerender(
+      <DebateAISelector
+        {...defaultProps}
+        debaterSlots={[mockAIs[0], mockAIs[1]]}
+        selectedAIs={[mockAIs[0], mockAIs[1]]}
+        pendingSelectionTarget={{ kind: 'debater', index: 1 }}
+      />
+    );
+
+    expect(getByTestId('debate-provider-selector').props.accessibilityState).toEqual({ disabled: false });
+  });
+
   it('opens a slot-local model selector and applies model changes', () => {
     const onModelChange = jest.fn();
     const slotAI = { ...mockAIs[0], id: 'openai-slot' };
