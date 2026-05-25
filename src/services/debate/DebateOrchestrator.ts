@@ -194,6 +194,7 @@ export class DebateOrchestrator {
       votingLabel?: string;
       winnerName?: string;
       audienceResult?: AudienceDecisionResult;
+      useTemplateFallbackOnly?: boolean;
     } = {}
   ): Promise<void> {
     if (!this.session?.voiceConfig?.podcast?.enabled) return;
@@ -202,6 +203,7 @@ export class DebateOrchestrator {
       aiService: this.aiService,
       session: this.session,
       kind,
+      useTemplateFallbackOnly: options.useTemplateFallbackOnly,
       recentMcMessages: this.currentMessages
         .filter((message) => Boolean(message.metadata?.debateInterstitial))
         .slice(-3)
@@ -218,7 +220,7 @@ export class DebateOrchestrator {
     this.currentMessages = [...this.currentMessages, message];
   }
 
-  private async addPodcastIntroInterstitial(): Promise<void> {
+  private async addPodcastIntroInterstitial(options: { useTemplateFallbackOnly?: boolean } = {}): Promise<void> {
     if (!this.session) return;
 
     const introAlreadyExists = this.currentMessages.some((message) => (
@@ -228,6 +230,7 @@ export class DebateOrchestrator {
 
     await this.addDebateInterstitial('intro', {
       nextMessageSpec: this.session.preset.messages[0],
+      useTemplateFallbackOnly: options.useTemplateFallbackOnly,
     });
   }
 
@@ -1588,7 +1591,7 @@ export class DebateOrchestrator {
 
     if (stage === 'initial') {
       this.updateSessionStatus(DebateStatus.ACTIVE);
-      await this.addPodcastIntroInterstitial();
+      await this.addPodcastIntroInterstitial({ useTemplateFallbackOnly: true });
       this.emitTypingStartedForMessage(0);
       this.scheduleNextMessage(0, this.currentMessages, DEBATE_CONSTANTS.DELAYS.VOTING_CONTINUATION);
       return;

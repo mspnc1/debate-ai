@@ -208,10 +208,84 @@ describe('DebateInterstitialService', () => {
       now: () => 236,
     });
 
-    expect(aiService.ensureAdapter).toHaveBeenCalledWith('openai', 'openai', 'gpt-5');
+    expect(aiService.ensureAdapter).toHaveBeenCalledWith('podcast-mc:mc-1:gpt-5', 'openai', 'gpt-5');
     expect(adapter.config.webSearchEnabled).toBe(false);
     expect(message?.metadata?.webSearchEnabled).toBe(true);
     expect(message?.metadata?.citations).toEqual(citations);
+  });
+
+  it('uses an isolated MC adapter when one is available', async () => {
+    const adapter = {
+      config: {
+        webSearchEnabled: false,
+        parameters: { temperature: 0.1 },
+        isDebateMode: true,
+        model: 'gpt-4.1-mini',
+        personality: { id: 'debater' },
+      },
+      sendMessage: jest.fn().mockImplementation(async () => ({
+        response: 'Welcome to the debate. The motion now comes into focus.',
+        modelUsed: 'gpt-5',
+      })),
+      setTemporaryPersonality: jest.fn(),
+    };
+    const aiService = {
+      ensureAdapter: jest.fn().mockResolvedValue(adapter),
+      sendMessage: jest.fn(),
+    };
+
+    const message = await createDebateInterstitialMessage({
+      aiService: aiService as unknown as AIService,
+      session: createSession(),
+      kind: 'intro',
+      now: () => 2361,
+    });
+
+    expect(aiService.ensureAdapter).toHaveBeenCalledWith('podcast-mc:mc-1:gpt-5', 'openai', 'gpt-5');
+    expect(adapter.sendMessage).toHaveBeenCalledWith(
+      expect.stringContaining('Write one concise podcast host interstitial'),
+      [],
+      undefined,
+      undefined,
+      'gpt-5'
+    );
+    expect(aiService.sendMessage).not.toHaveBeenCalled();
+    expect(adapter.config).toEqual({
+      webSearchEnabled: false,
+      parameters: { temperature: 0.1 },
+      isDebateMode: true,
+      model: 'gpt-4.1-mini',
+      personality: { id: 'debater' },
+    });
+    expect(message?.metadata?.debateInterstitial).toMatchObject({
+      kind: 'intro',
+      generatedByModel: 'gpt-5',
+      usedTemplateFallback: false,
+    });
+  });
+
+  it('can force local template copy without calling the MC model', async () => {
+    const aiService = {
+      ensureAdapter: jest.fn(),
+      sendMessage: jest.fn(),
+    };
+
+    const message = await createDebateInterstitialMessage({
+      aiService: aiService as unknown as AIService,
+      session: createSession(),
+      kind: 'intro',
+      useTemplateFallbackOnly: true,
+      now: () => 2362,
+    });
+
+    expect(aiService.ensureAdapter).not.toHaveBeenCalled();
+    expect(aiService.sendMessage).not.toHaveBeenCalled();
+    expect(message?.content).toContain('Welcome to the Symposium AI Debate Arena');
+    expect(message?.metadata?.debateInterstitial).toMatchObject({
+      kind: 'intro',
+      usedTemplateFallback: true,
+    });
+    expect(message?.metadata?.webSearchEnabled).toBeUndefined();
   });
 
   it('temporarily disables MC live web search when the MC model does not support it', async () => {

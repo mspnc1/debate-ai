@@ -32,13 +32,39 @@ export interface CreateDebateInterstitialInput {
   winnerName?: string;
   audienceResult?: AudienceDecisionResult;
   recentMcMessages?: string[];
+  useTemplateFallbackOnly?: boolean;
   now?: () => number;
 }
 
 type McAdapter = {
   config?: {
     webSearchEnabled?: boolean;
+    parameters?: Partial<ModelParameters>;
+    isDebateMode?: boolean;
+    model?: string;
+    personality?: unknown;
   };
+  sendMessage?: (
+    message: string,
+    conversationHistory?: Message[],
+    resumptionContext?: unknown,
+    attachments?: unknown,
+    modelOverride?: string
+  ) => Promise<string | CitationBackedResult>;
+  setTemporaryPersonality?: (personality: undefined) => void;
+};
+
+type McAdapterConfigSnapshot = {
+  webSearchEnabled?: boolean;
+  parameters?: Partial<ModelParameters>;
+  isDebateMode?: boolean;
+  model?: string;
+  personality?: unknown;
+  hadWebSearchEnabled: boolean;
+  hadParameters: boolean;
+  hadIsDebateMode: boolean;
+  hadModel: boolean;
+  hadPersonality: boolean;
 };
 
 type CitationBackedResult = {
@@ -177,38 +203,108 @@ function mcModelSupportsWebSearch(session: DebateSession): boolean {
 async function configureMcWebSearch(
   aiService: AIService,
   session: DebateSession,
-  enabled: boolean
-): Promise<{ adapter?: McAdapter; previousWebSearchEnabled?: boolean }> {
+  enabled: boolean,
+  parameters: Partial<ModelParameters>
+): Promise<{ adapter?: McAdapter; snapshot?: McAdapterConfigSnapshot }> {
   const podcast = session.voiceConfig?.podcast;
   if (!podcast) return {};
 
   const resolvedModel = getResolvedMcModel(session);
+  const adapterId = `podcast-mc:${podcast.mc.id || podcast.mc.provider}:${resolvedModel}`;
   const service = aiService as AIService & {
     ensureAdapter?: (adapterId: string, provider?: string, model?: string) => Promise<McAdapter | undefined>;
     getAdapter?: (provider: string) => McAdapter | undefined;
   };
   const adapter = service.ensureAdapter
-    ? await service.ensureAdapter.call(aiService, podcast.mc.provider, podcast.mc.provider, resolvedModel)
+    ? await service.ensureAdapter.call(aiService, adapterId, podcast.mc.provider, resolvedModel)
     : service.getAdapter?.call(aiService, podcast.mc.provider);
 
   if (!adapter?.config) return { adapter };
 
-  const previousWebSearchEnabled = adapter.config.webSearchEnabled;
+  const hasOwnConfig = (key: string): boolean =>
+    Object.prototype.hasOwnProperty.call(adapter.config, key);
+  const snapshot: McAdapterConfigSnapshot = {
+    webSearchEnabled: adapter.config.webSearchEnabled,
+    parameters: adapter.config.parameters,
+    isDebateMode: adapter.config.isDebateMode,
+    model: adapter.config.model,
+    personality: adapter.config.personality,
+    hadWebSearchEnabled: hasOwnConfig('webSearchEnabled'),
+    hadParameters: hasOwnConfig('parameters'),
+    hadIsDebateMode: hasOwnConfig('isDebateMode'),
+    hadModel: hasOwnConfig('model'),
+    hadPersonality: hasOwnConfig('personality'),
+  };
+
   adapter.config.webSearchEnabled = enabled;
-  return { adapter, previousWebSearchEnabled };
+  adapter.config.parameters = parameters;
+  adapter.config.isDebateMode = false;
+  adapter.config.model = resolvedModel;
+  adapter.setTemporaryPersonality?.(undefined);
+  return { adapter, snapshot };
 }
 
 function restoreMcWebSearch(
   adapter?: McAdapter,
-  previousWebSearchEnabled?: boolean
+  snapshot?: McAdapterConfigSnapshot
 ): void {
   if (!adapter?.config) return;
 
-  if (typeof previousWebSearchEnabled === 'undefined') {
-    delete adapter.config.webSearchEnabled;
+  if (!snapshot) return;
+
+  if (snapshot.hadWebSearchEnabled) {
+    adapter.config.webSearchEnabled = snapshot.webSearchEnabled;
   } else {
-    adapter.config.webSearchEnabled = previousWebSearchEnabled;
+    delete adapter.config.webSearchEnabled;
   }
+  if (snapshot.hadParameters) {
+    adapter.config.parameters = snapshot.parameters;
+  } else {
+    delete adapter.config.parameters;
+  }
+  if (snapshot.hadIsDebateMode) {
+    adapter.config.isDebateMode = snapshot.isDebateMode;
+  } else {
+    delete adapter.config.isDebateMode;
+  }
+  if (snapshot.hadModel) {
+    adapter.config.model = snapshot.model;
+  } else {
+    delete adapter.config.model;
+  }
+  if (snapshot.hadPersonality) {
+    adapter.config.personality = snapshot.personality;
+  } else {
+    delete adapter.config.personality;
+  }
+}
+
+async function sendMcPrompt(
+  input: CreateDebateInterstitialInput,
+  adapter: McAdapter | undefined,
+  parameters: Partial<ModelParameters>
+): Promise<CitationBackedResult> {
+  const podcast = input.session.voiceConfig?.podcast;
+  const prompt = buildPrompt(input);
+  const model = getResolvedMcModel(input.session);
+
+  if (adapter?.sendMessage) {
+    const directResult = await adapter.sendMessage(prompt, [], undefined, undefined, model);
+    if (typeof directResult === 'string') {
+      return { response: directResult, modelUsed: model };
+    }
+    return directResult;
+  }
+
+  return input.aiService.sendMessage(
+    podcast?.mc.provider || '',
+    prompt,
+    [],
+    undefined,
+    undefined,
+    parameters,
+    model
+  ) as Promise<CitationBackedResult>;
 }
 
 export function buildDebateInterstitialTemplate(input: Omit<CreateDebateInterstitialInput, 'aiService' | 'now'>): string {
@@ -305,42 +401,37 @@ export async function createDebateInterstitialMessage(input: CreateDebateInterst
   let generatedByModel: string | undefined;
   let citations: Citation[] | undefined;
   let adapter: McAdapter | undefined;
-  let previousWebSearchEnabled: boolean | undefined;
+  let snapshot: McAdapterConfigSnapshot | undefined;
   let webSearchApplied = false;
+  const mcParameters = getMcParameters(input.kind);
 
-  try {
-    const webSearchConfig = await configureMcWebSearch(input.aiService, input.session, mcWebSearchEnabled);
-    adapter = webSearchConfig.adapter;
-    previousWebSearchEnabled = webSearchConfig.previousWebSearchEnabled;
-    webSearchApplied = mcWebSearchEnabled && Boolean(adapter?.config);
+  if (!input.useTemplateFallbackOnly) {
+    try {
+      const webSearchConfig = await configureMcWebSearch(input.aiService, input.session, mcWebSearchEnabled, mcParameters);
+      adapter = webSearchConfig.adapter;
+      snapshot = webSearchConfig.snapshot;
+      webSearchApplied = mcWebSearchEnabled && Boolean(adapter?.config);
 
-    const result = await input.aiService.sendMessage(
-      podcast.mc.provider,
-      buildPrompt(input),
-      [],
-      undefined,
-      undefined,
-      getMcParameters(input.kind),
-      getResolvedMcModel(input.session)
-    ) as CitationBackedResult;
-    const generated = cleanGeneratedScript(result.response);
-    if (
-      generated &&
-      (input.kind !== 'audience_question' ||
-        generatedCopyIncludesAudienceQuestion(generated, input.session, input.nextMessageSpec)) &&
-      !generatedCopyPrematurelyJudgesSide(generated, input)
-    ) {
-      content = generated;
-      usedTemplateFallback = false;
-      generatedByModel = result.modelUsed || podcast.mc.model;
-      citations = mcWebSearchEnabled && result.metadata?.citations?.length
-        ? result.metadata.citations
-        : undefined;
+      const result = await sendMcPrompt(input, adapter, mcParameters);
+      const generated = cleanGeneratedScript(result.response);
+      if (
+        generated &&
+        (input.kind !== 'audience_question' ||
+          generatedCopyIncludesAudienceQuestion(generated, input.session, input.nextMessageSpec)) &&
+        !generatedCopyPrematurelyJudgesSide(generated, input)
+      ) {
+        content = generated;
+        usedTemplateFallback = false;
+        generatedByModel = result.modelUsed || podcast.mc.model;
+        citations = mcWebSearchEnabled && result.metadata?.citations?.length
+          ? result.metadata.citations
+          : undefined;
+      }
+    } catch {
+      usedTemplateFallback = true;
+    } finally {
+      restoreMcWebSearch(adapter, snapshot);
     }
-  } catch {
-    usedTemplateFallback = true;
-  } finally {
-    restoreMcWebSearch(adapter, previousWebSearchEnabled);
   }
 
   return {

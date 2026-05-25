@@ -411,12 +411,12 @@ describe('DebateOrchestrator', () => {
     expect(introIndex).toBeGreaterThan(voteCompletedIndex);
 
     const introMessage = events[introIndex].data.message as Message;
-    expect(introMessage.content).toBe("Welcome to tonight's debate.");
+    expect(aiService.sendMessage).not.toHaveBeenCalled();
+    expect(introMessage.content).toContain('Welcome to the Symposium AI Debate Arena');
     expect(introMessage.metadata?.debateInterstitial).toMatchObject({
       kind: 'intro',
       generatedByProvider: 'openai',
-      generatedByModel: 'gpt-5',
-      usedTemplateFallback: false,
+      usedTemplateFallback: true,
     });
     expect(events[introIndex + 1]).toEqual(expect.objectContaining({
       type: 'typing_started',
