@@ -12,6 +12,7 @@ export const DEBATE_CONSTANTS = {
   DELAYS: {
     AI_RESPONSE: 12000,       // Legacy delay used when not streaming
     POST_STREAM_PAUSE: 2000,  // Short pause after a streamed message completes
+    MC_HANDOFF_PAUSE: 2500,   // Brief read-time pause after MC interstitials
     RATE_LIMIT_RECOVERY: 10000, // Delay after rate limit errors
     ERROR_RECOVERY: 6000,     // Delay after other errors
     VOTING_CONTINUATION: 500,  // Short delay after voting to keep flow going

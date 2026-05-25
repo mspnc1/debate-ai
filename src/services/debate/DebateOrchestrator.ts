@@ -298,6 +298,10 @@ export class DebateOrchestrator {
     });
   }
 
+  private isPodcastModeEnabled(): boolean {
+    return Boolean(this.session?.voiceConfig?.podcast?.enabled);
+  }
+
   private getParticipantsForSide(side: DebateSideId): AI[] {
     if (!this.session) return [];
     const preset = this.session.preset;
@@ -589,7 +593,12 @@ export class DebateOrchestrator {
     }
 
     await this.addPodcastIntroInterstitial();
-    
+
+    if (this.isPodcastModeEnabled()) {
+      this.scheduleNextMessage(0, this.currentMessages, DEBATE_CONSTANTS.DELAYS.MC_HANDOFF_PAUSE);
+      return;
+    }
+
     await this.executeDebateMessage(0, this.currentMessages);
   }
   
@@ -671,6 +680,11 @@ export class DebateOrchestrator {
           await this.addDebateInterstitial('audience_question', {
             nextMessageSpec: messageSpec,
           });
+          const queuedMessages = this.currentMessages.length >= existingMessages.length
+            ? this.currentMessages
+            : existingMessages;
+          this.scheduleNextMessage(messageIndex, queuedMessages, DEBATE_CONSTANTS.DELAYS.MC_HANDOFF_PAUSE);
+          return;
         }
 
         if (this.currentMessages.length >= existingMessages.length) {
@@ -1589,6 +1603,11 @@ export class DebateOrchestrator {
     if (stage === 'initial') {
       this.updateSessionStatus(DebateStatus.ACTIVE);
       await this.addPodcastIntroInterstitial();
+      if (this.isPodcastModeEnabled()) {
+        this.scheduleNextMessage(0, this.currentMessages, DEBATE_CONSTANTS.DELAYS.MC_HANDOFF_PAUSE);
+        return;
+      }
+
       await this.executeDebateMessage(0, this.currentMessages);
       return;
     }
