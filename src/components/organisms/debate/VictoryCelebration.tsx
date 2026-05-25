@@ -147,6 +147,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
     return (
       <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
         <ScrollView
+          style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
@@ -309,6 +310,7 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
   return (
     <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
       <ScrollView
+        style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
@@ -607,11 +609,14 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+    width: '100%',
+  },
   scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingTop: 12,
+    paddingBottom: 40,
     paddingHorizontal: 16,
   },
   card: {

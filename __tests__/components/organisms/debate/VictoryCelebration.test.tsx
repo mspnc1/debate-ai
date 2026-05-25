@@ -1,9 +1,11 @@
 import React from 'react';
+import { ScrollView, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { VictoryCelebration } from '@/components/organisms/debate/VictoryCelebration';
 import type { AI } from '@/types';
 import type { ScoreBoard } from '@/services/debate';
+import type { AudienceDecisionResult } from '@/config/debate/formats';
 
 jest.mock('expo-blur', () => ({
   BlurView: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -133,6 +135,54 @@ describe('VictoryCelebration', () => {
     fireEvent.press(getByTestId('victory-share'));
 
     expect(getByTestId('share-modal')).toBeTruthy();
+  });
+
+  it('top-anchors the result card inside a real scroll surface', () => {
+    const { UNSAFE_getByType } = renderWithProviders(
+      <VictoryCelebration {...defaultProps} />
+    );
+
+    const scrollView = UNSAFE_getByType(ScrollView);
+    const scrollViewProps = scrollView.props as {
+      contentContainerStyle?: StyleProp<ViewStyle>;
+    };
+    const contentStyle = StyleSheet.flatten(scrollViewProps.contentContainerStyle);
+
+    expect(contentStyle?.justifyContent).toBeUndefined();
+    expect(contentStyle?.paddingTop).toBe(12);
+    expect(contentStyle?.paddingBottom).toBeGreaterThanOrEqual(40);
+  });
+
+  it('keeps Oxford audience decisions scrollable from the top', () => {
+    const audienceResult: AudienceDecisionResult = {
+      initialStance: 'for',
+      finalStance: 'for',
+      winningSide: 'aff',
+      winningSideLabel: 'Proposition',
+      resultVerb: 'held',
+      summary: 'Proposition held the audience at For.',
+      winningParticipantIds: ['google'],
+    };
+    const { UNSAFE_getByType, getByTestId } = renderWithProviders(
+      <VictoryCelebration
+        {...defaultProps}
+        audienceResult={audienceResult}
+        onSaveVoicePack={jest.fn()}
+        voicePackClipCount={11}
+        voicePackActionLabel="Podcast"
+      />
+    );
+
+    const scrollView = UNSAFE_getByType(ScrollView);
+    const scrollViewProps = scrollView.props as {
+      contentContainerStyle?: StyleProp<ViewStyle>;
+    };
+    const contentStyle = StyleSheet.flatten(scrollViewProps.contentContainerStyle);
+
+    expect(contentStyle?.justifyContent).toBeUndefined();
+    expect(getByTestId('victory-rematch')).toBeTruthy();
+    expect(getByTestId('victory-voice-pack')).toBeTruthy();
+    expect(getByTestId('victory-start-over')).toBeTruthy();
   });
 
   it('renders the voice pack action when voiced clips are available', () => {
