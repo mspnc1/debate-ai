@@ -2,6 +2,7 @@ import type { AIProvider } from '@/types';
 import {
   getDefaultImageInputModel,
   getImageInputModels,
+  getImageGenerationCapabilities,
   getImageModelApiFamily,
   getImageModelDisplayName,
   getImageModels,
@@ -74,5 +75,28 @@ describe('Image generation model config', () => {
       'imagen-4.0-generate-001',
       'imagen-4.0-ultra-generate-001',
     ]));
+  });
+
+  it('exposes adaptive output capabilities for Image Studio controls', () => {
+    const openaiCapabilities = getImageGenerationCapabilities('openai');
+    expect(openaiCapabilities.maxImagesPerRequest).toBeGreaterThanOrEqual(4);
+    expect(openaiCapabilities.maxReferenceImages).toBeGreaterThanOrEqual(5);
+    expect(openaiCapabilities.qualityOptions).toEqual(expect.arrayContaining(['auto', 'low', 'medium', 'high', 'standard', 'hd']));
+    expect(openaiCapabilities.outputFormats).toEqual(expect.arrayContaining(['png', 'jpeg', 'webp']));
+    expect(openaiCapabilities.backgroundOptions).toContain('transparent');
+    expect(openaiCapabilities.moderationOptions).toContain('low');
+    expect(openaiCapabilities.supportsOutputCompression).toBe(true);
+
+    const googlePreview = getImageModels('google').find((model) => model.id === 'gemini-3-pro-image-preview');
+    expect(googlePreview).toMatchObject({
+      supportsMultipleReferenceImages: true,
+      maxReferenceImages: 14,
+    });
+    expect(googlePreview?.resolutions).toEqual(expect.arrayContaining(['1K', '2K', '4K']));
+
+    const grokCapabilities = getImageGenerationCapabilities('grok');
+    expect(grokCapabilities.maxImagesPerRequest).toBeGreaterThanOrEqual(10);
+    expect(grokCapabilities.maxReferenceImages).toBeGreaterThanOrEqual(3);
+    expect(grokCapabilities.resolutions).toEqual(expect.arrayContaining(['1K', '2K']));
   });
 });

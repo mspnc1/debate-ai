@@ -30,11 +30,21 @@ import {
 import {
   isFileSystemImageUri,
   isRemoteImageUri,
+  loadBase64FromFileUri,
   persistImageUri,
 } from '../services/images/fileCache';
+import { ImageService } from '../services/images/ImageService';
 import MediaGenerationService from '../services/media/MediaGenerationService';
 import { persistMediaDataUri, persistRemoteMedia, deleteMediaFile } from '../services/media/mediaFileCache';
 import { prepareRunwaySourceImage } from '../services/media/sourceImage';
+import { buildEnhancedPrompt } from '../config/create/stylePresets';
+import { mapSizeToProvider } from '../config/create/sizeOptions';
+import type {
+  ImageBackgroundOption,
+  ImageModerationOption,
+  ImageOutputFormat,
+} from '../config/imageGenerationModels';
+import { readStoredApiKey } from '../services/apiKeys/apiKeyStorageCore';
 
 // Constants
 const GALLERY_STORAGE_KEY = 'create_gallery';
@@ -55,13 +65,15 @@ export type StylePreset =
   | '3d-render';
 
 export type SizeOption = 'auto' | 'square' | 'portrait' | 'landscape';
-export type QualityOption = 'standard' | 'hd';
+export type QualityOption = 'standard' | 'hd' | 'auto' | 'low' | 'medium' | 'high';
 export type GenerationProgress = 'pending' | 'generating' | 'complete' | 'error';
 export type GalleryAssetType = 'image' | 'video' | 'audio';
 export type GalleryTab = 'all' | GalleryAssetType;
 export type GallerySortMode = 'newest' | 'oldest' | 'provider' | 'model';
 export type GalleryDateRangeFilter = 'all' | 'today' | 'week' | 'month';
 export type GalleryAvailabilityFilter = 'all' | 'available' | 'remote_expiring' | 'failed';
+export type ImageCreateMode = 'create' | 'refine';
+export type ImageGenerationPhase = 'queued' | 'preparing' | 'generating' | 'complete' | 'error';
 
 export interface GalleryFilterState {
   providers: string[];
@@ -127,6 +139,24 @@ export interface GeneratedMediaEntry {
   expiresAt?: number;
   error?: string;
   voicePack?: DebateVoicePackManifest;
+}
+
+export interface CreateImageSourceInput {
+  uri: string;
+  base64?: string;
+  mimeType?: string;
+}
+
+export interface ImageGenerationState {
+  id: string;
+  providers: AIProvider[];
+  prompt: string;
+  status: 'queued' | 'running' | 'succeeded' | 'failed';
+  phase: ImageGenerationPhase;
+  message?: string;
+  startedAt: number;
+  resultIds?: string[];
+  failedProviders?: AIProvider[];
 }
 
 export function normalizeGalleryAssets(
@@ -333,13 +363,26 @@ export interface CreateState {
   selectedStyle: StylePreset;
   selectedSize: SizeOption;
   selectedQuality: QualityOption;
+  selectedImageCount: number;
+  selectedImageResolution?: string;
+  selectedImageOutputFormat: ImageOutputFormat;
+  selectedImageOutputCompression: number;
+  selectedImageBackground: ImageBackgroundOption;
+  selectedImageModeration: ImageModerationOption;
 
   // Gallery (persisted)
   gallery: GeneratedImageEntry[];
   galleryHydrated: boolean;
   mediaGallery: GeneratedMediaEntry[];
   mediaGalleryHydrated: boolean;
+  imageGeneration: ImageGenerationState | null;
   mediaGeneration: Record<CreateMediaType, MediaGenerationState | null>;
+  lastImageGenerationResult?: {
+    ids: string[];
+    status: 'succeeded' | 'failed';
+    message: string;
+    completedAt: number;
+  };
   lastMediaGenerationResult?: {
     id: string;
     mediaType: CreateMediaType;
@@ -374,10 +417,16 @@ const initialState: CreateState = {
   selectedStyle: 'none',
   selectedSize: 'auto',
   selectedQuality: 'standard',
+  selectedImageCount: 1,
+  selectedImageOutputFormat: 'png',
+  selectedImageOutputCompression: 80,
+  selectedImageBackground: 'auto',
+  selectedImageModeration: 'auto',
   gallery: [],
   galleryHydrated: false,
   mediaGallery: [],
   mediaGalleryHydrated: false,
+  imageGeneration: null,
   mediaGeneration: {
     video: null,
     audio: null,
@@ -492,8 +541,42 @@ async function pruneGalleryOverflow(
 }
 
 async function getStoredProviderKey(providerId: MediaProviderId): Promise<string | null> {
-  const module = await import('../services/APIKeyService');
-  return module.default.getKey(providerId);
+  try {
+    return await readStoredApiKey(providerId);
+  } catch {
+    return null;
+  }
+}
+
+async function getStoredImageProviderKey(providerId: AIProvider): Promise<string | null> {
+  try {
+    return await readStoredApiKey(providerId);
+  } catch {
+    return null;
+  }
+}
+
+function looksLikeBase64Image(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.startsWith('file:') || trimmed.startsWith('/') || isRemoteImageUri(trimmed)) {
+    return false;
+  }
+  return /^[A-Za-z0-9+/=\s]+$/.test(trimmed) && trimmed.length > 80;
+}
+
+async function resolveImageSourceInput(source: CreateImageSourceInput): Promise<{ data: string; mimeType?: string } | undefined> {
+  if (source.base64) {
+    return { data: source.base64, mimeType: source.mimeType };
+  }
+  if (source.uri.startsWith('data:') || looksLikeBase64Image(source.uri)) {
+    return { data: source.uri, mimeType: source.mimeType };
+  }
+
+  const base64 = await loadBase64FromFileUri(source.uri);
+  if (!base64) {
+    return undefined;
+  }
+  return { data: base64, mimeType: source.mimeType };
 }
 
 // Async thunk to hydrate gallery from AsyncStorage
@@ -678,6 +761,10 @@ function buildMediaGenerationId(providerId: MediaProviderId): string {
   return `media_${Date.now()}_${providerId}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function buildImageGenerationId(): string {
+  return `image_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
 function mapMediaStatusToPhase(status: CreateMediaAssetStatus): MediaGenerationState['phase'] {
   if (status === 'running') return 'rendering';
   if (status === 'succeeded') return 'complete';
@@ -702,6 +789,25 @@ export interface GenerateCreateVideoPayload {
   sourceImageUri?: string;
 }
 
+export interface GenerateCreateImagesPayload {
+  prompt: string;
+  providers: AIProvider[];
+  selectedModels?: Partial<Record<AIProvider, string>>;
+  style?: StylePreset;
+  size?: SizeOption;
+  quality?: QualityOption;
+  imageCount?: number;
+  resolution?: string;
+  outputFormat?: ImageOutputFormat;
+  outputCompression?: number;
+  background?: ImageBackgroundOption;
+  moderation?: ImageModerationOption;
+  sourceImages?: CreateImageSourceInput[];
+  isUploaded?: boolean;
+  parentImageId?: string;
+  refinementInstructions?: string;
+}
+
 export interface GenerateCreateAudioPayload {
   prompt: string;
   operation: Extract<CreateMediaOperation, 'text_to_speech' | 'sound_effect'>;
@@ -711,6 +817,138 @@ export interface GenerateCreateAudioPayload {
   durationSeconds?: number;
   promptInfluence?: number;
 }
+
+export const generateCreateImages = createAsyncThunk(
+  'create/generateCreateImages',
+  async (payload: GenerateCreateImagesPayload, { dispatch, getState }) => {
+    const prompt = payload.prompt.trim();
+    const providers = payload.providers.filter((provider, index, list) => list.indexOf(provider) === index);
+
+    if (!prompt) {
+      throw new Error('Enter an image prompt first.');
+    }
+    if (providers.length === 0) {
+      throw new Error('Select at least one image provider.');
+    }
+
+    const id = buildImageGenerationId();
+    dispatch(startImageGeneration({
+      id,
+      providers,
+      prompt,
+      message: 'Preparing image generation...',
+    }));
+    dispatch(startGeneration(providers));
+
+    const style = payload.style ?? initialState.selectedStyle;
+    const sizeOption = payload.size ?? initialState.selectedSize;
+    const enhancedPrompt = buildEnhancedPrompt(prompt, style);
+    const resolvedSources = (await Promise.all(
+      (payload.sourceImages || []).map(resolveImageSourceInput)
+    )).filter((source): source is { data: string; mimeType?: string } => Boolean(source));
+
+    const entries: GeneratedImageEntry[] = [];
+    const failed: Array<{ provider: AIProvider; error: Error }> = [];
+
+    await Promise.all(providers.map(async (provider) => {
+      const modelId = payload.selectedModels?.[provider] || resolveImageModelId(provider);
+      dispatch(updateGenerationProgress({ provider, progress: 'generating' }));
+      dispatch(updateImageGeneration({
+        status: 'running',
+        phase: resolvedSources.length > 0 ? 'preparing' : 'generating',
+        message: resolvedSources.length > 0
+          ? `Preparing ${resolvedSources.length} reference image${resolvedSources.length === 1 ? '' : 's'} for ${provider}...`
+          : `Generating with ${provider}...`,
+      }));
+
+      try {
+        const apiKey = await getStoredImageProviderKey(provider);
+        if (!apiKey) {
+          throw new Error(`Add a ${provider} API key before generating images.`);
+        }
+
+        const size = mapSizeToProvider(sizeOption, provider, modelId);
+        const images = await ImageService.generateImage({
+          provider,
+          model: modelId,
+          apiKey,
+          prompt: enhancedPrompt,
+          size,
+          resolution: payload.resolution,
+          quality: payload.quality,
+          outputFormat: payload.outputFormat,
+          outputCompression: payload.outputCompression,
+          background: payload.background,
+          moderation: payload.moderation,
+          n: payload.imageCount,
+          sourceImages: resolvedSources,
+        });
+
+        dispatch(updateGenerationProgress({ provider, progress: 'complete' }));
+
+        for (const image of images) {
+          const entry: GeneratedImageEntry = {
+            id: `${provider}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+            uri: image.url || '',
+            prompt: enhancedPrompt,
+            originalPrompt: prompt,
+            provider,
+            model: modelId || provider,
+            style,
+            size: sizeOption,
+            quality: payload.quality ?? initialState.selectedQuality,
+            createdAt: Date.now(),
+            isRefinement: resolvedSources.length > 0,
+            isUploaded: Boolean(payload.isUploaded || resolvedSources.length > 0),
+            parentImageId: payload.parentImageId,
+            refinementInstructions: payload.refinementInstructions,
+          };
+          entries.push(entry);
+          dispatch(addToGalleryWithCleanup(entry));
+        }
+      } catch (error) {
+        const resolvedError = error instanceof Error ? error : new Error('Image generation failed.');
+        failed.push({ provider, error: resolvedError });
+        dispatch(updateGenerationProgress({ provider, progress: 'error' }));
+      }
+    }));
+
+    const resultIds = entries.map((entry) => entry.id);
+
+    if (failed.length > 0) {
+      const failureDetails = failed
+        .map(({ provider, error }) => `${provider}: ${error.message.slice(0, 260)}`)
+        .join('\n');
+      dispatch(generationError(failureDetails));
+    } else {
+      dispatch(completeGeneration());
+    }
+
+    if (entries.length > 0) {
+      dispatch(completeImageGeneration({
+        resultIds,
+        message: entries.length === 1
+          ? 'Image generation complete.'
+          : `${entries.length} images generated.`,
+      }));
+    } else {
+      const message = failed.length > 0
+        ? failed.map(({ provider, error }) => `${provider}: ${error.message}`).join('\n')
+        : 'Image generation failed.';
+      dispatch(failImageGeneration({ message, failedProviders: failed.map((item) => item.provider) }));
+      throw new Error(message);
+    }
+
+    const state = getState() as { create: CreateState };
+    await persistGalleryEntries(state.create.gallery);
+
+    return {
+      ids: resultIds,
+      entries,
+      failedProviders: failed.map((item) => item.provider),
+    };
+  }
+);
 
 async function pollRunwayTaskToCompletion(
   apiKey: string,
@@ -1076,8 +1314,111 @@ const createSlice_ = createSlice({
     setQuality: (state, action: PayloadAction<QualityOption>) => {
       state.selectedQuality = action.payload;
     },
+    setImageCount: (state, action: PayloadAction<number>) => {
+      state.selectedImageCount = Math.max(1, Math.min(Math.round(action.payload), 10));
+    },
+    setImageResolution: (state, action: PayloadAction<string | undefined>) => {
+      state.selectedImageResolution = action.payload;
+    },
+    setImageOutputFormat: (state, action: PayloadAction<ImageOutputFormat>) => {
+      state.selectedImageOutputFormat = action.payload;
+      if (action.payload === 'png') {
+        state.selectedImageBackground = state.selectedImageBackground === 'transparent'
+          ? 'transparent'
+          : state.selectedImageBackground;
+      }
+    },
+    setImageOutputCompression: (state, action: PayloadAction<number>) => {
+      state.selectedImageOutputCompression = Math.max(0, Math.min(100, Math.round(action.payload)));
+    },
+    setImageBackground: (state, action: PayloadAction<ImageBackgroundOption>) => {
+      state.selectedImageBackground = action.payload;
+    },
+    setImageModeration: (state, action: PayloadAction<ImageModerationOption>) => {
+      state.selectedImageModeration = action.payload;
+    },
 
     // Generation state
+    startImageGeneration: (state, action: PayloadAction<{
+      id: string;
+      providers: AIProvider[];
+      prompt: string;
+      message?: string;
+    }>) => {
+      state.imageGeneration = {
+        id: action.payload.id,
+        providers: action.payload.providers,
+        prompt: action.payload.prompt,
+        status: 'queued',
+        phase: 'queued',
+        message: action.payload.message,
+        startedAt: Date.now(),
+      };
+      state.lastImageGenerationResult = undefined;
+      state.createActivity.status = 'running';
+      state.createActivity.lastMessage = action.payload.message;
+    },
+    updateImageGeneration: (state, action: PayloadAction<{
+      status?: ImageGenerationState['status'];
+      phase?: ImageGenerationPhase;
+      message?: string;
+    }>) => {
+      if (!state.imageGeneration) return;
+      if (action.payload.status) state.imageGeneration.status = action.payload.status;
+      if (action.payload.phase) state.imageGeneration.phase = action.payload.phase;
+      if (action.payload.message) {
+        state.imageGeneration.message = action.payload.message;
+        state.createActivity.lastMessage = action.payload.message;
+      }
+    },
+    completeImageGeneration: (state, action: PayloadAction<{
+      resultIds: string[];
+      message: string;
+    }>) => {
+      const completedAt = Date.now();
+      if (state.imageGeneration) {
+        state.imageGeneration.status = 'succeeded';
+        state.imageGeneration.phase = 'complete';
+        state.imageGeneration.message = action.payload.message;
+        state.imageGeneration.resultIds = action.payload.resultIds;
+      }
+      state.lastImageGenerationResult = {
+        ids: action.payload.resultIds,
+        status: 'succeeded',
+        message: action.payload.message,
+        completedAt,
+      };
+      state.imageGeneration = null;
+      state.createActivity.status = 'completed';
+      state.createActivity.hasUnseenActivity = true;
+      state.createActivity.lastCompletedAt = completedAt;
+      state.createActivity.lastEventId = action.payload.resultIds[0] || `image_${completedAt}`;
+      state.createActivity.lastMessage = action.payload.message;
+    },
+    failImageGeneration: (state, action: PayloadAction<{
+      message: string;
+      failedProviders?: AIProvider[];
+    }>) => {
+      const completedAt = Date.now();
+      if (state.imageGeneration) {
+        state.imageGeneration.status = 'failed';
+        state.imageGeneration.phase = 'error';
+        state.imageGeneration.message = action.payload.message;
+        state.imageGeneration.failedProviders = action.payload.failedProviders;
+      }
+      state.lastImageGenerationResult = {
+        ids: [],
+        status: 'failed',
+        message: action.payload.message,
+        completedAt,
+      };
+      state.imageGeneration = null;
+      state.createActivity.status = 'failed';
+      state.createActivity.hasUnseenActivity = true;
+      state.createActivity.lastCompletedAt = completedAt;
+      state.createActivity.lastEventId = `image_error_${completedAt}`;
+      state.createActivity.lastMessage = action.payload.message;
+    },
     startGeneration: (state, action: PayloadAction<AIProvider[]>) => {
       state.isGenerating = true;
       state.generationError = undefined;
@@ -1327,6 +1668,16 @@ export const {
   setStyle,
   setSize,
   setQuality,
+  setImageCount,
+  setImageResolution,
+  setImageOutputFormat,
+  setImageOutputCompression,
+  setImageBackground,
+  setImageModeration,
+  startImageGeneration,
+  updateImageGeneration,
+  completeImageGeneration,
+  failImageGeneration,
   startGeneration,
   updateGenerationProgress,
   completeGeneration,
@@ -1372,4 +1723,5 @@ export const selectSelectedProviders = (state: { create: CreateState }) => state
 export const selectGenerationProgress = (state: { create: CreateState }) => state.create.generationProgress;
 export const selectCreateSelectedModels = (state: { create: CreateState }) => state.create.selectedModels;
 export const selectCreateActivity = (state: { create: CreateState }) => state.create.createActivity;
+export const selectImageGeneration = (state: { create: CreateState }) => state.create.imageGeneration;
 export const selectMediaGeneration = (state: { create: CreateState }) => state.create.mediaGeneration;

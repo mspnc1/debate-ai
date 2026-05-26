@@ -43,6 +43,11 @@ const mockUseSelector = jest.fn();
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 const mockReplace = jest.fn();
+const mockGenerateCreateImages = jest.fn((payload) => ({
+  type: 'create/generateCreateImages',
+  payload,
+  unwrap: jest.fn().mockResolvedValue({ ids: ['img_done'], entries: [], failedProviders: [] }),
+}));
 let mockRouteParams: Record<string, unknown>;
 
 jest.mock('react-redux', () => {
@@ -203,6 +208,7 @@ jest.mock('@/store/createSlice', () => {
     startGeneration: jest.fn((providers) => ({ type: 'create/startGeneration', payload: providers })),
     updateGenerationProgress: jest.fn((payload) => ({ type: 'create/updateGenerationProgress', payload })),
     completeGeneration: jest.fn(() => ({ type: 'create/completeGeneration' })),
+    generateCreateImages: (payload: unknown) => mockGenerateCreateImages(payload),
     addToGalleryWithCleanup: jest.fn((entry) => ({ type: 'create/addToGalleryWithCleanup', payload: entry })),
     addToMediaGalleryWithCleanup: jest.fn((entry) => ({ type: 'create/addToMediaGalleryWithCleanup', payload: entry })),
     removeFromGalleryWithCleanup: jest.fn((id) => ({ type: 'create/removeFromGalleryWithCleanup', payload: id })),
@@ -287,10 +293,12 @@ describe('CreateScreen', () => {
     mockNavigate.mockClear();
     mockGoBack.mockClear();
     mockReplace.mockClear();
+    mockGenerateCreateImages.mockClear();
     mockRouteParams = {
       providers: ['openai'],
       initialPrompt: 'A beautiful sunset',
     };
+    mockDispatch.mockImplementation((action) => action);
     mockUseSelector.mockImplementation((selector) => selector(baseState));
     // Default to non-demo mode
     mockUseFeatureAccess.mockReturnValue({
@@ -311,6 +319,21 @@ describe('CreateScreen', () => {
     it('shows provider name', () => {
       const { getAllByText } = renderWithProviders(<CreateScreen />);
       expect(getAllByText('OpenAI').length).toBeGreaterThan(0);
+    });
+
+    it('keeps legacy route generation compatible by dispatching the shared image thunk', async () => {
+      renderWithProviders(<CreateScreen />);
+
+      await waitFor(() => {
+        expect(mockGenerateCreateImages).toHaveBeenCalledWith(expect.objectContaining({
+          prompt: 'A beautiful sunset',
+          providers: ['openai'],
+          selectedModels: { openai: 'gpt-image-2' },
+          style: 'none',
+          size: 'auto',
+          quality: 'standard',
+        }));
+      });
     });
   });
 

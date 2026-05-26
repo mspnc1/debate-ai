@@ -11,6 +11,11 @@ export type ImageModelApiFamily =
   | 'google-imagen'
   | 'xai-images';
 
+export type ImageOutputQuality = 'auto' | 'low' | 'medium' | 'high' | 'standard' | 'hd';
+export type ImageOutputFormat = 'png' | 'jpeg' | 'webp';
+export type ImageBackgroundOption = 'auto' | 'opaque' | 'transparent';
+export type ImageModerationOption = 'auto' | 'low';
+
 export interface ImageModelConfig {
   id: string;
   displayName: string;
@@ -24,6 +29,13 @@ export interface ImageModelConfig {
   resolutions?: string[];
   maxPromptLength?: number;
   supportsMultipleReferenceImages?: boolean;
+  maxImagesPerRequest?: number;
+  maxReferenceImages?: number;
+  qualityOptions?: ImageOutputQuality[];
+  outputFormats?: ImageOutputFormat[];
+  supportsOutputCompression?: boolean;
+  backgroundOptions?: ImageBackgroundOption[];
+  moderationOptions?: ImageModerationOption[];
   isDefault: boolean;
   isPreview?: boolean;
   isDeprecated?: boolean;
@@ -79,9 +91,24 @@ const IMAGE_MODEL_ALIASES: Partial<Record<AIProvider, Record<string, string>>> =
 function createImageModel(config: ImageModelConfig): ImageModelConfig {
   return {
     maxPromptLength: 4000,
+    maxImagesPerRequest: 1,
+    maxReferenceImages: config.supportsImageInput ? 1 : 0,
+    qualityOptions: ['auto'],
+    outputFormats: ['png'],
+    supportsOutputCompression: false,
+    backgroundOptions: ['auto'],
+    moderationOptions: ['auto'],
     ...config,
   };
 }
+
+const OPENAI_GPT_IMAGE_QUALITIES: ImageOutputQuality[] = ['auto', 'low', 'medium', 'high'];
+const OPENAI_GPT_IMAGE_FORMATS: ImageOutputFormat[] = ['png', 'jpeg', 'webp'];
+const OPENAI_GPT_IMAGE_BACKGROUNDS: ImageBackgroundOption[] = ['auto', 'opaque'];
+const OPENAI_GPT_IMAGE_MODERATION: ImageModerationOption[] = ['auto', 'low'];
+const GOOGLE_IMAGE_QUALITIES: ImageOutputQuality[] = ['auto'];
+const XAI_IMAGE_QUALITIES: ImageOutputQuality[] = ['auto'];
+const XAI_IMAGE_FORMATS: ImageOutputFormat[] = ['png'];
 
 export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
   openai: [
@@ -94,6 +121,14 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
       apiFamily: 'openai-images',
       supportsImageInput: true,
       sizes: [...OPENAI_IMAGE_SIZES],
+      resolutions: ['1K', '2K', '4K'],
+      maxImagesPerRequest: 4,
+      maxReferenceImages: 5,
+      qualityOptions: [...OPENAI_GPT_IMAGE_QUALITIES],
+      outputFormats: [...OPENAI_GPT_IMAGE_FORMATS],
+      supportsOutputCompression: true,
+      backgroundOptions: [...OPENAI_GPT_IMAGE_BACKGROUNDS],
+      moderationOptions: [...OPENAI_GPT_IMAGE_MODERATION],
       isDefault: true,
     }),
     createImageModel({
@@ -105,6 +140,13 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
       apiFamily: 'openai-images',
       supportsImageInput: true,
       sizes: [...OPENAI_IMAGE_SIZES],
+      maxImagesPerRequest: 4,
+      maxReferenceImages: 5,
+      qualityOptions: [...OPENAI_GPT_IMAGE_QUALITIES],
+      outputFormats: [...OPENAI_GPT_IMAGE_FORMATS],
+      supportsOutputCompression: true,
+      backgroundOptions: ['auto', 'opaque', 'transparent'],
+      moderationOptions: [...OPENAI_GPT_IMAGE_MODERATION],
       isDefault: false,
     }),
     createImageModel({
@@ -116,6 +158,13 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
       apiFamily: 'openai-images',
       supportsImageInput: true,
       sizes: [...OPENAI_IMAGE_SIZES],
+      maxImagesPerRequest: 4,
+      maxReferenceImages: 5,
+      qualityOptions: [...OPENAI_GPT_IMAGE_QUALITIES],
+      outputFormats: [...OPENAI_GPT_IMAGE_FORMATS],
+      supportsOutputCompression: true,
+      backgroundOptions: ['auto', 'opaque', 'transparent'],
+      moderationOptions: [...OPENAI_GPT_IMAGE_MODERATION],
       isDefault: false,
       isDeprecated: true,
     }),
@@ -128,6 +177,13 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
       apiFamily: 'openai-images',
       supportsImageInput: true,
       sizes: [...OPENAI_IMAGE_SIZES],
+      maxImagesPerRequest: 4,
+      maxReferenceImages: 1,
+      qualityOptions: [...OPENAI_GPT_IMAGE_QUALITIES],
+      outputFormats: [...OPENAI_GPT_IMAGE_FORMATS],
+      supportsOutputCompression: true,
+      backgroundOptions: ['auto', 'opaque', 'transparent'],
+      moderationOptions: [...OPENAI_GPT_IMAGE_MODERATION],
       isDefault: false,
     }),
     createImageModel({
@@ -139,6 +195,13 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
       apiFamily: 'openai-images',
       supportsImageInput: true,
       sizes: [...OPENAI_IMAGE_SIZES],
+      maxImagesPerRequest: 4,
+      maxReferenceImages: 1,
+      qualityOptions: [...OPENAI_GPT_IMAGE_QUALITIES],
+      outputFormats: [...OPENAI_GPT_IMAGE_FORMATS],
+      supportsOutputCompression: true,
+      backgroundOptions: ['auto', 'opaque', 'transparent'],
+      moderationOptions: [...OPENAI_GPT_IMAGE_MODERATION],
       isDefault: false,
     }),
     createImageModel({
@@ -150,6 +213,9 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
       apiFamily: 'openai-images',
       supportsImageInput: false,
       sizes: [...OPENAI_DALLE_SIZES],
+      maxImagesPerRequest: 1,
+      qualityOptions: ['standard', 'hd'],
+      outputFormats: ['png'],
       isDefault: false,
       isDeprecated: true,
     }),
@@ -165,6 +231,9 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
       supportsImageInput: true,
       sizes: [...GOOGLE_STANDARD_ASPECT_RATIOS],
       aspectRatios: [...GOOGLE_STANDARD_ASPECT_RATIOS],
+      maxImagesPerRequest: 1,
+      maxReferenceImages: 1,
+      qualityOptions: [...GOOGLE_IMAGE_QUALITIES],
       isDefault: true,
     }),
     createImageModel({
@@ -178,6 +247,10 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
       sizes: [...GOOGLE_EXTENDED_ASPECT_RATIOS],
       aspectRatios: [...GOOGLE_EXTENDED_ASPECT_RATIOS],
       resolutions: ['0.5K', '1K', '2K'],
+      maxImagesPerRequest: 1,
+      maxReferenceImages: 14,
+      supportsMultipleReferenceImages: true,
+      qualityOptions: [...GOOGLE_IMAGE_QUALITIES],
       isDefault: false,
       isPreview: true,
     }),
@@ -192,6 +265,10 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
       sizes: [...GOOGLE_EXTENDED_ASPECT_RATIOS],
       aspectRatios: [...GOOGLE_EXTENDED_ASPECT_RATIOS],
       resolutions: ['1K', '2K', '4K'],
+      maxImagesPerRequest: 1,
+      maxReferenceImages: 14,
+      supportsMultipleReferenceImages: true,
+      qualityOptions: [...GOOGLE_IMAGE_QUALITIES],
       isDefault: false,
       isPreview: true,
     }),
@@ -205,6 +282,9 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
       supportsImageInput: false,
       sizes: [...GOOGLE_STANDARD_ASPECT_RATIOS],
       aspectRatios: [...GOOGLE_STANDARD_ASPECT_RATIOS],
+      resolutions: ['1K'],
+      maxImagesPerRequest: 4,
+      qualityOptions: [...GOOGLE_IMAGE_QUALITIES],
       isDefault: false,
     }),
     createImageModel({
@@ -217,6 +297,9 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
       supportsImageInput: false,
       sizes: [...GOOGLE_STANDARD_ASPECT_RATIOS],
       aspectRatios: [...GOOGLE_STANDARD_ASPECT_RATIOS],
+      resolutions: ['1K', '2K'],
+      maxImagesPerRequest: 4,
+      qualityOptions: [...GOOGLE_IMAGE_QUALITIES],
       isDefault: false,
     }),
     createImageModel({
@@ -229,6 +312,9 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
       supportsImageInput: false,
       sizes: [...GOOGLE_STANDARD_ASPECT_RATIOS],
       aspectRatios: [...GOOGLE_STANDARD_ASPECT_RATIOS],
+      resolutions: ['1K', '2K'],
+      maxImagesPerRequest: 4,
+      qualityOptions: [...GOOGLE_IMAGE_QUALITIES],
       isDefault: false,
     }),
   ],
@@ -245,6 +331,10 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
       aspectRatios: [...XAI_ASPECT_RATIOS],
       resolutions: ['1K', '2K'],
       supportsMultipleReferenceImages: true,
+      maxImagesPerRequest: 10,
+      maxReferenceImages: 3,
+      qualityOptions: [...XAI_IMAGE_QUALITIES],
+      outputFormats: [...XAI_IMAGE_FORMATS],
       isDefault: true,
     }),
     createImageModel({
@@ -259,6 +349,10 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
       aspectRatios: [...XAI_ASPECT_RATIOS],
       resolutions: ['1K', '2K'],
       supportsMultipleReferenceImages: true,
+      maxImagesPerRequest: 10,
+      maxReferenceImages: 3,
+      qualityOptions: [...XAI_IMAGE_QUALITIES],
+      outputFormats: [...XAI_IMAGE_FORMATS],
       isDefault: false,
     }),
   ],
@@ -366,6 +460,14 @@ export function getImageGenerationCapabilities(provider: AIProvider): {
   supportsImageInput: boolean;
   models: string[];
   sizes: string[];
+  resolutions: string[];
+  maxImagesPerRequest: number;
+  maxReferenceImages: number;
+  qualityOptions: ImageOutputQuality[];
+  outputFormats: ImageOutputFormat[];
+  backgroundOptions: ImageBackgroundOption[];
+  moderationOptions: ImageModerationOption[];
+  supportsOutputCompression: boolean;
   maxPromptLength?: number;
 } {
   const models = getImageModels(provider);
@@ -375,6 +477,14 @@ export function getImageGenerationCapabilities(provider: AIProvider): {
       supportsImageInput: false,
       models: [],
       sizes: [],
+      resolutions: [],
+      maxImagesPerRequest: 1,
+      maxReferenceImages: 0,
+      qualityOptions: [],
+      outputFormats: [],
+      backgroundOptions: [],
+      moderationOptions: [],
+      supportsOutputCompression: false,
     };
   }
 
@@ -385,6 +495,14 @@ export function getImageGenerationCapabilities(provider: AIProvider): {
     supportsImageInput: defaultModel?.supportsImageInput ?? false,
     models: models.map((model) => model.id),
     sizes: Array.from(new Set(models.flatMap((model) => model.sizes))),
+    resolutions: Array.from(new Set(models.flatMap((model) => model.resolutions || []))),
+    maxImagesPerRequest: Math.max(...models.map((model) => model.maxImagesPerRequest || 1)),
+    maxReferenceImages: Math.max(...models.map((model) => model.maxReferenceImages || 0)),
+    qualityOptions: Array.from(new Set(models.flatMap((model) => model.qualityOptions || []))),
+    outputFormats: Array.from(new Set(models.flatMap((model) => model.outputFormats || []))),
+    backgroundOptions: Array.from(new Set(models.flatMap((model) => model.backgroundOptions || []))),
+    moderationOptions: Array.from(new Set(models.flatMap((model) => model.moderationOptions || []))),
+    supportsOutputCompression: models.some((model) => model.supportsOutputCompression),
     maxPromptLength: Math.max(...models.map((model) => model.maxPromptLength || 0)),
   };
 }

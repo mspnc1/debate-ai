@@ -1,6 +1,10 @@
 import { AIProvider } from '../../types';
 import {
+  ImageBackgroundOption,
   getImageModelDisplayName,
+  ImageModerationOption,
+  ImageOutputFormat,
+  ImageOutputQuality,
   getResolvedImageModel,
   ImageModelConfig,
 } from '../../config/imageGenerationModels';
@@ -22,9 +26,18 @@ export interface GenerateImageOptions {
   prompt: string;
   size?: string;
   resolution?: string;
+  quality?: ImageOutputQuality;
+  outputFormat?: ImageOutputFormat;
+  outputCompression?: number;
+  background?: ImageBackgroundOption;
+  moderation?: ImageModerationOption;
   n?: number;
   signal?: AbortSignal;
   sourceImage?: string;
+  sourceImages?: Array<{
+    data: string;
+    mimeType?: string;
+  }>;
 }
 
 export interface GeneratedImage {
@@ -83,6 +96,35 @@ function toDataUri(sourceImage: string, mimeType = 'image/png'): string {
   return `data:${mimeType};base64,${base64Data}`;
 }
 
+function getRequestedSourceImages(opts: GenerateImageOptions): Array<{ data: string; mimeType: string }> {
+  const sourceImages = opts.sourceImages?.length
+    ? opts.sourceImages
+    : opts.sourceImage
+      ? [{ data: opts.sourceImage }]
+      : [];
+
+  return sourceImages
+    .filter((source) => source.data)
+    .map((source) => ({
+      data: source.data,
+      mimeType: source.mimeType || 'image/png',
+    }));
+}
+
+function clampImageCount(model: ImageModelConfig, requested?: number): number {
+  const max = Math.max(1, model.maxImagesPerRequest || 1);
+  return Math.max(1, Math.min(requested || 1, max));
+}
+
+function supportsValue<T extends string>(values: T[] | undefined, requested?: T): requested is T {
+  return Boolean(requested && values?.includes(requested));
+}
+
+function appendFormValue(formData: FormData, key: string, value?: string | number): void {
+  if (value === undefined || value === null || value === '') return;
+  formData.append(key, String(value));
+}
+
 function getPreferredResolution(model: ImageModelConfig, requestedResolution?: string): string | undefined {
   if (!model.resolutions?.length) {
     return undefined;
@@ -114,7 +156,7 @@ export class ImageService {
       throw new Error(`No API key for ${normalizedOpts.provider}`);
     }
 
-    if (normalizedOpts.sourceImage && !model.supportsImageInput) {
+    if (getRequestedSourceImages(normalizedOpts).length > 0 && !model.supportsImageInput) {
       throw new Error(`${getImageModelDisplayName(normalizedOpts.provider, model.id)} does not support image refinement.`);
     }
 
@@ -136,18 +178,41 @@ export class ImageService {
     model: ImageModelConfig,
     opts: GenerateImageOptions
   ): Promise<GeneratedImage[]> {
-    if (opts.sourceImage) {
+    if (getRequestedSourceImages(opts).length > 0) {
       return this.generateOpenAIEdit(model, opts);
     }
 
     const body: Record<string, unknown> = {
       model: model.id,
       prompt: opts.prompt,
-      size: opts.size || '1024x1024',
     };
 
-    if (opts.n && opts.n > 1) {
-      body.n = opts.n;
+    if (opts.size) {
+      body.size = opts.size;
+    }
+    const count = clampImageCount(model, opts.n);
+    if (count > 1) {
+      body.n = count;
+    }
+    if (supportsValue(model.qualityOptions, opts.quality)) {
+      body.quality = opts.quality;
+    }
+    if (supportsValue(model.outputFormats, opts.outputFormat)) {
+      body.output_format = opts.outputFormat;
+    }
+    if (
+      opts.outputCompression !== undefined &&
+      opts.outputFormat &&
+      opts.outputFormat !== 'png' &&
+      model.supportsOutputCompression
+    ) {
+      body.output_compression = Math.max(0, Math.min(100, Math.round(opts.outputCompression)));
+    }
+    if (supportsValue(model.backgroundOptions, opts.background)) {
+      body.background = opts.background;
+    }
+    if (supportsValue(model.moderationOptions, opts.moderation)) {
+      body.moderation = opts.moderation;
     }
 
     const res = await fetch('https://api.openai.com/v1/images/generations', {
@@ -172,25 +237,50 @@ export class ImageService {
     model: ImageModelConfig,
     opts: GenerateImageOptions
   ): Promise<GeneratedImage[]> {
-    if (!opts.sourceImage) {
+    const sourceImages = getRequestedSourceImages(opts);
+    if (sourceImages.length === 0) {
       throw new Error('sourceImage is required for img2img');
     }
-
-    const base64Data = opts.sourceImage.includes(',') ? opts.sourceImage.split(',')[1] : opts.sourceImage;
-    const fileUri = await saveBase64Image(base64Data, 'image/png', {
-      location: 'cache',
-      prefix: 'edit-source',
-    });
 
     const formData = new FormData();
     formData.append('model', model.id);
     formData.append('prompt', opts.prompt);
-    formData.append('n', String(opts.n || 1));
-    formData.append('image', {
-      uri: fileUri,
-      type: 'image/png',
-      name: 'image.png',
-    } as unknown as Blob);
+    appendFormValue(formData, 'n', clampImageCount(model, opts.n));
+    appendFormValue(formData, 'size', opts.size);
+    if (supportsValue(model.qualityOptions, opts.quality)) {
+      appendFormValue(formData, 'quality', opts.quality);
+    }
+    if (supportsValue(model.outputFormats, opts.outputFormat)) {
+      appendFormValue(formData, 'output_format', opts.outputFormat);
+    }
+    if (
+      opts.outputCompression !== undefined &&
+      opts.outputFormat &&
+      opts.outputFormat !== 'png' &&
+      model.supportsOutputCompression
+    ) {
+      appendFormValue(formData, 'output_compression', Math.max(0, Math.min(100, Math.round(opts.outputCompression))));
+    }
+    if (supportsValue(model.backgroundOptions, opts.background)) {
+      appendFormValue(formData, 'background', opts.background);
+    }
+    if (supportsValue(model.moderationOptions, opts.moderation)) {
+      appendFormValue(formData, 'moderation', opts.moderation);
+    }
+
+    for (const [index, source] of sourceImages.slice(0, model.maxReferenceImages || 1).entries()) {
+      const base64Data = source.data.includes(',') ? source.data.split(',')[1] : source.data;
+      const fileUri = await saveBase64Image(base64Data, source.mimeType, {
+        location: 'cache',
+        prefix: 'edit-source',
+      });
+
+      formData.append(sourceImages.length === 1 ? 'image' : 'image[]', {
+        uri: fileUri,
+        type: source.mimeType,
+        name: `image_${index + 1}.png`,
+      } as unknown as Blob);
+    }
 
     const res = await fetch('https://api.openai.com/v1/images/edits', {
       method: 'POST',
@@ -213,7 +303,7 @@ export class ImageService {
     model: ImageModelConfig,
     opts: GenerateImageOptions
   ): Promise<GeneratedImage[]> {
-    if (opts.sourceImage) {
+    if (getRequestedSourceImages(opts).length > 0) {
       return this.generateXaiEdit(model, opts);
     }
 
@@ -226,8 +316,13 @@ export class ImageService {
     if (aspectRatio) {
       body.aspect_ratio = aspectRatio;
     }
-    if (opts.n && opts.n > 1) {
-      body.n = opts.n;
+    const count = clampImageCount(model, opts.n);
+    if (count > 1) {
+      body.n = count;
+    }
+    const preferredResolution = getPreferredResolution(model, opts.resolution);
+    if (preferredResolution) {
+      body.resolution = preferredResolution;
     }
 
     const res = await fetch('https://api.x.ai/v1/images/generations', {
@@ -252,20 +347,39 @@ export class ImageService {
     model: ImageModelConfig,
     opts: GenerateImageOptions
   ): Promise<GeneratedImage[]> {
-    if (!opts.sourceImage) {
+    const sourceImages = getRequestedSourceImages(opts);
+    if (sourceImages.length === 0) {
       throw new Error('sourceImage is required for img2img');
     }
 
     const body: Record<string, unknown> = {
       model: model.id,
       prompt: opts.prompt,
-      image: {
-        url: toDataUri(opts.sourceImage),
-      },
     };
 
-    if (opts.n && opts.n > 1) {
-      body.n = opts.n;
+    const limitedSources = sourceImages.slice(0, model.maxReferenceImages || 1);
+    if (limitedSources.length === 1) {
+      body.image = {
+        url: toDataUri(limitedSources[0].data, limitedSources[0].mimeType),
+      };
+    } else {
+      body.images = limitedSources.map((source) => ({
+        type: 'image_url',
+        url: toDataUri(source.data, source.mimeType),
+      }));
+    }
+
+    const aspectRatio = normalizeAspectRatio(opts.size);
+    if (aspectRatio) {
+      body.aspect_ratio = aspectRatio;
+    }
+    const preferredResolution = getPreferredResolution(model, opts.resolution);
+    if (preferredResolution) {
+      body.resolution = preferredResolution;
+    }
+    const count = clampImageCount(model, opts.n);
+    if (count > 1) {
+      body.n = count;
     }
 
     const res = await fetch('https://api.x.ai/v1/images/edits', {
@@ -294,17 +408,20 @@ export class ImageService {
     const aspectRatio = normalizeAspectRatio(opts.size) || '1:1';
 
     const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [];
+    const sourceImages = getRequestedSourceImages(opts).slice(0, model.maxReferenceImages || 1);
 
-    if (opts.sourceImage) {
-      const base64Data = opts.sourceImage.includes(',') ? opts.sourceImage.split(',')[1] : opts.sourceImage;
-      parts.push({
-        inlineData: {
-          mimeType: 'image/png',
-          data: base64Data,
-        },
+    if (sourceImages.length > 0) {
+      sourceImages.forEach((source) => {
+        const base64Data = source.data.includes(',') ? source.data.split(',')[1] : source.data;
+        parts.push({
+          inlineData: {
+            mimeType: source.mimeType,
+            data: base64Data,
+          },
+        });
       });
       parts.push({
-        text: `GENERATE A NEW IMAGE: Take the provided image and create an improved, enhanced version of it. Do NOT just describe or copy the image - you must generate a new image.\n\n${opts.prompt}`,
+        text: `GENERATE A NEW IMAGE: Use the provided image reference${sourceImages.length > 1 ? 's' : ''} and create a new image. Do NOT only describe the image - return generated image data.\n\n${opts.prompt}`,
       });
     } else {
       parts.push({ text: opts.prompt });
@@ -354,7 +471,7 @@ export class ImageService {
     const aspectRatio = normalizeAspectRatio(opts.size) || '1:1';
 
     const parameters: Record<string, unknown> = {
-      sampleCount: Math.max(1, Math.min(opts.n || 1, 4)),
+      sampleCount: clampImageCount(model, opts.n),
       aspectRatio,
     };
 

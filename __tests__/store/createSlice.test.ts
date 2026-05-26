@@ -1,6 +1,34 @@
 /**
  * Tests for createSlice - Redux slice for Create mode AI image generation
  */
+// Mock AsyncStorage
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+}));
+
+jest.mock('@/services/images/ImageService', () => ({
+  ImageService: {
+    generateImage: jest.fn(),
+  },
+}));
+
+jest.mock('@/services/apiKeys/apiKeyStorageCore', () => ({
+  readStoredApiKey: jest.fn(),
+}));
+
+// Mock expo-file-system
+jest.mock('expo-file-system/legacy', () => ({
+  cacheDirectory: '/cache/',
+  documentDirectory: '/documents/',
+  getInfoAsync: jest.fn(),
+  makeDirectoryAsync: jest.fn().mockResolvedValue(undefined),
+  copyAsync: jest.fn().mockResolvedValue(undefined),
+  downloadAsync: jest.fn().mockResolvedValue({ uri: '/documents/images/downloaded.png' }),
+  deleteAsync: jest.fn().mockResolvedValue(undefined),
+}));
+
 import reducer, {
   setSelectedProviders,
   toggleProvider,
@@ -9,6 +37,16 @@ import reducer, {
   setStyle,
   setSize,
   setQuality,
+  setImageCount,
+  setImageResolution,
+  setImageOutputFormat,
+  setImageOutputCompression,
+  setImageBackground,
+  setImageModeration,
+  startImageGeneration,
+  updateImageGeneration,
+  completeImageGeneration,
+  failImageGeneration,
   startGeneration,
   updateGenerationProgress,
   completeGeneration,
@@ -52,6 +90,8 @@ import reducer, {
   persistMediaGallery,
   generateCreateVideo,
   generateCreateAudio,
+  generateCreateImages,
+  selectImageGeneration,
   LOCAL_GALLERY_ASSET_LIMIT,
   getGalleryAssetCounts,
   getFilteredGalleryAssets,
@@ -66,34 +106,12 @@ import reducer, {
 import { configureStore } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
-import APIKeyService from '@/services/APIKeyService';
-
-// Mock AsyncStorage
-jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-}));
-
-jest.mock('@/services/APIKeyService', () => ({
-  __esModule: true,
-  default: {
-    getKey: jest.fn(),
-  },
-}));
-
-// Mock expo-file-system
-jest.mock('expo-file-system/legacy', () => ({
-  cacheDirectory: '/cache/',
-  documentDirectory: '/documents/',
-  getInfoAsync: jest.fn(),
-  makeDirectoryAsync: jest.fn().mockResolvedValue(undefined),
-  copyAsync: jest.fn().mockResolvedValue(undefined),
-  downloadAsync: jest.fn().mockResolvedValue({ uri: '/documents/images/downloaded.png' }),
-  deleteAsync: jest.fn().mockResolvedValue(undefined),
-}));
+import { ImageService } from '@/services/images/ImageService';
+import { readStoredApiKey } from '@/services/apiKeys/apiKeyStorageCore';
 
 const initialState = reducer(undefined, { type: 'init' });
+const mockedGenerateImage = ImageService.generateImage as jest.Mock;
+const mockedReadStoredApiKey = readStoredApiKey as jest.Mock;
 
 describe('createSlice', () => {
   const mockMedia: GeneratedMediaEntry = {
@@ -114,7 +132,8 @@ describe('createSlice', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (APIKeyService.getKey as jest.Mock).mockResolvedValue(null);
+    mockedReadStoredApiKey.mockResolvedValue(null);
+    mockedGenerateImage.mockReset();
   });
 
   describe('provider selection', () => {
@@ -222,11 +241,27 @@ describe('createSlice', () => {
     });
 
     it('supports all quality options', () => {
-      const qualities = ['standard', 'hd'] as const;
+      const qualities = ['standard', 'hd', 'auto', 'low', 'medium', 'high'] as const;
       qualities.forEach(quality => {
         const state = reducer(initialState, setQuality(quality));
         expect(state.selectedQuality).toBe(quality);
       });
+    });
+
+    it('sets adaptive image output options', () => {
+      let state = reducer(initialState, setImageCount(4));
+      state = reducer(state, setImageResolution('2K'));
+      state = reducer(state, setImageOutputFormat('webp'));
+      state = reducer(state, setImageOutputCompression(72));
+      state = reducer(state, setImageBackground('opaque'));
+      state = reducer(state, setImageModeration('low'));
+
+      expect(state.selectedImageCount).toBe(4);
+      expect(state.selectedImageResolution).toBe('2K');
+      expect(state.selectedImageOutputFormat).toBe('webp');
+      expect(state.selectedImageOutputCompression).toBe(72);
+      expect(state.selectedImageBackground).toBe('opaque');
+      expect(state.selectedImageModeration).toBe('low');
     });
   });
 
@@ -275,6 +310,169 @@ describe('createSlice', () => {
       let state = reducer(initialState, startGeneration(['openai']));
       state = reducer(state, updateGenerationProgress({ provider: 'openai', progress: 'error' }));
       expect(state.generationProgress['openai']).toBe('error');
+    });
+
+    it('tracks image generation lifecycle independently for the shared rail', () => {
+      let state = reducer(initialState, startImageGeneration({
+        id: 'image_generation_1',
+        providers: ['openai'],
+        prompt: 'A clean product image',
+        message: 'Preparing image generation...',
+      }));
+
+      const selectorState = { create: state } as Parameters<typeof selectImageGeneration>[0];
+      expect(selectImageGeneration(selectorState)).toMatchObject({
+        id: 'image_generation_1',
+        status: 'queued',
+        phase: 'queued',
+      });
+      expect(state.createActivity.status).toBe('running');
+
+      state = reducer(state, updateImageGeneration({
+        status: 'running',
+        phase: 'generating',
+        message: 'Generating with openai...',
+      }));
+      expect(state.imageGeneration).toMatchObject({
+        status: 'running',
+        phase: 'generating',
+        message: 'Generating with openai...',
+      });
+
+      state = reducer(state, completeImageGeneration({
+        resultIds: ['img_1'],
+        message: 'Image generation complete.',
+      }));
+      expect(state.imageGeneration).toBeNull();
+      expect(state.lastImageGenerationResult).toMatchObject({
+        ids: ['img_1'],
+        status: 'succeeded',
+      });
+      expect(state.createActivity.hasUnseenActivity).toBe(true);
+    });
+
+    it('tracks failed image generation for retry messaging', () => {
+      let state = reducer(initialState, startImageGeneration({
+        id: 'image_generation_1',
+        providers: ['openai'],
+        prompt: 'A clean product image',
+      }));
+
+      state = reducer(state, failImageGeneration({
+        message: 'openai: unsupported source image',
+        failedProviders: ['openai'],
+      }));
+
+      expect(state.imageGeneration).toBeNull();
+      expect(state.lastImageGenerationResult).toMatchObject({
+        ids: [],
+        status: 'failed',
+        message: 'openai: unsupported source image',
+      });
+      expect(state.createActivity.status).toBe('failed');
+    });
+  });
+
+  describe('generateCreateImages thunk', () => {
+    it('records per-provider progress, gallery entries, and the last image result', async () => {
+      mockedReadStoredApiKey.mockResolvedValue('image-key');
+      mockedGenerateImage.mockResolvedValue([
+        { url: 'file:///generated/openai-1.png', mimeType: 'image/png' },
+        { url: 'file:///generated/openai-2.png', mimeType: 'image/png' },
+      ]);
+      const store = configureStore({ reducer: { create: reducer } });
+
+      const result = await store.dispatch(generateCreateImages({
+        prompt: 'A premium editorial photo',
+        providers: ['openai'],
+        selectedModels: { openai: 'gpt-image-2' },
+        style: 'photo',
+        size: 'portrait',
+        quality: 'high',
+        imageCount: 2,
+        outputFormat: 'webp',
+        outputCompression: 80,
+        background: 'opaque',
+        moderation: 'low',
+      })).unwrap();
+
+      const state = store.getState().create;
+      expect(result.ids).toHaveLength(2);
+      expect(state.gallery).toHaveLength(2);
+      expect(state.generationProgress.openai).toBe('complete');
+      expect(state.lastImageGenerationResult).toMatchObject({
+        ids: result.ids,
+        status: 'succeeded',
+        message: '2 images generated.',
+      });
+      expect(mockedGenerateImage).toHaveBeenCalledWith(expect.objectContaining({
+        provider: 'openai',
+        model: 'gpt-image-2',
+        apiKey: 'image-key',
+        n: 2,
+        quality: 'high',
+        outputFormat: 'webp',
+        outputCompression: 80,
+        background: 'opaque',
+        moderation: 'low',
+      }));
+    });
+
+    it('supports multi-provider and multi-count gallery results', async () => {
+      mockedReadStoredApiKey.mockResolvedValue('image-key');
+      mockedGenerateImage
+        .mockResolvedValueOnce([
+          { url: 'file:///generated/openai-1.png', mimeType: 'image/png' },
+          { url: 'file:///generated/openai-2.png', mimeType: 'image/png' },
+        ])
+        .mockResolvedValueOnce([
+          { url: 'file:///generated/google-1.png', mimeType: 'image/png' },
+        ]);
+      const store = configureStore({ reducer: { create: reducer } });
+
+      const result = await store.dispatch(generateCreateImages({
+        prompt: 'A comparison render',
+        providers: ['openai', 'google'],
+        selectedModels: {
+          openai: 'gpt-image-2',
+          google: 'gemini-2.5-flash-image',
+        },
+        imageCount: 2,
+      })).unwrap();
+
+      expect(result.ids).toHaveLength(3);
+      expect(store.getState().create.gallery.map((entry) => entry.provider).sort()).toEqual([
+        'google',
+        'openai',
+        'openai',
+      ]);
+      expect(mockedGenerateImage).toHaveBeenCalledTimes(2);
+    });
+
+    it('fails source-image runs with actionable provider errors', async () => {
+      mockedReadStoredApiKey.mockResolvedValue('image-key');
+      mockedGenerateImage.mockReset();
+      mockedGenerateImage.mockImplementationOnce(async () => {
+        throw new Error('DALL-E 3 does not support image refinement.');
+      });
+      const store = configureStore({ reducer: { create: reducer } });
+
+      const actionResult = await store.dispatch(generateCreateImages({
+        prompt: 'Improve the lighting',
+        providers: ['openai'],
+        selectedModels: { openai: 'dall-e-3' },
+        sourceImages: [{ uri: 'base64-source-image-data-that-is-long-enough-to-detect', base64: 'source-base64' }],
+        refinementInstructions: 'Improve the lighting',
+      }));
+      expect(actionResult.type).toBe('create/generateCreateImages/rejected');
+      expect(actionResult.error.message).toContain('DALL-E 3 does not support image refinement.');
+
+      expect(store.getState().create.lastImageGenerationResult).toMatchObject({
+        ids: [],
+        status: 'failed',
+        message: expect.stringContaining('DALL-E 3 does not support image refinement.'),
+      });
+      expect(store.getState().create.generationProgress.openai).toBe('error');
     });
   });
 
@@ -378,7 +576,7 @@ describe('createSlice', () => {
       const keyPromise = new Promise<string | null>((resolve) => {
         resolveKey = resolve;
       });
-      (APIKeyService.getKey as jest.Mock).mockReturnValueOnce(keyPromise);
+      mockedReadStoredApiKey.mockReturnValueOnce(keyPromise);
       const store = configureStore({
         reducer: { create: reducer },
       });
@@ -407,7 +605,7 @@ describe('createSlice', () => {
       const keyPromise = new Promise<string | null>((resolve) => {
         resolveKey = resolve;
       });
-      (APIKeyService.getKey as jest.Mock).mockReturnValueOnce(keyPromise);
+      mockedReadStoredApiKey.mockReturnValueOnce(keyPromise);
       const store = configureStore({
         reducer: { create: reducer },
       });

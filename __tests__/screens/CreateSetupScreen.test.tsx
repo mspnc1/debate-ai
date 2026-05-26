@@ -12,6 +12,11 @@ const mockUseFeatureAccess = jest.fn();
 const mockNavigate = jest.fn();
 const mockGetApiKey = jest.fn();
 const mockListElevenLabsOptions = jest.fn();
+const mockGenerateCreateImages = jest.fn((payload) => ({
+  type: 'create/generateCreateImages',
+  payload,
+  unwrap: jest.fn().mockResolvedValue({ ids: ['img_done'], entries: [], failedProviders: [] }),
+}));
 let mockDynamicAISelectorProps: any;
 let mockGradientButtonProps: any;
 
@@ -103,7 +108,6 @@ jest.mock('@/components/organisms', () => {
 });
 
 let mockPromptHeroInputProps: any;
-let mockAdvancedOptionsSectionProps: any;
 
 jest.mock('@/components/molecules', () => {
   const React = require('react');
@@ -141,12 +145,6 @@ jest.mock('@/components/molecules', () => {
         placeholder: props.placeholder,
         maxLength: props.maxLength,
       });
-    },
-    AdvancedOptionsSection: (props: any) => {
-      mockAdvancedOptionsSectionProps = props;
-      return React.createElement(View, { testID: props.testID || 'advanced-options-section' },
-        React.createElement(Text, null, 'Advanced Options')
-      );
     },
     SegmentedControl: (props: any) =>
       React.createElement(View, { testID: 'segmented-control' },
@@ -187,14 +185,75 @@ jest.mock('@/config/create/sizeOptions', () => ({
   ],
 }));
 
+const mockImageModels: Record<string, Array<Record<string, unknown>>> = {
+  openai: [
+    {
+      id: 'gpt-image-2',
+      displayName: 'GPT Image 2',
+      supportsImageInput: true,
+      supportsMultipleReferenceImages: true,
+      maxImagesPerRequest: 4,
+      maxReferenceImages: 5,
+      qualityOptions: ['auto', 'low', 'medium', 'high'],
+      outputFormats: ['png', 'jpeg', 'webp'],
+      supportsOutputCompression: true,
+      backgroundOptions: ['auto', 'opaque'],
+      moderationOptions: ['auto', 'low'],
+      resolutions: ['1K', '2K'],
+    },
+    {
+      id: 'dall-e-3',
+      displayName: 'DALL-E 3',
+      supportsImageInput: false,
+      maxImagesPerRequest: 1,
+      maxReferenceImages: 0,
+      qualityOptions: ['standard', 'hd'],
+      outputFormats: ['png'],
+      backgroundOptions: ['auto'],
+      moderationOptions: ['auto'],
+      resolutions: [],
+    },
+  ],
+  google: [
+    {
+      id: 'gemini-2.5-flash-image',
+      displayName: 'Gemini Flash Image',
+      supportsImageInput: true,
+      maxImagesPerRequest: 1,
+      maxReferenceImages: 1,
+      qualityOptions: ['auto'],
+      outputFormats: ['png'],
+      backgroundOptions: ['auto'],
+      moderationOptions: ['auto'],
+      resolutions: [],
+    },
+  ],
+  grok: [
+    {
+      id: 'grok-imagine-image',
+      displayName: 'Grok Imagine',
+      supportsImageInput: true,
+      supportsMultipleReferenceImages: true,
+      maxImagesPerRequest: 10,
+      maxReferenceImages: 3,
+      qualityOptions: ['auto'],
+      outputFormats: ['png'],
+      backgroundOptions: ['auto'],
+      moderationOptions: ['auto'],
+      resolutions: ['1K', '2K'],
+    },
+  ],
+};
+
 jest.mock('@/config/imageGenerationModels', () => ({
-  getImageInputModels: (provider: string) => {
-    const modelsByProvider: Record<string, Array<{ id: string }>> = {
-      openai: [{ id: 'gpt-image-2' }, { id: 'gpt-image-1-mini' }],
-      google: [{ id: 'gemini-2.5-flash-image' }, { id: 'gemini-3-pro-image-preview' }],
-      grok: [{ id: 'grok-imagine-image' }],
-    };
-    return modelsByProvider[provider] || [];
+  getImageInputModels: (provider: string) => (mockImageModels[provider] || []).filter((model) => model.supportsImageInput),
+  getResolvedImageModel: (provider: string, modelId?: string) => {
+    const resolvedId = modelId || ({
+      openai: 'gpt-image-2',
+      google: 'gemini-2.5-flash-image',
+      grok: 'grok-imagine-image',
+    } as Record<string, string>)[provider];
+    return (mockImageModels[provider] || []).find((model) => model.id === resolvedId);
   },
   resolveImageModelId: (provider: string, modelId?: string) => {
     if (modelId) return modelId;
@@ -206,7 +265,14 @@ jest.mock('@/config/imageGenerationModels', () => ({
     return defaults[provider];
   },
   supportsImageGeneration: (provider: string) => ['openai', 'google', 'grok'].includes(provider),
-  supportsImageInput: (provider: string) => ['openai', 'google'].includes(provider),
+  supportsImageInput: (provider: string, modelId?: string) => {
+    const resolvedId = modelId || ({
+      openai: 'gpt-image-2',
+      google: 'gemini-2.5-flash-image',
+      grok: 'grok-imagine-image',
+    } as Record<string, string>)[provider];
+    return Boolean((mockImageModels[provider] || []).find((model) => model.id === resolvedId)?.supportsImageInput);
+  },
   getImageProviderDisplayName: (provider: string) => {
     const names: Record<string, string> = { openai: 'OpenAI', google: 'Google', grok: 'Grok' };
     return names[provider] || provider;
@@ -218,10 +284,18 @@ jest.mock('@/utils/aiProviderAssets', () => ({
 }));
 
 jest.mock('@/store/createSlice', () => ({
+  generateCreateImages: (payload: unknown) => mockGenerateCreateImages(payload),
   setPrompt: jest.fn((prompt) => ({ type: 'create/setPrompt', payload: prompt })),
   setStyle: jest.fn((style) => ({ type: 'create/setStyle', payload: style })),
   setSize: jest.fn((size) => ({ type: 'create/setSize', payload: size })),
   setQuality: jest.fn((quality) => ({ type: 'create/setQuality', payload: quality })),
+  setImageCount: jest.fn((count) => ({ type: 'create/setImageCount', payload: count })),
+  setImageResolution: jest.fn((resolution) => ({ type: 'create/setImageResolution', payload: resolution })),
+  setImageOutputFormat: jest.fn((format) => ({ type: 'create/setImageOutputFormat', payload: format })),
+  setImageOutputCompression: jest.fn((compression) => ({ type: 'create/setImageOutputCompression', payload: compression })),
+  setImageBackground: jest.fn((background) => ({ type: 'create/setImageBackground', payload: background })),
+  setImageModeration: jest.fn((moderation) => ({ type: 'create/setImageModeration', payload: moderation })),
+  setSelectedModel: jest.fn((payload) => ({ type: 'create/setSelectedModel', payload })),
   setSelectedProviders: jest.fn((providers) => ({ type: 'create/setSelectedProviders', payload: providers })),
   setActiveCreateTab: jest.fn((tab) => ({ type: 'create/setActiveCreateTab', payload: tab })),
   markCreateActivitySeen: jest.fn(() => ({ type: 'create/markCreateActivitySeen' })),
@@ -256,15 +330,24 @@ describe('CreateSetupScreen', () => {
     },
     create: {
       selectedProviders: [],
+      selectedModels: {},
       currentPrompt: '',
       selectedStyle: 'none',
       selectedSize: 'auto',
       selectedQuality: 'standard',
+      selectedImageCount: 1,
+      selectedImageResolution: undefined,
+      selectedImageOutputFormat: 'png',
+      selectedImageOutputCompression: 80,
+      selectedImageBackground: 'auto',
+      selectedImageModeration: 'auto',
       gallery: [],
       galleryHydrated: true,
       mediaGallery: [],
       mediaGalleryHydrated: true,
+      imageGeneration: null,
       mediaGeneration: { video: null, audio: null },
+      lastImageGenerationResult: undefined,
       activeTab: 'image',
       createActivity: { status: 'idle', hasUnseenActivity: false },
     },
@@ -277,7 +360,7 @@ describe('CreateSetupScreen', () => {
     mockDynamicAISelectorProps = undefined;
     mockGradientButtonProps = undefined;
     mockPromptHeroInputProps = undefined;
-    mockAdvancedOptionsSectionProps = undefined;
+    mockGenerateCreateImages.mockClear();
     mockDispatch.mockImplementation((action) => action);
     mockUseSelector.mockImplementation((selector) => selector(baseState));
     mockUseFeatureAccess.mockReturnValue({ membershipStatus: 'premium', isDemo: false, isPremium: true });
@@ -337,9 +420,13 @@ describe('CreateSetupScreen', () => {
       expect(getByTestId('create-prompt-input')).toBeTruthy();
     });
 
-    it('renders AdvancedOptionsSection', () => {
-      const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
-      expect(getByTestId('create-advanced-options')).toBeTruthy();
+    it('renders image studio mode, source, and output sections without Advanced Options', () => {
+      const { getByText, queryByTestId } = renderWithProviders(<CreateSetupScreen />);
+
+      expect(getByText('Image Mode')).toBeTruthy();
+      expect(getByText('References')).toBeTruthy();
+      expect(getByText('Output')).toBeTruthy();
+      expect(queryByTestId('create-advanced-options')).toBeNull();
     });
   });
 
@@ -369,13 +456,23 @@ describe('CreateSetupScreen', () => {
       renderWithProviders(<CreateSetupScreen />);
       expect(mockDynamicAISelectorProps).toBeDefined();
       expect(mockDynamicAISelectorProps.maxAIs).toBe(3);
-      expect(mockDynamicAISelectorProps.getBadge).toBeUndefined();
+      expect(mockDynamicAISelectorProps.getBadge).toEqual(expect.any(Function));
     });
 
-    it('keeps the image refinement explainer text visible', () => {
-      const { getByText, getByTestId } = renderWithProviders(<CreateSetupScreen />);
-      expect(getByTestId('badge-img2img')).toBeTruthy();
-      expect(getByText('Supports image refinement')).toBeTruthy();
+    it('shows capability summary for selected img2img models', () => {
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          create: {
+            ...baseState.create,
+            selectedProviders: ['openai'],
+          },
+        })
+      );
+
+      const { getByText } = renderWithProviders(<CreateSetupScreen />);
+      expect(getByText(/Supports refinement and reference images/)).toBeTruthy();
+      expect(getByText(/GPT Image 2/)).toBeTruthy();
     });
   });
 
@@ -406,48 +503,63 @@ describe('CreateSetupScreen', () => {
     });
   });
 
-  describe('AdvancedOptionsSection integration', () => {
-    it('passes correct props to AdvancedOptionsSection', () => {
-      renderWithProviders(<CreateSetupScreen />);
-      expect(mockAdvancedOptionsSectionProps).toBeDefined();
-      expect(mockAdvancedOptionsSectionProps.selectedSize).toBe('auto');
-      expect(mockAdvancedOptionsSectionProps.selectedQuality).toBe('standard');
-    });
-
-    it('passes updated size to AdvancedOptionsSection', () => {
+  describe('Image Studio controls', () => {
+    it('switches Refine mode into explicit source and instruction controls', () => {
       mockUseSelector.mockImplementation((selector) =>
         selector({
           ...baseState,
-          create: { ...baseState.create, selectedSize: 'square' },
+          create: {
+            ...baseState.create,
+            selectedProviders: ['openai'],
+            selectedQuality: 'auto',
+          },
         })
       );
 
-      renderWithProviders(<CreateSetupScreen />);
-      expect(mockAdvancedOptionsSectionProps.selectedSize).toBe('square');
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+
+      fireEvent.press(getByTestId('segment-refine'));
+
+      expect(getByText('Source Image')).toBeTruthy();
+      expect(mockPromptHeroInputProps.placeholder).toContain('Change the lighting');
+      expect(getByText('Add an image to refine')).toBeTruthy();
     });
 
-    it('passes updated quality to AdvancedOptionsSection', () => {
+    it('shows adaptive OpenAI output controls for capable models', () => {
       mockUseSelector.mockImplementation((selector) =>
         selector({
           ...baseState,
-          create: { ...baseState.create, selectedQuality: 'hd' },
+          create: {
+            ...baseState.create,
+            selectedProviders: ['openai'],
+            selectedQuality: 'auto',
+          },
         })
       );
 
-      renderWithProviders(<CreateSetupScreen />);
-      expect(mockAdvancedOptionsSectionProps.selectedQuality).toBe('hd');
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+
+      expect(getByTestId('create-image-count-slider')).toBeTruthy();
+      expect(getByText('JPEG')).toBeTruthy();
+      expect(getByText('Less restrictive')).toBeTruthy();
     });
 
-    it('dispatches setSize when size changes', () => {
-      renderWithProviders(<CreateSetupScreen />);
-      mockAdvancedOptionsSectionProps.onSizeChange('portrait');
-      expect(mockDispatch).toHaveBeenCalledWith({ type: 'create/setSize', payload: 'portrait' });
-    });
+    it('hides multi-output controls for single-image text-only models', () => {
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          create: {
+            ...baseState.create,
+            selectedProviders: ['openai'],
+            selectedModels: { openai: 'dall-e-3' },
+          },
+        })
+      );
 
-    it('dispatches setQuality when quality changes', () => {
-      renderWithProviders(<CreateSetupScreen />);
-      mockAdvancedOptionsSectionProps.onQualityChange('hd');
-      expect(mockDispatch).toHaveBeenCalledWith({ type: 'create/setQuality', payload: 'hd' });
+      const { queryByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+
+      expect(queryByTestId('create-image-count-slider')).toBeNull();
+      expect(getByText(/Creates from text prompts only/)).toBeTruthy();
     });
   });
 
@@ -473,7 +585,7 @@ describe('CreateSetupScreen', () => {
       expect(mockGradientButtonProps.disabled).toBe(false);
     });
 
-    it('navigates to CreateSession on generate', () => {
+    it('dispatches image generation from the setup rail with model and output settings', async () => {
       mockUseSelector.mockImplementation((selector) =>
         selector({
           ...baseState,
@@ -481,6 +593,17 @@ describe('CreateSetupScreen', () => {
             ...baseState.create,
             currentPrompt: 'A beautiful sunset',
             selectedProviders: ['openai', 'google'],
+            selectedModels: {
+              openai: 'gpt-image-2',
+              google: 'gemini-2.5-flash-image',
+            },
+            selectedQuality: 'auto',
+            selectedImageCount: 2,
+            selectedImageResolution: '1K',
+            selectedImageOutputFormat: 'jpeg',
+            selectedImageOutputCompression: 80,
+            selectedImageBackground: 'auto',
+            selectedImageModeration: 'low',
           },
         })
       );
@@ -488,14 +611,106 @@ describe('CreateSetupScreen', () => {
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
       fireEvent.press(getByTestId('gradient-button'));
 
-      expect(mockNavigate).toHaveBeenCalledWith('CreateSession', {
+      expect(mockGenerateCreateImages).toHaveBeenCalledWith(expect.objectContaining({
+        prompt: 'A beautiful sunset',
         providers: ['openai', 'google'],
         selectedModels: {
           openai: 'gpt-image-2',
           google: 'gemini-2.5-flash-image',
         },
-        initialPrompt: 'A beautiful sunset',
+        quality: 'auto',
+        imageCount: 2,
+        resolution: '1K',
+        outputFormat: 'jpeg',
+        outputCompression: 80,
+        background: 'auto',
+        moderation: 'low',
+        sourceImages: [],
+      }));
+      await waitFor(() => {
+        expect(mockDispatch).toHaveBeenCalledWith({ type: 'create/setPrompt', payload: '' });
+        expect(mockNavigate).toHaveBeenCalledWith('CreateSession', { focusAssetId: 'img_done', galleryTab: 'image' });
       });
+    });
+  });
+
+  describe('image generation rail', () => {
+    it('shows running state from shared image generation state', () => {
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          create: {
+            ...baseState.create,
+            currentPrompt: 'A beautiful sunset',
+            selectedProviders: ['openai'],
+            imageGeneration: {
+              id: 'image_running',
+              providers: ['openai'],
+              prompt: 'A beautiful sunset',
+              status: 'running',
+              phase: 'generating',
+              startedAt: Date.now(),
+              message: 'Generating with openai...',
+            },
+          },
+        })
+      );
+
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+
+      expect(getByTestId('create-image-rail')).toBeTruthy();
+      expect(getByTestId('create-image-status')).toBeTruthy();
+      expect(getByText('Generating with openai...')).toBeTruthy();
+      expect(getByText('Generating Images...')).toBeTruthy();
+    });
+
+    it('shows failed state from the shared image generation result', () => {
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          create: {
+            ...baseState.create,
+            selectedProviders: ['openai'],
+            lastImageGenerationResult: {
+              ids: [],
+              status: 'failed',
+              message: 'openai: bad request',
+              completedAt: Date.now(),
+            },
+          },
+        })
+      );
+
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+
+      expect(getByTestId('create-image-status')).toBeTruthy();
+      expect(getByText('openai: bad request')).toBeTruthy();
+      expect(getByText('Retry Images')).toBeTruthy();
+    });
+
+    it('opens Gallery from the completed image CTA focused on a single result', () => {
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          create: {
+            ...baseState.create,
+            selectedProviders: ['openai'],
+            lastImageGenerationResult: {
+              ids: ['img_done'],
+              status: 'succeeded',
+              message: 'Image generation complete.',
+              completedAt: Date.now(),
+            },
+          },
+        })
+      );
+
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+
+      expect(getByText('Image generation complete.')).toBeTruthy();
+      fireEvent.press(getByTestId('create-image-gallery-cta'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('CreateSession', { focusAssetId: 'img_done', galleryTab: 'image' });
     });
   });
 

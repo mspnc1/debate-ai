@@ -57,6 +57,65 @@ describe('ImageService', () => {
     expect(result).toEqual([{ url: '/documents/images/generated.png', mimeType: 'image/png' }]);
   });
 
+  it('maps supported OpenAI output options and omits unsupported defaults', async () => {
+    mockedFetch.mockResolvedValue(jsonResponse({ data: [{ url: 'https://example.com/image.webp' }] }));
+
+    await ImageService.generateImage({
+      provider: 'openai',
+      apiKey: 'key',
+      prompt: 'a product render',
+      size: '1024x1024',
+      n: 3,
+      quality: 'high',
+      outputFormat: 'webp',
+      outputCompression: 72,
+      background: 'opaque',
+      moderation: 'low',
+    });
+
+    const body = JSON.parse((mockedFetch.mock.calls[0][1] as RequestInit).body as string);
+    expect(body).toMatchObject({
+      model: 'gpt-image-2',
+      prompt: 'a product render',
+      size: '1024x1024',
+      n: 3,
+      quality: 'high',
+      output_format: 'webp',
+      output_compression: 72,
+      background: 'opaque',
+      moderation: 'low',
+    });
+  });
+
+  it('omits unsupported OpenAI options for legacy models', async () => {
+    mockedFetch.mockResolvedValue(jsonResponse({ data: [{ url: 'https://example.com/dalle.png' }] }));
+
+    await ImageService.generateImage({
+      provider: 'openai',
+      model: 'dall-e-3',
+      apiKey: 'key',
+      prompt: 'a legacy image',
+      n: 4,
+      quality: 'high',
+      outputFormat: 'webp',
+      outputCompression: 60,
+      background: 'transparent',
+      moderation: 'low',
+    });
+
+    const body = JSON.parse((mockedFetch.mock.calls[0][1] as RequestInit).body as string);
+    expect(body).toMatchObject({
+      model: 'dall-e-3',
+      prompt: 'a legacy image',
+    });
+    expect(body.n).toBeUndefined();
+    expect(body.quality).toBeUndefined();
+    expect(body.output_format).toBeUndefined();
+    expect(body.output_compression).toBeUndefined();
+    expect(body.background).toBeUndefined();
+    expect(body.moderation).toBeUndefined();
+  });
+
   it('downloads base64 responses to cache directory', async () => {
     mockedFetch.mockResolvedValue(jsonResponse({ data: [{ b64_json: 'YmFzZTY0' }] }));
     mockedSaveBase64Image.mockResolvedValue('/cache/images/file.png');
@@ -140,6 +199,36 @@ describe('ImageService', () => {
       // Prompt is prefixed with context for img2img
       expect(body.contents[0].parts[1].text).toContain('Improve this image');
     });
+
+    it('includes multiple Gemini reference images when the selected model supports them', async () => {
+      mockedFetch.mockResolvedValue(jsonResponse({
+        candidates: [{
+          content: {
+            parts: [{ inlineData: { data: 'Z29vZ2xlX2VkaXQ=', mimeType: 'image/png' } }],
+          },
+        }],
+      }));
+      mockedSaveBase64Image.mockResolvedValue('/cache/images/google_edit.png');
+
+      await ImageService.generateImage({
+        provider: 'google',
+        model: 'gemini-3-pro-image-preview',
+        apiKey: 'key',
+        prompt: 'Blend these references',
+        sourceImages: [
+          { data: 'cmVmMQ==', mimeType: 'image/png' },
+          { data: 'cmVmMg==', mimeType: 'image/jpeg' },
+        ],
+        resolution: '4K',
+      });
+
+      const body = JSON.parse((mockedFetch.mock.calls[0][1] as RequestInit).body as string);
+      expect(body.contents[0].parts.slice(0, 2)).toEqual([
+        { inlineData: { data: 'cmVmMQ==', mimeType: 'image/png' } },
+        { inlineData: { data: 'cmVmMg==', mimeType: 'image/jpeg' } },
+      ]);
+      expect(body.generationConfig.imageConfig.imageSize).toBe('4K');
+    });
   });
 
   describe('Grok provider', () => {
@@ -196,6 +285,37 @@ describe('ImageService', () => {
         },
       });
       expect(result).toEqual([{ url: '/cache/images/grok_edited.png', mimeType: 'image/png', b64: 'ZWRpdGVkX2dyb2s=' }]);
+    });
+
+    it('maps xAI count, resolution, and multiple reference images', async () => {
+      mockedFetch.mockResolvedValue(jsonResponse({ data: [{ b64_json: 'ZWRpdGVkX2dyb2s=' }] }));
+      mockedSaveBase64Image.mockResolvedValue('/cache/images/grok_edited.png');
+
+      await ImageService.generateImage({
+        provider: 'grok',
+        apiKey: 'grok-key',
+        prompt: 'Use these references',
+        size: '1536x1024',
+        resolution: '2K',
+        n: 4,
+        sourceImages: [
+          { data: 'cmVmMQ==', mimeType: 'image/png' },
+          { data: 'cmVmMg==', mimeType: 'image/jpeg' },
+        ],
+      });
+
+      const body = JSON.parse((mockedFetch.mock.calls[0][1] as RequestInit).body as string);
+      expect(body).toMatchObject({
+        model: 'grok-imagine-image',
+        prompt: 'Use these references',
+        aspect_ratio: '16:9',
+        resolution: '2K',
+        n: 4,
+      });
+      expect(body.images).toEqual([
+        { type: 'image_url', url: 'data:image/png;base64,cmVmMQ==' },
+        { type: 'image_url', url: 'data:image/jpeg;base64,cmVmMg==' },
+      ]);
     });
 
     it('propagates Grok API errors', async () => {
@@ -319,6 +439,35 @@ describe('ImageService', () => {
         },
       });
       expect(result).toEqual([{ url: '/cache/images/imagen.png', mimeType: 'image/png', b64: 'aW1hZ2Vu' }]);
+    });
+
+    it('maps Imagen sample count and image size when supported', async () => {
+      mockedFetch.mockResolvedValue(jsonResponse({
+        generatedImages: [
+          { image: { imageBytes: 'aW1hZ2VuMQ==', mimeType: 'image/png' } },
+          { image: { imageBytes: 'aW1hZ2VuMg==', mimeType: 'image/png' } },
+        ],
+      }));
+      mockedSaveBase64Image
+        .mockResolvedValueOnce('/cache/images/imagen-1.png')
+        .mockResolvedValueOnce('/cache/images/imagen-2.png');
+
+      await ImageService.generateImage({
+        provider: 'google',
+        model: 'imagen-4.0-generate-001',
+        apiKey: 'key',
+        prompt: 'clean product photo',
+        size: '9:16',
+        resolution: '2K',
+        n: 3,
+      });
+
+      const body = JSON.parse((mockedFetch.mock.calls[0][1] as RequestInit).body as string);
+      expect(body.parameters).toMatchObject({
+        sampleCount: 3,
+        aspectRatio: '9:16',
+        imageSize: '2K',
+      });
     });
 
     it('handles multiple image parts from Google response', async () => {

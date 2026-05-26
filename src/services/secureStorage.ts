@@ -1,17 +1,18 @@
-import * as SecureStore from 'expo-secure-store';
 import { ErrorService } from '@/services/errors/ErrorService';
-
-const API_KEYS_STORAGE_KEY = 'my_ai_friends_api_keys';
+import {
+  deleteStoredApiKeys,
+  readStoredApiKeys,
+  writeStoredApiKeys,
+  type StoredApiKeys,
+} from './apiKeys/apiKeyStorageCore';
 
 // Dynamic interface to support all providers
-type StoredApiKeys = Record<string, string>;
 
 class SecureStorageService {
   // Save API keys securely
   async saveApiKeys(keys: StoredApiKeys): Promise<void> {
     try {
-      const jsonValue = JSON.stringify(keys);
-      await SecureStore.setItemAsync(API_KEYS_STORAGE_KEY, jsonValue);
+      await writeStoredApiKeys(keys);
       // API keys saved securely
     } catch (error) {
       ErrorService.handleSilent(error, { action: 'saveApiKeys' });
@@ -22,11 +23,7 @@ class SecureStorageService {
   // Retrieve API keys
   async getApiKeys(): Promise<StoredApiKeys | null> {
     try {
-      const jsonValue = await SecureStore.getItemAsync(API_KEYS_STORAGE_KEY);
-      if (jsonValue) {
-        return JSON.parse(jsonValue);
-      }
-      return null;
+      return await readStoredApiKeys();
     } catch (error) {
       ErrorService.handleSilent(error, { action: 'getApiKeys' });
       return null;
@@ -48,7 +45,7 @@ class SecureStorageService {
   // Remove all API keys
   async clearApiKeys(): Promise<void> {
     try {
-      await SecureStore.deleteItemAsync(API_KEYS_STORAGE_KEY);
+      await deleteStoredApiKeys();
       // API keys cleared
     } catch (error) {
       ErrorService.handleSilent(error, { action: 'clearApiKeys' });

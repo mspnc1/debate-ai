@@ -5,32 +5,13 @@
 
 import secureStorage from './secureStorage';
 import { ErrorService } from '@/services/errors/ErrorService';
+import { cleanKeyRecord, normalizeStoredKey } from './apiKeys/apiKeyStorageCore';
 
 const RUNWAY_API_KEY_PATTERN = /^[Kk]ey_[0-9a-f]{128}$/;
 
 export interface APIKeyValidationResult {
   isValid: boolean;
   message: string;
-}
-
-function normalizeRunwayKeyPrefix(key: string): string {
-  return key.startsWith('Key_') ? `key_${key.slice(4)}` : key;
-}
-
-function normalizeStoredKey(providerId: string, key: string): string {
-  const trimmed = key.trim();
-  return providerId === 'runway' ? normalizeRunwayKeyPrefix(trimmed) : trimmed;
-}
-
-function cleanKeyRecord(keys: Record<string, string>): Record<string, string> {
-  const cleanedKeys: Record<string, string> = {};
-  Object.entries(keys).forEach(([providerId, key]) => {
-    const normalizedKey = normalizeStoredKey(providerId, key);
-    if (normalizedKey) {
-      cleanedKeys[providerId] = normalizedKey;
-    }
-  });
-  return cleanedKeys;
 }
 
 export class APIKeyService {

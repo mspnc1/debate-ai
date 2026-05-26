@@ -40,11 +40,7 @@ import {
   selectCreateState,
   selectGallery,
   selectIsGenerating,
-  addToGalleryWithCleanup,
-  startGeneration,
-  updateGenerationProgress,
-  completeGeneration,
-  generationError,
+  generateCreateImages,
   removeFromGalleryWithCleanup,
   persistGallery,
   updateGalleryEntryUri,
@@ -69,8 +65,6 @@ import type {
 } from '../store/createSlice';
 import type { DebateVoicePackManifest } from '../types/media';
 import { RootStackParamList, AIProvider } from '../types';
-import { ImageService, GeneratedImage } from '../services/images/ImageService';
-import APIKeyService from '../services/APIKeyService';
 import {
   clearBackgroundAudioPlayer,
   forgetBackgroundAudioPlayer,
@@ -78,8 +72,6 @@ import {
   playWithBackgroundAudio,
   type BackgroundAudioMetadata,
 } from '../services/audio/backgroundAudioPlayback';
-import { buildEnhancedPrompt } from '../config/create/stylePresets';
-import { mapSizeToProvider } from '../config/create/sizeOptions';
 import {
   getImageInputModels,
   getImageModelDisplayName,
@@ -1051,204 +1043,54 @@ export default function CreateScreen() {
     }
   }, [galleryAssets, selectedAssetId]);
 
-  // Start generation once subscription status is loaded
-  useEffect(() => {
-    // Wait for subscription data to load before checking isDemo
-    if (subscriptionLoading) return;
-
-    // Normal generation: prompt + providers
-    if (initialPrompt && providers.length > 0) {
-      generateImages();
-    }
-    // Uploaded image refinement: sourceImage + refinementInstructions + providers
-    else if (sourceImage && refinementInstructions && providers.length > 0) {
-      generateRefinement();
-    }
-  }, [subscriptionLoading]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Generate refinement for uploaded image
-  const generateRefinement = useCallback(async () => {
+  const runLegacyRouteGeneration = useCallback(async () => {
     if (isDemo) {
       ErrorService.showInfo(`Image generation requires a subscription. ${subscriptionUnlockMessage}`, 'create');
       return;
     }
-    if (!sourceImage || !refinementInstructions || providers.length === 0) return;
+    if (providers.length === 0) return;
 
-    const provider = providers[0]; // Use the first (and typically only) provider for refinement
-    const modelId = activeSelectedModels[provider];
-    dispatch(startGeneration([provider]));
-    dispatch(updateGenerationProgress({ provider, progress: 'generating' }));
+    const prompt = refinementInstructions || initialPrompt;
+    if (!prompt) return;
 
     try {
-      const apiKey = await APIKeyService.getKey(provider);
-      if (!apiKey) {
-        throw new Error(`No API key for ${provider}`);
-      }
-
-      const size = mapSizeToProvider(selectedSize, provider, modelId);
-
-      // Load base64 from the uploaded file URI
-      const base64Image = await loadBase64FromFileUri(sourceImage);
-
-      const images = await ImageService.generateImage({
-        provider,
-        model: modelId,
-        apiKey,
-        prompt: refinementInstructions,
-        size,
-        sourceImage: base64Image || undefined,
-      });
-
-      dispatch(updateGenerationProgress({ provider, progress: 'complete' }));
-
-      // Add to gallery
-      for (const image of images) {
-        const entry: GeneratedImageEntry = {
-          id: `${provider}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          uri: image.url || '',
-          prompt: refinementInstructions,
-          originalPrompt: refinementInstructions,
-          provider,
-          model: modelId || resolveImageModelId(provider) || provider,
-          style: selectedStyle,
-          size: selectedSize,
-          quality: selectedQuality,
-          createdAt: Date.now(),
-          isRefinement: true,
-          isUploaded: true, // Mark as uploaded image refinement
-        };
-        dispatch(addToGalleryWithCleanup(entry));
-      }
-
+      await dispatch(generateCreateImages({
+        prompt,
+        providers,
+        selectedModels: activeSelectedModels,
+        style: selectedStyle,
+        size: selectedSize,
+        quality: selectedQuality,
+        sourceImages: sourceImage ? [{ uri: sourceImage }] : undefined,
+        isUploaded: Boolean(sourceImage),
+        refinementInstructions,
+      })).unwrap();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
-      console.error(`[CreateScreen] Refinement error for ${provider}:`, error);
-      dispatch(updateGenerationProgress({ provider, progress: 'error' }));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      ErrorService.handleWithToast(error, { feature: 'create', provider });
+      ErrorService.handleWithToast(error, { feature: 'create' });
     }
-
-    dispatch(completeGeneration());
   }, [
-    isDemo,
-    sourceImage,
-    refinementInstructions,
-    providers,
     activeSelectedModels,
-    selectedStyle,
-    selectedSize,
-    selectedQuality,
     dispatch,
-    subscriptionUnlockMessage,
-  ]);
-
-  const generateImages = useCallback(async () => {
-    if (isDemo) {
-      ErrorService.showInfo(`Image generation requires a subscription. ${subscriptionUnlockMessage}`, 'create');
-      return;
-    }
-    if (!initialPrompt) return;
-
-    dispatch(startGeneration(providers));
-
-    const enhancedPrompt = buildEnhancedPrompt(initialPrompt, selectedStyle);
-
-    // Generate with each provider
-    const results: { provider: AIProvider; images: GeneratedImage[] | Error }[] = [];
-
-    await Promise.all(
-      providers.map(async (provider) => {
-        const modelId = activeSelectedModels[provider];
-        dispatch(updateGenerationProgress({ provider, progress: 'generating' }));
-
-        try {
-          const apiKey = await APIKeyService.getKey(provider);
-          if (!apiKey) {
-            throw new Error(`No API key for ${provider}`);
-          }
-
-          const size = mapSizeToProvider(selectedSize, provider, modelId);
-
-          const images = await ImageService.generateImage({
-            provider,
-            model: modelId,
-            apiKey,
-            prompt: enhancedPrompt,
-            size,
-            sourceImage,
-          });
-
-          dispatch(updateGenerationProgress({ provider, progress: 'complete' }));
-
-          // Add to gallery
-          for (const image of images) {
-            const entry: GeneratedImageEntry = {
-              id: `${provider}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              uri: image.url || '',
-              prompt: enhancedPrompt,
-              originalPrompt: initialPrompt,
-              provider,
-              model: modelId || resolveImageModelId(provider) || provider,
-              style: selectedStyle,
-              size: selectedSize,
-              quality: selectedQuality,
-              createdAt: Date.now(),
-              isRefinement: Boolean(sourceImage),
-              isUploaded: false,
-            };
-            dispatch(addToGalleryWithCleanup(entry));
-          }
-
-          results.push({ provider, images });
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } catch (error) {
-          console.error(`[CreateScreen] Generation error for ${provider}:`, error);
-          dispatch(updateGenerationProgress({ provider, progress: 'error' }));
-          results.push({ provider, images: error as Error });
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        }
-      })
-    );
-
-    dispatch(completeGeneration());
-
-    // Show error details if any providers failed
-    const failedProviders = results.filter(r => r.images instanceof Error);
-    if (failedProviders.length > 0) {
-      const failedNames = failedProviders
-        .map(r => getImageProviderDisplayName(r.provider, {
-          includeModel: true,
-          modelId: activeSelectedModels[r.provider],
-        }))
-        .join(', ');
-      const failureDetails = failedProviders
-        .map(r => {
-          const error = r.images as Error;
-          const providerName = getImageProviderDisplayName(r.provider, {
-            includeModel: true,
-            modelId: activeSelectedModels[r.provider],
-          });
-          return `${providerName}: ${error.message.slice(0, 260)}`;
-        })
-        .join('\n');
-      dispatch(generationError(failureDetails));
-      ErrorService.showWarning(
-        `Image generation failed for: ${failedNames}. ${failedProviders.length < providers.length ? 'Other providers succeeded.' : 'Please try again.'}`,
-        'create'
-      );
-    }
-  }, [
-    isDemo,
     initialPrompt,
+    isDemo,
     providers,
-    activeSelectedModels,
-    selectedStyle,
-    selectedSize,
+    refinementInstructions,
     selectedQuality,
+    selectedSize,
+    selectedStyle,
     sourceImage,
-    dispatch,
     subscriptionUnlockMessage,
   ]);
+
+  // Start legacy route-based generation once subscription status is loaded.
+  useEffect(() => {
+    if (subscriptionLoading) return;
+    if ((initialPrompt || refinementInstructions || sourceImage) && providers.length > 0) {
+      runLegacyRouteGeneration();
+    }
+  }, [initialPrompt, providers.length, refinementInstructions, runLegacyRouteGeneration, sourceImage, subscriptionLoading]);
 
   const handleRefine = useCallback((imageId: string) => {
     if (isDemo) {
@@ -1315,8 +1157,8 @@ export default function CreateScreen() {
     navigation.replace('CreateSession', {
       providers: [opts.provider],
       selectedModels: { [opts.provider]: opts.modelId },
-      initialPrompt: `${resolvedImage.originalPrompt}. Refinement: ${opts.instructions}`,
       sourceImage: base64,
+      refinementInstructions: opts.instructions,
     });
   }, [getResolvedGalleryImage, refiningImage, navigation]);
 
