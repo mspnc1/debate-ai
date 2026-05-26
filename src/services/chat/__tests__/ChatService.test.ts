@@ -43,6 +43,7 @@ describe('ChatService', () => {
       sender: 'Alpha',
       senderType: 'ai',
       metadata: expect.objectContaining({
+        aiId: 'ai-1',
         providerId: 'openai',
         modelUsed: 'gpt-4',
         responseTime: 1500,

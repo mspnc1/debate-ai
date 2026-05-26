@@ -123,6 +123,81 @@ describe('BaseAdapter.formatHistory', () => {
     ]);
   });
 
+  it('uses logical aiId before providerId when mapping same-provider debate roles', () => {
+    const adapter = new TestAdapter({
+      provider: 'openai',
+      identityId: 'openai-slot-2',
+      apiKey: 'key',
+      model: 'gpt-5',
+      isDebateMode: true,
+    });
+    const history: Message[] = [
+      {
+        id: '1',
+        sender: 'Moderator',
+        senderType: 'user',
+        content: 'Opening statement',
+        timestamp: 1,
+      },
+      {
+        id: '2',
+        sender: 'ChatGPT 1',
+        senderType: 'ai',
+        content: 'First slot argument.',
+        timestamp: 2,
+        metadata: { aiId: 'openai-slot-1', providerId: 'openai' },
+      },
+      {
+        id: '3',
+        sender: 'ChatGPT 2',
+        senderType: 'ai',
+        content: 'Second slot answer.',
+        timestamp: 3,
+        metadata: { aiId: 'openai-slot-2', providerId: 'openai' },
+      },
+      {
+        id: '4',
+        sender: 'Claude',
+        senderType: 'ai',
+        content: 'Different provider response.',
+        timestamp: 4,
+        metadata: { aiId: 'claude-slot-1', providerId: 'claude' },
+      },
+    ];
+
+    const formatted = adapter.format(history);
+
+    expect(formatted).toEqual([
+      { role: 'user', content: 'Opening statement\n\n[ChatGPT 1] First slot argument.' },
+      { role: 'assistant', content: 'Second slot answer.' },
+      { role: 'user', content: '[Claude] Different provider response.' },
+    ]);
+  });
+
+  it('falls back to providerId for legacy debate history without aiId', () => {
+    const adapter = new TestAdapter({
+      provider: 'openai',
+      identityId: 'openai-slot-2',
+      apiKey: 'key',
+      model: 'gpt-5',
+      isDebateMode: true,
+    });
+    const history: Message[] = [
+      {
+        id: '1',
+        sender: 'Legacy ChatGPT',
+        senderType: 'ai',
+        content: 'Legacy own message.',
+        timestamp: 1,
+        metadata: { providerId: 'openai' },
+      },
+    ];
+
+    expect(adapter.format(history)).toEqual([
+      { role: 'assistant', content: 'Legacy own message.' },
+    ]);
+  });
+
   it('limits history to the most recent entries', () => {
     const adapter = new TestAdapter({ provider: 'claude', apiKey: 'key', model: 'opus', isDebateMode: true });
     const longHistory: Message[] = Array.from({ length: 12 }, (_, index) => ({

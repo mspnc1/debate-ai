@@ -159,6 +159,7 @@ describe('ChatOrchestrator', () => {
     expect(mockStreamingService.streamResponse).toHaveBeenCalledWith(
       expect.objectContaining({
         adapterConfig: expect.objectContaining({
+          identityId: 'claude',
           personality: expect.objectContaining({
             id: 'persona',
             systemPrompt: expect.stringContaining('Stay helpful'),

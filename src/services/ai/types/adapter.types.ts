@@ -2,6 +2,7 @@ import { AIProvider, ModelParameters, PersonalityConfig, Message } from '../../.
 
 export interface AIAdapterConfig {
   provider: AIProvider;
+  identityId?: string;
   apiKey: string;
   model?: string;
   personality?: PersonalityConfig;

@@ -304,6 +304,7 @@ export class ChatOrchestrator {
         messageId: aiMessage.id,
         adapterConfig: {
           provider: ai.provider,
+          identityId: ai.id,
           apiKey,
           model: ai.model,
           personality: runtime.personalityConfig,

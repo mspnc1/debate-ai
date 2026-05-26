@@ -82,7 +82,7 @@ function getSpeakerId(message: Message): string | undefined {
   if (message.metadata?.debateInterstitial) {
     return 'podcast-mc';
   }
-  return message.metadata?.providerId;
+  return message.metadata?.aiId || message.metadata?.providerId;
 }
 
 function getSpeakerName(message: Message): string {

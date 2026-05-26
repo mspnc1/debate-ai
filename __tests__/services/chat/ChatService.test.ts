@@ -41,6 +41,7 @@ describe('ChatService', () => {
     expect(message.id).toBe('msg_1700000000100_claude');
     expect(message.senderType).toBe('ai');
     expect(message.metadata).toMatchObject({
+      aiId: 'claude',
       providerId: 'claude',
       modelUsed: 'claude-latest',
       responseTime: 1234,

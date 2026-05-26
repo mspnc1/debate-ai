@@ -1,7 +1,9 @@
 import { DebateOrchestrator, DebateStatus } from '@/services/debate/DebateOrchestrator';
 import { DEBATE_CONSTANTS } from '@/config/debateConstants';
 import { getPresetForFormat } from '@/config/debate/formats';
+import { BaseAdapter } from '@/services/ai/base/BaseAdapter';
 import type { AI, DebateVoiceConfig, Message } from '@/types';
+import type { AdapterCapabilities, FormattedMessage, SendMessageResponse } from '@/services/ai/types/adapter.types';
 import { setProviderVerificationError } from '@/store/streamingSlice';
 
 const mockMergeAvailabilitiesStrict = jest.fn();
@@ -64,6 +66,34 @@ const participants: AI[] = [
     model: 'gpt-4.1-mini',
   } as AI,
 ];
+
+const debateAdapterCapabilities: AdapterCapabilities = {
+  streaming: false,
+  attachments: false,
+  functionCalling: false,
+  systemPrompt: true,
+  maxTokens: 4096,
+  contextWindow: 200000,
+};
+
+class FormattingDebateAdapter extends BaseAdapter {
+  formattedHistories: FormattedMessage[][] = [];
+
+  async sendMessage(
+    _message: string,
+    conversationHistory: Message[] = [],
+  ): Promise<SendMessageResponse> {
+    this.formattedHistories.push(this.formatHistory(conversationHistory));
+    return {
+      response: `${this.config.identityId || this.config.provider} response`,
+      modelUsed: this.config.model,
+    };
+  }
+
+  getCapabilities(): AdapterCapabilities {
+    return debateAdapterCapabilities;
+  }
+}
 
 describe('DebateOrchestrator', () => {
   beforeEach(() => {
@@ -546,6 +576,12 @@ describe('DebateOrchestrator', () => {
       },
     };
     const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    const addedMessages: Message[] = [];
+    orchestrator.addEventListener(event => {
+      if (event.type === 'message_added') {
+        addedMessages.push(event.data.message as Message);
+      }
+    });
 
     await orchestrator.initializeDebate('AI ethics', sameProviderParticipants, {}, {
       formatId: 'lincoln_douglas',
@@ -578,6 +614,85 @@ describe('DebateOrchestrator', () => {
     expect(mcAdapter.sendMessage.mock.invocationCallOrder[0]).toBeLessThan(
       debaterAdapter.sendMessage.mock.invocationCallOrder[0]
     );
+    expect(addedMessages.find((message) => message.senderType === 'ai')?.metadata).toEqual(expect.objectContaining({
+      aiId: 'openai-debater-1',
+      providerId: 'openai',
+    }));
+    expect(aiService.sendMessage).not.toHaveBeenCalled();
+
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  it('keeps same-provider debater histories separated by logical aiId', async () => {
+    jest.useFakeTimers();
+    const firstAdapter = new FormattingDebateAdapter({
+      provider: 'openai',
+      identityId: 'openai-slot-1',
+      apiKey: 'key',
+      model: 'gpt-5',
+    });
+    const secondAdapter = new FormattingDebateAdapter({
+      provider: 'openai',
+      identityId: 'openai-slot-2',
+      apiKey: 'key',
+      model: 'gpt-5',
+    });
+    const adapters: Record<string, FormattingDebateAdapter> = {
+      'openai-slot-1': firstAdapter,
+      'openai-slot-2': secondAdapter,
+    };
+    const aiService = {
+      getAdapter: jest.fn(),
+      ensureAdapter: jest.fn(async (adapterId: string) => adapters[adapterId]),
+      sendMessage: jest.fn(),
+    };
+    const sameProviderParticipants: AI[] = [
+      {
+        id: 'openai-slot-1',
+        provider: 'openai',
+        name: 'ChatGPT 1',
+        model: 'gpt-5',
+      } as AI,
+      {
+        id: 'openai-slot-2',
+        provider: 'openai',
+        name: 'ChatGPT 2',
+        model: 'gpt-5',
+      } as AI,
+    ];
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    const addedMessages: Message[] = [];
+    orchestrator.addEventListener(event => {
+      if (event.type === 'message_added') {
+        addedMessages.push(event.data.message as Message);
+      }
+    });
+
+    await orchestrator.initializeDebate('AI ethics', sameProviderParticipants, {}, {
+      formatId: 'lincoln_douglas',
+      rounds: 3,
+    });
+
+    await orchestrator.executeDebateMessage(0, []);
+    const firstMessage = addedMessages.find((message) => message.senderType === 'ai');
+    expect(firstMessage?.metadata).toEqual(expect.objectContaining({
+      aiId: 'openai-slot-1',
+      providerId: 'openai',
+    }));
+
+    await orchestrator.executeDebateMessage(1, firstMessage ? [firstMessage] : []);
+    const secondMessage = addedMessages.filter((message) => message.senderType === 'ai')[1];
+
+    expect(secondAdapter.formattedHistories[0]).toEqual([
+      { role: 'user', content: '[ChatGPT 1 (Default)] openai-slot-1 response' },
+    ]);
+    expect(secondMessage?.metadata).toEqual(expect.objectContaining({
+      aiId: 'openai-slot-2',
+      providerId: 'openai',
+    }));
+    expect(aiService.ensureAdapter).toHaveBeenCalledWith('openai-slot-1', 'openai', 'gpt-5');
+    expect(aiService.ensureAdapter).toHaveBeenCalledWith('openai-slot-2', 'openai', 'gpt-5');
     expect(aiService.sendMessage).not.toHaveBeenCalled();
 
     jest.clearAllTimers();

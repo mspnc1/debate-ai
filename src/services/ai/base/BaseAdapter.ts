@@ -134,6 +134,7 @@ export abstract class BaseAdapter {
     // and everything else as user content, then enforce alternation by merging same-role runs.
     const debateMode = !!this.config.isDebateMode;
     const providerId = this.config.provider;
+    const identityId = this.config.identityId || providerId;
 
     const mapped: FormattedMessage[] = recent
       .map((msg) => {
@@ -142,8 +143,12 @@ export abstract class BaseAdapter {
         }
         // senderType === 'ai'
         if (debateMode) {
+          const msgIdentity = msg.metadata?.aiId;
           const msgProvider = msg.metadata?.providerId;
-          if (msgProvider && msgProvider === providerId) {
+          const isOwnMessage = msgIdentity !== undefined
+            ? msgIdentity === identityId
+            : msgProvider === providerId;
+          if (isOwnMessage) {
             // This adapter's own prior outputs remain assistant
             return { role: 'assistant' as const, content: msg.content || '' };
           }

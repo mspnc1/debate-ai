@@ -90,6 +90,44 @@ describe('StreamingService', () => {
     expect(adapter.sendMessage).not.toHaveBeenCalled();
   });
 
+  it('passes identityId when recreating an adapter from streaming config', async () => {
+    const adapter = new MockStreamingAdapter({
+      provider: 'claude',
+      identityId: 'claude-slot-1',
+      apiKey: 'key',
+      model: 'claude-3',
+    });
+    adapterSpy.mockReturnValue(adapter);
+
+    await streamingService.streamResponse(
+      {
+        messageId: 'msg-identity',
+        adapterConfig: {
+          provider: 'claude',
+          identityId: 'claude-slot-1',
+          apiKey: 'key',
+          model: 'claude-3',
+        },
+        message: 'Hello',
+        conversationHistory: [],
+        speed: 'instant',
+      },
+      () => {},
+      () => {},
+      () => {
+        throw new Error('Should not error');
+      },
+    );
+
+    expect(adapterSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'claude',
+        identityId: 'claude-slot-1',
+      }),
+      expect.any(String),
+    );
+  });
+
   it('falls back to error callback when adapter lacks streaming', async () => {
     const adapter = new MockNonStreamingAdapter({ provider: 'claude', apiKey: 'key', model: 'claude-3' });
     adapterSpy.mockReturnValue(adapter as unknown as BaseAdapter);

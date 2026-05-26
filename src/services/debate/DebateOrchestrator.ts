@@ -424,7 +424,8 @@ export class DebateOrchestrator {
     debateSpeech?: DebateSpeechMetadata
   ): Message['metadata'] {
     const metadata: Message['metadata'] = {
-      providerId: ai.id,
+      aiId: ai.id,
+      providerId: ai.provider,
       webSearchEnabled: this.getWebSearchEnabled(),
     };
 

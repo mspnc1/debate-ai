@@ -63,6 +63,7 @@ export class AIService {
         try {
           this.adapters.set(provider, AdapterFactory.create({
             provider: provider as AIProvider,
+            identityId: provider,
             apiKey,
             personality: PERSONALITIES.neutral,
           }));
@@ -80,6 +81,7 @@ export class AIService {
       for (const provider of mockProviders) {
         this.adapters.set(provider, AdapterFactory.create({
           provider: 'mock' as AIProvider,
+          identityId: provider,
           apiKey: 'mock',
           personality: PERSONALITIES.neutral,
         }));
@@ -91,6 +93,7 @@ export class AIService {
           try {
             this.adapters.set(provider, AdapterFactory.create({
               provider: provider as AIProvider,
+              identityId: provider,
               apiKey,
               personality: PERSONALITIES.neutral,
             }));
@@ -121,6 +124,7 @@ export class AIService {
   ): Promise<BaseAdapter | undefined> {
     const existing = this.adapters.get(adapterId);
     if (existing) {
+      existing.config.identityId = adapterId;
       if (model) {
         existing.config.model = model;
       }
@@ -135,6 +139,7 @@ export class AIService {
     try {
       const config: AIAdapterConfig = {
         provider: provider as AIProvider,
+        identityId: adapterId,
         apiKey,
         model,
         personality: PERSONALITIES.neutral,

@@ -51,7 +51,7 @@ export class ChatService {
       content,
       timestamp: Date.now(),
       metadata: {
-        // Always include providerId so adapters can remap roles in debate mode
+        aiId: ai.id,
         providerId: ai.provider,
         // Optional extras
         ...(metadata ? {

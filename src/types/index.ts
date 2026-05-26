@@ -161,7 +161,9 @@ export interface MessageMetadata {
   responseTime?: number;
   wordCount?: number;
   modelUsed?: string; // Track which AI model actually responded
-  // Which provider generated this AI message (used for debate role mapping)
+  // Logical AI identity for role/slot mapping, especially when the same provider appears more than once.
+  aiId?: string;
+  // Which provider generated this AI message.
   providerId?: string;
 
   // Rich content support

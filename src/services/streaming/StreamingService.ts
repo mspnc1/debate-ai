@@ -20,6 +20,7 @@ interface StreamConfig {
   adapter?: BaseAdapter;  // Optional - for backward compatibility
   adapterConfig?: {  // New: configuration to create adapter dynamically
     provider: AIProvider;
+    identityId?: string;
     apiKey: string;
     model: string;
     personality?: PersonalityConfig;
@@ -158,7 +159,7 @@ export class StreamingService {
     let adapter: BaseAdapter;
     let resolvedModelOverride = config.modelOverride;
     if (config.adapterConfig) {
-      const { provider, apiKey, model, personality, parameters, isDebateMode, webSearchEnabled } = config.adapterConfig;
+      const { provider, identityId, apiKey, model, personality, parameters, isDebateMode, webSearchEnabled } = config.adapterConfig;
       const resolvedModel = resolveProviderModelId(provider, model) || model;
       resolvedModelOverride = resolveProviderModelId(
         provider,
@@ -166,6 +167,7 @@ export class StreamingService {
       ) || resolvedModel;
       const adapterConfig: AIAdapterConfig = {
         provider,
+        identityId,
         apiKey,
         model: resolvedModel,
         personality,
