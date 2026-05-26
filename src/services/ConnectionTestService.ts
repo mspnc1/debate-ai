@@ -8,6 +8,7 @@ import { getDefaultModel } from '../config/providers/modelRegistry';
 const RUNWAY_API_BASE = 'https://api.dev.runwayml.com/v1';
 const RUNWAY_API_VERSION = '2024-11-06';
 const RUNWAY_API_KEY_PATTERN = /^key_[0-9a-f]{128}$/;
+const PERPLEXITY_CONNECTION_TEST_MAX_TOKENS = 16;
 
 function normalizeProviderApiKey(providerId: string, apiKey: string): string {
   const normalized = apiKey.trim();
@@ -334,7 +335,7 @@ export class ConnectionTestService {
         },
         body: JSON.stringify({
           model,
-          max_tokens: 1,
+          max_tokens: PERPLEXITY_CONNECTION_TEST_MAX_TOKENS,
           messages: [{ role: 'user', content: 'Hi' }]
         }),
         signal,

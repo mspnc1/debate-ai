@@ -107,6 +107,27 @@ describe('ConnectionTestService', () => {
     );
   });
 
+  it('tests Perplexity with the current sonar-pro minimum token budget', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockResolvedValue({ model: 'sonar-pro' }),
+    } as unknown as Response);
+
+    const result = await service.testProvider('perplexity', 'pplx-valid-key-1234567890', { retries: 0 });
+    const fetchMock = global.fetch as jest.MockedFunction<typeof fetch>;
+    const requestInit = fetchMock.mock.calls[0]?.[1];
+    const body = JSON.parse(requestInit?.body as string);
+
+    expect(result.success).toBe(true);
+    expect(result.model).toBe('sonar-pro');
+    expect(body).toMatchObject({
+      model: 'sonar-pro',
+      max_tokens: 16,
+      messages: [{ role: 'user', content: 'Hi' }],
+    });
+  });
+
   it('stops retrying on auth errors', async () => {
     const realTestSpy = jest
       .spyOn(service as unknown as { realTest(providerId: string, apiKey: string, timeout: number): Promise<TestResult> }, 'realTest')
