@@ -171,6 +171,7 @@ describe('useDebateVoiceGeneration', () => {
       metadata: {
         debateInterstitial: {
           kind: 'intro',
+          flowStep: 'podcast_intro',
           label: 'MC Introduction',
           usedTemplateFallback: false,
         },

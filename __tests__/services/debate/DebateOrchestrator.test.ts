@@ -243,7 +243,7 @@ describe('DebateOrchestrator', () => {
       temperature: 0.9,
       maxTokens: expect.any(Number),
     }));
-    expect(adapter.config.parameters.maxTokens).toBeLessThan(600);
+    expect(adapter.config.parameters.maxTokens).toBe(6144);
 
     jest.clearAllTimers();
     jest.useRealTimers();
@@ -291,7 +291,8 @@ describe('DebateOrchestrator', () => {
 
     expect(aiService.sendMessage.mock.calls[0][0]).toBe('claude');
     expect(aiService.sendMessage.mock.calls[0][1]).toContain('Turn: Affirmative Opening Statement');
-    expect(aiService.sendMessage.mock.calls[0][1]).toContain('Length: 154-220 words maximum');
+    expect(aiService.sendMessage.mock.calls[0][1]).toContain('Length guidance: Keep this as a compact opening');
+    expect(aiService.sendMessage.mock.calls[0][1]).not.toContain('words maximum');
     expect(aiService.sendMessage.mock.calls[1][0]).toBe('openai');
     expect(aiService.sendMessage.mock.calls[1][1]).toContain('Turn: Negative Opening Statement');
 
@@ -441,6 +442,7 @@ describe('DebateOrchestrator', () => {
     expect(introMessage.content).toBe("Welcome to tonight's debate.");
     expect(introMessage.metadata?.debateInterstitial).toMatchObject({
       kind: 'intro',
+      flowStep: 'podcast_intro',
       generatedByProvider: 'openai',
       generatedByModel: 'gpt-5',
       usedTemplateFallback: false,
@@ -460,8 +462,8 @@ describe('DebateOrchestrator', () => {
       [],
       expect.any(Object),
       undefined,
-      undefined,
-      true
+      expect.objectContaining({ maxTokens: 6144 }),
+      'claude-sonnet-4-6'
     );
     expect(mcAdapter.sendMessage.mock.invocationCallOrder[0]).toBeLessThan(
       aiService.sendMessage.mock.invocationCallOrder[0]
@@ -489,6 +491,154 @@ describe('DebateOrchestrator', () => {
     }));
 
     setTimeoutSpy.mockRestore();
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  it('keeps same-provider podcast MC and debater adapter parameters isolated', async () => {
+    jest.useFakeTimers();
+    const mcAdapter = {
+      config: {} as Record<string, unknown>,
+      sendMessage: jest.fn().mockResolvedValue({ response: "Welcome to tonight's debate.", modelUsed: 'gpt-5' }),
+      setTemporaryPersonality: jest.fn(),
+    };
+    const debaterAdapter = {
+      config: {} as Record<string, unknown>,
+      getCapabilities: jest.fn(() => ({ streaming: false })),
+      sendMessage: jest.fn().mockResolvedValue({ response: 'Opening argument delivered.', modelUsed: 'gpt-5' }),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => ''),
+    };
+    const aiService = {
+      getAdapter: jest.fn(),
+      ensureAdapter: jest.fn(async (adapterId: string) => (
+        adapterId.startsWith('podcast-mc:') ? mcAdapter : debaterAdapter
+      )),
+      sendMessage: jest.fn(),
+    };
+    const sameProviderParticipants: AI[] = [
+      {
+        id: 'openai-debater-1',
+        provider: 'openai',
+        name: 'ChatGPT',
+        model: 'gpt-5',
+      } as AI,
+      participants[0],
+    ];
+    const voiceConfig: DebateVoiceConfig = {
+      enabled: true,
+      providerId: 'elevenlabs',
+      debaterVoices: {},
+      podcast: {
+        enabled: true,
+        scriptMode: 'byok_ai',
+        outputMode: 'playlist',
+        mc: {
+          id: 'mc-1',
+          provider: 'openai',
+          name: 'Podcast MC',
+          model: 'gpt-5',
+        },
+        mcVoice: {
+          voiceId: 'voice-host',
+          voiceName: 'Host Voice',
+        },
+      },
+    };
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+
+    await orchestrator.initializeDebate('AI ethics', sameProviderParticipants, {}, {
+      formatId: 'lincoln_douglas',
+      rounds: 3,
+      voiceConfig,
+    });
+    await orchestrator.startDebate([]);
+
+    expect(mcAdapter.sendMessage).toHaveBeenCalledTimes(1);
+    expect(debaterAdapter.sendMessage).not.toHaveBeenCalled();
+    expect(aiService.ensureAdapter).toHaveBeenCalledWith('podcast-mc:mc-1:gpt-5', 'openai', 'gpt-5');
+    expect(mcAdapter.config).not.toHaveProperty('parameters');
+
+    await jest.advanceTimersByTimeAsync(DEBATE_CONSTANTS.DELAYS.MC_HANDOFF_PAUSE);
+
+    expect(aiService.ensureAdapter).toHaveBeenCalledWith('openai-debater-1', 'openai', 'gpt-5');
+    expect(debaterAdapter.sendMessage).toHaveBeenCalledWith(
+      expect.stringContaining('Turn: Affirmative Constructive (AC)'),
+      [],
+      undefined,
+      undefined,
+      'gpt-5'
+    );
+    expect(debaterAdapter.config.parameters).toEqual(expect.objectContaining({
+      maxTokens: 6144,
+    }));
+    expect(debaterAdapter.config.parameters).not.toEqual(expect.objectContaining({
+      maxTokens: 1024,
+    }));
+    expect(mcAdapter.sendMessage.mock.invocationCallOrder[0]).toBeLessThan(
+      debaterAdapter.sendMessage.mock.invocationCallOrder[0]
+    );
+    expect(aiService.sendMessage).not.toHaveBeenCalled();
+
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  it('retries an empty streamed first AI response with non-streaming fallback', async () => {
+    jest.useFakeTimers();
+    const adapter = {
+      config: {} as Record<string, unknown>,
+      getCapabilities: jest.fn(() => ({ streaming: true })),
+      sendMessage: jest.fn().mockResolvedValue({
+        response: 'Recovered fallback speech.',
+        modelUsed: 'claude-sonnet-4-6',
+      }),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => ''),
+    };
+    const aiService = {
+      getAdapter: jest.fn(() => adapter),
+      sendMessage: jest.fn(),
+    };
+
+    mockStreamingService.streamResponse.mockImplementation(async (_config, _onChunk, onComplete) => {
+      onComplete?.('');
+    });
+
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    const streamErrors: Array<Record<string, unknown>> = [];
+    const completedEvents: Array<Record<string, unknown>> = [];
+    orchestrator.addEventListener(event => {
+      if (event.type === 'stream_error') streamErrors.push(event.data);
+      if (event.type === 'stream_completed') completedEvents.push(event.data);
+    });
+
+    await orchestrator.initializeDebate('AI ethics', participants, {}, {
+      formatId: 'lincoln_douglas',
+      rounds: 3,
+    });
+    await orchestrator.startDebate([]);
+
+    expect(streamErrors[0]).toEqual(expect.objectContaining({
+      error: 'Streaming returned an empty response',
+      aiProvider: 'claude',
+      messageIndex: 0,
+    }));
+    expect(adapter.sendMessage).toHaveBeenCalledWith(
+      expect.stringContaining('Turn: Affirmative Constructive (AC)'),
+      [],
+      undefined,
+      undefined,
+      'claude-sonnet-4-6'
+    );
+    expect(completedEvents).toHaveLength(1);
+    expect(completedEvents[0]).toEqual(expect.objectContaining({
+      finalContent: 'Recovered fallback speech.',
+      aiProvider: 'claude',
+      messageIndex: 0,
+    }));
+    expect(aiService.sendMessage).not.toHaveBeenCalled();
+
     jest.clearAllTimers();
     jest.useRealTimers();
   });
@@ -1376,9 +1526,9 @@ describe('DebateOrchestrator', () => {
         systemPrompt: expect.stringContaining('[DEBATE MODE]'),
       }),
       undefined,
-      undefined,
+      expect.objectContaining({ maxTokens: 6144 }),
       'claude-sonnet-4-6'
-      );
+    );
       expect(completedEvents[0]).toEqual(expect.objectContaining({
         webSearchEnabled: true,
         citations,

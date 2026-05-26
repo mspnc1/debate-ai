@@ -1,4 +1,4 @@
-import type { AI, Citation, DebateInterstitialKind, Message, ModelParameters } from '@/types';
+import type { AI, Citation, DebateInterstitialKind, DebatePodcastFlowStep, Message, ModelParameters } from '@/types';
 import type { AudienceDecisionResult, DebateSideId, MessageSpec, PhaseId, PresetConfig } from '@/config/debate/formats';
 import { AIService } from '@/services/aiAdapter';
 import { getModelById, resolveProviderModelId } from '@/config/modelConfigs';
@@ -12,6 +12,8 @@ const PREMATURE_JUDGMENT_PATTERN = /\b(?:already\s+winning|winning\s+this|clearl
 const INTERNAL_CUE_PREFIX_PATTERN = /^(?:cue|beat|label)?\s*:?\s*(?:vote[_\s-]*segue|phase[_\s-]*segue|mc\s+(?:voting\s+cue|segue|introduction|winner\s+announcement))\s*[:.-]?\s*/i;
 const INTERNAL_CUE_LEAK_PATTERN = /\b(?:vote[_\s-]*segue|phase[_\s-]*segue|mc\s+(?:voting\s+cue|segue|introduction|winner\s+announcement))\b/i;
 const RECENT_MC_LIMIT = 3;
+const MAX_MC_SCRIPT_CHARS = 700;
+const MC_OUTPUT_SAFETY_TOKENS = 1024;
 
 const PHASE_LABELS: Record<PhaseId, string> = {
   opening: 'opening speeches',
@@ -161,14 +163,47 @@ function labelForKind(kind: DebateInterstitialKind): string {
   }
 }
 
+function flowStepForKind(kind: DebateInterstitialKind): DebatePodcastFlowStep {
+  switch (kind) {
+    case 'intro':
+      return 'podcast_intro';
+    case 'phase_segue':
+      return 'podcast_phase_segue';
+    case 'audience_question':
+      return 'podcast_audience_question';
+    case 'vote_segue':
+      return 'podcast_vote_setup';
+    case 'winner':
+      return 'podcast_winner';
+  }
+}
+
+function trimAtSentenceBoundary(text: string): string {
+  if (text.length <= MAX_MC_SCRIPT_CHARS) {
+    return text;
+  }
+
+  const candidate = text.slice(0, MAX_MC_SCRIPT_CHARS + 1);
+  const matches = Array.from(candidate.matchAll(/[.!?](?=\s|$)/g));
+  const lastBoundary = matches.length > 0
+    ? (matches[matches.length - 1].index ?? -1) + 1
+    : -1;
+
+  if (lastBoundary <= 0) {
+    return '';
+  }
+
+  const trimmed = candidate.slice(0, lastBoundary).trim();
+  return trimmed.length > 0 ? trimmed : '';
+}
+
 function cleanGeneratedScript(text: string): string {
   const cleaned = text
     .replace(/^["'\s]+|["'\s]+$/g, '')
     .replace(/\s+/g, ' ')
     .trim()
     .replace(INTERNAL_CUE_PREFIX_PATTERN, '')
-    .trim()
-    .slice(0, 700);
+    .trim();
 
   if (
     !cleaned ||
@@ -178,21 +213,13 @@ function cleanGeneratedScript(text: string): string {
     return '';
   }
 
-  return cleaned;
+  return trimAtSentenceBoundary(cleaned);
 }
 
-function getMcParameters(kind: DebateInterstitialKind): Partial<ModelParameters> {
-  const maxTokensByKind: Record<DebateInterstitialKind, number> = {
-    intro: 260,
-    phase_segue: 190,
-    audience_question: 120,
-    vote_segue: 140,
-    winner: 150,
-  };
-
+function getMcParameters(): Partial<ModelParameters> {
   return {
     temperature: MC_TEMPERATURE,
-    maxTokens: maxTokensByKind[kind],
+    maxTokens: MC_OUTPUT_SAFETY_TOKENS,
   };
 }
 
@@ -422,7 +449,7 @@ export async function createDebateInterstitialMessage(input: CreateDebateInterst
   let adapter: McAdapter | undefined;
   let snapshot: McAdapterConfigSnapshot | undefined;
   let webSearchApplied = false;
-  const mcParameters = getMcParameters(input.kind);
+  const mcParameters = getMcParameters();
 
   try {
     const webSearchConfig = await configureMcWebSearch(input.aiService, input.session, mcWebSearchEnabled, mcParameters);
@@ -460,6 +487,7 @@ export async function createDebateInterstitialMessage(input: CreateDebateInterst
     metadata: {
       debateInterstitial: {
         kind: input.kind,
+        flowStep: flowStepForKind(input.kind),
         label: labelForKind(input.kind),
         generatedByProvider: podcast.mc.provider,
         generatedByModel,

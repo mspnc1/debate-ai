@@ -106,6 +106,12 @@ export interface DebateVoiceSelection {
 }
 
 export type DebateInterstitialKind = 'intro' | 'phase_segue' | 'audience_question' | 'vote_segue' | 'winner';
+export type DebatePodcastFlowStep =
+  | 'podcast_intro'
+  | 'podcast_phase_segue'
+  | 'podcast_audience_question'
+  | 'podcast_vote_setup'
+  | 'podcast_winner';
 
 export interface DebatePodcastMCConfig {
   id: string;
@@ -142,6 +148,7 @@ export interface DebateAudioMetadata {
 
 export interface DebateInterstitialMetadata {
   kind: DebateInterstitialKind;
+  flowStep: DebatePodcastFlowStep;
   label: string;
   generatedByProvider?: AIProvider;
   generatedByModel?: string;

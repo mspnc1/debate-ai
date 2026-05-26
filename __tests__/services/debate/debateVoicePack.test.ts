@@ -105,6 +105,7 @@ describe('debateVoicePack', () => {
       metadata: {
         debateInterstitial: {
           kind: 'intro',
+          flowStep: 'podcast_intro',
           label: 'MC Introduction',
           usedTemplateFallback: false,
         },
@@ -219,6 +220,7 @@ describe('debateVoicePack', () => {
       metadata: {
         debateInterstitial: {
           kind: 'winner',
+          flowStep: 'podcast_winner',
           label: 'MC Winner Announcement',
           usedTemplateFallback: true,
         },

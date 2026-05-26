@@ -138,7 +138,8 @@ export interface DebateEvent {
     | 'stream_error'
     | 'continuation_required'
     | 'audience_questions_requested'
-    | 'audience_questions_submitted';
+    | 'audience_questions_submitted'
+    | 'podcast_interstitial_added';
   data: Record<string, unknown>;
   timestamp: number;
 }
@@ -216,6 +217,15 @@ export class DebateOrchestrator {
       timestamp: Date.now(),
     });
     this.currentMessages = [...this.currentMessages, message];
+    this.emitEvent({
+      type: 'podcast_interstitial_added',
+      data: {
+        message,
+        kind,
+        flowStep: message.metadata?.debateInterstitial?.flowStep,
+      },
+      timestamp: Date.now(),
+    });
   }
 
   private async addPodcastIntroInterstitial(): Promise<void> {
@@ -726,12 +736,12 @@ export class DebateOrchestrator {
       const debateMessages = this.getDebateConversationHistory(turnMessages);
 
       // Prefer streaming if adapter supports it
-      let adapter = this.aiService.getAdapter(currentAI.provider);
+      const ensureAdapter = (this.aiService as { ensureAdapter?: AIService['ensureAdapter'] }).ensureAdapter;
+      let adapter = ensureAdapter
+        ? await ensureAdapter.call(this.aiService, currentAI.id, currentAI.provider, currentAI.model)
+        : undefined;
       if (!adapter) {
-        const ensureAdapter = (this.aiService as { ensureAdapter?: AIService['ensureAdapter'] }).ensureAdapter;
-        if (ensureAdapter) {
-          adapter = await ensureAdapter.call(this.aiService, currentAI.provider, currentAI.provider, currentAI.model);
-        }
+        adapter = this.aiService.getAdapter(currentAI.id) || this.aiService.getAdapter(currentAI.provider);
       }
       this.applyWebSearchConfig(adapter);
       const supportsStreaming = !!adapter?.getCapabilities()?.streaming;
@@ -882,7 +892,9 @@ export class DebateOrchestrator {
             const normalizedAnswer = ensureAnswerContent(completeText, capturedCitations, currentAI.name);
             finalContent = normalizedAnswer.content;
             capturedCitations = normalizedAnswer.citations;
-            this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), citations: normalizedAnswer.citations, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
+            if (normalizedAnswer.content.trim().length > 0) {
+              this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), citations: normalizedAnswer.citations, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
+            }
           },
           (err: Error) => {
             hadError = true;
@@ -904,6 +916,12 @@ export class DebateOrchestrator {
             } catch { /* ignore event handling errors */ }
           }
         );
+
+        if (!hadError && finalContent.trim().length === 0) {
+          hadError = true;
+          errorForFallback = 'Streaming returned an empty response';
+          this.emitEvent({ type: 'stream_error', data: { messageId, error: errorForFallback, aiProvider: currentAI.id, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
+        }
 
         if (!hadError) {
           // Update local message content for subsequent prompts/history, including citations if captured
@@ -928,6 +946,7 @@ export class DebateOrchestrator {
             lower.includes('temporarily busy') ||
             lower.includes('rate limit')
           );
+          const isEmptyResponseError = lower.includes('empty response');
 
           if (isVerificationError) {
             try {
@@ -935,7 +954,7 @@ export class DebateOrchestrator {
             } catch { /* ignore */ }
           }
 
-          if (isVerificationError || isOverloadError) {
+          if (isVerificationError || isOverloadError || isEmptyResponseError) {
             try {
               // Ensure adapter carries expert or personality parameters on fallback
               try {
@@ -943,20 +962,31 @@ export class DebateOrchestrator {
                   adapter.config.parameters = runtimeParameters;
                 }
               } catch { /* ignore */ }
-              const fallback = await this.aiService.sendMessage(
-                currentAI.provider,
-                contextualPrompt,
-                debateMessages,
-                runtime.personalityConfig,
-                undefined,
-                undefined,
-                currentAI.model
-              );
+              const fallback = adapter && typeof adapter.sendMessage === 'function'
+                ? await adapter.sendMessage(
+                  contextualPrompt,
+                  debateMessages,
+                  undefined,
+                  undefined,
+                  currentAI.model
+                )
+                : await this.aiService.sendMessage(
+                  currentAI.provider,
+                  contextualPrompt,
+                  debateMessages,
+                  runtime.personalityConfig,
+                  undefined,
+                  runtimeParameters,
+                  currentAI.model
+                );
               const { response: text } = typeof fallback === 'string' ? { response: fallback } : fallback;
               const fallbackMetadata = typeof fallback === 'string'
                 ? undefined
                 : (fallback as { metadata?: { citations?: Citation[] } }).metadata;
               const normalizedAnswer = ensureAnswerContent(text, fallbackMetadata?.citations, currentAI.name);
+              if (normalizedAnswer.content.trim().length === 0) {
+                throw new Error('Fallback returned an empty response');
+              }
               finalContent = normalizedAnswer.content;
               // Emit completion to update the placeholder message and end stream state in UI
               this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), citations: normalizedAnswer.citations, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
@@ -967,28 +997,26 @@ export class DebateOrchestrator {
               };
               this.currentMessages = [...turnMessages, updated];
             } catch {
-              // As last resort, append a host error message so the flow continues
-              const errorMessage: Message = {
-                id: `msg_${Date.now()}_error`,
-                sender: 'Debate Host',
-                senderType: 'user',
-                content: DEBATE_CONSTANTS.MESSAGES.ERROR(currentAI.name),
-                timestamp: Date.now(),
+              // As last resort, update the placeholder with a visible error so the flow does not keep a blank AI turn.
+              const errorContent = DEBATE_CONSTANTS.MESSAGES.ERROR(currentAI.name);
+              this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: errorContent, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
+              const updated = {
+                ...placeholderMessage,
+                content: errorContent,
+                metadata: this.buildAIResponseMetadata(currentAI, currentAI.model, undefined, debateSpeech),
               };
-              this.emitEvent({ type: 'message_added', data: { message: errorMessage, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
-              this.currentMessages = [...turnMessages, placeholderMessage, errorMessage];
+              this.currentMessages = [...turnMessages, updated];
             }
           } else {
-            // Non-recoverable error: add a host error message
-            const errorMessage: Message = {
-              id: `msg_${Date.now()}_error`,
-              sender: 'Debate Host',
-              senderType: 'user',
-              content: DEBATE_CONSTANTS.MESSAGES.ERROR(currentAI.name),
-              timestamp: Date.now(),
+            // Non-recoverable error: update the placeholder with a visible error.
+            const errorContent = DEBATE_CONSTANTS.MESSAGES.ERROR(currentAI.name);
+            this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: errorContent, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
+            const updated = {
+              ...placeholderMessage,
+              content: errorContent,
+              metadata: this.buildAIResponseMetadata(currentAI, currentAI.model, undefined, debateSpeech),
             };
-            this.emitEvent({ type: 'message_added', data: { message: errorMessage, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
-            this.currentMessages = [...turnMessages, placeholderMessage, errorMessage];
+            this.currentMessages = [...turnMessages, updated];
           }
         }
 
@@ -1002,26 +1030,34 @@ export class DebateOrchestrator {
           this.applyWebSearchConfig(adapter);
         } catch { /* ignore */ }
 
-        const response = await this.aiService.sendMessage(
-          currentAI.provider,
-          contextualPrompt,
-          debateMessages,
-          runtime.personalityConfig,
-          undefined,
-          undefined,
-          true // ensure debate mode enabled in adapter
-        );
+        const response = adapter && typeof adapter.sendMessage === 'function'
+          ? await adapter.sendMessage(
+            contextualPrompt,
+            debateMessages,
+            undefined,
+            undefined,
+            currentAI.model
+          )
+          : await this.aiService.sendMessage(
+            currentAI.provider,
+            contextualPrompt,
+            debateMessages,
+            runtime.personalityConfig,
+            undefined,
+            runtimeParameters,
+            currentAI.model
+          );
 
         // Best-effort debug: log the prompts for non-streaming path too
         try {
-          const adapter = this.aiService.getAdapter(currentAI.provider);
-          if (adapter) {
+          const debugAdapter = this.aiService.getAdapter(currentAI.id) || this.aiService.getAdapter(currentAI.provider);
+          if (debugAdapter) {
             // Ensure adapter reflects the composed personality for logging
             try {
-              adapter.setTemporaryPersonality(runtime.personalityConfig);
-              adapter.config.isDebateMode = true;
+              debugAdapter.setTemporaryPersonality(runtime.personalityConfig);
+              debugAdapter.config.isDebateMode = true;
             } catch { /* noop: debug logging helper */ }
-            const sysCombined = adapter.debugGetSystemPrompt();
+            const sysCombined = debugAdapter.debugGetSystemPrompt();
             const { PromptDebugLogger } = await import('../debug/PromptDebugLogger');
             PromptDebugLogger.logTurn('nonstream-turn', {
               aiId: currentAI.id,
@@ -1043,9 +1079,15 @@ export class DebateOrchestrator {
         } catch { /* ignore debug log errors */ }
 
         const personalityName = UNIVERSAL_PERSONALITIES.find(p => p.id === personalityId)?.name || 'Default';
-        const { response: responseText, modelUsed } = response;
-        const responseMetadata = (response as { metadata?: { citations?: Citation[] } }).metadata;
+        const responseText = typeof response === 'string' ? response : response.response;
+        const modelUsed = typeof response === 'string' ? currentAI.model : response.modelUsed;
+        const responseMetadata = typeof response === 'string'
+          ? undefined
+          : (response as { metadata?: { citations?: Citation[] } }).metadata;
         const normalizedAnswer = ensureAnswerContent(responseText, responseMetadata?.citations, currentAI.name);
+        if (normalizedAnswer.content.trim().length === 0) {
+          throw new Error(`${currentAI.name} returned an empty response`);
+        }
         const aiMessage: Message = {
           id: `msg_${Date.now()}_${currentAI.id}`,
           sender: `${currentAI.name} (${personalityName})`,

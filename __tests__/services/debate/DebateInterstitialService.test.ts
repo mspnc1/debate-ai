@@ -106,7 +106,7 @@ describe('DebateInterstitialService', () => {
       [],
       undefined,
       undefined,
-      expect.objectContaining({ maxTokens: 260, temperature: 0.62 }),
+      expect.objectContaining({ maxTokens: 1024, temperature: 0.62 }),
       'gpt-5'
     );
     expect(aiService.sendMessage).not.toHaveBeenCalledWith(
@@ -125,6 +125,7 @@ describe('DebateInterstitialService', () => {
       metadata: {
         debateInterstitial: {
           kind: 'intro',
+          flowStep: 'podcast_intro',
           label: 'MC Introduction',
           generatedByProvider: 'openai',
           generatedByModel: 'gpt-5',
@@ -403,6 +404,47 @@ describe('DebateInterstitialService', () => {
       kind: 'intro',
       usedTemplateFallback: true,
     });
+  });
+
+  it('trims long generated MC copy only at sentence boundaries', async () => {
+    const firstSentence = 'Welcome to the debate. This opening frame is polished, neutral, and complete.';
+    const partialSentence = ` ${'This follow-up sentence should not be cut in half '.repeat(30)}`;
+    const aiService = {
+      sendMessage: jest.fn().mockResolvedValue({
+        response: `${firstSentence}${partialSentence}`,
+        modelUsed: 'gpt-5',
+      }),
+    };
+
+    const message = await createDebateInterstitialMessage({
+      aiService: aiService as unknown as AIService,
+      session: createSession(),
+      kind: 'intro',
+      now: () => 322,
+    });
+
+    expect(message?.content).toBe(firstSentence);
+    expect(message?.content.endsWith('.')).toBe(true);
+    expect(message?.metadata?.debateInterstitial?.usedTemplateFallback).toBe(false);
+  });
+
+  it('falls back when long generated MC copy has no safe sentence boundary', async () => {
+    const aiService = {
+      sendMessage: jest.fn().mockResolvedValue({
+        response: 'A'.repeat(900),
+        modelUsed: 'gpt-5',
+      }),
+    };
+
+    const message = await createDebateInterstitialMessage({
+      aiService: aiService as unknown as AIService,
+      session: createSession(),
+      kind: 'intro',
+      now: () => 323,
+    });
+
+    expect(message?.content).toContain('Welcome to the Symposium AI Debate Arena');
+    expect(message?.metadata?.debateInterstitial?.usedTemplateFallback).toBe(true);
   });
 
   it('falls back to deterministic local copy when MC generation fails', async () => {

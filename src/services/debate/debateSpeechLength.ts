@@ -17,6 +17,8 @@ export interface DebateSpeechLengthGuidance {
   directive: string;
 }
 
+const DEBATE_OUTPUT_SAFETY_TOKENS = 6144;
+
 const PRESET_MULTIPLIER: Record<string, number> = {
   short: 1,
   standard: 1.1,
@@ -66,7 +68,41 @@ function getMinWords(maxWords: number, phase: PhaseId): number {
 }
 
 function getTokenCap(maxWords: number): number {
-  return Math.max(320, Math.ceil(maxWords * 2.2));
+  return Math.max(DEBATE_OUTPUT_SAFETY_TOKENS, Math.ceil(maxWords * 2.2));
+}
+
+function getQualitativeLengthDirective(input: DebateSpeechLengthInput): string {
+  if (input.phase === 'cross_examination') {
+    return input.cxRole === 'questioner'
+      ? 'Length guidance: Ask a few direct questions, not a speech. Keep the exchange moving and stop once the key commitment is tested.'
+      : 'Length guidance: Answer directly and briefly. Defend the point at issue without turning the exchange into a mini-essay.';
+  }
+
+  if (input.phase === 'question') {
+    return 'Length guidance: Give one focused answer to the audience question. Answer directly, tie it back to your side, and stop.';
+  }
+
+  if (input.formatId === 'socratic') {
+    if (input.phase === 'opening' || input.phase === 'synthesis' || input.phase === 'closing') {
+      return 'Length guidance: Keep it concise and inquiry-led. Surface the central assumption or takeaway in natural prose, then stop.';
+    }
+    return 'Length guidance: Keep the follow-up brief and precise. Probe one important tension rather than covering every possible angle.';
+  }
+
+  switch (input.phase) {
+    case 'opening':
+    case 'constructive':
+      return 'Length guidance: Keep this as a compact opening. Make the core case in 2-3 short paragraphs, with no headings or lists, then stop.';
+    case 'rebuttal':
+    case 'final_rebuttal':
+      return 'Length guidance: Keep this rebuttal brief and targeted. Answer one or two decisive claims, rebuild your side, and stop.';
+    case 'closing':
+      return 'Length guidance: Keep this closing concise. Crystallize the strongest reason to vote for your side, avoid new claims, and stop.';
+    case 'synthesis':
+      return 'Length guidance: Keep this synthesis concise. Name the clearest insight or unresolved tension, then stop.';
+    default:
+      return 'Length guidance: Keep the response brief, focused, and in natural prose. Stop once the point is made.';
+  }
 }
 
 export function getDebateSpeechLengthGuidance(input: DebateSpeechLengthInput): DebateSpeechLengthGuidance {
@@ -75,15 +111,12 @@ export function getDebateSpeechLengthGuidance(input: DebateSpeechLengthInput): D
   const maxWords = shouldScale ? applyPreset(baseMaxWords, input.presetId) : baseMaxWords;
   const minWords = getMinWords(maxWords, input.phase);
   const maxTokens = getTokenCap(maxWords);
-  const paragraphGuidance = input.phase === 'cross_examination' || input.phase === 'question'
-    ? 'Use direct questions or answers, not a mini-essay.'
-    : 'Use 2-4 short paragraphs, no headings or lists.';
 
   return {
     minWords,
     maxWords,
     maxTokens,
-    directive: `Length: ${minWords}-${maxWords} words maximum. ${paragraphGuidance} Stop once the argument is made.`,
+    directive: getQualitativeLengthDirective(input),
   };
 }
 
@@ -96,9 +129,8 @@ export function applyDebateOutputTokenCap(
     return parameters;
   }
 
-  const currentMaxTokens = parameters?.maxTokens;
   return {
     ...(parameters || {}),
-    maxTokens: currentMaxTokens ? Math.min(currentMaxTokens, maxTokens) : maxTokens,
+    maxTokens,
   };
 }

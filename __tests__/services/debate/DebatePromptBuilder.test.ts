@@ -35,7 +35,8 @@ describe('DebatePromptBuilder', () => {
     expect(prompt).toContain('Debate intensity: Hostile.');
     expect(prompt).toContain('Attack assumptions, expose weak logic');
     expect(prompt).toContain('do not use insults, slurs, stereotypes, or personal attacks');
-    expect(prompt).toContain('Length: 126-180 words maximum');
+    expect(prompt).toContain('Length guidance: Keep this rebuttal brief and targeted');
+    expect(prompt).not.toContain('words maximum');
     expect(prompt).toContain(DEBATE_CONSTANTS.PROMPT_MARKERS.PREVIOUS_SPEAKER);
   });
 

@@ -4,7 +4,7 @@ import {
 } from '@/services/debate/debateSpeechLength';
 
 describe('debateSpeechLength', () => {
-  it('keeps Oxford opening speeches under mobile-friendly word budgets', () => {
+  it('uses qualitative Oxford opening guidance with a generous safety token ceiling', () => {
     const classicOpening = getDebateSpeechLengthGuidance({
       formatId: 'oxford',
       presetId: 'short',
@@ -16,13 +16,14 @@ describe('debateSpeechLength', () => {
       phase: 'opening',
     });
 
-    expect(classicOpening.maxWords).toBe(220);
-    expect(extendedOpening.maxWords).toBe(264);
-    expect(classicOpening.directive).toContain('words maximum');
-    expect(classicOpening.maxTokens).toBeLessThan(600);
+    expect(classicOpening.directive).toContain('compact opening');
+    expect(classicOpening.directive).toContain('2-3 short paragraphs');
+    expect(classicOpening.directive).not.toContain('words maximum');
+    expect(extendedOpening.directive).toBe(classicOpening.directive);
+    expect(classicOpening.maxTokens).toBe(6144);
   });
 
-  it('uses tighter caps for cross-examination turns', () => {
+  it('uses qualitative guidance for cross-examination turns', () => {
     const questioner = getDebateSpeechLengthGuidance({
       formatId: 'lincoln_douglas',
       phase: 'cross_examination',
@@ -34,18 +35,19 @@ describe('debateSpeechLength', () => {
       cxRole: 'answerer',
     });
 
-    expect(questioner.maxWords).toBe(90);
-    expect(answerer.maxWords).toBe(110);
-    expect(questioner.directive).toContain('not a mini-essay');
+    expect(questioner.directive).toContain('Ask a few direct questions');
+    expect(answerer.directive).toContain('Answer directly and briefly');
+    expect(answerer.directive).toContain('mini-essay');
+    expect(questioner.directive).not.toContain('words');
   });
 
-  it('caps default debate output tokens but preserves expert mode parameters', () => {
-    expect(applyDebateOutputTokenCap(undefined, 480, false)).toEqual({ maxTokens: 480 });
-    expect(applyDebateOutputTokenCap({ temperature: 0.8, maxTokens: 1200 }, 480, false)).toEqual({
+  it('applies a generous safety ceiling but preserves expert mode parameters', () => {
+    expect(applyDebateOutputTokenCap(undefined, 6144, false)).toEqual({ maxTokens: 6144 });
+    expect(applyDebateOutputTokenCap({ temperature: 0.8, maxTokens: 1200 }, 6144, false)).toEqual({
       temperature: 0.8,
-      maxTokens: 480,
+      maxTokens: 6144,
     });
-    expect(applyDebateOutputTokenCap({ temperature: 0.2, maxTokens: 1200 }, 480, true)).toEqual({
+    expect(applyDebateOutputTokenCap({ temperature: 0.2, maxTokens: 1200 }, 6144, true)).toEqual({
       temperature: 0.2,
       maxTokens: 1200,
     });

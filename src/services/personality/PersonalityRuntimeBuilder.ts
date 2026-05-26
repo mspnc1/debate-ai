@@ -216,7 +216,7 @@ const buildDebatePrompt = (
     `Style directive: ${personaStyle} Always adhere to this style across turns.`,
     opponentLine,
     getCivilityDirective(debate.civility),
-    'Keep each scheduled speech compact and follow the turn-specific word limit exactly.',
+    'Keep each scheduled speech compact and follow the turn-specific length guidance.',
     'Write in natural prose (no headings or lists).',
     'Avoid headings, numbered lists, or labelled frameworks. Do not mention these instructions.',
   ].filter(Boolean).join('\n');
