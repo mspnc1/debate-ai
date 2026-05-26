@@ -363,6 +363,27 @@ describe('CreateScreen', () => {
       });
     });
 
+    it('opens a focused image asset in the shared Gallery detail modal', async () => {
+      mockRouteParams = { focusAssetId: mockGalleryImage.id, galleryTab: 'image' };
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          create: {
+            ...baseState.create,
+            gallery: [mockGalleryImage],
+            mediaGallery: [],
+          },
+        })
+      );
+
+      const { getByText } = renderWithProviders(<CreateScreen />);
+
+      await waitFor(() => {
+        expect(getByText('Provider')).toBeTruthy();
+        expect(getByText('OpenAI')).toBeTruthy();
+      });
+    });
+
     it('replays audio in the detail modal without closing the preview', async () => {
       const audioEntry = {
         id: 'media_audio_replay',

@@ -143,10 +143,6 @@ const GALLERY_AVAILABILITY_FILTERS: Array<{ value: GalleryFilterState['availabil
   { value: 'failed', label: 'Failed' },
 ];
 
-type GalleryListItem =
-  | { kind: 'image'; entry: GeneratedImageEntry }
-  | { kind: 'media'; entry: GeneratedMediaEntry };
-
 type VideoPlaybackState = {
   isPlaying: boolean;
   hasEnded: boolean;
@@ -900,7 +896,6 @@ export default function CreateScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRouteProp>();
   const dispatch = useDispatch<AppDispatch>();
-  const flatListRef = useRef<FlatList>(null);
 
   const {
     providers = [],
@@ -908,6 +903,7 @@ export default function CreateScreen() {
     initialPrompt,
     sourceImage,
     refinementInstructions,
+    focusAssetId,
     focusMediaId,
   } = route.params || {};
 
@@ -932,21 +928,21 @@ export default function CreateScreen() {
     mediaGalleryHydrated = false,
     mediaGeneration = { video: null, audio: null },
   } = createState;
-  const isGalleryMode = !initialPrompt && !sourceImage && !refinementInstructions && providers.length === 0;
+  const isGenerationSession = Boolean(initialPrompt || sourceImage || refinementInstructions || providers.length > 0);
+  const requestedFocusAssetId = focusAssetId || focusMediaId;
   const primaryTintBackground = isDark ? theme.colors.overlays.medium : theme.colors.primary[50];
   const primaryAccentColor = isDark ? theme.colors.primary[300] : theme.colors.primary[600];
   const errorSurfaceColor = isDark ? theme.colors.semantic.error : theme.colors.error[100];
   const errorTextColor = isDark ? theme.colors.error[300] : theme.colors.error[700];
 
-  const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
-  const [selectedMediaId, setSelectedMediaId] = useState<string | null>(null);
   const [savingImage, setSavingImage] = useState(false);
   const [savingMediaId, setSavingMediaId] = useState<string | null>(null);
   const [sharingImageId, setSharingImageId] = useState<string | null>(null);
   const [sharingMediaId, setSharingMediaId] = useState<string | null>(null);
   const [refiningImage, setRefiningImage] = useState<GeneratedImageEntry | null>(null);
-  const [videoPlaybackStates, setVideoPlaybackStates] = useState<Record<string, VideoPlaybackState>>({});
-  const [galleryTab, setGalleryTab] = useState<GalleryTab>(route.params?.galleryTab || 'all');
+  const [galleryTab, setGalleryTab] = useState<GalleryTab>(
+    route.params?.galleryTab || (isGenerationSession ? 'image' : 'all')
+  );
   const [gallerySearch, setGallerySearch] = useState('');
   const [galleryFilters, setGalleryFilters] = useState<GalleryFilterState>(EMPTY_GALLERY_FILTERS);
   const [gallerySortMode, setGallerySortMode] = useState<GallerySortMode>('newest');
@@ -955,8 +951,7 @@ export default function CreateScreen() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [bulkSaving, setBulkSaving] = useState(false);
-  const longPressHandledRef = useRef<string | null>(null);
-  const focusedMediaRef = useRef<string | undefined>(undefined);
+  const focusedAssetRef = useRef<string | undefined>(undefined);
 
   const activeSelectedModels = useMemo(() => {
     return providers.reduce((acc, provider) => {
@@ -1394,24 +1389,6 @@ export default function CreateScreen() {
     }
   }, [getResolvedGalleryImage]);
 
-  const handleDelete = useCallback((imageId: string) => {
-    Alert.alert(
-      'Delete Image',
-      'Are you sure you want to delete this image?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            dispatch(removeFromGalleryWithCleanup(imageId));
-          },
-        },
-      ]
-    );
-  }, [dispatch]);
-
   const handleSaveMediaToPhotos = useCallback(async (mediaId: string) => {
     const media = mediaGallery.find((entry) => entry.id === mediaId);
     if (!media) return;
@@ -1466,24 +1443,6 @@ export default function CreateScreen() {
       setSharingMediaId(null);
     }
   }, [mediaGallery]);
-
-  const handleDeleteMedia = useCallback((mediaId: string) => {
-    Alert.alert(
-      'Delete Media',
-      'Are you sure you want to delete this generated media?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            dispatch(removeFromMediaGalleryWithCleanup(mediaId));
-          },
-        },
-      ]
-    );
-  }, [dispatch]);
 
   const saveAssetToLibrary = useCallback(async (asset: GalleryAsset): Promise<void> => {
     if (asset.source === 'image') {
@@ -1657,309 +1616,6 @@ export default function CreateScreen() {
     setGallerySearch('');
     setGallerySortMode('newest');
   }, []);
-
-  const handleVideoPlaybackStateChange = useCallback((mediaId: string, playbackState: VideoPlaybackState) => {
-    setVideoPlaybackStates((current) => {
-      if (
-        current[mediaId]?.isPlaying === playbackState.isPlaying &&
-        current[mediaId]?.hasEnded === playbackState.hasEnded
-      ) {
-        return current;
-      }
-
-      return {
-        ...current,
-        [mediaId]: playbackState,
-      };
-    });
-  }, []);
-
-  const handleImagePress = useCallback((imageId: string) => {
-    if (longPressHandledRef.current === imageId) {
-      longPressHandledRef.current = null;
-      return;
-    }
-
-    setSelectedImageId((current) => (current === imageId ? null : imageId));
-  }, []);
-
-  const handleImageLongPress = useCallback((imageId: string) => {
-    longPressHandledRef.current = imageId;
-    handleDelete(imageId);
-  }, [handleDelete]);
-
-  const renderImageItem = useCallback(({ item }: { item: GeneratedImageEntry }) => {
-    const isSelected = selectedImageId === item.id;
-    const canRefine = supportsImageInput(item.provider, item.model);
-    const providerName = getImageProviderDisplayName(item.provider, {
-      includeModel: true,
-      modelId: item.model,
-    });
-    const badgeLabel = getImageModelDisplayName(item.provider, item.model);
-    const isSharing = sharingImageId === item.id;
-
-    return (
-      <TouchableOpacity
-        style={[styles.imageCard, { backgroundColor: theme.colors.surface }]}
-        onPress={() => handleImagePress(item.id)}
-        onLongPress={() => handleImageLongPress(item.id)}
-        delayLongPress={350}
-        activeOpacity={0.9}
-        accessible={true}
-        accessibilityRole="button"
-        accessibilityLabel={`Image generated by ${providerName}${item.isRefinement ? ', refined' : ''}`}
-        accessibilityHint={isSelected ? "Tap to hide actions or long press to delete" : "Tap to show save, share, and refine options, or long press to delete"}
-        accessibilityState={{ selected: isSelected }}
-      >
-        <Image
-          source={{ uri: item.uri }}
-          style={styles.image}
-          resizeMode="cover"
-        />
-
-        {/* Provider Badge */}
-        <View style={[styles.providerBadge, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
-          <Typography variant="caption" style={{ color: '#FFFFFF' }}>
-            {badgeLabel}
-          </Typography>
-          {item.isRefinement && (
-            <View style={[styles.refinedBadge, { backgroundColor: theme.colors.primary[500] }]}>
-              <Typography variant="caption" style={{ color: '#FFFFFF', fontSize: 10 }}>
-                Refined
-              </Typography>
-            </View>
-          )}
-        </View>
-
-        {/* Actions */}
-        {isSelected && (
-          <View style={[styles.actionsOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-            <View style={styles.actionButtons}>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => handleSaveToPhotos(item.id)}
-                disabled={savingImage}
-                accessible={true}
-                accessibilityRole="button"
-                accessibilityLabel="Save to photos"
-                accessibilityHint="Saves this image to your photo library"
-                accessibilityState={{ disabled: savingImage }}
-              >
-                {savingImage ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Ionicons name="download-outline" size={24} color="#FFFFFF" />
-                )}
-                <Typography variant="caption" style={{ color: '#FFFFFF', marginTop: 4 }}>
-                  Save
-                </Typography>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => handleShare(item.id)}
-                disabled={isSharing}
-                accessible={true}
-                accessibilityRole="button"
-                accessibilityLabel="Share image"
-                accessibilityHint="Opens share sheet to share this image"
-                accessibilityState={{ disabled: isSharing }}
-              >
-                {isSharing ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Ionicons name="share-outline" size={24} color="#FFFFFF" />
-                )}
-                <Typography variant="caption" style={{ color: '#FFFFFF', marginTop: 4 }}>
-                  Share
-                </Typography>
-              </TouchableOpacity>
-
-              {canRefine && (
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => handleRefine(item.id)}
-                  accessible={true}
-                  accessibilityRole="button"
-                  accessibilityLabel="Refine image"
-                  accessibilityHint="Opens refinement options to modify this image"
-                >
-                  <Ionicons name="color-wand-outline" size={24} color="#FFFFFF" />
-                  <Typography variant="caption" style={{ color: '#FFFFFF', marginTop: 4 }}>
-                    Refine
-                  </Typography>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => handleDelete(item.id)}
-                accessible={true}
-                accessibilityRole="button"
-                accessibilityLabel="Delete image"
-                accessibilityHint="Permanently deletes this image from gallery"
-              >
-                <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
-                <Typography variant="caption" style={{ color: '#FF6B6B', marginTop: 4 }}>
-                  Delete
-                </Typography>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-      </TouchableOpacity>
-    );
-  }, [
-    theme,
-    selectedImageId,
-    savingImage,
-    handleSaveToPhotos,
-    handleShare,
-    handleRefine,
-    handleDelete,
-    handleImageLongPress,
-    handleImagePress,
-    sharingImageId,
-  ]);
-
-  const renderMediaItem = useCallback(({ item }: { item: GeneratedMediaEntry }) => {
-    const isSelected = selectedMediaId === item.id;
-    const isVideo = item.mediaType === 'video';
-    const isVoicePack = isVoicePackEntry(item);
-    const isSharing = sharingMediaId === item.id;
-    const isSaving = savingMediaId === item.id;
-    const isVideoPlaying = isVideo && Boolean(videoPlaybackStates[item.id]?.isPlaying);
-    const shouldShowActions = isSelected && !isVideoPlaying;
-    const mediaBadgeLabel = isVoicePack
-      ? 'Voice Pack'
-      : item.operation === 'debate_podcast_playlist'
-        ? 'Podcast'
-        : item.modelId;
-    const mediaActionButtons = (
-      <View style={styles.actionButtons}>
-        {!isVoicePack && (
-          <>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => handleSaveMediaToPhotos(item.id)}
-              disabled={isSaving}
-              accessibilityRole="button"
-              accessibilityLabel={`Save ${item.mediaType}`}
-            >
-              {isSaving ? (
-                <ActivityIndicator color={isVideo ? theme.colors.primary[500] : '#FFFFFF'} size="small" />
-              ) : (
-                <Ionicons name="download-outline" size={24} color={isVideo ? theme.colors.text.primary : '#FFFFFF'} />
-              )}
-              <Typography variant="caption" style={{ color: isVideo ? theme.colors.text.primary : '#FFFFFF', marginTop: 4 }}>
-                Save
-              </Typography>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => handleShareMedia(item.id)}
-              disabled={isSharing}
-              accessibilityRole="button"
-              accessibilityLabel={`Share ${item.mediaType}`}
-            >
-              {isSharing ? (
-                <ActivityIndicator color={isVideo ? theme.colors.primary[500] : '#FFFFFF'} size="small" />
-              ) : (
-                <Ionicons name="share-outline" size={24} color={isVideo ? theme.colors.text.primary : '#FFFFFF'} />
-              )}
-              <Typography variant="caption" style={{ color: isVideo ? theme.colors.text.primary : '#FFFFFF', marginTop: 4 }}>
-                Share
-              </Typography>
-            </TouchableOpacity>
-          </>
-        )}
-
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => handleDeleteMedia(item.id)}
-          accessibilityRole="button"
-          accessibilityLabel={`Delete ${item.mediaType}`}
-        >
-          <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
-          <Typography variant="caption" style={{ color: '#FF6B6B', marginTop: 4 }}>
-            Delete
-          </Typography>
-        </TouchableOpacity>
-      </View>
-    );
-
-    return (
-      <View>
-        <TouchableOpacity
-          style={[styles.imageCard, { backgroundColor: theme.colors.surface }]}
-          onPress={() => setSelectedMediaId((current) => (current === item.id ? null : item.id))}
-          onLongPress={() => handleDeleteMedia(item.id)}
-          delayLongPress={350}
-          activeOpacity={0.9}
-          accessibilityRole="button"
-          accessibilityLabel={`${isVideo ? 'Video' : 'Audio'} generated by ${item.providerId}`}
-          accessibilityHint={isSelected ? 'Tap to hide actions or long press to delete' : 'Tap to show save and share actions, or long press to delete'}
-          accessibilityState={{ selected: isSelected }}
-        >
-          {isVideo ? (
-            <VideoPreview
-              mediaId={item.id}
-              uri={item.uri}
-              style={styles.videoPreview}
-              onPlaybackStateChange={handleVideoPlaybackStateChange}
-            />
-          ) : isVoicePack ? (
-            <VoicePackPreview manifest={item.voicePack} theme={theme} isDark={isDark} />
-          ) : (
-            <AudioPreview
-              uri={item.uri}
-              metadata={buildGeneratedAudioMetadata(item)}
-              theme={theme}
-              isDark={isDark}
-            />
-          )}
-
-          <View style={[styles.providerBadge, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
-            <Typography variant="caption" style={{ color: '#FFFFFF' }}>
-              {isVideo ? 'Runway' : 'ElevenLabs'} • {mediaBadgeLabel}
-            </Typography>
-          </View>
-
-          {item.expiresAt && item.uri.startsWith('http') && (
-            <View style={[styles.expiryBadge, { backgroundColor: theme.colors.warning[500] }]}>
-              <Typography variant="caption" style={{ color: '#FFFFFF', fontSize: 10 }}>
-                Link expires
-              </Typography>
-            </View>
-          )}
-
-          {shouldShowActions && !isVideo && (
-            <View style={[styles.actionsOverlay, { backgroundColor: 'rgba(0,0,0,0.45)' }]}>
-              {mediaActionButtons}
-            </View>
-          )}
-        </TouchableOpacity>
-
-        {shouldShowActions && isVideo && (
-          <View style={[styles.mediaActionsPanel, { backgroundColor: theme.colors.surface }]}>
-            {mediaActionButtons}
-          </View>
-        )}
-      </View>
-    );
-  }, [
-    handleDeleteMedia,
-    handleSaveMediaToPhotos,
-    handleShareMedia,
-    handleVideoPlaybackStateChange,
-    savingMediaId,
-    selectedMediaId,
-    sharingMediaId,
-    theme,
-    isDark,
-    videoPlaybackStates,
-  ]);
 
   const renderFilterChip = useCallback((
     label: string,
@@ -2390,7 +2046,6 @@ export default function CreateScreen() {
                 mediaId={selectedAsset.id}
                 uri={selectedAsset.uri}
                 style={styles.detailVideo}
-                onPlaybackStateChange={handleVideoPlaybackStateChange}
               />
             )}
             {selectedAsset.type === 'audio' && (
@@ -2528,184 +2183,37 @@ export default function CreateScreen() {
     );
   };
 
-  const renderGalleryItem = useCallback(({ item }: { item: GalleryListItem }) => (
-    item.kind === 'image'
-      ? renderImageItem({ item: item.entry })
-      : renderMediaItem({ item: item.entry })
-  ), [renderImageItem, renderMediaItem]);
-
-  // In gallery mode, the library renderer uses normalized assets.
-  // In generation mode, keep the existing recent full-preview feed for the active session.
-  const sessionGallery = isGalleryMode
-    ? gallery
-    : gallery.filter(img =>
-        providers.includes(img.provider) &&
-        activeSelectedModels[img.provider] === img.model &&
-        img.createdAt >= Date.now() - 3600000 // Last hour
-      );
-  const galleryItems: GalleryListItem[] = [
-    ...sessionGallery.map((entry) => ({ kind: 'image' as const, entry })),
-    ...mediaGallery.map((entry) => ({ kind: 'media' as const, entry })),
-  ].sort((a, b) => b.entry.createdAt - a.entry.createdAt);
   const hasActiveMediaGeneration = Boolean(mediaGeneration.video || mediaGeneration.audio);
   const libraryColumnCount = galleryTab === 'audio' ? 1 : 2;
+  const headerTitle = isGenerationSession ? 'Create' : 'Gallery';
+  const headerSubtitle = isGenerationSession && providers.length > 0
+    ? providers.map(p => getImageProviderDisplayName(p, {
+      includeModel: true,
+      modelId: activeSelectedModels[p],
+    })).join(', ')
+    : `${galleryCounts.all} asset${galleryCounts.all === 1 ? '' : 's'} • ${galleryCounts.image} images • ${galleryCounts.video} videos • ${galleryCounts.audio} audio`;
 
   useEffect(() => {
-    if (!focusMediaId || focusedMediaRef.current === focusMediaId) {
+    if (!requestedFocusAssetId || focusedAssetRef.current === requestedFocusAssetId) {
       return;
     }
 
-    if (isGalleryMode) {
-      const focusedAsset = galleryAssets.find((asset) => asset.source === 'media' && asset.id === focusMediaId);
-      if (!focusedAsset) return;
-      focusedMediaRef.current = focusMediaId;
-      setGalleryTab(focusedAsset.type);
-      setSelectedAssetId(focusMediaId);
-      return;
-    }
+    const focusedAsset = galleryAssets.find((asset) => asset.id === requestedFocusAssetId);
+    if (!focusedAsset) return;
 
-    const focusIndex = galleryItems.findIndex((item) => (
-      item.kind === 'media' && item.entry.id === focusMediaId
-    ));
-    if (focusIndex < 0) {
-      return;
-    }
-
-    focusedMediaRef.current = focusMediaId;
-    setSelectedImageId(null);
-    setSelectedMediaId(focusMediaId);
-
-    try {
-      flatListRef.current?.scrollToIndex({
-        index: focusIndex,
-        animated: true,
-        viewPosition: 0.08,
-      });
-    } catch {
-      // The selection still gives the user a clear target if layout is not ready yet.
-    }
-  }, [focusMediaId, galleryAssets, galleryItems, isGalleryMode]);
-
-  if (isGalleryMode) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Ionicons
-              name="arrow-back"
-              size={24}
-              color={theme.colors.text.primary}
-            />
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Typography variant="subtitle">
-              Gallery
-            </Typography>
-            <Typography variant="caption" color="secondary">
-              {galleryCounts.all} asset{galleryCounts.all === 1 ? '' : 's'} • {galleryCounts.image} images • {galleryCounts.video} videos • {galleryCounts.audio} audio
-            </Typography>
-          </View>
-          <View style={{ width: 40 }} />
-        </View>
-
-        {hasActiveMediaGeneration && (
-          <View style={[styles.progressContainer, { backgroundColor: theme.colors.surface }]}>
-            {(['video', 'audio'] as const).map((mediaType) => {
-              const current = mediaGeneration[mediaType];
-              if (!current) return null;
-              return (
-                <View key={mediaType} style={styles.progressItem}>
-                  <Typography variant="body">
-                    {mediaType === 'video' ? 'Runway video' : 'ElevenLabs audio'}
-                  </Typography>
-                  <View style={styles.progressRight}>
-                    <Typography variant="caption" color="secondary">
-                      {current.message || current.phase}
-                    </Typography>
-                    <ActivityIndicator size="small" color={theme.colors.primary[500]} />
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        )}
-
-        {errorMessage && (
-          <View style={[styles.errorContainer, { backgroundColor: errorSurfaceColor }]}>
-            <Typography variant="body" style={{ color: errorTextColor }}>
-              {errorMessage}
-            </Typography>
-          </View>
-        )}
-
-        {renderLibraryControls()}
-
-        <FlatList
-          key={`gallery-library-${libraryColumnCount}`}
-          data={visibleGalleryAssets}
-          keyExtractor={(item) => `${item.source}_${item.id}`}
-          renderItem={renderLibraryAssetItem}
-          numColumns={libraryColumnCount}
-          columnWrapperStyle={libraryColumnCount > 1 ? styles.libraryColumnWrapper : undefined}
-          contentContainerStyle={[
-            styles.libraryContent,
-            { paddingBottom: (selectionMode ? 96 : 16) + insets.bottom },
-          ]}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Ionicons
-                name={gallerySearch || activeFilterCount > 0 ? 'search-outline' : 'images-outline'}
-                size={58}
-                color={theme.colors.text.secondary}
-              />
-              <Typography variant="body" color="secondary" style={styles.emptyText}>
-                {gallerySearch || activeFilterCount > 0 ? 'No matching assets' : 'No generated media yet'}
-              </Typography>
-              {(gallerySearch || activeFilterCount > 0) && (
-                <TouchableOpacity
-                  style={[styles.emptyAction, { borderColor: theme.colors.border }]}
-                  onPress={resetGalleryFilters}
-                  accessibilityRole="button"
-                >
-                  <Typography variant="caption" weight="semibold">
-                    Reset filters
-                  </Typography>
-                </TouchableOpacity>
-              )}
-            </View>
-          }
-        />
-
-        {renderBulkActionBar()}
-        {renderFilterSheet()}
-        {renderAssetDetail()}
-
-        <ImageRefinementModal
-          visible={refiningImage !== null}
-          imageUri={refiningImage?.uri || ''}
-          originalProvider={refiningImage?.provider || 'openai'}
-          originalModelId={refiningImage?.model}
-          availableProviders={availableRefinementProviders}
-          onClose={() => setRefiningImage(null)}
-          onRefine={handleRefinementSubmit}
-        />
-      </View>
-    );
-  }
+    focusedAssetRef.current = requestedFocusAssetId;
+    setGalleryTab(focusedAsset.type);
+    setSelectedAssetId(requestedFocusAssetId);
+  }, [galleryAssets, requestedFocusAssetId]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
         >
           <Ionicons
             name="arrow-back"
@@ -2715,13 +2223,10 @@ export default function CreateScreen() {
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Typography variant="subtitle">
-            Create
+            {headerTitle}
           </Typography>
           <Typography variant="caption" color="secondary">
-            {providers.map(p => getImageProviderDisplayName(p, {
-              includeModel: true,
-              modelId: activeSelectedModels[p],
-            })).join(', ')}
+            {headerSubtitle}
           </Typography>
         </View>
         <View style={{ width: 40 }} />
@@ -2783,40 +2288,49 @@ export default function CreateScreen() {
         </View>
       )}
 
-      {/* Gallery */}
+      {renderLibraryControls()}
+
       <FlatList
-        ref={flatListRef}
-        data={galleryItems}
-        keyExtractor={(item) => `${item.kind}_${item.entry.id}`}
-        renderItem={renderGalleryItem}
+        key={`gallery-library-${libraryColumnCount}`}
+        data={visibleGalleryAssets}
+        keyExtractor={(item) => `${item.source}_${item.id}`}
+        renderItem={renderLibraryAssetItem}
+        numColumns={libraryColumnCount}
+        columnWrapperStyle={libraryColumnCount > 1 ? styles.libraryColumnWrapper : undefined}
         contentContainerStyle={[
-          styles.galleryContent,
-          { paddingBottom: insets.bottom + 16 },
+          styles.libraryContent,
+          { paddingBottom: (selectionMode ? 96 : 16) + insets.bottom },
         ]}
         showsVerticalScrollIndicator={false}
-        onScrollToIndexFailed={({ averageItemLength, index }) => {
-          flatListRef.current?.scrollToOffset({
-            offset: Math.max(0, averageItemLength * index),
-            animated: true,
-          });
-        }}
         ListEmptyComponent={
-          !isGenerating && !hasActiveMediaGeneration ? (
-            <View style={styles.emptyState}>
-              <Ionicons
-                name="images-outline"
-                size={64}
-                color={theme.colors.text.secondary}
-              />
-              <Typography variant="body" color="secondary" style={styles.emptyText}>
-                No generated media yet
-              </Typography>
-            </View>
-          ) : null
+          <View style={styles.emptyState}>
+            <Ionicons
+              name={gallerySearch || activeFilterCount > 0 ? 'search-outline' : 'images-outline'}
+              size={58}
+              color={theme.colors.text.secondary}
+            />
+            <Typography variant="body" color="secondary" style={styles.emptyText}>
+              {gallerySearch || activeFilterCount > 0 ? 'No matching assets' : 'No generated media yet'}
+            </Typography>
+            {(gallerySearch || activeFilterCount > 0) && (
+              <TouchableOpacity
+                style={[styles.emptyAction, { borderColor: theme.colors.border }]}
+                onPress={resetGalleryFilters}
+                accessibilityRole="button"
+              >
+                <Typography variant="caption" weight="semibold">
+                  Reset filters
+                </Typography>
+              </TouchableOpacity>
+            )}
+          </View>
         }
       />
 
-      {/* Refinement Modal */}
+      {renderBulkActionBar()}
+      {renderFilterSheet()}
+      {renderAssetDetail()}
+
       <ImageRefinementModal
         visible={refiningImage !== null}
         imageUri={refiningImage?.uri || ''}
@@ -2872,23 +2386,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     padding: 12,
     borderRadius: 8,
-  },
-  galleryContent: {
-    padding: 16,
-    gap: 16,
-  },
-  imageCard: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  image: {
-    width: IMAGE_SIZE,
-    height: IMAGE_SIZE,
-  },
-  videoPreview: {
-    width: IMAGE_SIZE,
-    height: Math.round(IMAGE_SIZE * 9 / 16),
-    backgroundColor: '#000000',
   },
   videoPlayerSurface: {
     ...StyleSheet.absoluteFillObject,
@@ -2965,53 +2462,6 @@ const styles = StyleSheet.create({
   audioTimeText: {
     minWidth: 34,
     textAlign: 'center',
-  },
-  providerBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  refinedBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  expiryBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  actionsOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 24,
-    justifyContent: 'center',
-  },
-  actionButton: {
-    alignItems: 'center',
-    padding: 12,
-  },
-  mediaActionsPanel: {
-    marginTop: 8,
-    borderRadius: 12,
-    alignItems: 'center',
   },
   libraryControls: {
     paddingHorizontal: 16,

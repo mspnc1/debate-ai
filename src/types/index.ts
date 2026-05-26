@@ -322,6 +322,7 @@ export type RootStackParamList = {
     initialPrompt?: string;
     sourceImage?: string;
     refinementInstructions?: string;
+    focusAssetId?: string;
     focusMediaId?: string;
     galleryTab?: 'all' | 'image' | 'video' | 'audio';
   };
