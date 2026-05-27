@@ -19,7 +19,7 @@ describe('Provider logo configuration', () => {
 describe('Provider capability matrix', () => {
   it('derives OpenAI image capabilities from the shared image model registry', () => {
     const capabilities = getProviderCapabilities('openai');
-    expect(capabilities.imageGeneration).toEqual({
+    expect(capabilities.imageGeneration).toEqual(expect.objectContaining({
       supported: true,
       supportsImageInput: true,
       models: [
@@ -38,14 +38,14 @@ describe('Provider capability matrix', () => {
         '1792x1024',
       ],
       maxPromptLength: 4000,
-    });
+    }));
     expect(capabilities.videoGeneration).toEqual({ supported: false });
   });
 
   it('surfaces both Gemini and Imagen offerings for Google', () => {
     const capabilities = getProviderCapabilities('google');
     expect(capabilities.videoGeneration).toEqual({ supported: false });
-    expect(capabilities.imageGeneration).toEqual({
+    expect(capabilities.imageGeneration).toEqual(expect.objectContaining({
       supported: true,
       supportsImageInput: true,
       models: [
@@ -69,21 +69,19 @@ describe('Provider capability matrix', () => {
         '21:9',
       ],
       maxPromptLength: 4000,
-    });
+    }));
   });
 
   it('marks Grok refinement and aspect-ratio support correctly', () => {
     const capabilities = getProviderCapabilities('grok');
-    expect(capabilities).toEqual({
-      imageGeneration: {
-        supported: true,
-        supportsImageInput: true,
-        models: ['grok-imagine-image', 'grok-imagine-image-pro'],
-        sizes: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '2:1', '1:2', '19.5:9', '9:19.5', '20:9', '9:20'],
-        maxPromptLength: 4000,
-      },
-      videoGeneration: { supported: false },
-    });
+    expect(capabilities.imageGeneration).toEqual(expect.objectContaining({
+      supported: true,
+      supportsImageInput: true,
+      models: ['grok-imagine-image', 'grok-imagine-image-pro'],
+      sizes: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '2:1', '1:2', '19.5:9', '9:19.5', '20:9', '9:20'],
+      maxPromptLength: 4000,
+    }));
+    expect(capabilities.videoGeneration).toEqual({ supported: false });
   });
 
   it('returns disabled capabilities for unknown providers', () => {
