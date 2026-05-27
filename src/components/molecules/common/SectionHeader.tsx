@@ -2,6 +2,8 @@ import React from 'react';
 import { View, ViewStyle, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Typography } from './Typography';
+import { InfoButton } from './InfoButton';
+import { HelpTopicId } from '@/config/help/types';
 import { useTheme } from '@/theme';
 
 interface SectionHeaderProps {
@@ -11,6 +13,8 @@ interface SectionHeaderProps {
   style?: ViewStyle;
   onAction?: () => void;
   actionLabel?: string;
+  /** When set, renders a contextual (i) help button on the right. */
+  helpTopicId?: HelpTopicId;
 }
 
 export const SectionHeader: React.FC<SectionHeaderProps> = ({
@@ -20,6 +24,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
   style,
   onAction,
   actionLabel,
+  helpTopicId,
 }) => {
   const { theme } = useTheme();
   
@@ -50,6 +55,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
             </Typography>
           </TouchableOpacity>
         )}
+        {helpTopicId && <InfoButton topicId={helpTopicId} size="medium" />}
       </View>
       {subtitle && (
         <Typography variant="body" color="secondary" style={{ marginTop: 4 }}>

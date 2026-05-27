@@ -36,13 +36,8 @@ import reducer, {
   setPrompt,
   setStyle,
   setSize,
-  setQuality,
   setImageCount,
-  setImageResolution,
-  setImageOutputFormat,
-  setImageOutputCompression,
-  setImageBackground,
-  setImageModeration,
+  setImageModelSetting,
   startImageGeneration,
   updateImageGeneration,
   completeImageGeneration,
@@ -219,9 +214,9 @@ describe('createSlice', () => {
       expect(state.selectedSize).toBe('portrait');
     });
 
-    it('sets quality', () => {
-      const state = reducer(initialState, setQuality('hd'));
-      expect(state.selectedQuality).toBe('hd');
+    it('sets a per-provider quality setting', () => {
+      const state = reducer(initialState, setImageModelSetting({ provider: 'openai', settings: { quality: 'high' } }));
+      expect(state.imageModelSettings.openai?.quality).toBe('high');
     });
 
     it('supports all style presets', () => {
@@ -240,28 +235,36 @@ describe('createSlice', () => {
       });
     });
 
-    it('supports all quality options', () => {
+    it('supports all quality options per provider', () => {
       const qualities = ['standard', 'hd', 'auto', 'low', 'medium', 'high'] as const;
       qualities.forEach(quality => {
-        const state = reducer(initialState, setQuality(quality));
-        expect(state.selectedQuality).toBe(quality);
+        const state = reducer(initialState, setImageModelSetting({ provider: 'openai', settings: { quality } }));
+        expect(state.imageModelSettings.openai?.quality).toBe(quality);
       });
     });
 
-    it('sets adaptive image output options', () => {
+    it('merges per-provider output settings and keeps providers independent', () => {
       let state = reducer(initialState, setImageCount(4));
-      state = reducer(state, setImageResolution('2K'));
-      state = reducer(state, setImageOutputFormat('webp'));
-      state = reducer(state, setImageOutputCompression(72));
-      state = reducer(state, setImageBackground('opaque'));
-      state = reducer(state, setImageModeration('low'));
+      state = reducer(state, setImageModelSetting({ provider: 'openai', settings: { resolution: '2K' } }));
+      state = reducer(state, setImageModelSetting({ provider: 'openai', settings: { outputFormat: 'webp' } }));
+      state = reducer(state, setImageModelSetting({ provider: 'openai', settings: { outputCompression: 72 } }));
+      state = reducer(state, setImageModelSetting({ provider: 'openai', settings: { background: 'opaque' } }));
+      state = reducer(state, setImageModelSetting({ provider: 'grok', settings: { moderation: 'low' } }));
 
       expect(state.selectedImageCount).toBe(4);
-      expect(state.selectedImageResolution).toBe('2K');
-      expect(state.selectedImageOutputFormat).toBe('webp');
-      expect(state.selectedImageOutputCompression).toBe(72);
-      expect(state.selectedImageBackground).toBe('opaque');
-      expect(state.selectedImageModeration).toBe('low');
+      expect(state.imageModelSettings.openai).toEqual({
+        resolution: '2K',
+        outputFormat: 'webp',
+        outputCompression: 72,
+        background: 'opaque',
+      });
+      expect(state.imageModelSettings.grok).toEqual({ moderation: 'low' });
+    });
+
+    it('resets transparent background when switching a provider to PNG', () => {
+      let state = reducer(initialState, setImageModelSetting({ provider: 'openai', settings: { background: 'transparent' } }));
+      state = reducer(state, setImageModelSetting({ provider: 'openai', settings: { outputFormat: 'png' } }));
+      expect(state.imageModelSettings.openai?.background).toBe('auto');
     });
   });
 
@@ -388,12 +391,16 @@ describe('createSlice', () => {
         selectedModels: { openai: 'gpt-image-2' },
         style: 'photo',
         size: 'portrait',
-        quality: 'high',
         imageCount: 2,
-        outputFormat: 'webp',
-        outputCompression: 80,
-        background: 'opaque',
-        moderation: 'low',
+        modelSettings: {
+          openai: {
+            quality: 'high',
+            outputFormat: 'webp',
+            outputCompression: 80,
+            background: 'opaque',
+            moderation: 'low',
+          },
+        },
       })).unwrap();
 
       const state = store.getState().create;
@@ -1503,7 +1510,7 @@ describe('createSlice', () => {
       expect(initialState.currentPrompt).toBe('');
       expect(initialState.selectedStyle).toBe('none');
       expect(initialState.selectedSize).toBe('auto');
-      expect(initialState.selectedQuality).toBe('standard');
+      expect(initialState.imageModelSettings).toEqual({});
       expect(initialState.gallery).toEqual([]);
       expect(initialState.galleryHydrated).toBe(false);
       expect(initialState.activeTab).toBe('image');

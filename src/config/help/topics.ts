@@ -973,8 +973,8 @@ Refinement vs New Generation:
 - Refinement uses an existing image as a reference, maintaining composition
 
 Supported Providers:
-Look for the "img2img" badge on provider cards - these support refinement. Not all providers support this feature.`,
-    relatedTopics: ["create-mode", "create-gallery"],
+OpenAI (GPT Image), Google Gemini, and Grok can edit images and use references. Imagen and DALL·E 3 create from text only. In Refine mode, models that can't edit images are dimmed - switch the model or stay in Create mode.`,
+    relatedTopics: ["create-mode", "create-gallery", "create-image-mode"],
   },
 
   "create-gallery": {
@@ -1003,6 +1003,265 @@ Generated assets are stored locally on your device. The gallery persists across 
 
 Tip: Long-press an asset in the grid for quick actions without opening the detail view.`,
     relatedTopics: ["create-mode", "create-refinement"],
+  },
+
+  "create-image-mode": {
+    id: "create-image-mode",
+    title: "Create vs Refine",
+    icon: "sparkles",
+    category: "create",
+    shortDescription: "Generate new images or edit existing ones",
+    content: `The mode switch decides what each selected AI does.
+
+Create:
+Generates a brand-new image from your text prompt.
+
+Refine:
+Edits an existing image you upload or pick from your gallery, guided by your instructions. This is also called image-to-image (img2img).
+
+Which models support Refine:
+OpenAI (GPT Image), Google Gemini, and Grok can edit images. Imagen and DALL·E 3 are text-only - in Refine mode they're dimmed, so switch their model or use Create mode.
+
+Tip: You can select up to 3 AIs and compare how each one interprets the same prompt or edit.`,
+    relatedTopics: ["create-refinement", "create-providers"],
+  },
+
+  "create-quality": {
+    id: "create-quality",
+    title: "Quality",
+    icon: "diamond",
+    category: "create",
+    shortDescription: "Detail level vs cost and speed",
+    content: `Higher quality renders more detail but costs more and takes longer to generate.
+
+OpenAI GPT Image models:
+- Match model: lets the model pick its best default
+- Draft: fastest and cheapest, good for quick exploration
+- Medium / High: progressively more detail and cost
+
+Gemini and Grok:
+Manage quality automatically, so this control only appears for models that expose it. That's why you may see a Quality control on one model's card but not another's.`,
+    relatedTopics: ["create-providers"],
+  },
+
+  "create-safety": {
+    id: "create-safety",
+    title: "Safety",
+    icon: "shield-checkmark",
+    category: "create",
+    shortDescription: "Content moderation level",
+    content: `Controls how strictly generated images are moderated.
+
+- Default safety: recommended for most uses
+- Less restrictive: permits a broader range of creative content while still blocking disallowed material
+
+Where it applies:
+Only OpenAI GPT Image models expose this setting, so it appears on the OpenAI card only. Other providers apply their own fixed moderation.`,
+    relatedTopics: ["create-providers"],
+  },
+
+  "create-background": {
+    id: "create-background",
+    title: "Background",
+    icon: "square-outline",
+    category: "create",
+    shortDescription: "Transparent or solid backgrounds",
+    content: `Choose how the image background is rendered.
+
+- Default: the model decides
+- Opaque: a solid background
+- Transparent: no background, ideal for logos, icons, and stickers
+
+Requirements:
+Transparent backgrounds need an alpha-capable format (PNG or WebP) and are supported on OpenAI GPT Image models.`,
+    relatedTopics: ["create-format", "create-providers"],
+  },
+
+  "create-format": {
+    id: "create-format",
+    title: "File Format",
+    icon: "document",
+    category: "create",
+    shortDescription: "PNG, JPEG, or WebP",
+    content: `The file format of the generated image.
+
+- PNG: lossless, supports transparency, larger files
+- JPEG: smaller files, no transparency, best for photos
+- WebP: small files with optional transparency
+
+Pick PNG or WebP if you need a transparent background. This control appears only for models that let you choose (OpenAI GPT Image).`,
+    relatedTopics: ["create-background", "create-compression"],
+  },
+
+  "create-resolution": {
+    id: "create-resolution",
+    title: "Resolution",
+    icon: "scan",
+    category: "create",
+    shortDescription: "Output detail size",
+    content: `Sets the output resolution for models that support multiple sizes (such as Gemini preview models and Grok).
+
+Higher resolutions capture more detail but cost more and take longer. Options vary by model - for example 1K, 2K, or 4K - so this control only appears for models that expose it.`,
+    relatedTopics: ["create-quality", "create-frame"],
+  },
+
+  "create-frame": {
+    id: "create-frame",
+    title: "Frame",
+    icon: "crop",
+    category: "create",
+    shortDescription: "Shared aspect ratio for all models",
+    content: `Frame sets the aspect ratio applied to every selected AI, so a side-by-side comparison stays consistent.
+
+- Model default: each provider's own default frame
+- Square (1:1), Portrait, Landscape
+
+Each provider maps these to its supported dimensions automatically (OpenAI uses pixel sizes, Gemini and Grok use aspect ratios).`,
+    relatedTopics: ["create-sizes", "create-resolution"],
+  },
+
+  "create-compression": {
+    id: "create-compression",
+    title: "Compression",
+    icon: "archive",
+    category: "create",
+    shortDescription: "File size vs quality for JPEG/WebP",
+    content: `Adjusts the compression level for JPEG and WebP output. Higher values keep more detail but produce larger files.
+
+This control appears only when you've chosen a JPEG or WebP format on a model that supports compression (OpenAI GPT Image). PNG is lossless and ignores this setting.`,
+    relatedTopics: ["create-format"],
+  },
+
+  "create-video-source": {
+    id: "create-video-source",
+    title: "Video Source Image",
+    icon: "image",
+    category: "create",
+    shortDescription: "Optional image-to-video input",
+    content: `Optionally provide a starting image for image-to-video generation. Runway animates from that frame using your prompt as direction.
+
+- Leave empty for text-to-video (generate purely from the prompt)
+- Add an image (upload or reuse a gallery image) to animate it
+
+Adding an image switches the model list to image-to-video capable models.`,
+    relatedTopics: ["create-video-model"],
+  },
+
+  "create-video-model": {
+    id: "create-video-model",
+    title: "Video Model",
+    icon: "videocam",
+    category: "create",
+    shortDescription: "Runway generation models",
+    content: `Choose the Runway model that generates your video. Models differ in quality, speed, supported durations, and aspect ratios.
+
+The available models change based on whether you've added a source image (image-to-video) or are generating from text only (text-to-video). Switching models may adjust the available durations and frames.`,
+    relatedTopics: ["create-video-duration", "create-video-frame"],
+  },
+
+  "create-video-duration": {
+    id: "create-video-duration",
+    title: "Video Duration",
+    icon: "time",
+    category: "create",
+    shortDescription: "Clip length in seconds",
+    content: `Sets how long the generated clip is. Longer clips cost more and take longer to render.
+
+Available lengths depend on the selected model, so the options update when you change models.`,
+    relatedTopics: ["create-video-model"],
+  },
+
+  "create-video-frame": {
+    id: "create-video-frame",
+    title: "Video Frame",
+    icon: "crop",
+    category: "create",
+    shortDescription: "Video aspect ratio",
+    content: `Sets the aspect ratio of the generated video, such as 16:9 (widescreen) or 9:16 (vertical for phones and social stories).
+
+Supported ratios depend on the selected model.`,
+    relatedTopics: ["create-video-model"],
+  },
+
+  "create-audio-mode": {
+    id: "create-audio-mode",
+    title: "Voiceover vs Sound Effect",
+    icon: "headset",
+    category: "create",
+    shortDescription: "Speech or generated sound",
+    content: `Choose what ElevenLabs generates.
+
+- Voiceover (text-to-speech): reads your script aloud in a chosen voice
+- Sound effect: generates a sound from a description (for example, "soft rain with distant thunder")
+
+The available controls change with the mode - voice selection applies to Voiceover, while duration and prompt influence apply to Sound effects.`,
+    relatedTopics: ["create-audio-voice"],
+  },
+
+  "create-audio-voice": {
+    id: "create-audio-voice",
+    title: "Voice",
+    icon: "person",
+    category: "create",
+    shortDescription: "Choose the speaking voice",
+    content: `Selects the voice used for voiceover. Each voice has its own tone, accent, and character.
+
+Voices are loaded from your ElevenLabs account; use the picker's search to find one, and scroll to load more.`,
+    relatedTopics: ["create-audio-mode", "create-audio-model"],
+  },
+
+  "create-audio-model": {
+    id: "create-audio-model",
+    title: "Audio Model",
+    icon: "musical-notes",
+    category: "create",
+    shortDescription: "ElevenLabs generation model",
+    content: `Selects the ElevenLabs model used to generate audio. Models trade off expressiveness, language support, and latency.
+
+The available models depend on whether you're generating a voiceover or a sound effect.`,
+    relatedTopics: ["create-audio-mode", "create-audio-format"],
+  },
+
+  "create-audio-format": {
+    id: "create-audio-format",
+    title: "Audio Format",
+    icon: "document",
+    category: "create",
+    shortDescription: "Output file format and bitrate",
+    content: `Sets the output audio format and quality (for example MP3 at various bitrates, Opus, or WAV).
+
+Higher bitrates sound better but produce larger files. MP3 is the most widely compatible choice.`,
+    relatedTopics: ["create-audio-model"],
+  },
+
+  "create-audio-duration": {
+    id: "create-audio-duration",
+    title: "Sound Duration",
+    icon: "time",
+    category: "create",
+    shortDescription: "Length of the sound effect",
+    content: `Sets how long the generated sound effect lasts.
+
+- Auto duration: lets the model choose a natural length for the described sound
+- Fixed values: force a specific length in seconds
+
+This applies to sound effects only.`,
+    relatedTopics: ["create-audio-mode", "create-audio-influence"],
+  },
+
+  "create-audio-influence": {
+    id: "create-audio-influence",
+    title: "Prompt Influence",
+    icon: "options",
+    category: "create",
+    shortDescription: "How closely to follow the prompt",
+    content: `Controls how strictly the sound effect follows your description.
+
+- Lower values: more variation and creativity
+- Higher values: closer adherence to the prompt, less variation
+
+This applies to sound effects only.`,
+    relatedTopics: ["create-audio-duration"],
   },
 };
 

@@ -34,6 +34,8 @@ interface DynamicAISelectorProps {
   onQuickStart?: () => void;  // Handler for Quick Start icon tap
   /** Optional callback to get a badge for an AI (e.g., "img2img" for image refinement support) */
   getBadge?: (ai: AIConfig) => AICardBadge | undefined;
+  /** Optional callback to disable an AI card based on context (e.g. a model that can't edit images in Refine mode) */
+  getIsDisabled?: (ai: AIConfig) => boolean;
 }
 
 export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
@@ -56,6 +58,7 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
   renderModelSelector,
   onQuickStart,
   getBadge,
+  getIsDisabled,
 }) => {
   const { theme } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
@@ -124,8 +127,9 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
               if (itemIndex < configuredAIs.length) {
                 const ai = configuredAIs[itemIndex];
                 const isSelected = selectedAIs.some(s => s.id === ai.id);
-                const isDisabled = !isSelected && selectedAIs.length >= maxAIs;
                 const selectedModel = selectedModels[ai.id] || ai.model;
+                const isDisabled = (!isSelected && selectedAIs.length >= maxAIs)
+                  || Boolean(getIsDisabled?.({ ...ai, model: selectedModel }));
                 
                 return (
                   <View key={ai.id} style={{ 

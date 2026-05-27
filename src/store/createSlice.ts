@@ -14,7 +14,7 @@ import type {
   CreateTab,
   MediaProviderId,
 } from '../types/media';
-import { resolveImageModelId } from '../config/imageGenerationModels';
+import { resolveImageModelId, getResolvedImageModel } from '../config/imageGenerationModels';
 import {
   RUNWAY_DEFAULT_ASPECT_RATIO,
   RUNWAY_DEFAULT_DURATION_SECONDS,
@@ -145,6 +145,20 @@ export interface CreateImageSourceInput {
   uri: string;
   base64?: string;
   mimeType?: string;
+}
+
+/**
+ * Per-model output settings for image generation.
+ * Stored per provider so each selected model keeps its own capability-specific
+ * choices (the service layer ignores any value a model does not support).
+ */
+export interface ImageModelSettings {
+  quality?: QualityOption;
+  resolution?: string;
+  outputFormat?: ImageOutputFormat;
+  outputCompression?: number;
+  background?: ImageBackgroundOption;
+  moderation?: ImageModerationOption;
 }
 
 export interface ImageGenerationState {
@@ -362,13 +376,10 @@ export interface CreateState {
   currentPrompt: string;
   selectedStyle: StylePreset;
   selectedSize: SizeOption;
-  selectedQuality: QualityOption;
   selectedImageCount: number;
-  selectedImageResolution?: string;
-  selectedImageOutputFormat: ImageOutputFormat;
-  selectedImageOutputCompression: number;
-  selectedImageBackground: ImageBackgroundOption;
-  selectedImageModeration: ImageModerationOption;
+  // Per-provider, capability-specific output settings (quality, safety, etc.).
+  // Frame (selectedSize) and count remain shared across all selected models.
+  imageModelSettings: Partial<Record<AIProvider, ImageModelSettings>>;
 
   // Gallery (persisted)
   gallery: GeneratedImageEntry[];
@@ -416,12 +427,8 @@ const initialState: CreateState = {
   currentPrompt: '',
   selectedStyle: 'none',
   selectedSize: 'auto',
-  selectedQuality: 'standard',
   selectedImageCount: 1,
-  selectedImageOutputFormat: 'png',
-  selectedImageOutputCompression: 80,
-  selectedImageBackground: 'auto',
-  selectedImageModeration: 'auto',
+  imageModelSettings: {},
   gallery: [],
   galleryHydrated: false,
   mediaGallery: [],
@@ -795,13 +802,10 @@ export interface GenerateCreateImagesPayload {
   selectedModels?: Partial<Record<AIProvider, string>>;
   style?: StylePreset;
   size?: SizeOption;
-  quality?: QualityOption;
   imageCount?: number;
-  resolution?: string;
-  outputFormat?: ImageOutputFormat;
-  outputCompression?: number;
-  background?: ImageBackgroundOption;
-  moderation?: ImageModerationOption;
+  // Per-provider output settings. Each provider applies only its own slice; any
+  // value its model does not support is ignored by the service layer.
+  modelSettings?: Partial<Record<AIProvider, ImageModelSettings>>;
   sourceImages?: CreateImageSourceInput[];
   isUploaded?: boolean;
   parentImageId?: string;
@@ -850,8 +854,21 @@ export const generateCreateImages = createAsyncThunk(
     const entries: GeneratedImageEntry[] = [];
     const failed: Array<{ provider: AIProvider; error: Error }> = [];
 
+    // Resolve a setting against the model's supported options, falling back to
+    // the model's first option (its default) when unset or unsupported.
+    const pickSupported = <T,>(value: T | undefined, options?: T[]): T | undefined =>
+      value !== undefined && options?.includes(value) ? value : options?.[0];
+
     await Promise.all(providers.map(async (provider) => {
       const modelId = payload.selectedModels?.[provider] || resolveImageModelId(provider);
+      const model = getResolvedImageModel(provider, modelId);
+      const settings = payload.modelSettings?.[provider];
+      const quality = pickSupported(settings?.quality, model?.qualityOptions);
+      const resolution = pickSupported(settings?.resolution, model?.resolutions);
+      const outputFormat = pickSupported(settings?.outputFormat, model?.outputFormats);
+      const background = pickSupported(settings?.background, model?.backgroundOptions);
+      const moderation = pickSupported(settings?.moderation, model?.moderationOptions);
+      const outputCompression = settings?.outputCompression;
       dispatch(updateGenerationProgress({ provider, progress: 'generating' }));
       dispatch(updateImageGeneration({
         status: 'running',
@@ -874,12 +891,12 @@ export const generateCreateImages = createAsyncThunk(
           apiKey,
           prompt: enhancedPrompt,
           size,
-          resolution: payload.resolution,
-          quality: payload.quality,
-          outputFormat: payload.outputFormat,
-          outputCompression: payload.outputCompression,
-          background: payload.background,
-          moderation: payload.moderation,
+          resolution,
+          quality,
+          outputFormat,
+          outputCompression,
+          background,
+          moderation,
           n: payload.imageCount,
           sourceImages: resolvedSources,
         });
@@ -896,7 +913,7 @@ export const generateCreateImages = createAsyncThunk(
             model: modelId || provider,
             style,
             size: sizeOption,
-            quality: payload.quality ?? initialState.selectedQuality,
+            quality: quality ?? 'auto',
             createdAt: Date.now(),
             isRefinement: resolvedSources.length > 0,
             isUploaded: Boolean(payload.isUploaded || resolvedSources.length > 0),
@@ -1311,31 +1328,27 @@ const createSlice_ = createSlice({
     setSize: (state, action: PayloadAction<SizeOption>) => {
       state.selectedSize = action.payload;
     },
-    setQuality: (state, action: PayloadAction<QualityOption>) => {
-      state.selectedQuality = action.payload;
-    },
     setImageCount: (state, action: PayloadAction<number>) => {
       state.selectedImageCount = Math.max(1, Math.min(Math.round(action.payload), 10));
     },
-    setImageResolution: (state, action: PayloadAction<string | undefined>) => {
-      state.selectedImageResolution = action.payload;
-    },
-    setImageOutputFormat: (state, action: PayloadAction<ImageOutputFormat>) => {
-      state.selectedImageOutputFormat = action.payload;
-      if (action.payload === 'png') {
-        state.selectedImageBackground = state.selectedImageBackground === 'transparent'
-          ? 'transparent'
-          : state.selectedImageBackground;
+    // Merge a partial set of output settings into a single provider's slice.
+    // Each control dispatches only the field it owns; the service layer drops
+    // any value the resolved model does not support.
+    setImageModelSetting: (
+      state,
+      action: PayloadAction<{ provider: AIProvider; settings: Partial<ImageModelSettings> }>
+    ) => {
+      const { provider, settings } = action.payload;
+      const existing = state.imageModelSettings[provider] || {};
+      const next: ImageModelSettings = { ...existing, ...settings };
+      if (next.outputCompression !== undefined) {
+        next.outputCompression = Math.max(0, Math.min(100, Math.round(next.outputCompression)));
       }
-    },
-    setImageOutputCompression: (state, action: PayloadAction<number>) => {
-      state.selectedImageOutputCompression = Math.max(0, Math.min(100, Math.round(action.payload)));
-    },
-    setImageBackground: (state, action: PayloadAction<ImageBackgroundOption>) => {
-      state.selectedImageBackground = action.payload;
-    },
-    setImageModeration: (state, action: PayloadAction<ImageModerationOption>) => {
-      state.selectedImageModeration = action.payload;
+      // Transparent backgrounds require an alpha-capable format (PNG/WebP).
+      if (settings.outputFormat === 'png' && next.background === 'transparent') {
+        next.background = 'auto';
+      }
+      state.imageModelSettings[provider] = next;
     },
 
     // Generation state
@@ -1667,13 +1680,8 @@ export const {
   setPrompt,
   setStyle,
   setSize,
-  setQuality,
   setImageCount,
-  setImageResolution,
-  setImageOutputFormat,
-  setImageOutputCompression,
-  setImageBackground,
-  setImageModeration,
+  setImageModelSetting,
   startImageGeneration,
   updateImageGeneration,
   completeImageGeneration,

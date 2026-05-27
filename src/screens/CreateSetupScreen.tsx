@@ -39,21 +39,18 @@ import {
   ImageModelSelector,
   SegmentedControl,
   SheetHeader,
+  InfoButton,
 } from '../components/molecules';
-import { Header, HeaderActions, DynamicAISelector } from '../components/organisms';
+import { Header, HeaderActions } from '../components/organisms';
+import { AIAvatar } from '../components/organisms/common/AIAvatar';
 import { RootState, AppDispatch, isApiKeyConfigured } from '../store';
 import {
   generateCreateImages,
   setPrompt,
   setStyle,
   setSize,
-  setQuality,
   setImageCount,
-  setImageResolution,
-  setImageOutputFormat,
-  setImageOutputCompression,
-  setImageBackground,
-  setImageModeration,
+  setImageModelSetting,
   setSelectedModel,
   setSelectedProviders,
   setActiveCreateTab,
@@ -90,6 +87,8 @@ import {
   resolveImageModelId,
   supportsImageGeneration,
 } from '../config/imageGenerationModels';
+import type { ImageModelSettings, SizeOption } from '../store/createSlice';
+import { HelpTopicId } from '../config/help/types';
 import { AI_PROVIDERS } from '../config/aiProviders';
 import { getAIProviderIcon } from '../utils/aiProviderAssets';
 import { getImageMimeType } from '../services/images/fileCache';
@@ -131,15 +130,12 @@ const IMAGE_MODERATION_LABELS: Record<ImageModerationOption, string> = {
   low: 'Less restrictive',
 };
 
-const DEFAULT_IMAGE_QUALITY_OPTIONS: ImageOutputQuality[] = ['auto'];
-const DEFAULT_IMAGE_FORMAT_OPTIONS: ImageOutputFormat[] = ['png'];
-const DEFAULT_IMAGE_BACKGROUND_OPTIONS: ImageBackgroundOption[] = ['auto'];
-const DEFAULT_IMAGE_MODERATION_OPTIONS: ImageModerationOption[] = ['auto'];
-
-function intersectValues<T extends string>(lists: T[][]): T[] {
-  if (lists.length === 0) return [];
-  return lists[0].filter((value) => lists.every((list) => list.includes(value)));
-}
+const SIZE_LABELS: Record<SizeOption, string> = {
+  auto: 'Model default',
+  square: 'Square',
+  portrait: 'Portrait',
+  landscape: 'Landscape',
+};
 
 function getSelectedImageModels(
   providers: AIProvider[],
@@ -179,13 +175,8 @@ export default function CreateSetupScreen() {
     currentPrompt,
     selectedStyle,
     selectedSize,
-    selectedQuality,
     selectedImageCount = 1,
-    selectedImageResolution,
-    selectedImageOutputFormat = 'png',
-    selectedImageOutputCompression = 80,
-    selectedImageBackground = 'auto',
-    selectedImageModeration = 'auto',
+    imageModelSettings = {},
     galleryHydrated,
     gallery,
     mediaGalleryHydrated = false,
@@ -197,9 +188,11 @@ export default function CreateSetupScreen() {
   } = createState;
 
   const galleryCount = gallery.length + mediaGallery.length;
-  const [selectedAIs, setSelectedAIs] = useState<AIConfig[]>([]);
   const [imageMode, setImageMode] = useState<'create' | 'refine'>('create');
   const [imageSourceUris, setImageSourceUris] = useState<string[]>([]);
+  // Output & per-model settings live in a bottom sheet; track open state and the active provider tab.
+  const [settingsSheetOpen, setSettingsSheetOpen] = useState(false);
+  const [activeSettingsProvider, setActiveSettingsProvider] = useState<AIProvider | null>(null);
   const [videoSourceUri, setVideoSourceUri] = useState<string | undefined>();
   const [videoPrompt, setVideoPrompt] = useState('');
   const [videoModelId, setVideoModelId] = useState(RUNWAY_DEFAULT_VIDEO_MODEL);
@@ -221,7 +214,6 @@ export default function CreateSetupScreen() {
   const [audioVoiceNextPageToken, setAudioVoiceNextPageToken] = useState<string | null>(null);
   const [audioVoiceTotalCount, setAudioVoiceTotalCount] = useState<number | undefined>();
   const [audioVoiceSearch, setAudioVoiceSearch] = useState('');
-  const [isAudioSettingsExpanded, setIsAudioSettingsExpanded] = useState(false);
   const [audioPicker, setAudioPicker] = useState<AudioPickerType | null>(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const videoOperation: Extract<CreateMediaOperation, 'text_to_video' | 'image_to_video'> = videoSourceUri
@@ -353,18 +345,6 @@ export default function CreateSetupScreen() {
       });
   }, [apiKeys, verifiedProviders, isDemo, selectedModels]);
 
-  // Sync selectedAIs with selectedProviders from Redux
-  useEffect(() => {
-    const ais = configuredImageAIs.filter(ai =>
-      selectedProviders.includes(ai.provider)
-    );
-    // Only update if the selected AIs have actually changed to prevent infinite loops
-    setSelectedAIs(prev => {
-      const prevIds = prev.map(a => a.id).sort().join(',');
-      const newIds = ais.map(a => a.id).sort().join(',');
-      return prevIds === newIds ? prev : ais;
-    });
-  }, [selectedProviders, configuredImageAIs]);
 
   const handleToggleAI = useCallback((ai: AIConfig) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -393,10 +373,13 @@ export default function CreateSetupScreen() {
     dispatch(setSize(sizeId));
   }, [dispatch]);
 
-  const handleQualitySelect = useCallback((quality: typeof selectedQuality) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    dispatch(setQuality(quality));
-  }, [dispatch]);
+  const handleModelSettingChange = useCallback(
+    (provider: AIProvider, settings: Partial<ImageModelSettings>) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      dispatch(setImageModelSetting({ provider, settings }));
+    },
+    [dispatch]
+  );
 
   const selectedImageModels = useMemo(
     () => getSelectedImageModels(selectedProviders, selectedModels),
@@ -407,35 +390,6 @@ export default function CreateSetupScreen() {
   const imageMaxCount = selectedImageModels.length > 0
     ? Math.max(1, Math.min(...selectedImageModels.map((model) => model.maxImagesPerRequest || 1), 10))
     : 1;
-  const imageResolutionOptions = useMemo(
-    () => intersectValues(selectedImageModels.map((model) => model.resolutions || [])),
-    [selectedImageModels]
-  );
-  const imageQualityOptions = useMemo(() => {
-    const common = intersectValues<ImageOutputQuality>(
-      selectedImageModels.map((model) => model.qualityOptions || DEFAULT_IMAGE_QUALITY_OPTIONS)
-    );
-    return common.length > 0 ? common : DEFAULT_IMAGE_QUALITY_OPTIONS;
-  }, [selectedImageModels]);
-  const imageFormatOptions = useMemo(() => {
-    const common = intersectValues<ImageOutputFormat>(
-      selectedImageModels.map((model) => model.outputFormats || DEFAULT_IMAGE_FORMAT_OPTIONS)
-    );
-    return common.length > 0 ? common : DEFAULT_IMAGE_FORMAT_OPTIONS;
-  }, [selectedImageModels]);
-  const imageBackgroundOptions = useMemo(() => {
-    const common = intersectValues<ImageBackgroundOption>(
-      selectedImageModels.map((model) => model.backgroundOptions || DEFAULT_IMAGE_BACKGROUND_OPTIONS)
-    );
-    return common.length > 0 ? common : DEFAULT_IMAGE_BACKGROUND_OPTIONS;
-  }, [selectedImageModels]);
-  const imageModerationOptions = useMemo(() => {
-    const common = intersectValues<ImageModerationOption>(
-      selectedImageModels.map((model) => model.moderationOptions || DEFAULT_IMAGE_MODERATION_OPTIONS)
-    );
-    return common.length > 0 ? common : DEFAULT_IMAGE_MODERATION_OPTIONS;
-  }, [selectedImageModels]);
-  const selectedImageModelSummary = selectedImageModels.map((model) => model.displayName).join(' • ');
   const canUseImageSources = imageMode === 'refine' || imageSourceUris.length > 0;
   const canGenerateImageInput = currentPrompt.trim().length > 0 &&
     selectedProviders.length > 0 &&
@@ -448,36 +402,6 @@ export default function CreateSetupScreen() {
       dispatch(setImageCount(imageMaxCount));
     }
   }, [dispatch, imageMaxCount, selectedImageCount]);
-
-  useEffect(() => {
-    if (selectedImageResolution && imageResolutionOptions.length > 0 && !imageResolutionOptions.includes(selectedImageResolution)) {
-      dispatch(setImageResolution(imageResolutionOptions[0]));
-    }
-  }, [dispatch, imageResolutionOptions, selectedImageResolution]);
-
-  useEffect(() => {
-    if (!imageFormatOptions.includes(selectedImageOutputFormat)) {
-      dispatch(setImageOutputFormat(imageFormatOptions[0] || 'png'));
-    }
-  }, [dispatch, imageFormatOptions, selectedImageOutputFormat]);
-
-  useEffect(() => {
-    if (!imageQualityOptions.includes(selectedQuality as ImageOutputQuality)) {
-      dispatch(setQuality(imageQualityOptions[0] || 'auto'));
-    }
-  }, [dispatch, imageQualityOptions, selectedQuality]);
-
-  useEffect(() => {
-    if (!imageBackgroundOptions.includes(selectedImageBackground)) {
-      dispatch(setImageBackground(imageBackgroundOptions[0] || 'auto'));
-    }
-  }, [dispatch, imageBackgroundOptions, selectedImageBackground]);
-
-  useEffect(() => {
-    if (!imageModerationOptions.includes(selectedImageModeration)) {
-      dispatch(setImageModeration(imageModerationOptions[0] || 'auto'));
-    }
-  }, [dispatch, imageModerationOptions, selectedImageModeration]);
 
   const handlePickImageSource = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -535,6 +459,14 @@ export default function CreateSetupScreen() {
       return acc;
     }, {} as Partial<Record<AIProvider, string>>);
 
+    const sessionModelSettings = selectedProviders.reduce((acc, provider) => {
+      const settings = imageModelSettings[provider];
+      if (settings) {
+        acc[provider] = settings;
+      }
+      return acc;
+    }, {} as Partial<Record<AIProvider, ImageModelSettings>>);
+
     try {
       const result = await dispatch(generateCreateImages({
         prompt: currentPrompt,
@@ -542,13 +474,8 @@ export default function CreateSetupScreen() {
         selectedModels: sessionSelectedModels,
         style: selectedStyle,
         size: selectedSize,
-        quality: selectedQuality,
         imageCount: selectedImageCount,
-        resolution: selectedImageResolution,
-        outputFormat: selectedImageOutputFormat,
-        outputCompression: selectedImageOutputCompression,
-        background: selectedImageBackground,
-        moderation: selectedImageModeration,
+        modelSettings: sessionModelSettings,
         sourceImages: imageSourceUris.map((uri) => ({
           uri,
           mimeType: getImageMimeType(uri),
@@ -573,17 +500,12 @@ export default function CreateSetupScreen() {
     currentPrompt,
     dispatch,
     imageMode,
+    imageModelSettings,
     imageSourceUris,
     navigation,
-    selectedImageBackground,
     selectedImageCount,
-    selectedImageModeration,
-    selectedImageOutputCompression,
-    selectedImageOutputFormat,
-    selectedImageResolution,
     selectedModels,
     selectedProviders,
-    selectedQuality,
     selectedSize,
     selectedStyle,
   ]);
@@ -608,6 +530,7 @@ export default function CreateSetupScreen() {
 
   const handleTabChange = useCallback((tab: typeof activeTab) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSettingsSheetOpen(false);
     dispatch(setActiveCreateTab(tab));
   }, [dispatch]);
 
@@ -929,14 +852,16 @@ export default function CreateSetupScreen() {
     description,
     onPress,
     testID,
+    helpTopicId,
   }: {
     label: string;
     value: string;
     description?: string;
     onPress: () => void;
     testID: string;
+    helpTopicId?: HelpTopicId;
   }) => (
-    <TouchableOpacity
+    <View
       style={[
         styles.selectorRow,
         {
@@ -944,26 +869,31 @@ export default function CreateSetupScreen() {
           borderColor: theme.colors.border,
         },
       ]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      testID={testID}
     >
-      <View style={styles.selectorText}>
-        <Typography variant="caption" color="secondary" style={styles.selectorLabel}>
-          {label}
-        </Typography>
-        <Typography variant="body" weight="semibold">
-          {value}
-        </Typography>
-        {description && (
-          <Typography variant="caption" color="secondary" numberOfLines={2} style={styles.selectorDescription}>
-            {description}
+      <TouchableOpacity
+        style={styles.selectorPressable}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        testID={testID}
+      >
+        <View style={styles.selectorText}>
+          <Typography variant="caption" color="secondary" style={styles.selectorLabel}>
+            {label}
           </Typography>
-        )}
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={theme.colors.text.secondary} />
-    </TouchableOpacity>
+          <Typography variant="body" weight="semibold">
+            {value}
+          </Typography>
+          {description && (
+            <Typography variant="caption" color="secondary" numberOfLines={2} style={styles.selectorDescription}>
+              {description}
+            </Typography>
+          )}
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={theme.colors.text.secondary} />
+      </TouchableOpacity>
+      {helpTopicId && <InfoButton topicId={helpTopicId} size="small" />}
+    </View>
   );
 
   const renderAudioPickerModal = ({
@@ -1420,269 +1350,415 @@ export default function CreateSetupScreen() {
     </View>
   );
 
-  const renderImageProviderSummary = () => (
-    <View style={styles.section}>
-      <DynamicAISelector
-        configuredAIs={configuredImageAIs}
-        selectedAIs={selectedAIs}
-        maxAIs={3}
-        onToggleAI={handleToggleAI}
-        onAddAI={handleAddAI}
-        hideStartButton={true}
-        hideAddAI={isDemo}
-        customSubtitle={`${configuredImageAIs.length} image providers • Select up to 3`}
-        selectedModels={selectedModels}
-        onModelChange={(aiId, modelId) => {
-          dispatch(setSelectedModel({ provider: aiId as AIProvider, modelId }));
-        }}
-        renderModelSelector={(ai, selectedModelId) => (
-          <ImageModelSelector
-            providerId={ai.provider}
-            selectedModel={selectedModelId}
-            onSelectModel={(modelId) => {
-              dispatch(setSelectedModel({ provider: ai.provider, modelId }));
-            }}
-            aiName={ai.name}
-          />
-        )}
-        getBadge={(ai) => {
-          const model = getResolvedImageModel(ai.provider, selectedModels[ai.provider] || ai.model);
-          if (model?.supportsImageInput) return { text: 'refine' };
-          return undefined;
-        }}
-      />
-      {selectedImageModels.length > 0 && (
-        <View style={styles.capabilityRow}>
-          <Ionicons
-            name={imageSupportsSourceInput ? 'layers-outline' : 'text-outline'}
-            size={16}
-            color={imageSupportsSourceInput ? theme.colors.primary[500] : theme.colors.text.secondary}
-          />
-          <Typography variant="caption" color="secondary" style={styles.capabilityText} numberOfLines={2}>
-            {`${imageSupportsSourceInput ? 'Supports refinement and reference images' : 'Creates from text prompts only'} • ${selectedImageModelSummary}`}
-          </Typography>
-        </View>
-      )}
-    </View>
-  );
-
-  const renderOutputControlGroup = (
-    label: string,
-    children: React.ReactNode,
-    testID?: string
-  ) => (
-    <View style={styles.outputControlGroup} testID={testID}>
-      <Typography variant="caption" weight="semibold" color="secondary" style={styles.outputControlLabel}>
-        {label}
-      </Typography>
-      {children}
-    </View>
-  );
-
-  const renderImageOutputSection = () => {
-    const countOptions = Array.from({ length: imageMaxCount }, (_, index) => index + 1);
-    const qualityOptions = imageQualityOptions.map((quality) => ({
-      id: quality,
-      label: IMAGE_QUALITY_LABELS[quality] || quality,
-    }));
-    const formatOptions = imageFormatOptions.map((format) => ({
-      id: format,
-      label: IMAGE_FORMAT_LABELS[format] || format,
-    }));
-    const backgroundOptions = imageBackgroundOptions.map((background) => ({
-      id: background,
-      label: IMAGE_BACKGROUND_LABELS[background] || background,
-    }));
-    const moderationOptions = imageModerationOptions.map((moderation) => ({
-      id: moderation,
-      label: IMAGE_MODERATION_LABELS[moderation] || moderation,
-    }));
-    const shouldShowCompression = selectedImageOutputFormat !== 'png' &&
-      selectedImageModels.some((model) => model.supportsOutputCompression);
-
+  // Compact provider chip row — replaces the large card grid on the image tab.
+  // Selection only; each model's own settings live in the settings sheet.
+  const renderModelChips = () => {
+    const anyRefineDimmed = imageMode === 'refine' && configuredImageAIs.some((ai) => {
+      const model = getResolvedImageModel(ai.provider, selectedModels[ai.provider] || ai.model);
+      return Boolean(model && !model.supportsImageInput);
+    });
     return (
       <View style={styles.section}>
-        <SectionHeader title="Output" subtitle="Frame, count, and model-specific delivery options" icon="▣" />
-        <View style={styles.outputGroup}>
-          {renderOutputControlGroup(
-            'Frame',
-            renderOptionGrid(
-              [
-                { id: 'auto', label: 'Model default', description: 'Provider frame' },
-                { id: 'square', label: 'Square', description: '1:1' },
-                { id: 'portrait', label: 'Portrait', description: 'Vertical' },
-                { id: 'landscape', label: 'Landscape', description: 'Wide' },
-              ],
-              selectedSize,
-              handleSizeSelect,
-              'create-image-frame-grid'
-            )
-          )}
-          {imageResolutionOptions.length > 0 && renderOutputControlGroup(
-            'Resolution',
-            renderOptionGrid(
-              imageResolutionOptions.map((resolution) => ({ id: resolution, label: resolution })),
-              selectedImageResolution || imageResolutionOptions[0],
-              (resolution) => dispatch(setImageResolution(resolution)),
-              'create-image-resolution-grid'
-            )
-          )}
-          {renderOutputControlGroup(
-            'Quality',
-            renderOptionGrid(
-              qualityOptions,
-              imageQualityOptions.includes(selectedQuality as ImageOutputQuality)
-                ? selectedQuality as ImageOutputQuality
-                : imageQualityOptions[0],
-              (quality) => handleQualitySelect(quality),
-              'create-image-quality-grid'
-            )
-          )}
-          {imageMaxCount > 1 && renderOutputControlGroup(
-            'Count',
-            renderDiscreteSlider({
-              options: countOptions,
-              value: Math.min(selectedImageCount, imageMaxCount),
-              getLabel: (count) => `${count} image${count === 1 ? '' : 's'}`,
-              onChange: (count) => dispatch(setImageCount(count || 1)),
-              testID: 'create-image-count-slider',
-            })
-          )}
-          {formatOptions.length > 1 && renderOutputControlGroup(
-            'Format',
-            renderOptionGrid(
-              formatOptions,
-              selectedImageOutputFormat,
-              (format) => dispatch(setImageOutputFormat(format)),
-              'create-image-format-grid'
-            )
-          )}
-          {backgroundOptions.length > 1 && renderOutputControlGroup(
-            'Background',
-            renderOptionGrid(
-              backgroundOptions,
-              selectedImageBackground,
-              (background) => dispatch(setImageBackground(background)),
-              'create-image-background-grid'
-            )
-          )}
-          {moderationOptions.length > 1 && renderOutputControlGroup(
-            'Safety',
-            renderOptionGrid(
-              moderationOptions,
-              selectedImageModeration,
-              (moderation) => dispatch(setImageModeration(moderation)),
-              'create-image-moderation-grid'
-            )
-          )}
-          {shouldShowCompression && renderOutputControlGroup(
-            'Compression',
-            renderDiscreteSlider({
-              options: [40, 60, 80, 100] as const,
-              value: selectedImageOutputCompression,
-              getLabel: (value) => `${value}`,
-              onChange: (value) => dispatch(setImageOutputCompression(value || 80)),
-              testID: 'create-image-compression-slider',
-            })
+        <View style={styles.modelChipsHeader}>
+          <Typography variant="caption" weight="semibold" color="secondary" style={styles.outputControlLabel}>
+            Models
+          </Typography>
+          <Typography variant="caption" color="secondary">
+            {`${selectedProviders.length}/3`}
+          </Typography>
+        </View>
+        <View style={styles.modelChipsRow}>
+          {configuredImageAIs.map((ai) => {
+            const isSelected = selectedProviders.includes(ai.provider);
+            const model = getResolvedImageModel(ai.provider, selectedModels[ai.provider] || ai.model);
+            const refineDisabled = imageMode === 'refine' && Boolean(model && !model.supportsImageInput);
+            const atMax = !isSelected && selectedProviders.length >= 3;
+            const disabled = refineDisabled || atMax;
+            return (
+              <TouchableOpacity
+                key={ai.id}
+                style={[
+                  styles.modelChip,
+                  {
+                    backgroundColor: isSelected ? primaryTintBackground : theme.colors.surface,
+                    borderColor: isSelected ? theme.colors.primary[500] : theme.colors.border,
+                    opacity: disabled ? 0.4 : 1,
+                  },
+                ]}
+                onPress={() => handleToggleAI(ai)}
+                disabled={disabled}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected, disabled }}
+                testID={`create-model-chip-${ai.provider}`}
+              >
+                <AIAvatar icon={ai.icon} iconType={ai.iconType} size="small" color={ai.color} isSelected={isSelected} />
+                <Typography variant="caption" weight="semibold" numberOfLines={1} style={styles.modelChipLabel}>
+                  {ai.name}
+                </Typography>
+                {isSelected && <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary[500]} />}
+              </TouchableOpacity>
+            );
+          })}
+          {!isDemo && (
+            <TouchableOpacity
+              style={[styles.modelChipAdd, { borderColor: theme.colors.border }]}
+              onPress={handleAddAI}
+              accessibilityRole="button"
+              accessibilityLabel="Add AI"
+              testID="create-add-ai"
+            >
+              <Ionicons name="add" size={18} color={theme.colors.text.secondary} />
+              <Typography variant="caption" color="secondary">Add AI</Typography>
+            </TouchableOpacity>
           )}
         </View>
+        {anyRefineDimmed && (
+          <View style={styles.capabilityRow}>
+            <Ionicons name="information-circle-outline" size={16} color={theme.colors.text.secondary} />
+            <Typography variant="caption" color="secondary" style={styles.capabilityText} numberOfLines={2}>
+              Dimmed models can&apos;t edit images. Switch their model in Settings or use Create mode.
+            </Typography>
+          </View>
+        )}
       </View>
     );
   };
 
-  const renderImageTab = () => (
-    <>
-      {configuredImageAIs.length === 0 && renderProviderSetup('OpenAI, Google, or Grok')}
-
-      <View style={styles.section}>
-        <SectionHeader title="Image Mode" subtitle="Generate from text or refine existing visuals" icon="✨" />
-        <SegmentedControl
-          fullWidth
-          options={[
-            { label: 'Create', value: 'create' },
-            { label: 'Refine', value: 'refine' },
-          ]}
-          value={imageMode}
-          onChange={(mode) => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setImageMode(mode);
-          }}
-        />
+  const renderOutputControlGroup = (
+    label: string,
+    children: React.ReactNode,
+    options?: { helpTopicId?: HelpTopicId; testID?: string }
+  ) => (
+    <View style={styles.outputControlGroup} testID={options?.testID}>
+      <View style={styles.outputControlLabelRow}>
+        <Typography variant="caption" weight="semibold" color="secondary" style={styles.outputControlLabel}>
+          {label}
+        </Typography>
+        {options?.helpTopicId && <InfoButton topicId={options.helpTopicId} size="small" />}
       </View>
-
-      {renderImageSourceSection()}
-
-      <View style={styles.section}>
-        <SectionHeader
-          title={imageMode === 'refine' ? 'Instructions' : 'Prompt'}
-          subtitle={imageMode === 'refine' ? 'Describe the exact changes to make' : 'Describe the image to create'}
-          icon="✍️"
-        />
-        <PromptHeroInput
-          value={currentPrompt}
-          onChangeText={(text) => dispatch(setPrompt(text))}
-          maxLength={MAX_PROMPT_LENGTH}
-          placeholder={imageMode === 'refine' ? 'Change the lighting, preserve the subject, add...' : 'Describe what you want to create...'}
-          testID="create-prompt-input"
-        />
-      </View>
-
-      {renderImageProviderSummary()}
-
-      <View style={styles.section}>
-        <SectionHeader title="Style" subtitle="Prompt styling" icon="🎨" />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.styleScroll}
-        >
-          {STYLE_PRESETS.map(style => {
-            const isSelected = selectedStyle === style.id;
-            return (
-              <TouchableOpacity
-                key={style.id}
-                style={[
-                  styles.styleChip,
-                  {
-                    backgroundColor: isSelected
-                      ? theme.colors.primary[500]
-                      : theme.colors.surface,
-                    borderColor: isSelected
-                      ? theme.colors.primary[500]
-                      : theme.colors.border,
-                  },
-                ]}
-                onPress={() => handleStyleSelect(style.id)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-              >
-                <Ionicons
-                  name={style.icon as keyof typeof Ionicons.glyphMap}
-                  size={20}
-                  color={isSelected ? '#FFFFFF' : theme.colors.text.secondary}
-                />
-                <Typography
-                  variant="caption"
-                  numberOfLines={1}
-                  style={{
-                    color: isSelected ? '#FFFFFF' : theme.colors.text.primary,
-                    marginTop: 4,
-                    textAlign: 'center',
-                  }}
-                >
-                  {style.label}
-                </Typography>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-
-      {renderImageOutputSection()}
-    </>
+      {children}
+    </View>
   );
 
+  // One collapsible card per selected provider, exposing only the capability
+  // controls its resolved model supports. Values are stored per provider, so
+  // each model keeps its own choices when multiple AIs are selected together.
+  const renderStyleScroller = () => (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.styleScroll}>
+      {STYLE_PRESETS.map((style) => {
+        const isSelected = selectedStyle === style.id;
+        return (
+          <TouchableOpacity
+            key={style.id}
+            style={[
+              styles.styleChip,
+              {
+                backgroundColor: isSelected ? theme.colors.primary[500] : theme.colors.surface,
+                borderColor: isSelected ? theme.colors.primary[500] : theme.colors.border,
+              },
+            ]}
+            onPress={() => handleStyleSelect(style.id)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isSelected }}
+          >
+            <Ionicons
+              name={style.icon as keyof typeof Ionicons.glyphMap}
+              size={20}
+              color={isSelected ? '#FFFFFF' : theme.colors.text.secondary}
+            />
+            <Typography
+              variant="caption"
+              numberOfLines={1}
+              style={{ color: isSelected ? '#FFFFFF' : theme.colors.text.primary, marginTop: 4, textAlign: 'center' }}
+            >
+              {style.label}
+            </Typography>
+          </TouchableOpacity>
+        );
+      })}
+    </ScrollView>
+  );
+
+  const providerTabLabel = (provider: AIProvider) => {
+    const model = getResolvedImageModel(provider, selectedModels[provider]);
+    return model?.shortProviderName
+      || configuredImageAIs.find((ai) => ai.provider === provider)?.name
+      || provider;
+  };
+
+  // The supported controls for one provider's resolved model (used inside the settings sheet).
+  const renderModelSettingsControls = (provider: AIProvider) => {
+    const model = getResolvedImageModel(provider, selectedModels[provider]);
+    if (!model) return null;
+
+    const settings = imageModelSettings[provider] || {};
+    const pick = <T,>(value: T | undefined, opts?: T[]): T | undefined =>
+      value !== undefined && opts?.includes(value) ? value : opts?.[0];
+
+    const qualityValues = model.qualityOptions || [];
+    const resolutionValues = model.resolutions || [];
+    const formatValues = model.outputFormats || [];
+    const backgroundValues = model.backgroundOptions || [];
+    const moderationValues = model.moderationOptions || [];
+
+    const qualityValue = (pick(settings.quality as ImageOutputQuality | undefined, qualityValues) || qualityValues[0]) as ImageOutputQuality;
+    const resolutionValue = pick(settings.resolution, resolutionValues) || resolutionValues[0];
+    const formatValue = (pick(settings.outputFormat, formatValues) || 'png') as ImageOutputFormat;
+    const backgroundValue = (pick(settings.background, backgroundValues) || 'auto') as ImageBackgroundOption;
+    const moderationValue = (pick(settings.moderation, moderationValues) || 'auto') as ImageModerationOption;
+    const compressionValue = settings.outputCompression ?? 80;
+
+    const showQuality = qualityValues.length > 1;
+    const showResolution = resolutionValues.length > 1;
+    const showFormat = formatValues.length > 1;
+    const showBackground = backgroundValues.length > 1;
+    const showSafety = moderationValues.length > 1;
+    const showCompression = formatValue !== 'png' && Boolean(model.supportsOutputCompression);
+    const hasControls = showQuality || showResolution || showFormat || showBackground || showSafety || showCompression;
+
+    return (
+      <View style={styles.modelSettingsBlock} testID={`create-model-settings-${provider}`}>
+        <View style={styles.modelSettingsHeaderRow}>
+          <Ionicons
+            name={model.supportsImageInput ? 'layers-outline' : 'text-outline'}
+            size={16}
+            color={model.supportsImageInput ? theme.colors.primary[500] : theme.colors.text.secondary}
+          />
+          <Typography variant="caption" color="secondary" style={styles.capabilityText}>
+            {model.supportsImageInput ? 'Can edit images and use references' : 'Creates from text prompts only'}
+          </Typography>
+        </View>
+        <ImageModelSelector
+          providerId={provider}
+          selectedModel={selectedModels[provider]}
+          onSelectModel={(modelId) => dispatch(setSelectedModel({ provider, modelId }))}
+          aiName={providerTabLabel(provider)}
+        />
+        {!hasControls && (
+          <Typography variant="caption" color="secondary">
+            {`${model.providerDisplayName} manages quality, format, and safety automatically — nothing to set here.`}
+          </Typography>
+        )}
+        {showQuality && renderOutputControlGroup(
+          'Quality',
+          renderOptionGrid(
+            qualityValues.map((q) => ({ id: q, label: IMAGE_QUALITY_LABELS[q] || q })),
+            qualityValue,
+            (quality) => handleModelSettingChange(provider, { quality }),
+            `create-image-quality-${provider}`
+          ),
+          { helpTopicId: 'create-quality' }
+        )}
+        {showResolution && renderOutputControlGroup(
+          'Resolution',
+          renderOptionGrid(
+            resolutionValues.map((r) => ({ id: r, label: r })),
+            resolutionValue,
+            (resolution) => handleModelSettingChange(provider, { resolution }),
+            `create-image-resolution-${provider}`
+          ),
+          { helpTopicId: 'create-resolution' }
+        )}
+        {showFormat && renderOutputControlGroup(
+          'Format',
+          renderOptionGrid(
+            formatValues.map((f) => ({ id: f, label: IMAGE_FORMAT_LABELS[f] || f })),
+            formatValue,
+            (outputFormat) => handleModelSettingChange(provider, { outputFormat }),
+            `create-image-format-${provider}`
+          ),
+          { helpTopicId: 'create-format' }
+        )}
+        {showBackground && renderOutputControlGroup(
+          'Background',
+          renderOptionGrid(
+            backgroundValues.map((b) => ({ id: b, label: IMAGE_BACKGROUND_LABELS[b] || b })),
+            backgroundValue,
+            (background) => handleModelSettingChange(provider, { background }),
+            `create-image-background-${provider}`
+          ),
+          { helpTopicId: 'create-background' }
+        )}
+        {showSafety && renderOutputControlGroup(
+          'Safety',
+          renderOptionGrid(
+            moderationValues.map((m) => ({ id: m, label: IMAGE_MODERATION_LABELS[m] || m })),
+            moderationValue,
+            (moderation) => handleModelSettingChange(provider, { moderation }),
+            `create-image-moderation-${provider}`
+          ),
+          { helpTopicId: 'create-safety' }
+        )}
+        {showCompression && renderOutputControlGroup(
+          'Compression',
+          renderDiscreteSlider({
+            options: [40, 60, 80, 100] as const,
+            value: compressionValue,
+            getLabel: (value) => `${value}`,
+            onChange: (value) => handleModelSettingChange(provider, { outputCompression: value || 80 }),
+            testID: `create-image-compression-${provider}`,
+          }),
+          { helpTopicId: 'create-compression' }
+        )}
+      </View>
+    );
+  };
+
+  const openSettingsSheet = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveSettingsProvider(selectedProviders[0] || null);
+    setSettingsSheetOpen(true);
+  };
+
+  // Shared bottom-sheet shell used by all three tabs (one tab active at a time).
+  const renderSettingsSheetShell = (title: string, content: React.ReactNode) => {
+    if (!settingsSheetOpen) return null;
+    return (
+      <Modal visible transparent animationType="slide" onRequestClose={() => setSettingsSheetOpen(false)}>
+        <View style={styles.pickerOverlay} testID="create-settings-sheet">
+          <TouchableOpacity style={styles.pickerBackdrop} activeOpacity={1} onPress={() => setSettingsSheetOpen(false)} />
+          <View style={[styles.pickerSheet, { backgroundColor: theme.colors.background }]}>
+            <SheetHeader title={title} onClose={() => setSettingsSheetOpen(false)} showHandle />
+            <ScrollView contentContainerStyle={styles.settingsSheetContent} showsVerticalScrollIndicator={false}>
+              {content}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
+  // Image settings: shared (Style/Frame/Count) + per-model tabs.
+  const renderImageSettingsSheet = () => {
+    const activeProvider = (activeSettingsProvider && selectedProviders.includes(activeSettingsProvider))
+      ? activeSettingsProvider
+      : selectedProviders[0] || null;
+    const countOptions = Array.from({ length: imageMaxCount }, (_, index) => index + 1);
+
+    return renderSettingsSheetShell('Settings', (
+      <>
+        <Typography variant="caption" weight="semibold" color="secondary" style={styles.settingsGroupLabel}>
+          SHARED · ALL MODELS
+        </Typography>
+        {renderOutputControlGroup('Style', renderStyleScroller(), { helpTopicId: 'create-styles' })}
+        {renderOutputControlGroup(
+          'Frame',
+          renderOptionGrid(
+            [
+              { id: 'auto', label: 'Model default', description: 'Provider frame' },
+              { id: 'square', label: 'Square', description: '1:1' },
+              { id: 'portrait', label: 'Portrait', description: 'Vertical' },
+              { id: 'landscape', label: 'Landscape', description: 'Wide' },
+            ],
+            selectedSize,
+            handleSizeSelect,
+            'create-image-frame-grid'
+          ),
+          { helpTopicId: 'create-frame' }
+        )}
+        {imageMaxCount > 1 && renderOutputControlGroup(
+          'Count',
+          renderDiscreteSlider({
+            options: countOptions,
+            value: Math.min(selectedImageCount, imageMaxCount),
+            getLabel: (count) => `${count} image${count === 1 ? '' : 's'}`,
+            onChange: (count) => dispatch(setImageCount(count || 1)),
+            testID: 'create-image-count-slider',
+          })
+        )}
+
+        {activeProvider && (
+          <>
+            <Typography variant="caption" weight="semibold" color="secondary" style={styles.settingsGroupLabel}>
+              PER-MODEL SETTINGS
+            </Typography>
+            {selectedProviders.length > 1 && (
+              <SegmentedControl
+                fullWidth
+                options={selectedProviders.map((p) => ({ label: providerTabLabel(p), value: p }))}
+                value={activeProvider}
+                onChange={(p) => setActiveSettingsProvider(p as AIProvider)}
+              />
+            )}
+            {renderModelSettingsControls(activeProvider)}
+          </>
+        )}
+      </>
+    ));
+  };
+
+  const renderImageTab = () => {
+    const frameLabel = SIZE_LABELS[selectedSize] || 'Model default';
+    const modelCount = selectedProviders.length;
+    const settingsSummary = `${frameLabel} · ${selectedImageCount} image${selectedImageCount === 1 ? '' : 's'} · ${modelCount} model${modelCount === 1 ? '' : 's'}`;
+    const showSource = imageMode === 'refine' || imageSourceUris.length > 0;
+
+    return (
+      <>
+        {configuredImageAIs.length === 0 && renderProviderSetup('OpenAI, Google, or Grok')}
+
+        <View style={styles.section}>
+          <SectionHeader
+            title={imageMode === 'refine' ? 'Instructions' : 'Prompt'}
+            subtitle={imageMode === 'refine' ? 'Describe the exact changes to make' : 'Describe the image to create'}
+            icon="✍️"
+            helpTopicId="create-image-mode"
+          />
+          <PromptHeroInput
+            value={currentPrompt}
+            onChangeText={(text) => dispatch(setPrompt(text))}
+            maxLength={MAX_PROMPT_LENGTH}
+            placeholder={imageMode === 'refine' ? 'Change the lighting, preserve the subject, add...' : 'Describe what you want to create...'}
+            testID="create-prompt-input"
+          />
+          <View style={styles.modeToggleWrap}>
+            <SegmentedControl
+              fullWidth
+              options={[
+                { label: 'Create', value: 'create' },
+                { label: 'Refine', value: 'refine' },
+              ]}
+              value={imageMode}
+              onChange={(mode) => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setImageMode(mode);
+              }}
+            />
+          </View>
+        </View>
+
+        {showSource && renderImageSourceSection()}
+
+        {renderModelChips()}
+
+        {selectedProviders.length > 0 && (
+          <View style={styles.section}>
+            <TouchableOpacity
+              style={[styles.selectorRow, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+              onPress={openSettingsSheet}
+              accessibilityRole="button"
+              accessibilityLabel="Output and model settings"
+              testID="create-open-settings"
+            >
+              <Ionicons name="options-outline" size={22} color={theme.colors.text.secondary} />
+              <View style={styles.selectorText}>
+                <Typography variant="body" weight="semibold">Output & model settings</Typography>
+                <Typography variant="caption" color="secondary" numberOfLines={1}>{settingsSummary}</Typography>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.colors.text.secondary} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {renderImageSettingsSheet()}
+      </>
+    );
+  };
+
   const renderVideoTab = () => {
+    const activeRunwayModel = runwayModels.find((model) => model.id === videoModelId) || runwayModels[0];
+    const videoSettingsSummary = `${activeRunwayModel?.label || 'Model'} · ${videoDuration}s · ${videoAspectRatio}`;
+
     return (
       <>
         {!hasRunwayKey && renderProviderSetup('Runway')}
@@ -1713,7 +1789,7 @@ export default function CreateSetupScreen() {
         </View>
 
         <View style={styles.section}>
-          <SectionHeader title="Source" subtitle="Optional image-to-video input" icon="🖼️" />
+          <SectionHeader title="Source" subtitle="Optional image-to-video input" icon="🖼️" helpTopicId="create-video-source" />
           {videoSourceUri && (
             <View style={styles.sourcePreviewRow}>
               <Image source={{ uri: videoSourceUri }} style={styles.sourcePreview} />
@@ -1729,40 +1805,54 @@ export default function CreateSetupScreen() {
         </View>
 
         <View style={styles.section}>
-          <SectionHeader title="Model" subtitle={videoOperation === 'image_to_video' ? 'Image-to-video capable models' : 'Text-to-video capable models'} icon="⚙️" />
-          {renderOptionGrid(
-            runwayModels.map((model) => ({
-              id: model.id,
-              label: model.label,
-              description: model.description,
-            })),
-            videoModelId,
-            (modelId) => {
-              setVideoModelId(modelId);
-              const nextDurations = getRunwayVideoDurations(modelId, videoOperation);
-              const nextRatios = getRunwayAspectRatios(modelId, videoOperation);
-              setVideoDuration(nextDurations.includes(videoDuration) ? videoDuration : nextDurations[0] || RUNWAY_DEFAULT_DURATION_SECONDS);
-              setVideoAspectRatio(nextRatios.some((ratio) => ratio.id === videoAspectRatio) ? videoAspectRatio : nextRatios[0]?.id || RUNWAY_DEFAULT_ASPECT_RATIO);
-            },
-            'create-video-model-grid'
-          )}
+          <TouchableOpacity
+            style={[styles.selectorRow, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSettingsSheetOpen(true); }}
+            accessibilityRole="button"
+            accessibilityLabel="Video settings"
+            testID="create-open-settings"
+          >
+            <Ionicons name="options-outline" size={22} color={theme.colors.text.secondary} />
+            <View style={styles.selectorText}>
+              <Typography variant="body" weight="semibold">Video settings</Typography>
+              <Typography variant="caption" color="secondary" numberOfLines={1}>{videoSettingsSummary}</Typography>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.text.secondary} />
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.section}>
-          <SectionHeader title="Duration" subtitle="Clip length" icon="⏱️" />
-          {renderDiscreteSlider({
-            options: videoDurations,
-            value: videoDuration,
-            getLabel: (duration) => `${duration}s`,
-            onChange: setVideoDuration,
-            testID: 'create-video-duration-slider',
-          })}
-        </View>
-
-        <View style={styles.section}>
-          <SectionHeader title="Frame" subtitle="Aspect ratio" icon="▣" />
-          {renderAspectRatioGrid()}
-        </View>
+        {renderSettingsSheetShell('Video settings', (
+          <>
+            {renderOutputControlGroup(
+              'Model',
+              renderOptionGrid(
+                runwayModels.map((model) => ({ id: model.id, label: model.label, description: model.description })),
+                videoModelId,
+                (modelId) => {
+                  setVideoModelId(modelId);
+                  const nextDurations = getRunwayVideoDurations(modelId, videoOperation);
+                  const nextRatios = getRunwayAspectRatios(modelId, videoOperation);
+                  setVideoDuration(nextDurations.includes(videoDuration) ? videoDuration : nextDurations[0] || RUNWAY_DEFAULT_DURATION_SECONDS);
+                  setVideoAspectRatio(nextRatios.some((ratio) => ratio.id === videoAspectRatio) ? videoAspectRatio : nextRatios[0]?.id || RUNWAY_DEFAULT_ASPECT_RATIO);
+                },
+                'create-video-model-grid'
+              ),
+              { helpTopicId: 'create-video-model' }
+            )}
+            {renderOutputControlGroup(
+              'Duration',
+              renderDiscreteSlider({
+                options: videoDurations,
+                value: videoDuration,
+                getLabel: (duration) => `${duration}s`,
+                onChange: setVideoDuration,
+                testID: 'create-video-duration-slider',
+              }),
+              { helpTopicId: 'create-video-duration' }
+            )}
+            {renderOutputControlGroup('Frame', renderAspectRatioGrid(), { helpTopicId: 'create-video-frame' })}
+          </>
+        ))}
       </>
     );
   };
@@ -1803,7 +1893,7 @@ export default function CreateSetupScreen() {
         {!hasElevenLabsKey && renderProviderSetup('ElevenLabs')}
 
         <View style={styles.section}>
-          <SectionHeader title="Audio Mode" subtitle="Voiceover or generated sound" icon="🎧" />
+          <SectionHeader title="Audio Mode" subtitle="Voiceover or generated sound" icon="🎧" helpTopicId="create-audio-mode" />
           <SegmentedControl
             fullWidth
             options={[
@@ -1846,6 +1936,7 @@ export default function CreateSetupScreen() {
               title="Voice"
               subtitle={loadingAudioOptions ? 'Loading voices...' : voiceCountLabel}
               icon="🗣️"
+              helpTopicId="create-audio-voice"
             />
             {renderSelectorRow({
               label: 'Voice',
@@ -1858,74 +1949,69 @@ export default function CreateSetupScreen() {
         )}
 
         <View style={styles.section}>
-          <View
-            style={[
-              styles.audioSettingsCard,
-              { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-            ]}
+          <TouchableOpacity
+            style={[styles.selectorRow, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSettingsSheetOpen(true); }}
+            accessibilityRole="button"
+            accessibilityLabel="Audio settings"
+            testID="create-open-settings"
           >
-            <TouchableOpacity
-              style={styles.audioSettingsHeader}
-              onPress={() => setIsAudioSettingsExpanded((expanded) => !expanded)}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: isAudioSettingsExpanded }}
-              accessibilityLabel="Audio settings"
-              testID="create-audio-settings-toggle"
-            >
-              <View style={styles.audioSettingsText}>
-                <Typography variant="body" weight="semibold">
-                  Audio Settings
-                </Typography>
-                <Typography variant="caption" color="secondary" numberOfLines={1}>
-                  {audioSettingsSummary}
-                </Typography>
-              </View>
-              <Ionicons
-                name={isAudioSettingsExpanded ? 'chevron-up' : 'chevron-down'}
-                size={20}
-                color={theme.colors.text.secondary}
-              />
-            </TouchableOpacity>
+            <Ionicons name="options-outline" size={22} color={theme.colors.text.secondary} />
+            <View style={styles.selectorText}>
+              <Typography variant="body" weight="semibold">Audio settings</Typography>
+              <Typography variant="caption" color="secondary" numberOfLines={1}>{audioSettingsSummary}</Typography>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.text.secondary} />
+          </TouchableOpacity>
+        </View>
 
-            {isAudioSettingsExpanded && (
-              <View style={[styles.audioSettingsContent, { borderTopColor: theme.colors.border }]} testID="create-audio-settings-content">
-                {renderSelectorRow({
-                  label: 'Model',
-                  value: selectedAudioModel?.label || 'Default model',
-                  description: selectedAudioModel?.description,
-                  onPress: () => handleOpenAudioPicker('model'),
-                  testID: 'create-audio-model-selector',
-                })}
+        {renderSettingsSheetShell('Audio settings', (
+          <>
+            {renderSelectorRow({
+              label: 'Model',
+              value: selectedAudioModel?.label || 'Default model',
+              description: selectedAudioModel?.description,
+              onPress: () => handleOpenAudioPicker('model'),
+              testID: 'create-audio-model-selector',
+              helpTopicId: 'create-audio-model',
+            })}
 
-                {renderSelectorRow({
-                  label: 'Format',
-                  value: selectedOutputFormat.label,
-                  onPress: () => handleOpenAudioPicker('format'),
-                  testID: 'create-audio-format-selector',
-                })}
+            {renderSelectorRow({
+              label: 'Format',
+              value: selectedOutputFormat.label,
+              onPress: () => handleOpenAudioPicker('format'),
+              testID: 'create-audio-format-selector',
+              helpTopicId: 'create-audio-format',
+            })}
 
-                {audioOperation === 'sound_effect' && (
-                  <View style={styles.soundControls}>
-                    {renderDiscreteSlider({
-                      options: audioDurationOptions,
-                      value: audioDuration,
-                      getLabel: (duration) => (duration === undefined ? 'Auto duration' : `${duration}s`),
-                      onChange: setAudioDuration,
-                      testID: 'create-audio-duration-slider',
-                    })}
-                    {renderDiscreteSlider({
-                      options: promptInfluenceOptions,
-                      value: promptInfluence,
-                      getLabel: (value) => `Influence ${value}`,
-                      onChange: setPromptInfluence,
-                      testID: 'create-audio-influence-slider',
-                    })}
-                  </View>
+            {audioOperation === 'sound_effect' && (
+              <View style={styles.soundControls}>
+                {renderOutputControlGroup(
+                  'Duration',
+                  renderDiscreteSlider({
+                    options: audioDurationOptions,
+                    value: audioDuration,
+                    getLabel: (duration) => (duration === undefined ? 'Auto duration' : `${duration}s`),
+                    onChange: setAudioDuration,
+                    testID: 'create-audio-duration-slider',
+                  }),
+                  { helpTopicId: 'create-audio-duration' }
+                )}
+                {renderOutputControlGroup(
+                  'Prompt influence',
+                  renderDiscreteSlider({
+                    options: promptInfluenceOptions,
+                    value: promptInfluence,
+                    getLabel: (value) => `Influence ${value}`,
+                    onChange: setPromptInfluence,
+                    testID: 'create-audio-influence-slider',
+                  }),
+                  { helpTopicId: 'create-audio-influence' }
                 )}
               </View>
             )}
-          </View>
-        </View>
+          </>
+        ))}
 
         {renderAudioPickerModal({
           visible: audioPicker === 'voice',
@@ -2170,6 +2256,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+  selectorPressable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   selectorText: {
     flex: 1,
     gap: 2,
@@ -2180,28 +2272,6 @@ const styles = StyleSheet.create({
   },
   selectorDescription: {
     marginTop: 2,
-  },
-  audioSettingsCard: {
-    borderWidth: 1,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  audioSettingsHeader: {
-    minHeight: 64,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  audioSettingsText: {
-    flex: 1,
-    gap: 2,
-  },
-  audioSettingsContent: {
-    borderTopWidth: 1,
-    padding: 12,
-    gap: 12,
   },
   soundControls: {
     gap: 12,
@@ -2444,15 +2514,72 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
-  outputGroup: {
-    gap: 12,
-  },
   outputControlGroup: {
     gap: 8,
+  },
+  outputControlLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   outputControlLabel: {
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  modeToggleWrap: {
+    marginTop: 12,
+  },
+  modelChipsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  modelChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  modelChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingLeft: 8,
+    paddingRight: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  modelChipLabel: {
+    maxWidth: 120,
+  },
+  modelChipAdd: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+  },
+  settingsSheetContent: {
+    padding: 16,
+    paddingBottom: 32,
+    gap: 16,
+  },
+  settingsGroupLabel: {
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: 4,
+  },
+  modelSettingsBlock: {
+    gap: 12,
+  },
+  modelSettingsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   styleScroll: {
     paddingRight: 16,

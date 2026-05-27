@@ -24,7 +24,7 @@ type MockRootState = {
   create: {
     selectedStyle: string;
     selectedSize: string;
-    selectedQuality: string;
+    imageModelSettings: Record<string, Record<string, unknown>>;
     generationProgress: Record<string, string>;
     generationError?: string;
     isGenerating: boolean;
@@ -273,7 +273,7 @@ describe('CreateScreen', () => {
     create: {
       selectedStyle: 'none',
       selectedSize: 'auto',
-      selectedQuality: 'standard',
+      imageModelSettings: { openai: { quality: 'standard' } },
       generationProgress: {},
       generationError: undefined,
       isGenerating: false,
@@ -331,7 +331,7 @@ describe('CreateScreen', () => {
           selectedModels: { openai: 'gpt-image-2' },
           style: 'none',
           size: 'auto',
-          quality: 'standard',
+          modelSettings: { openai: { quality: 'standard' } },
         }));
       });
     });

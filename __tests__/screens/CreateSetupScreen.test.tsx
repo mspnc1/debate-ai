@@ -17,7 +17,6 @@ const mockGenerateCreateImages = jest.fn((payload) => ({
   payload,
   unwrap: jest.fn().mockResolvedValue({ ids: ['img_done'], entries: [], failedProviders: [] }),
 }));
-let mockDynamicAISelectorProps: any;
 let mockGradientButtonProps: any;
 
 jest.mock('react-redux', () => {
@@ -99,12 +98,14 @@ jest.mock('@/components/organisms', () => {
         props.rightElement
       ),
     HeaderActions: () => null,
-    DynamicAISelector: (props: any) => {
-      mockDynamicAISelectorProps = props;
-      return React.createElement(Text, { testID: 'ai-selector' }, 'AI Selector');
-    },
     ImageRefinementModal: () => null,
   };
+});
+
+jest.mock('@/components/organisms/common/AIAvatar', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return { AIAvatar: (props: any) => React.createElement(View, { testID: `ai-avatar-${props.providerId || ''}` }) };
 });
 
 let mockPromptHeroInputProps: any;
@@ -129,6 +130,23 @@ jest.mock('@/components/molecules', () => {
       React.createElement(TouchableOpacity, { testID: props.testID, onPress: props.onPress }),
     SectionHeader: (props: any) =>
       React.createElement(Text, { testID: 'section-header' }, props.title),
+    InfoButton: (props: any) =>
+      React.createElement(TouchableOpacity, { testID: props.testID || `info-${props.topicId}` }),
+    CollapsibleCard: (props: any) =>
+      React.createElement(
+        View,
+        { testID: props.testID },
+        React.createElement(
+          TouchableOpacity,
+          { testID: props.testID ? `${props.testID}-toggle` : undefined, onPress: props.onToggle },
+          React.createElement(Text, null, props.title)
+        ),
+        props.expanded
+          ? React.createElement(View, { testID: props.testID ? `${props.testID}-content` : undefined }, props.children)
+          : null
+      ),
+    ImageModelSelector: () =>
+      React.createElement(View, { testID: 'image-model-selector' }),
     SheetHeader: (props: any) =>
       React.createElement(
         View,
@@ -288,13 +306,8 @@ jest.mock('@/store/createSlice', () => ({
   setPrompt: jest.fn((prompt) => ({ type: 'create/setPrompt', payload: prompt })),
   setStyle: jest.fn((style) => ({ type: 'create/setStyle', payload: style })),
   setSize: jest.fn((size) => ({ type: 'create/setSize', payload: size })),
-  setQuality: jest.fn((quality) => ({ type: 'create/setQuality', payload: quality })),
   setImageCount: jest.fn((count) => ({ type: 'create/setImageCount', payload: count })),
-  setImageResolution: jest.fn((resolution) => ({ type: 'create/setImageResolution', payload: resolution })),
-  setImageOutputFormat: jest.fn((format) => ({ type: 'create/setImageOutputFormat', payload: format })),
-  setImageOutputCompression: jest.fn((compression) => ({ type: 'create/setImageOutputCompression', payload: compression })),
-  setImageBackground: jest.fn((background) => ({ type: 'create/setImageBackground', payload: background })),
-  setImageModeration: jest.fn((moderation) => ({ type: 'create/setImageModeration', payload: moderation })),
+  setImageModelSetting: jest.fn((payload) => ({ type: 'create/setImageModelSetting', payload })),
   setSelectedModel: jest.fn((payload) => ({ type: 'create/setSelectedModel', payload })),
   setSelectedProviders: jest.fn((providers) => ({ type: 'create/setSelectedProviders', payload: providers })),
   setActiveCreateTab: jest.fn((tab) => ({ type: 'create/setActiveCreateTab', payload: tab })),
@@ -334,13 +347,8 @@ describe('CreateSetupScreen', () => {
       currentPrompt: '',
       selectedStyle: 'none',
       selectedSize: 'auto',
-      selectedQuality: 'standard',
       selectedImageCount: 1,
-      selectedImageResolution: undefined,
-      selectedImageOutputFormat: 'png',
-      selectedImageOutputCompression: 80,
-      selectedImageBackground: 'auto',
-      selectedImageModeration: 'auto',
+      imageModelSettings: {},
       gallery: [],
       galleryHydrated: true,
       mediaGallery: [],
@@ -357,7 +365,6 @@ describe('CreateSetupScreen', () => {
     jest.clearAllMocks();
     mockDispatch.mockClear();
     mockNavigate.mockClear();
-    mockDynamicAISelectorProps = undefined;
     mockGradientButtonProps = undefined;
     mockPromptHeroInputProps = undefined;
     mockGenerateCreateImages.mockClear();
@@ -405,9 +412,9 @@ describe('CreateSetupScreen', () => {
       expect(getByTestId('header')).toBeTruthy();
     });
 
-    it('renders AI selector', () => {
+    it('renders the model chip row', () => {
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
-      expect(getByTestId('ai-selector')).toBeTruthy();
+      expect(getByTestId('create-model-chip-openai')).toBeTruthy();
     });
 
     it('renders generate button', () => {
@@ -420,12 +427,14 @@ describe('CreateSetupScreen', () => {
       expect(getByTestId('create-prompt-input')).toBeTruthy();
     });
 
-    it('renders image studio mode, source, and output sections without Advanced Options', () => {
-      const { getByText, queryByTestId } = renderWithProviders(<CreateSetupScreen />);
+    it('renders a prompt-first layout (prompt, mode toggle, chips) without inline output sections', () => {
+      const { getByTestId, queryByTestId } = renderWithProviders(<CreateSetupScreen />);
 
-      expect(getByText('Image Mode')).toBeTruthy();
-      expect(getByText('References')).toBeTruthy();
-      expect(getByText('Output')).toBeTruthy();
+      expect(getByTestId('create-prompt-input')).toBeTruthy();
+      expect(getByTestId('segment-refine')).toBeTruthy();
+      expect(getByTestId('create-model-chip-openai')).toBeTruthy();
+      // Output controls live in the settings sheet, not inline.
+      expect(queryByTestId('create-image-count-slider')).toBeNull();
       expect(queryByTestId('create-advanced-options')).toBeNull();
     });
   });
@@ -441,25 +450,34 @@ describe('CreateSetupScreen', () => {
     it('allows trial users to access (trial = premium access)', () => {
       mockUseFeatureAccess.mockReturnValue({ membershipStatus: 'trial', isDemo: false, isPremium: true });
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
-      expect(getByTestId('ai-selector')).toBeTruthy();
+      expect(getByTestId('create-model-chip-openai')).toBeTruthy();
     });
 
     it('allows premium users to access', () => {
       mockUseFeatureAccess.mockReturnValue({ membershipStatus: 'premium', isDemo: false, isPremium: true });
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
-      expect(getByTestId('ai-selector')).toBeTruthy();
+      expect(getByTestId('create-model-chip-openai')).toBeTruthy();
     });
   });
 
   describe('AI provider selection', () => {
-    it('passes correct props to DynamicAISelector', () => {
-      renderWithProviders(<CreateSetupScreen />);
-      expect(mockDynamicAISelectorProps).toBeDefined();
-      expect(mockDynamicAISelectorProps.maxAIs).toBe(3);
-      expect(mockDynamicAISelectorProps.getBadge).toEqual(expect.any(Function));
+    it('renders a chip for each configured provider', () => {
+      const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
+      expect(getByTestId('create-model-chip-openai')).toBeTruthy();
+      expect(getByTestId('create-model-chip-google')).toBeTruthy();
+      expect(getByTestId('create-model-chip-grok')).toBeTruthy();
     });
 
-    it('shows capability summary for selected img2img models', () => {
+    it('toggles provider selection when a chip is pressed', () => {
+      const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
+      fireEvent.press(getByTestId('create-model-chip-openai'));
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'create/setSelectedProviders',
+        payload: ['openai'],
+      });
+    });
+
+    it('shows the per-model capability summary inside the settings sheet', () => {
       mockUseSelector.mockImplementation((selector) =>
         selector({
           ...baseState,
@@ -470,9 +488,11 @@ describe('CreateSetupScreen', () => {
         })
       );
 
-      const { getByText } = renderWithProviders(<CreateSetupScreen />);
-      expect(getByText(/Supports refinement and reference images/)).toBeTruthy();
-      expect(getByText(/GPT Image 2/)).toBeTruthy();
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+      fireEvent.press(getByTestId('create-open-settings'));
+      expect(getByTestId('create-settings-sheet')).toBeTruthy();
+      expect(getByTestId('create-model-settings-openai')).toBeTruthy();
+      expect(getByText(/Can edit images and use references/)).toBeTruthy();
     });
   });
 
@@ -511,7 +531,6 @@ describe('CreateSetupScreen', () => {
           create: {
             ...baseState.create,
             selectedProviders: ['openai'],
-            selectedQuality: 'auto',
           },
         })
       );
@@ -525,26 +544,26 @@ describe('CreateSetupScreen', () => {
       expect(getByText('Add an image to refine')).toBeTruthy();
     });
 
-    it('shows adaptive OpenAI output controls for capable models', () => {
+    it('shows adaptive OpenAI output controls inside the settings sheet', () => {
       mockUseSelector.mockImplementation((selector) =>
         selector({
           ...baseState,
           create: {
             ...baseState.create,
             selectedProviders: ['openai'],
-            selectedQuality: 'auto',
           },
         })
       );
 
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
+      fireEvent.press(getByTestId('create-open-settings'));
       expect(getByTestId('create-image-count-slider')).toBeTruthy();
       expect(getByText('JPEG')).toBeTruthy();
       expect(getByText('Less restrictive')).toBeTruthy();
     });
 
-    it('hides multi-output controls for single-image text-only models', () => {
+    it('hides count and shows the text-only note for single-image text-only models', () => {
       mockUseSelector.mockImplementation((selector) =>
         selector({
           ...baseState,
@@ -556,8 +575,9 @@ describe('CreateSetupScreen', () => {
         })
       );
 
-      const { queryByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+      const { getByTestId, queryByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
+      fireEvent.press(getByTestId('create-open-settings'));
       expect(queryByTestId('create-image-count-slider')).toBeNull();
       expect(getByText(/Creates from text prompts only/)).toBeTruthy();
     });
@@ -597,13 +617,17 @@ describe('CreateSetupScreen', () => {
               openai: 'gpt-image-2',
               google: 'gemini-2.5-flash-image',
             },
-            selectedQuality: 'auto',
             selectedImageCount: 2,
-            selectedImageResolution: '1K',
-            selectedImageOutputFormat: 'jpeg',
-            selectedImageOutputCompression: 80,
-            selectedImageBackground: 'auto',
-            selectedImageModeration: 'low',
+            imageModelSettings: {
+              openai: {
+                quality: 'auto',
+                resolution: '1K',
+                outputFormat: 'jpeg',
+                outputCompression: 80,
+                background: 'auto',
+                moderation: 'low',
+              },
+            },
           },
         })
       );
@@ -618,13 +642,17 @@ describe('CreateSetupScreen', () => {
           openai: 'gpt-image-2',
           google: 'gemini-2.5-flash-image',
         },
-        quality: 'auto',
         imageCount: 2,
-        resolution: '1K',
-        outputFormat: 'jpeg',
-        outputCompression: 80,
-        background: 'auto',
-        moderation: 'low',
+        modelSettings: {
+          openai: {
+            quality: 'auto',
+            resolution: '1K',
+            outputFormat: 'jpeg',
+            outputCompression: 80,
+            background: 'auto',
+            moderation: 'low',
+          },
+        },
         sourceImages: [],
       }));
       await waitFor(() => {
@@ -715,7 +743,7 @@ describe('CreateSetupScreen', () => {
   });
 
   describe('media generation rail', () => {
-    it('keeps audio model and format controls collapsed by default', () => {
+    it('keeps audio settings in a closed sheet by default', () => {
       mockUseSelector.mockImplementation((selector) =>
         selector({
           ...baseState,
@@ -729,9 +757,7 @@ describe('CreateSetupScreen', () => {
       const { getByTestId, queryByTestId } = renderWithProviders(<CreateSetupScreen />);
 
       expect(getByTestId('create-audio-voice-selector')).toBeTruthy();
-      expect(getByTestId('create-audio-settings-toggle')).toBeTruthy();
-      expect(queryByTestId('create-audio-model-grid')).toBeNull();
-      expect(queryByTestId('create-audio-format-grid')).toBeNull();
+      expect(getByTestId('create-open-settings')).toBeTruthy();
       expect(queryByTestId('create-audio-model-selector')).toBeNull();
       expect(queryByTestId('create-audio-format-selector')).toBeNull();
     });
@@ -749,8 +775,8 @@ describe('CreateSetupScreen', () => {
 
       const { getByTestId, getByText, queryByTestId } = renderWithProviders(<CreateSetupScreen />);
 
-      fireEvent.press(getByTestId('create-audio-settings-toggle'));
-      expect(getByTestId('create-audio-settings-content')).toBeTruthy();
+      fireEvent.press(getByTestId('create-open-settings'));
+      expect(getByTestId('create-settings-sheet')).toBeTruthy();
       expect(getByTestId('create-audio-model-selector')).toBeTruthy();
       expect(getByTestId('create-audio-format-selector')).toBeTruthy();
 
@@ -885,7 +911,7 @@ describe('CreateSetupScreen', () => {
       expect(queryByTestId('create-audio-voice-selector')).toBeNull();
       expect(queryByTestId('create-audio-duration-slider')).toBeNull();
 
-      fireEvent.press(getByTestId('create-audio-settings-toggle'));
+      fireEvent.press(getByTestId('create-open-settings'));
       fireEvent(getByTestId('create-audio-duration-slider'), 'valueChange', 5);
       fireEvent(getByTestId('create-audio-influence-slider'), 'valueChange', 3);
 
@@ -916,7 +942,7 @@ describe('CreateSetupScreen', () => {
         expect(getByTestId('create-audio-prompt-input').props.value).toBe('Read this line');
       });
 
-      fireEvent.press(getByTestId('create-audio-settings-toggle'));
+      fireEvent.press(getByTestId('create-open-settings'));
       fireEvent.press(getByTestId('create-audio-model-selector'));
       fireEvent.press(getByTestId('create-audio-picker-option-eleven_v3'));
       fireEvent.press(getByTestId('create-audio-format-selector'));
@@ -1112,6 +1138,7 @@ describe('CreateSetupScreen', () => {
 
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
+      fireEvent.press(getByTestId('create-open-settings'));
       fireEvent(getByTestId('create-video-duration-slider'), 'valueChange', 8);
 
       expect(getByText('10s')).toBeTruthy();

@@ -48,7 +48,25 @@ export type HelpTopicId =
   | 'create-sizes'
   | 'create-refinement'
   | 'create-gallery'
-  | 'create-providers';
+  | 'create-providers'
+  | 'create-image-mode'
+  | 'create-quality'
+  | 'create-safety'
+  | 'create-background'
+  | 'create-format'
+  | 'create-resolution'
+  | 'create-frame'
+  | 'create-compression'
+  | 'create-video-source'
+  | 'create-video-model'
+  | 'create-video-duration'
+  | 'create-video-frame'
+  | 'create-audio-mode'
+  | 'create-audio-voice'
+  | 'create-audio-model'
+  | 'create-audio-format'
+  | 'create-audio-duration'
+  | 'create-audio-influence';
 
 export type HelpCategory =
   | 'getting-started'
