@@ -902,6 +902,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
           paddingBottom: rs('xl') * 3,
         }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         onScroll={(event) => {
           currentScrollYRef.current = event.nativeEvent.contentOffset.y;
         }}

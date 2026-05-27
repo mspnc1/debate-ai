@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
@@ -159,7 +159,10 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
   if (!isAuthenticated) {
     if (showAuthForm) {
       return (
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <KeyboardAvoidingView
+          style={[styles.container, { backgroundColor: theme.colors.background }]}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.authHeader}>
             <Button
               title="← Back"
@@ -172,8 +175,11 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
             </Typography>
             <View style={{ width: 60 }} />
           </View>
-          
-          <ScrollView style={styles.authFormContainer}>
+
+          <ScrollView
+            style={styles.authFormContainer}
+            keyboardShouldPersistTaps="handled"
+          >
             <EmailAuthForm
               mode={authMode}
               onSubmit={handleEmailAuth}
@@ -191,7 +197,7 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
               />
             </View>
           </ScrollView>
-        </View>
+        </KeyboardAvoidingView>
       );
     }
     

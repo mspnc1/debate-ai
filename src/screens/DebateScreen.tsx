@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { Alert, ActivityIndicator, Pressable, View } from 'react-native';
+import { Alert, ActivityIndicator, Pressable, View, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ErrorService } from '@/services/errors/ErrorService';
@@ -632,36 +632,41 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     
     if (showTopicPicker) {
       return (
-        <Animated.View 
+        <Animated.View
           entering={FadeIn.duration(400)}
           layout={Layout.springify()}
           style={{ flex: 1 }}
         >
-          <DemoBanner
-            subtitle={canStartTrial
-              ? 'Pre-recorded debates only in Demo. Start a free trial to create custom debates.'
-              : 'Pre-recorded debates only in Demo. Upgrade to Premium to create custom debates.'}
-            onPress={() => dispatch(showSheet({ sheet: 'subscription' }))}
-          />
-          {isDemo && debateSamples.length > 0 && (
-            <DemoSamplesBar
-              label="Demo Debate Samples"
-              samples={debateSamples.map(s => ({ id: s.id, title: s.title }))}
-              onSelect={async (id) => {
-                try {
-                  const sample = await DemoContentService.findDebateById(id);
-                  if (!sample) return;
-                  selectedSampleRef.current = sample;
-                  // Start with sample's topic
-                  handleStartDebate(sample.topic);
-                } catch { /* ignore */ }
-              }}
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <DemoBanner
+              subtitle={canStartTrial
+                ? 'Pre-recorded debates only in Demo. Start a free trial to create custom debates.'
+                : 'Pre-recorded debates only in Demo. Upgrade to Premium to create custom debates.'}
+              onPress={() => dispatch(showSheet({ sheet: 'subscription' }))}
             />
-          )}
-          <TopicSelector
-            {...topicSelection}
-            onStartDebate={handleStartDebate}
-          />
+            {isDemo && debateSamples.length > 0 && (
+              <DemoSamplesBar
+                label="Demo Debate Samples"
+                samples={debateSamples.map(s => ({ id: s.id, title: s.title }))}
+                onSelect={async (id) => {
+                  try {
+                    const sample = await DemoContentService.findDebateById(id);
+                    if (!sample) return;
+                    selectedSampleRef.current = sample;
+                    // Start with sample's topic
+                    handleStartDebate(sample.topic);
+                  } catch { /* ignore */ }
+                }}
+              />
+            )}
+            <TopicSelector
+              {...topicSelection}
+              onStartDebate={handleStartDebate}
+            />
+          </KeyboardAvoidingView>
         </Animated.View>
       );
     }
