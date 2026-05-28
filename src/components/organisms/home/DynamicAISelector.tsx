@@ -106,9 +106,16 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
             justifyContent: 'space-between',
             marginBottom: theme.spacing.md,
             gap: theme.spacing.sm,
+            flexWrap: 'nowrap',
           }}
         >
-          <Typography variant="body" color="secondary" style={{ flex: 1 }}>
+          <Typography
+            variant="body"
+            color="secondary"
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={{ flex: 1, flexShrink: 1, minWidth: 0 }}
+          >
             {getSubtitle()}
           </Typography>
           {!hideAddAI && (
@@ -116,8 +123,14 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
               onPress={handleAddAI}
               accessibilityRole="button"
               accessibilityLabel="Add AI"
+              style={{ flexShrink: 0 }}
             >
-              <Typography variant="body" color="primary" style={{ paddingHorizontal: theme.spacing.sm }}>
+              <Typography
+                variant="body"
+                color="primary"
+                numberOfLines={1}
+                style={{ paddingHorizontal: theme.spacing.sm }}
+              >
                 + Add AI
               </Typography>
             </TouchableOpacity>
