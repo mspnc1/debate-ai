@@ -125,8 +125,10 @@ export interface HeaderProps {
   animationDelay?: number;
   
   // Content
-  title: string;
+  title?: string;
   subtitle?: string;
+  /** Slim gradient bar: renders only the right-side actions (no title/greeting). */
+  slim?: boolean;
   
   // Navigation
   onBack?: () => void;
@@ -176,6 +178,8 @@ const TABLET_GRADIENT_LONG_MOTION_EXTRA_HEIGHT = 16;
 const COMPACT_HEIGHT = 50;
 const TABLET_COMPACT_HEIGHT = 60;
 const GRADIENT_TOP_ROW_HEIGHT = 40;
+// Slim gradient bar (greeting moved into the scroll body): just holds the actions.
+const SLIM_GRADIENT_HEIGHT = 52;
 
 // Gradient header uses proportional scaling for tablets
 const MIN_TABLET_GRADIENT_HEIGHT = 100;
@@ -294,8 +298,9 @@ export const Header: React.FC<HeaderProps> = ({
   height,
   animated = false,
   animationDelay = 0,
-  title,
+  title = '',
   subtitle,
+  slim = false,
   onBack,
   showBackButton = false,
   rightElement,
@@ -422,7 +427,9 @@ export const Header: React.FC<HeaderProps> = ({
       theme.spacing.xs
     )
     : 0;
-  const headerHeight = height || Math.max(baseHeight, gradientContentMinimumHeight);
+  const isSlimGradient = variant === 'gradient' && slim;
+  const headerHeight = height
+    || (isSlimGradient ? SLIM_GRADIENT_HEIGHT : Math.max(baseHeight, gradientContentMinimumHeight));
   const totalHeight = headerHeight + insets.top;
   
   // Get variant-specific styles
@@ -858,7 +865,34 @@ export const Header: React.FC<HeaderProps> = ({
     >
       {renderBackground()}
       
-      {variant === 'gradient' ? (
+      {isSlimGradient ? (
+        /* Slim bar: only the right-side actions; the greeting lives in the body. */
+        <View
+          testID="header-slim-row"
+          style={[
+            styles.gradientSlimRow,
+            {
+              top: insets.top,
+              height: SLIM_GRADIENT_HEIGHT,
+              left: gradientHorizontalPadding,
+              right: gradientHorizontalPadding,
+            },
+          ]}
+        >
+          <View style={styles.gradientSlimLeft}>
+            {title ? (
+              <Typography variant="title" weight="bold" color="inverse" numberOfLines={1}>
+                {title}
+              </Typography>
+            ) : null}
+          </View>
+          {rightElement && (
+            <View style={styles.gradientTopRowRight}>
+              {rightElement}
+            </View>
+          )}
+        </View>
+      ) : variant === 'gradient' ? (
         <>
           {/* Gradient variant uses vertical layout structure */}
           {(gradientTopLeftContent || rightElement) && (
@@ -1066,6 +1100,19 @@ const createStyles = (
     alignItems: 'center',
     justifyContent: 'space-between',
     zIndex: 1000,
+  },
+  gradientSlimRow: {
+    position: 'absolute',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 1000,
+  },
+  gradientSlimLeft: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
   },
   gradientTopRowLeft: {
     flex: 1,

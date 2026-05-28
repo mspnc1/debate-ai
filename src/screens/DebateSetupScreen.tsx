@@ -9,7 +9,6 @@ import { Box, ResponsiveContainer } from '../components/atoms';
 import { Button, Typography, GradientButton, InfoButton } from '../components/molecules';
 import { useResponsive } from '../hooks/useResponsive';
 import { Header, HeaderActions } from '../components/organisms';
-import { useGreeting } from '../hooks/useGreeting';
 // Legacy premium gating replaced by useFeatureAccess
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import {
@@ -156,7 +155,6 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   const selectionReturnScrollYRef = useRef<number | null>(null);
   const handledResetKeyRef = useRef<string | null>(null);
   const { rs } = useResponsive();
-  const greeting = useGreeting({ screenCategory: 'debate' });
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
   const verifiedProviders = useSelector((state: RootState) => state.settings.verifiedProviders || []);
   const expertMode = useSelector((state: RootState) => state.settings.expertMode || {});
@@ -874,13 +872,9 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['left', 'right']}>
       <Header
         variant="gradient"
-        title={greeting.timeBasedGreeting}
-        subtitle={greeting.welcomeMessage}
-        showTime={true}
-        showDate={true}
-        animated={true}
+        slim
+        title="Debate"
         rightElement={<HeaderActions variant="gradient" helpTopicId="debate-formats" />}
-        showDemoBadge={access.isDemo}
       />
       <TrialBanner />
 

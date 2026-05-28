@@ -238,9 +238,9 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
 
     expect(mockUseAISelection).toHaveBeenCalledWith(premium.maxAIs);
     expect(mockHeaderProps).toBeDefined();
-    expect(mockHeaderProps.title).toBe(baseGreeting.timeBasedGreeting);
-    expect(mockHeaderProps.subtitle).toBe(baseGreeting.welcomeMessage);
-    expect(mockHeaderProps.showDemoBadge).toBe(false);
+    // The header is now a clean slim bar with the tab name; no greeting/demo badge.
+    expect(mockHeaderProps.slim).toBe(true);
+    expect(mockHeaderProps.title).toBe('Chat');
     expect(mockHeaderActionsProps).toBeDefined();
     expect(mockHeaderActionsProps.variant).toBe('gradient');
     expect(mockHeaderActionsProps.helpCategoryId).toBe('chat');

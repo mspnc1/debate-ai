@@ -29,7 +29,6 @@ import Slider from '@react-native-community/slider';
 
 import { useTheme } from '../theme';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
-import { useGreeting } from '../hooks/useGreeting';
 import {
   Typography,
   GradientButton,
@@ -162,7 +161,6 @@ export default function CreateSetupScreen() {
   const navigation = useNavigation<NavigationProp>();
   const dispatch = useDispatch<AppDispatch>();
   const { isDemo } = useFeatureAccess();
-  const greeting = useGreeting({ screenCategory: 'create' });
 
   const createState = useSelector(selectCreateState);
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
@@ -2136,12 +2134,9 @@ export default function CreateSetupScreen() {
     >
       <Header
         variant="gradient"
-        title={greeting.timeBasedGreeting}
-        subtitle={greeting.welcomeMessage}
-        showTime={true}
-        showDate={true}
+        slim
+        title="Create"
         rightElement={renderHeaderRight()}
-        showDemoBadge={isDemo}
       />
       <KeyboardAvoidingView
         style={styles.flex}

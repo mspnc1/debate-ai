@@ -1,13 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ScrollView, View, Alert, StyleSheet } from 'react-native';
+import { ScrollView, View, StyleSheet } from 'react-native';
 import { Box } from '../components/atoms';
 import { Button, Typography } from '../components/molecules';
 import { useTheme } from '../theme';
 import { useGreeting } from '../hooks/useGreeting';
 import { useFocusEffect } from '@react-navigation/native';
-import { StorageService } from '../services/chat';
-import { ErrorService } from '@/services/errors/ErrorService';
 import {
   HistorySearchBar,
   HistoryList,
@@ -39,7 +37,7 @@ interface HistoryScreenProps {
 export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();
   const dispatch = useDispatch();
-  const { isDemo, canStartTrial } = useFeatureAccess();
+  const { canStartTrial } = useFeatureAccess();
   const { isTablet, isLandscape, width } = useResponsive();
   const greeting = useGreeting({ screenCategory: 'history' });
   const [activeTab, setActiveTab] = useState<'all' | 'chat' | 'comparison' | 'debate'>('all');
@@ -189,53 +187,6 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
     });
   }, [typeFilteredSessions]);
 
-  // Clear all storage function (for debugging)
-  const handleClearAllStorage = () => {
-    Alert.alert(
-      'Clear All Storage?',
-      'This will permanently delete ALL sessions from history. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await StorageService.clearAllSessions();
-              refresh();
-              ErrorService.showSuccess('All storage has been cleared.', 'history');
-            } catch {
-              ErrorService.handleWithToast(new Error('Failed to clear storage.'), { feature: 'history' });
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  const handleHistoryActions = () => {
-    Alert.alert(
-      'History Actions',
-      'Choose how to manage the current history view.',
-      [
-        {
-          text: 'Select Visible',
-          onPress: () => selectSessions(displaySessions),
-        },
-        {
-          text: 'Select All Matching',
-          onPress: () => selectSessions(typeFilteredSessions),
-        },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: handleClearAllStorage,
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
-  };
-
   // Refresh sessions when screen comes into focus (tab navigation)
   useFocusEffect(
     React.useCallback(() => {
@@ -253,18 +204,21 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
       <SafeAreaView edges={['left', 'right']} style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <ErrorBoundary>
           <Box style={{ flex: 1, backgroundColor: theme.colors.background }}>
-            {/* Header with greeting while loading */}
             <Header
               variant="gradient"
-              title={greeting.timeBasedGreeting}
-              subtitle="Loading your conversation archive..."
-              showTime={true}
-              showDate={true}
-              animated={true}
+              slim
+              title="History"
               rightElement={<HeaderActions variant="gradient" helpTopicId="history" />}
             />
 
-            {/* Don't show search bar during loading */}
+            {/* Witty loading line (relocated from the header greeting) */}
+            <Typography
+              variant="body"
+              color="secondary"
+              style={{ textAlign: 'center', paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.lg }}
+            >
+              {greeting.timeBasedGreeting}
+            </Typography>
 
             {/* Skeleton loading */}
             <HistoryListSkeleton count={4} />
@@ -368,22 +322,25 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
               activeTab === 'debate' ? {
                 icon: 'sword-cross',
                 iconLibrary: 'material-community',
-                title: 'No debates yet',
+                title: greeting.timeBasedGreeting,
                 message: 'Start a debate to see it here',
                 actionText: 'Start Debating'
               } : activeTab === 'comparison' ? {
                 icon: 'git-compare-outline',
                 iconLibrary: 'ionicons',
-                title: 'No comparisons yet',
+                title: greeting.timeBasedGreeting,
                 message: 'Compare AI responses to see them here',
                 actionText: 'Start Comparing'
               } : activeTab === 'chat' ? {
                 icon: 'chatbubbles-outline',
                 iconLibrary: 'ionicons',
-                title: 'No chats yet',
+                title: greeting.timeBasedGreeting,
                 message: 'Start a conversation to see it here',
                 actionText: 'Start Chatting'
-              } : undefined
+              } : {
+                title: greeting.timeBasedGreeting,
+                message: greeting.welcomeMessage,
+              }
             }
           />
         }
@@ -439,21 +396,11 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
     <SafeAreaView edges={['left', 'right']} style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <ErrorBoundary>
         <Box style={{ flex: 1, backgroundColor: theme.colors.background }}>
-          {/* Header with dynamic greeting */}
           <Header
             variant="gradient"
-            title={greeting.timeBasedGreeting}
-            subtitle={greeting.welcomeMessage}
-            showTime={true}
-            showDate={true}
-            animated={true}
+            slim
+            title="History"
             rightElement={<HeaderActions variant="gradient" helpTopicId="history" />}
-            showDemoBadge={isDemo}
-            actionButton={{
-              label: 'Manage',
-              onPress: handleHistoryActions,
-              variant: 'ghost'
-            }}
           />
 
           <DemoBanner

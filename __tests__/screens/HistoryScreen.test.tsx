@@ -377,7 +377,7 @@ describe('HistoryScreen', () => {
   it('shows loading skeleton when history is loading', () => {
     renderHistoryScreen({ history: { isLoading: true } });
 
-    expect(mockHeaderProps.title).toBe('History awaits');
+    expect(mockHeaderProps.title).toBe('History');
     expect(mockHistoryListProps).toBeUndefined();
   });
 
@@ -397,62 +397,6 @@ describe('HistoryScreen', () => {
     });
 
     expect(sessionHistoryState.refresh).toHaveBeenCalledTimes(1);
-  });
-
-  it('clears all storage from the management menu and shows success toast', async () => {
-    mockClearAllSessions.mockResolvedValueOnce(undefined);
-    renderHistoryScreen();
-
-    expect(mockHeaderProps.actionButton.label).toBe('Manage');
-    await act(async () => {
-      mockHeaderProps.actionButton.onPress();
-    });
-
-    const [, , buttons] = alertSpy.mock.calls[0];
-    const clearAllButton = buttons.find((btn: any) => btn.text === 'Clear All');
-
-    await act(async () => {
-      clearAllButton.onPress();
-    });
-
-    const [, , confirmButtons] = alertSpy.mock.calls[1];
-    const destructiveButton = confirmButtons.find((btn: any) => btn.style === 'destructive');
-
-    await act(async () => {
-      await destructiveButton.onPress();
-    });
-
-    expect(mockClearAllSessions).toHaveBeenCalledTimes(1);
-    expect(sessionHistoryState.refresh).toHaveBeenCalled();
-    expect(mockShowSuccess).toHaveBeenCalledWith('All storage has been cleared.', 'history');
-  });
-
-  it('handles storage clear failures gracefully', async () => {
-    mockClearAllSessions.mockRejectedValueOnce(new Error('fail'));
-    renderHistoryScreen();
-
-    await act(async () => {
-      mockHeaderProps.actionButton.onPress();
-    });
-
-    const [, , buttons] = alertSpy.mock.calls[0];
-    const clearAllButton = buttons.find((btn: any) => btn.text === 'Clear All');
-
-    await act(async () => {
-      clearAllButton.onPress();
-    });
-
-    const [, , confirmButtons] = alertSpy.mock.calls[1];
-    const destructiveButton = confirmButtons.find((btn: any) => btn.style === 'destructive');
-
-    await act(async () => {
-      await destructiveButton.onPress();
-    });
-
-    expect(mockHandleWithToast).toHaveBeenCalledWith(
-      expect.any(Error),
-      expect.objectContaining({ feature: 'history' })
-    );
   });
 
   it('supports selecting visible history rows and bulk deleting them', async () => {
@@ -507,39 +451,13 @@ describe('HistoryScreen', () => {
     expect(mockHistoryListProps.selectedSessionIds.has('session-2')).toBe(true);
   });
 
-  it('selects visible sessions from the management menu', async () => {
-    const sessions = [
-      createSession({ id: 'session-1' }),
-      createSession({ id: 'session-2' }),
-    ];
-    renderHistoryScreen({
-      history: { sessions },
-      search: { filteredSessions: sessions },
-    });
-
-    await act(async () => {
-      mockHeaderProps.actionButton.onPress();
-    });
-
-    const [, , buttons] = alertSpy.mock.calls[0];
-    const selectVisibleButton = buttons.find((btn: any) => btn.text === 'Select Visible');
-
-    await act(async () => {
-      selectVisibleButton.onPress();
-    });
-
-    expect(mockHistoryListProps.selectionMode).toBe(true);
-    expect(mockHistoryListProps.selectedSessionIds.has('session-1')).toBe(true);
-    expect(mockHistoryListProps.selectedSessionIds.has('session-2')).toBe(true);
-  });
-
   it('shows demo indicators and dispatches subscription sheet', async () => {
     const store = createAppStore();
     const dispatchSpy = jest.spyOn(store, 'dispatch');
 
     renderHistoryScreen({ featureAccess: { isDemo: true }, store });
 
-    expect(mockHeaderProps.showDemoBadge).toBe(true);
+    // Demo is now indicated by the thin banner under the header, not a header chip.
     expect(mockDemoBannerProps.subtitle).toContain('Demo Mode');
 
     await act(async () => {
@@ -646,7 +564,11 @@ describe('HistoryScreen', () => {
     });
 
     expect(mockEmptyStateProps.type).toBe('no-sessions');
-    expect(mockEmptyStateProps.emptyStateConfig).toBeUndefined();
+    // The witty greeting is the title; the functional guidance is the message.
+    expect(mockEmptyStateProps.emptyStateConfig).toMatchObject({
+      title: 'History awaits',
+      message: 'Your past conversations',
+    });
 
     sessionSearchState.searchQuery = 'anthropic';
     sessionSearchState.filteredSessions = [];
@@ -657,12 +579,12 @@ describe('HistoryScreen', () => {
     expect(mockEmptyStateProps.type).toBe('no-results');
 
     await pressButton('Debate');
-    expect(mockEmptyStateProps.emptyStateConfig).toMatchObject({ title: 'No debates yet' });
+    expect(mockEmptyStateProps.emptyStateConfig).toMatchObject({ title: 'History awaits', message: 'Start a debate to see it here' });
 
     await pressButton('Compare');
-    expect(mockEmptyStateProps.emptyStateConfig).toMatchObject({ title: 'No comparisons yet' });
+    expect(mockEmptyStateProps.emptyStateConfig).toMatchObject({ title: 'History awaits', message: 'Compare AI responses to see them here' });
 
     await pressButton('Chat');
-    expect(mockEmptyStateProps.emptyStateConfig).toMatchObject({ title: 'No chats yet' });
+    expect(mockEmptyStateProps.emptyStateConfig).toMatchObject({ title: 'History awaits', message: 'Start a conversation to see it here' });
   });
 });

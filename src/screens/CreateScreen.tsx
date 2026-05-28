@@ -89,6 +89,7 @@ import {
 import MediaSaveService from '../services/media/MediaSaveService';
 import { getMediaShareUti } from '../services/media/mediaFileCache';
 import useFeatureAccess from '../hooks/useFeatureAccess';
+import { useGreeting } from '../hooks/useGreeting';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 type ScreenRouteProp = RouteProp<RootStackParamList, 'CreateSession'>;
@@ -884,6 +885,7 @@ function buildFilterOptions(assets: GalleryAsset[], field: 'providerId' | 'model
 
 export default function CreateScreen() {
   const { theme, isDark } = useTheme();
+  const greeting = useGreeting({ screenCategory: 'create' });
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRouteProp>();
@@ -2152,7 +2154,7 @@ export default function CreateScreen() {
               color={theme.colors.text.secondary}
             />
             <Typography variant="body" color="secondary" style={styles.emptyText}>
-              {gallerySearch || activeFilterCount > 0 ? 'No matching assets' : 'No generated media yet'}
+              {gallerySearch || activeFilterCount > 0 ? 'No matching assets' : greeting.timeBasedGreeting}
             </Typography>
             {(gallerySearch || activeFilterCount > 0) && (
               <TouchableOpacity

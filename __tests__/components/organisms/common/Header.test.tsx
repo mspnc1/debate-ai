@@ -140,6 +140,40 @@ describe('Header', () => {
     expect(getByTestId('header-right-actions')).toBeTruthy();
   });
 
+  it('renders a slim gradient bar with the tab-name title and right actions', () => {
+    const { getByTestId, getByText } = renderWithProviders(
+      <Header
+        testID="slim-gradient-header"
+        variant="gradient"
+        slim
+        title="Create"
+        rightElement={<Text testID="header-right-actions">Actions</Text>}
+      />
+    );
+
+    expect(getByTestId('header-slim-row')).toBeTruthy();
+    expect(getByText('Create')).toBeTruthy();
+    expect(getByTestId('header-right-actions')).toBeTruthy();
+    expect(getByTestId('slim-gradient-header')).toHaveStyle({ minHeight: 52 });
+  });
+
+  it('renders a slim gradient bar with only the right actions, no greeting', () => {
+    const { getByTestId, queryByText } = renderWithProviders(
+      <Header
+        testID="slim-gradient-header"
+        variant="gradient"
+        slim
+        rightElement={<Text testID="header-right-actions">Actions</Text>}
+      />
+    );
+
+    expect(getByTestId('header-slim-row')).toBeTruthy();
+    expect(getByTestId('header-right-actions')).toBeTruthy();
+    // The greeting is moved to the body, so the slim bar shows no greeting text.
+    expect(queryByText('The symposium awaits')).toBeNull();
+    expect(getByTestId('slim-gradient-header')).toHaveStyle({ minHeight: 52 });
+  });
+
   it('keeps standard phone gradient headers compact', () => {
     const { getByTestId } = renderWithProviders(
       <Header
