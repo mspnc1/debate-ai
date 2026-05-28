@@ -69,7 +69,7 @@ type PresetFlowStep = {
   icon: keyof typeof Ionicons.glyphMap;
 };
 
-const getPresetFlowSteps = (preset: PresetConfig): PresetFlowStep[] => {
+const getPresetFlowSteps = (formatId: DebateFormatId, preset: PresetConfig): PresetFlowStep[] => {
   if (preset.voteModel === 'audience_stance') {
     return [
       { label: 'Opening stance', icon: 'person-circle-outline' },
@@ -81,6 +81,26 @@ const getPresetFlowSteps = (preset: PresetConfig): PresetFlowStep[] => {
     ];
   }
 
+  const includesCrossExamination = preset.messages.some((message) => message.phase === 'cross_examination');
+
+  if (formatId === 'lincoln_douglas') {
+    return [
+      { label: 'Constructives', icon: 'book-outline' },
+      ...(includesCrossExamination ? [{ label: 'Cross-examination', icon: 'help-circle-outline' } as PresetFlowStep] : []),
+      { label: 'Value rebuttals', icon: 'scale-outline' },
+      { label: 'Final ballot', icon: 'checkmark-circle-outline' },
+    ];
+  }
+
+  if (formatId === 'policy') {
+    return [
+      { label: 'Plan case', icon: 'document-text-outline' },
+      ...(includesCrossExamination ? [{ label: 'Cross-examination', icon: 'help-circle-outline' } as PresetFlowStep] : []),
+      { label: 'Rebuttal block', icon: 'git-compare-outline' },
+      { label: '2AR ballot', icon: 'checkmark-circle-outline' },
+    ];
+  }
+
   return preset.messages
     .filter((message) => message.voteAfter)
     .map((message): PresetFlowStep => ({
@@ -89,15 +109,23 @@ const getPresetFlowSteps = (preset: PresetConfig): PresetFlowStep[] => {
     }));
 };
 
-const getPresetParticipationSummary = (preset: PresetConfig): string => {
+const getPresetParticipationSummary = (formatId: DebateFormatId, preset: PresetConfig): string => {
   if (preset.voteModel === 'audience_stance') {
     return preset.audienceQuestionCheckpoint
       ? 'Vote before the debate, ask one question per side, then cast the final ballot.'
       : 'Choose an opening stance, hear the speeches, then cast the final ballot.';
   }
 
-  const checkpointText = preset.voteCount === 1 ? 'checkpoint' : 'checkpoints';
-  return `Judge ${preset.voteCount} ${checkpointText} as the round develops.`;
+  if (formatId === 'lincoln_douglas') {
+    return 'Judge the value clash as each side defines, tests, and weighs its criterion.';
+  }
+
+  if (formatId === 'policy') {
+    return 'Track the plan, burdens, solvency, impacts, and final ballot story.';
+  }
+
+  const momentText = preset.voteCount === 1 ? 'moment' : 'moments';
+  return `Judge ${preset.voteCount} ${momentText} as the round develops.`;
 };
 
 const DEBATE_SLOT_ID_MARKER = '-debater-slot-';
@@ -273,15 +301,15 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   })), [formatId]);
   const selectedPreset = getPresetForFormat(formatId, getPresetIdForRounds(exchanges));
   const requiredDebaterCount = getRequiredDebaterCountForPreset(selectedPreset);
-  const presetFlowSteps = useMemo(() => getPresetFlowSteps(selectedPreset), [selectedPreset]);
-  const presetParticipationSummary = useMemo(() => getPresetParticipationSummary(selectedPreset), [selectedPreset]);
-  const presetFlowLabel = selectedPreset.voteModel === 'audience_stance' ? 'Your role' : 'Voting moments';
+  const presetFlowSteps = useMemo(() => getPresetFlowSteps(formatId, selectedPreset), [formatId, selectedPreset]);
+  const presetParticipationSummary = useMemo(() => getPresetParticipationSummary(formatId, selectedPreset), [formatId, selectedPreset]);
+  const presetFlowLabel = selectedPreset.voteModel === 'audience_stance' ? 'Your role' : 'Judge focus';
   const presetUnitLabel = selectedPreset.voteModel === 'audience_stance' && !selectedPreset.audienceQuestionCheckpoint
     ? 'speeches'
     : 'turns';
   const presetVoteLabel = selectedPreset.voteModel === 'audience_stance'
     ? 'Audience votes'
-    : `${selectedPreset.voteCount} judge ${selectedPreset.voteCount === 1 ? 'checkpoint' : 'checkpoints'}`;
+    : `${selectedPreset.voteCount} judge ${selectedPreset.voteCount === 1 ? 'moment' : 'moments'}`;
   const selectedPresetTitle = formatId === 'oxford'
     ? `${selectedPreset.label} Oxford`
     : selectedPreset.label;

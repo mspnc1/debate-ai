@@ -14,6 +14,7 @@ import { setProviderStreamingPreference } from '@/store/streamingSlice';
 import { resolveProviderModelId } from '@/config/modelConfigs';
 import type { AIConfig } from '@/types';
 import type { RootState } from '@/store';
+import type { FormatModalProps } from '@/components/organisms/debate/FormatModal';
 
 const baseAIs: AIConfig[] = [
   { id: 'claude', provider: 'claude', name: 'Claude', model: 'claude-3-opus' },
@@ -147,6 +148,7 @@ let topicSelectorProps: any;
 let aiSelectorProps: any;
 let personalitySelectorProps: any;
 let stepIndicatorProps: any;
+let formatModalProps: FormatModalProps | undefined;
 
 jest.mock('@/components/organisms/debate/DebateTopicSelector', () => ({
   DebateTopicSelector: (props: any) => {
@@ -193,7 +195,10 @@ jest.mock('@/components/organisms/demo/DemoDebatePickerModal', () => ({
 }));
 
 jest.mock('@/components/organisms/debate/FormatModal', () => ({
-  FormatModal: () => null,
+  FormatModal: (props: FormatModalProps) => {
+    formatModalProps = props;
+    return null;
+  },
 }));
 
 jest.mock('@/components/organisms', () => {
@@ -331,6 +336,7 @@ beforeEach(() => {
   topicSelectorProps = undefined;
   aiSelectorProps = undefined;
   personalitySelectorProps = undefined;
+  formatModalProps = undefined;
   recordPickerProps = undefined;
   demoPickerProps = undefined;
   demoBannerProps = undefined;
@@ -393,6 +399,47 @@ describe('DebateSetupScreen', () => {
     expect(renderResult.queryByText('Choose format and preset')).toBeNull();
     expect(renderResult.queryByText('Oxford-style motion debate with opening speeches, floor debate, and closing speeches')).toBeNull();
     expect(renderResult.queryByText('Affirmative: Opening Statement → Negative: Opening Statement → Affirmative: Rebuttal → Negative: Rebuttal → Affirmative: Closing Statement → Negative: Closing Statement')).toBeNull();
+  });
+
+  it('uses format-specific preset flow copy for Lincoln-Douglas and Policy', async () => {
+    const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
+
+    act(() => {
+      formatModalProps.onSelect('lincoln_douglas');
+    });
+    await flush();
+
+    expect(renderResult.getByText('Lincoln-Douglas')).toBeTruthy();
+    expect(renderResult.getByText('Short LD')).toBeTruthy();
+    expect(renderResult.getByText('5 turns')).toBeTruthy();
+    expect(renderResult.getByText('4 judge moments')).toBeTruthy();
+    expect(renderResult.getByText('Judge focus')).toBeTruthy();
+    expect(renderResult.getByText('Judge the value clash as each side defines, tests, and weighs its criterion.')).toBeTruthy();
+    expect(renderResult.getByText('Constructives')).toBeTruthy();
+    expect(renderResult.getByText('Value rebuttals')).toBeTruthy();
+    expect(renderResult.getByText('Final ballot')).toBeTruthy();
+    expect(renderResult.queryByText('Cross-examination')).toBeNull();
+
+    fireEvent.press(renderResult.getByText('Standard'));
+    await flush();
+
+    expect(renderResult.getByText('Standard LD')).toBeTruthy();
+    expect(renderResult.getByText('9 turns')).toBeTruthy();
+    expect(renderResult.getByText('5 judge moments')).toBeTruthy();
+    expect(renderResult.getByText('Cross-examination')).toBeTruthy();
+
+    act(() => {
+      formatModalProps.onSelect('policy');
+    });
+    await flush();
+
+    expect(renderResult.getByText('Policy')).toBeTruthy();
+    expect(renderResult.getByText('Standard Policy')).toBeTruthy();
+    expect(renderResult.getByText('16 turns')).toBeTruthy();
+    expect(renderResult.getByText('Track the plan, burdens, solvency, impacts, and final ballot story.')).toBeTruthy();
+    expect(renderResult.getByText('Plan case')).toBeTruthy();
+    expect(renderResult.getByText('Rebuttal block')).toBeTruthy();
+    expect(renderResult.getByText('2AR ballot')).toBeTruthy();
   });
 
   it('progresses from topic to AI step with valid selection', async () => {
