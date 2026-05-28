@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, useWindowDimensions } from 'react-native';
+import { View, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { Box } from '@/components/atoms';
 import { GradientButton, SectionHeader, InfoButton, Typography } from '@/components/molecules';
 import { AICard } from './AICard';
@@ -23,6 +23,7 @@ interface DynamicAISelectorProps {
   customSubtitle?: string;
   hideStartButton?: boolean;  // New prop to hide the start button
   hideHeader?: boolean;  // New prop to hide the section header
+  hideHeaderTitle?: boolean;  // Hide the title while keeping count/action row
   hideAddAI?: boolean;  // Hide "+ Add AI" button (for demo mode)
   columnCount?: number;  // New prop to override column count
   containerWidth?: number;  // New prop to override container width calculation
@@ -48,6 +49,7 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
   customSubtitle,
   hideStartButton = false,
   hideHeader = false,
+  hideHeaderTitle = false,
   hideAddAI = false,
   columnCount,
   containerWidth,
@@ -96,7 +98,32 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
   
   return (
     <Box>
-      {!hideHeader && (
+      {!hideHeader && (hideHeaderTitle ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: theme.spacing.md,
+            gap: theme.spacing.sm,
+          }}
+        >
+          <Typography variant="body" color="secondary" style={{ flex: 1 }}>
+            {getSubtitle()}
+          </Typography>
+          {!hideAddAI && (
+            <TouchableOpacity
+              onPress={handleAddAI}
+              accessibilityRole="button"
+              accessibilityLabel="Add AI"
+            >
+              <Typography variant="body" color="primary" style={{ paddingHorizontal: theme.spacing.sm }}>
+                + Add AI
+              </Typography>
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : (
         <SectionHeader
           title="Choose Your AIs"
           subtitle={getSubtitle()}
@@ -104,7 +131,7 @@ export const DynamicAISelector: React.FC<DynamicAISelectorProps> = ({
           onAction={hideAddAI ? undefined : handleAddAI}
           actionLabel={hideAddAI ? undefined : "+ Add AI"}
         />
-      )}
+      ))}
       
       {/* AI Grid Layout - Only AI cards, no Add button */}
       <View style={{ marginBottom: theme.spacing.lg, overflow: 'visible', zIndex: 1 }}>

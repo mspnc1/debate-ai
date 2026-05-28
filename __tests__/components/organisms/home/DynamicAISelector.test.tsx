@@ -113,6 +113,27 @@ describe('DynamicAISelector', () => {
     expect(queryByText(/Start Chat/)).toBeNull();
   });
 
+  it('can hide the section title while keeping configured count and add action', () => {
+    const onAddAI = jest.fn();
+    const { getByText, queryByText } = renderWithProviders(
+      <DynamicAISelector
+        configuredAIs={aiList}
+        selectedAIs={[]}
+        maxAIs={3}
+        onToggleAI={jest.fn()}
+        onAddAI={onAddAI}
+        hideHeaderTitle
+        hideStartButton
+      />
+    );
+
+    expect(queryByText('Choose Your AIs')).toBeNull();
+    expect(getByText('2 AIs configured • Select up to 3')).toBeTruthy();
+
+    fireEvent.press(getByText('+ Add AI'));
+    expect(onAddAI).toHaveBeenCalled();
+  });
+
   it('passes the effective selected model to card badges', () => {
     const getBadge = jest.fn((ai: AIConfig) => (
       ai.model === 'gpt-5.5' ? { text: 'Live Search' } : undefined

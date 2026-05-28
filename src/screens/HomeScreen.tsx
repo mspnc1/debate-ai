@@ -17,7 +17,6 @@ import { useDispatch } from 'react-redux';
 import { showSheet } from '@/store';
 
 // Custom hooks
-import { useGreeting } from '../hooks/useGreeting';
 import { usePremiumFeatures } from '../hooks/home/usePremiumFeatures';
 import { useAISelection } from '../hooks/home/useAISelection';
 import { useSessionManagement } from '../hooks/home/useSessionManagement';
@@ -37,7 +36,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { rs } = useResponsive();
 
   // Compose hooks for clean separation of concerns
-  const greeting = useGreeting();
   const premium = usePremiumFeatures();
   const aiSelection = useAISelection(premium.maxAIs);
   const session = useSessionManagement();
@@ -83,13 +81,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       edges={['left', 'right']}>
       <Header
         variant="gradient"
-        title={greeting.timeBasedGreeting}
-        subtitle={greeting.welcomeMessage}
-        showTime={true}
-        showDate={true}
-        animated={true}
+        slim
+        title="Ask the Room"
         rightElement={<HeaderActions variant="gradient" helpCategoryId="chat" />}
-        showDemoBadge={isDemo}
       />
 
       <TrialBanner />
@@ -122,6 +116,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               onStartChat={handleStartChat}
               onAddAI={handleAddAI}
               hideAddAI={isDemo}
+              hideHeaderTitle
               aiPersonalities={aiSelection.aiPersonalities}
               selectedModels={aiSelection.selectedModels}
               onPersonalityChange={aiSelection.changePersonality}

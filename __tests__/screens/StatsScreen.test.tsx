@@ -185,7 +185,7 @@ describe('StatsScreen', () => {
     expect(mockHeader).toHaveBeenCalledWith(
       expect.objectContaining({
         variant: 'gradient',
-        title: 'AI Performance Stats',
+        title: 'Performance Stats',
         showBackButton: true,
         onBack: expect.any(Function),
       }),

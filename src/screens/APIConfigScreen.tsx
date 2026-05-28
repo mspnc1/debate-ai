@@ -141,8 +141,8 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right', 'bottom']}>
         <Header
           variant="gradient"
-          title="API Configuration"
-          subtitle="Add or Modify Your AIs"
+          title="Configure AIs"
+          subtitle="Add provider keys"
           onBack={() => {
             navigation.goBack();
             dispatch(showSheet({ sheet: 'settings' }));

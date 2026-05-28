@@ -11,7 +11,7 @@ export interface TypingIndicatorProps {
 
 export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ aiName }) => {
   const { theme } = useTheme();
-  
+
   return (
     <Animated.View
       entering={FadeIn}

@@ -77,6 +77,13 @@ jest.mock('expo-haptics', () => ({
   NotificationFeedbackType: { Success: 'success', Error: 'error' },
 }));
 
+jest.mock('@/hooks/useGreeting', () => ({
+  useGreeting: () => ({
+    timeBasedGreeting: 'Pixels in the void',
+    welcomeMessage: 'Your pixels specifically',
+  }),
+}));
+
 jest.mock('expo-media-library', () => ({
   getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted', granted: true }),
   requestPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
@@ -351,7 +358,8 @@ describe('CreateScreen', () => {
       );
 
       const { getByText } = renderWithProviders(<CreateScreen />);
-      expect(getByText('No generated media yet')).toBeTruthy();
+      // Empty gallery now shows the witty greeting (relocated from the header).
+      expect(getByText('Pixels in the void')).toBeTruthy();
     });
 
     it('selects a focused generated media item when Gallery is opened from completion', async () => {

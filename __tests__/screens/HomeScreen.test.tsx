@@ -238,13 +238,14 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
 
     expect(mockUseAISelection).toHaveBeenCalledWith(premium.maxAIs);
     expect(mockHeaderProps).toBeDefined();
-    expect(mockHeaderProps.title).toBe(baseGreeting.timeBasedGreeting);
-    expect(mockHeaderProps.subtitle).toBe(baseGreeting.welcomeMessage);
-    expect(mockHeaderProps.showDemoBadge).toBe(false);
+    // The header is now a clean slim bar with a task-oriented title; no greeting/demo badge.
+    expect(mockHeaderProps.slim).toBe(true);
+    expect(mockHeaderProps.title).toBe('Ask the Room');
     expect(mockHeaderActionsProps).toBeDefined();
     expect(mockHeaderActionsProps.variant).toBe('gradient');
     expect(mockHeaderActionsProps.helpCategoryId).toBe('chat');
     expect(mockDynamicAISelectorProps.maxAIs).toBe(aiSelection.maxAIs);
+    expect(mockDynamicAISelectorProps.hideHeaderTitle).toBe(true);
     // Quick Start is exposed through the trailing lightbulb on the primary button.
     expect(mockDynamicAISelectorProps.onQuickStart).toBeDefined();
   });

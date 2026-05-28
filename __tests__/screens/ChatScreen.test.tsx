@@ -393,7 +393,7 @@ describe('ChatScreen', () => {
     );
 
     expect(getByTestId('chat-message-list')).toBeTruthy();
-    expect(mockHeaderProps.title).toBe('AI Conversation');
+    expect(mockHeaderProps.title).toBe('Conversation');
     expect(mockHeaderProps.subtitle).toBe('Claude meets GPT-4');
 
     fireEvent.press(getByTestId('header-back'));

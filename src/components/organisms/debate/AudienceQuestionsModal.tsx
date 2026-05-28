@@ -150,6 +150,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.48)',
   },
   keyboardAvoidingView: {
+    flex: 1,
     justifyContent: 'flex-end',
   },
   sheet: {

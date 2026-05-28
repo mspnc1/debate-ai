@@ -7,7 +7,6 @@ import { RootState, setAIPersonality, setAIModel, isApiKeyConfigured } from '../
 import { Box } from '../components/atoms';
 import { Typography, Button } from '../components/molecules';
 import { Header, HeaderActions, DynamicAISelector } from '../components/organisms';
-import { useGreeting } from '../hooks/useGreeting';
 import { getProviderDefaultModel, resolveProviderModelId } from '@/config/modelConfigs';
 
 import { useTheme } from '../theme';
@@ -38,7 +37,6 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
   const dispatch = useDispatch();
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
   const access = useFeatureAccess();
-  const greeting = useGreeting({ screenCategory: 'compare' });
   const expertMode = useSelector((state: RootState) => state.settings.expertMode || {});
   
   // Calculate half screen width for each selector
@@ -155,13 +153,9 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
     >
       <Header
         variant="gradient"
-        title={greeting.timeBasedGreeting}
-        subtitle={greeting.welcomeMessage}
-        showTime={true}
-        showDate={true}
-        animated={true}
+        slim
+        title="Spot the Difference"
         rightElement={<HeaderActions variant="gradient" helpTopicId="compare-mode" />}
-        showDemoBadge={access.isDemo}
       />
       <TrialBanner />
       {access.isDemo && (

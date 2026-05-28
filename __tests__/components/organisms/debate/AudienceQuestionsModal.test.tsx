@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent } from '@testing-library/react-native';
-import { ScrollView } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet } from 'react-native';
 import { AudienceQuestionsModal } from '@/components/organisms/debate/AudienceQuestionsModal';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 
@@ -50,6 +50,24 @@ describe('AudienceQuestionsModal', () => {
 
     expect(scrollView.props.contentContainerStyle).toContainEqual(
       expect.objectContaining({ paddingBottom: 62 })
+    );
+  });
+
+  it('keeps the keyboard-avoiding container full height so the sheet can lift above the keyboard', () => {
+    const { UNSAFE_getByType } = renderWithProviders(
+      <AudienceQuestionsModal
+        visible
+        onSubmit={jest.fn()}
+      />
+    );
+
+    const keyboardAvoidingView = UNSAFE_getByType(KeyboardAvoidingView);
+
+    expect(StyleSheet.flatten(keyboardAvoidingView.props.style)).toEqual(
+      expect.objectContaining({
+        flex: 1,
+        justifyContent: 'flex-end',
+      })
     );
   });
 });
