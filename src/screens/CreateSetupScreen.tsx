@@ -40,8 +40,7 @@ import {
   SheetHeader,
   InfoButton,
 } from '../components/molecules';
-import { Header, HeaderActions } from '../components/organisms';
-import { AIAvatar } from '../components/organisms/common/AIAvatar';
+import { DynamicAISelector, Header, HeaderActions } from '../components/organisms';
 import { RootState, AppDispatch, isApiKeyConfigured } from '../store';
 import {
   generateCreateImages,
@@ -343,6 +342,10 @@ export default function CreateSetupScreen() {
       });
   }, [apiKeys, verifiedProviders, isDemo, selectedModels]);
 
+  const selectedImageAIs = useMemo(
+    () => configuredImageAIs.filter((ai) => selectedProviders.includes(ai.provider)),
+    [configuredImageAIs, selectedProviders]
+  );
 
   const handleToggleAI = useCallback((ai: AIConfig) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1348,68 +1351,30 @@ export default function CreateSetupScreen() {
     </View>
   );
 
-  // Compact provider chip row — replaces the large card grid on the image tab.
+  // Reuse the same provider card grid as Chat so Create image selection stays visually consistent.
   // Selection only; each model's own settings live in the settings sheet.
-  const renderModelChips = () => {
+  const renderImageProviderGrid = () => {
     const anyRefineDimmed = imageMode === 'refine' && configuredImageAIs.some((ai) => {
       const model = getResolvedImageModel(ai.provider, selectedModels[ai.provider] || ai.model);
       return Boolean(model && !model.supportsImageInput);
     });
+
     return (
-      <View style={styles.section}>
-        <View style={styles.modelChipsHeader}>
-          <Typography variant="caption" weight="semibold" color="secondary" style={styles.outputControlLabel}>
-            Models
-          </Typography>
-          <Typography variant="caption" color="secondary">
-            {`${selectedProviders.length}/3`}
-          </Typography>
-        </View>
-        <View style={styles.modelChipsRow}>
-          {configuredImageAIs.map((ai) => {
-            const isSelected = selectedProviders.includes(ai.provider);
+      <View style={styles.section} testID="create-image-provider-selector">
+        <DynamicAISelector
+          configuredAIs={configuredImageAIs}
+          selectedAIs={selectedImageAIs}
+          maxAIs={3}
+          onToggleAI={handleToggleAI}
+          onAddAI={handleAddAI}
+          hideStartButton
+          hideHeaderTitle
+          hideAddAI={isDemo}
+          getIsDisabled={(ai) => {
             const model = getResolvedImageModel(ai.provider, selectedModels[ai.provider] || ai.model);
-            const refineDisabled = imageMode === 'refine' && Boolean(model && !model.supportsImageInput);
-            const atMax = !isSelected && selectedProviders.length >= 3;
-            const disabled = refineDisabled || atMax;
-            return (
-              <TouchableOpacity
-                key={ai.id}
-                style={[
-                  styles.modelChip,
-                  {
-                    backgroundColor: isSelected ? primaryTintBackground : theme.colors.surface,
-                    borderColor: isSelected ? theme.colors.primary[500] : theme.colors.border,
-                    opacity: disabled ? 0.4 : 1,
-                  },
-                ]}
-                onPress={() => handleToggleAI(ai)}
-                disabled={disabled}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected, disabled }}
-                testID={`create-model-chip-${ai.provider}`}
-              >
-                <AIAvatar icon={ai.icon} iconType={ai.iconType} size="small" color={ai.color} isSelected={isSelected} />
-                <Typography variant="caption" weight="semibold" numberOfLines={1} style={styles.modelChipLabel}>
-                  {ai.name}
-                </Typography>
-                {isSelected && <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary[500]} />}
-              </TouchableOpacity>
-            );
-          })}
-          {!isDemo && (
-            <TouchableOpacity
-              style={[styles.modelChipAdd, { borderColor: theme.colors.border }]}
-              onPress={handleAddAI}
-              accessibilityRole="button"
-              accessibilityLabel="Add AI"
-              testID="create-add-ai"
-            >
-              <Ionicons name="add" size={18} color={theme.colors.text.secondary} />
-              <Typography variant="caption" color="secondary">Add AI</Typography>
-            </TouchableOpacity>
-          )}
-        </View>
+            return imageMode === 'refine' && Boolean(model && !model.supportsImageInput);
+          }}
+        />
         {anyRefineDimmed && (
           <View style={styles.capabilityRow}>
             <Ionicons name="information-circle-outline" size={16} color={theme.colors.text.secondary} />
@@ -1727,7 +1692,7 @@ export default function CreateSetupScreen() {
 
         {showSource && renderImageSourceSection()}
 
-        {renderModelChips()}
+        {renderImageProviderGrid()}
 
         {selectedProviders.length > 0 && (
           <View style={styles.section}>
@@ -2523,40 +2488,6 @@ const styles = StyleSheet.create({
   },
   modeToggleWrap: {
     marginTop: 12,
-  },
-  modelChipsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  modelChipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  modelChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingLeft: 8,
-    paddingRight: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  modelChipLabel: {
-    maxWidth: 120,
-  },
-  modelChipAdd: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderStyle: 'dashed',
   },
   settingsSheetContent: {
     padding: 16,

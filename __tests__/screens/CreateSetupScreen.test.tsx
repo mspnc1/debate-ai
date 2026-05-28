@@ -19,6 +19,24 @@ const mockGenerateCreateImages = jest.fn((payload) => ({
 }));
 let mockGradientButtonProps: any;
 
+type MockSelectorAI = {
+  id: string;
+  provider: string;
+  name: string;
+};
+
+type MockDynamicAISelectorProps = {
+  configuredAIs: MockSelectorAI[];
+  hideAddAI?: boolean;
+  hideStartButton?: boolean;
+  hideHeaderTitle?: boolean;
+  onToggleAI: (ai: MockSelectorAI) => void;
+  onAddAI: () => void;
+  getIsDisabled?: (ai: MockSelectorAI) => boolean;
+};
+
+let mockDynamicAISelectorProps: MockDynamicAISelectorProps | undefined;
+
 jest.mock('react-redux', () => {
   const actual = jest.requireActual('react-redux');
   return {
@@ -88,7 +106,7 @@ jest.mock('react-native-safe-area-context', () => ({
 
 jest.mock('@/components/organisms', () => {
   const React = require('react');
-  const { Text, View } = require('react-native');
+  const { Text, TouchableOpacity, View } = require('react-native');
   return {
     Header: (props: any) =>
       React.createElement(
@@ -98,6 +116,32 @@ jest.mock('@/components/organisms', () => {
         props.rightElement
       ),
     HeaderActions: () => null,
+    DynamicAISelector: (props: MockDynamicAISelectorProps) => {
+      mockDynamicAISelectorProps = props;
+      return React.createElement(
+        View,
+        { testID: 'dynamic-ai-selector' },
+        props.configuredAIs.map((ai) =>
+          React.createElement(
+            TouchableOpacity,
+            {
+              key: ai.id,
+              testID: `create-model-card-${ai.provider}`,
+              disabled: props.getIsDisabled?.(ai),
+              onPress: () => props.onToggleAI(ai),
+            },
+            React.createElement(Text, null, ai.name)
+          )
+        ),
+        !props.hideAddAI
+          ? React.createElement(
+              TouchableOpacity,
+              { testID: 'create-add-ai', onPress: props.onAddAI },
+              React.createElement(Text, null, '+ Add AI')
+            )
+          : null
+      );
+    },
     ImageRefinementModal: () => null,
   };
 });
@@ -366,6 +410,7 @@ describe('CreateSetupScreen', () => {
     mockDispatch.mockClear();
     mockNavigate.mockClear();
     mockGradientButtonProps = undefined;
+    mockDynamicAISelectorProps = undefined;
     mockPromptHeroInputProps = undefined;
     mockGenerateCreateImages.mockClear();
     mockDispatch.mockImplementation((action) => action);
@@ -412,9 +457,14 @@ describe('CreateSetupScreen', () => {
       expect(getByTestId('header')).toBeTruthy();
     });
 
-    it('renders the model chip row', () => {
+    it('renders the shared provider selector grid', () => {
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
-      expect(getByTestId('create-model-chip-openai')).toBeTruthy();
+      expect(getByTestId('dynamic-ai-selector')).toBeTruthy();
+      expect(getByTestId('create-model-card-openai')).toBeTruthy();
+      expect(mockDynamicAISelectorProps).toEqual(expect.objectContaining({
+        hideStartButton: true,
+        hideHeaderTitle: true,
+      }));
     });
 
     it('renders generate button', () => {
@@ -427,12 +477,12 @@ describe('CreateSetupScreen', () => {
       expect(getByTestId('create-prompt-input')).toBeTruthy();
     });
 
-    it('renders a prompt-first layout (prompt, mode toggle, chips) without inline output sections', () => {
+    it('renders a prompt-first layout (prompt, mode toggle, provider grid) without inline output sections', () => {
       const { getByTestId, queryByTestId } = renderWithProviders(<CreateSetupScreen />);
 
       expect(getByTestId('create-prompt-input')).toBeTruthy();
       expect(getByTestId('segment-refine')).toBeTruthy();
-      expect(getByTestId('create-model-chip-openai')).toBeTruthy();
+      expect(getByTestId('create-model-card-openai')).toBeTruthy();
       // Output controls live in the settings sheet, not inline.
       expect(queryByTestId('create-image-count-slider')).toBeNull();
       expect(queryByTestId('create-advanced-options')).toBeNull();
@@ -450,27 +500,27 @@ describe('CreateSetupScreen', () => {
     it('allows trial users to access (trial = premium access)', () => {
       mockUseFeatureAccess.mockReturnValue({ membershipStatus: 'trial', isDemo: false, isPremium: true });
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
-      expect(getByTestId('create-model-chip-openai')).toBeTruthy();
+      expect(getByTestId('create-model-card-openai')).toBeTruthy();
     });
 
     it('allows premium users to access', () => {
       mockUseFeatureAccess.mockReturnValue({ membershipStatus: 'premium', isDemo: false, isPremium: true });
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
-      expect(getByTestId('create-model-chip-openai')).toBeTruthy();
+      expect(getByTestId('create-model-card-openai')).toBeTruthy();
     });
   });
 
   describe('AI provider selection', () => {
-    it('renders a chip for each configured provider', () => {
+    it('renders a card for each configured provider', () => {
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
-      expect(getByTestId('create-model-chip-openai')).toBeTruthy();
-      expect(getByTestId('create-model-chip-google')).toBeTruthy();
-      expect(getByTestId('create-model-chip-grok')).toBeTruthy();
+      expect(getByTestId('create-model-card-openai')).toBeTruthy();
+      expect(getByTestId('create-model-card-google')).toBeTruthy();
+      expect(getByTestId('create-model-card-grok')).toBeTruthy();
     });
 
-    it('toggles provider selection when a chip is pressed', () => {
+    it('toggles provider selection when a card is pressed', () => {
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
-      fireEvent.press(getByTestId('create-model-chip-openai'));
+      fireEvent.press(getByTestId('create-model-card-openai'));
       expect(mockDispatch).toHaveBeenCalledWith({
         type: 'create/setSelectedProviders',
         payload: ['openai'],
