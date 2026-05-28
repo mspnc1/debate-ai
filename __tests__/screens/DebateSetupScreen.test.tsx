@@ -359,27 +359,35 @@ describe('DebateSetupScreen', () => {
     expect(testIds.indexOf('header')).toBeLessThan(testIds.indexOf('trial-banner'));
   });
 
-  it('shows Oxford preset labels and audience checkpoint labels', () => {
+  it('shows Oxford preset labels and audience role flow', () => {
     const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
 
     expect(renderResult.getByText('1v1')).toBeTruthy();
     expect(renderResult.getByText('2v2')).toBeTruthy();
     expect(renderResult.getByText('2v2 + Q&A')).toBeTruthy();
-    expect(renderResult.getByText('6 speeches · opening + final audience vote · 1v1 · audience vote')).toBeTruthy();
-    expect(renderResult.getByText('Audience checkpoints')).toBeTruthy();
+    expect(renderResult.getByText('Selected preset')).toBeTruthy();
+    expect(renderResult.getByText('1v1 Oxford')).toBeTruthy();
+    expect(renderResult.getByText('6 speeches')).toBeTruthy();
+    expect(renderResult.getByText('2 debaters')).toBeTruthy();
+    expect(renderResult.getByText('Audience votes')).toBeTruthy();
+    expect(renderResult.getByText('Your role')).toBeTruthy();
     expect(renderResult.getByText('Opening stance')).toBeTruthy();
+    expect(renderResult.getByText('Speeches')).toBeTruthy();
     expect(renderResult.getByText('Final vote')).toBeTruthy();
 
     fireEvent.press(renderResult.getByText('2v2'));
 
-    expect(renderResult.getByText('6 speeches · opening + final audience vote · 2v2 teams · audience vote')).toBeTruthy();
+    expect(renderResult.getByText('2v2 Oxford')).toBeTruthy();
+    expect(renderResult.getByText('4 debaters')).toBeTruthy();
     expect(renderResult.queryByText('3 rebuttal rounds')).toBeNull();
     expect(renderResult.queryByText('First Rebuttals')).toBeNull();
 
     fireEvent.press(renderResult.getByText('2v2 + Q&A'));
 
-    expect(renderResult.getByText('8 turns · opening + audience questions + final vote · 2v2 teams')).toBeTruthy();
-    expect(renderResult.getByText('Audience questions')).toBeTruthy();
+    expect(renderResult.getByText('2v2 + Q&A Oxford')).toBeTruthy();
+    expect(renderResult.getByText('8 turns')).toBeTruthy();
+    expect(renderResult.getByText('Vote before the debate, ask one question per side, then cast the final ballot.')).toBeTruthy();
+    expect(renderResult.getByText('Audience Q&A')).toBeTruthy();
     expect(renderResult.queryByText('4 rebuttal rounds')).toBeNull();
     expect(renderResult.queryByText('Final Rebuttals')).toBeNull();
     expect(renderResult.queryByText('Choose format and preset')).toBeNull();
@@ -929,13 +937,15 @@ describe('DebateSetupScreen', () => {
     fireEvent.press(renderResult.getByText('2v2'));
     await flush();
 
-    expect(renderResult.getByText('6 speeches · opening + final audience vote · 2v2 teams · audience vote')).toBeTruthy();
+    expect(renderResult.getByText('2v2 Oxford')).toBeTruthy();
+    expect(renderResult.getByText('4 debaters')).toBeTruthy();
 
     fireEvent.press(renderResult.getByText('2v2 + Q&A'));
     await flush();
 
-    expect(renderResult.getByText('8 turns · opening + audience questions + final vote · 2v2 teams')).toBeTruthy();
-    expect(renderResult.getByText('Audience questions')).toBeTruthy();
+    expect(renderResult.getByText('2v2 + Q&A Oxford')).toBeTruthy();
+    expect(renderResult.getByText('8 turns')).toBeTruthy();
+    expect(renderResult.getByText('Audience Q&A')).toBeTruthy();
   });
 
   it('preserves topic on unmount and clears when starting debate', async () => {

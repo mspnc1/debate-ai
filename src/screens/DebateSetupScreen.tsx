@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, setAIPersonality, setAIModel, preserveTopic, clearPreservedTopic, setGlobalStreaming, setStreamingSpeed, isApiKeyConfigured } from '../store';
 import { setProviderStreamingPreference } from '../store/streamingSlice';
@@ -63,29 +64,41 @@ const PRESET_BUTTON_LABELS: Record<string, string> = {
   long: 'Extended',
 };
 
-const getPresetVoteLabels = (preset: PresetConfig): string[] => (
-  preset.voteModel === 'audience_stance'
-    ? [
-      'Opening stance',
-      ...(preset.audienceQuestionCheckpoint ? ['Audience questions'] : []),
-      'Final vote',
-    ]
-    : preset.messages
-      .filter((message) => message.voteAfter)
-      .map((message) => message.votingLabel || message.label)
-);
-
-const getOxfordPresetSummary = (preset: PresetConfig): string => {
-  const unit = preset.audienceQuestionCheckpoint ? 'turns' : 'speeches';
-  const middle = preset.audienceQuestionCheckpoint
-    ? 'opening + audience questions + final vote'
-    : 'opening + final audience vote';
-
-  return `${preset.messages.length} ${unit} · ${middle} · ${preset.description}`;
+type PresetFlowStep = {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
 };
 
-const getCheckpointPresetSummary = (preset: PresetConfig): string =>
-  `${preset.messages.length} turns · ${preset.voteCount} judge checkpoints · ${preset.description}`;
+const getPresetFlowSteps = (preset: PresetConfig): PresetFlowStep[] => {
+  if (preset.voteModel === 'audience_stance') {
+    return [
+      { label: 'Opening stance', icon: 'person-circle-outline' },
+      {
+        label: preset.audienceQuestionCheckpoint ? 'Audience Q&A' : 'Speeches',
+        icon: preset.audienceQuestionCheckpoint ? 'chatbubbles-outline' : 'mic-outline',
+      },
+      { label: 'Final vote', icon: 'flag-outline' },
+    ];
+  }
+
+  return preset.messages
+    .filter((message) => message.voteAfter)
+    .map((message): PresetFlowStep => ({
+      label: message.votingLabel || message.label,
+      icon: 'checkmark-circle-outline',
+    }));
+};
+
+const getPresetParticipationSummary = (preset: PresetConfig): string => {
+  if (preset.voteModel === 'audience_stance') {
+    return preset.audienceQuestionCheckpoint
+      ? 'Vote before the debate, ask one question per side, then cast the final ballot.'
+      : 'Choose an opening stance, hear the speeches, then cast the final ballot.';
+  }
+
+  const checkpointText = preset.voteCount === 1 ? 'checkpoint' : 'checkpoints';
+  return `Judge ${preset.voteCount} ${checkpointText} as the round develops.`;
+};
 
 const DEBATE_SLOT_ID_MARKER = '-debater-slot-';
 
@@ -260,12 +273,18 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   })), [formatId]);
   const selectedPreset = getPresetForFormat(formatId, getPresetIdForRounds(exchanges));
   const requiredDebaterCount = getRequiredDebaterCountForPreset(selectedPreset);
-  const presetSummary = useMemo(() => (
-    selectedPreset.voteModel === 'audience_stance'
-      ? getOxfordPresetSummary(selectedPreset)
-      : getCheckpointPresetSummary(selectedPreset)
-  ), [selectedPreset]);
-  const presetVoteLabels = useMemo(() => getPresetVoteLabels(selectedPreset), [selectedPreset]);
+  const presetFlowSteps = useMemo(() => getPresetFlowSteps(selectedPreset), [selectedPreset]);
+  const presetParticipationSummary = useMemo(() => getPresetParticipationSummary(selectedPreset), [selectedPreset]);
+  const presetFlowLabel = selectedPreset.voteModel === 'audience_stance' ? 'Your role' : 'Voting moments';
+  const presetUnitLabel = selectedPreset.voteModel === 'audience_stance' && !selectedPreset.audienceQuestionCheckpoint
+    ? 'speeches'
+    : 'turns';
+  const presetVoteLabel = selectedPreset.voteModel === 'audience_stance'
+    ? 'Audience votes'
+    : `${selectedPreset.voteCount} judge ${selectedPreset.voteCount === 1 ? 'checkpoint' : 'checkpoints'}`;
+  const selectedPresetTitle = formatId === 'oxford'
+    ? `${selectedPreset.label} Oxford`
+    : selectedPreset.label;
   
   const maxAIs = requiredDebaterCount;
   const selectedAIs = useMemo(
@@ -1017,34 +1036,137 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
                     />
                   ))}
                 </Box>
-                <Typography variant="caption" color="secondary" style={{ marginTop: 6 }}>
-                  {presetSummary}
-                </Typography>
-                <Box style={{ marginTop: 8 }}>
-                  <Typography variant="caption" color="secondary" style={{ marginBottom: 6 }}>
-                    {selectedPreset.voteModel === 'audience_stance' ? 'Audience checkpoints' : 'Judge checkpoints'}
+                <Box
+                  style={{
+                    marginTop: theme.spacing.sm,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    borderRadius: theme.borderRadius.md,
+                    backgroundColor: theme.colors.overlays.soft,
+                    padding: theme.spacing.sm,
+                    gap: theme.spacing.sm,
+                  }}
+                >
+                  <Box style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: theme.spacing.sm }}>
+                    <Box style={{ flex: 1 }}>
+                      <Typography
+                        variant="caption"
+                        color="secondary"
+                        weight="semibold"
+                        style={{ textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2 }}
+                      >
+                        Selected preset
+                      </Typography>
+                      <Typography variant="body" weight="semibold" numberOfLines={1}>
+                        {selectedPresetTitle}
+                      </Typography>
+                    </Box>
+                    <Box
+                      style={{
+                        borderWidth: 1,
+                        borderColor: theme.colors.primary[400],
+                        borderRadius: theme.borderRadius.full,
+                        backgroundColor: theme.colors.semantic.primary,
+                        paddingHorizontal: 10,
+                        paddingVertical: 5,
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        weight="semibold"
+                        numberOfLines={1}
+                        style={{ color: theme.colors.primary[400] }}
+                      >
+                        {selectedPreset.messages.length} {presetUnitLabel}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Box style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    <Box
+                      style={{
+                        borderRadius: theme.borderRadius.full,
+                        backgroundColor: theme.colors.surface,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        paddingHorizontal: 9,
+                        paddingVertical: 4,
+                      }}
+                    >
+                      <Typography variant="caption" color="secondary" numberOfLines={1}>
+                        {requiredDebaterCount} debaters
+                      </Typography>
+                    </Box>
+                    <Box
+                      style={{
+                        borderRadius: theme.borderRadius.full,
+                        backgroundColor: theme.colors.surface,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        paddingHorizontal: 9,
+                        paddingVertical: 4,
+                      }}
+                    >
+                      <Typography variant="caption" color="secondary" numberOfLines={1}>
+                        {presetVoteLabel}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Typography variant="caption" color="secondary">
+                    {presetParticipationSummary}
                   </Typography>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <Box style={{ flexDirection: 'row', gap: 6, paddingRight: theme.spacing.sm }}>
-                      {presetVoteLabels.map((label, index) => (
-                        <Box
-                          key={`${label}-${index}`}
-                          style={{
-                            borderWidth: 1,
-                            borderColor: theme.colors.border,
-                            borderRadius: 999,
-                            paddingHorizontal: 10,
-                            paddingVertical: 5,
-                            backgroundColor: theme.colors.surface,
-                          }}
-                        >
-                          <Typography variant="caption" color="secondary">
-                            {label}
-                          </Typography>
-                        </Box>
+
+                  <Box style={{ borderTopWidth: 1, borderTopColor: theme.colors.border, paddingTop: theme.spacing.sm }}>
+                    <Typography
+                      variant="caption"
+                      color="secondary"
+                      weight="semibold"
+                      style={{ textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}
+                    >
+                      {presetFlowLabel}
+                    </Typography>
+                    <Box style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+                      {presetFlowSteps.map((step, index) => (
+                        <React.Fragment key={`${step.label}-${index}`}>
+                          <Box
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 6,
+                              minHeight: 34,
+                              borderWidth: 1,
+                              borderColor: theme.colors.border,
+                              borderRadius: theme.borderRadius.sm,
+                              backgroundColor: theme.colors.surface,
+                              paddingHorizontal: 8,
+                              paddingVertical: 6,
+                              maxWidth: 160,
+                            }}
+                          >
+                            <Box
+                              style={{
+                                width: 22,
+                                height: 22,
+                                borderRadius: theme.borderRadius.full,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backgroundColor: theme.colors.semantic.info,
+                              }}
+                            >
+                              <Ionicons name={step.icon} size={14} color={theme.colors.primary[400]} />
+                            </Box>
+                            <Typography variant="caption" weight="semibold" numberOfLines={1} style={{ flexShrink: 1 }}>
+                              {step.label}
+                            </Typography>
+                          </Box>
+                          {index < presetFlowSteps.length - 1 && (
+                            <Ionicons name="chevron-forward" size={14} color={theme.colors.text.secondary} />
+                          )}
+                        </React.Fragment>
                       ))}
                     </Box>
-                  </ScrollView>
+                  </Box>
                 </Box>
               </Box>
             </Card>
