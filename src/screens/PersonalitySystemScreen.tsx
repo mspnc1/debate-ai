@@ -171,8 +171,8 @@ export default function PersonalitySystemScreen() {
       {/* Header */}
       <Header
         variant="gradient"
-        title="Personality System"
-        subtitle="Customize AI Personalities"
+        title="AI Personalities"
+        subtitle="Customize voice and style"
         showBackButton={true}
         onBack={() => navigation.goBack()}
         animated={true}

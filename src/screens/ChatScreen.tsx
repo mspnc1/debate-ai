@@ -498,7 +498,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         {/* Header */}
         <Header
           variant="gradient"
-          title="AI Conversation"
+          title="Conversation"
           subtitle={(() => {
             const aiNames = session.selectedAIs.map(ai => ai.name);
             const count = aiNames.length;

@@ -82,7 +82,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       <Header
         variant="gradient"
         slim
-        title="Chat"
+        title="Ask the Room"
         rightElement={<HeaderActions variant="gradient" helpCategoryId="chat" />}
       />
 
@@ -116,6 +116,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               onStartChat={handleStartChat}
               onAddAI={handleAddAI}
               hideAddAI={isDemo}
+              hideHeaderTitle
               aiPersonalities={aiSelection.aiPersonalities}
               selectedModels={aiSelection.selectedModels}
               onPersonalityChange={aiSelection.changePersonality}

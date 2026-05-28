@@ -377,7 +377,7 @@ describe('HistoryScreen', () => {
   it('shows loading skeleton when history is loading', () => {
     renderHistoryScreen({ history: { isLoading: true } });
 
-    expect(mockHeaderProps.title).toBe('History');
+    expect(mockHeaderProps.title).toBe('The Archives');
     expect(mockHistoryListProps).toBeUndefined();
   });
 

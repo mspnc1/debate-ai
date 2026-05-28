@@ -37,8 +37,8 @@ const ExpertModeScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ na
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right', 'bottom']}>
         <Header
           variant="gradient"
-          title="Expert Mode"
-          subtitle="Set Defaults & Parameters"
+          title="Model Defaults"
+          subtitle="Advanced parameters"
           onBack={() => {
             navigation.goBack();
             dispatch(showSheet({ sheet: 'settings' }));

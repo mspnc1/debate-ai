@@ -207,7 +207,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
             <Header
               variant="gradient"
               slim
-              title="History"
+              title="The Archives"
               rightElement={<HeaderActions variant="gradient" helpTopicId="history" />}
             />
 
@@ -399,7 +399,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
           <Header
             variant="gradient"
             slim
-            title="History"
+            title="The Archives"
             rightElement={<HeaderActions variant="gradient" helpTopicId="history" />}
           />
 

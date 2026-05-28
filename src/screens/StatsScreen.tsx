@@ -41,7 +41,7 @@ const StatsScreen: React.FC<StatsScreenProps> = ({ navigation }) => {
       {/* Header with back button */}
       <Header
         variant="gradient"
-        title="AI Performance Stats"
+        title="Performance Stats"
         showBackButton={true}
         onBack={() => navigation.goBack()}
       />

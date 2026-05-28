@@ -1009,7 +1009,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
       >
         <Header
           variant="gradient"
-          title="Comparing"
+          title="Comparison"
           subtitle={`${leftAI.name} vs ${rightAI.name}`}
           showTime={false}
           showDate={false}
