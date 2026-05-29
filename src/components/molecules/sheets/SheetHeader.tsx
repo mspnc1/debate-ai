@@ -7,7 +7,7 @@ import { useTheme } from '@/theme';
 
 interface SheetHeaderProps {
   title: string;
-  onClose: () => void;
+  onClose?: () => void;
   showHandle?: boolean;
   testID?: string;
 }
@@ -50,16 +50,18 @@ export const SheetHeader: React.FC<SheetHeaderProps> = ({
           {title}
         </Typography>
         
-        <TouchableOpacity
-          onPress={onClose}
-          style={styles.closeButton}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          testID={testID ? `${testID}-close` : undefined}
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-        >
-          <Ionicons name="close" size={28} color="white" />
-        </TouchableOpacity>
+        {onClose && (
+          <TouchableOpacity
+            onPress={onClose}
+            style={styles.closeButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            testID={testID ? `${testID}-close` : undefined}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
+            <Ionicons name="close" size={28} color="white" />
+          </TouchableOpacity>
+        )}
       </View>
     </LinearGradient>
   );

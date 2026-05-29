@@ -37,4 +37,12 @@ describe('SheetHeader', () => {
     fireEvent.press(getByTestId('sheet-header-close'));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('omits close button when no close handler is supplied', () => {
+    const { queryByTestId } = renderWithProviders(
+      <SheetHeader title="Blocking Sheet" testID="sheet-header" />
+    );
+
+    expect(queryByTestId('sheet-header-close')).toBeNull();
+  });
 });

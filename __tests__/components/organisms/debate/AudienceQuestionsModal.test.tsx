@@ -8,6 +8,24 @@ jest.mock('@expo/vector-icons', () => ({
   Ionicons: () => null,
 }));
 
+jest.mock('expo-blur', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    BlurView: ({ children, ...props }: { children: React.ReactNode }) =>
+      React.createElement(View, props, children),
+  };
+});
+
+jest.mock('expo-linear-gradient', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    LinearGradient: ({ children, ...props }: { children: React.ReactNode }) =>
+      React.createElement(View, props, children),
+  };
+});
+
 let mockSafeAreaInsets = { top: 0, bottom: 34, left: 0, right: 0 };
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -51,7 +69,7 @@ describe('AudienceQuestionsModal', () => {
   });
 
   it('pads the submit action above the bottom system inset', () => {
-    const { UNSAFE_getAllByType, UNSAFE_getByType } = renderWithProviders(
+    const { getByTestId, UNSAFE_getByType } = renderWithProviders(
       <AudienceQuestionsModal
         visible
         onSubmit={jest.fn()}
@@ -59,17 +77,26 @@ describe('AudienceQuestionsModal', () => {
     );
 
     const scrollView = UNSAFE_getByType(ScrollView);
-    const sheet = UNSAFE_getAllByType(View).find((view) => {
-      const style = StyleSheet.flatten(view.props.style);
-      return style?.borderTopLeftRadius === 24;
-    });
+    const footer = getByTestId('audience-questions-footer');
 
-    expect(StyleSheet.flatten(sheet?.props.style)).toEqual(
-      expect.objectContaining({ paddingBottom: 34 })
+    expect(StyleSheet.flatten(footer.props.style)).toEqual(
+      expect.objectContaining({ paddingBottom: 50 })
     );
     expect(StyleSheet.flatten(scrollView.props.contentContainerStyle)).toEqual(
-      expect.objectContaining({ paddingBottom: 28 })
+      expect.objectContaining({ paddingBottom: 4 })
     );
+  });
+
+  it('uses the shared sheet header shell without exposing a fake close action', () => {
+    const { getByTestId, queryByTestId } = renderWithProviders(
+      <AudienceQuestionsModal
+        visible
+        onSubmit={jest.fn()}
+      />
+    );
+
+    expect(getByTestId('audience-questions-header')).toBeTruthy();
+    expect(queryByTestId('audience-questions-header-close')).toBeNull();
   });
 
   it('keeps the standard full-height bottom sheet position for keyboard resizing', () => {
@@ -136,20 +163,17 @@ describe('AudienceQuestionsModal', () => {
     Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
     mockSafeAreaInsets = { top: 0, bottom: 0, left: 0, right: 0 };
 
-    const { UNSAFE_getAllByType } = renderWithProviders(
+    const { getByTestId } = renderWithProviders(
       <AudienceQuestionsModal
         visible
         onSubmit={jest.fn()}
       />
     );
 
-    const sheet = UNSAFE_getAllByType(View).find((view) => {
-      const style = StyleSheet.flatten(view.props.style);
-      return style?.borderTopLeftRadius === 24;
-    });
+    const footer = getByTestId('audience-questions-footer');
 
-    expect(StyleSheet.flatten(sheet?.props.style)).toEqual(
-      expect.objectContaining({ paddingBottom: 24 })
+    expect(StyleSheet.flatten(footer.props.style)).toEqual(
+      expect.objectContaining({ paddingBottom: 40 })
     );
   });
 

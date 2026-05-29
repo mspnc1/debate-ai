@@ -8,10 +8,13 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Typography } from '@/components/molecules';
+import { Button, SheetHeader, Typography } from '@/components/molecules';
 import { useTheme } from '@/theme';
 import type { OxfordAudienceQuestions } from '@/config/debate/formats';
+
+const FOOTER_PADDING = 16;
 
 export interface AudienceQuestionsModalProps {
   visible: boolean;
@@ -69,7 +72,7 @@ export const AudienceQuestionsModal: React.FC<AudienceQuestionsModalProps> = ({
       navigationBarTranslucent={false}
       onRequestClose={() => undefined}
     >
-      <View style={styles.backdrop}>
+      <BlurView intensity={20} style={styles.backdrop}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.sheetPosition}
@@ -80,23 +83,18 @@ export const AudienceQuestionsModal: React.FC<AudienceQuestionsModalProps> = ({
               styles.sheet,
               {
                 backgroundColor: theme.colors.background,
-                paddingBottom: bottomSystemInset,
               },
             ]}
           >
-            <View style={styles.handleRow}>
-              <View style={[styles.handle, { backgroundColor: theme.colors.border }]} />
-            </View>
+            <SheetHeader title={title} showHandle testID="audience-questions-header" />
 
             <ScrollView
+              style={styles.scroll}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.content}
             >
-              <Typography variant="heading" weight="bold" align="center" style={styles.title}>
-                {title}
-              </Typography>
               <Typography variant="body" color="secondary" align="center" style={styles.message}>
                 {message}
               </Typography>
@@ -138,7 +136,19 @@ export const AudienceQuestionsModal: React.FC<AudienceQuestionsModalProps> = ({
                   accessibilityLabel={`Question for ${negativeLabel}`}
                 />
               </View>
+            </ScrollView>
 
+            <View
+              testID="audience-questions-footer"
+              style={[
+                styles.footer,
+                {
+                  borderTopColor: theme.colors.border,
+                  backgroundColor: theme.colors.background,
+                  paddingBottom: FOOTER_PADDING + bottomSystemInset,
+                },
+              ]}
+            >
               <Button
                 title="Submit Questions"
                 onPress={() => onSubmit(trimmedQuestions)}
@@ -146,10 +156,10 @@ export const AudienceQuestionsModal: React.FC<AudienceQuestionsModalProps> = ({
                 fullWidth
                 accessibilityHint="Submits both audience questions and continues the debate."
               />
-            </ScrollView>
+            </View>
           </View>
         </KeyboardAvoidingView>
-      </View>
+      </BlurView>
     </Modal>
   );
 };
@@ -157,7 +167,6 @@ export const AudienceQuestionsModal: React.FC<AudienceQuestionsModalProps> = ({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.48)',
   },
   sheetPosition: {
     flex: 1,
@@ -168,24 +177,25 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -3 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 10,
+      },
+    }),
   },
-  handleRow: {
-    alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 4,
-  },
-  handle: {
-    width: 42,
-    height: 4,
-    borderRadius: 2,
+  scroll: {
+    flexShrink: 1,
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 28,
-  },
-  title: {
-    marginBottom: 8,
+    paddingTop: 20,
+    paddingBottom: 4,
   },
   message: {
     marginBottom: 20,
@@ -204,5 +214,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 15,
     lineHeight: 21,
+  },
+  footer: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 20,
+    paddingTop: FOOTER_PADDING,
   },
 });
