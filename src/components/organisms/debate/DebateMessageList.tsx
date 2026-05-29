@@ -187,7 +187,7 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
   const alignmentMapRef = useRef<Record<string, 'left' | 'right'>>({});
   const lastAssignedSideRef = useRef<'left' | 'right'>('right');
   const isAtBottomRef = useRef(true);
-  const autoFollowRef = useRef(true);
+  const userPinnedAwayRef = useRef(false);
   const userScrollInProgressRef = useRef(false);
   const scrollFrameRef = useRef<number | null>(null);
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
@@ -212,10 +212,10 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
 
   // Handle content size changes while respecting user scroll position.
   const handleContentSizeChange = useCallback(() => {
-    if (autoFollowRef.current) {
-      scrollToEnd(true);
-    } else {
+    if (userPinnedAwayRef.current) {
       setShowScrollIndicator(true);
+    } else {
+      scrollToEnd(true);
     }
   }, [scrollToEnd]);
 
@@ -226,15 +226,17 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
     if (listEmpty) {
       alignmentMapRef.current = {};
       lastAssignedSideRef.current = 'right';
+      userPinnedAwayRef.current = false;
+      setShowScrollIndicator(false);
     }
   }, [listEmpty]);
 
   const handleContentUpdate = useCallback(() => {
     if (listEmpty) return;
-    if (autoFollowRef.current) {
-      scrollToEnd();
-    } else {
+    if (userPinnedAwayRef.current) {
       setShowScrollIndicator(true);
+    } else {
+      scrollToEnd();
     }
   }, [listEmpty, scrollToEnd]);
 
@@ -253,10 +255,10 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
 
   useEffect(() => {
     if (typingAIs.length === 0) return;
-    if (autoFollowRef.current) {
-      scrollToEnd();
-    } else {
+    if (userPinnedAwayRef.current) {
       setShowScrollIndicator(true);
+    } else {
+      scrollToEnd();
     }
   }, [typingAIs, scrollToEnd]);
 
@@ -269,11 +271,13 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
     const key = `${lastMessage.id ?? 'unknown'}:${lastMessage.timestamp ?? ''}:${lastMessage.content?.length ?? 0}`;
     if (key !== lastMessageKeyRef.current) {
       lastMessageKeyRef.current = key;
-      if (!autoFollowRef.current) {
+      if (userPinnedAwayRef.current) {
         setShowScrollIndicator(true);
+      } else {
+        scrollToEnd();
       }
     }
-  }, [messages, listEmpty]);
+  }, [messages, listEmpty, scrollToEnd]);
 
   const getAlignment = useCallback((message: Message): 'left' | 'right' | 'center' => {
     if (message.sender === 'Debate Host' || message.sender === 'System') {
@@ -339,8 +343,11 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
   }, []);
 
   const handleScrollEndDrag = useCallback(() => {
+    if (userScrollInProgressRef.current && !isAtBottomRef.current) {
+      userPinnedAwayRef.current = true;
+      setShowScrollIndicator(true);
+    }
     userScrollInProgressRef.current = false;
-    autoFollowRef.current = isAtBottomRef.current;
   }, []);
 
   const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -349,24 +356,26 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
     const atBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - paddingToBottom;
     isAtBottomRef.current = atBottom;
     if (atBottom) {
-      autoFollowRef.current = true;
+      userPinnedAwayRef.current = false;
       setShowScrollIndicator(false);
     } else if (userScrollInProgressRef.current) {
-      autoFollowRef.current = false;
+      userPinnedAwayRef.current = true;
       setShowScrollIndicator(true);
     }
   }, []);
 
   const handleScrollToLatest = useCallback(() => {
     isAtBottomRef.current = true;
-    autoFollowRef.current = true;
+    userPinnedAwayRef.current = false;
     setShowScrollIndicator(false);
     scrollToEnd();
   }, [scrollToEnd]);
 
   useEffect(() => {
     if (listEmpty) return;
-    if (autoFollowRef.current) {
+    if (userPinnedAwayRef.current) {
+      setShowScrollIndicator(true);
+    } else {
       scrollToEnd();
     }
   }, [bottomInset, listEmpty, scrollToEnd]);

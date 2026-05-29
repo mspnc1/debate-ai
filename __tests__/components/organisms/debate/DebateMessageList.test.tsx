@@ -54,6 +54,12 @@ jest.mock('@/components/organisms/debate/SystemAnnouncement', () => ({
   },
 }));
 
+const flushScheduledScroll = () => {
+  act(() => {
+    jest.runOnlyPendingTimers();
+  });
+};
+
 describe('DebateMessageList', () => {
   const mockMessages: Message[] = [
     { id: '1', sender: 'Claude', content: 'Opening argument', timestamp: new Date() },
@@ -210,6 +216,19 @@ describe('DebateMessageList', () => {
   });
 
   describe('Scroll Behavior', () => {
+    const getFlatList = (UNSAFE_getByType: (type: unknown) => { props: Record<string, unknown> }) => {
+      const FlatList = require('react-native').FlatList;
+      return {
+        FlatList,
+        flatList: UNSAFE_getByType(FlatList),
+      };
+    };
+
+    const createScrollToEndSpy = () => {
+      const FlatList = require('react-native').FlatList;
+      return jest.spyOn(FlatList.prototype, 'scrollToEnd').mockImplementation(jest.fn());
+    };
+
     it('has onContentSizeChange handler for auto-scroll during streaming', () => {
       const { UNSAFE_getByType } = renderWithProviders(
         <DebateMessageList {...defaultProps} />
@@ -224,6 +243,157 @@ describe('DebateMessageList', () => {
       expect(flatList.props.onScrollBeginDrag).toBeDefined();
       expect(flatList.props.onScrollEndDrag).toBeDefined();
       expect(flatList.props.onMomentumScrollEnd).toBeDefined();
+    });
+
+    it('scrolls to the end when content grows while following the debate', () => {
+      const scrollToEndSpy = createScrollToEndSpy();
+      const { UNSAFE_getByType } = renderWithProviders(
+        <DebateMessageList {...defaultProps} />
+      );
+      const { flatList } = getFlatList(UNSAFE_getByType);
+
+      flushScheduledScroll();
+      scrollToEndSpy.mockClear();
+
+      act(() => {
+        (flatList.props.onContentSizeChange as () => void)();
+      });
+      flushScheduledScroll();
+
+      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: true });
+      scrollToEndSpy.mockRestore();
+    });
+
+    it('scrolls when the latest streamed message updates while following the debate', () => {
+      const scrollToEndSpy = createScrollToEndSpy();
+      const streamingMessages: Message[] = [
+        { id: 'streaming-1', sender: 'Claude', content: 'Opening', timestamp: Date.now() },
+      ];
+      const { rerender } = renderWithProviders(
+        <DebateMessageList {...defaultProps} messages={streamingMessages} />
+      );
+
+      flushScheduledScroll();
+      scrollToEndSpy.mockClear();
+
+      rerender(
+        <DebateMessageList
+          {...defaultProps}
+          messages={[
+            {
+              ...streamingMessages[0],
+              content: 'Opening argument with streamed content',
+            },
+          ]}
+        />
+      );
+      flushScheduledScroll();
+
+      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: true });
+      scrollToEndSpy.mockRestore();
+    });
+
+    it('keeps auto-follow enabled after non-user scroll and momentum events', () => {
+      const scrollToEndSpy = createScrollToEndSpy();
+      const { UNSAFE_getByType, queryByText } = renderWithProviders(
+        <DebateMessageList {...defaultProps} />
+      );
+      const { flatList } = getFlatList(UNSAFE_getByType);
+
+      flushScheduledScroll();
+      scrollToEndSpy.mockClear();
+
+      fireEvent.scroll(flatList, {
+        nativeEvent: {
+          contentOffset: { y: 0 },
+          contentSize: { height: 1000 },
+          layoutMeasurement: { height: 500 },
+        },
+      });
+      act(() => {
+        (flatList.props.onMomentumScrollEnd as () => void)();
+        (flatList.props.onContentSizeChange as () => void)();
+      });
+      flushScheduledScroll();
+
+      expect(queryByText(/New debate responses/i)).toBeNull();
+      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: true });
+      scrollToEndSpy.mockRestore();
+    });
+
+    it('shows the latest-responses button instead of auto-scrolling after user drags away', () => {
+      const scrollToEndSpy = createScrollToEndSpy();
+      const { UNSAFE_getByType, getByText } = renderWithProviders(
+        <DebateMessageList {...defaultProps} />
+      );
+      const { flatList } = getFlatList(UNSAFE_getByType);
+
+      flushScheduledScroll();
+      scrollToEndSpy.mockClear();
+
+      act(() => {
+        (flatList.props.onScrollBeginDrag as () => void)();
+      });
+      fireEvent.scroll(flatList, {
+        nativeEvent: {
+          contentOffset: { y: 0 },
+          contentSize: { height: 1000 },
+          layoutMeasurement: { height: 500 },
+        },
+      });
+      act(() => {
+        (flatList.props.onScrollEndDrag as () => void)();
+      });
+
+      scrollToEndSpy.mockClear();
+      act(() => {
+        (flatList.props.onContentSizeChange as () => void)();
+      });
+      flushScheduledScroll();
+
+      expect(getByText(/New debate responses/i)).toBeTruthy();
+      expect(scrollToEndSpy).not.toHaveBeenCalled();
+      scrollToEndSpy.mockRestore();
+    });
+
+    it('resumes auto-follow after pressing the latest-responses button', () => {
+      const scrollToEndSpy = createScrollToEndSpy();
+      const { UNSAFE_getByType, getByLabelText, queryByText } = renderWithProviders(
+        <DebateMessageList {...defaultProps} />
+      );
+      const { flatList } = getFlatList(UNSAFE_getByType);
+
+      flushScheduledScroll();
+      scrollToEndSpy.mockClear();
+
+      act(() => {
+        (flatList.props.onScrollBeginDrag as () => void)();
+      });
+      fireEvent.scroll(flatList, {
+        nativeEvent: {
+          contentOffset: { y: 0 },
+          contentSize: { height: 1000 },
+          layoutMeasurement: { height: 500 },
+        },
+      });
+      act(() => {
+        (flatList.props.onScrollEndDrag as () => void)();
+      });
+
+      fireEvent.press(getByLabelText('Scroll to the latest responses'));
+      flushScheduledScroll();
+
+      expect(queryByText(/New debate responses/i)).toBeNull();
+      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: true });
+
+      scrollToEndSpy.mockClear();
+      act(() => {
+        (flatList.props.onContentSizeChange as () => void)();
+      });
+      flushScheduledScroll();
+
+      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: true });
+      scrollToEndSpy.mockRestore();
     });
 
     it('handles scroll events', () => {
