@@ -48,7 +48,8 @@ export const AudienceQuestionsModal: React.FC<AudienceQuestionsModalProps> = ({
   }), [affirmativeQuestion, negativeQuestion]);
 
   const canSubmit = Boolean(trimmedQuestions.aff && trimmedQuestions.neg);
-  const bottomSystemInset = Math.max(insets.bottom, Platform.OS === 'android' ? 48 : 0);
+  // Android edge-to-edge modal windows may not reserve navigation-bar space.
+  const bottomSystemInset = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 0);
 
   const inputStyle = [
     styles.input,
@@ -62,28 +63,36 @@ export const AudienceQuestionsModal: React.FC<AudienceQuestionsModalProps> = ({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
-      presentationStyle="overFullScreen"
+      animationType="fade"
       transparent
+      statusBarTranslucent={false}
       navigationBarTranslucent={false}
       onRequestClose={() => undefined}
     >
       <View style={styles.backdrop}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardAvoidingView}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.sheetPosition}
+          pointerEvents="box-none"
         >
-          <View style={[styles.sheet, { backgroundColor: theme.colors.background }]}>
+          <View
+            style={[
+              styles.sheet,
+              {
+                backgroundColor: theme.colors.background,
+                paddingBottom: bottomSystemInset,
+              },
+            ]}
+          >
             <View style={styles.handleRow}>
               <View style={[styles.handle, { backgroundColor: theme.colors.border }]} />
             </View>
 
             <ScrollView
               keyboardShouldPersistTaps="handled"
-              contentContainerStyle={[
-                styles.content,
-                { paddingBottom: bottomSystemInset + 28 },
-              ]}
+              keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.content}
             >
               <Typography variant="heading" weight="bold" align="center" style={styles.title}>
                 {title}
@@ -105,6 +114,7 @@ export const AudienceQuestionsModal: React.FC<AudienceQuestionsModalProps> = ({
                   style={inputStyle}
                   multiline
                   numberOfLines={4}
+                  showSoftInputOnFocus
                   textAlignVertical="top"
                   accessibilityLabel={`Question for ${affirmativeLabel}`}
                 />
@@ -123,6 +133,7 @@ export const AudienceQuestionsModal: React.FC<AudienceQuestionsModalProps> = ({
                   style={inputStyle}
                   multiline
                   numberOfLines={4}
+                  showSoftInputOnFocus
                   textAlignVertical="top"
                   accessibilityLabel={`Question for ${negativeLabel}`}
                 />
@@ -146,17 +157,16 @@ export const AudienceQuestionsModal: React.FC<AudienceQuestionsModalProps> = ({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.48)',
   },
-  keyboardAvoidingView: {
+  sheetPosition: {
     flex: 1,
     justifyContent: 'flex-end',
   },
   sheet: {
     maxHeight: '88%',
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     overflow: 'hidden',
   },
   handleRow: {
@@ -172,6 +182,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 12,
+    paddingBottom: 28,
   },
   title: {
     marginBottom: 8,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent } from '@testing-library/react-native';
-import { KeyboardAvoidingView, ScrollView, StyleSheet } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { AudienceQuestionsModal } from '@/components/organisms/debate/AudienceQuestionsModal';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 
@@ -8,11 +8,23 @@ jest.mock('@expo/vector-icons', () => ({
   Ionicons: () => null,
 }));
 
+let mockSafeAreaInsets = { top: 0, bottom: 34, left: 0, right: 0 };
+
 jest.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }),
+  useSafeAreaInsets: () => mockSafeAreaInsets,
 }));
 
+const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
+
 describe('AudienceQuestionsModal', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+    mockSafeAreaInsets = { top: 0, bottom: 34, left: 0, right: 0 };
+    if (originalPlatformDescriptor) {
+      Object.defineProperty(Platform, 'OS', originalPlatformDescriptor);
+    }
+  });
+
   it('requires both audience questions before submitting', () => {
     const onSubmit = jest.fn();
     const { getByTestId, getByText } = renderWithProviders(
@@ -39,7 +51,7 @@ describe('AudienceQuestionsModal', () => {
   });
 
   it('pads the submit action above the bottom system inset', () => {
-    const { UNSAFE_getByType } = renderWithProviders(
+    const { UNSAFE_getAllByType, UNSAFE_getByType } = renderWithProviders(
       <AudienceQuestionsModal
         visible
         onSubmit={jest.fn()}
@@ -47,13 +59,20 @@ describe('AudienceQuestionsModal', () => {
     );
 
     const scrollView = UNSAFE_getByType(ScrollView);
+    const sheet = UNSAFE_getAllByType(View).find((view) => {
+      const style = StyleSheet.flatten(view.props.style);
+      return style?.borderTopLeftRadius === 24;
+    });
 
-    expect(scrollView.props.contentContainerStyle).toContainEqual(
-      expect.objectContaining({ paddingBottom: 62 })
+    expect(StyleSheet.flatten(sheet?.props.style)).toEqual(
+      expect.objectContaining({ paddingBottom: 34 })
+    );
+    expect(StyleSheet.flatten(scrollView.props.contentContainerStyle)).toEqual(
+      expect.objectContaining({ paddingBottom: 28 })
     );
   });
 
-  it('keeps the keyboard-avoiding container full height so the sheet can lift above the keyboard', () => {
+  it('keeps the standard full-height bottom sheet position for keyboard resizing', () => {
     const { UNSAFE_getByType } = renderWithProviders(
       <AudienceQuestionsModal
         visible
@@ -63,11 +82,86 @@ describe('AudienceQuestionsModal', () => {
 
     const keyboardAvoidingView = UNSAFE_getByType(KeyboardAvoidingView);
 
+    expect(keyboardAvoidingView.props.pointerEvents).toBe('box-none');
     expect(StyleSheet.flatten(keyboardAvoidingView.props.style)).toEqual(
       expect.objectContaining({
         flex: 1,
         justifyContent: 'flex-end',
       })
     );
+  });
+
+  it('uses Android window resize instead of manual keyboard offsets', () => {
+    Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
+
+    const { UNSAFE_getAllByType, UNSAFE_getByType } = renderWithProviders(
+      <AudienceQuestionsModal
+        visible
+        onSubmit={jest.fn()}
+      />
+    );
+
+    const sheet = UNSAFE_getAllByType(View).find((view) => {
+      const style = StyleSheet.flatten(view.props.style);
+      return style?.borderTopLeftRadius === 24;
+    });
+    const keyboardAvoidingView = UNSAFE_getByType(KeyboardAvoidingView);
+
+    expect(keyboardAvoidingView.props.behavior).toBeUndefined();
+    expect(StyleSheet.flatten(sheet?.props.style)).toEqual(
+      expect.objectContaining({
+        maxHeight: '88%',
+      })
+    );
+    expect(StyleSheet.flatten(sheet?.props.style).marginBottom).toBeUndefined();
+  });
+
+  it('keeps Android modal system bars non-translucent so bottom controls clear the navigation bar', () => {
+    Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
+
+    const { UNSAFE_getByType } = renderWithProviders(
+      <AudienceQuestionsModal
+        visible
+        onSubmit={jest.fn()}
+      />
+    );
+
+    const modal = UNSAFE_getByType(Modal);
+
+    expect(modal.props.statusBarTranslucent).toBe(false);
+    expect(modal.props.navigationBarTranslucent).toBe(false);
+  });
+
+  it('keeps Android bottom controls clear when the device reports no bottom inset', () => {
+    Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
+    mockSafeAreaInsets = { top: 0, bottom: 0, left: 0, right: 0 };
+
+    const { UNSAFE_getAllByType } = renderWithProviders(
+      <AudienceQuestionsModal
+        visible
+        onSubmit={jest.fn()}
+      />
+    );
+
+    const sheet = UNSAFE_getAllByType(View).find((view) => {
+      const style = StyleSheet.flatten(view.props.style);
+      return style?.borderTopLeftRadius === 24;
+    });
+
+    expect(StyleSheet.flatten(sheet?.props.style)).toEqual(
+      expect.objectContaining({ paddingBottom: 24 })
+    );
+  });
+
+  it('explicitly requests the soft keyboard when inputs receive focus', () => {
+    const { getByTestId } = renderWithProviders(
+      <AudienceQuestionsModal
+        visible
+        onSubmit={jest.fn()}
+      />
+    );
+
+    expect(getByTestId('audience-question-aff').props.showSoftInputOnFocus).toBe(true);
+    expect(getByTestId('audience-question-neg').props.showSoftInputOnFocus).toBe(true);
   });
 });
