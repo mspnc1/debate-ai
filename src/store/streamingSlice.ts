@@ -10,6 +10,7 @@ export interface StreamingMessage {
   endTime?: number;
   aiProvider: string;
   error?: string;
+  status?: 'streaming' | 'completed' | 'cancelled' | 'interrupted' | 'failed';
   cursorVisible: boolean;
   chunksReceived: number;
   bytesReceived: number;
@@ -80,6 +81,7 @@ const streamingSlice = createSlice({
         messageId,
         content: '',
         isStreaming: true,
+        status: 'streaming',
         startTime: Date.now(),
         aiProvider,
         cursorVisible: true,
@@ -119,6 +121,7 @@ const streamingSlice = createSlice({
         if (finalContent !== undefined) {
           stream.content = finalContent;
         }
+        stream.status = 'completed';
         state.activeStreamCount = Math.max(0, state.activeStreamCount - 1);
         state.totalStreamsCompleted++;
       }
@@ -134,6 +137,7 @@ const streamingSlice = createSlice({
       if (stream) {
         stream.isStreaming = false;
         stream.error = error;
+        stream.status = 'failed';
         stream.cursorVisible = false;
         stream.endTime = Date.now();
         state.activeStreamCount = Math.max(0, state.activeStreamCount - 1);
@@ -183,14 +187,18 @@ const streamingSlice = createSlice({
     },
     
     // Cancel all active streams
-    cancelAllStreams: (state) => {
+    cancelAllStreams: (state, action: PayloadAction<{
+      reason?: 'cancelled' | 'interrupted';
+    } | undefined>) => {
+      const reason = action.payload?.reason || 'cancelled';
       Object.keys(state.streamingMessages).forEach(messageId => {
         const stream = state.streamingMessages[messageId];
         if (stream.isStreaming) {
           stream.isStreaming = false;
           stream.endTime = Date.now();
           stream.cursorVisible = false;
-          stream.error = 'Stream cancelled';
+          stream.status = reason;
+          stream.error = reason === 'interrupted' ? 'Stream interrupted' : 'Stream cancelled';
         }
       });
       state.activeStreamCount = 0;

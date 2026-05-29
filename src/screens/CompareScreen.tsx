@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { RootState, setWebSearchPreferred } from '../store';
@@ -32,7 +32,7 @@ import { showSheet } from '@/store';
 import { DemoContentService } from '@/services/demo/DemoContentService';
 import { loadCompareScript, primeNextCompareTurn, hasNextCompareTurn } from '@/services/demo/DemoPlaybackRouter';
 import { DemoSamplesBar } from '@/components/organisms/demo/DemoSamplesBar';
-import { getStreamingService } from '@/services/streaming/StreamingService';
+import { getStreamingService, isStreamInterruptedError } from '@/services/streaming/StreamingService';
 import { CompareStreamSynchronizer } from '@/services/streaming/CompareStreamSynchronizer';
 import { RecordController } from '@/services/demo/RecordController';
 import * as Clipboard from 'expo-clipboard';
@@ -41,11 +41,16 @@ import * as Sharing from 'expo-sharing';
 import { CompareRecordPickerModal } from '@/components/organisms/demo/CompareRecordPickerModal';
 import AppendToPackService from '@/services/demo/AppendToPackService';
 import { ensureAnswerContent } from '@/utils/citationUtils';
+import { ActiveSessionPersistenceService, type ActiveCompareSessionSnapshot } from '@/services/lifecycle/ActiveSessionPersistenceService';
+import { AppLifecycleService } from '@/services/lifecycle/AppLifecycleService';
+import { useRecoverableExitGuard } from '@/hooks/lifecycle/useRecoverableExitGuard';
 
 interface CompareScreenProps {
   navigation: {
     navigate: (screen: string, params?: Record<string, unknown>) => void;
     goBack: () => void;
+    dispatch?: (action: unknown) => void;
+    addListener?: (event: 'beforeRemove', callback: (event: { preventDefault: () => void; data?: { action?: unknown } }) => void) => (() => void) | undefined;
   };
   route: {
     params: {
@@ -98,10 +103,11 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
   const currentSession = useSelector((state: RootState) => 
     route.params?.resuming ? state.chat.currentSession : null
   );
+  const [recoveredAIs, setRecoveredAIs] = useState<{ left?: AIConfig; right?: AIConfig }>({});
   
   // Use AIs from resumed session or from params
-  const leftAI = currentSession?.selectedAIs[0] || route.params?.leftAI;
-  const rightAI = currentSession?.selectedAIs[1] || route.params?.rightAI;
+  const leftAI = currentSession?.selectedAIs[0] || route.params?.leftAI || recoveredAIs.left;
+  const rightAI = currentSession?.selectedAIs[1] || route.params?.rightAI || recoveredAIs.right;
   const demoSampleId = route.params?.demoSampleId;
   
   // Check if resumed session had diverged
@@ -163,8 +169,9 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
   
   // Save comparison session to history
   // Use a stable session ID - either from resumed session or create new one
-  const sessionId = useRef(currentSession?.id || `compare_${Date.now()}`).current;
+  const sessionId = useRef(currentSession?.id || route.params?.sessionId || `compare_${Date.now()}`).current;
   const [hasBeenSaved, setHasBeenSaved] = useState(route.params?.resuming || false);
+  const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
   const [compareSamples, setCompareSamples] = useState<Array<{ id: string; title: string }>>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -173,6 +180,9 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
   // Image lightbox state
   const [lightboxUri, setLightboxUri] = useState<string | null>(null);
   const synchronizerRef = useRef<CompareStreamSynchronizer | null>(null);
+  const leftStreamingContentRef = useRef('');
+  const rightStreamingContentRef = useRef('');
+  const activeCompareStreamIdsRef = useRef<{ left?: string; right?: string }>({});
 
   // Refs for capturing citations during streaming
   const leftCitationsRef = useRef<Array<{ index: number; url: string; title?: string; snippet?: string }> | undefined>(undefined);
@@ -185,6 +195,159 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
   const rightEffectiveModel = rightAI
     ? (resolveProviderModelId(rightAI.provider, selectedModels[rightAI.id] || rightAI.model) || rightAI.model)
     : '';
+
+  React.useEffect(() => {
+    leftStreamingContentRef.current = leftStreamingContent;
+  }, [leftStreamingContent]);
+
+  React.useEffect(() => {
+    rightStreamingContentRef.current = rightStreamingContent;
+  }, [rightStreamingContent]);
+
+  const saveActiveCompareSnapshot = useCallback(async (
+    status: ActiveCompareSessionSnapshot['status'] = 'active',
+    reason?: string
+  ) => {
+    if (!leftAI || !rightAI) return;
+    const hasWork = userMessages.length > 0
+      || leftMessages.length > 0
+      || rightMessages.length > 0
+      || Boolean(leftStreamingContentRef.current || rightStreamingContentRef.current)
+      || leftTyping
+      || rightTyping;
+    if (!hasWork) return;
+
+    const activeSides: Array<'left' | 'right'> = [];
+    if (leftTyping || activeCompareStreamIdsRef.current.left) activeSides.push('left');
+    if (rightTyping || activeCompareStreamIdsRef.current.right) activeSides.push('right');
+
+    await ActiveSessionPersistenceService.saveSnapshot({
+      mode: 'comparison',
+      sessionId,
+      status,
+      createdAt: userMessages[0]?.timestamp || Date.now(),
+      leftAI,
+      rightAI,
+      selectedAIs: [leftAI, rightAI],
+      messages: [
+        ...userMessages,
+        ...leftMessages,
+        ...rightMessages,
+      ],
+      userMessages,
+      leftMessages,
+      rightMessages,
+      leftStreamingContent: leftStreamingContentRef.current,
+      rightStreamingContent: rightStreamingContentRef.current,
+      leftTyping,
+      rightTyping,
+      viewMode,
+      continuedSide,
+      pendingTurn: activeSides.length > 0 || status === 'interrupted'
+        ? {
+          kind: 'compare_response',
+          side: activeSides.length === 2 ? 'both' : activeSides[0],
+          reason,
+          messageIds: [
+            activeCompareStreamIdsRef.current.left,
+            activeCompareStreamIdsRef.current.right,
+          ].filter((value): value is string => Boolean(value)),
+          prompt: userMessages[userMessages.length - 1]?.content,
+          interruptedAt: Date.now(),
+        }
+        : undefined,
+    });
+  }, [
+    continuedSide,
+    leftAI,
+    leftMessages,
+    leftTyping,
+    rightAI,
+    rightMessages,
+    rightTyping,
+    sessionId,
+    userMessages,
+    viewMode,
+  ]);
+
+  const addInterruptedCompareMessage = useCallback((
+    side: 'left' | 'right',
+    reason: 'cancelled' | 'interrupted',
+    partialContent: string
+  ) => {
+    const ai = side === 'left' ? leftAI : rightAI;
+    if (!ai) return;
+
+    const content = partialContent.trim().length > 0
+      ? `${partialContent.trim()}\n\n_Response ${reason === 'interrupted' ? 'paused when the app backgrounded' : 'stopped'}. Retry when ready._`
+      : `Response ${reason === 'interrupted' ? 'paused when the app backgrounded' : 'stopped'}. Retry when ready.`;
+    const message: Message = {
+      id: `msg_${side}_interrupted_${Date.now()}`,
+      sender: ai.name,
+      senderType: 'ai',
+      content,
+      timestamp: Date.now(),
+      metadata: {
+        modelUsed: side === 'left' ? leftEffectiveModel : rightEffectiveModel,
+        providerId: ai.provider,
+        lifecycle: {
+          status: reason,
+          reason,
+          interruptedAt: Date.now(),
+          partial: partialContent.trim().length > 0,
+        },
+      },
+    };
+
+    if (side === 'left') {
+      setLeftMessages(prev => [...prev, message]);
+      leftHistoryRef.current.push(message);
+      setLeftStreamingContent('');
+      setLeftTyping(false);
+    } else {
+      setRightMessages(prev => [...prev, message]);
+      rightHistoryRef.current.push(message);
+      setRightStreamingContent('');
+      setRightTyping(false);
+    }
+  }, [leftAI, leftEffectiveModel, rightAI, rightEffectiveModel]);
+
+  const compareRecoveryAttemptedRef = useRef(false);
+  React.useEffect(() => {
+    if (compareRecoveryAttemptedRef.current || userMessages.length > 0) return;
+    compareRecoveryAttemptedRef.current = true;
+
+    const restoreSnapshot = async () => {
+      if (!route.params?.sessionId) return;
+      const snapshot = await ActiveSessionPersistenceService.loadSnapshot<ActiveCompareSessionSnapshot>('comparison', route.params.sessionId);
+      if (!snapshot || snapshot.status === 'completed') return;
+
+      setRecoveredAIs({ left: snapshot.leftAI, right: snapshot.rightAI });
+      setUserMessages(snapshot.userMessages);
+      setLeftMessages(snapshot.leftMessages);
+      setRightMessages(snapshot.rightMessages);
+      setLeftStreamingContent(snapshot.status === 'interrupted' ? '' : snapshot.leftStreamingContent || '');
+      setRightStreamingContent(snapshot.status === 'interrupted' ? '' : snapshot.rightStreamingContent || '');
+      setLeftTyping(false);
+      setRightTyping(false);
+      setViewMode(snapshot.viewMode);
+      setContinuedSide(snapshot.continuedSide || null);
+      leftHistoryRef.current = [
+        ...snapshot.userMessages,
+        ...snapshot.leftMessages,
+      ].sort((a, b) => a.timestamp - b.timestamp);
+      rightHistoryRef.current = [
+        ...snapshot.userMessages,
+        ...snapshot.rightMessages,
+      ].sort((a, b) => a.timestamp - b.timestamp);
+
+      setRecoveryNotice(snapshot.status === 'interrupted'
+        ? 'This comparison was interrupted. Retry your last prompt when ready.'
+        : 'This comparison was restored from the last app checkpoint.');
+    };
+
+    void restoreSnapshot();
+  }, [route.params?.sessionId, userMessages.length]);
 
   // Build provider list for modality availability check
   const selectedList: Array<{ provider: string; model: string }> = (() => {
@@ -279,6 +442,74 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
       console.error('Failed to save comparison to history:', error);
     }
   }, [userMessages, leftMessages, rightMessages, leftAI, rightAI, currentUser, continuedSide, sessionId, hasBeenSaved]);
+
+  const isProcessing = leftTyping || rightTyping;
+
+  React.useEffect(() => {
+    if (userMessages.length === 0 || isProcessing) return;
+    void saveComparisonSession().then(() => {
+      if (!hasBeenSaved) setHasBeenSaved(true);
+    });
+  }, [
+    hasBeenSaved,
+    isProcessing,
+    leftMessages.length,
+    rightMessages.length,
+    saveComparisonSession,
+    userMessages.length,
+  ]);
+
+  React.useEffect(() => {
+    void saveActiveCompareSnapshot(isProcessing ? 'active' : 'backgrounded');
+  }, [
+    isProcessing,
+    leftMessages.length,
+    leftStreamingContent,
+    rightMessages.length,
+    rightStreamingContent,
+    saveActiveCompareSnapshot,
+    userMessages.length,
+  ]);
+
+  React.useEffect(() => {
+    return AppLifecycleService.register({
+      id: `compare-${sessionId}`,
+      onBackground: () => saveActiveCompareSnapshot(isProcessing ? 'interrupted' : 'backgrounded', 'app_backgrounded'),
+      onForeground: async () => {
+        const snapshot = await ActiveSessionPersistenceService.loadSnapshot<ActiveCompareSessionSnapshot>('comparison', sessionId);
+        if (snapshot?.status === 'interrupted') {
+          setRecoveryNotice('This comparison was interrupted. Retry your last prompt when ready.');
+        }
+      },
+    });
+  }, [isProcessing, saveActiveCompareSnapshot, sessionId]);
+
+  const handleStopCompare = useCallback(async () => {
+    try { getStreamingService().cancelAllStreams('cancelled'); } catch { /* ignore */ }
+    if (leftTyping && !activeCompareStreamIdsRef.current.left) {
+      addInterruptedCompareMessage('left', 'cancelled', leftStreamingContentRef.current);
+    }
+    if (rightTyping && !activeCompareStreamIdsRef.current.right) {
+      addInterruptedCompareMessage('right', 'cancelled', rightStreamingContentRef.current);
+    }
+    setLeftTyping(false);
+    setRightTyping(false);
+    await saveActiveCompareSnapshot('interrupted', 'user_stop');
+    setRecoveryNotice('Comparison response stopped. Retry your last prompt when ready.');
+  }, [addInterruptedCompareMessage, leftTyping, rightTyping, saveActiveCompareSnapshot]);
+
+  const confirmCompareLeave = useRecoverableExitGuard({
+    navigation,
+    shouldGuard: isProcessing,
+    title: 'Leave this comparison?',
+    message: 'The active responses will be stopped and saved so you can retry them later.',
+    onSaveAndLeave: async () => {
+      try { getStreamingService().cancelAllStreams('cancelled'); } catch { /* ignore */ }
+      setLeftTyping(false);
+      setRightTyping(false);
+      await saveActiveCompareSnapshot('interrupted', 'user_exit');
+    },
+  });
   
   const handleSend = useCallback(async (text?: string, attachments?: MessageAttachment[]) => {
     if (isDemo) { dispatch(showSheet({ sheet: 'subscription' })); return; }
@@ -421,9 +652,11 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
       if (shouldStreamLeft) {
         setLeftStreamingContent('');
         leftCitationsRef.current = undefined; // Clear citations before streaming
+        const leftStreamId = `cmp_left_${Date.now()}`;
+        activeCompareStreamIdsRef.current.left = leftStreamId;
         const leftStreamPromise = getStreamingService().streamResponse(
           {
-            messageId: `cmp_left_${Date.now()}`,
+            messageId: leftStreamId,
             adapterConfig: {
               provider: leftAI.provider,
               apiKey: leftApiKey || '',
@@ -449,6 +682,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
             }
           },
           (finalContent: string) => {
+            activeCompareStreamIdsRef.current.left = undefined;
             if (useSynchronizedStreaming && synchronizerRef.current) {
               synchronizerRef.current.completeLeft(finalContent);
             } else {
@@ -469,6 +703,13 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
             }
           },
           async (err: Error) => {
+            activeCompareStreamIdsRef.current.left = undefined;
+            if (isStreamInterruptedError(err)) {
+              addInterruptedCompareMessage('left', err.reason, leftStreamingContentRef.current);
+              setRecoveryNotice('This comparison was interrupted. Retry your last prompt when ready.');
+              await saveActiveCompareSnapshot('interrupted', err.reason);
+              return;
+            }
             const msg = err?.message || '';
             const isVerification = msg.toLowerCase().includes('verification');
             const isOverload = msg.toLowerCase().includes('overload') || msg.toLowerCase().includes('rate limit');
@@ -586,9 +827,11 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
       if (shouldStreamRight) {
         setRightStreamingContent('');
         rightCitationsRef.current = undefined; // Clear citations before streaming
+        const rightStreamId = `cmp_right_${Date.now()}`;
+        activeCompareStreamIdsRef.current.right = rightStreamId;
         const rightStreamPromise = getStreamingService().streamResponse(
           {
-            messageId: `cmp_right_${Date.now()}`,
+            messageId: rightStreamId,
             adapterConfig: {
               provider: rightAI.provider,
               apiKey: rightApiKey || '',
@@ -614,6 +857,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
             }
           },
           (finalContent: string) => {
+            activeCompareStreamIdsRef.current.right = undefined;
             if (useSynchronizedStreaming && synchronizerRef.current) {
               synchronizerRef.current.completeRight(finalContent);
             } else {
@@ -634,6 +878,13 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
             }
           },
           async (err: Error) => {
+            activeCompareStreamIdsRef.current.right = undefined;
+            if (isStreamInterruptedError(err)) {
+              addInterruptedCompareMessage('right', err.reason, rightStreamingContentRef.current);
+              setRecoveryNotice('This comparison was interrupted. Retry your last prompt when ready.');
+              await saveActiveCompareSnapshot('interrupted', err.reason);
+              return;
+            }
             const msg = err?.message || '';
             const isVerification = msg.toLowerCase().includes('verification');
             const isOverload = msg.toLowerCase().includes('overload') || msg.toLowerCase().includes('rate limit');
@@ -742,16 +993,8 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
       void Promise.allSettled(pendingPromises);
     }
 
-    // Save session after sending messages
-    if (!hasBeenSaved) {
-      setHasBeenSaved(true);
-    }
-    // Auto-save the session after new messages
-    setTimeout(() => {
-      saveComparisonSession();
-    }, 1000);
-    
   }, [
+    addInterruptedCompareMessage,
     dispatch,
     inputText,
     aiService,
@@ -760,8 +1003,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     rightAI,
     viewMode,
     continuedSide,
-    hasBeenSaved,
-    saveComparisonSession,
+    saveActiveCompareSnapshot,
     expertModeConfigs,
     isDemo,
     streamingState?.globalStreamingEnabled,
@@ -774,6 +1016,13 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     rightEffectiveModel,
     webSearchEnabled,
   ]);
+
+  const handleRetryCompare = useCallback(async () => {
+    const lastPrompt = userMessages[userMessages.length - 1];
+    if (!lastPrompt) return;
+    setRecoveryNotice(null);
+    await handleSend(lastPrompt.content, lastPrompt.attachments);
+  }, [handleSend, userMessages]);
 
   const dispatchScriptedTurn = useCallback((rawMessage: string) => {
     if (!aiService || !leftAI || !rightAI) return;
@@ -967,6 +1216,11 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
   }, [viewMode]);
   
   const handleStartOver = useCallback(() => {
+    if (isProcessing) {
+      confirmCompareLeave(navigation.goBack);
+      return;
+    }
+
     Alert.alert(
       'Start Over',
       'This will end the current comparison. Are you sure?',
@@ -982,14 +1236,12 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
         }
       ]
     );
-  }, [saveComparisonSession, navigation]);
+  }, [confirmCompareLeave, isProcessing, saveComparisonSession, navigation]);
 
   // Lightbox handler
   const handleOpenLightbox = useCallback((uri: string) => {
     setLightboxUri(uri);
   }, []);
-
-  const isProcessing = leftTyping || rightTyping;
 
   // Navigate back if AIs are not provided (must be after all hooks)
   if (!leftAI || !rightAI) {
@@ -1086,6 +1338,36 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
             }}
           />
         )}
+
+        {recoveryNotice && (
+          <View style={[
+            styles.recoveryBanner,
+            {
+              backgroundColor: theme.colors.warning[50],
+              borderColor: theme.colors.warning[300],
+            },
+          ]}>
+            <Text style={[styles.recoveryText, { color: theme.colors.text.primary }]}>
+              {recoveryNotice}
+            </Text>
+            <View style={styles.recoveryActions}>
+              <Text
+                accessibilityRole="button"
+                onPress={() => setRecoveryNotice(null)}
+                style={[styles.recoveryAction, { color: theme.colors.text.secondary }]}
+              >
+                Dismiss
+              </Text>
+              <Text
+                accessibilityRole="button"
+                onPress={handleRetryCompare}
+                style={[styles.recoveryAction, { color: theme.colors.primary[600] }]}
+              >
+                Retry
+              </Text>
+            </View>
+          </View>
+        )}
         
         <ScrollView 
           style={styles.mainContent}
@@ -1141,6 +1423,8 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
               "Ask both AIs..."
             }
             disabled={isProcessing}
+            isProcessing={isProcessing}
+            onStop={handleStopCompare}
             imageGenerationEnabled={false}
             modalityAvailability={{
               imageUpload: availability.imageUpload.supported,
@@ -1211,6 +1495,29 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingVertical: 16,
+  },
+  recoveryBanner: {
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginHorizontal: 12,
+    marginTop: 8,
+    borderRadius: 8,
+  },
+  recoveryText: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  recoveryActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+  },
+  recoveryAction: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginLeft: 16,
   },
   inputContainer: {
     paddingHorizontal: 16,

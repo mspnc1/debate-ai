@@ -334,6 +334,17 @@ export class VotingService {
     this.overallWinnerIds = winnerIds;
   }
 
+  hydrateVoteRecords(records: VoteRecord[] = []): void {
+    this.reset();
+    records.forEach(record => {
+      if (record.voteKind === 'audience_stance' && record.audienceVoteStage) {
+        this.audienceVotes[record.audienceVoteStage] = record;
+        return;
+      }
+      this.votes.set(record.round, record);
+    });
+  }
+
   getRoundVote(round: number): VoteRecord | undefined {
     return this.votes.get(round);
   }

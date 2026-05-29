@@ -6,7 +6,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useDispatch } from 'react-redux';
 import { recordRoundWinner, recordOverallWinner } from '../../store';
-import { DebateOrchestrator, DebateEvent, ScoreBoard, type AudienceDecisionResult, type AudienceVoteStage } from '../../services/debate';
+import { DebateOrchestrator, DebateEvent, DebateStatus, ScoreBoard, type AudienceDecisionResult, type AudienceVoteStage } from '../../services/debate';
 import { AI, type DebateVoteResult } from '../../types';
 
 export interface UseDebateVotingReturn {
@@ -208,6 +208,22 @@ export const useDebateVoting = (
   // Initialize scores when orchestrator is available
   useEffect(() => {
     updateScores();
+    const session = orchestrator?.getSession();
+    if (!session) return;
+
+    if (session.status === DebateStatus.VOTING_ROUND || session.status === DebateStatus.VOTING_OVERALL) {
+      const votingService = orchestrator?.getVotingService();
+      const audienceStage = orchestrator?.getCurrentAudienceVoteStage();
+      const voteRound = audienceStage === 'initial'
+        ? 0
+        : orchestrator?.getCurrentVoteIndex() || votingService?.getNextVotingRound() || session.currentRound;
+      setIsVoting(true);
+      setVotingRound(voteRound);
+      setIsFinalVote(audienceStage === 'final' || voteRound >= session.totalRounds);
+      setIsOverallVote(audienceStage === 'final');
+      setVoteKind(audienceStage ? 'audience_stance' : 'checkpoint');
+      setAudienceVoteStage(audienceStage);
+    }
   }, [orchestrator, updateScores]);
 
   return {

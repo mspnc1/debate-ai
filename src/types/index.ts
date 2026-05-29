@@ -188,6 +188,15 @@ export interface MessageMetadata {
 
   // Debate TTS generation metadata
   debateAudio?: DebateAudioMetadata;
+
+  // Local lifecycle recovery metadata for interrupted or cancelled work
+  lifecycle?: {
+    status: 'interrupted' | 'cancelled' | 'failed';
+    reason?: string;
+    interruptedAt?: number;
+    partial?: boolean;
+    retryOf?: string;
+  };
 }
 
 export interface MessageAttachment {

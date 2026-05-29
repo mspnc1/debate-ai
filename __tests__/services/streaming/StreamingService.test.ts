@@ -1,4 +1,4 @@
-import { StreamingService, resetStreamingService } from '@/services/streaming/StreamingService';
+import { StreamingService, isStreamInterruptedError, resetStreamingService } from '@/services/streaming/StreamingService';
 import { AdapterFactory } from '@/services/ai/factory/AdapterFactory';
 import { BaseAdapter } from '@/services/ai/base/BaseAdapter';
 import type { AdapterCapabilities, ResumptionContext } from '@/services/ai/types/adapter.types';
@@ -157,6 +157,7 @@ describe('StreamingService', () => {
     adapterSpy.mockReturnValue(adapter);
 
     const chunks: string[] = [];
+    const errors: Error[] = [];
 
     await streamingService.streamResponse(
       {
@@ -171,10 +172,42 @@ describe('StreamingService', () => {
         streamingService.cancelStream('msg-3');
       },
       () => {},
-      () => {},
+      (error) => {
+        errors.push(error);
+      },
     );
 
     expect(chunks).toEqual(['Checking ']);
+    expect(errors[0]).toEqual(expect.objectContaining({ reason: 'cancelled' }));
     expect(streamingService.isStreamActive('msg-3')).toBe(false);
+  });
+
+  it('marks lifecycle interruptions distinctly from user cancellation', async () => {
+    const adapter = new MockStreamingAdapter({ provider: 'claude', apiKey: 'key', model: 'claude-3' });
+    adapterSpy.mockReturnValue(adapter);
+
+    const errors: Error[] = [];
+
+    await streamingService.streamResponse(
+      {
+        messageId: 'msg-interrupt',
+        adapterConfig: { provider: 'claude', apiKey: 'key', model: 'claude-3' },
+        message: 'Pause',
+        conversationHistory: [],
+        speed: 'instant',
+      },
+      () => {
+        streamingService.interruptAllStreams();
+      },
+      () => {
+        throw new Error('Should not complete interrupted streams');
+      },
+      (error) => {
+        errors.push(error);
+      },
+    );
+
+    expect(isStreamInterruptedError(errors[0])).toBe(true);
+    expect(errors[0]).toEqual(expect.objectContaining({ reason: 'interrupted' }));
   });
 });

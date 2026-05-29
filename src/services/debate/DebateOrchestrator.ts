@@ -13,7 +13,7 @@ import { DEBATE_CONSTANTS } from '../../config/debateConstants';
 import { UNIVERSAL_PERSONALITIES, getPersonality, PersonalityOption } from '../../config/personalities';
 import { StorageService } from '../chat/StorageService';
 import { store } from '../../store';
-import { getStreamingService } from '../streaming/StreamingService';
+import { getStreamingService, isStreamInterruptedError } from '../streaming/StreamingService';
 import { setProviderVerificationError } from '../../store/streamingSlice';
 import {
   type AudienceDecisionResult,
@@ -39,6 +39,10 @@ import { resolveProviderModelId } from '@/config/modelConfigs';
 import { buildPersonalityRuntime, mergeRuntimeModelParameters } from '@/services/personality';
 import { applyDebateOutputTokenCap, getDebateSpeechLengthGuidance } from './debateSpeechLength';
 import { createDebateInterstitialMessage } from './DebateInterstitialService';
+import type {
+  ActiveDebateSessionSnapshot,
+  ActiveDebateVoteRecord,
+} from '@/services/lifecycle/ActiveSessionPersistenceService';
 
 export interface DebateSession {
   id: string;
@@ -91,7 +95,7 @@ export interface DebateContinuationPrompt {
   isFinalReview: boolean;
   completedMessageIndex: number;
   nextMessageIndex?: number;
-  continueAction?: 'next_message' | 'vote' | 'end_debate';
+  continueAction?: 'next_message' | 'vote' | 'end_debate' | 'retry_message';
   voteRound?: number;
   isFinalRoundVote?: boolean;
 }
@@ -877,6 +881,8 @@ export class DebateOrchestrator {
         const streamingService = getStreamingService();
         let finalContent = '';
         let hadError = false;
+        let wasInterrupted = false;
+        let streamedContent = '';
         let capturedCitations: Citation[] | undefined;
 
         let errorForFallback: string | null = null;
@@ -890,6 +896,7 @@ export class DebateOrchestrator {
             speed: streamSpeed,
           },
             (chunk: string) => {
+            streamedContent += chunk;
             this.emitEvent({ type: 'stream_chunk', data: { messageId, chunk, aiProvider: currentAI.id, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
           },
           (completeText: string) => {
@@ -901,6 +908,13 @@ export class DebateOrchestrator {
             }
           },
           (err: Error) => {
+            if (isStreamInterruptedError(err)) {
+              hadError = true;
+              wasInterrupted = true;
+              errorForFallback = err.message;
+              this.emitEvent({ type: 'stream_error', data: { messageId, error: err.message, aiProvider: currentAI.id, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
+              return;
+            }
             hadError = true;
             const msg = err?.message || '';
             errorForFallback = msg;
@@ -925,6 +939,53 @@ export class DebateOrchestrator {
           hadError = true;
           errorForFallback = 'Streaming returned an empty response';
           this.emitEvent({ type: 'stream_error', data: { messageId, error: errorForFallback, aiProvider: currentAI.id, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
+        }
+
+        if (wasInterrupted) {
+          const partialContent = streamedContent.trim();
+          const interruptedContent = partialContent.length > 0
+            ? `${partialContent}\n\n_Response paused when the app backgrounded. Retry this debate turn when ready._`
+            : 'Response paused when the app backgrounded. Retry this debate turn when ready.';
+          this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: interruptedContent, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
+          const updated = {
+            ...placeholderMessage,
+            content: interruptedContent,
+            metadata: {
+              ...this.buildAIResponseMetadata(currentAI, currentAI.model, undefined, debateSpeech),
+              lifecycle: {
+                status: 'interrupted' as const,
+                reason: errorForFallback || 'app_backgrounded',
+                interruptedAt: Date.now(),
+                partial: partialContent.length > 0,
+              },
+            },
+          };
+          this.currentMessages = [...turnMessages, updated];
+          this.pendingContinuation = {
+            title: 'Debate paused',
+            message: 'The active response was interrupted. Retry this turn when you are ready.',
+            buttonLabel: 'Retry Turn',
+            isFinalReview: false,
+            completedMessageIndex: Math.max(messageIndex - 1, 0),
+            nextMessageIndex: messageIndex,
+            continueAction: 'retry_message',
+            messages: turnMessages,
+          };
+          this.updateSessionStatus(DebateStatus.PAUSED_FOR_REVIEW);
+          this.emitEvent({
+            type: 'continuation_required',
+            data: {
+              title: this.pendingContinuation.title,
+              message: this.pendingContinuation.message,
+              buttonLabel: this.pendingContinuation.buttonLabel,
+              isFinalReview: this.pendingContinuation.isFinalReview,
+              completedMessageIndex: this.pendingContinuation.completedMessageIndex,
+              nextMessageIndex: this.pendingContinuation.nextMessageIndex,
+              continueAction: this.pendingContinuation.continueAction,
+            },
+            timestamp: Date.now(),
+          });
+          return;
         }
 
         if (!hadError) {
@@ -1464,6 +1525,20 @@ export class DebateOrchestrator {
       } else {
         this.showVotingForRound(pending.voteRound, false);
       }
+      return;
+    }
+
+    if (pending.continueAction === 'retry_message') {
+      if (typeof pending.nextMessageIndex !== 'number') {
+        return;
+      }
+      this.updateSessionStatus(DebateStatus.ACTIVE);
+      this.emitTypingStartedForMessage(pending.nextMessageIndex);
+      this.scheduleNextMessage(
+        pending.nextMessageIndex,
+        pending.messages,
+        DEBATE_CONSTANTS.DELAYS.VOTING_CONTINUATION
+      );
       return;
     }
 
@@ -2030,6 +2105,175 @@ export class DebateOrchestrator {
   getSession(): DebateSession | null {
     return this.session;
   }
+
+  createSnapshot(
+    status: ActiveDebateSessionSnapshot['status'] = 'active',
+    messages: Message[] = this.currentMessages
+  ): ActiveDebateSessionSnapshot | null {
+    if (!this.session) return null;
+
+    return {
+      version: 1,
+      mode: 'debate',
+      sessionId: this.session.id,
+      status,
+      createdAt: this.session.startTime,
+      updatedAt: Date.now(),
+      selectedAIs: this.session.participants,
+      messages,
+      debateSession: {
+        id: this.session.id,
+        topic: this.session.topic,
+        participants: this.session.participants,
+        personalities: this.session.personalities,
+        startTime: this.session.startTime,
+        status: this.session.status,
+        currentRound: this.session.currentRound,
+        messageCount: this.session.messageCount,
+        messageIndex: this.session.messageIndex,
+        currentAIIndex: this.session.currentAIIndex,
+        totalRounds: this.session.totalRounds,
+        totalMessages: this.session.totalMessages,
+        civility: this.session.civility,
+        formatId: this.session.format.id,
+        presetId: this.session.presetId,
+        stances: this.session.stances,
+        audienceResult: this.session.audienceResult,
+        audienceQuestions: this.session.audienceQuestions,
+        webSearchEnabled: this.session.webSearchEnabled,
+        voiceConfig: this.session.voiceConfig,
+      },
+      voteRecords: this.votingService?.getVoteRecords() as ActiveDebateVoteRecord[] | undefined,
+      currentVoteIndex: this.currentVoteIndex,
+      currentAudienceVoteStage: this.currentAudienceVoteStage,
+      continuation: this.pendingContinuation
+        ? {
+          title: this.pendingContinuation.title,
+          message: this.pendingContinuation.message,
+          buttonLabel: this.pendingContinuation.buttonLabel,
+          isFinalReview: this.pendingContinuation.isFinalReview,
+          completedMessageIndex: this.pendingContinuation.completedMessageIndex,
+          nextMessageIndex: this.pendingContinuation.nextMessageIndex,
+          continueAction: this.pendingContinuation.continueAction,
+          voteRound: this.pendingContinuation.voteRound,
+          isFinalRoundVote: this.pendingContinuation.isFinalRoundVote,
+        }
+        : null,
+      audienceQuestionsPrompt: this.pendingAudienceQuestions
+        ? {
+          title: this.pendingAudienceQuestions.title,
+          message: this.pendingAudienceQuestions.message,
+          completedMessageIndex: this.pendingAudienceQuestions.completedMessageIndex,
+          nextMessageIndex: this.pendingAudienceQuestions.nextMessageIndex,
+          affirmativeLabel: this.pendingAudienceQuestions.affirmativeLabel,
+          negativeLabel: this.pendingAudienceQuestions.negativeLabel,
+          required: true,
+        }
+        : null,
+      interruptedMessageIds: messages
+        .filter(message => message.metadata?.lifecycle?.status === 'interrupted')
+        .map(message => message.id),
+    };
+  }
+
+  hydrateFromSnapshot(snapshot: ActiveDebateSessionSnapshot): DebateSession {
+    const format = getFormat(snapshot.debateSession.formatId);
+    const preset = getPresetForFormat(snapshot.debateSession.formatId, snapshot.debateSession.presetId);
+    const session: DebateSession = {
+      id: snapshot.debateSession.id,
+      topic: snapshot.debateSession.topic,
+      participants: snapshot.debateSession.participants,
+      personalities: snapshot.debateSession.personalities,
+      startTime: snapshot.debateSession.startTime,
+      status: snapshot.status === 'interrupted'
+        ? DebateStatus.PAUSED_FOR_REVIEW
+        : snapshot.debateSession.status as DebateStatus,
+      currentRound: snapshot.debateSession.currentRound,
+      messageCount: snapshot.debateSession.messageCount,
+      messageIndex: snapshot.debateSession.messageIndex,
+      currentAIIndex: snapshot.debateSession.currentAIIndex,
+      totalRounds: snapshot.debateSession.totalRounds,
+      totalMessages: snapshot.debateSession.totalMessages,
+      civility: snapshot.debateSession.civility,
+      format,
+      preset,
+      presetId: preset.id,
+      stances: snapshot.debateSession.stances,
+      audienceResult: snapshot.debateSession.audienceResult,
+      audienceQuestions: snapshot.debateSession.audienceQuestions,
+      webSearchEnabled: snapshot.debateSession.webSearchEnabled,
+      voiceConfig: snapshot.debateSession.voiceConfig,
+    };
+
+    this.session = session;
+    this.currentMessages = snapshot.messages || [];
+    this.currentVoteIndex = snapshot.currentVoteIndex || 0;
+    this.currentAudienceVoteStage = snapshot.currentAudienceVoteStage;
+    this.votingService = new VotingService(session.participants, preset, format.id);
+    this.votingService.hydrateVoteRecords(snapshot.voteRecords || []);
+    this.rulesEngine = new DebateRulesEngine(preset);
+    this.pendingContinuation = snapshot.continuation
+      ? {
+        ...snapshot.continuation,
+        messages: snapshot.messages || [],
+      }
+      : snapshot.status === 'interrupted'
+        ? {
+          title: 'Debate paused',
+          message: 'The active response was interrupted. Retry this turn when you are ready.',
+          buttonLabel: 'Retry Turn',
+          isFinalReview: false,
+          completedMessageIndex: Math.max(session.messageIndex - 1, 0),
+          nextMessageIndex: session.messageIndex,
+          continueAction: 'retry_message',
+          messages: snapshot.messages || [],
+        }
+        : null;
+    this.pendingAudienceQuestions = snapshot.audienceQuestionsPrompt
+      ? {
+        ...snapshot.audienceQuestionsPrompt,
+        messages: snapshot.messages || [],
+      }
+      : null;
+
+    return session;
+  }
+
+  getPendingContinuation(): DebateContinuationPrompt | null {
+    if (!this.pendingContinuation) return null;
+    return {
+      title: this.pendingContinuation.title,
+      message: this.pendingContinuation.message,
+      buttonLabel: this.pendingContinuation.buttonLabel,
+      isFinalReview: this.pendingContinuation.isFinalReview,
+      completedMessageIndex: this.pendingContinuation.completedMessageIndex,
+      nextMessageIndex: this.pendingContinuation.nextMessageIndex,
+      continueAction: this.pendingContinuation.continueAction,
+      voteRound: this.pendingContinuation.voteRound,
+      isFinalRoundVote: this.pendingContinuation.isFinalRoundVote,
+    };
+  }
+
+  getPendingAudienceQuestions(): DebateAudienceQuestionsPrompt | null {
+    if (!this.pendingAudienceQuestions) return null;
+    return {
+      title: this.pendingAudienceQuestions.title,
+      message: this.pendingAudienceQuestions.message,
+      completedMessageIndex: this.pendingAudienceQuestions.completedMessageIndex,
+      nextMessageIndex: this.pendingAudienceQuestions.nextMessageIndex,
+      affirmativeLabel: this.pendingAudienceQuestions.affirmativeLabel,
+      negativeLabel: this.pendingAudienceQuestions.negativeLabel,
+      required: true,
+    };
+  }
+
+  getCurrentVoteIndex(): number {
+    return this.currentVoteIndex;
+  }
+
+  getCurrentAudienceVoteStage(): AudienceVoteStage | undefined {
+    return this.currentAudienceVoteStage;
+  }
   
   /**
    * Get voting service
@@ -2059,5 +2303,6 @@ export class DebateOrchestrator {
     this.currentVoteIndex = 0;
     this.currentAudienceVoteStage = undefined;
     this.pendingContinuation = null;
+    this.pendingAudienceQuestions = null;
   }
 }

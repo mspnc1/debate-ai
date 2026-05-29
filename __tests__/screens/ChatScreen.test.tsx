@@ -307,6 +307,7 @@ describe('ChatScreen', () => {
       isProcessing: false,
       sendAIResponses: jest.fn().mockResolvedValue(undefined),
       sendQuickStartResponses: jest.fn().mockResolvedValue(undefined),
+      retryAIResponses: jest.fn().mockResolvedValue(undefined),
     };
 
     mockQuickStartData = {

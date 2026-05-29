@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
-import { KeyboardAvoidingView, Platform, View, Alert } from 'react-native';
+import { KeyboardAvoidingView, Platform, View, Alert, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AIServiceLoading, Header, HeaderActions } from '../components/organisms';
 import { ErrorService } from '@/services/errors/ErrorService';
@@ -7,7 +7,16 @@ import { useAIService } from '../providers/AIServiceProvider';
 import { MessageAttachment } from '../types';
 import { getAttachmentSupport } from '../utils/attachmentUtils';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState, addMessage, updateMessage, setWebSearchPreferred, isApiKeyConfigured } from '../store';
+import {
+  RootState,
+  addMessage,
+  updateMessage,
+  setWebSearchPreferred,
+  isApiKeyConfigured,
+  loadSession as loadSessionAction,
+  setAIPersonality,
+  setAIModel,
+} from '../store';
 import { ImageService } from '../services/images/ImageService';
 import { useMergedModalityAvailability } from '../hooks/multimodal/useModalityAvailability';
 import { ImageRefinementModal, RefinementProvider } from '../components/organisms/chat/ImageRefinementModal';
@@ -50,11 +59,17 @@ import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import AppendToPackService from '@/services/demo/AppendToPackService';
+import { useTheme } from '@/theme';
+import { ActiveSessionPersistenceService, type ActiveChatSessionSnapshot } from '@/services/lifecycle/ActiveSessionPersistenceService';
+import { AppLifecycleService } from '@/services/lifecycle/AppLifecycleService';
+import { useRecoverableExitGuard } from '@/hooks/lifecycle/useRecoverableExitGuard';
 
 
 interface ChatScreenProps {
   navigation: {
     goBack: () => void;
+    dispatch?: (action: unknown) => void;
+    addListener?: (event: 'beforeRemove', callback: (event: { preventDefault: () => void; data?: { action?: unknown } }) => void) => (() => void) | undefined;
   };
   route: {
     params: {
@@ -72,6 +87,7 @@ interface ChatScreenProps {
 }
 
 const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
+  const { theme } = useTheme();
   // Extract route parameters
   const { 
     searchTerm, 
@@ -86,6 +102,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   // Redux and streaming state
   const dispatch = useDispatch();
   const activeStreams = useSelector((state: RootState) => selectActiveStreamCount(state));
+  const streamingMessages = useSelector((state: RootState) => state.streaming.streamingMessages);
+  const aiPersonalities = useSelector((state: RootState) => state.chat.aiPersonalities);
+  const selectedModels = useSelector((state: RootState) => state.chat.selectedModels);
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys);
   const webSearchPreferred = useSelector((state: RootState) => state.chat.webSearchPreferred);
 
@@ -125,6 +144,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   const [demoCurrentTurn, setDemoCurrentTurn] = React.useState(0);
   const [demoTotalTurns, setDemoTotalTurns] = React.useState(0);
   const [demoComplete, setDemoComplete] = React.useState(false);
+  const [recoveryNotice, setRecoveryNotice] = React.useState<string | null>(null);
 
   const mapProvidersToMentions = React.useCallback((providers: string[]): string[] => {
     if (!session.currentSession) return [];
@@ -159,6 +179,198 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     };
     await aiResponses.sendAIResponses(userMessage);
   }, [aiResponses, computeMentionsForTurn, messages]);
+
+  const getMessagesWithStreamingContent = React.useCallback((): Message[] => {
+    const baseMessages = session.currentSession?.messages || [];
+    return baseMessages.map((message) => {
+      const stream = streamingMessages[message.id];
+      if (!stream) return message;
+
+      const interrupted = stream.status === 'interrupted' || stream.status === 'cancelled';
+      const content = stream.content || message.content;
+      return {
+        ...message,
+        content,
+        metadata: interrupted
+          ? {
+            ...message.metadata,
+            lifecycle: {
+              status: stream.status === 'interrupted' ? 'interrupted' : 'cancelled',
+              reason: stream.error,
+              interruptedAt: stream.endTime || Date.now(),
+              partial: content.trim().length > 0,
+            },
+          }
+          : message.metadata,
+      };
+    });
+  }, [session.currentSession?.messages, streamingMessages]);
+
+  const saveActiveChatSnapshot = React.useCallback(async (
+    status: ActiveChatSessionSnapshot['status'] = 'active',
+    reason?: string
+  ) => {
+    if (!session.currentSession || session.currentSession.sessionType === 'debate') return;
+
+    const messagesWithStreamingContent = getMessagesWithStreamingContent();
+    if (messagesWithStreamingContent.length === 0) return;
+
+    const activeStreamIds = Object.values(streamingMessages)
+      .filter(stream => stream.isStreaming)
+      .map(stream => stream.messageId);
+    const interruptedMessageIds = messagesWithStreamingContent
+      .filter(message => message.metadata?.lifecycle?.status === 'interrupted' || activeStreamIds.includes(message.id))
+      .map(message => message.id);
+    const latestUserMessage = [...messagesWithStreamingContent].reverse().find(message => message.senderType === 'user');
+
+    await ActiveSessionPersistenceService.saveSnapshot({
+      mode: 'chat',
+      sessionId: session.currentSession.id,
+      status,
+      createdAt: session.currentSession.createdAt,
+      session: {
+        ...session.currentSession,
+        messages: messagesWithStreamingContent,
+        isActive: status !== 'completed',
+        lastMessageAt: Date.now(),
+      },
+      selectedAIs: session.currentSession.selectedAIs,
+      messages: messagesWithStreamingContent,
+      selectedModels,
+      aiPersonalities,
+      interruptedMessageIds,
+      pendingTurn: activeStreamIds.length > 0 || status === 'interrupted'
+        ? {
+          kind: 'chat_response',
+          prompt: latestUserMessage?.content,
+          messageIds: activeStreamIds.length > 0 ? activeStreamIds : interruptedMessageIds,
+          reason,
+          interruptedAt: Date.now(),
+        }
+        : undefined,
+    });
+  }, [
+    aiPersonalities,
+    getMessagesWithStreamingContent,
+    selectedModels,
+    session.currentSession,
+    streamingMessages,
+  ]);
+
+  const recoveryAttemptedRef = React.useRef(false);
+  useEffect(() => {
+    if (recoveryAttemptedRef.current || session.currentSession) return;
+    recoveryAttemptedRef.current = true;
+
+    const restoreSnapshot = async () => {
+      const snapshot = route.params?.sessionId
+        ? await ActiveSessionPersistenceService.loadSnapshot<ActiveChatSessionSnapshot>('chat', route.params.sessionId)
+        : await ActiveSessionPersistenceService.loadLatestSnapshot<ActiveChatSessionSnapshot>('chat');
+
+      if (!snapshot || snapshot.status === 'completed') return;
+
+      dispatch(loadSessionAction({
+        ...snapshot.session,
+        messages: snapshot.messages || snapshot.session.messages,
+        isActive: true,
+      }));
+      Object.entries(snapshot.aiPersonalities || {}).forEach(([aiId, personalityId]) => {
+        dispatch(setAIPersonality({ aiId, personalityId }));
+      });
+      Object.entries(snapshot.selectedModels || {}).forEach(([aiId, modelId]) => {
+        dispatch(setAIModel({ aiId, modelId }));
+      });
+
+      if (snapshot.status === 'interrupted' || snapshot.interruptedMessageIds?.length) {
+        setRecoveryNotice('The last response was interrupted. Retry when you are ready.');
+      } else if (snapshot.status === 'backgrounded') {
+        setRecoveryNotice('Your conversation was restored from the last app checkpoint.');
+      }
+    };
+
+    void restoreSnapshot();
+  }, [dispatch, route.params?.sessionId, session.currentSession]);
+
+  useEffect(() => {
+    if (!session.currentSession) return undefined;
+
+    return AppLifecycleService.register({
+      id: `chat-${session.currentSession.id}`,
+      onBackground: () => saveActiveChatSnapshot(activeStreams > 0 ? 'interrupted' : 'backgrounded', 'app_backgrounded'),
+      onForeground: async () => {
+        const snapshot = await ActiveSessionPersistenceService.loadSnapshot<ActiveChatSessionSnapshot>('chat', session.currentSession!.id);
+        if (snapshot?.status === 'interrupted' || snapshot?.interruptedMessageIds?.length) {
+          setRecoveryNotice('The last response was interrupted. Retry when you are ready.');
+        }
+      },
+    });
+  }, [activeStreams, saveActiveChatSnapshot, session.currentSession]);
+
+  useEffect(() => {
+    void saveActiveChatSnapshot(activeStreams > 0 ? 'active' : 'backgrounded');
+  }, [activeStreams, saveActiveChatSnapshot, session.currentSession?.messages.length]);
+
+  const markActiveStreamsInterrupted = React.useCallback((status: 'cancelled' | 'interrupted', reason: string) => {
+    Object.values(streamingMessages)
+      .filter(stream => stream.isStreaming)
+      .forEach(stream => {
+        dispatch(updateMessage({
+          id: stream.messageId,
+          content: stream.content || (status === 'interrupted'
+            ? 'Response paused when the app backgrounded. Retry when ready.'
+            : 'Response stopped. Retry when ready.'),
+          metadata: {
+            lifecycle: {
+              status,
+              reason,
+              interruptedAt: Date.now(),
+              partial: Boolean(stream.content?.trim()),
+            },
+          },
+        }));
+      });
+  }, [dispatch, streamingMessages]);
+
+  const handleStopResponses = React.useCallback(async () => {
+    markActiveStreamsInterrupted('cancelled', 'user_stop');
+    try { getStreamingService().cancelAllStreams('cancelled'); } catch { /* no-op */ }
+    dispatch(cancelAllStreams({ reason: 'cancelled' }));
+    await saveActiveChatSnapshot('interrupted', 'user_stop');
+    setRecoveryNotice('Response stopped. Retry when you are ready.');
+  }, [dispatch, markActiveStreamsInterrupted, saveActiveChatSnapshot]);
+
+  const handleRetryInterrupted = React.useCallback(async () => {
+    const currentMessages = session.currentSession?.messages || [];
+    const lastUserIndex = currentMessages.map(message => message.senderType).lastIndexOf('user');
+    if (lastUserIndex < 0) return;
+
+    const userMessage = currentMessages[lastUserIndex];
+    const interruptedIds = new Set(
+      currentMessages
+        .filter(message => message.metadata?.lifecycle?.status === 'interrupted' || message.metadata?.lifecycle?.status === 'cancelled')
+        .map(message => message.id)
+    );
+    const existingMessages = currentMessages.filter((message, index) => (
+      index < lastUserIndex && !interruptedIds.has(message.id)
+    ));
+
+    setRecoveryNotice(null);
+    await aiResponses.retryAIResponses(userMessage, existingMessages, webSearchEnabled);
+    await saveActiveChatSnapshot('active');
+  }, [aiResponses, saveActiveChatSnapshot, session.currentSession?.messages, webSearchEnabled]);
+
+  const confirmChatLeave = useRecoverableExitGuard({
+    navigation,
+    shouldGuard: Boolean(activeStreams > 0 || aiResponses.isProcessing),
+    title: 'Leave this chat?',
+    message: 'The active response will be stopped and saved so you can retry it later.',
+    onSaveAndLeave: async () => {
+      markActiveStreamsInterrupted('cancelled', 'user_exit');
+      try { getStreamingService().cancelAllStreams('cancelled'); } catch { /* no-op */ }
+      dispatch(cancelAllStreams({ reason: 'cancelled' }));
+      await saveActiveChatSnapshot('interrupted', 'user_exit');
+    },
+  });
 
   // Build list of providers available for refinement (those that support img2img)
   const refinementProviders = React.useMemo((): RefinementProvider[] => {
@@ -515,7 +727,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
               return `${aiNames[0]}, ${aiNames[1]} & ${count - 2} others`;
             }
           })()}
-          onBack={navigation.goBack}
+          onBack={() => confirmChatLeave(navigation.goBack)}
           showBackButton={true}
           showTime={true}
           animated={true}
@@ -609,6 +821,36 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
           />
         )}
 
+        {recoveryNotice && (
+          <View style={[
+            chatRecoveryStyles.banner,
+            {
+              backgroundColor: theme.colors.warning[50],
+              borderColor: theme.colors.warning[300],
+            },
+          ]}>
+            <Text style={[chatRecoveryStyles.bannerText, { color: theme.colors.text.primary }]}>
+              {recoveryNotice}
+            </Text>
+            <View style={chatRecoveryStyles.bannerActions}>
+              <Text
+                accessibilityRole="button"
+                onPress={() => setRecoveryNotice(null)}
+                style={[chatRecoveryStyles.bannerAction, { color: theme.colors.text.secondary }]}
+              >
+                Dismiss
+              </Text>
+              <Text
+                accessibilityRole="button"
+                onPress={handleRetryInterrupted}
+                style={[chatRecoveryStyles.bannerAction, { color: theme.colors.primary[600] }]}
+              >
+                Retry
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Message List or Demo Empty State */}
         {isDemo && messages.messages.length === 0 ? (
           <DemoEmptyState
@@ -644,11 +886,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
           onInputChange={handleInputChange}
           onSend={handleSendMessage}
           isProcessing={aiResponses.isProcessing || activeStreams > 0}
-          onStop={() => {
-            // Abort active network streams and update UI state
-            try { getStreamingService().cancelAllStreams(); } catch { /* no-op */ }
-            dispatch(cancelAllStreams());
-          }}
+          onStop={handleStopResponses}
           placeholder="Type a message..."
           disabled={aiResponses.isProcessing}
           attachmentSupport={getAttachmentSupport(session.selectedAIs)}
@@ -722,3 +960,29 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
 };
 
 export default ChatScreen;
+
+const chatRecoveryStyles = StyleSheet.create({
+  banner: {
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginHorizontal: 12,
+    marginTop: 8,
+    borderRadius: 8,
+  },
+  bannerText: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  bannerActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+  },
+  bannerAction: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginLeft: 16,
+  },
+});

@@ -4,6 +4,7 @@ import { act, waitFor } from '@testing-library/react-native';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
 import { createAppStore, showSheet } from '@/store';
 import { resolveProviderModelId } from '@/config/modelConfigs';
+import { StorageService } from '@/services/chat/StorageService';
 import type { AppStore, RootState } from '@/store';
 import type { AIConfig, ChatSession, Message } from '@/types';
 
@@ -124,6 +125,7 @@ jest.mock('@/hooks/usePersonality', () => ({
 }));
 
 jest.mock('@/services/streaming/StreamingService', () => ({
+  isStreamInterruptedError: () => false,
   getStreamingService: () => ({
     streamResponse: (...args: unknown[]) => mockStreamResponse(...args),
     cancelAllStreams: jest.fn(),
@@ -378,6 +380,13 @@ describe('CompareScreen', () => {
     expect(mockChatInputProps.placeholder).toContain(leftAI.name);
   });
 
+  it('wires stop controls into the compare input bar', () => {
+    renderScreen();
+
+    expect(mockChatInputProps.isProcessing).toBe(false);
+    expect(mockChatInputProps.onStop).toEqual(expect.any(Function));
+  });
+
   it('navigates back when a required AI is missing', () => {
     renderScreen({ params: { rightAI: undefined } });
     expect(navigation.goBack).toHaveBeenCalled();
@@ -492,6 +501,26 @@ describe('CompareScreen', () => {
         undefined,
         resolveProviderModelId(georgeLeft.provider, georgeLeft.model) || georgeLeft.model
       );
+    });
+  });
+
+  it('saves comparison history after AI responses complete', async () => {
+    renderScreen();
+
+    await act(async () => {
+      await mockChatInputProps.onSend('Compare these options');
+    });
+
+    await waitFor(() => {
+      expect(StorageService.saveSession).toHaveBeenCalledWith(expect.objectContaining({
+        sessionType: 'comparison',
+        selectedAIs: [leftAI, rightAI],
+        messages: expect.arrayContaining([
+          expect.objectContaining({ sender: 'You', content: 'Compare these options' }),
+          expect.objectContaining({ sender: leftAI.name }),
+          expect.objectContaining({ sender: rightAI.name }),
+        ]),
+      }));
     });
   });
 

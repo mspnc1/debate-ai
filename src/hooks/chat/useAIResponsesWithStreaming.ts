@@ -24,6 +24,11 @@ export interface AIResponsesHook {
     enrichedPrompt: string,
     webSearchEnabled?: boolean
   ) => Promise<void>;
+  retryAIResponses: (
+    userMessage: Message,
+    existingMessagesOverride: Message[],
+    webSearchEnabled?: boolean
+  ) => Promise<void>;
   isProcessing: boolean;
 }
 
@@ -85,11 +90,12 @@ export const useAIResponsesWithStreaming = (isResuming?: boolean): AIResponsesHo
     setHasResumed(false);
   }, [currentSession?.id]);
 
-  const sendAIResponses = useCallback(async (
+  const processAIResponses = useCallback(async (
     userMessage: Message,
     enrichedPrompt?: string,
     attachments?: MessageAttachment[],
-    webSearchEnabled?: boolean
+    webSearchEnabled?: boolean,
+    existingMessagesOverride?: Message[]
   ) => {
     if (!aiService || !isInitialized || !currentSession || !orchestratorRef.current) {
       console.error('AI service not ready or no active session');
@@ -107,7 +113,7 @@ export const useAIResponsesWithStreaming = (isResuming?: boolean): AIResponsesHo
 
     await orchestratorRef.current.processUserMessage({
       userMessage,
-      existingMessages: messages,
+      existingMessages: existingMessagesOverride || messages,
       mentions: userMessage.mentions || [],
       enrichedPrompt,
       attachments,
@@ -125,6 +131,29 @@ export const useAIResponsesWithStreaming = (isResuming?: boolean): AIResponsesHo
       webSearchEnabled,
     });
   }, [aiService, apiKeys, expertModeConfigs, globalStreamingEnabled, isDemo, isInitialized, isResuming, messages, selectedModels, aiPersonalities, mergedPersonalities, streamingPreferences, streamingSpeed, currentSession, hasResumed]);
+
+  const sendAIResponses = useCallback(async (
+    userMessage: Message,
+    enrichedPrompt?: string,
+    attachments?: MessageAttachment[],
+    webSearchEnabled?: boolean
+  ) => {
+    await processAIResponses(userMessage, enrichedPrompt, attachments, webSearchEnabled);
+  }, [processAIResponses]);
+
+  const retryAIResponses = useCallback(async (
+    userMessage: Message,
+    existingMessagesOverride: Message[],
+    webSearchEnabled?: boolean
+  ) => {
+    await processAIResponses(
+      userMessage,
+      undefined,
+      userMessage.attachments,
+      webSearchEnabled,
+      existingMessagesOverride
+    );
+  }, [processAIResponses]);
 
   const sendQuickStartResponses = useCallback(async (
     userPrompt: string,
@@ -163,6 +192,7 @@ export const useAIResponsesWithStreaming = (isResuming?: boolean): AIResponsesHo
     isAnyAITyping: typingAIs.length > 0,
     sendAIResponses,
     sendQuickStartResponses,
+    retryAIResponses,
     isProcessing: typingAIs.length > 0,
   };
 };

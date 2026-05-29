@@ -14,7 +14,7 @@ import { getPersonality, PersonalityOption } from '@/config/personalities';
 import { resolveProviderModelId } from '@/config/modelConfigs';
 import { getExpertOverrides } from '@/utils/expertMode';
 import { ensureAnswerContent } from '@/utils/citationUtils';
-import { getStreamingService } from '@/services/streaming/StreamingService';
+import { getStreamingService, isStreamInterruptedError } from '@/services/streaming/StreamingService';
 import { RecordController } from '@/services/demo/RecordController';
 import { getCurrentTurnProviders, markProviderComplete } from '@/services/demo/DemoPlaybackRouter';
 import { ErrorService } from '@/services/errors/ErrorService';
@@ -320,6 +320,7 @@ export class ChatOrchestrator {
         speed: streamingSpeed,
       },
       (chunk: string) => {
+        streamedContent += chunk;
         this.dispatch(updateStreamingContent({ messageId: aiMessage.id, chunk }));
         try {
           if (RecordController.isActive()) {
@@ -336,6 +337,28 @@ export class ChatOrchestrator {
         this.dispatch(updateMessage({ id: aiMessage.id, content: finalChunk }));
       },
       async (error: Error) => {
+        if (isStreamInterruptedError(error)) {
+          const partialContent = streamedContent.trim();
+          const interruptedContent = partialContent.length > 0
+            ? `${partialContent}\n\n_Response ${error.reason === 'interrupted' ? 'paused when the app backgrounded' : 'stopped'}. Retry when ready._`
+            : `Response ${error.reason === 'interrupted' ? 'paused when the app backgrounded' : 'stopped'}. Retry when ready.`;
+          this.dispatch(streamingError({ messageId: aiMessage.id, error: error.message }));
+          this.dispatch(updateMessage({
+            id: aiMessage.id,
+            content: interruptedContent,
+            metadata: {
+              lifecycle: {
+                status: error.reason,
+                reason: error.message,
+                interruptedAt: Date.now(),
+                partial: partialContent.length > 0,
+              },
+            },
+          }));
+          finalContent = interruptedContent;
+          return;
+        }
+
         this.dispatch(streamingError({ messageId: aiMessage.id, error: error.message }));
         const fallbackContent = await this.handleStreamingFallback({
           ai,

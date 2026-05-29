@@ -44,8 +44,31 @@ interface StreamState {
   chunksReceived: number;
   bytesReceived: number;
   isActive: boolean;
+  stopReason?: StreamStopReason;
   buffer: ChunkBuffer;
 }
+
+export type StreamStopReason = 'cancelled' | 'interrupted';
+
+export class StreamInterruptedError extends Error {
+  reason: StreamStopReason;
+
+  constructor(reason: StreamStopReason) {
+    super(reason === 'interrupted'
+      ? 'Stream interrupted by app lifecycle'
+      : 'Stream cancelled');
+    this.name = 'StreamInterruptedError';
+    this.reason = reason;
+  }
+}
+
+export const isStreamInterruptedError = (error: unknown): error is StreamInterruptedError =>
+  error instanceof StreamInterruptedError
+  || (
+    Boolean(error)
+    && typeof error === 'object'
+    && (error as { name?: string }).name === 'StreamInterruptedError'
+  );
 
 // Chunk buffering class
 class ChunkBuffer {
@@ -327,6 +350,10 @@ export class StreamingService {
         // No stream iterations occurred - streaming may have failed
       }
 
+      if (!streamState.isActive || abortController.signal.aborted) {
+        throw new StreamInterruptedError(streamState.stopReason || 'cancelled');
+      }
+
       // Flush any remaining buffered content
       buffer.flush();
 
@@ -346,6 +373,11 @@ export class StreamingService {
       buffer.clear();
       this.activeStreams.delete(messageId);
 
+      if (isStreamInterruptedError(error)) {
+        onError(error);
+        return;
+      }
+
       const appError = ErrorService.handleError(error, {
         feature: 'streaming',
         showToast: false,
@@ -358,26 +390,30 @@ export class StreamingService {
   /**
    * Cancel a specific stream
    */
-  cancelStream(messageId: string): boolean {
+  cancelStream(messageId: string, reason: StreamStopReason = 'cancelled'): boolean {
     const streamState = this.activeStreams.get(messageId);
     if (!streamState) return false;
 
     streamState.isActive = false;
+    streamState.stopReason = reason;
     streamState.abortController.abort();
     streamState.buffer.clear();
-    this.activeStreams.delete(messageId);
     return true;
   }
 
   /**
    * Cancel all active streams
    */
-  cancelAllStreams(): number {
+  cancelAllStreams(reason: StreamStopReason = 'cancelled'): number {
     const count = this.activeStreams.size;
     this.activeStreams.forEach((_streamState, messageId) => {
-      this.cancelStream(messageId);
+      this.cancelStream(messageId, reason);
     });
     return count;
+  }
+
+  interruptAllStreams(): number {
+    return this.cancelAllStreams('interrupted');
   }
 
   /**

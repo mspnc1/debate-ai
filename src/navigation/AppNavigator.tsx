@@ -1,12 +1,13 @@
-import React, { useEffect, useMemo } from 'react';
-import { Platform, View, ActivityIndicator, AppState } from 'react-native';
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Platform, View, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { NavigationContainer, DefaultTheme, DarkTheme, type InitialState } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState, hydrateMediaGallery, isApiKeyConfigured, resumeCreateMediaTasks } from '../store';
+import { AppDispatch, RootState, cancelAllStreams, hydrateMediaGallery, isApiKeyConfigured, resumeCreateMediaTasks } from '../store';
 import { RootStackParamList } from '../types';
 import { useTheme } from '../theme';
 import { SheetProvider } from '../contexts/SheetContext';
@@ -14,6 +15,8 @@ import { GlobalSheets } from './GlobalSheets';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { useResponsive } from '../hooks/useResponsive';
 import { ErrorBoundary } from '../components/organisms/common/ErrorBoundary';
+import { AppLifecycleService } from '@/services/lifecycle/AppLifecycleService';
+import { getStreamingService } from '@/services/streaming/StreamingService';
 
 // Import screens
 import WelcomeScreen from '../screens/WelcomeScreen';
@@ -39,6 +42,7 @@ import PersonalitySystemScreen from '../screens/PersonalitySystemScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
+const NAVIGATION_STATE_KEY = 'navigationState_v1';
 
 const CreateActivityBridge = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -58,12 +62,21 @@ const CreateActivityBridge = () => {
   }, [activeRunwayTask, dispatch, mediaGalleryHydrated]);
 
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
+    AppLifecycleService.start();
+    return AppLifecycleService.register({
+      id: 'create-activity-bridge',
+      onForeground: () => {
         dispatch(resumeCreateMediaTasks());
-      }
+      },
+      onBackground: () => {
+        try {
+          getStreamingService().interruptAllStreams();
+          dispatch(cancelAllStreams({ reason: 'interrupted' }));
+        } catch {
+          // ignore lifecycle cancellation failures
+        }
+      },
     });
-    return () => subscription.remove();
   }, [dispatch]);
 
   return null;
@@ -218,6 +231,8 @@ const MainTabsWithSheets = () => {
 
 export default function AppNavigator() {
   const { theme, isDark } = useTheme();
+  const [initialNavigationState, setInitialNavigationState] = useState<InitialState | undefined>();
+  const [isNavigationStateReady, setIsNavigationStateReady] = useState(false);
   // const uiMode = useSelector((state: RootState) => state.user.uiMode);
   const hasCompletedOnboarding = useSelector(
     (state: RootState) => state.settings.hasCompletedOnboarding
@@ -230,6 +245,25 @@ export default function AppNavigator() {
   // Trial and demo users follow the normal onboarding flow
   const isPremiumSubscriber = membershipStatus === 'premium';
   const shouldShowMainApp = isPremiumSubscriber || hasCompletedOnboarding;
+
+  useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(NAVIGATION_STATE_KEY)
+      .then(raw => {
+        if (!mounted || !raw) return;
+        setInitialNavigationState(JSON.parse(raw) as InitialState);
+      })
+      .catch(() => {
+        // Navigation persistence is a recovery assist only.
+      })
+      .finally(() => {
+        if (mounted) setIsNavigationStateReady(true);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Custom navigation theme
   const navigationTheme = isDark ? {
@@ -256,7 +290,7 @@ export default function AppNavigator() {
 
   // Show loading screen while determining subscription status
   // This prevents flash of wrong screen
-  if (subscriptionLoading) {
+  if (subscriptionLoading || !isNavigationStateReady) {
     return (
       <View style={{
         flex: 1,
@@ -272,7 +306,14 @@ export default function AppNavigator() {
   return (
     <SheetProvider>
       <ErrorBoundary level="recoverable">
-        <NavigationContainer theme={navigationTheme}>
+        <NavigationContainer
+          theme={navigationTheme}
+          initialState={shouldShowMainApp ? initialNavigationState : undefined}
+          onStateChange={(state) => {
+            if (!shouldShowMainApp) return;
+            AsyncStorage.setItem(NAVIGATION_STATE_KEY, JSON.stringify(state)).catch(() => {});
+          }}
+        >
           <Stack.Navigator
           screenOptions={{
             headerStyle: {

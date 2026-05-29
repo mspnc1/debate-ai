@@ -376,6 +376,8 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
         setMaxRounds(session.totalRounds);
         setCurrentMessageIndex(session.messageIndex);
         setTotalMessages(session.totalMessages);
+        setContinuation(orchestrator.getPendingContinuation());
+        setAudienceQuestionsPrompt(orchestrator.getPendingAudienceQuestions());
       }
     }
   }, [orchestrator]);

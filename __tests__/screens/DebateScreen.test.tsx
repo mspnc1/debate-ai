@@ -272,6 +272,7 @@ const createSessionState = (overrides: Record<string, unknown> = {}) => ({
   isInitialized: false,
   initializeSession: jest.fn().mockResolvedValue(undefined),
   resetSession: jest.fn(),
+  hydrateSessionFromSnapshot: jest.fn().mockResolvedValue(undefined),
   error: null,
   ...overrides,
 });
@@ -990,7 +991,7 @@ describe('DebateScreen', () => {
     expect(mockShowInfo).toHaveBeenCalledWith('No messages to display in transcript.', 'debate');
   });
 
-  it('stops streams and resets session when starting over', () => {
+  it('stops streams and resets session after confirming start over', async () => {
     const resetSession = jest.fn();
     const { navigation } = renderScreen({
       session: { resetSession },
@@ -998,14 +999,19 @@ describe('DebateScreen', () => {
 
     mockHeaderProps.onBack();
 
-    expect(mockStreamingService.cancelAllStreams).toHaveBeenCalled();
-    expect(resetSession).toHaveBeenCalled();
+    expect(mockStreamingService.cancelAllStreams).not.toHaveBeenCalled();
+    expect(resetSession).not.toHaveBeenCalled();
 
     const alertArgs = (Alert.alert as jest.Mock).mock.calls[0];
     const buttons = alertArgs[2] as Array<{ text: string; onPress?: () => void }>;
     const startOverButton = buttons.find((btn) => btn.text === 'Start Over');
 
-    startOverButton?.onPress?.();
+    await act(async () => {
+      await startOverButton?.onPress?.();
+    });
+
+    expect(mockStreamingService.cancelAllStreams).toHaveBeenCalled();
+    expect(resetSession).toHaveBeenCalled();
     expect(navigation.navigate).toHaveBeenCalledWith('MainTabs', {
       screen: 'DebateTab',
       params: expect.objectContaining({

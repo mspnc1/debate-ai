@@ -5,12 +5,13 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useDispatch } from 'react-redux';
-import { startSession, startDebate } from '../../store';
+import { loadSession as loadSessionAction, startSession, startDebate } from '../../store';
 import { DebateOrchestrator, DebateSession, DebateStatus } from '../../services/debate';
 import { useAIService } from '../../providers/AIServiceProvider';
 import { AI, type DebateVoiceConfig } from '../../types';
 import { PersonalityOption } from '@/config/personalities';
 import type { DebateFormatId } from '@/config/debate/formats';
+import type { ActiveDebateSessionSnapshot } from '@/services/lifecycle/ActiveSessionPersistenceService';
 
 export interface UseDebateSessionReturn {
   session: DebateSession | null;
@@ -33,6 +34,7 @@ export interface UseDebateSessionReturn {
     }
   ) => Promise<void>;
   resetSession: () => void;
+  hydrateSessionFromSnapshot: (snapshot: ActiveDebateSessionSnapshot) => Promise<void>;
   error: string | null;
 }
 
@@ -112,6 +114,52 @@ export const useDebateSession = (_selectedAIs: AI[]): UseDebateSessionReturn => 
     setIsInitialized(false);
     setError(null);
   }, [orchestrator]);
+
+  const hydrateSessionFromSnapshot = useCallback(async (
+    snapshot: ActiveDebateSessionSnapshot
+  ): Promise<void> => {
+    if (!orchestrator) {
+      setError('Orchestrator not initialized. Please wait a moment and try again.');
+      throw new Error('Orchestrator not initialized');
+    }
+
+    try {
+      setError(null);
+      const debateSession = orchestrator.hydrateFromSnapshot(snapshot);
+      dispatch(loadSessionAction({
+        id: debateSession.id,
+        sessionType: 'debate',
+        topic: debateSession.topic,
+        selectedAIs: debateSession.participants,
+        messages: snapshot.messages,
+        isActive: true,
+        createdAt: debateSession.startTime,
+        lastMessageAt: Date.now(),
+        debateConfig: {
+          formatId: debateSession.format.id,
+          presetId: debateSession.presetId,
+          rounds: debateSession.totalRounds,
+          civility: debateSession.civility,
+          voteResults: snapshot.voteRecords,
+          audienceResult: debateSession.audienceResult,
+          audienceQuestions: debateSession.audienceQuestions,
+          voiceConfig: debateSession.voiceConfig,
+        },
+      }));
+      dispatch(startDebate({
+        debateId: debateSession.id,
+        topic: debateSession.topic,
+        participants: debateSession.participants.map(ai => ai.id),
+      }));
+      setSession(debateSession);
+      setStatus(debateSession.status);
+      setIsInitialized(true);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to restore debate session';
+      setError(errorMessage);
+      setStatus(DebateStatus.ERROR);
+    }
+  }, [dispatch, orchestrator]);
   
   // Sync status from orchestrator session
   useEffect(() => {
@@ -139,6 +187,7 @@ export const useDebateSession = (_selectedAIs: AI[]): UseDebateSessionReturn => 
     orchestrator,
     initializeSession,
     resetSession,
+    hydrateSessionFromSnapshot,
     error,
   };
 };
