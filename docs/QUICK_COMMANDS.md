@@ -4,6 +4,7 @@
 - iOS: `eas build -p ios --profile development`
 - Android: `eas build -p android --profile development`
 - Run Metro: `npx expo start --dev-client`
+- Recover Android emulator after a Metro restart/black screen: `npm run android:dev:reset`
 
 Install dev client after build:
 - Android (USB): `eas build:run -p android --profile development`
@@ -27,4 +28,3 @@ Install dev client after build:
 - Clean Android (local):
   - `rm -rf android/.cxx android/app/build android/build`
   - `(cd android && ./gradlew clean)`
-
