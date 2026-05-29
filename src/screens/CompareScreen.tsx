@@ -27,6 +27,7 @@ import { PromptDebugLogger } from '@/services/debug/PromptDebugLogger';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
 import { usePersonality } from '@/hooks/usePersonality';
 import { DemoBanner } from '@/components/molecules/subscription/DemoBanner';
+import { ContextBar } from '@/components/molecules';
 import { useDispatch } from 'react-redux';
 import { showSheet } from '@/store';
 import { DemoContentService } from '@/services/demo/DemoContentService';
@@ -1261,10 +1262,8 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
       >
         <Header
           variant="gradient"
+          slim
           title="Comparison"
-          subtitle={`${leftAI.name} vs ${rightAI.name}`}
-          showTime={false}
-          showDate={false}
           animated={true}
           rightElement={<HeaderActions variant="gradient" helpTopicId="compare-mode" />}
           actionButton={recordModeEnabled ? {
@@ -1320,6 +1319,16 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
           showBackButton={true}
           onBack={handleStartOver}
           showDemoBadge={isDemo}
+        />
+
+        <ContextBar
+          title="Face-off"
+          subtitle="Different minds, same prompt."
+          items={[
+            { label: 'Left', value: leftAI.name, accentColor: leftAI.color },
+            { label: 'Right', value: rightAI.name, accentColor: rightAI.color },
+          ]}
+          testID="compare-context-bar"
         />
 
         {isDemo && compareSamples.length > 0 && (

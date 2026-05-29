@@ -13,7 +13,7 @@ import {
   APIKeyGuidanceModal,
   APIKeyWebViewModal,
 } from '../components/organisms';
-import { Typography, GradientButton } from '../components/molecules';
+import { ContextBar, Typography, GradientButton } from '../components/molecules';
 import { useAPIKeys } from '../hooks/useAPIKeys';
 import { useProviderVerification } from '../hooks/useProviderVerification';
 import { useAPIConfigHandlers } from '../hooks/useAPIConfigHandlers';
@@ -141,16 +141,16 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right', 'bottom']}>
         <Header
           variant="gradient"
+          slim
           title="Configure AIs"
-          subtitle="Add provider keys"
           onBack={() => {
             navigation.goBack();
             dispatch(showSheet({ sheet: 'settings' }));
           }}
           showBackButton={true}
-          showTime={true}
           animated={true}
         />
+        <ContextBar title="Provider keys" subtitle="Add or verify model access." />
         
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

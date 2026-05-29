@@ -3,7 +3,7 @@ import { ScrollView, View, StyleSheet, TouchableOpacity, Linking, Platform } fro
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { Box } from '@/components/atoms';
-import { Typography, GradientButton, Button } from '@/components/molecules';
+import { ContextBar, Typography, GradientButton, Button } from '@/components/molecules';
 import { Header, TrialTermsSheet } from '@/components/organisms';
 import { UnlockEverythingBanner } from '@/components/organisms/subscription/UnlockEverythingBanner';
 import { useNavigation } from '@react-navigation/native';
@@ -178,14 +178,15 @@ export default function UpgradeScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right', 'bottom']}>
         <Header
           variant="gradient"
+          slim
           title={getTitle()}
-          subtitle={getHeaderSubtitle()}
           showBackButton
           onBack={() => {
             try { (navigation as unknown as { goBack: () => void }).goBack(); } catch { /* noop */ }
           }}
           animated
         />
+        <ContextBar title="Premium access" subtitle={getHeaderSubtitle()} />
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.xl * 2 }}

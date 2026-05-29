@@ -127,7 +127,7 @@ export interface HeaderProps {
   // Content
   title?: string;
   subtitle?: string;
-  /** Slim gradient bar: renders only the right-side actions (no title/greeting). */
+  /** Slim gradient bar for universal app chrome. Context belongs below the header. */
   slim?: boolean;
   
   // Navigation
@@ -178,7 +178,7 @@ const TABLET_GRADIENT_LONG_MOTION_EXTRA_HEIGHT = 16;
 const COMPACT_HEIGHT = 50;
 const TABLET_COMPACT_HEIGHT = 60;
 const GRADIENT_TOP_ROW_HEIGHT = 40;
-// Slim gradient bar (greeting moved into the scroll body): just holds the actions.
+// Slim gradient bar: universal app chrome; session context lives below it.
 const SLIM_GRADIENT_HEIGHT = 52;
 
 // Gradient header uses proportional scaling for tablets
@@ -842,6 +842,7 @@ export const Header: React.FC<HeaderProps> = ({
   const gradientTopLeftContent = variant === 'gradient'
     ? renderGradientTopLeftSection()
     : null;
+  const slimHasRightContent = Boolean(showDemoBadge || actionButton || rightElement);
 
   return (
     <Box 
@@ -866,7 +867,7 @@ export const Header: React.FC<HeaderProps> = ({
       {renderBackground()}
       
       {isSlimGradient ? (
-        /* Slim bar: only the right-side actions; the greeting lives in the body. */
+        /* Slim bar: stable app chrome; dense screen context lives below. */
         <View
           testID="header-slim-row"
           style={[
@@ -880,14 +881,37 @@ export const Header: React.FC<HeaderProps> = ({
           ]}
         >
           <View style={styles.gradientSlimLeft}>
+            {showBackButton && onBack && (
+              <BackButton
+                onPress={onBack}
+                variant="gradient"
+                size={36}
+                testID="header-back-button"
+              />
+            )}
             {title ? (
-              <Typography variant="title" weight="bold" color="inverse" numberOfLines={1}>
+              <Typography variant="title" weight="bold" color="inverse" numberOfLines={1} style={styles.gradientSlimTitle}>
                 {title}
               </Typography>
             ) : null}
           </View>
-          {rightElement && (
-            <View style={styles.gradientTopRowRight}>
+          {slimHasRightContent && (
+            <View style={styles.gradientSlimRight}>
+              {showDemoBadge && (
+                <View style={styles.slimDemoBadge}>
+                  <Typography variant="caption" weight="bold" color="inverse" numberOfLines={1}>
+                    DEMO
+                  </Typography>
+                </View>
+              )}
+              {actionButton && (
+                <Button
+                  title={actionButton.label}
+                  onPress={actionButton.onPress}
+                  variant={actionButton.variant || 'danger'}
+                  size="small"
+                />
+              )}
               {rightElement}
             </View>
           )}
@@ -1111,8 +1135,22 @@ const createStyles = (
   gradientSlimLeft: {
     flex: 1,
     minWidth: 0,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  gradientSlimTitle: {
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  gradientSlimRight: {
+    flexShrink: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: theme.spacing.xs,
+    marginLeft: theme.spacing.sm,
   },
   gradientTopRowLeft: {
     flex: 1,
@@ -1143,6 +1181,13 @@ const createStyles = (
     borderRadius: 999,
     backgroundColor: 'rgba(99,102,241,0.92)',
     zIndex: 1002,
+  },
+  slimDemoBadge: {
+    minHeight: 24,
+    justifyContent: 'center',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    backgroundColor: 'rgba(99,102,241,0.92)',
   },
   dateContainer: {
     alignItems: 'flex-start',

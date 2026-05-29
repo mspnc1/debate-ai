@@ -37,6 +37,7 @@ export interface DebateSessionHeaderProps {
     variant?: 'primary' | 'danger' | 'ghost';
   };
   showDemoBadge?: boolean;
+  chrome?: 'full' | 'context';
 }
 
 const getTeamAccent = (theme: Theme, side: DebateSideId): string =>
@@ -57,54 +58,58 @@ export const DebateSessionHeader: React.FC<DebateSessionHeaderProps> = ({
   rightElement,
   recordAction,
   showDemoBadge = false,
+  chrome = 'full',
 }) => {
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isNarrow = width < 360;
-  const styles = createStyles(theme, isDark, insets.top);
+  const isContextChrome = chrome === 'context';
+  const styles = createStyles(theme, isDark, insets.top, isContextChrome);
   const motionText = stripMotionPrefix(topic) || 'Debate Motion';
 
   return (
     <View style={styles.container} testID="debate-session-header">
-      <View style={styles.topRow}>
-        <Pressable
-          onPress={onBack}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          accessibilityHint="Stops this debate and returns to setup."
-          style={({ pressed }) => [
-            styles.backButton,
-            pressed && styles.pressed,
-          ]}
-          testID="debate-session-header-back"
-        >
-          <Ionicons name="arrow-back" size={18} color={theme.colors.text.primary} />
-          <Typography variant="body" weight="semibold" numberOfLines={1}>
-            Go Back
-          </Typography>
-        </Pressable>
+      {!isContextChrome && (
+        <View style={styles.topRow}>
+          <Pressable
+            onPress={onBack}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            accessibilityHint="Stops this debate and returns to setup."
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed && styles.pressed,
+            ]}
+            testID="debate-session-header-back"
+          >
+            <Ionicons name="arrow-back" size={18} color={theme.colors.text.primary} />
+            <Typography variant="body" weight="semibold" numberOfLines={1}>
+              Go Back
+            </Typography>
+          </Pressable>
 
-        <View style={styles.topActions}>
-          {showDemoBadge && (
-            <View style={styles.demoBadge}>
-              <Typography variant="caption" weight="bold" color="brand" numberOfLines={1}>
-                DEMO
-              </Typography>
-            </View>
-          )}
-          {recordAction && (
-            <Button
-              title={recordAction.label}
-              onPress={recordAction.onPress}
-              variant={recordAction.variant || 'primary'}
-              size="small"
-              style={styles.recordButton}
-            />
-          )}
-          {rightElement}
+          <View style={styles.topActions}>
+            {showDemoBadge && (
+              <View style={styles.demoBadge}>
+                <Typography variant="caption" weight="bold" color="brand" numberOfLines={1}>
+                  DEMO
+                </Typography>
+              </View>
+            )}
+            {recordAction && (
+              <Button
+                title={recordAction.label}
+                onPress={recordAction.onPress}
+                variant={recordAction.variant || 'primary'}
+                size="small"
+                style={styles.recordButton}
+              />
+            )}
+            {rightElement}
+          </View>
         </View>
-      </View>
+      )}
 
       <View style={styles.motionBlock}>
         <Typography variant="caption" color="secondary" weight="semibold" style={styles.overline}>
@@ -193,13 +198,13 @@ export const DebateSessionHeader: React.FC<DebateSessionHeaderProps> = ({
   );
 };
 
-const createStyles = (theme: Theme, isDark: boolean, topInset: number) => StyleSheet.create({
+const createStyles = (theme: Theme, isDark: boolean, topInset: number, isContextChrome: boolean) => StyleSheet.create({
   container: {
     width: '100%',
     backgroundColor: theme.colors.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.border,
-    paddingTop: topInset + 6,
+    paddingTop: isContextChrome ? 8 : topInset + 6,
     paddingHorizontal: 14,
     paddingBottom: 8,
     ...Platform.select({
@@ -252,7 +257,7 @@ const createStyles = (theme: Theme, isDark: boolean, topInset: number) => StyleS
     marginRight: 4,
   },
   motionBlock: {
-    minHeight: 62,
+    minHeight: isContextChrome ? 44 : 62,
     justifyContent: 'center',
     paddingVertical: 2,
   },
@@ -262,8 +267,8 @@ const createStyles = (theme: Theme, isDark: boolean, topInset: number) => StyleS
     marginBottom: 2,
   },
   motionText: {
-    fontSize: 20,
-    lineHeight: 24,
+    fontSize: isContextChrome ? 17 : 20,
+    lineHeight: isContextChrome ? 21 : 24,
     letterSpacing: 0,
   },
   teamGrid: {

@@ -15,7 +15,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Typography } from '@/components/molecules';
+import { ContextBar, Typography } from '@/components/molecules';
 import { Header, PersonalityCard, PersonalityCustomizationPanel, CreateYourOwnCard } from '@/components/organisms';
 import { useTheme } from '@/theme';
 import { usePersonality, MergedPersonality } from '@/hooks/usePersonality';
@@ -171,13 +171,14 @@ export default function PersonalitySystemScreen() {
       {/* Header */}
       <Header
         variant="gradient"
+        slim
         title="AI Personalities"
-        subtitle="Customize voice and style"
         showBackButton={true}
         onBack={() => navigation.goBack()}
         animated={true}
         testID="personality-system-header"
       />
+      <ContextBar title="Voice and style" subtitle="Tune how each AI shows up." />
 
       {/* Personality Grid */}
       <FlatList

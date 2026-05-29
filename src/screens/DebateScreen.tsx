@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ErrorService } from '@/services/errors/ErrorService';
 import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
-import { Typography } from '../components/molecules';
+import { ContextBar, Typography } from '../components/molecules';
 import { useTheme } from '../theme';
 import { AI, type DebateVoiceConfig } from '../types';
 import { usePersonality } from '@/hooks/usePersonality';
@@ -990,6 +990,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   const debatePresetLabel = `${activeFormatName} · ${activePreset.shortLabel || activePreset.label}`;
   const showDebateSessionHeader = (flow.isDebateActive || flow.isDebateEnded) && !isShowingVictory;
   const showStandardHeader = !isShowingVictory;
+  const displayedMotion = displayedTopic.replace(/^\s*Motion:\s*/i, '').trim() || displayedTopic;
   const headerTimelineMessages = isShowingVictory ? [] : timelineMessages;
   const headerCurrentMessageIndex = isShowingVictory && timelineMessages.length > 0
     ? timelineMessages.length - 1
@@ -1063,34 +1064,57 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
       backgroundColor: theme.colors.background,
     }} edges={isShowingVictory ? ['top', 'left', 'right', 'bottom'] : ['left', 'right', 'bottom']}>
       {showDebateSessionHeader ? (
-        <DebateSessionHeader
-          topic={displayedTopic}
-          teams={debateTeams}
-          presetLabel={debatePresetLabel}
-          currentMessageIndex={headerCurrentMessageIndex}
-          totalMessages={timelineMessages.length}
-          currentTurnLabel={headerCurrentTurnLabel}
-          activeSideLabel={headerActiveSideLabel}
-          timelineMessages={headerTimelineMessages}
-          onBack={handleStartOver}
-          rightElement={<HeaderActions variant="default" helpTopicId="debate-arena" />}
-          recordAction={recordAction}
-          showDemoBadge={isDemo}
-        />
+        <>
+          <Header
+            variant="gradient"
+            slim
+            title="Settle an Argument"
+            showBackButton={true}
+            onBack={handleStartOver}
+            animated={true}
+            rightElement={<HeaderActions variant="gradient" helpTopicId="debate-arena" />}
+            actionButton={recordAction}
+            showDemoBadge={isDemo}
+          />
+          <DebateSessionHeader
+            topic={displayedTopic}
+            teams={debateTeams}
+            presetLabel={debatePresetLabel}
+            currentMessageIndex={headerCurrentMessageIndex}
+            totalMessages={timelineMessages.length}
+            currentTurnLabel={headerCurrentTurnLabel}
+            activeSideLabel={headerActiveSideLabel}
+            timelineMessages={headerTimelineMessages}
+            onBack={handleStartOver}
+            chrome="context"
+          />
+        </>
       ) : showStandardHeader ? (
-        <Header
-          variant="gradient"
-          title={displayedTopic.startsWith('Motion:') ? displayedTopic : `Motion: ${displayedTopic}`}
-          subtitle={genericHeaderSubtitle}
-          showBackButton={true}
-          onBack={handleStartOver}
-          showTime={false}
-          showDate={false}
-          animated={true}
-          rightElement={<HeaderActions variant="gradient" helpTopicId="debate-arena" />}
-          actionButton={recordAction}
-          showDemoBadge={isDemo}
-        />
+        <>
+          <Header
+            variant="gradient"
+            slim
+            title="Settle an Argument"
+            showBackButton={true}
+            onBack={handleStartOver}
+            animated={true}
+            rightElement={<HeaderActions variant="gradient" helpTopicId="debate-arena" />}
+            actionButton={recordAction}
+            showDemoBadge={isDemo}
+          />
+          <ContextBar
+            title="Motion"
+            subtitle={displayedMotion}
+            rightElement={
+              genericHeaderSubtitle ? (
+                <Typography variant="caption" color="secondary" numberOfLines={1}>
+                  {genericHeaderSubtitle}
+                </Typography>
+              ) : undefined
+            }
+            testID="debate-context-bar"
+          />
+        </>
       ) : null}
       
       {/* Topic moved into header */}

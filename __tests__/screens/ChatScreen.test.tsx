@@ -389,13 +389,14 @@ describe('ChatScreen', () => {
   });
 
   it('renders chat layout and wires primary interactions', async () => {
-    const { getByTestId, store } = renderWithProviders(
+    const { getByTestId, getByText, store } = renderWithProviders(
       <ChatScreen navigation={navigation} route={route} />
     );
 
     expect(getByTestId('chat-message-list')).toBeTruthy();
     expect(mockHeaderProps.title).toBe('Conversation');
-    expect(mockHeaderProps.subtitle).toBe('Claude meets GPT-4');
+    expect(mockHeaderProps.slim).toBe(true);
+    expect(getByText('Claude meets GPT-4')).toBeTruthy();
 
     fireEvent.press(getByTestId('header-back'));
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
@@ -688,11 +689,11 @@ describe('ChatScreen', () => {
     };
 
     const noAI = renderScenario([]);
-    expect(mockHeaderProps.subtitle).toBe('Preparing symposium');
+    expect(noAI.getByText('Preparing symposium')).toBeTruthy();
     noAI.unmount();
 
     const singleAI = renderScenario([selectedAIs[0]]);
-    expect(mockHeaderProps.subtitle).toBe('In dialogue with Claude');
+    expect(singleAI.getByText('In dialogue with Claude')).toBeTruthy();
     singleAI.unmount();
 
     const trio = renderScenario([
@@ -700,7 +701,7 @@ describe('ChatScreen', () => {
       selectedAIs[1],
       { id: 'gemini', provider: 'google', name: 'Gemini', model: 'gemini-1.5', color: '#222' },
     ]);
-    expect(mockHeaderProps.subtitle).toBe('Claude, GPT-4 & 1 more');
+    expect(trio.getByText('Claude, GPT-4 & 1 more')).toBeTruthy();
     trio.unmount();
 
     const quartet = renderScenario([
@@ -709,7 +710,7 @@ describe('ChatScreen', () => {
       { id: 'gemini', provider: 'google', name: 'Gemini', model: 'gemini-1.5', color: '#222' },
       { id: 'mistral', provider: 'mistral', name: 'Mistral', model: 'mistral-large', color: '#333' },
     ]);
-    expect(mockHeaderProps.subtitle).toBe('Claude, GPT-4 & 2 others');
+    expect(quartet.getByText('Claude, GPT-4 & 2 others')).toBeTruthy();
     quartet.unmount();
   });
 

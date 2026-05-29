@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { Box } from '../components/atoms';
 import { Header } from '../components/organisms';
-import { Typography, GradientButton } from '../components/molecules';
+import { ContextBar, Typography, GradientButton } from '../components/molecules';
 import { AI_PROVIDERS } from '../config/aiProviders';
 import { useTheme } from '../theme';
 import { ProviderExpertSettings } from '../components/organisms';
@@ -37,16 +37,16 @@ const ExpertModeScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ na
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right', 'bottom']}>
         <Header
           variant="gradient"
+          slim
           title="Model Defaults"
-          subtitle="Advanced parameters"
           onBack={() => {
             navigation.goBack();
             dispatch(showSheet({ sheet: 'settings' }));
           }}
           showBackButton={true}
-          showTime={true}
           animated={true}
         />
+        <ContextBar title="Advanced parameters" subtitle="Defaults for model behavior and generation." />
         <ScrollView
           contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.xl * 2 }}
           showsVerticalScrollIndicator={false}

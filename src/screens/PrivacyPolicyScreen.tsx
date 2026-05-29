@@ -38,6 +38,7 @@ const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ navigation })
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['left', 'right', 'bottom']}>
       <Header
         variant="gradient"
+        slim
         title="Privacy Policy"
         showBackButton
         onBack={() => navigation.goBack()}

@@ -38,6 +38,7 @@ const mockUseDebateVoiceGeneration = jest.fn();
 const mockCompileDebateVoicePack = jest.fn();
 
 let mockHeaderProps: any;
+let mockContextBarProps: any;
 let mockTopicSelectorProps: any;
 let mockDebateMessageListProps: any;
 let mockVotingInterfaceProps: any;
@@ -82,6 +83,10 @@ jest.mock('@/components/molecules', () => {
   const React = require('react');
   const { Text } = require('react-native');
   return {
+    ContextBar: (props: { title?: string; subtitle?: string }) => {
+      mockContextBarProps = props;
+      return React.createElement(Text, { testID: 'context-bar' }, `${props.title ?? ''}${props.subtitle ? `:${props.subtitle}` : ''}`);
+    },
     Typography: ({ children }: { children: React.ReactNode }) => React.createElement(Text, null, children),
   };
 });
@@ -247,6 +252,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockStreamingService.cancelAllStreams.mockClear();
   mockHeaderProps = undefined;
+  mockContextBarProps = undefined;
   mockTopicSelectorProps = undefined;
   mockDebateMessageListProps = undefined;
   mockVotingInterfaceProps = undefined;
@@ -404,7 +410,11 @@ describe('DebateScreen', () => {
 
     await flushMicrotasks();
 
-    expect(mockHeaderProps.title).toContain('Climate Policy');
+    expect(mockHeaderProps).toEqual(expect.objectContaining({
+      slim: true,
+      title: 'Settle an Argument',
+    }));
+    expect(mockContextBarProps.subtitle).toContain('Climate Policy');
     expect(mockDebateMessageListProps).toBeUndefined();
   });
 
@@ -497,7 +507,11 @@ describe('DebateScreen', () => {
     expect(mockDebateSessionHeaderProps?.presetLabel).toContain('Lincoln-Douglas');
     expect(mockDebateSessionHeaderProps?.teams[0].participants[0].name).toBe('Claude');
     expect(mockDebateSessionHeaderProps?.teams[1].participants[0].name).toBe('GPT-4');
-    expect(mockHeaderProps).toBeUndefined();
+    expect(mockHeaderProps).toEqual(expect.objectContaining({
+      slim: true,
+      title: 'Settle an Argument',
+    }));
+    expect(mockDebateSessionHeaderProps?.chrome).toBe('context');
     expect(mockVotingInterfaceProps).toBeDefined();
     expect(mockVotingInterfaceProps.voteCriterion).toBe('Value constructives: choose who better established and defended their value, criterion, definitions, and contentions.');
     expect(mockScoreDisplayProps.scores.left.roundWins).toBe(1);

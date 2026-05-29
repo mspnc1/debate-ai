@@ -38,6 +38,7 @@ const TermsOfServiceScreen: React.FC<TermsOfServiceScreenProps> = ({ navigation 
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['left', 'right', 'bottom']}>
       <Header
         variant="gradient"
+        slim
         title="Terms of Service"
         showBackButton
         onBack={() => navigation.goBack()}

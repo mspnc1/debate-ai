@@ -51,7 +51,7 @@ import { DemoEmptyState } from '@/components/organisms/demo';
 import { showSheet } from '@/store';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
 import { DemoBanner } from '@/components/molecules/subscription/DemoBanner';
-import { DemoProgressIndicator } from '@/components/molecules';
+import { ContextBar, DemoProgressIndicator } from '@/components/molecules';
 import { getTotalChatTurns, getCurrentChatTurnIndex } from '@/services/demo/DemoPlaybackRouter';
 import { ChatTopicPickerModal } from '@/components/organisms/demo/ChatTopicPickerModal';
 import { RecordController } from '@/services/demo/RecordController';
@@ -699,6 +699,23 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     return <AIServiceLoading error={error} />;
   }
 
+  const aiNames = session.selectedAIs.map(ai => ai.name);
+  const conversationContextSubtitle = (() => {
+    const count = aiNames.length;
+
+    if (count === 0) {
+      return 'Preparing symposium';
+    } else if (count === 1) {
+      return `In dialogue with ${aiNames[0]}`;
+    } else if (count === 2) {
+      return `${aiNames[0]} meets ${aiNames[1]}`;
+    } else if (count === 3) {
+      return `${aiNames[0]}, ${aiNames[1]} & 1 more`;
+    }
+
+    return `${aiNames[0]}, ${aiNames[1]} & ${count - 2} others`;
+  })();
+
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['left', 'right', 'bottom']}>
       <KeyboardAvoidingView
@@ -710,26 +727,10 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         {/* Header */}
         <Header
           variant="gradient"
+          slim
           title="Conversation"
-          subtitle={(() => {
-            const aiNames = session.selectedAIs.map(ai => ai.name);
-            const count = aiNames.length;
-            
-            if (count === 0) {
-              return "Preparing symposium";
-            } else if (count === 1) {
-              return `In dialogue with ${aiNames[0]}`;
-            } else if (count === 2) {
-              return `${aiNames[0]} meets ${aiNames[1]}`;
-            } else if (count === 3) {
-              return `${aiNames[0]}, ${aiNames[1]} & 1 more`;
-            } else {
-              return `${aiNames[0]}, ${aiNames[1]} & ${count - 2} others`;
-            }
-          })()}
           onBack={() => confirmChatLeave(navigation.goBack)}
           showBackButton={true}
-          showTime={true}
           animated={true}
           rightElement={<HeaderActions variant="gradient" helpTopicId="multi-ai-chat" />}
           actionButton={recordModeEnabled ? {
@@ -783,6 +784,12 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
             variant: isRecording ? 'danger' : 'primary'
           } : undefined}
           showDemoBadge={isDemo}
+        />
+
+        <ContextBar
+          title="In the room"
+          subtitle={conversationContextSubtitle}
+          testID="chat-context-bar"
         />
 
         {/* Demo Banner */}

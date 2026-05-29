@@ -9,6 +9,7 @@ export { InputField } from './common/InputField';
 export { GlassCard } from './common/GlassCard';
 export { GradientButton } from './common/GradientButton';
 export { SectionHeader } from './common/SectionHeader';
+export { ContextBar, type ContextBarItem } from './common/ContextBar';
 export { ParameterLabel } from './common/ParameterLabel';
 export { PricingBadge } from './subscription/PricingBadge';
 export { Badge } from './common/Badge';

@@ -369,10 +369,12 @@ describe('CompareScreen', () => {
       } as any,
     };
 
-    renderScreen({ params: { resuming: true }, preloadedState });
+    const { renderResult } = renderScreen({ params: { resuming: true }, preloadedState });
 
     expect(mockHeaderProps).toBeDefined();
-    expect(mockHeaderProps.subtitle).toBe(`${leftAI.name} vs ${rightAI.name}`);
+    expect(mockHeaderProps.slim).toBe(true);
+    expect(renderResult.getByText(leftAI.name)).toBeTruthy();
+    expect(renderResult.getByText(rightAI.name)).toBeTruthy();
     expect(mockCompareSplitViewProps).toBeDefined();
     expect(mockCompareSplitViewProps.viewMode).toBe('left-only');
     expect(mockCompareSplitViewProps.leftMessages[0].content).toBe('Left answer');

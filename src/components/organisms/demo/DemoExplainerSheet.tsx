@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Typography, Button, GradientButton } from '@/components/molecules';
+import { ContextBar, Typography, Button, GradientButton } from '@/components/molecules';
 import { useTheme } from '@/theme';
 import { Header } from '@/components/organisms';
 import { UnlockEverythingBanner } from '@/components/organisms/subscription/UnlockEverythingBanner';
@@ -23,14 +23,13 @@ export const DemoExplainerSheet: React.FC<DemoExplainerSheetProps> = ({ onClose,
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}> 
       <Header
         variant="gradient"
+        slim
         title="You're in Demo Mode"
-        subtitle="Simulated content — no live API calls"
         showBackButton
         onBack={onClose}
-        showTime={false}
-        showDate={false}
         animated
       />
+      <ContextBar title="Simulated content" subtitle="No live API calls." />
       <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
         <Typography variant="body" color="secondary" style={{ marginBottom: 16 }}>
           {bodyCopy}
