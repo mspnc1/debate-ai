@@ -6,6 +6,7 @@ import { ErrorService } from '@/services/errors/ErrorService';
 import { AppError } from '@/errors/types/AppError';
 import { ErrorCode } from '@/errors/codes/ErrorCodes';
 import { resolveProviderModelId } from '@/config/modelConfigs';
+import { withProviderRetry } from '@/services/retry/ProviderRetryService';
 
 // Chunk buffer configuration
 interface BufferConfig {
@@ -203,6 +204,12 @@ export class StreamingService {
     } else if (config.adapter) {
       // Backward compatibility: use provided adapter
       adapter = config.adapter;
+      if (config.modelOverride) {
+        resolvedModelOverride = resolveProviderModelId(
+          adapter.config.provider,
+          config.modelOverride
+        ) || config.modelOverride;
+      }
     } else {
       const error = new AppError({
         code: ErrorCode.VALIDATION_REQUIRED,
@@ -300,55 +307,68 @@ export class StreamingService {
         });
       }
 
-      // Calling adapter.streamMessage...
-
-      // Start streaming
-      const stream = (adapter as StreamingAdapter).streamMessage(
-        message,
-        conversationHistory,
-        attachments,
-        resumptionContext,
-        resolvedModelOverride,
-        abortController.signal,
-        onEvent
-      );
-
-      // Stream generator created
-
       let fullContent = '';
+      const retryProvider = adapter.config.provider || config.adapterConfig?.provider;
+      const retryModel = resolvedModelOverride || adapter.config.model || config.adapterConfig?.model;
 
-      // Process stream chunks (adapter yields)
-      let iterationCount = 0;
-      
-      for await (const chunk of stream) {
-        iterationCount++;
-        
-        // Check if stream was cancelled
-        if (!streamState.isActive || abortController.signal.aborted) {
-          // Stream cancelled
-          break;
+      await withProviderRetry(
+        async () => {
+          // Start streaming
+          const stream = (adapter as StreamingAdapter).streamMessage(
+            message,
+            conversationHistory,
+            attachments,
+            resumptionContext,
+            resolvedModelOverride,
+            abortController.signal,
+            onEvent
+          );
+
+          // Process stream chunks (adapter yields)
+          let iterationCount = 0;
+
+          for await (const chunk of stream) {
+            iterationCount++;
+
+            // Check if stream was cancelled
+            if (!streamState.isActive || abortController.signal.aborted) {
+              // Stream cancelled
+              break;
+            }
+
+            // Update metrics
+            streamState.chunksReceived++;
+            streamState.bytesReceived += chunk.length;
+            fullContent += chunk;
+
+            // Add artificial delay for natural speed
+            if (config.speed === 'natural') {
+              await this.naturalDelay();
+            } else if (config.speed === 'slow') {
+              await this.slowDelay();
+            }
+
+            // Buffer and flush chunk (UI flushes are logged in onBufferFlush)
+            buffer.append(chunk);
+          }
+
+          // Stream iteration complete
+          if (iterationCount === 0) {
+            // No stream iterations occurred - streaming may have failed
+          }
+        },
+        {
+          provider: retryProvider,
+          model: retryModel,
+          operation: 'streaming_response',
+          canRetry: () => (
+            streamState.isActive
+            && !abortController.signal.aborted
+            && streamState.chunksReceived === 0
+            && fullContent.length === 0
+          ),
         }
-
-        // Update metrics
-        streamState.chunksReceived++;
-        streamState.bytesReceived += chunk.length;
-        fullContent += chunk;
-
-        // Add artificial delay for natural speed
-        if (config.speed === 'natural') {
-          await this.naturalDelay();
-        } else if (config.speed === 'slow') {
-          await this.slowDelay();
-        }
-
-        // Buffer and flush chunk (UI flushes are logged in onBufferFlush)
-        buffer.append(chunk);
-      }
-      
-      // Stream iteration complete
-      if (iterationCount === 0) {
-        // No stream iterations occurred - streaming may have failed
-      }
+      );
 
       if (!streamState.isActive || abortController.signal.aborted) {
         throw new StreamInterruptedError(streamState.stopReason || 'cancelled');

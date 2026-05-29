@@ -35,11 +35,14 @@ export interface DebateMessageBubbleProps {
   side?: 'left' | 'right' | 'center';
   canRetryAudio?: boolean;
   onRetryAudio?: (message: Message) => void;
+  canRetryTurn?: boolean;
+  onRetryTurn?: (message: Message) => void;
 }
 
 const getCitationMetadataKey = (message: Message): string => {
   const citations = message.metadata?.citations || [];
   const audio = message.metadata?.debateAudio;
+  const lifecycle = message.metadata?.lifecycle;
   const audioAttachments = (message.attachments || [])
     .filter((attachment) => attachment.type === 'audio')
     .map((attachment) => `${attachment.uri}:${attachment.mimeType}`)
@@ -49,6 +52,7 @@ const getCitationMetadataKey = (message: Message): string => {
     citations.length,
     citations.map(citation => `${citation.index}:${citation.url}`).join('|'),
     audio ? `${audio.status}:${audio.voiceId}:${audio.uri || ''}:${audio.error || ''}` : 'no-audio',
+    lifecycle ? `${lifecycle.status}:${lifecycle.retryable !== false}:${lifecycle.reason || ''}` : 'no-lifecycle',
     audioAttachments,
   ].join(':');
 };
@@ -60,6 +64,8 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
   side = 'left',
   canRetryAudio = false,
   onRetryAudio,
+  canRetryTurn = false,
+  onRetryTurn,
 }) => {
   const { theme, isDark } = useTheme();
   const { responsive } = useResponsive();
@@ -128,6 +134,20 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
   };
   
   const aiColor = getAIColor();
+  const lifecycle = message.metadata?.lifecycle;
+  const canShowTurnRetry = Boolean(
+    canRetryTurn
+    && onRetryTurn
+    && lifecycle
+    && lifecycle.retryable !== false
+    && ['failed', 'interrupted', 'cancelled'].includes(lifecycle.status)
+    && !isStreaming
+  );
+  const turnRetryStatus = lifecycle?.status === 'failed'
+    ? 'Turn failed'
+    : lifecycle?.status === 'cancelled'
+      ? 'Turn stopped'
+      : 'Turn interrupted';
   const { handleCitationLinkPress } = useCitationInteractions(aiColor?.border);
   const debateAudio = message.metadata?.debateAudio;
   const audioAttachment = useMemo(() => {
@@ -327,6 +347,49 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
             )}
           </Box>
         )}
+        {canShowTurnRetry && (
+          <Box
+            style={[
+              styles.turnRetryRow,
+              {
+                backgroundColor: isDark ? theme.colors.overlays.medium : theme.colors.surface,
+                borderColor: isDark ? theme.colors.border : (aiColor?.border || theme.colors.border),
+              },
+            ]}
+            testID="debate-turn-retry-row"
+          >
+            <Box style={styles.turnRetryText}>
+              <Typography variant="caption" weight="semibold" style={{ color: theme.colors.text.primary }}>
+                {turnRetryStatus}
+              </Typography>
+              <Typography variant="caption" color="secondary" numberOfLines={1}>
+                Retry this debate turn when ready.
+              </Typography>
+            </Box>
+            <TouchableOpacity
+              onPress={() => onRetryTurn?.(message)}
+              accessibilityRole="button"
+              accessibilityLabel="Retry debate turn"
+              testID="debate-turn-retry"
+              style={[
+                styles.turnRetryButton,
+                {
+                  borderColor: aiColor?.border || theme.colors.primary[500],
+                  backgroundColor: isDark ? theme.colors.card : theme.colors.background,
+                },
+              ]}
+            >
+              <Ionicons
+                name="refresh"
+                size={15}
+                color={aiColor?.border || theme.colors.primary[500]}
+              />
+              <Typography variant="caption" weight="semibold" style={{ color: aiColor?.border || theme.colors.primary[500] }}>
+                Retry Turn
+              </Typography>
+            </TouchableOpacity>
+          </Box>
+        )}
         {/* Copy button */}
         <TouchableOpacity
           onPress={async () => {
@@ -378,6 +441,8 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
     prevProps.side === nextProps.side &&
     prevProps.canRetryAudio === nextProps.canRetryAudio &&
     prevProps.onRetryAudio === nextProps.onRetryAudio &&
+    prevProps.canRetryTurn === nextProps.canRetryTurn &&
+    prevProps.onRetryTurn === nextProps.onRetryTurn &&
     getCitationMetadataKey(prevProps.message) === getCitationMetadataKey(nextProps.message)
   );
 });
@@ -471,5 +536,29 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 5,
+  },
+  turnRetryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  turnRetryText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  turnRetryButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
 });

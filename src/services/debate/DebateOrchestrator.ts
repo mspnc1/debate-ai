@@ -37,6 +37,7 @@ import { mergeAvailabilitiesStrict } from '@/hooks/multimodal/useModalityAvailab
 import { ensureAnswerContent } from '@/utils/citationUtils';
 import { resolveProviderModelId } from '@/config/modelConfigs';
 import { buildPersonalityRuntime, mergeRuntimeModelParameters } from '@/services/personality';
+import { classifyProviderRetry, withProviderRetry } from '@/services/retry/ProviderRetryService';
 import { applyDebateOutputTokenCap, getDebateSpeechLengthGuidance } from './debateSpeechLength';
 import { createDebateInterstitialMessage } from './DebateInterstitialService';
 import type {
@@ -96,6 +97,7 @@ export interface DebateContinuationPrompt {
   completedMessageIndex: number;
   nextMessageIndex?: number;
   continueAction?: 'next_message' | 'vote' | 'end_debate' | 'retry_message' | 'audience_questions';
+  retryMessageId?: string;
   voteRound?: number;
   isFinalRoundVote?: boolean;
 }
@@ -449,6 +451,49 @@ export class DebateOrchestrator {
     }
 
     return metadata;
+  }
+
+  private emitRetryContinuation({
+    title,
+    message,
+    completedMessageIndex,
+    nextMessageIndex,
+    retryMessageId,
+    retryMessages,
+  }: {
+    title: string;
+    message: string;
+    completedMessageIndex: number;
+    nextMessageIndex: number;
+    retryMessageId: string;
+    retryMessages: Message[];
+  }): void {
+    this.pendingContinuation = {
+      title,
+      message,
+      buttonLabel: 'Retry Turn',
+      isFinalReview: false,
+      completedMessageIndex,
+      nextMessageIndex,
+      continueAction: 'retry_message',
+      retryMessageId,
+      messages: retryMessages,
+    };
+    this.updateSessionStatus(DebateStatus.PAUSED_FOR_REVIEW);
+    this.emitEvent({
+      type: 'continuation_required',
+      data: {
+        title: this.pendingContinuation.title,
+        message: this.pendingContinuation.message,
+        buttonLabel: this.pendingContinuation.buttonLabel,
+        isFinalReview: this.pendingContinuation.isFinalReview,
+        completedMessageIndex: this.pendingContinuation.completedMessageIndex,
+        nextMessageIndex: this.pendingContinuation.nextMessageIndex,
+        continueAction: this.pendingContinuation.continueAction,
+        retryMessageId: this.pendingContinuation.retryMessageId,
+      },
+      timestamp: Date.now(),
+    });
   }
 
   private buildDebateSpeechMetadata(
@@ -952,46 +997,32 @@ export class DebateOrchestrator {
           const interruptedContent = partialContent.length > 0
             ? `${partialContent}\n\n_${interruptionNote}_`
             : interruptionNote;
-          this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: interruptedContent, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
+          const lifecycle = {
+            status: wasCancelled ? 'cancelled' as const : 'interrupted' as const,
+            reason: errorForFallback || 'app_backgrounded',
+            interruptedAt: Date.now(),
+            partial: partialContent.length > 0,
+            retryable: true,
+          };
+          this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: interruptedContent, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), lifecycle, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
           const updated = {
             ...placeholderMessage,
             content: interruptedContent,
             metadata: {
               ...this.buildAIResponseMetadata(currentAI, currentAI.model, undefined, debateSpeech),
-              lifecycle: {
-                status: wasCancelled ? 'cancelled' as const : 'interrupted' as const,
-                reason: errorForFallback || 'app_backgrounded',
-                interruptedAt: Date.now(),
-                partial: partialContent.length > 0,
-              },
+              lifecycle,
             },
           };
           this.currentMessages = [...turnMessages, updated];
-          this.pendingContinuation = {
+          this.emitRetryContinuation({
             title: wasCancelled ? 'Debate stopped' : 'Debate interrupted',
             message: wasCancelled
               ? 'The active response was stopped. Retry this turn when you are ready.'
               : 'The active response was interrupted. Retry this turn when you are ready.',
-            buttonLabel: 'Retry Turn',
-            isFinalReview: false,
             completedMessageIndex: Math.max(messageIndex - 1, 0),
             nextMessageIndex: messageIndex,
-            continueAction: 'retry_message',
-            messages: turnMessages,
-          };
-          this.updateSessionStatus(DebateStatus.PAUSED_FOR_REVIEW);
-          this.emitEvent({
-            type: 'continuation_required',
-            data: {
-              title: this.pendingContinuation.title,
-              message: this.pendingContinuation.message,
-              buttonLabel: this.pendingContinuation.buttonLabel,
-              isFinalReview: this.pendingContinuation.isFinalReview,
-              completedMessageIndex: this.pendingContinuation.completedMessageIndex,
-              nextMessageIndex: this.pendingContinuation.nextMessageIndex,
-              continueAction: this.pendingContinuation.continueAction,
-            },
-            timestamp: Date.now(),
+            retryMessageId: messageId,
+            retryMessages: turnMessages,
           });
           return;
         }
@@ -1020,6 +1051,10 @@ export class DebateOrchestrator {
             lower.includes('rate limit')
           );
           const isEmptyResponseError = lower.includes('empty response');
+          const isProviderRetryableError = classifyProviderRetry(
+            new Error(msgStr),
+            { provider: currentAI.provider, model: currentAI.model }
+          ).retryable;
 
           if (isVerificationError) {
             try {
@@ -1027,7 +1062,7 @@ export class DebateOrchestrator {
             } catch { /* ignore */ }
           }
 
-          if (isVerificationError || isOverloadError || isEmptyResponseError) {
+          if (isVerificationError || isOverloadError || isEmptyResponseError || isProviderRetryableError) {
             try {
               // Ensure adapter carries expert or personality parameters on fallback
               try {
@@ -1035,23 +1070,30 @@ export class DebateOrchestrator {
                   adapter.config.parameters = runtimeParameters;
                 }
               } catch { /* ignore */ }
-              const fallback = adapter && typeof adapter.sendMessage === 'function'
-                ? await adapter.sendMessage(
-                  contextualPrompt,
-                  debateMessages,
-                  undefined,
-                  undefined,
-                  currentAI.model
-                )
-                : await this.aiService.sendMessage(
-                  currentAI.provider,
-                  contextualPrompt,
-                  debateMessages,
-                  runtime.personalityConfig,
-                  undefined,
-                  runtimeParameters,
-                  currentAI.model
-                );
+              const fallback = await withProviderRetry(
+                async () => adapter && typeof adapter.sendMessage === 'function'
+                  ? adapter.sendMessage(
+                    contextualPrompt,
+                    debateMessages,
+                    undefined,
+                    undefined,
+                    currentAI.model
+                  )
+                  : this.aiService.sendMessage(
+                    currentAI.provider,
+                    contextualPrompt,
+                    debateMessages,
+                    runtime.personalityConfig,
+                    undefined,
+                    runtimeParameters,
+                    currentAI.model
+                  ),
+                {
+                  provider: currentAI.provider,
+                  model: currentAI.model,
+                  operation: 'debate_fallback_response',
+                }
+              );
               const { response: text } = typeof fallback === 'string' ? { response: fallback } : fallback;
               const fallbackMetadata = typeof fallback === 'string'
                 ? undefined
@@ -1069,27 +1111,68 @@ export class DebateOrchestrator {
                 metadata: this.buildAIResponseMetadata(currentAI, currentAI.model, normalizedAnswer.citations, debateSpeech),
               };
               this.currentMessages = [...turnMessages, updated];
-            } catch {
+            } catch (fallbackError) {
               // As last resort, update the placeholder with a visible error so the flow does not keep a blank AI turn.
               const errorContent = DEBATE_CONSTANTS.MESSAGES.ERROR(currentAI.name);
-              this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: errorContent, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
+              const reason = fallbackError instanceof Error
+                ? fallbackError.message
+                : errorForFallback || 'Provider response failed';
+              const lifecycle = {
+                status: 'failed' as const,
+                reason,
+                interruptedAt: Date.now(),
+                partial: false,
+                retryable: true,
+              };
+              this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: errorContent, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), lifecycle, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
               const updated = {
                 ...placeholderMessage,
                 content: errorContent,
-                metadata: this.buildAIResponseMetadata(currentAI, currentAI.model, undefined, debateSpeech),
+                metadata: {
+                  ...this.buildAIResponseMetadata(currentAI, currentAI.model, undefined, debateSpeech),
+                  lifecycle,
+                },
               };
               this.currentMessages = [...turnMessages, updated];
+              this.emitRetryContinuation({
+                title: 'Debate turn failed',
+                message: 'The provider could not finish this turn. Retry when you are ready.',
+                completedMessageIndex: Math.max(messageIndex - 1, 0),
+                nextMessageIndex: messageIndex,
+                retryMessageId: messageId,
+                retryMessages: turnMessages,
+              });
+              return;
             }
           } else {
             // Non-recoverable error: update the placeholder with a visible error.
             const errorContent = DEBATE_CONSTANTS.MESSAGES.ERROR(currentAI.name);
-            this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: errorContent, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
+            const lifecycle = {
+              status: 'failed' as const,
+              reason: errorForFallback || 'Provider response failed',
+              interruptedAt: Date.now(),
+              partial: streamedContent.trim().length > 0,
+              retryable: true,
+            };
+            this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: errorContent, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), lifecycle, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
             const updated = {
               ...placeholderMessage,
               content: errorContent,
-              metadata: this.buildAIResponseMetadata(currentAI, currentAI.model, undefined, debateSpeech),
+              metadata: {
+                ...this.buildAIResponseMetadata(currentAI, currentAI.model, undefined, debateSpeech),
+                lifecycle,
+              },
             };
             this.currentMessages = [...turnMessages, updated];
+            this.emitRetryContinuation({
+              title: 'Debate turn failed',
+              message: 'The provider could not finish this turn. Retry when you are ready.',
+              completedMessageIndex: Math.max(messageIndex - 1, 0),
+              nextMessageIndex: messageIndex,
+              retryMessageId: messageId,
+              retryMessages: turnMessages,
+            });
+            return;
           }
         }
 
@@ -1103,23 +1186,30 @@ export class DebateOrchestrator {
           this.applyWebSearchConfig(adapter);
         } catch { /* ignore */ }
 
-        const response = adapter && typeof adapter.sendMessage === 'function'
-          ? await adapter.sendMessage(
-            contextualPrompt,
-            debateMessages,
-            undefined,
-            undefined,
-            currentAI.model
-          )
-          : await this.aiService.sendMessage(
-            currentAI.provider,
-            contextualPrompt,
-            debateMessages,
-            runtime.personalityConfig,
-            undefined,
-            runtimeParameters,
-            currentAI.model
-          );
+        const response = await withProviderRetry(
+          async () => adapter && typeof adapter.sendMessage === 'function'
+            ? adapter.sendMessage(
+              contextualPrompt,
+              debateMessages,
+              undefined,
+              undefined,
+              currentAI.model
+            )
+            : this.aiService.sendMessage(
+              currentAI.provider,
+              contextualPrompt,
+              debateMessages,
+              runtime.personalityConfig,
+              undefined,
+              runtimeParameters,
+              currentAI.model
+            ),
+          {
+            provider: currentAI.provider,
+            model: currentAI.model,
+            operation: 'debate_response',
+          }
+        );
 
         // Best-effort debug: log the prompts for non-streaming path too
         try {
@@ -1233,15 +1323,31 @@ export class DebateOrchestrator {
       timestamp: Date.now(),
     });
     
-    // Create error message
+    const userRetryable = debateError.retryable || debateError.type !== 'validation_error';
+    const personalityId = this.session.personalities[currentAI.id] || 'default';
+    const personalityName = UNIVERSAL_PERSONALITIES.find(p => p.id === personalityId)?.name || 'Default';
+    const messageId = `msg_${Date.now()}_${currentAI.id}_failed`;
+    const lifecycle = {
+      status: 'failed' as const,
+      reason: debateError.message,
+      interruptedAt: Date.now(),
+      partial: false,
+      retryable: userRetryable,
+    };
+
+    // Create a failed AI turn so the user can retry exactly where the debate stopped.
     const errorMessage: Message = {
-      id: `msg_${Date.now()}_error`,
-      sender: 'Debate Host',
-      senderType: 'user',
+      id: messageId,
+      sender: `${currentAI.name} (${personalityName})`,
+      senderType: 'ai',
       content: debateError.type === 'rate_limit' 
         ? DEBATE_CONSTANTS.MESSAGES.RATE_LIMIT(currentAI.name)
         : DEBATE_CONSTANTS.MESSAGES.ERROR(currentAI.name),
       timestamp: Date.now(),
+      metadata: {
+        ...this.buildAIResponseMetadata(currentAI, currentAI.model),
+        lifecycle,
+      },
     };
     
     // Emit error message
@@ -1260,19 +1366,18 @@ export class DebateOrchestrator {
     
     // Update tracked messages with error message
     this.currentMessages = [...existingMessages, errorMessage];
-    
-    // Continue with next AI after delay
-    const nextMessageIndex = messageIndex + 1;
-    const maxMessages = this.rulesEngine.calculateMaxMessages(this.session.participants.length);
-    
-    if (nextMessageIndex < maxMessages && this.session.status === DebateStatus.ACTIVE) {
-      const delay = debateError.type === 'rate_limit' 
-        ? DEBATE_CONSTANTS.DELAYS.RATE_LIMIT_RECOVERY 
-        : DEBATE_CONSTANTS.DELAYS.ERROR_RECOVERY;
-      
-      this.scheduleNextMessage(nextMessageIndex, this.currentMessages, delay);
+
+    if (userRetryable) {
+      this.emitRetryContinuation({
+        title: 'Debate turn failed',
+        message: 'The provider could not finish this turn. Retry when you are ready.',
+        completedMessageIndex: Math.max(messageIndex - 1, 0),
+        nextMessageIndex: messageIndex,
+        retryMessageId: messageId,
+        retryMessages: existingMessages,
+      });
     } else {
-      this.endDebate();
+      this.updateSessionStatus(DebateStatus.ERROR);
     }
   }
   
@@ -2209,6 +2314,7 @@ export class DebateOrchestrator {
           completedMessageIndex: this.pendingContinuation.completedMessageIndex,
           nextMessageIndex: this.pendingContinuation.nextMessageIndex,
           continueAction: this.pendingContinuation.continueAction,
+          retryMessageId: this.pendingContinuation.retryMessageId,
           voteRound: this.pendingContinuation.voteRound,
           isFinalRoundVote: this.pendingContinuation.isFinalRoundVote,
         }
@@ -2280,6 +2386,7 @@ export class DebateOrchestrator {
           completedMessageIndex: Math.max(session.messageIndex - 1, 0),
           nextMessageIndex: session.messageIndex,
           continueAction: 'retry_message',
+          retryMessageId: snapshot.interruptedMessageIds?.[0],
           messages: snapshot.messages || [],
         }
         : null;
@@ -2303,6 +2410,7 @@ export class DebateOrchestrator {
       completedMessageIndex: this.pendingContinuation.completedMessageIndex,
       nextMessageIndex: this.pendingContinuation.nextMessageIndex,
       continueAction: this.pendingContinuation.continueAction,
+      retryMessageId: this.pendingContinuation.retryMessageId,
       voteRound: this.pendingContinuation.voteRound,
       isFinalRoundVote: this.pendingContinuation.isFinalRoundVote,
     };

@@ -864,9 +864,11 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
             bottomInset={bottomInset}
             canRetryAudio={debateVoice.canRetryAudio}
             onRetryAudio={debateVoice.retryMessageAudio}
+            retryTurnMessageId={flow.continuation?.continueAction === 'retry_message' ? flow.continuation.retryMessageId : undefined}
+            onRetryTurn={flow.continueDebate}
           />
 
-          {flow.continuation && !voting.isVoting && (
+          {flow.continuation && !(flow.continuation.continueAction === 'retry_message' && flow.continuation.retryMessageId) && !voting.isVoting && (
             <Animated.View
               entering={FadeIn.duration(250)}
               exiting={FadeOut.duration(180)}

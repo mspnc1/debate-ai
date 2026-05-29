@@ -167,6 +167,27 @@ describe('GeminiAdapter sendMessage', () => {
 
     await expect(adapter.sendMessage('fail please')).rejects.toThrow('Gemini error (503): Unavailable');
   });
+
+  it('resolves Gemini model aliases passed as per-turn overrides before calling the API', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        candidates: [
+          {
+            content: { parts: [{ text: 'Alias reply' }] },
+          },
+        ],
+      }),
+    });
+
+    const adapter = new GeminiAdapter(baseConfig);
+
+    await adapter.sendMessage('Use alias', [], undefined, undefined, 'gemini-3.1-flash-lite-preview');
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain('gemini-3.1-flash-lite:generateContent');
+    expect(url).not.toContain('gemini-3.1-flash-lite-preview');
+  });
 });
 
 describe('GeminiAdapter streamMessage', () => {
@@ -246,5 +267,27 @@ describe('GeminiAdapter streamMessage', () => {
     });
 
     await expect(nextPromise).rejects.toThrow('SSE failure');
+  });
+
+  it('resolves Gemini model aliases passed as streaming overrides before opening SSE', async () => {
+    const adapter = new GeminiAdapter(baseConfig);
+    const iterator = adapter.streamMessage(
+      'Stream alias',
+      [],
+      undefined,
+      undefined,
+      'gemini-3.1-flash-lite-preview'
+    );
+
+    const completionPromise = iterator.next();
+    const eventSource = getLastEventSource();
+
+    expect(eventSource.url).toContain('gemini-3.1-flash-lite:streamGenerateContent');
+    expect(eventSource.url).not.toContain('gemini-3.1-flash-lite-preview');
+
+    eventSource.emit('message', {
+      data: JSON.stringify({ candidates: [{ finishReason: 'STOP' }] }),
+    });
+    await expect(completionPromise).resolves.toMatchObject({ done: true });
   });
 });

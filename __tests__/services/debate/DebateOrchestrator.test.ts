@@ -162,6 +162,58 @@ describe('DebateOrchestrator', () => {
     jest.useRealTimers();
   });
 
+  it('marks exhausted streamed provider failures as retryable paused turns', async () => {
+    const googleParticipants: AI[] = [
+      {
+        id: 'google-pro',
+        provider: 'google',
+        name: 'Gemini Pro',
+        model: 'gemini-3.5-flash',
+      } as AI,
+      participants[1],
+    ];
+    const adapter = {
+      config: {} as Record<string, unknown>,
+      getCapabilities: jest.fn(() => ({ streaming: true })),
+      sendMessage: jest.fn().mockRejectedValue(new Error('Invalid API key')),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => ''),
+    };
+
+    const aiService = {
+      getAdapter: jest.fn(() => adapter),
+      sendMessage: jest.fn(),
+    };
+
+    mockStreamingService.streamResponse.mockImplementation(async (_config, _onChunk, _onComplete, onError) => {
+      onError?.(new Error('Gemini error (400): invalid model name'));
+    });
+
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    const completedEvents: Array<Record<string, unknown>> = [];
+    const continuationEvents: Array<Record<string, unknown>> = [];
+    orchestrator.addEventListener(event => {
+      if (event.type === 'stream_completed') completedEvents.push(event.data);
+      if (event.type === 'continuation_required') continuationEvents.push(event.data);
+    });
+
+    await orchestrator.initializeDebate('AI ethics', googleParticipants, {}, { formatId: 'lincoln_douglas', rounds: 3 });
+    await orchestrator.startDebate([]);
+
+    expect(orchestrator.getSession()?.status).toBe(DebateStatus.PAUSED_FOR_REVIEW);
+    expect(completedEvents[0]).toEqual(expect.objectContaining({
+      lifecycle: expect.objectContaining({
+        status: 'failed',
+        retryable: true,
+      }),
+    }));
+    expect(continuationEvents[0]).toEqual(expect.objectContaining({
+      continueAction: 'retry_message',
+      retryMessageId: completedEvents[0].messageId,
+      buttonLabel: 'Retry Turn',
+    }));
+  });
+
   it('schedules next turn after successful streaming', async () => {
     jest.useFakeTimers();
     const setTimeoutSpy = jest.spyOn(global, 'setTimeout');

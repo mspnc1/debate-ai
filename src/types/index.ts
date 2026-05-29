@@ -196,6 +196,7 @@ export interface MessageMetadata {
     interruptedAt?: number;
     partial?: boolean;
     retryOf?: string;
+    retryable?: boolean;
   };
 }
 

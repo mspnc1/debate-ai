@@ -23,6 +23,8 @@ export interface DebateMessageListProps {
   bottomInset?: number;
   canRetryAudio?: boolean;
   onRetryAudio?: (message: Message) => void;
+  retryTurnMessageId?: string;
+  onRetryTurn?: (message: Message) => void;
 }
 
 type DetectedAnnouncementType =
@@ -98,6 +100,7 @@ const getIcon = (type: DetectedAnnouncementType): string => {
 const getCitationMetadataKey = (message: Message): string => {
   const citations = message.metadata?.citations || [];
   const audio = message.metadata?.debateAudio;
+  const lifecycle = message.metadata?.lifecycle;
   const audienceQuestions = message.metadata?.debateAudienceQuestions;
   const audioAttachments = (message.attachments || [])
     .filter((attachment) => attachment.type === 'audio')
@@ -109,6 +112,7 @@ const getCitationMetadataKey = (message: Message): string => {
     citations.map(citation => `${citation.index}:${citation.url}`).join('|'),
     audienceQuestions ? `${audienceQuestions.aff}:${audienceQuestions.neg}` : 'no-audience-questions',
     audio ? `${audio.status}:${audio.voiceId}:${audio.uri || ''}:${audio.error || ''}` : 'no-audio',
+    lifecycle ? `${lifecycle.status}:${lifecycle.retryable !== false}:${lifecycle.reason || ''}` : 'no-lifecycle',
     audioAttachments,
   ].join(':');
 };
@@ -133,7 +137,9 @@ const MessageItem = memo<{
   alignment: 'left' | 'right' | 'center';
   canRetryAudio?: boolean;
   onRetryAudio?: (message: Message) => void;
-}>(({ message, index, alignment, canRetryAudio, onRetryAudio }) => {
+  retryTurnMessageId?: string;
+  onRetryTurn?: (message: Message) => void;
+}>(({ message, index, alignment, canRetryAudio, onRetryAudio, retryTurnMessageId, onRetryTurn }) => {
   const systemType = detectType(message);
   
   if (systemType) {
@@ -155,6 +161,8 @@ const MessageItem = memo<{
       side={alignment}
       canRetryAudio={canRetryAudio}
       onRetryAudio={onRetryAudio}
+      canRetryTurn={retryTurnMessageId === message.id}
+      onRetryTurn={onRetryTurn}
     />
   );
 }, (prevProps, nextProps) => {
@@ -168,6 +176,8 @@ const MessageItem = memo<{
   if (prevProps.alignment !== nextProps.alignment) return false;
   if (prevProps.canRetryAudio !== nextProps.canRetryAudio) return false;
   if (prevProps.onRetryAudio !== nextProps.onRetryAudio) return false;
+  if (prevProps.retryTurnMessageId !== nextProps.retryTurnMessageId) return false;
+  if (prevProps.onRetryTurn !== nextProps.onRetryTurn) return false;
   return true;
 });
 
@@ -182,6 +192,8 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
   bottomInset = 0,
   canRetryAudio,
   onRetryAudio,
+  retryTurnMessageId,
+  onRetryTurn,
 }) => {
   const flatListRef = useRef<FlatList>(null);
   const alignmentMapRef = useRef<Record<string, 'left' | 'right'>>({});
@@ -315,9 +327,11 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
         alignment={alignment}
         canRetryAudio={canRetryAudio}
         onRetryAudio={onRetryAudio}
+        retryTurnMessageId={retryTurnMessageId}
+        onRetryTurn={onRetryTurn}
       />
     );
-  }, [canRetryAudio, getAlignment, onRetryAudio]);
+  }, [canRetryAudio, getAlignment, onRetryAudio, onRetryTurn, retryTurnMessageId]);
 
   // Memoized key extractor - optimized
   const keyExtractor = useCallback((item: Message, index: number) => {

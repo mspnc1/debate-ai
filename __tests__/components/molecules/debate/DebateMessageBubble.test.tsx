@@ -268,6 +268,58 @@ describe('DebateMessageBubble', () => {
       fireEvent.press(getByTestId('debate-audio-retry'));
       expect(onRetryAudio).toHaveBeenCalledWith(message);
     });
+
+    it('renders retry action for retryable failed debate turns', () => {
+      const onRetryTurn = jest.fn();
+      const message = createMessage({
+        senderType: 'ai',
+        metadata: {
+          lifecycle: {
+            status: 'failed',
+            reason: 'Gemini error (400): invalid model name',
+            retryable: true,
+          },
+        },
+      });
+
+      const { getByTestId, getByText } = renderWithProviders(
+        <DebateMessageBubble
+          message={message}
+          index={0}
+          canRetryTurn
+          onRetryTurn={onRetryTurn}
+        />
+      );
+
+      expect(getByTestId('debate-turn-retry-row')).toBeTruthy();
+      expect(getByText('Turn failed')).toBeTruthy();
+      fireEvent.press(getByTestId('debate-turn-retry'));
+      expect(onRetryTurn).toHaveBeenCalledWith(message);
+    });
+
+    it('does not render retry action for failed debate turns without an active retry continuation', () => {
+      const message = createMessage({
+        senderType: 'ai',
+        metadata: {
+          lifecycle: {
+            status: 'failed',
+            reason: 'Provider failed',
+            retryable: true,
+          },
+        },
+      });
+
+      const { queryByTestId } = renderWithProviders(
+        <DebateMessageBubble
+          message={message}
+          index={0}
+          canRetryTurn={false}
+          onRetryTurn={jest.fn()}
+        />
+      );
+
+      expect(queryByTestId('debate-turn-retry')).toBeNull();
+    });
   });
 
   describe('Responsive Width', () => {

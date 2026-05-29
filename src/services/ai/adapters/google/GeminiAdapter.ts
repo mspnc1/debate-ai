@@ -95,8 +95,9 @@ export class GeminiAdapter extends BaseAdapter {
     attachments?: MessageAttachment[],
     modelOverride?: string
   ): Promise<SendMessageResponse> {
-    const resolvedModel = modelOverride ||
-                         resolveModelAlias(this.config.model || getDefaultModel('google'));
+    const resolvedModel = resolveModelAlias(
+      modelOverride || this.config.model || getDefaultModel('google')
+    );
 
     const contents = [
       ...this.formatHistoryForGemini(conversationHistory, resumptionContext),
@@ -234,8 +235,9 @@ export class GeminiAdapter extends BaseAdapter {
     }
 
     // Standard streaming path (no web search)
-    const resolvedModel = modelOverride ||
-                         resolveModelAlias(this.config.model || getDefaultModel('google'));
+    const resolvedModel = resolveModelAlias(
+      modelOverride || this.config.model || getDefaultModel('google')
+    );
 
     const contents = [
       ...this.formatHistoryForGemini(conversationHistory),

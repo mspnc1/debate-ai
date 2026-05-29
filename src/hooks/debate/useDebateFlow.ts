@@ -224,6 +224,7 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
         const modelUsed = (event.data as { modelUsed?: string }).modelUsed;
         const webSearchEnabled = Boolean((event.data as { webSearchEnabled?: boolean }).webSearchEnabled);
         const citations = (event.data as { citations?: Array<{ index: number; url: string; title?: string; snippet?: string }> }).citations;
+        const lifecycle = (event.data as { lifecycle?: NonNullable<Message['metadata']>['lifecycle'] }).lifecycle;
         const normalizedAnswer = ensureAnswerContent(finalContent, citations, 'The AI');
         if (messageId) {
           dispatch(endStreaming({ messageId, finalContent: normalizedAnswer.content }));
@@ -235,6 +236,7 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
               ...(modelUsed ? { modelUsed } : {}),
               webSearchEnabled,
               ...(normalizedAnswer.citations ? { citations: normalizedAnswer.citations } : {}),
+              ...(lifecycle ? { lifecycle } : {}),
             },
           }));
         }
@@ -276,6 +278,12 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
         const nextMessageIndex = typeof event.data.nextMessageIndex === 'number'
           ? event.data.nextMessageIndex
           : undefined;
+        const continueAction = typeof event.data.continueAction === 'string'
+          ? event.data.continueAction as DebateContinuationPrompt['continueAction']
+          : undefined;
+        const retryMessageId = typeof event.data.retryMessageId === 'string'
+          ? event.data.retryMessageId
+          : undefined;
 
         setContinuation({
           title,
@@ -284,6 +292,8 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
           isFinalReview: Boolean(event.data.isFinalReview),
           completedMessageIndex,
           ...(typeof nextMessageIndex === 'number' ? { nextMessageIndex } : {}),
+          ...(continueAction ? { continueAction } : {}),
+          ...(retryMessageId ? { retryMessageId } : {}),
         });
         setAudienceQuestionsPrompt(null);
         setCurrentMessageLabel(title);

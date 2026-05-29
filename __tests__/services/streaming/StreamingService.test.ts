@@ -45,6 +45,38 @@ describe('StreamingService', () => {
     }
   }
 
+  class RetryBeforeChunkAdapter extends BaseAdapter {
+    calls = 0;
+    sendMessage = jest.fn(async () => ({ response: 'fallback' }));
+
+    getCapabilities(): AdapterCapabilities {
+      return capabilities;
+    }
+
+    async *streamMessage(): AsyncGenerator<string, void, unknown> {
+      this.calls++;
+      if (this.calls === 1) {
+        throw new Error('Gemini error (400): invalid model name');
+      }
+      yield 'retried';
+    }
+  }
+
+  class FailAfterChunkAdapter extends BaseAdapter {
+    calls = 0;
+    sendMessage = jest.fn(async () => ({ response: 'fallback' }));
+
+    getCapabilities(): AdapterCapabilities {
+      return capabilities;
+    }
+
+    async *streamMessage(): AsyncGenerator<string, void, unknown> {
+      this.calls++;
+      yield 'partial';
+      throw new Error('Gemini error (503): service unavailable');
+    }
+  }
+
   let streamingService: StreamingService;
   let adapterSpy: jest.SpiedFunction<typeof AdapterFactory.createWithModel>;
 
@@ -209,5 +241,77 @@ describe('StreamingService', () => {
 
     expect(isStreamInterruptedError(errors[0])).toBe(true);
     expect(errors[0]).toEqual(expect.objectContaining({ reason: 'interrupted' }));
+  });
+
+  it('retries a retryable provider stream when no content has been emitted', async () => {
+    const adapter = new RetryBeforeChunkAdapter({
+      provider: 'google',
+      apiKey: 'key',
+      model: 'gemini-3.5-flash',
+    });
+
+    const chunks: string[] = [];
+    const errors: Error[] = [];
+    let completed = '';
+
+    await streamingService.streamResponse(
+      {
+        messageId: 'msg-retry-before-chunk',
+        adapter,
+        modelOverride: 'gemini-3.5-flash',
+        message: 'Retry safely',
+        conversationHistory: [],
+        speed: 'instant',
+      },
+      (chunk) => {
+        chunks.push(chunk);
+      },
+      (finalContent) => {
+        completed = finalContent;
+      },
+      (error) => {
+        errors.push(error);
+      },
+    );
+
+    expect(adapter.calls).toBe(2);
+    expect(chunks).toEqual(['retried']);
+    expect(completed).toBe('retried');
+    expect(errors).toEqual([]);
+  });
+
+  it('does not retry provider stream failures after content has been emitted', async () => {
+    const adapter = new FailAfterChunkAdapter({
+      provider: 'google',
+      apiKey: 'key',
+      model: 'gemini-3.5-flash',
+    });
+
+    const chunks: string[] = [];
+    const errors: Error[] = [];
+
+    await streamingService.streamResponse(
+      {
+        messageId: 'msg-no-retry-after-chunk',
+        adapter,
+        modelOverride: 'gemini-3.5-flash',
+        message: 'Do not duplicate',
+        conversationHistory: [],
+        speed: 'instant',
+      },
+      (chunk) => {
+        chunks.push(chunk);
+      },
+      () => {
+        throw new Error('Should not complete failed streams');
+      },
+      (error) => {
+        errors.push(error);
+      },
+    );
+
+    expect(adapter.calls).toBe(1);
+    expect(chunks).toEqual(['partial']);
+    expect(errors[0]).toEqual(expect.any(Error));
   });
 });

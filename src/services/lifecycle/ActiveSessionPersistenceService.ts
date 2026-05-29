@@ -104,6 +104,7 @@ export interface ActiveDebateContinuationSnapshot {
   completedMessageIndex: number;
   nextMessageIndex?: number;
   continueAction?: 'next_message' | 'vote' | 'end_debate' | 'retry_message' | 'audience_questions';
+  retryMessageId?: string;
   voteRound?: number;
   isFinalRoundVote?: boolean;
 }
