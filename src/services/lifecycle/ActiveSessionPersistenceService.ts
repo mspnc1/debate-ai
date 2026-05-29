@@ -103,7 +103,7 @@ export interface ActiveDebateContinuationSnapshot {
   isFinalReview: boolean;
   completedMessageIndex: number;
   nextMessageIndex?: number;
-  continueAction?: 'next_message' | 'vote' | 'end_debate' | 'retry_message';
+  continueAction?: 'next_message' | 'vote' | 'end_debate' | 'retry_message' | 'audience_questions';
   voteRound?: number;
   isFinalRoundVote?: boolean;
 }

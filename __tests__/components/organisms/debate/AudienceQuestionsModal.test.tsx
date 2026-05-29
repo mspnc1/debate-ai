@@ -1,6 +1,16 @@
 import React from 'react';
-import { fireEvent } from '@testing-library/react-native';
-import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { act, fireEvent } from '@testing-library/react-native';
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
+  type EmitterSubscription,
+  type KeyboardEvent,
+} from 'react-native';
 import { AudienceQuestionsModal } from '@/components/organisms/debate/AudienceQuestionsModal';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 
@@ -118,8 +128,13 @@ describe('AudienceQuestionsModal', () => {
     );
   });
 
-  it('uses Android window resize instead of manual keyboard offsets', () => {
+  it('uses the measured Android keyboard height when modal window resize is unavailable', () => {
     Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
+    const keyboardListeners: Partial<Record<'keyboardDidShow' | 'keyboardDidHide', (event: KeyboardEvent) => void>> = {};
+    jest.spyOn(Keyboard, 'addListener').mockImplementation((eventName, listener) => {
+      keyboardListeners[eventName as keyof typeof keyboardListeners] = listener as (event: KeyboardEvent) => void;
+      return { remove: jest.fn() } as unknown as EmitterSubscription;
+    });
 
     const { UNSAFE_getAllByType, UNSAFE_getByType } = renderWithProviders(
       <AudienceQuestionsModal
@@ -140,7 +155,21 @@ describe('AudienceQuestionsModal', () => {
         maxHeight: '88%',
       })
     );
-    expect(StyleSheet.flatten(sheet?.props.style).marginBottom).toBeUndefined();
+    expect(StyleSheet.flatten(keyboardAvoidingView.props.style).paddingBottom).toBeUndefined();
+
+    act(() => {
+      keyboardListeners.keyboardDidShow?.({
+        endCoordinates: { height: 312 },
+      } as unknown as KeyboardEvent);
+    });
+
+    expect(StyleSheet.flatten(keyboardAvoidingView.props.style)).toEqual(
+      expect.objectContaining({
+        flex: 1,
+        justifyContent: 'flex-end',
+        paddingBottom: 312,
+      })
+    );
   });
 
   it('keeps Android modal system bars non-translucent so bottom controls clear the navigation bar', () => {
@@ -174,6 +203,35 @@ describe('AudienceQuestionsModal', () => {
 
     expect(StyleSheet.flatten(footer.props.style)).toEqual(
       expect.objectContaining({ paddingBottom: 40 })
+    );
+  });
+
+  it('does not stack Android navigation padding above the visible keyboard', () => {
+    Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
+    mockSafeAreaInsets = { top: 0, bottom: 0, left: 0, right: 0 };
+    const keyboardListeners: Partial<Record<'keyboardDidShow' | 'keyboardDidHide', (event: KeyboardEvent) => void>> = {};
+    jest.spyOn(Keyboard, 'addListener').mockImplementation((eventName, listener) => {
+      keyboardListeners[eventName as keyof typeof keyboardListeners] = listener as (event: KeyboardEvent) => void;
+      return { remove: jest.fn() } as unknown as EmitterSubscription;
+    });
+
+    const { getByTestId } = renderWithProviders(
+      <AudienceQuestionsModal
+        visible
+        onSubmit={jest.fn()}
+      />
+    );
+
+    act(() => {
+      keyboardListeners.keyboardDidShow?.({
+        endCoordinates: { height: 312 },
+      } as unknown as KeyboardEvent);
+    });
+
+    const footer = getByTestId('audience-questions-footer');
+
+    expect(StyleSheet.flatten(footer.props.style)).toEqual(
+      expect.objectContaining({ paddingBottom: 16 })
     );
   });
 

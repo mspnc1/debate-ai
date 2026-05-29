@@ -95,7 +95,7 @@ export interface DebateContinuationPrompt {
   isFinalReview: boolean;
   completedMessageIndex: number;
   nextMessageIndex?: number;
-  continueAction?: 'next_message' | 'vote' | 'end_debate' | 'retry_message';
+  continueAction?: 'next_message' | 'vote' | 'end_debate' | 'retry_message' | 'audience_questions';
   voteRound?: number;
   isFinalRoundVote?: boolean;
 }
@@ -1397,6 +1397,39 @@ export class DebateOrchestrator {
     });
   }
 
+  private pauseForAudienceQuestionReview(
+    messageIndex: number,
+    messages: Message[],
+    nextMessageIndex: number
+  ): void {
+    if (!this.session) return;
+
+    this.timeouts.forEach(timeout => clearTimeout(timeout));
+    this.timeouts.clear();
+
+    const prompt: DebateContinuationPrompt = {
+      title: 'Audience questions',
+      message: 'Review the latest speeches or finish any voice clips before entering questions for each side.',
+      buttonLabel: 'Continue to Questions',
+      isFinalReview: false,
+      completedMessageIndex: messageIndex,
+      nextMessageIndex,
+      continueAction: 'audience_questions',
+    };
+
+    this.pendingContinuation = {
+      ...prompt,
+      messages,
+    };
+    this.updateSessionStatus(DebateStatus.PAUSED_FOR_REVIEW);
+
+    this.emitEvent({
+      type: 'continuation_required',
+      data: { ...prompt },
+      timestamp: Date.now(),
+    });
+  }
+
   private pauseForVoteReview(
     messageIndex: number,
     messages: Message[],
@@ -1465,7 +1498,7 @@ export class DebateOrchestrator {
         completedMessageSpec: messageSpec,
         nextMessageSpec: this.session.preset.messages[nextMessageIndex],
       });
-      this.requestAudienceQuestions(
+      this.pauseForAudienceQuestionReview(
         messageIndex,
         this.currentMessages.length >= messages.length ? this.currentMessages : messages,
         nextMessageIndex
@@ -1525,6 +1558,19 @@ export class DebateOrchestrator {
       } else {
         this.showVotingForRound(pending.voteRound, false);
       }
+      return;
+    }
+
+    if (pending.continueAction === 'audience_questions') {
+      if (typeof pending.nextMessageIndex !== 'number') {
+        return;
+      }
+
+      this.requestAudienceQuestions(
+        pending.completedMessageIndex,
+        pending.messages,
+        pending.nextMessageIndex
+      );
       return;
     }
 

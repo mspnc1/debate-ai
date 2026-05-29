@@ -1215,9 +1215,13 @@ describe('DebateOrchestrator', () => {
       { id: 'grok', provider: 'grok', name: 'Grok', model: 'grok-4' } as AI,
     ];
     const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    const continuationEvents: Array<Record<string, unknown>> = [];
     const questionEvents: Array<Record<string, unknown>> = [];
     const hostMessages: Message[] = [];
     orchestrator.addEventListener(event => {
+      if (event.type === 'continuation_required') {
+        continuationEvents.push(event.data);
+      }
       if (event.type === 'audience_questions_requested') {
         questionEvents.push(event.data);
       }
@@ -1240,17 +1244,30 @@ describe('DebateOrchestrator', () => {
 
     jest.clearAllTimers();
     setTimeoutSpy.mockClear();
+    continuationEvents.length = 0;
 
     await orchestrator.executeDebateMessage(3, []);
 
     expect(orchestrator.getSession()?.status).toBe(DebateStatus.PAUSED_FOR_REVIEW);
+    expect(continuationEvents[0]).toEqual(expect.objectContaining({
+      title: 'Audience questions',
+      buttonLabel: 'Continue to Questions',
+      isFinalReview: false,
+      completedMessageIndex: 3,
+      nextMessageIndex: 4,
+      continueAction: 'audience_questions',
+    }));
+    expect(questionEvents).toHaveLength(0);
+    expect(setTimeoutSpy).not.toHaveBeenCalled();
+
+    orchestrator.continueDebate();
+
     expect(questionEvents[0]).toEqual(expect.objectContaining({
       title: 'Audience questions',
       completedMessageIndex: 3,
       nextMessageIndex: 4,
       required: true,
     }));
-    expect(setTimeoutSpy).not.toHaveBeenCalled();
 
     orchestrator.submitAudienceQuestions({
       aff: '  How would your side pay for this?  ',
@@ -1344,6 +1361,7 @@ describe('DebateOrchestrator', () => {
       voiceConfig,
     });
     await orchestrator.executeDebateMessage(3, []);
+    orchestrator.continueDebate();
     orchestrator.submitAudienceQuestions({
       aff: 'How would your side pay for this?',
       neg: 'Why is the status quo enough?',
@@ -1423,6 +1441,7 @@ describe('DebateOrchestrator', () => {
       rounds: 7,
     });
     await orchestrator.executeDebateMessage(3, []);
+    orchestrator.continueDebate();
     orchestrator.submitAudienceQuestions({
       aff: 'What is your strongest tradeoff?',
       neg: 'What evidence would change your mind?',
