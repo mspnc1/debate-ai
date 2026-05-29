@@ -25,6 +25,7 @@ const mockStreamingService = {
 
 jest.mock('@/services/streaming/StreamingService', () => ({
   getStreamingService: jest.fn(() => mockStreamingService),
+  isStreamInterruptedError: jest.fn(() => false),
 }));
 
 jest.mock('@/store', () => ({

@@ -70,6 +70,12 @@ jest.mock('@/components/molecules', () => {
     GradientButton: (props: any) => mockGradientButton(props),
     Button: (props: any) => mockButton(props),
     Typography: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text>,
+    ContextBar: ({ title, subtitle }: { title?: string; subtitle?: string }) => (
+      <>
+        {title ? <Text>{title}</Text> : null}
+        {subtitle ? <Text>{subtitle}</Text> : null}
+      </>
+    ),
   };
 });
 

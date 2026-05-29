@@ -30,6 +30,13 @@ jest.mock('@/components/molecules', () => {
       React.createElement(TouchableOpacity, { onPress, testID: testID || 'button' }, React.createElement(Text, null, title)),
     GradientButton: ({ title, onPress, testID }: { title: string; onPress: () => void; testID?: string }) =>
       React.createElement(TouchableOpacity, { onPress, testID: testID || 'gradient-button' }, React.createElement(Text, null, title)),
+    ContextBar: ({ title, subtitle }: { title?: string; subtitle?: string }) =>
+      React.createElement(
+        React.Fragment,
+        null,
+        title ? React.createElement(Text, null, title) : null,
+        subtitle ? React.createElement(Text, null, subtitle) : null
+      ),
   };
 });
 
@@ -86,7 +93,8 @@ describe('DemoExplainerSheet', () => {
 
     it('renders the header with correct subtitle', () => {
       const { getByText } = renderWithProviders(<DemoExplainerSheet onClose={mockOnClose} onStartTrial={mockOnStartTrial} />);
-      expect(getByText('Simulated content — no live API calls')).toBeTruthy();
+      expect(getByText('Simulated content')).toBeTruthy();
+      expect(getByText('No live API calls.')).toBeTruthy();
     });
 
     it('renders the explanatory text', () => {
@@ -225,7 +233,8 @@ describe('DemoExplainerSheet', () => {
 
       // All these should exist
       expect(getByText("You're in Demo Mode")).toBeTruthy();
-      expect(getByText('Simulated content — no live API calls')).toBeTruthy();
+      expect(getByText('Simulated content')).toBeTruthy();
+      expect(getByText('No live API calls.')).toBeTruthy();
       expect(getByText(/Explore pre‑recorded chats/i)).toBeTruthy();
       expect(getByText('Start 7‑Day Free Trial')).toBeTruthy();
       expect(getByText('Maybe later')).toBeTruthy();

@@ -20,9 +20,6 @@ exports[`DemoExplainerSheet Snapshot Tests matches snapshot with default props 1
     <Text>
       You're in Demo Mode
     </Text>
-    <Text>
-      Simulated content — no live API calls
-    </Text>
     <View
       accessibilityState={
         {
@@ -63,6 +60,12 @@ exports[`DemoExplainerSheet Snapshot Tests matches snapshot with default props 1
       </Text>
     </View>
   </View>
+  <Text>
+    Simulated content
+  </Text>
+  <Text>
+    No live API calls.
+  </Text>
   <RCTScrollView
     contentContainerStyle={
       {

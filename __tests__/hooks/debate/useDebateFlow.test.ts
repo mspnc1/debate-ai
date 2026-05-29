@@ -33,6 +33,8 @@ class MockOrchestrator {
   public startDebate = jest.fn(async () => undefined);
   public continueDebate = jest.fn();
   public submitAudienceQuestions = jest.fn();
+  public getPendingContinuation = jest.fn(() => null);
+  public getPendingAudienceQuestions = jest.fn(() => null);
   private handlers = new Set<EventHandler>();
 
   addEventListener(handler: EventHandler) {

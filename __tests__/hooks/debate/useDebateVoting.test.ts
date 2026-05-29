@@ -36,6 +36,11 @@ type EventHandler = (event: DebateEvent) => void;
 
 class MockOrchestrator {
   public votingService = new MockVotingService();
+  public session = {
+    status: 'active',
+    currentRound: 1,
+    totalRounds: 3,
+  };
   public recordVote = jest.fn(async () => undefined);
   private handlers = new Set<EventHandler>();
 
@@ -53,6 +58,18 @@ class MockOrchestrator {
 
   getVotingService() {
     return this.votingService;
+  }
+
+  getSession() {
+    return this.session;
+  }
+
+  getCurrentAudienceVoteStage() {
+    return undefined;
+  }
+
+  getCurrentVoteIndex() {
+    return undefined;
   }
 }
 
