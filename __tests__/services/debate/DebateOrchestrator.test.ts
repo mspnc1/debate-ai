@@ -980,6 +980,118 @@ describe('DebateOrchestrator', () => {
     jest.useRealTimers();
   });
 
+  it('requires explicit review before showing a checkpoint vote', async () => {
+    jest.useFakeTimers();
+    const adapter = {
+      config: {} as Record<string, unknown>,
+      getCapabilities: jest.fn(() => ({ streaming: false })),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => ''),
+    };
+    const aiService = {
+      getAdapter: jest.fn(() => adapter),
+      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+    };
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    const continuationEvents: Array<Record<string, unknown>> = [];
+    const votingEvents: Array<Record<string, unknown>> = [];
+    orchestrator.addEventListener(event => {
+      if (event.type === 'continuation_required') {
+        continuationEvents.push(event.data);
+      }
+      if (event.type === 'voting_started') {
+        votingEvents.push(event.data);
+      }
+    });
+
+    await orchestrator.initializeDebate('AI ethics', participants, {}, {
+      formatId: 'lincoln_douglas',
+      rounds: 3,
+    });
+
+    await orchestrator.executeDebateMessage(1, []);
+
+    expect(orchestrator.getSession()?.status).toBe(DebateStatus.PAUSED_FOR_REVIEW);
+    expect(continuationEvents[0]).toEqual(expect.objectContaining({
+      title: 'Ready to vote: Value constructives',
+      buttonLabel: 'Cast Vote',
+      isFinalReview: false,
+      completedMessageIndex: 1,
+      continueAction: 'vote',
+      voteRound: 1,
+      isFinalRoundVote: false,
+    }));
+    expect(votingEvents).toHaveLength(0);
+
+    orchestrator.continueDebate();
+
+    expect(votingEvents[0]).toEqual(expect.objectContaining({
+      round: 1,
+      isFinalRound: false,
+      isOverallVote: false,
+      votingLabel: 'Value constructives',
+    }));
+
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  it('requires explicit review before showing the final checkpoint vote', async () => {
+    jest.useFakeTimers();
+    const adapter = {
+      config: {} as Record<string, unknown>,
+      getCapabilities: jest.fn(() => ({ streaming: false })),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => ''),
+    };
+    const aiService = {
+      getAdapter: jest.fn(() => adapter),
+      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+    };
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+    const continuationEvents: Array<Record<string, unknown>> = [];
+    const votingEvents: Array<Record<string, unknown>> = [];
+    orchestrator.addEventListener(event => {
+      if (event.type === 'continuation_required') {
+        continuationEvents.push(event.data);
+      }
+      if (event.type === 'voting_started') {
+        votingEvents.push(event.data);
+      }
+    });
+
+    await orchestrator.initializeDebate('AI ethics', participants, {}, {
+      formatId: 'lincoln_douglas',
+      rounds: 3,
+    });
+
+    await orchestrator.executeDebateMessage(4, []);
+
+    expect(orchestrator.getSession()?.status).toBe(DebateStatus.PAUSED_FOR_REVIEW);
+    expect(continuationEvents[0]).toEqual(expect.objectContaining({
+      title: 'Ready for final vote: 2AR ballot',
+      buttonLabel: 'Cast Final Vote',
+      isFinalReview: true,
+      completedMessageIndex: 4,
+      continueAction: 'vote',
+      voteRound: 4,
+      isFinalRoundVote: true,
+    }));
+    expect(votingEvents).toHaveLength(0);
+
+    orchestrator.continueDebate();
+
+    expect(votingEvents[0]).toEqual(expect.objectContaining({
+      round: 4,
+      isFinalRound: true,
+      isOverallVote: false,
+      votingLabel: '2AR ballot',
+    }));
+
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
   it('maps Oxford full speeches across 2v2 proposition and opposition slots', async () => {
     jest.useFakeTimers();
     const adapter = {

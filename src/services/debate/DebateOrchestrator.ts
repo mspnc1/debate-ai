@@ -91,6 +91,9 @@ export interface DebateContinuationPrompt {
   isFinalReview: boolean;
   completedMessageIndex: number;
   nextMessageIndex?: number;
+  continueAction?: 'next_message' | 'vote' | 'end_debate';
+  voteRound?: number;
+  isFinalRoundVote?: boolean;
 }
 
 interface PendingDebateContinuation extends DebateContinuationPrompt {
@@ -1283,6 +1286,7 @@ export class DebateOrchestrator {
       buttonLabel: isFinalReview ? 'Cast Final Vote' : 'Continue Debate',
       isFinalReview,
       completedMessageIndex: messageIndex,
+      continueAction: isFinalReview ? 'end_debate' : 'next_message',
       ...(typeof nextMessageIndex === 'number' ? { nextMessageIndex } : {}),
     };
 
@@ -1331,6 +1335,45 @@ export class DebateOrchestrator {
       timestamp: Date.now(),
     });
   }
+
+  private pauseForVoteReview(
+    messageIndex: number,
+    messages: Message[],
+    voteRound: number,
+    isFinalRoundVote: boolean
+  ): void {
+    if (!this.session) return;
+
+    this.timeouts.forEach(timeout => clearTimeout(timeout));
+    this.timeouts.clear();
+
+    const messageSpec = this.session.preset.messages[messageIndex];
+    const votingLabel = this.votingService?.getVotingLabel(voteRound) || messageSpec?.votingLabel || 'Vote';
+    const prompt: DebateContinuationPrompt = {
+      title: isFinalRoundVote ? `Ready for final vote: ${votingLabel}` : `Ready to vote: ${votingLabel}`,
+      message: isFinalRoundVote
+        ? 'Review the final response or finish any voice clips before casting the final judge checkpoint.'
+        : 'Review the latest response or finish any voice clips before casting this judge checkpoint.',
+      buttonLabel: isFinalRoundVote ? 'Cast Final Vote' : 'Cast Vote',
+      isFinalReview: isFinalRoundVote,
+      completedMessageIndex: messageIndex,
+      continueAction: 'vote',
+      voteRound,
+      isFinalRoundVote,
+    };
+
+    this.pendingContinuation = {
+      ...prompt,
+      messages,
+    };
+    this.updateSessionStatus(DebateStatus.PAUSED_FOR_REVIEW);
+
+    this.emitEvent({
+      type: 'continuation_required',
+      data: { ...prompt },
+      timestamp: Date.now(),
+    });
+  }
   
   /**
    * Advance the debate after a message resolves.
@@ -1346,11 +1389,12 @@ export class DebateOrchestrator {
         completedMessageSpec: messageSpec,
         votingLabel: this.votingService?.getVotingLabel(this.currentVoteIndex) || messageSpec.votingLabel,
       });
-      if (isFinalRoundVote) {
-        this.endDebate();
-      } else {
-        this.showVotingForRound(this.currentVoteIndex, false);
-      }
+      this.pauseForVoteReview(
+        messageIndex,
+        this.currentMessages.length >= messages.length ? this.currentMessages : messages,
+        this.currentVoteIndex,
+        isFinalRoundVote
+      );
       return;
     }
 
@@ -1406,6 +1450,22 @@ export class DebateOrchestrator {
 
     const pending = this.pendingContinuation;
     this.pendingContinuation = null;
+
+    if (pending.continueAction === 'vote') {
+      if (typeof pending.voteRound !== 'number') {
+        return;
+      }
+
+      this.currentVoteIndex = pending.voteRound;
+      this.updateSessionStatus(DebateStatus.ACTIVE);
+
+      if (pending.isFinalRoundVote) {
+        this.endDebate();
+      } else {
+        this.showVotingForRound(pending.voteRound, false);
+      }
+      return;
+    }
 
     if (pending.isFinalReview) {
       this.updateSessionStatus(DebateStatus.ACTIVE);
