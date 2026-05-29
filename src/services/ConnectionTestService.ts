@@ -4,11 +4,16 @@
  */
 
 import { getDefaultModel } from '../config/providers/modelRegistry';
+import {
+  ELEVENLABS_DEFAULT_TTS_MODEL,
+  ELEVENLABS_DEFAULT_VOICE_ID,
+} from '@/config/mediaProviders';
 
 const RUNWAY_API_BASE = 'https://api.dev.runwayml.com/v1';
 const RUNWAY_API_VERSION = '2024-11-06';
 const RUNWAY_API_KEY_PATTERN = /^key_[0-9a-f]{128}$/;
 const PERPLEXITY_CONNECTION_TEST_MAX_TOKENS = 16;
+const ELEVENLABS_CONNECTION_TEST_OUTPUT_FORMAT = 'mp3_22050_32';
 
 function normalizeProviderApiKey(providerId: string, apiKey: string): string {
   const normalized = apiKey.trim();
@@ -426,21 +431,45 @@ export class ConnectionTestService {
   }
 
   /**
-   * Test ElevenLabs API with a non-generation metadata request.
+   * Test ElevenLabs API with both voice-list access and a tiny TTS request.
    */
-  private async testElevenLabs(apiKey: string, signal: AbortSignal): Promise<{ model: string }> {
-    const response = await fetch('https://api.elevenlabs.io/v2/voices?page_size=1', {
+  private async testElevenLabs(apiKey: string, signal: AbortSignal): Promise<{ model: string; message: string }> {
+    const voiceResponse = await fetch('https://api.elevenlabs.io/v2/voices?page_size=1', {
       headers: {
         'xi-api-key': apiKey,
       },
       signal,
     });
 
-    if (!response.ok) {
-      throw await this.createApiError(response, 'ElevenLabs');
+    if (!voiceResponse.ok) {
+      throw await this.createApiError(voiceResponse, 'ElevenLabs');
     }
 
-    return { model: 'ElevenLabs voices' };
+    const ttsResponse = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(ELEVENLABS_DEFAULT_VOICE_ID)}?output_format=${encodeURIComponent(ELEVENLABS_CONNECTION_TEST_OUTPUT_FORMAT)}`,
+      {
+        method: 'POST',
+        headers: {
+          'xi-api-key': apiKey,
+          'Content-Type': 'application/json',
+          Accept: 'audio/mpeg',
+        },
+        body: JSON.stringify({
+          text: 'Hi.',
+          model_id: ELEVENLABS_DEFAULT_TTS_MODEL,
+        }),
+        signal,
+      }
+    );
+
+    if (!ttsResponse.ok) {
+      throw await this.createApiError(ttsResponse, 'ElevenLabs');
+    }
+
+    return {
+      model: 'ElevenLabs text-to-speech',
+      message: 'Voice list and text-to-speech verified',
+    };
   }
 
   /**
@@ -528,6 +557,13 @@ export class ConnectionTestService {
         errorMessage = errorData.message;
       } else if (typeof errorData.error === 'string') {
         errorMessage = errorData.error;
+      } else if (errorData.detail && typeof errorData.detail === 'object') {
+        const detail = errorData.detail as Record<string, unknown>;
+        const detailMessage = typeof detail.message === 'string' ? detail.message : undefined;
+        const detailStatus = typeof detail.status === 'string' ? detail.status : undefined;
+        errorMessage = detailMessage || detailStatus || errorMessage;
+      } else if (typeof errorData.detail === 'string') {
+        errorMessage = errorData.detail;
       }
     } catch {
       // If we can't parse JSON, try text
@@ -635,6 +671,21 @@ export class ConnectionTestService {
 
       // Check for auth errors
       if (statusCode === 401 || statusCode === 403) {
+        if (statusCode === 403 && /permission|scope|text_to_speech|synthesi[sz]e|speech/i.test(error.message)) {
+          return {
+            code: 'INSUFFICIENT_PERMISSIONS',
+            message: error.message || 'API key does not have permission for this request',
+            statusCode
+          };
+        }
+        if (statusCode === 403) {
+          return {
+            code: 'ACCESS_DENIED',
+            message: error.message || 'API key is not allowed to access this request',
+            statusCode
+          };
+        }
+
         return {
           code: 'UNAUTHORIZED',
           message: error.message || 'Invalid or expired API key',
@@ -709,6 +760,12 @@ export class ConnectionTestService {
 
       case 'UNAUTHORIZED':
         return 'API key is invalid or expired. Please check your provider dashboard.';
+
+      case 'INSUFFICIENT_PERMISSIONS':
+        return 'API key is valid but missing required permissions. Enable the provider feature in your key settings.';
+
+      case 'ACCESS_DENIED':
+        return result.message || 'API key is not allowed to access this request.';
 
       case 'RATE_LIMITED':
         return 'Too many requests. Please wait a moment and try again.';

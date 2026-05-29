@@ -126,6 +126,22 @@ describe('MediaGenerationService', () => {
     })).rejects.toThrow('Runway API request failed with HTTP 401. Mobile stored key is key_...aaaa (132 chars). Provider response: Unauthorized');
   });
 
+  it('reports ElevenLabs text-to-speech permission failures without calling the key invalid', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(mockJsonResponse({
+      detail: {
+        status: 'insufficient_permissions',
+        message: 'API key is missing text_to_speech permission',
+      },
+    }, 403));
+
+    await expect(MediaGenerationService.generateElevenLabsAudio({
+      apiKey: 'elevenlabs_valid_key_123',
+      operation: 'text_to_speech',
+      prompt: 'Opening argument.',
+      voiceId: 'voice-1',
+    })).rejects.toThrow('ElevenLabs API key is missing text-to-speech permission: API key is missing text_to_speech permission');
+  });
+
   it('rejects malformed Runway keys before sending a generation request', async () => {
     await expect(MediaGenerationService.startRunwayVideo({
       apiKey: 'bad-runway-key',

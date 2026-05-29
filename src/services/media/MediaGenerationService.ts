@@ -84,6 +84,7 @@ function readProviderErrorMessage(parsed: unknown): string | undefined {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
   const record = parsed as Record<string, unknown>;
   const error = record.error;
+  const detail = record.detail;
 
   if (typeof error === 'string' && error.trim()) return error.trim();
   if (error && typeof error === 'object' && !Array.isArray(error)) {
@@ -93,10 +94,38 @@ function readProviderErrorMessage(parsed: unknown): string | undefined {
       || readString(errorRecord, 'description');
     if (errorMessage) return errorMessage;
   }
+  if (typeof detail === 'string' && detail.trim()) return detail.trim();
+  if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
+    const detailRecord = detail as Record<string, unknown>;
+    const detailMessage = readString(detailRecord, 'message')
+      || readString(detailRecord, 'detail')
+      || readString(detailRecord, 'description')
+      || readString(detailRecord, 'status');
+    if (detailMessage) return detailMessage;
+  }
 
   return readString(record, 'message')
     || readString(record, 'detail')
     || readString(record, 'error_description');
+}
+
+function readProviderErrorStatus(parsed: unknown): string | undefined {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+  const record = parsed as Record<string, unknown>;
+  const detail = record.detail;
+  const error = record.error;
+
+  if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
+    const status = readString(detail as Record<string, unknown>, 'status');
+    if (status) return status;
+  }
+  if (error && typeof error === 'object' && !Array.isArray(error)) {
+    const status = readString(error as Record<string, unknown>, 'status')
+      || readString(error as Record<string, unknown>, 'code');
+    if (status) return status;
+  }
+
+  return readString(record, 'status') || readString(record, 'code');
 }
 
 function normalizeApiKey(apiKey: string): string {
@@ -131,12 +160,14 @@ function validateRunwayApiKey(apiKey: string): void {
 
 async function parseErrorResponse(response: Response, provider: string, credentialFingerprint?: string): Promise<Error> {
   let message = `${provider} API error (${response.status})`;
+  let providerStatus: string | undefined;
   try {
     const text = await response.text();
     if (text) {
       try {
         const parsed = JSON.parse(text);
         message = readProviderErrorMessage(parsed) || text.slice(0, 260);
+        providerStatus = readProviderErrorStatus(parsed);
       } catch {
         message = text.slice(0, 260);
       }
@@ -146,8 +177,27 @@ async function parseErrorResponse(response: Response, provider: string, credenti
   }
 
   const lower = message.toLowerCase();
+  const normalizedProviderStatus = providerStatus?.toLowerCase();
+  const elevenLabsPermissionDenied = provider === 'ElevenLabs' && (
+    normalizedProviderStatus === 'insufficient_permissions'
+    || lower.includes('permission')
+    || lower.includes('scope')
+    || lower.includes('text_to_speech')
+  );
+  const elevenLabsVoiceAccessDenied = provider === 'ElevenLabs' && (
+    normalizedProviderStatus === 'voice_access_denied'
+    || lower.includes('voice access')
+  );
   if (provider === 'Runway' && response.status === 401) {
     message = `Runway API request failed with HTTP 401. Mobile stored key is ${credentialFingerprint || 'unavailable'}. Provider response: ${message}`;
+  } else if (provider === 'ElevenLabs' && (response.status === 403 || elevenLabsPermissionDenied || elevenLabsVoiceAccessDenied)) {
+    if (elevenLabsVoiceAccessDenied) {
+      message = `ElevenLabs voice access denied: ${message}`;
+    } else if (elevenLabsPermissionDenied) {
+      message = `ElevenLabs API key is missing text-to-speech permission: ${message}`;
+    } else {
+      message = `ElevenLabs access denied: ${message}`;
+    }
   } else {
     const mentionsCredential = lower.includes('api key')
       || lower.includes('token')

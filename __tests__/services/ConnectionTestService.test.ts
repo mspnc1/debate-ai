@@ -107,6 +107,71 @@ describe('ConnectionTestService', () => {
     );
   });
 
+  it('tests ElevenLabs keys against voice listing and text-to-speech generation', async () => {
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: jest.fn().mockResolvedValue({ voices: [] }),
+      } as unknown as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+      } as unknown as Response);
+
+    const apiKey = 'elevenlabs_valid_key_123';
+    const result = await service.testProvider('elevenlabs', apiKey, { retries: 0 });
+    const fetchMock = global.fetch as jest.MockedFunction<typeof fetch>;
+    const ttsRequest = fetchMock.mock.calls[1]?.[1];
+
+    expect(result.success).toBe(true);
+    expect(result.model).toBe('ElevenLabs text-to-speech');
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      1,
+      'https://api.elevenlabs.io/v2/voices?page_size=1',
+      expect.objectContaining({
+        headers: { 'xi-api-key': apiKey },
+      })
+    );
+    expect(fetchMock.mock.calls[1]?.[0]).toContain('https://api.elevenlabs.io/v1/text-to-speech/');
+    expect(ttsRequest).toMatchObject({
+      method: 'POST',
+      headers: expect.objectContaining({
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+      }),
+    });
+    expect(JSON.parse(ttsRequest?.body as string)).toMatchObject({
+      text: 'Hi.',
+      model_id: 'eleven_multilingual_v2',
+    });
+  });
+
+  it('fails ElevenLabs verification when a key can list voices but cannot synthesize speech', async () => {
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: jest.fn().mockResolvedValue({ voices: [] }),
+      } as unknown as Response)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        json: jest.fn().mockResolvedValue({
+          detail: {
+            status: 'insufficient_permissions',
+            message: 'API key is missing text_to_speech permission',
+          },
+        }),
+      } as unknown as Response);
+
+    const result = await service.testProvider('elevenlabs', 'elevenlabs_valid_key_123', { retries: 0 });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe('INSUFFICIENT_PERMISSIONS');
+    expect(result.message).toContain('text_to_speech permission');
+  });
+
   it('tests Perplexity with the current sonar-pro minimum token budget', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,

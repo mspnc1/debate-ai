@@ -146,6 +146,43 @@ describe('useDebateVoiceGeneration', () => {
     expect(generateDebateVoiceAudio).toHaveBeenCalledTimes(1);
   });
 
+  it('uses the debater slot aiId before providerId when resolving a voice', async () => {
+    const slotMessage: Message = {
+      ...message,
+      id: 'msg-slot',
+      metadata: {
+        ...message.metadata,
+        aiId: 'openai-slot-1',
+        providerId: 'openai',
+      },
+    };
+    const slotVoiceConfig: DebateVoiceConfig = {
+      ...voiceConfig,
+      debaterVoices: {
+        'openai-slot-1': { voiceId: 'voice-slot', voiceName: 'Slot Voice' },
+      },
+    };
+    (StorageService.loadSession as jest.Mock).mockResolvedValueOnce({
+      id: 'debate-1',
+      messages: [slotMessage],
+    });
+
+    renderHookWithProviders(
+      ({ messages }) => useDebateVoiceGeneration({ sessionId: 'debate-1', voiceConfig: slotVoiceConfig, messages }),
+      { preloadedState, initialProps: { messages: [slotMessage] } }
+    );
+
+    await waitFor(() => {
+      expect(generateDebateVoiceAudio).toHaveBeenCalledWith(expect.objectContaining({
+        message: slotMessage,
+        voice: {
+          voiceId: 'voice-slot',
+          voiceName: 'Slot Voice',
+        },
+      }));
+    });
+  });
+
   it('marks failed generation without blocking the debate', async () => {
     (generateDebateVoiceAudio as jest.Mock).mockRejectedValueOnce(new Error('quota exceeded'));
 

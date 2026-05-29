@@ -34,7 +34,7 @@ function getMessageById(messages: Message[], messageId: string): Message | undef
 }
 
 function getDebaterId(message: Message): string | undefined {
-  return message.metadata?.providerId || message.sender.split(' (')[0].toLowerCase();
+  return message.metadata?.aiId || message.metadata?.providerId || message.sender.split(' (')[0].toLowerCase();
 }
 
 function getVoiceForMessage(message: Message, voiceConfig?: DebateVoiceConfig) {
