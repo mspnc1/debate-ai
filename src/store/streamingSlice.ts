@@ -122,6 +122,7 @@ const streamingSlice = createSlice({
           stream.content = finalContent;
         }
         stream.status = 'completed';
+        stream.error = undefined;
         state.activeStreamCount = Math.max(0, state.activeStreamCount - 1);
         state.totalStreamsCompleted++;
       }

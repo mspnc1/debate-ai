@@ -60,6 +60,15 @@ describe('streamingSlice', () => {
     expect(state.streamingMessages.m2).toBeDefined();
   });
 
+  it('clears stale stream errors when a stream completion is finalized', () => {
+    let state = reducer(initialState, startStreaming({ messageId: 'm1', aiProvider: 'google' }));
+    state = reducer(state, streamingError({ messageId: 'm1', error: 'Network connection failed' }));
+    state = reducer(state, endStreaming({ messageId: 'm1', finalContent: 'Retry this turn.' }));
+
+    expect(state.streamingMessages.m1.error).toBeUndefined();
+    expect(state.streamingMessages.m1.status).toBe('completed');
+  });
+
   it('cancels all active streams', () => {
     // Start multiple streams
     let state = reducer(initialState, startStreaming({ messageId: 'm1', aiProvider: 'claude' }));

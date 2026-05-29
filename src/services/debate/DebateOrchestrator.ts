@@ -453,6 +453,22 @@ export class DebateOrchestrator {
     return metadata;
   }
 
+  private buildRetryableTurnFailureContent(aiName: string, partialContent?: string): string {
+    const partial = partialContent?.trim();
+    const retryNote = `${aiName} could not finish this turn. Retry the turn when you are ready.`;
+
+    return partial ? `${partial}\n\n_${retryNote}_` : retryNote;
+  }
+
+  private isSyntheticDebateErrorContent(content: string, aiName: string): boolean {
+    const normalized = content.trim();
+    if (normalized.length === 0) return false;
+
+    return normalized === DEBATE_CONSTANTS.MESSAGES.ERROR(aiName)
+      || normalized === DEBATE_CONSTANTS.MESSAGES.RATE_LIMIT(aiName)
+      || /\bhad an error\. continuing\.\.\.$/i.test(normalized);
+  }
+
   private emitRetryContinuation({
     title,
     message,
@@ -947,6 +963,12 @@ export class DebateOrchestrator {
           },
           (completeText: string) => {
             const normalizedAnswer = ensureAnswerContent(completeText, capturedCitations, currentAI.name);
+            if (this.isSyntheticDebateErrorContent(normalizedAnswer.content, currentAI.name)) {
+              hadError = true;
+              errorForFallback = normalizedAnswer.content;
+              this.emitEvent({ type: 'stream_error', data: { messageId, error: errorForFallback, aiProvider: currentAI.id, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
+              return;
+            }
             finalContent = normalizedAnswer.content;
             capturedCitations = normalizedAnswer.citations;
             if (normalizedAnswer.content.trim().length > 0) {
@@ -1102,6 +1124,9 @@ export class DebateOrchestrator {
               if (normalizedAnswer.content.trim().length === 0) {
                 throw new Error('Fallback returned an empty response');
               }
+              if (this.isSyntheticDebateErrorContent(normalizedAnswer.content, currentAI.name)) {
+                throw new Error(errorForFallback || normalizedAnswer.content);
+              }
               finalContent = normalizedAnswer.content;
               // Emit completion to update the placeholder message and end stream state in UI
               this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), citations: normalizedAnswer.citations, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
@@ -1113,7 +1138,7 @@ export class DebateOrchestrator {
               this.currentMessages = [...turnMessages, updated];
             } catch (fallbackError) {
               // As last resort, update the placeholder with a visible error so the flow does not keep a blank AI turn.
-              const errorContent = DEBATE_CONSTANTS.MESSAGES.ERROR(currentAI.name);
+              const errorContent = this.buildRetryableTurnFailureContent(currentAI.name, streamedContent);
               const reason = fallbackError instanceof Error
                 ? fallbackError.message
                 : errorForFallback || 'Provider response failed';
@@ -1121,7 +1146,7 @@ export class DebateOrchestrator {
                 status: 'failed' as const,
                 reason,
                 interruptedAt: Date.now(),
-                partial: false,
+                partial: streamedContent.trim().length > 0,
                 retryable: true,
               };
               this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: errorContent, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), lifecycle, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
@@ -1146,7 +1171,7 @@ export class DebateOrchestrator {
             }
           } else {
             // Non-recoverable error: update the placeholder with a visible error.
-            const errorContent = DEBATE_CONSTANTS.MESSAGES.ERROR(currentAI.name);
+            const errorContent = this.buildRetryableTurnFailureContent(currentAI.name, streamedContent);
             const lifecycle = {
               status: 'failed' as const,
               reason: errorForFallback || 'Provider response failed',
@@ -1251,6 +1276,9 @@ export class DebateOrchestrator {
         if (normalizedAnswer.content.trim().length === 0) {
           throw new Error(`${currentAI.name} returned an empty response`);
         }
+        if (this.isSyntheticDebateErrorContent(normalizedAnswer.content, currentAI.name)) {
+          throw new Error(normalizedAnswer.content);
+        }
         const aiMessage: Message = {
           id: `msg_${Date.now()}_${currentAI.id}`,
           sender: `${currentAI.name} (${personalityName})`,
@@ -1342,7 +1370,7 @@ export class DebateOrchestrator {
       senderType: 'ai',
       content: debateError.type === 'rate_limit' 
         ? DEBATE_CONSTANTS.MESSAGES.RATE_LIMIT(currentAI.name)
-        : DEBATE_CONSTANTS.MESSAGES.ERROR(currentAI.name),
+        : this.buildRetryableTurnFailureContent(currentAI.name),
       timestamp: Date.now(),
       metadata: {
         ...this.buildAIResponseMetadata(currentAI, currentAI.model),

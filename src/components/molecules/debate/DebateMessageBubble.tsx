@@ -284,7 +284,7 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
           </Box>
         )}
         {/* Subtle inline error indicator if stream had an error */}
-        {!isStreaming && streamingError && (
+        {!isStreaming && streamingError && !lifecycle && (
           <Box style={{ marginTop: 6 }}>
             <Typography variant="caption" color="secondary" style={{ color: theme.colors.warning[600] }}>
               {(() => {

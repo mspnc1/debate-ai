@@ -561,6 +561,41 @@ describe('DebateMessageBubble', () => {
       );
       expect(getByText(/Streaming issue/)).toBeTruthy();
     });
+
+    it('shows retry UI instead of stale stream warning for retryable lifecycle failures', () => {
+      const onRetryTurn = jest.fn();
+      mockStreamingState = {
+        content: 'Gemini 2 could not finish this turn.',
+        isStreaming: false,
+        cursorVisible: false,
+        error: 'Network connection failed',
+        chunksReceived: 1,
+      };
+      const message = createMessage({
+        senderType: 'ai',
+        content: 'Gemini 2 could not finish this turn.',
+        metadata: {
+          lifecycle: {
+            status: 'failed',
+            reason: 'Network connection failed',
+            retryable: true,
+          },
+        },
+      });
+
+      const { getByTestId, getByText, queryByText } = renderWithProviders(
+        <DebateMessageBubble
+          {...defaultProps}
+          message={message}
+          canRetryTurn
+          onRetryTurn={onRetryTurn}
+        />
+      );
+
+      expect(queryByText(/Connection issue/)).toBeNull();
+      expect(getByTestId('debate-turn-retry-row')).toBeTruthy();
+      expect(getByText('Turn failed')).toBeTruthy();
+    });
   });
 
   describe('Copy Button', () => {
