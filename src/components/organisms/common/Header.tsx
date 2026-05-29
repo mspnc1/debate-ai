@@ -70,22 +70,23 @@ const BackButton: React.FC<BackButtonProps> = ({
   const isGradient = variant === 'gradient';
   const iconColor = isGradient ? theme.colors.text.inverse : theme.colors.text.primary;
   const backgroundColor = isGradient 
-    ? 'rgba(255, 255, 255, 0.15)' 
+    ? 'transparent'
     : theme.colors.surface;
   const borderColor = isGradient 
-    ? 'rgba(255, 255, 255, 0.3)' 
+    ? 'transparent'
     : theme.colors.border;
 
   return (
     <TouchableOpacity
       onPress={handlePress}
+      hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
       style={[
         {
           width: size,
           height: size,
           borderRadius: size / 2,
           backgroundColor,
-          borderWidth: StyleSheet.hairlineWidth,
+          borderWidth: isGradient ? 0 : StyleSheet.hairlineWidth,
           borderColor,
           justifyContent: 'center',
           alignItems: 'center',
@@ -93,25 +94,25 @@ const BackButton: React.FC<BackButtonProps> = ({
             ios: {
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: isGradient ? 0.3 : 0.1,
+              shadowOpacity: isGradient ? 0 : 0.1,
               shadowRadius: 4,
             },
             android: {
-              elevation: isGradient ? 6 : 2,
+              elevation: isGradient ? 0 : 2,
             },
           }),
         }
       ]}
-      activeOpacity={0.7}
+      activeOpacity={0.8}
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel="Go back"
       accessibilityHint="Navigates to the previous screen"
     >
       <ChevronLeftIcon 
-        size={size * 0.5} 
+        size={size * (isGradient ? 0.62 : 0.5)}
         color={iconColor}
-        strokeWidth={2.5}
+        strokeWidth={isGradient ? 3 : 2.5}
       />
     </TouchableOpacity>
   );
