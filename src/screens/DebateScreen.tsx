@@ -117,7 +117,6 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   const [voicePackSelectedIds, setVoicePackSelectedIds] = useState<string[]>([]);
   const [isSavingVoicePack, setIsSavingVoicePack] = useState(false);
   const [pendingGalleryFocusMediaId, setPendingGalleryFocusMediaId] = useState<string | null>(null);
-  const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
   const [debateRecoveryChecked, setDebateRecoveryChecked] = useState(false);
   const selectedSampleRef = React.useRef<DemoDebate | null>(null);
   // No custom controls modal
@@ -135,7 +134,13 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   });
   const { isDemo, canStartTrial } = useFeatureAccess();
   const { getPersonality: getMergedPersonality } = usePersonality();
-  const activeStreamCount = useSelector((state: RootState) => state.streaming.activeStreamCount);
+  const streamingMessages = useSelector((state: RootState) => state.streaming.streamingMessages);
+  const activeDebateStreamIds = useMemo(() => {
+    const debateMessageIds = new Set(messages.messages.map(message => message.id));
+    return Object.values(streamingMessages)
+      .filter(stream => stream.isStreaming && debateMessageIds.has(stream.messageId))
+      .map(stream => stream.messageId);
+  }, [messages.messages, streamingMessages]);
   const voicePackCandidates = useMemo(
     () => getDebateVoicePackCandidates(messages.messages),
     [messages.messages]
@@ -157,20 +162,25 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     if (typeof session.orchestrator?.createSnapshot !== 'function') return;
     const snapshot = session.orchestrator.createSnapshot(status, messages.messages);
     if (!snapshot) return;
+    const pendingMessageIds = activeDebateStreamIds.length > 0
+      ? activeDebateStreamIds
+      : snapshot.interruptedMessageIds || [];
+    const shouldPersistPendingTurn = status === 'interrupted'
+      || (status === 'active' && pendingMessageIds.length > 0);
 
     await ActiveSessionPersistenceService.saveSnapshot({
       ...snapshot,
       status,
-      pendingTurn: status === 'interrupted'
+      pendingTurn: shouldPersistPendingTurn
         ? {
           kind: 'debate_message',
           reason,
-          messageIds: snapshot.interruptedMessageIds,
-          interruptedAt: Date.now(),
+          messageIds: pendingMessageIds,
+          interruptedAt: status === 'interrupted' ? Date.now() : undefined,
         }
         : snapshot.pendingTurn,
     });
-  }, [messages.messages, session.orchestrator]);
+  }, [activeDebateStreamIds, messages.messages, session.orchestrator]);
 
   const debateRecoveryAttemptedRef = React.useRef(false);
   useEffect(() => {
@@ -188,10 +198,25 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         const matchesTopic = !initialTopic || snapshot.debateSession.topic === initialTopic;
         if (!matchesParticipants || !matchesTopic) return;
 
-        await session.hydrateSessionFromSnapshot(snapshot);
-        setRecoveryNotice(snapshot.status === 'interrupted'
-          ? 'This debate was interrupted. Retry the paused turn when ready.'
-          : 'This debate was restored from the last app checkpoint.');
+        const stalePendingTurn = snapshot.status === 'active' ? snapshot.pendingTurn : undefined;
+        const shouldTreatAsStaleTurn = Boolean(stalePendingTurn);
+        const snapshotToHydrate: ActiveDebateSessionSnapshot = stalePendingTurn
+          ? {
+            ...snapshot,
+            status: 'interrupted',
+            pendingTurn: {
+              ...stalePendingTurn,
+              reason: stalePendingTurn.reason || 'stale_active_restore',
+              interruptedAt: stalePendingTurn.interruptedAt || Date.now(),
+            },
+          }
+          : snapshot;
+
+        if (shouldTreatAsStaleTurn) {
+          await ActiveSessionPersistenceService.saveSnapshot(snapshotToHydrate);
+        }
+
+        await session.hydrateSessionFromSnapshot(snapshotToHydrate);
       } finally {
         setDebateRecoveryChecked(true);
       }
@@ -206,23 +231,17 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     return AppLifecycleService.register({
       id: `debate-${session.session.id}`,
       onBackground: () => saveActiveDebateSnapshot(
-        activeStreamCount > 0 || flow.isDebateActive ? 'interrupted' : 'backgrounded',
+        activeDebateStreamIds.length > 0 ? 'active' : 'backgrounded',
         'app_backgrounded'
       ),
-      onForeground: async () => {
-        const snapshot = await ActiveSessionPersistenceService.loadSnapshot<ActiveDebateSessionSnapshot>('debate', session.session!.id);
-        if (snapshot?.status === 'interrupted') {
-          setRecoveryNotice('This debate was interrupted. Retry the paused turn when ready.');
-        }
-      },
     });
-  }, [activeStreamCount, flow.isDebateActive, saveActiveDebateSnapshot, session.session]);
+  }, [activeDebateStreamIds.length, saveActiveDebateSnapshot, session.session]);
 
   useEffect(() => {
     if (!session.session) return;
-    void saveActiveDebateSnapshot(activeStreamCount > 0 ? 'active' : 'backgrounded');
+    void saveActiveDebateSnapshot(activeDebateStreamIds.length > 0 ? 'active' : 'backgrounded');
   }, [
-    activeStreamCount,
+    activeDebateStreamIds.length,
     flow.continuation,
     flow.audienceQuestionsPrompt,
     messages.messages.length,
@@ -1119,48 +1138,6 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
       
       {/* Topic moved into header */}
 
-      {recoveryNotice && (
-        <View
-          style={{
-            borderWidth: 1,
-            borderColor: theme.colors.warning[300],
-            backgroundColor: theme.colors.warning[50],
-            paddingHorizontal: 14,
-            paddingVertical: 10,
-            marginHorizontal: 12,
-            marginTop: 8,
-            borderRadius: 8,
-          }}
-        >
-          <Typography variant="caption" color="primary" weight="semibold">
-            {recoveryNotice}
-          </Typography>
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setRecoveryNotice(null)}
-              style={{ paddingHorizontal: 8, paddingVertical: 4 }}
-            >
-              <Typography variant="caption" color="secondary" weight="semibold">Dismiss</Typography>
-            </Pressable>
-            {flow.continuation && (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  setRecoveryNotice(null);
-                  flow.continueDebate();
-                }}
-                style={{ paddingHorizontal: 8, paddingVertical: 4 }}
-              >
-                <Typography variant="caption" color="brand" weight="semibold">
-                  {flow.continuation.buttonLabel || 'Continue'}
-                </Typography>
-              </Pressable>
-            )}
-          </View>
-        </View>
-      )}
-      
   {renderContent()}
 
   {/* Record picker for Debate */}

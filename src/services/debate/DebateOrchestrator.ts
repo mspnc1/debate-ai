@@ -882,6 +882,7 @@ export class DebateOrchestrator {
         let finalContent = '';
         let hadError = false;
         let wasInterrupted = false;
+        let streamStopReason: 'cancelled' | 'interrupted' | null = null;
         let streamedContent = '';
         let capturedCitations: Citation[] | undefined;
 
@@ -911,6 +912,7 @@ export class DebateOrchestrator {
             if (isStreamInterruptedError(err)) {
               hadError = true;
               wasInterrupted = true;
+              streamStopReason = err.reason;
               errorForFallback = err.message;
               this.emitEvent({ type: 'stream_error', data: { messageId, error: err.message, aiProvider: currentAI.id, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
               return;
@@ -943,9 +945,13 @@ export class DebateOrchestrator {
 
         if (wasInterrupted) {
           const partialContent = streamedContent.trim();
+          const wasCancelled = streamStopReason === 'cancelled';
+          const interruptionNote = wasCancelled
+            ? 'Response stopped. Retry this debate turn when ready.'
+            : 'Response interrupted before it finished. Retry this debate turn when ready.';
           const interruptedContent = partialContent.length > 0
-            ? `${partialContent}\n\n_Response paused when the app backgrounded. Retry this debate turn when ready._`
-            : 'Response paused when the app backgrounded. Retry this debate turn when ready.';
+            ? `${partialContent}\n\n_${interruptionNote}_`
+            : interruptionNote;
           this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: interruptedContent, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
           const updated = {
             ...placeholderMessage,
@@ -953,7 +959,7 @@ export class DebateOrchestrator {
             metadata: {
               ...this.buildAIResponseMetadata(currentAI, currentAI.model, undefined, debateSpeech),
               lifecycle: {
-                status: 'interrupted' as const,
+                status: wasCancelled ? 'cancelled' as const : 'interrupted' as const,
                 reason: errorForFallback || 'app_backgrounded',
                 interruptedAt: Date.now(),
                 partial: partialContent.length > 0,
@@ -962,8 +968,10 @@ export class DebateOrchestrator {
           };
           this.currentMessages = [...turnMessages, updated];
           this.pendingContinuation = {
-            title: 'Debate paused',
-            message: 'The active response was interrupted. Retry this turn when you are ready.',
+            title: wasCancelled ? 'Debate stopped' : 'Debate interrupted',
+            message: wasCancelled
+              ? 'The active response was stopped. Retry this turn when you are ready.'
+              : 'The active response was interrupted. Retry this turn when you are ready.',
             buttonLabel: 'Retry Turn',
             isFinalReview: false,
             completedMessageIndex: Math.max(messageIndex - 1, 0),

@@ -7,7 +7,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState, cancelAllStreams, hydrateMediaGallery, isApiKeyConfigured, resumeCreateMediaTasks } from '../store';
+import { AppDispatch, RootState, hydrateMediaGallery, isApiKeyConfigured, resumeCreateMediaTasks } from '../store';
 import { RootStackParamList } from '../types';
 import { useTheme } from '../theme';
 import { SheetProvider } from '../contexts/SheetContext';
@@ -16,7 +16,6 @@ import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { useResponsive } from '../hooks/useResponsive';
 import { ErrorBoundary } from '../components/organisms/common/ErrorBoundary';
 import { AppLifecycleService } from '@/services/lifecycle/AppLifecycleService';
-import { getStreamingService } from '@/services/streaming/StreamingService';
 
 // Import screens
 import WelcomeScreen from '../screens/WelcomeScreen';
@@ -67,14 +66,6 @@ const CreateActivityBridge = () => {
       id: 'create-activity-bridge',
       onForeground: () => {
         dispatch(resumeCreateMediaTasks());
-      },
-      onBackground: () => {
-        try {
-          getStreamingService().interruptAllStreams();
-          dispatch(cancelAllStreams({ reason: 'interrupted' }));
-        } catch {
-          // ignore lifecycle cancellation failures
-        }
       },
     });
   }, [dispatch]);

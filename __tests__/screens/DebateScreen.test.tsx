@@ -2,7 +2,7 @@ import React from 'react';
 import { Alert } from 'react-native';
 import { act, fireEvent, waitFor } from '@testing-library/react-native';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
-import { createAppStore, showSheet } from '@/store';
+import { createAppStore, showSheet, startStreaming } from '@/store';
 import type { AI, Message } from '@/types';
 import { getPresetForFormat } from '@/config/debate/formats';
 import type { DebateSessionHeaderProps } from '@/components/organisms/debate/DebateSessionHeader';
@@ -13,6 +13,14 @@ const mockHandleWithToast = jest.fn();
 const mockShowInfo = jest.fn();
 const mockShowWarning = jest.fn();
 const mockShowSuccess = jest.fn();
+const mockSaveActiveSnapshot = jest.fn().mockResolvedValue(undefined);
+const mockLoadLatestActiveSnapshot = jest.fn().mockResolvedValue(null);
+const mockLoadActiveSnapshot = jest.fn().mockResolvedValue(null);
+const mockLifecycleHandlers = new Map<string, Record<string, unknown>>();
+const mockLifecycleRegister = jest.fn((handler: Record<string, unknown>) => {
+  mockLifecycleHandlers.set(String(handler.id), handler);
+  return jest.fn(() => mockLifecycleHandlers.delete(String(handler.id)));
+});
 
 jest.mock('@/services/errors/ErrorService', () => ({
   ErrorService: {
@@ -20,6 +28,20 @@ jest.mock('@/services/errors/ErrorService', () => ({
     showInfo: (...args: unknown[]) => mockShowInfo(...args),
     showWarning: (...args: unknown[]) => mockShowWarning(...args),
     showSuccess: (...args: unknown[]) => mockShowSuccess(...args),
+  },
+}));
+
+jest.mock('@/services/lifecycle/ActiveSessionPersistenceService', () => ({
+  ActiveSessionPersistenceService: {
+    saveSnapshot: (...args: unknown[]) => mockSaveActiveSnapshot(...args),
+    loadLatestSnapshot: (...args: unknown[]) => mockLoadLatestActiveSnapshot(...args),
+    loadSnapshot: (...args: unknown[]) => mockLoadActiveSnapshot(...args),
+  },
+}));
+
+jest.mock('@/services/lifecycle/AppLifecycleService', () => ({
+  AppLifecycleService: {
+    register: (handler: Record<string, unknown>) => mockLifecycleRegister(handler),
   },
 }));
 
@@ -251,6 +273,11 @@ const { primeDebate } = require('@/services/demo/DemoPlaybackRouter');
 beforeEach(() => {
   jest.clearAllMocks();
   mockStreamingService.cancelAllStreams.mockClear();
+  mockSaveActiveSnapshot.mockResolvedValue(undefined);
+  mockLoadLatestActiveSnapshot.mockResolvedValue(null);
+  mockLoadActiveSnapshot.mockResolvedValue(null);
+  mockLifecycleHandlers.clear();
+  mockLifecycleRegister.mockClear();
   mockHeaderProps = undefined;
   mockContextBarProps = undefined;
   mockTopicSelectorProps = undefined;
@@ -271,6 +298,37 @@ const flushMicrotasks = async () => {
     await Promise.resolve();
   });
 };
+
+const createDebateSnapshot = (overrides: Record<string, unknown> = {}) => ({
+  version: 1,
+  mode: 'debate',
+  sessionId: 'debate_1',
+  status: 'backgrounded',
+  createdAt: 100,
+  updatedAt: 200,
+  selectedAIs: baseAIs,
+  messages: [],
+  interruptedMessageIds: [],
+  debateSession: {
+    id: 'debate_1',
+    topic: 'Topic',
+    participants: baseAIs,
+    personalities: {},
+    startTime: 100,
+    status: 'active',
+    currentRound: 1,
+    messageCount: 0,
+    messageIndex: 1,
+    currentAIIndex: 0,
+    totalRounds: 1,
+    totalMessages: 2,
+    civility: 3,
+    formatId: 'oxford',
+    presetId: 'short',
+    stances: {},
+  },
+  ...overrides,
+});
 
 const createSessionState = (overrides: Record<string, unknown> = {}) => ({
   session: null,
@@ -552,6 +610,126 @@ describe('DebateScreen', () => {
     fireEvent.press(renderResult.getByTestId('debate-continuation-button'));
 
     expect(continueDebate).toHaveBeenCalledTimes(1);
+  });
+
+  it('checkpoints active debate streams on background without marking them interrupted', async () => {
+    const store = createAppStore();
+    store.dispatch(startStreaming({ messageId: 'stream-1', aiProvider: 'left' }));
+    const createSnapshot = jest.fn((status, savedMessages) => createDebateSnapshot({
+      status,
+      messages: savedMessages,
+      interruptedMessageIds: [],
+    }));
+
+    renderScreen({
+      store,
+      flow: { isDebateActive: true },
+      messages: {
+        messages: [
+          { id: 'stream-1', sender: 'Claude', senderType: 'ai', content: '', timestamp: 1 } as Message,
+        ],
+      },
+      session: {
+        isInitialized: true,
+        session: { id: 'debate_1', topic: 'Topic' },
+        orchestrator: { createSnapshot },
+      },
+    });
+
+    await flushMicrotasks();
+    mockSaveActiveSnapshot.mockClear();
+
+    const handler = mockLifecycleHandlers.get('debate-debate_1');
+    await act(async () => {
+      await (handler?.onBackground as () => Promise<void>)?.();
+    });
+
+    expect(createSnapshot).toHaveBeenLastCalledWith('active', expect.any(Array));
+    expect(mockSaveActiveSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'active',
+      pendingTurn: expect.objectContaining({
+        kind: 'debate_message',
+        reason: 'app_backgrounded',
+        messageIds: ['stream-1'],
+      }),
+    }));
+  });
+
+  it('saves backgrounded debate checkpoints when no debate stream is active', async () => {
+    const createSnapshot = jest.fn((status, savedMessages) => createDebateSnapshot({
+      status,
+      messages: savedMessages,
+      interruptedMessageIds: [],
+    }));
+
+    renderScreen({
+      flow: { isDebateActive: true },
+      messages: {
+        messages: [
+          { id: 'm1', sender: 'Claude', senderType: 'ai', content: 'Opening', timestamp: 1 } as Message,
+        ],
+      },
+      session: {
+        isInitialized: true,
+        session: { id: 'debate_1', topic: 'Topic' },
+        orchestrator: { createSnapshot },
+      },
+    });
+
+    await flushMicrotasks();
+    mockSaveActiveSnapshot.mockClear();
+
+    const handler = mockLifecycleHandlers.get('debate-debate_1');
+    await act(async () => {
+      await (handler?.onBackground as () => Promise<void>)?.();
+    });
+
+    expect(createSnapshot).toHaveBeenLastCalledWith('backgrounded', expect.any(Array));
+    expect(mockSaveActiveSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'backgrounded',
+      pendingTurn: undefined,
+    }));
+    expect(handler?.onForeground).toBeUndefined();
+  });
+
+  it('hydrates stale active debate snapshots as retryable interrupted turns without rendering a recovery banner', async () => {
+    const hydrateSessionFromSnapshot = jest.fn().mockResolvedValue(undefined);
+    const snapshot = createDebateSnapshot({
+      status: 'active',
+      pendingTurn: {
+        kind: 'debate_message',
+        messageIds: ['stream-1'],
+      },
+      messages: [
+        { id: 'stream-1', sender: 'Claude', senderType: 'ai', content: '', timestamp: 1 } as Message,
+      ],
+    });
+    mockLoadLatestActiveSnapshot.mockResolvedValueOnce(snapshot);
+
+    const { renderResult } = renderScreen({
+      session: {
+        orchestrator: {},
+        isInitialized: false,
+        hydrateSessionFromSnapshot,
+      },
+    });
+
+    await waitFor(() => {
+      expect(hydrateSessionFromSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+        status: 'interrupted',
+        pendingTurn: expect.objectContaining({
+          kind: 'debate_message',
+          reason: 'stale_active_restore',
+          messageIds: ['stream-1'],
+        }),
+      }));
+    });
+
+    expect(mockSaveActiveSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'interrupted',
+      pendingTurn: expect.objectContaining({ reason: 'stale_active_restore' }),
+    }));
+    expect(renderResult.queryByText('This debate was interrupted. Retry the paused turn when ready.')).toBeNull();
   });
 
   it('shows the audience questions modal and submits questions', async () => {

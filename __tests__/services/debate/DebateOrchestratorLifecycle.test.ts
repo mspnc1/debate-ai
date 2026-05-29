@@ -58,4 +58,31 @@ describe('DebateOrchestrator lifecycle snapshots', () => {
       buttonLabel: 'Retry Turn',
     }));
   });
+
+  it('hydrates an active checkpoint without creating a retry continuation', async () => {
+    const orchestrator = new DebateOrchestrator(aiService as never);
+    const session = await orchestrator.initializeDebate('Resolved: checkpoints should not imply failure.', participants, {}, {
+      rounds: 1,
+    });
+    const messages: Message[] = [{
+      id: 'speech-1',
+      sender: 'Claude',
+      senderType: 'ai',
+      content: 'Opening speech.',
+      timestamp: session.startTime,
+    }];
+
+    const snapshot = orchestrator.createSnapshot('active', messages);
+    expect(snapshot).toEqual(expect.objectContaining({
+      mode: 'debate',
+      sessionId: session.id,
+      status: 'active',
+    }));
+
+    const restored = new DebateOrchestrator(aiService as never);
+    const restoredSession = restored.hydrateFromSnapshot(snapshot!);
+
+    expect(restoredSession.status).toBe(DebateStatus.ACTIVE);
+    expect(restored.getPendingContinuation()).toBeNull();
+  });
 });

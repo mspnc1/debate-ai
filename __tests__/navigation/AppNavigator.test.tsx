@@ -4,6 +4,27 @@ import { renderWithProviders } from '../../test-utils/renderWithProviders';
 import { createAppStore } from '@/store';
 import type { RootState } from '@/store';
 
+const mockLifecycleHandlers: Array<Record<string, unknown>> = [];
+const mockLifecycleStart = jest.fn();
+const mockLifecycleRegister = jest.fn((handler: Record<string, unknown>) => {
+  mockLifecycleHandlers.push(handler);
+  return jest.fn();
+});
+const mockInterruptAllStreams = jest.fn();
+
+jest.mock('@/services/lifecycle/AppLifecycleService', () => ({
+  AppLifecycleService: {
+    start: () => mockLifecycleStart(),
+    register: (handler: Record<string, unknown>) => mockLifecycleRegister(handler),
+  },
+}));
+
+jest.mock('@/services/streaming/StreamingService', () => ({
+  getStreamingService: () => ({
+    interruptAllStreams: mockInterruptAllStreams,
+  }),
+}));
+
 jest.mock('react-native-view-shot', () => ({
   captureRef: jest.fn(),
   default: 'ViewShot',
@@ -111,6 +132,13 @@ jest.mock('@/hooks/usePersonality', () => ({
 const AppNavigator = require('@/navigation/AppNavigator').default;
 
 describe('AppNavigator', () => {
+  beforeEach(() => {
+    mockLifecycleHandlers.length = 0;
+    mockLifecycleStart.mockClear();
+    mockLifecycleRegister.mockClear();
+    mockInterruptAllStreams.mockClear();
+  });
+
   const baseSettings: RootState['settings'] = {
     theme: 'auto',
     fontSize: 'medium',
@@ -153,5 +181,24 @@ describe('AppNavigator', () => {
       expect(getByText('Home Screen')).toBeTruthy();
     });
     expect(queryByText('Welcome Screen')).toBeNull();
+  });
+
+  it('does not interrupt provider streams from the global lifecycle bridge', async () => {
+    const { getByText } = renderWithProviders(<AppNavigator />, {
+      preloadedState: {
+        auth: resolvedAuth,
+        settings: { ...baseSettings, hasCompletedOnboarding: true },
+      },
+    });
+
+    await waitFor(() => {
+      expect(getByText('Home Screen')).toBeTruthy();
+    });
+
+    const createBridgeHandler = mockLifecycleHandlers.find(handler => handler.id === 'create-activity-bridge');
+
+    expect(createBridgeHandler).toBeDefined();
+    expect(createBridgeHandler?.onBackground).toBeUndefined();
+    expect(mockInterruptAllStreams).not.toHaveBeenCalled();
   });
 });
