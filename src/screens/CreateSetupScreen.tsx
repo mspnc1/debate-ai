@@ -2143,7 +2143,7 @@ export default function CreateSetupScreen() {
         <Header
           variant="gradient"
           slim
-          title="Slop Central"
+          title="Create Studio"
           rightElement={<HeaderActions variant="gradient" helpCategoryId="create" />}
         />
         <View style={styles.premiumGate}>
@@ -2181,7 +2181,7 @@ export default function CreateSetupScreen() {
       <Header
         variant="gradient"
         slim
-        title="Slop Central"
+        title="Create Studio"
         rightElement={renderHeaderRight()}
       />
       <KeyboardAvoidingView
