@@ -312,7 +312,8 @@ export class ConnectionTestService {
     const data = await response.json();
     const models = data.data || [];
     // Find a grok model to report
-    const grokModel = models.find((m: { id: string }) => m.id === 'grok-4.20-0309-non-reasoning')
+    const grokModel = models.find((m: { id: string }) => m.id === 'grok-4.3')
+      || models.find((m: { id: string }) => m.id === 'grok-4.20-0309-non-reasoning')
       || models.find((m: { id: string }) => m.id === 'grok-4.20-0309-reasoning')
       || models.find((m: { id: string }) => m.id === 'grok-4-1-fast-non-reasoning')
       || models.find((m: { id: string }) => m.id === 'grok-4-1-fast-reasoning')

@@ -31,10 +31,16 @@ export const MODEL_VERSIONS: ProviderVersions = {
   claude: {
     premium: [
       {
+        id: 'claude-opus-4-8',
+        version: '4.8-opus',
+        releaseDate: '2026-05-28',
+        isLatest: true,
+      },
+      {
         id: 'claude-opus-4-7',
         version: '4.7-opus',
         releaseDate: '2026-03-01',
-        isLatest: true,
+        isLatest: false,
       },
       {
         id: 'claude-opus-4-6',
@@ -61,7 +67,7 @@ export const MODEL_VERSIONS: ProviderVersions = {
         isLatest: false,
         isDeprecated: true,
         deprecationDate: '2025-06-30',
-        replacedBy: 'claude-opus-4-7',
+        replacedBy: 'claude-opus-4-8',
       },
     ],
     balanced: [
@@ -277,10 +283,16 @@ export const MODEL_VERSIONS: ProviderVersions = {
   grok: {
     main: [
       {
+        id: 'grok-4.3',
+        version: '4.3',
+        releaseDate: '2026-04-17',
+        isLatest: true,
+      },
+      {
         id: 'grok-4.20-0309-non-reasoning',
         version: '4.20-non-reasoning',
         releaseDate: '2026-03-09',
-        isLatest: true,
+        isLatest: false,
       },
       {
         id: 'grok-4.20-0309-reasoning',
@@ -350,6 +362,14 @@ export const MODEL_VERSIONS: ProviderVersions = {
         id: 'mistral-large-2512',
         version: '2512',
         releaseDate: '2025-12-01',
+        isLatest: true,
+      },
+    ],
+    medium: [
+      {
+        id: 'mistral-medium-3-5',
+        version: '3.5',
+        releaseDate: '2026-05-30',
         isLatest: true,
       },
     ],

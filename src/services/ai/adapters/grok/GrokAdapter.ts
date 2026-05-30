@@ -5,7 +5,7 @@ export class GrokAdapter extends OpenAICompatibleAdapter {
   protected getProviderConfig(): ProviderConfig {
     return {
       baseUrl: 'https://api.x.ai/v1',
-      defaultModel: 'grok-4.20-0309-non-reasoning',
+      defaultModel: 'grok-4.3',
       headers: (apiKey: string) => ({
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,

@@ -143,6 +143,17 @@ const PROVIDER_FAMILIES = {
   grok: ['grok-full', 'grok-mini', 'grok-fast'],
 };
 
+const PREFERRED_MODEL_ORDER = {
+  grok: ['grok-4.3'],
+  mistral: ['mistral-medium-3-5', 'mistral-medium-c21211-r0-75'],
+};
+
+function getPreferredRank(provider, id) {
+  const preferred = PREFERRED_MODEL_ORDER[provider] || [];
+  const index = preferred.indexOf(id);
+  return index === -1 ? Number.POSITIVE_INFINITY : index;
+}
+
 function pickCurated(provider, models) {
   // Exclude embeddings, rerankers, pure TTS/ASR, moderation, legacy instruct, deprecated
   const exclude = (m) => {
@@ -178,6 +189,14 @@ function pickCurated(provider, models) {
   // For each family, pick the highest-versioned model
   for (const [family, members] of families) {
     members.sort((a, b) => {
+      const aPreferredRank = getPreferredRank(provider, a.id);
+      const bPreferredRank = getPreferredRank(provider, b.id);
+      if (
+        aPreferredRank !== bPreferredRank &&
+        (Number.isFinite(aPreferredRank) || Number.isFinite(bPreferredRank))
+      ) {
+        return aPreferredRank - bPreferredRank;
+      }
       const va = extractVersion(a.id);
       const vb = extractVersion(b.id);
       if (va && vb) return compareVersions(vb, va); // Descending

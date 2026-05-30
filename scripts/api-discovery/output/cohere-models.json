@@ -114,7 +114,8 @@
         "json_schema",
         "strict_tools",
         "safety_modes",
-        "tools"
+        "tools",
+        "tool_choice"
       ],
       "endpoints": [
         "chat"
@@ -133,7 +134,8 @@
           "json_schema",
           "strict_tools",
           "safety_modes",
-          "tools"
+          "tools",
+          "tool_choice"
         ],
         "default_endpoints": [
           "chat",
@@ -148,6 +150,64 @@
       "supportsVoiceOutput": false,
       "supportsRealtime": false,
       "supportsImageInput": false,
+      "supportsFunctions": true,
+      "supportsJsonMode": true,
+      "_source": "api"
+    },
+    {
+      "id": "command-a-plus-05-2026",
+      "name": "command-a-plus-05-2026",
+      "contextLength": 128000,
+      "features": [
+        "logprobs",
+        "json_mode",
+        "json_schema",
+        "strict_tools",
+        "safety_modes",
+        "tools",
+        "reasoning",
+        "vision",
+        "tool_images"
+      ],
+      "endpoints": [
+        "generate",
+        "chat"
+      ],
+      "isDeprecated": false,
+      "_raw": {
+        "name": "command-a-plus-05-2026",
+        "endpoints": [
+          "generate",
+          "chat"
+        ],
+        "finetuned": false,
+        "context_length": 128000,
+        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/command-a-plus-05-2026.json",
+        "features": [
+          "logprobs",
+          "json_mode",
+          "json_schema",
+          "strict_tools",
+          "safety_modes",
+          "tools",
+          "reasoning",
+          "vision",
+          "tool_images"
+        ],
+        "default_endpoints": [],
+        "sampling_defaults": {
+          "temperature": 0.6,
+          "p": 0.95
+        }
+      },
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
       "supportsFunctions": true,
       "supportsJsonMode": true,
       "_source": "api"
@@ -210,7 +270,8 @@
         "json_mode",
         "json_schema",
         "safety_modes",
-        "tools"
+        "tools",
+        "tool_choice"
       ],
       "endpoints": [
         "chat"
@@ -228,7 +289,8 @@
           "json_mode",
           "json_schema",
           "safety_modes",
-          "tools"
+          "tools",
+          "tool_choice"
         ],
         "default_endpoints": []
       },
@@ -300,7 +362,8 @@
         "json_schema",
         "strict_tools",
         "safety_modes",
-        "tools"
+        "tools",
+        "tool_choice"
       ],
       "endpoints": [
         "generate",
@@ -324,7 +387,8 @@
           "json_schema",
           "strict_tools",
           "safety_modes",
-          "tools"
+          "tools",
+          "tool_choice"
         ],
         "default_endpoints": []
       },
@@ -350,7 +414,8 @@
         "json_schema",
         "strict_tools",
         "safety_modes",
-        "tools"
+        "tools",
+        "tool_choice"
       ],
       "endpoints": [
         "generate",
@@ -374,7 +439,8 @@
           "json_schema",
           "strict_tools",
           "safety_modes",
-          "tools"
+          "tools",
+          "tool_choice"
         ],
         "default_endpoints": []
       },
@@ -400,7 +466,8 @@
         "json_schema",
         "strict_tools",
         "safety_modes",
-        "tools"
+        "tools",
+        "tool_choice"
       ],
       "endpoints": [
         "generate",
@@ -422,7 +489,8 @@
           "json_schema",
           "strict_tools",
           "safety_modes",
-          "tools"
+          "tools",
+          "tool_choice"
         ],
         "default_endpoints": []
       },
@@ -448,7 +516,8 @@
         "json_schema",
         "strict_tools",
         "safety_modes",
-        "tools"
+        "tools",
+        "tool_choice"
       ],
       "endpoints": [
         "generate",
@@ -470,7 +539,8 @@
           "json_schema",
           "strict_tools",
           "safety_modes",
-          "tools"
+          "tools",
+          "tool_choice"
         ],
         "default_endpoints": []
       },
@@ -741,41 +811,9 @@
       "supportsFunctions": false,
       "supportsJsonMode": false,
       "_source": "api"
-    },
-    {
-      "id": "embed-v4.0",
-      "name": "embed-v4.0",
-      "contextLength": 8192,
-      "features": [],
-      "endpoints": [
-        "embed"
-      ],
-      "isDeprecated": false,
-      "_raw": {
-        "name": "embed-v4.0",
-        "endpoints": [
-          "embed"
-        ],
-        "finetuned": false,
-        "context_length": 8192,
-        "tokenizer_url": "https://storage.googleapis.com/cohere-public/tokenizers/embed-v4.0.json",
-        "features": null,
-        "default_endpoints": []
-      },
-      "supportsVision": false,
-      "supportsDocuments": false,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": false,
-      "supportsFunctions": false,
-      "supportsJsonMode": false,
-      "_source": "api"
     }
   ],
   "meta": {
-    "discoveredAt": "2026-04-26T06:57:34.769Z"
+    "discoveredAt": "2026-05-30T16:25:40.394Z"
   }
 }

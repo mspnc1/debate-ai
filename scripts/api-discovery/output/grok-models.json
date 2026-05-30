@@ -2,146 +2,21 @@
   "provider": "grok",
   "models": [
     {
-      "id": "grok-3",
-      "name": "grok-3",
-      "_raw": {
-        "id": "grok-3",
-        "created": 1743724800,
-        "object": "model",
-        "owned_by": "xai"
-      },
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true,
-      "_source": "api"
-    },
-    {
-      "id": "grok-3-mini",
-      "name": "grok-3-mini",
-      "_raw": {
-        "id": "grok-3-mini",
-        "created": 1743724800,
-        "object": "model",
-        "owned_by": "xai"
-      },
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true,
-      "_source": "api"
-    },
-    {
-      "id": "grok-4-0709",
-      "name": "grok-4-0709",
-      "_raw": {
-        "id": "grok-4-0709",
-        "created": 1752019200,
-        "object": "model",
-        "owned_by": "xai"
-      },
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true,
-      "_source": "api"
-    },
-    {
-      "id": "grok-4-1-fast-non-reasoning",
-      "name": "grok-4-1-fast-non-reasoning",
-      "_raw": {
-        "id": "grok-4-1-fast-non-reasoning",
-        "created": 1763510400,
-        "object": "model",
-        "owned_by": "xai"
-      },
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true,
-      "_source": "api"
-    },
-    {
-      "id": "grok-4-1-fast-reasoning",
-      "name": "grok-4-1-fast-reasoning",
-      "_raw": {
-        "id": "grok-4-1-fast-reasoning",
-        "created": 1763510400,
-        "object": "model",
-        "owned_by": "xai"
-      },
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true,
-      "_source": "api"
-    },
-    {
-      "id": "grok-4-fast-non-reasoning",
-      "name": "grok-4-fast-non-reasoning",
-      "_raw": {
-        "id": "grok-4-fast-non-reasoning",
-        "created": 1756944000,
-        "object": "model",
-        "owned_by": "xai"
-      },
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true,
-      "_source": "api"
-    },
-    {
-      "id": "grok-4-fast-reasoning",
-      "name": "grok-4-fast-reasoning",
-      "_raw": {
-        "id": "grok-4-fast-reasoning",
-        "created": 1756944000,
-        "object": "model",
-        "owned_by": "xai"
-      },
-      "supportsVision": true,
-      "supportsDocuments": true,
-      "supportsImageGeneration": false,
-      "supportsVideoGeneration": false,
-      "supportsVoiceInput": false,
-      "supportsVoiceOutput": false,
-      "supportsRealtime": false,
-      "supportsImageInput": true,
-      "_source": "api"
-    },
-    {
       "id": "grok-4.20-0309-non-reasoning",
       "name": "grok-4.20-0309-non-reasoning",
       "_raw": {
         "id": "grok-4.20-0309-non-reasoning",
         "created": 1773014400,
         "object": "model",
-        "owned_by": "xai"
+        "owned_by": "xai",
+        "prompt_text_token_price": 12500,
+        "cached_prompt_text_token_price": 2000,
+        "prompt_image_token_price": 12500,
+        "completion_text_token_price": 25000,
+        "prompt_text_token_price_long_context": 25000,
+        "cached_prompt_text_token_price_long_context": 4000,
+        "completion_text_token_price_long_context": 50000,
+        "long_context_threshold": 200000
       },
       "supportsVision": true,
       "supportsDocuments": true,
@@ -160,7 +35,15 @@
         "id": "grok-4.20-0309-reasoning",
         "created": 1773014400,
         "object": "model",
-        "owned_by": "xai"
+        "owned_by": "xai",
+        "prompt_text_token_price": 12500,
+        "cached_prompt_text_token_price": 2000,
+        "prompt_image_token_price": 12500,
+        "completion_text_token_price": 25000,
+        "prompt_text_token_price_long_context": 25000,
+        "cached_prompt_text_token_price_long_context": 4000,
+        "completion_text_token_price_long_context": 50000,
+        "long_context_threshold": 200000
       },
       "supportsVision": true,
       "supportsDocuments": true,
@@ -179,7 +62,15 @@
         "id": "grok-4.20-multi-agent-0309",
         "created": 1773014400,
         "object": "model",
-        "owned_by": "xai"
+        "owned_by": "xai",
+        "prompt_text_token_price": 12500,
+        "cached_prompt_text_token_price": 2000,
+        "prompt_image_token_price": 12500,
+        "completion_text_token_price": 25000,
+        "prompt_text_token_price_long_context": 25000,
+        "cached_prompt_text_token_price_long_context": 4000,
+        "completion_text_token_price_long_context": 50000,
+        "long_context_threshold": 200000
       },
       "supportsVision": true,
       "supportsDocuments": true,
@@ -192,13 +83,62 @@
       "_source": "api"
     },
     {
-      "id": "grok-code-fast-1",
-      "name": "grok-code-fast-1",
+      "id": "grok-4.3",
+      "name": "Grok 4.3",
       "_raw": {
-        "id": "grok-code-fast-1",
-        "created": 1755993600,
+        "id": "grok-4.3",
+        "created": 1776384000,
         "object": "model",
-        "owned_by": "xai"
+        "owned_by": "xai",
+        "prompt_text_token_price": 12500,
+        "cached_prompt_text_token_price": 2000,
+        "prompt_image_token_price": 12500,
+        "completion_text_token_price": 25000,
+        "prompt_text_token_price_long_context": 25000,
+        "cached_prompt_text_token_price_long_context": 4000,
+        "completion_text_token_price_long_context": 50000,
+        "long_context_threshold": 200000
+      },
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "description": "Current xAI flagship model for high-capability chat, vision, tool use, and reasoning",
+      "contextLength": 1000000,
+      "maxOutputTokens": null,
+      "pricing": {
+        "inputPer1M": 12.5,
+        "outputPer1M": 25
+      },
+      "supportsFunctions": true,
+      "supportsWebSearch": false,
+      "supportsThinking": true,
+      "supportsJsonMode": true,
+      "requiresTemperature1": false,
+      "useMaxCompletionTokens": false,
+      "isDeprecated": false,
+      "_source": "merged"
+    },
+    {
+      "id": "grok-build-0.1",
+      "name": "grok-build-0.1",
+      "_raw": {
+        "id": "grok-build-0.1",
+        "created": 1776297600,
+        "object": "model",
+        "owned_by": "xai",
+        "prompt_text_token_price": 10000,
+        "cached_prompt_text_token_price": 2000,
+        "prompt_image_token_price": 10000,
+        "completion_text_token_price": 20000,
+        "prompt_text_token_price_long_context": 20000,
+        "cached_prompt_text_token_price_long_context": 4000,
+        "completion_text_token_price_long_context": 40000,
+        "long_context_threshold": 200000
       },
       "supportsVision": true,
       "supportsDocuments": true,
@@ -217,7 +157,8 @@
         "id": "grok-imagine-image",
         "created": 1769558400,
         "object": "model",
-        "owned_by": "xai"
+        "owned_by": "xai",
+        "image_price": 200000000
       },
       "supportsVision": true,
       "supportsDocuments": true,
@@ -230,13 +171,14 @@
       "_source": "api"
     },
     {
-      "id": "grok-imagine-image-pro",
-      "name": "grok-imagine-image-pro",
+      "id": "grok-imagine-image-quality",
+      "name": "grok-imagine-image-quality",
       "_raw": {
-        "id": "grok-imagine-image-pro",
-        "created": 1769558400,
+        "id": "grok-imagine-image-quality",
+        "created": 1775174400,
         "object": "model",
-        "owned_by": "xai"
+        "owned_by": "xai",
+        "image_price": 400000000
       },
       "supportsVision": true,
       "supportsDocuments": true,
@@ -269,6 +211,6 @@
     }
   ],
   "meta": {
-    "discoveredAt": "2026-04-26T06:57:36.006Z"
+    "discoveredAt": "2026-05-30T16:25:40.937Z"
   }
 }

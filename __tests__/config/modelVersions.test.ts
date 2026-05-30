@@ -19,8 +19,10 @@ describe('Model version registry', () => {
   });
 
   it('returns the latest model by provider family', () => {
-    expect(getLatestModelInFamily('claude', 'premium')).toBe('claude-opus-4-7');
+    expect(getLatestModelInFamily('claude', 'premium')).toBe('claude-opus-4-8');
     expect(getLatestModelInFamily('openai', 'flagship')).toBe('gpt-5.5');
+    expect(getLatestModelInFamily('grok', 'main')).toBe('grok-4.3');
+    expect(getLatestModelInFamily('mistral', 'medium')).toBe('mistral-medium-3-5');
     expect(getLatestModelInFamily('cohere', 'command')).toBe('command-a-plus-05-2026');
     expect(getLatestModelInFamily('unknown', 'family')).toBeNull();
     expect(getLatestModelInFamily('claude', 'nonexistent')).toBeNull();

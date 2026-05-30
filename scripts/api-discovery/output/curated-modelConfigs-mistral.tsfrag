@@ -13,16 +13,17 @@
       isDefault: true,
     },
 {
-      id: 'magistral-medium-2509',
-      name: 'magistral-medium-2509',
-      description: 'Our frontier-class reasoning model release candidate September 2025.',
-      contextLength: 131072,
+      id: 'mistral-medium-3-5',
+      name: 'Mistral Medium 3.5',
+      description: 'Official mistral-medium-3-5 Mistral AI model',
+      contextLength: 262144, // Pricing: $0.4/1M in, $2/1M out [merged]
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
       supportsRealtime: true,
       supportsVoiceInput: true,
       supportsFunctions: true,
+      supportsThinking: true,
     },
 {
       id: 'mistral-small-2603',

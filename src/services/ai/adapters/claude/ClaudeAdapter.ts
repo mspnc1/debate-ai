@@ -16,7 +16,7 @@ export class ClaudeAdapter extends BaseAdapter {
   private lastModelUsed?: string;
 
   private shouldOmitSamplingParameters(modelId: string): boolean {
-    return modelId === 'claude-opus-4-7';
+    return modelId === 'claude-opus-4-7' || modelId === 'claude-opus-4-8';
   }
   
   getCapabilities(): AdapterCapabilities {

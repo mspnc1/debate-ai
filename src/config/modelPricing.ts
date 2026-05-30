@@ -13,6 +13,10 @@ export interface ProviderPricing {
 // provider exposes token-based rates compatible with this structure.
 export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
   claude: {
+    'claude-opus-4-8': {
+      inputPer1M: 5.0,
+      outputPer1M: 25.0,
+    },
     'claude-opus-4-7': {
       inputPer1M: 5.0,
       outputPer1M: 25.0,
@@ -159,6 +163,10 @@ export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
       inputPer1M: 2.0,
       outputPer1M: 6.0,
     },
+    'mistral-medium-3-5': {
+      inputPer1M: 0.4,
+      outputPer1M: 2.0,
+    },
     'magistral-medium-2509': {
       inputPer1M: 2.0,
       outputPer1M: 5.0,
@@ -199,6 +207,10 @@ export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
     },
   },
   grok: {
+    'grok-4.3': {
+      inputPer1M: 12.5,
+      outputPer1M: 25.0,
+    },
     'grok-3': {
       inputPer1M: 3.0,
       outputPer1M: 15.0,

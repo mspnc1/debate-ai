@@ -32,7 +32,7 @@ function parseExistingIdsForProvider(source, provider) {
   const m = source.match(re);
   if (!m) return new Set();
   const block = m[1];
-  const idRe = /id:\s*'([^']+)'/g;
+  const idRe = /id:\s*['"]([^'"]+)['"]/g;
   const ids = new Set();
   let mm;
   while ((mm = idRe.exec(block))) ids.add(mm[1]);

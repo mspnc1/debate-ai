@@ -2,8 +2,48 @@
   "provider": "claude",
   "models": [
     {
+      "id": "claude-opus-4-8",
+      "name": "Claude Opus 4.8",
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "description": "Anthropic's most capable model for complex reasoning, long-horizon agentic coding, and high-autonomy work",
+      "contextLength": 1048576,
+      "maxOutputTokens": 128000,
+      "pricing": {
+        "inputPer1M": 5,
+        "outputPer1M": 25
+      },
+      "supportsFunctions": true,
+      "supportsWebSearch": false,
+      "supportsThinking": true,
+      "supportsJsonMode": false,
+      "requiresTemperature1": true,
+      "useMaxCompletionTokens": false,
+      "isDeprecated": false,
+      "_source": "merged"
+    },
+    {
       "id": "claude-sonnet-4-6",
       "name": "Claude Sonnet 4.6",
+      "supportsVision": true,
+      "supportsDocuments": true,
+      "supportsImageGeneration": false,
+      "supportsVideoGeneration": false,
+      "supportsVoiceInput": false,
+      "supportsVoiceOutput": false,
+      "supportsRealtime": false,
+      "supportsImageInput": true,
+      "_source": "api"
+    },
+    {
+      "id": "claude-opus-4-7",
+      "name": "Claude Opus 4.7",
       "supportsVision": true,
       "supportsDocuments": true,
       "supportsImageGeneration": false,
@@ -55,6 +95,6 @@
     }
   ],
   "meta": {
-    "discoveredAt": "2026-04-26T06:57:33.589Z"
+    "discoveredAt": "2026-05-30T16:25:39.596Z"
   }
 }

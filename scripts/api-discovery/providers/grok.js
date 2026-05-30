@@ -13,6 +13,7 @@ async function discoverGrok(env, registry) {
     }
   } catch (_) {
     models = [
+      { id: 'grok-4.3', name: 'Grok 4.3' },
       { id: 'grok-4', name: 'Grok 4' },
       { id: 'grok-3', name: 'Grok 3' },
       { id: 'grok-3-fast', name: 'Grok 3 Fast' },

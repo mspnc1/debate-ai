@@ -57,13 +57,17 @@ This bundle consolidates curated entries to update:
 ```ts
 // Curated ModelConfig entries for AI_MODELS['claude'] (default + recommended)
 {
-      id: 'claude-opus-4-6',
-      name: 'Claude Opus 4.6',
-      description: 'No description available',
-      contextLength: 128000,
+      id: 'claude-opus-4-8',
+      name: 'Claude Opus 4.8',
+      description: 'Anthropic\'s most capable model for complex reasoning, long-horizon agentic coding, and high-autonomy work',
+      contextLength: 1048576,
+      maxOutputTokens: 128000, // Pricing: $5/1M in, $25/1M out [merged]
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
+      supportsFunctions: true,
+      supportsThinking: true,
+      requiresTemperature1: true,
       isDefault: true,
     },
 {
@@ -177,16 +181,17 @@ This bundle consolidates curated entries to update:
       isDefault: true,
     },
 {
-      id: 'magistral-medium-2509',
-      name: 'magistral-medium-2509',
-      description: 'Our frontier-class reasoning model release candidate September 2025.',
-      contextLength: 131072,
+      id: 'mistral-medium-3-5',
+      name: 'Mistral Medium 3.5',
+      description: 'Official mistral-medium-3-5 Mistral AI model',
+      contextLength: 262144, // Pricing: $0.4/1M in, $2/1M out [merged]
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
       supportsRealtime: true,
       supportsVoiceInput: true,
       supportsFunctions: true,
+      supportsThinking: true,
     },
 {
       id: 'mistral-small-2603',
@@ -281,32 +286,16 @@ This bundle consolidates curated entries to update:
 ```ts
 // Curated ModelConfig entries for AI_MODELS['grok'] (default + recommended)
 {
-      id: 'grok-4.20-0309-non-reasoning',
-      name: 'grok-4.20-0309-non-reasoning',
-      description: 'No description available',
-      contextLength: 128000,
+      id: 'grok-4.3',
+      name: 'Grok 4.3',
+      description: 'Current xAI flagship model for high-capability chat, vision, tool use, and reasoning',
+      contextLength: 1000000, // Pricing: $12.5/1M in, $25/1M out [merged]
       supportsVision: true,
       supportsDocuments: true,
       supportsImageInput: true,
+      supportsFunctions: true,
+      supportsThinking: true,
       isDefault: true,
-    },
-{
-      id: 'grok-3-mini',
-      name: 'grok-3-mini',
-      description: 'No description available',
-      contextLength: 128000,
-      supportsVision: true,
-      supportsDocuments: true,
-      supportsImageInput: true,
-    },
-{
-      id: 'grok-4-1-fast-non-reasoning',
-      name: 'grok-4-1-fast-non-reasoning',
-      description: 'No description available',
-      contextLength: 128000,
-      supportsVision: true,
-      supportsDocuments: true,
-      supportsImageInput: true,
     },
 ```
 
@@ -314,12 +303,12 @@ This bundle consolidates curated entries to update:
 ### Provider: openai
 ```ts
 // Insert into getProviderCapabilities('openai') imageGeneration models/sizes
-imageGeneration: { supported: true, models: ["gpt-image-2-2026-04-21","dall-e-3","dall-e-2","gpt-image-1","gpt-image-1-mini","gpt-image-1.5","chatgpt-image-latest","gpt-image-2"], sizes: ["auto","1024x1024","1024x1536","1536x1024"], maxPromptLength: 4000 },
+imageGeneration: { supported: true, models: ["gpt-image-1","gpt-image-1-mini","gpt-image-1.5","chatgpt-image-latest","gpt-image-2","gpt-image-2-2026-04-21"], sizes: ["auto","1024x1024","1024x1536","1536x1024"], maxPromptLength: 4000 },
 ```
 ### Provider: grok
 ```ts
 // Insert into getProviderCapabilities('grok') imageGeneration models/sizes
-imageGeneration: { supported: true, models: ["grok-imagine-image","grok-imagine-image-pro"], sizes: ["1024x1024"], maxPromptLength: 4000 },
+imageGeneration: { supported: true, models: ["grok-imagine-image","grok-imagine-image-quality"], sizes: ["1024x1024"], maxPromptLength: 4000 },
 ```
 
 ## ProviderCapabilities additions (videoGeneration - future)

@@ -18,11 +18,23 @@ async function discoverAnthropic(env, registry) {
   } catch (_) {
     // Fallback to a minimal known set; update as needed during releases.
     models = [
+      { id: 'claude-opus-4-8', name: 'Claude Opus 4.8' },
       { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6' },
+      { id: 'claude-opus-4-7', name: 'Claude Opus 4.7' },
       { id: 'claude-opus-4-6', name: 'Claude Opus 4.6' },
       { id: 'claude-haiku-4-5-20251001', name: 'Claude 4.5 Haiku' },
       { id: 'claude-sonnet-4-20250514', name: 'Claude 4 Sonnet' },
     ];
+  }
+
+  const registryModels = registry?.providers?.claude?.models || {};
+  for (const [id, entry] of Object.entries(registryModels)) {
+    if (entry?.verified !== true || entry?.includeInDiscovery !== true) {
+      continue;
+    }
+    if (!models.some((model) => model.id === id)) {
+      models.push({ id, name: entry.name || id });
+    }
   }
 
   const mapCaps = (m) => {

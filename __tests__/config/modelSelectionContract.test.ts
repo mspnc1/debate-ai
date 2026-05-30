@@ -35,14 +35,18 @@ describe('Model selection contract', () => {
 
   it('resolves aliases before validating provider ownership', () => {
     expect(resolveProviderModelId('claude', 'claude-latest')).toBe('claude-sonnet-4-6');
+    expect(resolveProviderModelId('claude', 'claude-opus-latest')).toBe('claude-opus-4-8');
     expect(resolveProviderModelId('openai', 'gpt-latest')).toBe('gpt-5.5');
     expect(resolveProviderModelId('google', 'gemini-pro-latest')).toBe('gemini-3.1-pro-preview');
     expect(resolveProviderModelId('cohere', 'command-a-latest')).toBe('command-a-plus-05-2026');
+    expect(resolveProviderModelId('grok', 'grok-latest')).toBe('grok-4.3');
+    expect(resolveProviderModelId('mistral', 'mistral-medium-latest')).toBe('mistral-medium-3-5');
   });
 
   it('looks up persisted alias IDs with the resolved model capabilities', () => {
     expect(getModelById('openai', 'gpt-latest')?.id).toBe('gpt-5.5');
     expect(getModelById('claude', 'claude-latest')?.id).toBe('claude-sonnet-4-6');
+    expect(getModelById('claude', 'claude-opus-latest')?.id).toBe('claude-opus-4-8');
     expect(getModelById('google', 'gemini-pro-latest')?.supportsThinking).toBe(true);
   });
 
@@ -84,6 +88,6 @@ describe('Model selection contract', () => {
   it('rejects image-generation models in text-mode resolution', () => {
     expect(resolveProviderModelId('openai', 'gpt-image-1')).toBe('gpt-5.5');
     expect(resolveProviderModelId('openai', 'dall-e-3')).toBe('gpt-5.5');
-    expect(resolveProviderModelId('grok', 'grok-imagine-image')).toBe('grok-4.20-0309-non-reasoning');
+    expect(resolveProviderModelId('grok', 'grok-imagine-image')).toBe('grok-4.3');
   });
 });

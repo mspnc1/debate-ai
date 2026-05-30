@@ -217,6 +217,21 @@
     "claude": {
       "pricingSource": "https://docs.anthropic.com/en/docs/about-claude/models",
       "models": {
+        "claude-opus-4-8": {
+          "name": "Claude Opus 4.8",
+          "description": "Anthropic's most capable model for complex reasoning, long-horizon agentic coding, and high-autonomy work",
+          "contextLength": 1048576,
+          "maxOutputTokens": 128000,
+          "pricing": { "inputPer1M": 5.00, "outputPer1M": 25.00 },
+          "capabilities": {
+            "vision": true, "documents": true, "functions": true,
+            "webSearch": false, "thinking": true, "jsonMode": false
+          },
+          "flags": { "requiresTemperature1": true },
+          "isDeprecated": false,
+          "verified": true,
+          "includeInDiscovery": true
+        },
         "claude-opus-4-6-20260301": {
           "name": "Claude Opus 4.6",
           "description": "Most capable Claude model for complex reasoning and analysis",
@@ -370,6 +385,21 @@
     "grok": {
       "pricingSource": "https://docs.x.ai/docs/models",
       "models": {
+        "grok-4.3": {
+          "name": "Grok 4.3",
+          "description": "Current xAI flagship model for high-capability chat, vision, tool use, and reasoning",
+          "contextLength": 1000000,
+          "maxOutputTokens": null,
+          "pricing": { "inputPer1M": 12.50, "outputPer1M": 25.00 },
+          "capabilities": {
+            "vision": true, "documents": true, "functions": true,
+            "webSearch": false, "thinking": true, "jsonMode": true
+          },
+          "flags": {},
+          "isDeprecated": false,
+          "verified": true,
+          "includeInDiscovery": true
+        },
         "grok-4": {
           "name": "Grok 4",
           "description": "Most capable xAI model with advanced reasoning",
@@ -536,6 +566,21 @@
     "mistral": {
       "pricingSource": "https://mistral.ai/products/la-plateforme#pricing",
       "models": {
+        "mistral-medium-3-5": {
+          "name": "Mistral Medium 3.5",
+          "description": "Frontier-class multimodal Mistral model optimized for agentic and coding workflows",
+          "contextLength": 262144,
+          "maxOutputTokens": null,
+          "pricing": { "inputPer1M": 0.40, "outputPer1M": 2.00 },
+          "capabilities": {
+            "vision": true, "documents": true, "functions": true,
+            "webSearch": false, "thinking": true, "jsonMode": true
+          },
+          "flags": {},
+          "isDeprecated": false,
+          "verified": true,
+          "includeInDiscovery": true
+        },
         "mistral-large-latest": {
           "pricing": { "inputPer1M": 2.00, "outputPer1M": 6.00 }
         },

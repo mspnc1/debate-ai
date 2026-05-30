@@ -54,7 +54,7 @@ const ADAPTER_MATRIX: AdapterEntry[] = [
     provider: 'grok',
     AdapterCtor: GrokAdapter,
     baseUrl: 'https://api.x.ai/v1',
-    defaultModel: 'grok-4.20-0309-non-reasoning',
+    defaultModel: 'grok-4.3',
     capabilities: {
       streaming: true,
       attachments: true,  // Supports vision

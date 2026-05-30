@@ -34,13 +34,14 @@ export interface ProviderDefinition {
   };
 }
 
-// Model aliases for version management - Updated April 2026
+// Model aliases for version management - Updated May 2026
 export const MODEL_ALIASES: Record<string, string> = {
   // Claude aliases
   'claude-latest': 'claude-sonnet-4-6',
-  'claude-opus-latest': 'claude-opus-4-7',
+  'claude-opus-latest': 'claude-opus-4-8',
   'claude-sonnet-latest': 'claude-sonnet-4-6',
   'claude-haiku-latest': 'claude-haiku-4-5-20251001',
+  'claude-opus-4-8-20260528': 'claude-opus-4-8',
   'claude-opus-4-7-20260301': 'claude-opus-4-7',
   'claude-sonnet-4-5': 'claude-sonnet-4-5-20250929',
   'claude-opus-4-5': 'claude-opus-4-5-20251101',
@@ -79,8 +80,9 @@ export const MODEL_ALIASES: Record<string, string> = {
   'gemini-2.5-latest': 'gemini-2.5-flash',
 
   // Grok aliases
-  'grok-latest': 'grok-4.20-0309-non-reasoning',
-  'grok-4-latest': 'grok-4.20-0309-non-reasoning',
+  'grok-latest': 'grok-4.3',
+  'grok-4-latest': 'grok-4.3',
+  'grok-4.3-latest': 'grok-4.3',
   'grok-4.20': 'grok-4.20-0309-non-reasoning',
   'grok-4.20-non-reasoning': 'grok-4.20-0309-non-reasoning',
   'grok-4.20-reasoning': 'grok-4.20-0309-reasoning',
@@ -90,7 +92,7 @@ export const MODEL_ALIASES: Record<string, string> = {
   'grok-4-1-fast-reasoning-latest': 'grok-4-1-fast-reasoning',
   'grok-4-1-fast-non-reasoning-latest': 'grok-4-1-fast-non-reasoning',
   'grok-3-latest': 'grok-3',
-  'grok-vision-latest': 'grok-4.20-0309-non-reasoning',
+  'grok-vision-latest': 'grok-4.3',
   'grok-image-latest': 'grok-imagine-image',
 
   // Perplexity aliases
@@ -103,6 +105,9 @@ export const MODEL_ALIASES: Record<string, string> = {
   // Mistral aliases
   'mistral-latest': 'mistral-large-2512',
   'mistral-large-latest': 'mistral-large-2512',
+  'mistral-medium-latest': 'mistral-medium-3-5',
+  'mistral-medium-3.5': 'mistral-medium-3-5',
+  'mistral-medium-c21211-r0-75': 'mistral-medium-3-5',
   'mistral-small-latest': 'mistral-small-2603',
   'devstral-medium-2512': 'devstral-2512',
   'magistral-latest': 'magistral-medium-2509',
@@ -139,7 +144,7 @@ export const getDefaultModel = (providerId: string): string => {
     claude: 'claude-sonnet-4-6',
     openai: 'gpt-5.5',
     google: 'gemini-3.5-flash',
-    grok: 'grok-4.20-0309-non-reasoning',
+    grok: 'grok-4.3',
     perplexity: 'sonar-pro',
     mistral: 'mistral-large-2512',
     cohere: 'command-a-plus-05-2026',
