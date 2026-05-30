@@ -198,6 +198,8 @@ async function parseErrorResponse(response: Response, provider: string, credenti
     } else {
       message = `ElevenLabs access denied: ${message}`;
     }
+  } else if (provider === 'ElevenLabs' && response.status === 401) {
+    message = `ElevenLabs authentication failed: ${message}`;
   } else {
     const mentionsCredential = lower.includes('api key')
       || lower.includes('token')

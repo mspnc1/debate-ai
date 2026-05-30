@@ -4,12 +4,13 @@ import APIKeyService from '@/services/APIKeyService';
 import { StorageService } from '@/services/chat/StorageService';
 import { DebateVoiceGenerationError, generateDebateVoiceAudio } from '@/services/debate/DebateVoiceService';
 import { updateMessage, isApiKeyConfigured, type RootState } from '@/store';
-import type { DebateAudioMetadata, DebateVoiceConfig, Message, MessageAttachment } from '@/types';
+import type { AI, DebateAudioMetadata, DebateVoiceConfig, DebateVoiceSelection, Message, MessageAttachment } from '@/types';
 
 interface UseDebateVoiceGenerationInput {
   sessionId?: string;
   voiceConfig?: DebateVoiceConfig;
   messages: Message[];
+  participants?: AI[];
 }
 
 interface UseDebateVoiceGenerationResult {
@@ -33,21 +34,70 @@ function getMessageById(messages: Message[], messageId: string): Message | undef
   return messages.find((message) => message.id === messageId);
 }
 
-function getDebaterId(message: Message): string | undefined {
-  return message.metadata?.aiId || message.metadata?.providerId || message.sender.split(' (')[0].toLowerCase();
+function normalizeSpeakerName(value: string): string {
+  return value.replace(/\s+\([^)]*\)$/, '').trim().toLowerCase();
 }
 
-function getVoiceForMessage(message: Message, voiceConfig?: DebateVoiceConfig) {
+function getParticipantIdForSpeech(message: Message, participants?: AI[]): string | undefined {
+  const speech = message.metadata?.debateSpeech;
+  if (!speech || !participants?.length) return undefined;
+
+  const teamSize = Math.max(1, Math.floor(participants.length / 2));
+  const speakerSlot = Math.min(Math.max(speech.speakerSlot ?? 0, 0), teamSize - 1);
+  const participantIndex = teamSize <= 1
+    ? (speech.speaker === 'aff' ? 0 : 1)
+    : (speakerSlot * 2) + (speech.speaker === 'aff' ? 0 : 1);
+
+  return participants[participantIndex]?.id;
+}
+
+function getParticipantIdForSender(message: Message, participants?: AI[]): string | undefined {
+  if (!participants?.length) return undefined;
+  const senderName = normalizeSpeakerName(message.sender);
+  if (!senderName) return undefined;
+
+  return participants.find((participant) => normalizeSpeakerName(participant.name) === senderName)?.id;
+}
+
+function getOnlyParticipantIdForProvider(message: Message, voiceConfig?: DebateVoiceConfig, participants?: AI[]): string | undefined {
+  const providerId = message.metadata?.providerId;
+  if (!providerId || !participants?.length || !voiceConfig?.enabled) return undefined;
+
+  const matchingParticipants = participants.filter((participant) => (
+    participant.provider === providerId && Boolean(voiceConfig.debaterVoices[participant.id])
+  ));
+
+  return matchingParticipants.length === 1 ? matchingParticipants[0].id : undefined;
+}
+
+function getVoiceForMessage(
+  message: Message,
+  voiceConfig?: DebateVoiceConfig,
+  participants?: AI[]
+): DebateVoiceSelection | undefined {
   if (!voiceConfig?.enabled) return undefined;
   if (message.metadata?.debateInterstitial) {
     return voiceConfig.podcast?.mcVoice;
   }
 
-  const debaterId = getDebaterId(message);
-  return debaterId ? voiceConfig.debaterVoices[debaterId] : undefined;
+  const candidateIds = [
+    message.metadata?.aiId,
+    getParticipantIdForSpeech(message, participants),
+    getParticipantIdForSender(message, participants),
+    getOnlyParticipantIdForProvider(message, voiceConfig, participants),
+    message.metadata?.providerId,
+    normalizeSpeakerName(message.sender),
+  ].filter((id): id is string => Boolean(id));
+
+  for (const candidateId of candidateIds) {
+    const voice = voiceConfig.debaterVoices[candidateId];
+    if (voice) return voice;
+  }
+
+  return undefined;
 }
 
-function shouldAutoGenerate(message: Message, voiceConfig?: DebateVoiceConfig): boolean {
+function shouldAutoGenerate(message: Message, voiceConfig?: DebateVoiceConfig, participants?: AI[]): boolean {
   if (!voiceConfig?.enabled) return false;
   if (!message.metadata?.debateSpeech && !message.metadata?.debateInterstitial) return false;
   if (!message.content.trim()) return false;
@@ -56,13 +106,14 @@ function shouldAutoGenerate(message: Message, voiceConfig?: DebateVoiceConfig): 
   const status = message.metadata.debateAudio?.status;
   if (status === 'generating' || status === 'ready' || status === 'failed') return false;
 
-  return Boolean(getVoiceForMessage(message, voiceConfig));
+  return Boolean(getVoiceForMessage(message, voiceConfig, participants));
 }
 
 export function useDebateVoiceGeneration({
   sessionId,
   voiceConfig,
   messages,
+  participants,
 }: UseDebateVoiceGenerationInput): UseDebateVoiceGenerationResult {
   const dispatch = useDispatch();
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
@@ -107,7 +158,7 @@ export function useDebateVoiceGeneration({
   }, [sessionId]);
 
   const markFailed = useCallback(async (message: Message, error: unknown) => {
-    const voice = getVoiceForMessage(message, voiceConfig);
+    const voice = getVoiceForMessage(message, voiceConfig, participants);
     if (!voice) return;
 
     const generationError = error instanceof DebateVoiceGenerationError
@@ -129,14 +180,14 @@ export function useDebateVoiceGeneration({
     } catch {
       // Active debate playback should not fail because history persistence was unavailable.
     }
-  }, [dispatch, persistSessionMessages, voiceConfig]);
+  }, [dispatch, participants, persistSessionMessages, voiceConfig]);
 
   const generateForMessage = useCallback(async (message: Message, force = false) => {
     if (!voiceConfig?.enabled || !sessionId || !hasVerifiedElevenLabs) return;
     if (inFlightRef.current.has(message.id)) return;
-    if (!force && !shouldAutoGenerate(message, voiceConfig)) return;
+    if (!force && !shouldAutoGenerate(message, voiceConfig, participants)) return;
 
-    const voice = getVoiceForMessage(message, voiceConfig);
+    const voice = getVoiceForMessage(message, voiceConfig, participants);
     if (!voice) return;
 
     inFlightRef.current.add(message.id);
@@ -183,6 +234,7 @@ export function useDebateVoiceGeneration({
     dispatch,
     hasVerifiedElevenLabs,
     markFailed,
+    participants,
     persistSessionMessages,
     sessionId,
     voiceConfig,
@@ -191,11 +243,11 @@ export function useDebateVoiceGeneration({
   useEffect(() => {
     if (!voiceConfig?.enabled || !sessionId || !hasVerifiedElevenLabs) return;
     messages.forEach((message) => {
-      if (shouldAutoGenerate(message, voiceConfig)) {
+      if (shouldAutoGenerate(message, voiceConfig, participants)) {
         void generateForMessage(message);
       }
     });
-  }, [generateForMessage, hasVerifiedElevenLabs, messages, sessionId, voiceConfig]);
+  }, [generateForMessage, hasVerifiedElevenLabs, messages, participants, sessionId, voiceConfig]);
 
   const retryMessageAudio = useCallback((message: Message) => {
     const latestMessage = getMessageById(messagesRef.current, message.id) || message;

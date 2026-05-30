@@ -134,6 +134,7 @@ describe('ConnectionTestService', () => {
       })
     );
     expect(fetchMock.mock.calls[1]?.[0]).toContain('https://api.elevenlabs.io/v1/text-to-speech/');
+    expect(fetchMock.mock.calls[1]?.[0]).toContain('output_format=mp3_44100_128');
     expect(ttsRequest).toMatchObject({
       method: 'POST',
       headers: expect.objectContaining({

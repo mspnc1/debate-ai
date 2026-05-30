@@ -131,6 +131,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     sessionId: session.session?.id,
     voiceConfig,
     messages: messages.messages,
+    participants: session.session?.participants || selectedAIs,
   });
   const { isDemo, canStartTrial } = useFeatureAccess();
   const { getPersonality: getMergedPersonality } = usePersonality();

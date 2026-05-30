@@ -5,6 +5,7 @@
 
 import { getDefaultModel } from '../config/providers/modelRegistry';
 import {
+  ELEVENLABS_DEFAULT_OUTPUT_FORMAT,
   ELEVENLABS_DEFAULT_TTS_MODEL,
   ELEVENLABS_DEFAULT_VOICE_ID,
 } from '@/config/mediaProviders';
@@ -13,7 +14,6 @@ const RUNWAY_API_BASE = 'https://api.dev.runwayml.com/v1';
 const RUNWAY_API_VERSION = '2024-11-06';
 const RUNWAY_API_KEY_PATTERN = /^key_[0-9a-f]{128}$/;
 const PERPLEXITY_CONNECTION_TEST_MAX_TOKENS = 16;
-const ELEVENLABS_CONNECTION_TEST_OUTPUT_FORMAT = 'mp3_22050_32';
 
 function normalizeProviderApiKey(providerId: string, apiKey: string): string {
   const normalized = apiKey.trim();
@@ -446,7 +446,7 @@ export class ConnectionTestService {
     }
 
     const ttsResponse = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(ELEVENLABS_DEFAULT_VOICE_ID)}?output_format=${encodeURIComponent(ELEVENLABS_CONNECTION_TEST_OUTPUT_FORMAT)}`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(ELEVENLABS_DEFAULT_VOICE_ID)}?output_format=${encodeURIComponent(ELEVENLABS_DEFAULT_OUTPUT_FORMAT)}`,
       {
         method: 'POST',
         headers: {

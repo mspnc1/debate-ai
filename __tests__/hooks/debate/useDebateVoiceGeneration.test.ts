@@ -4,7 +4,7 @@ import { renderHookWithProviders } from '../../../test-utils/renderHookWithProvi
 import APIKeyService from '@/services/APIKeyService';
 import { StorageService } from '@/services/chat/StorageService';
 import { generateDebateVoiceAudio } from '@/services/debate/DebateVoiceService';
-import type { DebateVoiceConfig, Message } from '@/types';
+import type { AI, DebateVoiceConfig, Message } from '@/types';
 import type { RootState } from '@/store';
 
 jest.mock('@/services/APIKeyService', () => ({
@@ -178,6 +178,54 @@ describe('useDebateVoiceGeneration', () => {
         voice: {
           voiceId: 'voice-slot',
           voiceName: 'Slot Voice',
+        },
+      }));
+    });
+  });
+
+  it('falls back to debate speaker order when restored messages do not have a slot aiId', async () => {
+    const metadataWithoutAiId = { ...message.metadata };
+    delete metadataWithoutAiId.aiId;
+    const restoredMessage: Message = {
+      ...message,
+      id: 'msg-restored',
+      metadata: {
+        ...metadataWithoutAiId,
+        providerId: 'openai',
+      },
+    };
+    const participants: AI[] = [
+      { id: 'openai-debater-slot-1', provider: 'openai', name: 'ChatGPT', model: 'gpt-5' },
+      { id: 'google-debater-slot-2', provider: 'google', name: 'Gemini', model: 'gemini-3.5-flash' },
+    ];
+    const restoredVoiceConfig: DebateVoiceConfig = {
+      ...voiceConfig,
+      debaterVoices: {
+        'openai-debater-slot-1': { voiceId: 'voice-chatgpt', voiceName: 'ChatGPT Voice' },
+        'google-debater-slot-2': { voiceId: 'voice-gemini', voiceName: 'Gemini Voice' },
+      },
+    };
+    (StorageService.loadSession as jest.Mock).mockResolvedValueOnce({
+      id: 'debate-1',
+      messages: [restoredMessage],
+    });
+
+    renderHookWithProviders(
+      ({ messages }) => useDebateVoiceGeneration({
+        sessionId: 'debate-1',
+        voiceConfig: restoredVoiceConfig,
+        messages,
+        participants,
+      }),
+      { preloadedState, initialProps: { messages: [restoredMessage] } }
+    );
+
+    await waitFor(() => {
+      expect(generateDebateVoiceAudio).toHaveBeenCalledWith(expect.objectContaining({
+        message: restoredMessage,
+        voice: {
+          voiceId: 'voice-chatgpt',
+          voiceName: 'ChatGPT Voice',
         },
       }));
     });
