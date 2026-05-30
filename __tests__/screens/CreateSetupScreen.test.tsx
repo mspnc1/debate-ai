@@ -851,7 +851,33 @@ describe('CreateSetupScreen', () => {
       expect(getByText('WAV 44.1 kHz')).toBeTruthy();
     });
 
-    it('selects a loaded ElevenLabs voice from the compact voice picker', async () => {
+    it('selects a voice from the shared voice picker and updates the selector', async () => {
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          settings: {
+            ...baseState.settings,
+            apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
+          },
+          create: {
+            ...baseState.create,
+            activeTab: 'audio',
+          },
+        })
+      );
+
+      const { getByTestId, getByText, getAllByText } = renderWithProviders(<CreateSetupScreen />);
+
+      // Default voice auto-selected and shown on the selector row.
+      await waitFor(() => expect(getByText('Narrator A')).toBeTruthy());
+      fireEvent.press(getByTestId('create-audio-voice-selector'));
+      await waitFor(() => expect(getByTestId('debate-voice-option-voice_b')).toBeTruthy());
+      fireEvent.press(getByTestId('debate-voice-option-voice_b'));
+
+      await waitFor(() => expect(getAllByText('Narrator B').length).toBeGreaterThan(0));
+    });
+
+    it('generates audio with the voice chosen in the picker', async () => {
       mockUseSelector.mockImplementation((selector) =>
         selector({
           ...baseState,
@@ -869,87 +895,23 @@ describe('CreateSetupScreen', () => {
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
       await waitFor(() => expect(getByText('Narrator A')).toBeTruthy());
+      fireEvent.changeText(getByTestId('create-audio-prompt-input'), 'Read this line');
       fireEvent.press(getByTestId('create-audio-voice-selector'));
-      fireEvent.press(getByTestId('create-audio-picker-option-voice_b'));
+      await waitFor(() => expect(getByTestId('debate-voice-option-voice_b')).toBeTruthy());
+      fireEvent.press(getByTestId('debate-voice-option-voice_b'));
 
-      expect(getByText('Narrator B')).toBeTruthy();
-    });
+      fireEvent.press(getByTestId('gradient-button'));
 
-    it('does not truncate the loaded ElevenLabs voice list to the first twelve voices', async () => {
-      mockListElevenLabsOptions.mockResolvedValueOnce({
-        voices: Array.from({ length: 14 }, (_, index) => ({
-          id: `voice_${index + 1}`,
-          name: `Voice ${index + 1}`,
-          description: `Voice option ${index + 1}`,
-        })),
-        voiceHasMore: false,
-        voiceNextPageToken: null,
-        voiceTotalCount: 14,
-        models: [],
+      await waitFor(() => {
+        expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({
+          type: 'create/generateCreateAudio',
+          payload: expect.objectContaining({
+            prompt: 'Read this line',
+            operation: 'text_to_speech',
+            voiceId: 'voice_b',
+          }),
+        }));
       });
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          settings: {
-            ...baseState.settings,
-            apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
-          },
-          create: {
-            ...baseState.create,
-            activeTab: 'audio',
-          },
-        })
-      );
-
-      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
-
-      await waitFor(() => expect(getByText('Voice 1')).toBeTruthy());
-      fireEvent.press(getByTestId('create-audio-voice-selector'));
-      fireEvent.changeText(getByTestId('create-audio-voice-search-input'), 'Voice 14');
-
-      expect(getByText('Voice 14')).toBeTruthy();
-    });
-
-    it('loads the next ElevenLabs voice page from the picker', async () => {
-      mockListElevenLabsOptions
-        .mockResolvedValueOnce({
-          voices: [{ id: 'voice_a', name: 'Narrator A', description: 'Warm narration' }],
-          voiceHasMore: true,
-          voiceNextPageToken: 'next-page',
-          voiceTotalCount: 2,
-          models: [],
-        })
-        .mockResolvedValueOnce({
-          voices: [{ id: 'voice_c', name: 'Narrator C', description: 'Low narration' }],
-          voiceHasMore: false,
-          voiceNextPageToken: null,
-          voiceTotalCount: 2,
-          models: [],
-        });
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          settings: {
-            ...baseState.settings,
-            apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
-          },
-          create: {
-            ...baseState.create,
-            activeTab: 'audio',
-          },
-        })
-      );
-
-      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
-
-      await waitFor(() => expect(getByText('Narrator A')).toBeTruthy());
-      fireEvent.press(getByTestId('create-audio-voice-selector'));
-      fireEvent.press(getByTestId('create-audio-load-more-voices'));
-
-      await waitFor(() => expect(getByText('Narrator C')).toBeTruthy());
-      expect(mockListElevenLabsOptions).toHaveBeenLastCalledWith('eleven-key', expect.objectContaining({
-        nextPageToken: 'next-page',
-      }));
     });
 
     it('keeps sound effect controls inside audio settings', () => {

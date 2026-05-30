@@ -23,7 +23,9 @@ import { DebateVoiceFavoriteService } from '@/services/debate/DebateVoiceFavorit
 
 export type DebateVoicePickerTarget =
   | { kind: 'debater'; ai: AIConfig }
-  | { kind: 'mc'; ai: AIConfig };
+  | { kind: 'mc'; ai: AIConfig }
+  // Generic single-voice selection (e.g. the Create / Audio voiceover path).
+  | { kind: 'single'; label: string };
 
 type VoiceSourceId = 'favorites' | 'my' | 'default' | 'explore';
 type VoiceSourceTab = {
@@ -63,6 +65,7 @@ interface DebateVoicePickerProps {
   target: DebateVoicePickerTarget | null;
   voiceSelections?: Record<string, DebateVoiceSelection>;
   podcastMCVoice?: DebateVoiceSelection;
+  currentVoiceId?: string;
   elevenLabsTier?: string;
   onClose: () => void;
   onLoadVoices: (query: ElevenLabsVoiceListQuery) => Promise<MediaProviderOptionsResponse>;
@@ -70,6 +73,7 @@ interface DebateVoicePickerProps {
   onAddSharedVoice?: (voice: MediaProviderVoiceOption) => Promise<MediaProviderVoiceOption>;
   onVoiceSelect?: (aiId: string, voice: MediaProviderVoiceOption) => void;
   onPodcastMCVoiceSelect?: (voice: MediaProviderVoiceOption) => void;
+  onSelectVoice?: (voice: MediaProviderVoiceOption) => void;
 }
 
 const ALL_SOURCE_TABS: VoiceSourceTab[] = [
@@ -132,7 +136,7 @@ const EXPLORE_DESCRIPTIVES = ['calm', 'confident', 'deep', 'casual', 'profession
 const EXPLORE_PAGE_SIZE = 30;
 const AUTO_LOAD_CAP = 1000;
 const TRAITS_PER_GROUP = 16;
-const PREVIEW_TIMEOUT_MS = 10000;
+const PREVIEW_IDLE_TIMEOUT_MS = 12000;
 const FREE_TIER_KEYWORDS = ['free', 'starter'];
 const EMPTY_EXPLORE_FILTERS: ExploreFilterState = { useCases: [], descriptives: [] };
 
@@ -290,6 +294,7 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
   target,
   voiceSelections = {},
   podcastMCVoice,
+  currentVoiceId,
   elevenLabsTier,
   onClose,
   onLoadVoices,
@@ -297,6 +302,7 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
   onAddSharedVoice,
   onVoiceSelect,
   onPodcastMCVoiceSelect,
+  onSelectVoice,
 }) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -325,7 +331,6 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
   const [favoriteVoices, setFavoriteVoices] = useState<MediaProviderVoiceOption[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
   const [busyVoiceId, setBusyVoiceId] = useState<string | null>(null);
-  const [failedPreviewIds, setFailedPreviewIds] = useState<Set<string>>(() => new Set());
   const [preview, setPreview] = useState<{ voiceId: string | null; url?: string; nonce: number }>({ voiceId: null, url: undefined, nonce: 0 });
 
   const requestIdRef = useRef(0);
@@ -341,7 +346,11 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
 
   const selectedVoiceId = target?.kind === 'mc'
     ? podcastMCVoice?.voiceId
-    : target?.ai.id ? voiceSelections[target.ai.id]?.voiceId : undefined;
+    : target?.kind === 'single'
+      ? currentVoiceId
+      : target?.kind === 'debater' ? voiceSelections[target.ai.id]?.voiceId : undefined;
+  const targetKey = target?.kind === 'single' ? target.label : target?.ai.id;
+  const targetSubtitle = target?.kind === 'mc' ? 'Podcast MC' : target?.kind === 'single' ? target.label : target?.ai.name;
 
   const unavailableVoiceIds = useMemo(() => {
     const ids = new Set<string>();
@@ -499,7 +508,6 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
     setTotalCount(undefined);
     setLoadError(null);
     setBusyVoiceId(null);
-    setFailedPreviewIds(new Set());
     let cancelled = false;
     Promise.all([DebateVoiceRecentService.list(), DebateVoiceFavoriteService.list()])
       .then(([recents, favorites]) => {
@@ -517,7 +525,7 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
         setActiveSourceId('default');
       });
     return () => { cancelled = true; };
-  }, [target?.ai.id, target?.kind, visible]);
+  }, [targetKey, target?.kind, visible]);
 
   useEffect(() => {
     setActiveTraitIds((current) => {
@@ -549,21 +557,30 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
 
   useEffect(() => { if (!visible) stopPreview(); }, [stopPreview, visible]);
 
+  // Start playback for the requested preview. We don't seek-before-load (that races
+  // the source swap and was leaving valid previews stuck); instead we kick play() now
+  // and again once the source reports loaded. A soft timeout only resets to idle — it
+  // never permanently disables a voice that genuinely has a preview URL.
   useEffect(() => {
     if (!preview.url || !preview.voiceId) return;
     const voiceId = preview.voiceId;
-    void previewPlayer.seekTo(0).then(() => previewPlayer.play());
+    previewPlayer.play();
     const timer = setTimeout(() => {
-      setFailedPreviewIds((prev) => new Set(prev).add(voiceId));
       setPreview((current) => (current.voiceId === voiceId ? { voiceId: null, url: undefined, nonce: 0 } : current));
-    }, PREVIEW_TIMEOUT_MS);
+    }, PREVIEW_IDLE_TIMEOUT_MS);
     previewTimerRef.current = timer;
     return () => clearTimeout(timer);
   }, [preview.nonce, preview.url, preview.voiceId, previewPlayer]);
 
   useEffect(() => {
-    if ((previewStatus.playing || previewStatus.isLoaded) && previewTimerRef.current) clearPreviewTimer();
-  }, [clearPreviewTimer, previewStatus.isLoaded, previewStatus.playing]);
+    if (preview.voiceId && previewStatus.isLoaded && !previewStatus.playing && !previewStatus.didJustFinish) {
+      previewPlayer.play();
+    }
+  }, [preview.voiceId, previewPlayer, previewStatus.didJustFinish, previewStatus.isLoaded, previewStatus.playing]);
+
+  useEffect(() => {
+    if (previewStatus.playing && previewTimerRef.current) clearPreviewTimer();
+  }, [clearPreviewTimer, previewStatus.playing]);
 
   useEffect(() => { if (previewStatus.didJustFinish) stopPreview(); }, [previewStatus.didJustFinish, stopPreview]);
 
@@ -571,10 +588,11 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
 
   const commitSelection = useCallback((voice: MediaProviderVoiceOption) => {
     if (target?.kind === 'mc') onPodcastMCVoiceSelect?.(voice);
+    else if (target?.kind === 'single') onSelectVoice?.(voice);
     else if (target?.kind === 'debater') onVoiceSelect?.(target.ai.id, voice);
     DebateVoiceRecentService.record(voice).then(() => DebateVoiceRecentService.list()).then(setRecentVoices).catch(() => {});
     onClose();
-  }, [onClose, onPodcastMCVoiceSelect, onVoiceSelect, target]);
+  }, [onClose, onPodcastMCVoiceSelect, onSelectVoice, onVoiceSelect, target]);
 
   const handleSelect = useCallback((voice: MediaProviderVoiceOption) => {
     stopPreview();
@@ -618,12 +636,12 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
 
   const handlePreview = useCallback((voice: MediaProviderVoiceOption) => {
     const url = getPreviewUrl(voice);
-    if (!url || failedPreviewIds.has(voice.id)) return;
+    if (!url) return;
     if (preview.voiceId === voice.id && Boolean(previewStatus.playing)) { stopPreview(); return; }
     clearPreviewTimer();
     previewPlayer.pause();
     setPreview((current) => ({ voiceId: voice.id, url, nonce: current.nonce + 1 }));
-  }, [clearPreviewTimer, failedPreviewIds, preview.voiceId, previewPlayer, previewStatus.playing, stopPreview]);
+  }, [clearPreviewTimer, preview.voiceId, previewPlayer, previewStatus.playing, stopPreview]);
 
   const handleSourceChange = useCallback((sourceId: VoiceSourceId) => {
     stopPreview();
@@ -746,9 +764,8 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
 
   const renderVoice = useCallback(({ item }: { item: MediaProviderVoiceOption }) => {
     const selected = selectedVoiceId === item.id;
-    const previewUrl = getPreviewUrl(item);
-    const previewFailed = failedPreviewIds.has(item.id);
-    const previewAvailable = Boolean(previewUrl) && !previewFailed;
+    // Availability is metadata-driven: a voice either ships a preview clip or it doesn't.
+    const previewAvailable = Boolean(getPreviewUrl(item));
     const requested = preview.voiceId === item.id;
     const previewPlaying = requested && Boolean(previewStatus.playing);
     const previewBuffering = requested && previewAvailable && !previewPlaying;
@@ -820,31 +837,33 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
           )}
         </TouchableOpacity>
 
-        {/* Preview */}
+        {/* Preview — or a clear "no preview" affordance when the voice ships no clip */}
         <TouchableOpacity
           onPress={() => handlePreview(item)}
           disabled={!previewAvailable}
           style={{
             width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
-            backgroundColor: previewPlaying ? theme.colors.primary[500] : theme.colors.surface,
-            borderWidth: 1, borderColor: previewPlaying ? theme.colors.primary[500] : theme.colors.border,
-            opacity: previewAvailable ? 1 : 0.4,
+            backgroundColor: previewPlaying ? theme.colors.primary[500] : previewAvailable ? theme.colors.surface : 'transparent',
+            borderWidth: previewAvailable ? 1 : 0,
+            borderColor: previewPlaying ? theme.colors.primary[500] : theme.colors.border,
           }}
           accessibilityRole="button"
           accessibilityState={{ disabled: !previewAvailable }}
-          accessibilityLabel={previewAvailable ? `${previewPlaying ? 'Stop' : 'Preview'} ${item.name}` : `Preview unavailable for ${item.name}`}
+          accessibilityLabel={previewAvailable ? `${previewPlaying ? 'Stop' : 'Preview'} ${item.name}` : `No preview available for ${item.name}`}
           testID={`debate-voice-preview-${item.id}`}
         >
           {previewBuffering ? (
             <ActivityIndicator size="small" color={theme.colors.primary[500]} />
+          ) : !previewAvailable ? (
+            <Ionicons name="volume-mute-outline" size={18} color={theme.colors.text.disabled} />
           ) : (
-            <Ionicons name={previewPlaying ? 'stop' : 'play'} size={18} color={!previewAvailable ? theme.colors.text.disabled : previewPlaying ? theme.colors.text.white : theme.colors.primary[500]} />
+            <Ionicons name={previewPlaying ? 'stop' : 'play'} size={18} color={previewPlaying ? theme.colors.text.white : theme.colors.primary[500]} />
           )}
         </TouchableOpacity>
       </TouchableOpacity>
     );
   }, [
-    busyVoiceId, failedPreviewIds, favoriteIds, handlePreview, handleSelect, handleToggleFavorite, isFreeTier,
+    busyVoiceId, favoriteIds, handlePreview, handleSelect, handleToggleFavorite, isFreeTier,
     preview.voiceId, previewStatus.playing, selectedVoiceId,
     theme.borderRadius.full, theme.colors.border, theme.colors.info, theme.colors.primary, theme.colors.surface,
     theme.colors.text.disabled, theme.colors.text.secondary, theme.colors.text.white, theme.colors.warning,
@@ -864,7 +883,7 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
 
         <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.sm, paddingBottom: theme.spacing.sm, gap: theme.spacing.sm, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
           <Typography variant="caption" color="secondary" align="center" numberOfLines={1}>
-            {target?.kind === 'mc' ? 'Podcast MC' : target?.ai.name}
+            {targetSubtitle}
           </Typography>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 12, paddingHorizontal: theme.spacing.md, backgroundColor: theme.colors.card }}>

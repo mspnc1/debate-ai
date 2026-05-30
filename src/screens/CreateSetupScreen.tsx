@@ -60,7 +60,8 @@ import {
   selectCreateState,
 } from '../store/createSlice';
 import { RootStackParamList, AIProvider, AIConfig } from '../types';
-import type { CreateMediaOperation, MediaProviderModelOption, MediaProviderVoiceOption } from '../types/media';
+import type { CreateMediaOperation, ElevenLabsSharedVoiceQuery, ElevenLabsVoiceListQuery, MediaProviderModelOption, MediaProviderOptionsResponse, MediaProviderVoiceOption } from '../types/media';
+import { DebateVoicePicker } from '../components/organisms/debate/DebateVoicePicker';
 import { STYLE_PRESETS } from '../config/create/stylePresets';
 import {
   ELEVENLABS_DEFAULT_OUTPUT_FORMAT,
@@ -216,17 +217,14 @@ export default function CreateSetupScreen() {
   const [audioTtsModelId, setAudioTtsModelId] = useState(ELEVENLABS_DEFAULT_TTS_MODEL);
   const [audioSfxModelId, setAudioSfxModelId] = useState(ELEVENLABS_DEFAULT_SFX_MODEL);
   const [audioVoiceId, setAudioVoiceId] = useState(ELEVENLABS_DEFAULT_VOICE_ID);
+  const [audioVoiceName, setAudioVoiceName] = useState<string | undefined>();
   const [audioOutputFormat, setAudioOutputFormat] = useState(ELEVENLABS_DEFAULT_OUTPUT_FORMAT);
   const [audioDuration, setAudioDuration] = useState<number | undefined>(undefined);
   const [promptInfluence, setPromptInfluence] = useState(0.3);
   const [audioVoices, setAudioVoices] = useState<MediaProviderVoiceOption[]>([]);
   const [audioModels, setAudioModels] = useState<MediaProviderModelOption[]>([]);
   const [loadingAudioOptions, setLoadingAudioOptions] = useState(false);
-  const [loadingMoreAudioVoices, setLoadingMoreAudioVoices] = useState(false);
-  const [audioVoiceHasMore, setAudioVoiceHasMore] = useState(false);
-  const [audioVoiceNextPageToken, setAudioVoiceNextPageToken] = useState<string | null>(null);
   const [audioVoiceTotalCount, setAudioVoiceTotalCount] = useState<number | undefined>();
-  const [audioVoiceSearch, setAudioVoiceSearch] = useState('');
   const [audioPicker, setAudioPicker] = useState<AudioPickerType | null>(null);
   const [elevenLabsSubscription, setElevenLabsSubscription] = useState<ElevenLabsSubscriptionInfo | undefined>();
   const [elevenLabsSubscriptionLoading, setElevenLabsSubscriptionLoading] = useState(false);
@@ -346,12 +344,11 @@ export default function CreateSetupScreen() {
         });
         setAudioVoices(options.voices || []);
         setAudioModels(mergeAudioModels(getMediaModels('elevenlabs'), options.models || []));
-        setAudioVoiceHasMore(Boolean(options.voiceHasMore));
-        setAudioVoiceNextPageToken(options.voiceNextPageToken || null);
         setAudioVoiceTotalCount(options.voiceTotalCount);
-        const firstVoice = options.voices?.[0]?.id;
+        const firstVoice = options.voices?.[0];
         if (firstVoice) {
-          setAudioVoiceId(firstVoice);
+          setAudioVoiceId(firstVoice.id);
+          setAudioVoiceName(firstVoice.name);
         }
       } catch (error) {
         ErrorService.handleWithToast(error, { feature: 'create', provider: 'elevenlabs' });
@@ -590,9 +587,6 @@ export default function CreateSetupScreen() {
 
   const handleOpenAudioPicker = useCallback((picker: AudioPickerType) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (picker === 'voice') {
-      setAudioVoiceSearch('');
-    }
     setAudioPicker(picker);
   }, []);
 
@@ -728,37 +722,48 @@ export default function CreateSetupScreen() {
     promptInfluence,
   ]);
 
-  const handleLoadMoreAudioVoices = useCallback(async () => {
-    if (!hasElevenLabsKey || !audioVoiceNextPageToken || loadingMoreAudioVoices) {
-      return;
-    }
+  // Voice-picker callbacks (shared with the debate path's DebateVoicePicker).
+  const handleLoadCreateVoices = useCallback(async (
+    query: ElevenLabsVoiceListQuery
+  ): Promise<MediaProviderOptionsResponse> => {
+    const key = await APIKeyService.getKey('elevenlabs');
+    if (!key) throw new Error('Add an ElevenLabs API key to browse voices.');
+    return MediaGenerationService.listElevenLabsOptions(key, query);
+  }, []);
 
-    setLoadingMoreAudioVoices(true);
+  const handleLoadCreateSharedVoices = useCallback(async (
+    query: ElevenLabsSharedVoiceQuery
+  ): Promise<MediaProviderOptionsResponse> => {
+    const key = await APIKeyService.getKey('elevenlabs');
+    if (!key) throw new Error('Add an ElevenLabs API key to browse community voices.');
+    return MediaGenerationService.listElevenLabsSharedVoices(key, query);
+  }, []);
+
+  const handleAddCreateSharedVoice = useCallback(async (
+    voice: MediaProviderVoiceOption
+  ): Promise<MediaProviderVoiceOption> => {
+    const publicOwnerId = voice.publicOwnerId || voice.public_owner_id;
+    if (!publicOwnerId) throw new Error('This community voice cannot be added.');
+    const key = await APIKeyService.getKey('elevenlabs');
+    if (!key) throw new Error('Add an ElevenLabs API key before adding voices.');
     try {
-      const key = await APIKeyService.getKey('elevenlabs');
-      if (!key) return;
-
-      const options = await MediaGenerationService.listElevenLabsOptions(key, {
-        pageSize: 100,
-        includeTotalCount: true,
-        sort: 'name',
-        sortDirection: 'asc',
-        nextPageToken: audioVoiceNextPageToken,
-      });
-
-      setAudioVoices((current) => mergeAudioVoices(current, options.voices || []));
-      if (options.models?.length) {
-        setAudioModels((current) => mergeAudioModels(current.length > 0 ? current : getMediaModels('elevenlabs'), options.models || []));
-      }
-      setAudioVoiceHasMore(Boolean(options.voiceHasMore));
-      setAudioVoiceNextPageToken(options.voiceNextPageToken || null);
-      setAudioVoiceTotalCount(options.voiceTotalCount);
+      const newVoiceId = await MediaGenerationService.addElevenLabsSharedVoice(key, publicOwnerId, voice.id, voice.name);
+      const addedVoice: MediaProviderVoiceOption = {
+        ...voice,
+        id: newVoiceId,
+        voice_id: newVoiceId,
+        isCommunity: false,
+        sourceVoiceType: 'personal',
+        isAddedByUser: true,
+        is_added_by_user: true,
+      };
+      setAudioVoices((current) => mergeAudioVoices(current, [addedVoice]));
+      return addedVoice;
     } catch (error) {
       ErrorService.handleWithToast(error, { feature: 'create', provider: 'elevenlabs' });
-    } finally {
-      setLoadingMoreAudioVoices(false);
+      throw error;
     }
-  }, [audioVoiceNextPageToken, hasElevenLabsKey, loadingMoreAudioVoices]);
+  }, []);
 
   const handleAddAI = useCallback(() => {
     navigation.navigate('APIConfig');
@@ -1905,13 +1910,6 @@ export default function CreateSetupScreen() {
           description: voice.description || voice.category || undefined,
         }))
       : [{ id: ELEVENLABS_DEFAULT_VOICE_ID, label: 'Default voice' }];
-    const normalizedVoiceSearch = audioVoiceSearch.trim().toLowerCase();
-    const filteredVoiceOptions = normalizedVoiceSearch
-      ? voiceOptions.filter((voice) => (
-          voice.label.toLowerCase().includes(normalizedVoiceSearch) ||
-          voice.description?.toLowerCase().includes(normalizedVoiceSearch)
-        ))
-      : voiceOptions;
     const loadedVoiceCount = audioVoices.length || voiceOptions.length;
     const voiceCountLabel = audioVoiceTotalCount
       ? `${loadedVoiceCount} of ${audioVoiceTotalCount} voices loaded`
@@ -1984,8 +1982,8 @@ export default function CreateSetupScreen() {
             />
             {renderSelectorRow({
               label: 'Voice',
-              value: selectedVoice?.label || 'Default voice',
-              description: selectedVoice?.description || (audioVoiceHasMore ? 'More voices available in the picker' : undefined),
+              value: audioVoiceName || selectedVoice?.label || 'Default voice',
+              description: selectedVoice?.description,
               onPress: () => handleOpenAudioPicker('voice'),
               testID: 'create-audio-voice-selector',
             })}
@@ -2057,51 +2055,21 @@ export default function CreateSetupScreen() {
           </>
         ))}
 
-        {renderAudioPickerModal({
-          visible: audioPicker === 'voice',
-          title: 'Select Voice',
-          options: filteredVoiceOptions,
-          selectedId: audioVoiceId,
-          onSelect: setAudioVoiceId,
-          searchValue: audioVoiceSearch,
-          onSearchChange: setAudioVoiceSearch,
-          searchPlaceholder: 'Search voices',
-          emptyMessage: audioVoiceSearch.trim()
-            ? 'No loaded voices match this search.'
-            : 'No voices available.',
-          footer: audioVoices.length > 0 ? (
-            audioVoiceHasMore ? (
-              <TouchableOpacity
-                style={[
-                  styles.loadMoreVoicesButton,
-                  {
-                    backgroundColor: primaryTintBackground,
-                    borderColor: theme.colors.primary[500],
-                    opacity: loadingMoreAudioVoices ? 0.7 : 1,
-                  },
-                ]}
-                onPress={handleLoadMoreAudioVoices}
-                disabled={loadingMoreAudioVoices}
-                accessibilityRole="button"
-                accessibilityLabel="Load more voices"
-                testID="create-audio-load-more-voices"
-              >
-                {loadingMoreAudioVoices ? (
-                  <ActivityIndicator size="small" color={theme.colors.primary[500]} />
-                ) : (
-                  <Ionicons name="add-circle-outline" size={18} color={primaryAccentColor} />
-                )}
-                <Typography variant="button" weight="semibold" style={{ color: primaryAccentColor }}>
-                  Load More Voices
-                </Typography>
-              </TouchableOpacity>
-            ) : (
-              <Typography variant="caption" color="secondary" style={{ textAlign: 'center' }}>
-                Showing all loaded voices
-              </Typography>
-            )
-          ) : null,
-        })}
+        <DebateVoicePicker
+          visible={audioPicker === 'voice'}
+          target={{ kind: 'single', label: 'Voiceover' }}
+          currentVoiceId={audioVoiceId}
+          elevenLabsTier={elevenLabsSubscription?.tier}
+          onClose={() => setAudioPicker(null)}
+          onLoadVoices={handleLoadCreateVoices}
+          onLoadSharedVoices={handleLoadCreateSharedVoices}
+          onAddSharedVoice={handleAddCreateSharedVoice}
+          onSelectVoice={(voice) => {
+            setAudioVoiceId(voice.id);
+            setAudioVoiceName(voice.name);
+            setAudioVoices((current) => mergeAudioVoices(current, [voice]));
+          }}
+        />
         {renderAudioPickerModal({
           visible: audioPicker === 'model',
           title: 'Select Model',
