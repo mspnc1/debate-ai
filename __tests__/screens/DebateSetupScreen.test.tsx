@@ -767,8 +767,9 @@ describe('DebateSetupScreen', () => {
 
     expect(mockGetAPIKey).toHaveBeenCalledWith('elevenlabs');
     expect(mockListElevenLabsOptions).toHaveBeenCalledWith('eleven-key', expect.objectContaining({
-      pageSize: 100,
+      pageSize: 50,
       includeTotalCount: true,
+      voiceType: 'non-community',
     }));
     expect(personalitySelectorProps.voiceConfigAvailable).toBe(true);
     expect(personalitySelectorProps.voiceOptions).toHaveLength(2);

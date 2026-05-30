@@ -11,9 +11,12 @@ import type {
   CreateMediaAssetStatus,
   CreateMediaOperation,
   CreateMediaType,
+  ElevenLabsSharedVoiceQuery,
+  ElevenLabsVoiceListQuery,
   MediaProviderId,
   MediaProviderModelOption,
   MediaProviderOptionsResponse,
+  MediaProviderVoiceLanguageOption,
   MediaProviderVoiceOption,
 } from '@/types/media';
 import { bytesToBase64 } from './mediaFileCache';
@@ -265,24 +268,44 @@ function getRunwayVideoEndpoint(request: StartRunwayVideoRequest): 'text_to_vide
   return request.operation === 'text_to_video' ? 'text_to_video' : 'image_to_video';
 }
 
-function buildElevenLabsVoiceSearchUrl(input: {
-  search?: string;
-  pageSize?: number;
-  nextPageToken?: string | null;
-  includeTotalCount?: boolean;
-  sort?: 'created_at_unix' | 'name';
-  sortDirection?: 'asc' | 'desc';
-} = {}): string {
+function buildElevenLabsVoiceSearchUrl(input: ElevenLabsVoiceListQuery = {}): string {
   const params = new URLSearchParams();
   params.set('page_size', String(Math.max(1, Math.min(100, Math.floor(input.pageSize || 100)))));
   if (typeof input.includeTotalCount === 'boolean') {
     params.set('include_total_count', String(input.includeTotalCount));
   }
-  if (input.search) params.set('search', input.search);
+  const search = input.search?.trim();
+  if (search) params.set('search', search);
   if (input.nextPageToken) params.set('next_page_token', input.nextPageToken);
   if (input.sort) params.set('sort', input.sort);
   if (input.sortDirection) params.set('sort_direction', input.sortDirection);
+  if (input.voiceType) params.set('voice_type', input.voiceType);
+  if (input.category) params.set('category', input.category);
+  if (input.fineTuningState) params.set('fine_tuning_state', input.fineTuningState);
+  if (input.collectionId?.trim()) params.set('collection_id', input.collectionId.trim());
+  input.voiceIds?.filter(Boolean).slice(0, 100).forEach((voiceId) => {
+    params.append('voice_ids', voiceId);
+  });
   return `${ELEVENLABS_API_BASE}/v2/voices?${params.toString()}`;
+}
+
+function buildElevenLabsSharedVoiceUrl(input: ElevenLabsSharedVoiceQuery = {}): string {
+  const params = new URLSearchParams();
+  params.set('page_size', String(Math.max(1, Math.min(100, Math.floor(input.pageSize || 30)))));
+  params.set('page', String(Math.max(0, Math.floor(input.page || 0))));
+  const search = input.search?.trim();
+  if (search) params.set('search', search);
+  if (input.category) params.set('category', input.category);
+  if (input.gender?.trim()) params.set('gender', input.gender.trim());
+  if (input.age?.trim()) params.set('age', input.age.trim());
+  if (input.accent?.trim()) params.set('accent', input.accent.trim());
+  if (input.language?.trim()) params.set('language', input.language.trim());
+  if (input.locale?.trim()) params.set('locale', input.locale.trim());
+  if (input.sort?.trim()) params.set('sort', input.sort.trim());
+  if (typeof input.featured === 'boolean') params.set('featured', String(input.featured));
+  input.useCases?.filter(Boolean).forEach((useCase) => params.append('use_cases', useCase));
+  input.descriptives?.filter(Boolean).forEach((descriptive) => params.append('descriptives', descriptive));
+  return `${ELEVENLABS_API_BASE}/v1/shared-voices?${params.toString()}`;
 }
 
 function readString(record: Record<string, unknown>, key: string): string | undefined {
@@ -290,19 +313,209 @@ function readString(record: Record<string, unknown>, key: string): string | unde
   return typeof value === 'string' && value.trim() ? value : undefined;
 }
 
-function mapVoice(voice: unknown): MediaProviderVoiceOption | null {
+function readNumber(record: Record<string, unknown>, key: string): number | undefined {
+  const value = record[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function readBoolean(record: Record<string, unknown>, key: string): boolean | undefined {
+  const value = record[key];
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function readStringArray(record: Record<string, unknown>, key: string): string[] | undefined {
+  const value = record[key];
+  if (!Array.isArray(value)) return undefined;
+  const strings = value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+  return strings.length > 0 ? strings : undefined;
+}
+
+function readStringRecord(record: Record<string, unknown>, key: string): Record<string, string> | undefined {
+  const value = record[key];
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].trim().length > 0)
+    .map(([entryKey, entryValue]) => [entryKey, entryValue.trim()] as const);
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function readVoiceLanguages(record: Record<string, unknown>): MediaProviderVoiceLanguageOption[] | undefined {
+  const value = record.verified_languages;
+  if (!Array.isArray(value)) return undefined;
+
+  const languages = value
+    .map((language): MediaProviderVoiceLanguageOption | null => {
+      if (!language || typeof language !== 'object' || Array.isArray(language)) return null;
+      const languageRecord = language as Record<string, unknown>;
+      const name = readString(languageRecord, 'language');
+      if (!name) return null;
+      const modelId = readString(languageRecord, 'model_id');
+      const previewUrl = readString(languageRecord, 'preview_url') || null;
+      return {
+        language: name,
+        modelId,
+        model_id: modelId,
+        accent: readString(languageRecord, 'accent') || null,
+        locale: readString(languageRecord, 'locale') || null,
+        previewUrl,
+        preview_url: previewUrl,
+      };
+    })
+    .filter((language): language is MediaProviderVoiceLanguageOption => Boolean(language));
+
+  return languages.length > 0 ? languages : undefined;
+}
+
+function readFineTuningStates(record: Record<string, unknown>): Record<string, string> | undefined {
+  const fineTuning = record.fine_tuning;
+  if (!fineTuning || typeof fineTuning !== 'object' || Array.isArray(fineTuning)) return undefined;
+  return readStringRecord(fineTuning as Record<string, unknown>, 'state');
+}
+
+function readSharingStatus(record: Record<string, unknown>): string | undefined {
+  const sharing = record.sharing;
+  if (!sharing || typeof sharing !== 'object' || Array.isArray(sharing)) return undefined;
+  return readString(sharing as Record<string, unknown>, 'status');
+}
+
+function mapVoice(voice: unknown, sourceVoiceType?: ElevenLabsVoiceListQuery['voiceType']): MediaProviderVoiceOption | null {
   if (!voice || typeof voice !== 'object' || Array.isArray(voice)) return null;
   const record = voice as Record<string, unknown>;
   const id = readString(record, 'voice_id');
   const name = readString(record, 'name');
   if (!id || !name) return null;
+  const previewUrl = readString(record, 'preview_url') || null;
+  const labels = readStringRecord(record, 'labels');
+  const verifiedLanguages = readVoiceLanguages(record);
+  const availableForTiers = readStringArray(record, 'available_for_tiers');
+  const highQualityBaseModelIds = readStringArray(record, 'high_quality_base_model_ids');
+  const fineTuningStates = readFineTuningStates(record);
+  const collectionIds = readStringArray(record, 'collection_ids');
+  const permissionOnResource = readString(record, 'permission_on_resource') || null;
+  const recordingQuality = readString(record, 'recording_quality') || null;
+  const labellingStatus = readString(record, 'labelling_status') || null;
+  const recordingQualityReason = readString(record, 'recording_quality_reason') || null;
+  const safetyControl = readString(record, 'safety_control') || null;
+  const sharingStatus = readSharingStatus(record) || null;
+  const isOwner = readBoolean(record, 'is_owner');
+  const isBookmarked = readBoolean(record, 'is_bookmarked');
+  const isLegacy = readBoolean(record, 'is_legacy');
+  const isMixed = readBoolean(record, 'is_mixed');
+  const favoritedAtUnix = readNumber(record, 'favorited_at_unix');
+  const createdAtUnix = readNumber(record, 'created_at_unix');
+
   return {
     id,
     name,
     voice_id: id,
     category: readString(record, 'category') || null,
     description: readString(record, 'description') || null,
-    previewUrl: readString(record, 'preview_url') || null,
+    previewUrl,
+    preview_url: previewUrl,
+    labels,
+    verifiedLanguages,
+    verified_languages: verifiedLanguages,
+    sourceVoiceType,
+    availableForTiers,
+    available_for_tiers: availableForTiers,
+    highQualityBaseModelIds,
+    high_quality_base_model_ids: highQualityBaseModelIds,
+    fineTuningStates,
+    fine_tuning_states: fineTuningStates,
+    collectionIds,
+    collection_ids: collectionIds,
+    permissionOnResource,
+    permission_on_resource: permissionOnResource,
+    isOwner,
+    is_owner: isOwner,
+    isBookmarked,
+    is_bookmarked: isBookmarked,
+    isLegacy,
+    is_legacy: isLegacy,
+    isMixed,
+    is_mixed: isMixed,
+    favoritedAtUnix,
+    favorited_at_unix: favoritedAtUnix,
+    createdAtUnix,
+    created_at_unix: createdAtUnix,
+    recordingQuality,
+    recording_quality: recordingQuality,
+    labellingStatus,
+    labelling_status: labellingStatus,
+    recordingQualityReason,
+    recording_quality_reason: recordingQualityReason,
+    safetyControl,
+    safety_control: safetyControl,
+    sharingStatus,
+  };
+}
+
+function mapSharedVoice(voice: unknown): MediaProviderVoiceOption | null {
+  if (!voice || typeof voice !== 'object' || Array.isArray(voice)) return null;
+  const record = voice as Record<string, unknown>;
+  const id = readString(record, 'voice_id');
+  const name = readString(record, 'name');
+  if (!id || !name) return null;
+
+  const previewUrl = readString(record, 'preview_url') || null;
+  const gender = readString(record, 'gender');
+  const age = readString(record, 'age');
+  const accent = readString(record, 'accent');
+  const descriptive = readString(record, 'descriptive');
+  const useCase = readString(record, 'use_case');
+  const language = readString(record, 'language');
+  const locale = readString(record, 'locale');
+
+  // Synthesize the labels record so the picker's chip/filter helpers work uniformly
+  // across /v2/voices and the shared library.
+  const labels: Record<string, string> = {};
+  if (gender) labels.gender = gender;
+  if (age) labels.age = age;
+  if (accent) labels.accent = accent;
+  if (descriptive) labels.descriptive = descriptive;
+  if (useCase) labels.use_case = useCase;
+
+  const verifiedLanguages = readVoiceLanguages(record)
+    || (language ? [{
+      language,
+      accent: accent || null,
+      locale: locale || null,
+      previewUrl,
+      preview_url: previewUrl,
+    }] : undefined);
+
+  const publicOwnerId = readString(record, 'public_owner_id') || null;
+  const freeUsersAllowed = readBoolean(record, 'free_users_allowed');
+  const isAddedByUser = readBoolean(record, 'is_added_by_user');
+  const isBookmarked = readBoolean(record, 'is_bookmarked');
+  const imageUrl = readString(record, 'image_url') || null;
+  const createdAtUnix = readNumber(record, 'date_unix');
+
+  return {
+    id,
+    name,
+    voice_id: id,
+    category: readString(record, 'category') || null,
+    description: readString(record, 'description') || null,
+    previewUrl,
+    preview_url: previewUrl,
+    labels: Object.keys(labels).length > 0 ? labels : undefined,
+    verifiedLanguages,
+    verified_languages: verifiedLanguages,
+    sourceVoiceType: 'community',
+    isCommunity: true,
+    publicOwnerId,
+    public_owner_id: publicOwnerId,
+    freeUsersAllowed,
+    free_users_allowed: freeUsersAllowed,
+    isAddedByUser,
+    is_added_by_user: isAddedByUser,
+    isBookmarked,
+    is_bookmarked: isBookmarked,
+    imageUrl,
+    image_url: imageUrl,
+    createdAtUnix,
+    created_at_unix: createdAtUnix,
   };
 }
 
@@ -361,6 +574,7 @@ export class MediaGenerationService {
   static getRunwayVideoEndpoint = getRunwayVideoEndpoint;
   static mimeTypeForOutputFormat = mimeTypeForOutputFormat;
   static buildElevenLabsVoiceSearchUrl = buildElevenLabsVoiceSearchUrl;
+  static buildElevenLabsSharedVoiceUrl = buildElevenLabsSharedVoiceUrl;
 
   static async startRunwayVideo(request: StartRunwayVideoRequest): Promise<RunwayVideoTask> {
     const apiKey = normalizeRunwayApiKey(request.apiKey);
@@ -502,7 +716,7 @@ export class MediaGenerationService {
 
   static async listElevenLabsOptions(
     apiKey: string,
-    input: Parameters<typeof buildElevenLabsVoiceSearchUrl>[0] = {}
+    input: ElevenLabsVoiceListQuery = {}
   ): Promise<MediaProviderOptionsResponse> {
     const voiceResponse = await fetch(buildElevenLabsVoiceSearchUrl(input), {
       method: 'GET',
@@ -521,32 +735,97 @@ export class MediaGenerationService {
     };
 
     let models: MediaProviderModelOption[] = [];
-    try {
-      const modelResponse = await fetch(`${ELEVENLABS_API_BASE}/v1/models`, {
-        method: 'GET',
-        headers: { 'xi-api-key': normalizeApiKey(apiKey) },
-      });
-      if (modelResponse.ok) {
-        const rawModels = await modelResponse.json() as unknown;
-        models = (Array.isArray(rawModels) ? rawModels : [])
-          .map(mapModel)
-          .filter((model): model is MediaProviderModelOption => Boolean(model));
+    if (input.includeModels !== false) {
+      try {
+        const modelResponse = await fetch(`${ELEVENLABS_API_BASE}/v1/models`, {
+          method: 'GET',
+          headers: { 'xi-api-key': normalizeApiKey(apiKey) },
+        });
+        if (modelResponse.ok) {
+          const rawModels = await modelResponse.json() as unknown;
+          models = (Array.isArray(rawModels) ? rawModels : [])
+            .map(mapModel)
+            .filter((model): model is MediaProviderModelOption => Boolean(model));
+        }
+      } catch {
+        // Voices are enough to render the audio panel; model list can fall back to defaults.
       }
-    } catch {
-      // Voices are enough to render the audio panel; model list can fall back to defaults.
     }
 
     return {
       success: true,
       providerId: 'elevenlabs',
       voices: (voiceData.voices || [])
-        .map(mapVoice)
+        .map((voice) => mapVoice(voice, input.voiceType))
         .filter((voice): voice is MediaProviderVoiceOption => Boolean(voice)),
       voiceHasMore: Boolean(voiceData.has_more),
       voiceTotalCount: typeof voiceData.total_count === 'number' ? voiceData.total_count : undefined,
       voiceNextPageToken: voiceData.next_page_token || null,
       models,
     };
+  }
+
+  static async listElevenLabsSharedVoices(
+    apiKey: string,
+    input: ElevenLabsSharedVoiceQuery = {}
+  ): Promise<MediaProviderOptionsResponse> {
+    const response = await fetch(buildElevenLabsSharedVoiceUrl(input), {
+      method: 'GET',
+      headers: { 'xi-api-key': normalizeApiKey(apiKey) },
+    });
+
+    if (!response.ok) {
+      throw await parseErrorResponse(response, 'ElevenLabs');
+    }
+
+    const data = await response.json() as {
+      voices?: unknown[];
+      has_more?: boolean;
+      total_count?: number;
+    };
+
+    const page = Math.max(0, Math.floor(input.page || 0));
+    const hasMore = Boolean(data.has_more);
+
+    return {
+      success: true,
+      providerId: 'elevenlabs',
+      voices: (data.voices || [])
+        .map(mapSharedVoice)
+        .filter((voice): voice is MediaProviderVoiceOption => Boolean(voice)),
+      voiceHasMore: hasMore,
+      voiceTotalCount: typeof data.total_count === 'number' ? data.total_count : undefined,
+      // The shared library paginates by integer page; encode the next page in the token
+      // so callers can reuse the same pagination plumbing as /v2/voices.
+      voiceNextPageToken: hasMore ? String(page + 1) : null,
+      models: [],
+    };
+  }
+
+  // Adds a community voice to the account's library so it can be used for TTS.
+  // Returns the new library voice_id (distinct from the shared voice_id).
+  static async addElevenLabsSharedVoice(
+    apiKey: string,
+    publicOwnerId: string,
+    voiceId: string,
+    newName: string
+  ): Promise<string> {
+    const url = `${ELEVENLABS_API_BASE}/v1/voices/add/${encodeURIComponent(publicOwnerId)}/${encodeURIComponent(voiceId)}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': normalizeApiKey(apiKey),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ new_name: newName, bookmarked: true }),
+    });
+
+    if (!response.ok) {
+      throw await parseErrorResponse(response, 'ElevenLabs');
+    }
+
+    const data = await response.json() as { voice_id?: string };
+    return data.voice_id || voiceId;
   }
 
   static recordMediaGeneration = recordMediaGeneration;

@@ -21,7 +21,7 @@ import {
 
 import { useTheme } from '../theme';
 import { AIConfig, type DebateVoiceConfig, type DebateVoiceSelection } from '../types';
-import type { MediaProviderVoiceOption } from '@/types/media';
+import type { ElevenLabsSharedVoiceQuery, ElevenLabsVoiceListQuery, MediaProviderOptionsResponse, MediaProviderVoiceOption } from '@/types/media';
 import type { DemoDebate } from '@/types/demo';
 import { AI_PROVIDERS } from '../config/aiProviders';
 import { FormatModal } from '../components/organisms/debate/FormatModal';
@@ -68,6 +68,66 @@ const PRESET_BUTTON_LABELS: Record<string, string> = {
   standard: 'Standard',
   long: 'Extended',
 };
+
+const DEFAULT_DEBATE_VOICE_QUERY: ElevenLabsVoiceListQuery = {
+  pageSize: 50,
+  includeTotalCount: true,
+  includeModels: false,
+  sort: 'name',
+  sortDirection: 'asc',
+  voiceType: 'non-community',
+};
+
+function getDebateVoiceSourceRank(voice: MediaProviderVoiceOption): number {
+  if (voice.sourceVoiceType === 'non-community' || voice.isOwner || voice.is_owner) return 0;
+  if (voice.sourceVoiceType === 'saved' || voice.isBookmarked || voice.is_bookmarked) return 1;
+  if (voice.sourceVoiceType === 'default') return 2;
+  return 3;
+}
+
+function getDebateVoiceRoleRank(voice: MediaProviderVoiceOption, role: 'debater' | 'mc'): number {
+  if (role === 'mc') {
+    if (voice.category === 'professional') return 0;
+    if (voice.category === 'premade') return 1;
+  }
+  if (voice.category === 'cloned' || voice.category === 'generated') return 0;
+  if (voice.category === 'professional') return 1;
+  if (voice.category === 'premade') return 2;
+  return 3;
+}
+
+function sortDebateVoicesForRole(
+  voices: MediaProviderVoiceOption[],
+  role: 'debater' | 'mc'
+): MediaProviderVoiceOption[] {
+  return [...voices].sort((a, b) => (
+    getDebateVoiceSourceRank(a) - getDebateVoiceSourceRank(b)
+    || getDebateVoiceRoleRank(a, role) - getDebateVoiceRoleRank(b, role)
+    || a.name.localeCompare(b.name)
+  ));
+}
+
+function mergeDebateVoiceOptions(
+  existing: MediaProviderVoiceOption[],
+  incoming: MediaProviderVoiceOption[]
+): MediaProviderVoiceOption[] {
+  const voicesById = new Map(existing.map((voice) => [voice.id, voice]));
+  incoming.forEach((voice) => {
+    const current = voicesById.get(voice.id);
+    if (!current) {
+      voicesById.set(voice.id, voice);
+      return;
+    }
+
+    const preferIncomingSource = getDebateVoiceSourceRank(voice) <= getDebateVoiceSourceRank(current);
+    voicesById.set(voice.id, {
+      ...current,
+      ...voice,
+      sourceVoiceType: preferIncomingSource ? voice.sourceVoiceType : current.sourceVoiceType,
+    });
+  });
+  return sortDebateVoicesForRole(Array.from(voicesById.values()), 'debater');
+}
 
 type PresetFlowStep = {
   label: string;
@@ -372,8 +432,12 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     });
   }, [configuredAIs, dispatch, maxAIs]);
 
-  const loadDebateVoices = useCallback(async () => {
-    if (!hasVerifiedElevenLabs || debateVoicesLoading) return;
+  const loadDebateVoices = useCallback(async (
+    query: ElevenLabsVoiceListQuery = DEFAULT_DEBATE_VOICE_QUERY
+  ): Promise<MediaProviderOptionsResponse> => {
+    if (!hasVerifiedElevenLabs) {
+      throw new Error('Add and verify an ElevenLabs API key before loading voices.');
+    }
     try {
       setDebateVoicesLoadAttempted(true);
       setDebateVoicesLoading(true);
@@ -382,21 +446,95 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
       if (!key) {
         throw new Error('Add an ElevenLabs API key before enabling voiced debates.');
       }
-      const options = await MediaGenerationService.listElevenLabsOptions(key, {
-        pageSize: 100,
-        includeTotalCount: true,
-        sort: 'name',
-        sortDirection: 'asc',
-      });
-      setDebateVoiceOptions(options.voices || []);
+      const options = await MediaGenerationService.listElevenLabsOptions(key, query);
+      const voices = (options.voices || []).map((voice) => ({
+        ...voice,
+        sourceVoiceType: voice.sourceVoiceType || query.voiceType,
+      }));
+      setDebateVoiceOptions((current) => mergeDebateVoiceOptions(current, voices));
+      return {
+        ...options,
+        voices,
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load ElevenLabs voices.';
       setDebateVoiceError(message);
       ErrorService.handleWithToast(error, { feature: 'debate', provider: 'elevenlabs' });
+      throw error;
     } finally {
       setDebateVoicesLoading(false);
     }
-  }, [debateVoicesLoading, hasVerifiedElevenLabs]);
+  }, [hasVerifiedElevenLabs]);
+
+  const loadDebateSharedVoices = useCallback(async (
+    query: ElevenLabsSharedVoiceQuery = {}
+  ): Promise<MediaProviderOptionsResponse> => {
+    if (!hasVerifiedElevenLabs) {
+      throw new Error('Add and verify an ElevenLabs API key before browsing community voices.');
+    }
+    const key = await APIKeyService.getKey('elevenlabs');
+    if (!key) {
+      throw new Error('Add an ElevenLabs API key before browsing community voices.');
+    }
+    return MediaGenerationService.listElevenLabsSharedVoices(key, query);
+  }, [hasVerifiedElevenLabs]);
+
+  const addDebateSharedVoice = useCallback(async (
+    voice: MediaProviderVoiceOption
+  ): Promise<MediaProviderVoiceOption> => {
+    const publicOwnerId = voice.publicOwnerId || voice.public_owner_id;
+    if (!publicOwnerId) {
+      throw new Error('This community voice cannot be added to your library.');
+    }
+    const key = await APIKeyService.getKey('elevenlabs');
+    if (!key) {
+      throw new Error('Add an ElevenLabs API key before adding voices.');
+    }
+    try {
+      const newVoiceId = await MediaGenerationService.addElevenLabsSharedVoice(
+        key,
+        publicOwnerId,
+        voice.id,
+        voice.name
+      );
+      // The added voice now lives in the account library with a new id usable for TTS.
+      const addedVoice: MediaProviderVoiceOption = {
+        ...voice,
+        id: newVoiceId,
+        voice_id: newVoiceId,
+        isCommunity: false,
+        sourceVoiceType: 'personal',
+        isAddedByUser: true,
+        is_added_by_user: true,
+      };
+      setDebateVoiceOptions((current) => mergeDebateVoiceOptions(current, [addedVoice]));
+      return addedVoice;
+    } catch (error) {
+      ErrorService.handleWithToast(error, { feature: 'debate', provider: 'elevenlabs' });
+      throw error;
+    }
+  }, []);
+
+  const loadInitialDebateVoices = useCallback(async () => {
+    const preferredSources: ElevenLabsVoiceListQuery[] = [
+      DEFAULT_DEBATE_VOICE_QUERY,
+      { ...DEFAULT_DEBATE_VOICE_QUERY, voiceType: 'saved' },
+      { ...DEFAULT_DEBATE_VOICE_QUERY, voiceType: 'default' },
+    ];
+
+    for (const query of preferredSources) {
+      const options = await loadDebateVoices(query);
+      if ((options.voices || []).length > 0) return options;
+    }
+
+    return {
+      success: true,
+      providerId: 'elevenlabs',
+      voices: [],
+      voiceHasMore: false,
+      voiceNextPageToken: null,
+    } as MediaProviderOptionsResponse;
+  }, [loadDebateVoices]);
 
   useEffect(() => {
     if (!hasVerifiedElevenLabs) {
@@ -412,7 +550,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
       && !debateVoicesLoading
       && !debateVoicesLoadAttempted
     ) {
-      void loadDebateVoices();
+      void loadInitialDebateVoices().catch(() => {});
     }
   }, [
     currentStep,
@@ -420,7 +558,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     debateVoicesLoadAttempted,
     debateVoicesLoading,
     hasVerifiedElevenLabs,
-    loadDebateVoices,
+    loadInitialDebateVoices,
   ]);
 
   useEffect(() => {
@@ -455,14 +593,19 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     if (!hasVerifiedElevenLabs || debateVoiceOptions.length === 0) return;
     setDebateVoiceSelections((current) => {
       const next: Record<string, DebateVoiceSelection> = {};
+      const sortedVoices = sortDebateVoicesForRole(debateVoiceOptions, 'debater');
+      const usedVoiceIds = new Set<string>();
       selectedAIs.forEach((ai, index) => {
         const existing = current[ai.id];
-        if (existing && debateVoiceOptions.some((voice) => voice.id === existing.voiceId)) {
+        if (existing) {
           next[ai.id] = existing;
+          usedVoiceIds.add(existing.voiceId);
           return;
         }
-        const fallbackVoice = debateVoiceOptions[index % debateVoiceOptions.length];
+        const fallbackVoice = sortedVoices.find((voice) => !usedVoiceIds.has(voice.id))
+          || sortedVoices[index % sortedVoices.length];
         if (fallbackVoice) {
+          usedVoiceIds.add(fallbackVoice.id);
           next[ai.id] = {
             voiceId: fallbackVoice.id,
             voiceName: fallbackVoice.name,
@@ -481,32 +624,38 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
 
   useEffect(() => {
     if (!podcastModeEnabled || !hasVerifiedElevenLabs || debateVoiceOptions.length === 0) return;
-    setPodcastMCVoice((current) => current || {
-      voiceId: debateVoiceOptions[0].id,
-      voiceName: debateVoiceOptions[0].name,
+    setPodcastMCVoice((current) => {
+      if (current) return current;
+      const debaterVoiceIds = new Set(Object.values(debateVoiceSelections).map((selection) => selection.voiceId));
+      const sortedVoices = sortDebateVoicesForRole(debateVoiceOptions, 'mc');
+      const fallbackVoice = sortedVoices.find((voice) => !debaterVoiceIds.has(voice.id)) || sortedVoices[0];
+      return fallbackVoice ? {
+        voiceId: fallbackVoice.id,
+        voiceName: fallbackVoice.name,
+      } : current;
     });
-  }, [debateVoiceOptions, hasVerifiedElevenLabs, podcastModeEnabled]);
+  }, [debateVoiceOptions, debateVoiceSelections, hasVerifiedElevenLabs, podcastModeEnabled]);
 
   const handleVoiceDebateToggle = useCallback((enabled: boolean) => {
     setVoiceDebateEnabled(enabled);
     if (enabled && debateVoiceOptions.length === 0) {
-      void loadDebateVoices();
+      void loadInitialDebateVoices().catch(() => {});
     }
-  }, [debateVoiceOptions.length, loadDebateVoices]);
+  }, [debateVoiceOptions.length, loadInitialDebateVoices]);
 
   const handlePodcastModeToggle = useCallback((enabled: boolean) => {
     setPodcastModeEnabled(enabled);
     if (enabled) {
       setVoiceDebateEnabled(true);
       if (debateVoiceOptions.length === 0) {
-        void loadDebateVoices();
+        void loadInitialDebateVoices().catch(() => {});
       }
     } else {
       setPendingSelectionTarget((current) => current?.kind === 'mc' ? null : current);
       setPodcastMC(null);
       setPodcastMCVoice(undefined);
     }
-  }, [debateVoiceOptions.length, loadDebateVoices]);
+  }, [debateVoiceOptions.length, loadInitialDebateVoices]);
 
   const handleDebateVoiceSelect = useCallback((aiId: string, voice: MediaProviderVoiceOption) => {
     setDebateVoiceSelections((current) => ({
@@ -1389,7 +1538,13 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
             podcastMC={podcastMC}
             podcastMCVoice={podcastMCVoice}
             onPodcastMCVoiceSelect={handlePodcastMCVoiceSelect}
-            onReloadVoices={loadDebateVoices}
+            onReloadVoices={() => {
+              void loadInitialDebateVoices().catch(() => {});
+            }}
+            onLoadVoices={loadDebateVoices}
+            onLoadSharedVoices={loadDebateSharedVoices}
+            onAddSharedVoice={addDebateSharedVoice}
+            elevenLabsTier={elevenLabsSubscription?.tier}
             ttsModelId={debateTtsModelId}
             onTtsModelChange={setDebateTtsModelId}
             elevenLabsCreditSummary={elevenLabsCreditSummary}

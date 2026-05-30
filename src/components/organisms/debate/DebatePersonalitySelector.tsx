@@ -4,13 +4,13 @@
  */
 
 import React, { useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useTheme } from '../../../theme';
 import { Typography, GradientButton, Button, SectionHeader } from '../../molecules';
 import { AIAvatar } from '@/components/organisms/common/AIAvatar';
 import type { AIConfig, DebateVoiceSelection } from '../../../types';
-import type { MediaProviderVoiceOption } from '@/types/media';
+import type { ElevenLabsSharedVoiceQuery, ElevenLabsVoiceListQuery, MediaProviderOptionsResponse, MediaProviderVoiceOption } from '@/types/media';
 import {
   ELEVENLABS_DEFAULT_TTS_MODEL,
   ELEVENLABS_FLASH_TTS_MODEL,
@@ -19,8 +19,8 @@ import {
 import { UNIVERSAL_PERSONALITIES } from '../../../config/personalities';
 // PersonalityService removed from this view to simplify UI
 import PersonalityModal from './PersonalityModal';
+import { DebateVoicePicker, type DebateVoicePickerTarget } from './DebateVoicePicker';
 
-type VoiceModalTarget = { kind: 'debater'; ai: AIConfig } | { kind: 'mc'; ai: AIConfig };
 type TeamSide = 'affirmative' | 'negative';
 
 interface DebatePersonalitySelectorProps {
@@ -47,6 +47,10 @@ interface DebatePersonalitySelectorProps {
   podcastMCVoice?: DebateVoiceSelection;
   onPodcastMCVoiceSelect?: (voice: MediaProviderVoiceOption) => void;
   onReloadVoices?: () => void;
+  onLoadVoices?: (query: ElevenLabsVoiceListQuery) => Promise<MediaProviderOptionsResponse>;
+  onLoadSharedVoices?: (query: ElevenLabsSharedVoiceQuery) => Promise<MediaProviderOptionsResponse>;
+  onAddSharedVoice?: (voice: MediaProviderVoiceOption) => Promise<MediaProviderVoiceOption>;
+  elevenLabsTier?: string;
   ttsModelId?: string;
   onTtsModelChange?: (modelId: string) => void;
   elevenLabsCreditSummary?: string;
@@ -89,6 +93,10 @@ export const DebatePersonalitySelector: React.FC<DebatePersonalitySelectorProps>
   podcastMCVoice,
   onPodcastMCVoiceSelect,
   onReloadVoices,
+  onLoadVoices,
+  onLoadSharedVoices,
+  onAddSharedVoice,
+  elevenLabsTier,
   ttsModelId = ELEVENLABS_DEFAULT_TTS_MODEL,
   onTtsModelChange,
   elevenLabsCreditSummary,
@@ -96,22 +104,10 @@ export const DebatePersonalitySelector: React.FC<DebatePersonalitySelectorProps>
   const { theme } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const [activeAI, setActiveAI] = useState<AIConfig | null>(null);
-  const [voiceModalTarget, setVoiceModalTarget] = useState<VoiceModalTarget | null>(null);
-  const [voiceSearch, setVoiceSearch] = useState('');
-  const voiceModalAI = voiceModalTarget?.ai || null;
+  const [voiceModalTarget, setVoiceModalTarget] = useState<DebateVoicePickerTarget | null>(null);
   const voicesRequired = podcastModeEnabled;
   const showVoiceControls = voiceConfigAvailable || voicesRequired;
   const voiceControlsActive = voicesRequired || voiceEnabled;
-  const voiceOptionsReady = voiceOptions.length > 0 && !voiceLoading && !voiceError;
-
-  const normalizedVoiceSearch = voiceSearch.trim().toLowerCase();
-  const filteredVoiceOptions = normalizedVoiceSearch
-    ? voiceOptions.filter((voice) => (
-      voice.name.toLowerCase().includes(normalizedVoiceSearch) ||
-      voice.description?.toLowerCase().includes(normalizedVoiceSearch) ||
-      voice.category?.toLowerCase().includes(normalizedVoiceSearch)
-    ))
-    : voiceOptions;
 
   const getSlotSide = (index: number): TeamSide => (
     selectedAIs.length <= 2
@@ -150,12 +146,11 @@ export const DebatePersonalitySelector: React.FC<DebatePersonalitySelectorProps>
     },
   ];
 
-  const openVoicePicker = (target: VoiceModalTarget) => {
+  const openVoicePicker = (target: DebateVoicePickerTarget) => {
     if (!voiceControlsActive) {
       onToggleVoiceEnabled?.(true);
     }
-    if (!voiceOptionsReady) return;
-    setVoiceSearch('');
+    if (!onLoadVoices) return;
     setVoiceModalTarget(target);
   };
 
@@ -473,91 +468,21 @@ export const DebatePersonalitySelector: React.FC<DebatePersonalitySelectorProps>
         aiName={activeAI?.name}
       />
 
-      <Modal
-        visible={Boolean(voiceModalTarget)}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setVoiceModalTarget(null)}
-      >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.48)', justifyContent: 'flex-end' }}>
-          <View style={{ maxHeight: '78%', backgroundColor: theme.colors.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: theme.spacing.lg }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: theme.spacing.md }}>
-              <View style={{ flex: 1 }}>
-                <Typography variant="subtitle" weight="semibold">
-                  Choose voice
-                </Typography>
-                <Typography variant="caption" color="secondary">
-                  {voiceModalTarget?.kind === 'mc' ? 'Podcast MC' : voiceModalAI?.name}
-                </Typography>
-              </View>
-              <Button title="Close" onPress={() => setVoiceModalTarget(null)} variant="ghost" size="small" />
-            </View>
-            <TextInput
-              value={voiceSearch}
-              onChangeText={setVoiceSearch}
-              placeholder="Search voices"
-              placeholderTextColor={theme.colors.text.disabled}
-              style={{
-                borderWidth: 1,
-                borderColor: theme.colors.border,
-                borderRadius: 12,
-                paddingHorizontal: theme.spacing.md,
-                paddingVertical: theme.spacing.sm,
-                color: theme.colors.text.primary,
-                backgroundColor: theme.colors.surface,
-                marginBottom: theme.spacing.md,
-              }}
-              testID="debate-voice-search-input"
-            />
-            <FlatList
-              data={filteredVoiceOptions}
-              keyExtractor={(voice) => voice.id}
-              keyboardShouldPersistTaps="handled"
-              renderItem={({ item }) => {
-                const selected = voiceModalTarget?.kind === 'mc'
-                  ? podcastMCVoice?.voiceId === item.id
-                  : voiceModalAI
-                    ? voiceSelections[voiceModalAI.id]?.voiceId === item.id
-                    : false;
-                return (
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (voiceModalTarget?.kind === 'mc') {
-                        onPodcastMCVoiceSelect?.(item);
-                      } else if (voiceModalAI) {
-                        onVoiceSelect?.(voiceModalAI.id, item);
-                      }
-                      setVoiceModalTarget(null);
-                    }}
-                    style={{
-                      paddingVertical: theme.spacing.md,
-                      borderBottomWidth: 1,
-                      borderBottomColor: theme.colors.border,
-                    }}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    testID={`debate-voice-option-${item.id}`}
-                  >
-                    <Typography variant="body" weight={selected ? 'semibold' : 'normal'}>
-                      {item.name}
-                    </Typography>
-                    {!!(item.description || item.category) && (
-                      <Typography variant="caption" color="secondary">
-                        {item.description || item.category}
-                      </Typography>
-                    )}
-                  </TouchableOpacity>
-                );
-              }}
-              ListEmptyComponent={(
-                <Typography variant="caption" color="secondary" align="center" style={{ paddingVertical: theme.spacing.lg }}>
-                  No loaded voices match this search.
-                </Typography>
-              )}
-            />
-          </View>
-        </View>
-      </Modal>
+      {onLoadVoices && (
+        <DebateVoicePicker
+          visible={Boolean(voiceModalTarget)}
+          target={voiceModalTarget}
+          voiceSelections={voiceSelections}
+          podcastMCVoice={podcastMCVoice}
+          onClose={() => setVoiceModalTarget(null)}
+          onLoadVoices={onLoadVoices}
+          onLoadSharedVoices={onLoadSharedVoices}
+          onAddSharedVoice={onAddSharedVoice}
+          elevenLabsTier={elevenLabsTier}
+          onVoiceSelect={onVoiceSelect}
+          onPodcastMCVoiceSelect={onPodcastMCVoiceSelect}
+        />
+      )}
       
       {/* Start Debate Button */}
       <GradientButton

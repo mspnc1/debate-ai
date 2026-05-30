@@ -25,6 +25,7 @@ export { RoundsModal } from './RoundsModal';
 export { DebateTopicSelector } from './DebateTopicSelector';
 export { DebateAISelector } from './DebateAISelector';
 export { DebatePersonalitySelector } from './DebatePersonalitySelector';
+export { DebateVoicePicker } from './DebateVoicePicker';
 export { default as PersonalityModal } from './PersonalityModal';
 export { DebateSetupSummary } from './DebateSetupSummary';
 export { DebateStepIndicator } from './DebateStepIndicator';
