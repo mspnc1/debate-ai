@@ -12,6 +12,7 @@ const mockUseFeatureAccess = jest.fn();
 const mockNavigate = jest.fn();
 const mockGetApiKey = jest.fn();
 const mockListElevenLabsOptions = jest.fn();
+const mockGetElevenLabsSubscription = jest.fn();
 const mockGenerateCreateImages = jest.fn((payload) => ({
   type: 'create/generateCreateImages',
   payload,
@@ -374,6 +375,7 @@ jest.mock('@/services/media/MediaGenerationService', () => ({
   __esModule: true,
   default: {
     listElevenLabsOptions: (...args: unknown[]) => mockListElevenLabsOptions(...args),
+    getElevenLabsSubscription: (...args: unknown[]) => mockGetElevenLabsSubscription(...args),
   },
 }));
 
@@ -417,6 +419,12 @@ describe('CreateSetupScreen', () => {
     mockUseSelector.mockImplementation((selector) => selector(baseState));
     mockUseFeatureAccess.mockReturnValue({ membershipStatus: 'premium', isDemo: false, isPremium: true });
     mockGetApiKey.mockResolvedValue('eleven-key');
+    mockGetElevenLabsSubscription.mockResolvedValue({
+      characterCount: 100,
+      characterLimit: 1000,
+      remainingCredits: 900,
+      overageAllowed: false,
+    });
     mockListElevenLabsOptions.mockResolvedValue({
       voices: [
         { id: 'voice_a', name: 'Narrator A', description: 'Warm narration' },
@@ -1000,18 +1008,53 @@ describe('CreateSetupScreen', () => {
 
       fireEvent.press(getByTestId('gradient-button'));
 
-      expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'create/generateCreateAudio',
-        payload: {
-          prompt: 'Read this line',
-          operation: 'text_to_speech',
-          modelId: 'eleven_v3',
-          voiceId: 'voice_a',
-          outputFormat: 'wav_44100',
-          durationSeconds: undefined,
-          promptInfluence: undefined,
-        },
-      }));
+      await waitFor(() => {
+        expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({
+          type: 'create/generateCreateAudio',
+          payload: {
+            prompt: 'Read this line',
+            operation: 'text_to_speech',
+            modelId: 'eleven_v3',
+            voiceId: 'voice_a',
+            outputFormat: 'wav_44100',
+            durationSeconds: undefined,
+            promptInfluence: undefined,
+          },
+        }));
+      });
+    });
+
+    it('uses Flash v2.5 as the default Create voiceover model', async () => {
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          settings: {
+            ...baseState.settings,
+            apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
+          },
+          create: {
+            ...baseState.create,
+            activeTab: 'audio',
+          },
+        })
+      );
+
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+
+      await waitFor(() => expect(getByText('Narrator A')).toBeTruthy());
+      fireEvent.changeText(getByTestId('create-audio-prompt-input'), 'Read this line');
+      fireEvent.press(getByTestId('gradient-button'));
+
+      await waitFor(() => {
+        expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({
+          type: 'create/generateCreateAudio',
+          payload: expect.objectContaining({
+            prompt: 'Read this line',
+            operation: 'text_to_speech',
+            modelId: 'eleven_flash_v2_5',
+          }),
+        }));
+      });
     });
 
     it('clears the audio prompt after successful generation', async () => {

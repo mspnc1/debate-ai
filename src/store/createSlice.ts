@@ -35,6 +35,7 @@ import {
 } from '../services/images/fileCache';
 import { ImageService } from '../services/images/ImageService';
 import MediaGenerationService from '../services/media/MediaGenerationService';
+import { getElevenLabsCreditCheck } from '../services/media/elevenLabsCredits';
 import { persistMediaDataUri, persistRemoteMedia, deleteMediaFile } from '../services/media/mediaFileCache';
 import { prepareRunwaySourceImage } from '../services/media/sourceImage';
 import { buildEnhancedPrompt } from '../config/create/stylePresets';
@@ -138,6 +139,8 @@ export interface GeneratedMediaEntry {
   createdAt: number;
   expiresAt?: number;
   error?: string;
+  characterCost?: number;
+  requestId?: string;
   voicePack?: DebateVoicePackManifest;
 }
 
@@ -1223,6 +1226,16 @@ export const generateCreateAudio = createAsyncThunk(
         throw new Error('Add an ElevenLabs API key before generating audio.');
       }
 
+      const subscription = payload.operation === 'text_to_speech'
+        ? await MediaGenerationService.getElevenLabsSubscription(apiKey).catch(() => undefined)
+        : undefined;
+      const creditCheck = payload.operation === 'text_to_speech'
+        ? getElevenLabsCreditCheck(prompt, modelId, subscription)
+        : undefined;
+      if (creditCheck?.shouldBlock) {
+        throw new Error(creditCheck.message || 'Not enough ElevenLabs credits to generate audio.');
+      }
+
       const audio = await MediaGenerationService.generateElevenLabsAudio({
         apiKey,
         operation: payload.operation,
@@ -1252,6 +1265,8 @@ export const generateCreateAudio = createAsyncThunk(
         durationSeconds: payload.durationSeconds,
         status: 'succeeded',
         createdAt: Date.now(),
+        characterCost: audio.characterCost,
+        requestId: audio.requestId,
       };
 
       dispatch(addToMediaGalleryWithCleanup(entry));

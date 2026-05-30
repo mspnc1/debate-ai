@@ -52,4 +52,22 @@ describe('debateSpeechLength', () => {
       maxTokens: 1200,
     });
   });
+
+  it('uses tighter token caps for voiced debates without changing text-only debates', () => {
+    const textOnly = getDebateSpeechLengthGuidance({
+      formatId: 'oxford',
+      presetId: 'short',
+      phase: 'opening',
+    });
+    const voiced = getDebateSpeechLengthGuidance({
+      formatId: 'oxford',
+      presetId: 'short',
+      phase: 'opening',
+      voiceMode: true,
+    });
+
+    expect(textOnly.maxTokens).toBe(6144);
+    expect(voiced.maxWords).toBe(textOnly.maxWords);
+    expect(voiced.maxTokens).toBe(550);
+  });
 });

@@ -783,6 +783,7 @@ export class DebateOrchestrator {
         presetId: preset.id,
         phase,
         cxRole: messageSpec.cxRole,
+        voiceMode: Boolean(this.session.voiceConfig?.enabled),
       });
       const minimal = this.promptBuilder.buildTurnPrompt({
         topic,

@@ -43,6 +43,11 @@ import { DemoContentService } from '@/services/demo/DemoContentService';
 import APIKeyService from '@/services/APIKeyService';
 import MediaGenerationService from '@/services/media/MediaGenerationService';
 import { ErrorService } from '@/services/errors/ErrorService';
+import { ELEVENLABS_DEFAULT_TTS_MODEL } from '@/config/mediaProviders';
+import {
+  formatElevenLabsCreditSummary,
+  type ElevenLabsSubscriptionInfo,
+} from '@/services/media/elevenLabsCredits';
 
 interface DebateSetupScreenProps {
   navigation: {
@@ -286,6 +291,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   const [podcastModeEnabled, setPodcastModeEnabled] = useState(false);
   const [podcastMC, setPodcastMC] = useState<AIConfig | null>(null);
   const [podcastMCVoice, setPodcastMCVoice] = useState<DebateVoiceSelection | undefined>(undefined);
+  const [debateTtsModelId, setDebateTtsModelId] = useState(ELEVENLABS_DEFAULT_TTS_MODEL);
   const [pendingSelectionTarget, setPendingSelectionTarget] = useState<PendingSelectionTarget | null>(null);
   const teamGridYRef = useRef(0);
   const providerSelectorYRef = useRef(0);
@@ -294,6 +300,8 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   const [debateVoicesLoading, setDebateVoicesLoading] = useState(false);
   const [debateVoiceError, setDebateVoiceError] = useState<string | null>(null);
   const [debateVoicesLoadAttempted, setDebateVoicesLoadAttempted] = useState(false);
+  const [elevenLabsSubscription, setElevenLabsSubscription] = useState<ElevenLabsSubscriptionInfo | undefined>();
+  const [elevenLabsSubscriptionLoading, setElevenLabsSubscriptionLoading] = useState(false);
 
   const presetOptions = useMemo(() => [3, 5, 7].map((rounds) => ({
     rounds,
@@ -327,6 +335,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     [debaterSlots, maxAIs],
   );
   const hasVerifiedElevenLabs = isApiKeyConfigured(apiKeys.elevenlabs) && verifiedProviders.includes('elevenlabs');
+  const elevenLabsCreditSummary = formatElevenLabsCreditSummary(elevenLabsSubscription, elevenLabsSubscriptionLoading);
   const selectedStreamingProviders = useMemo(() => {
     const seen = new Set<string>();
     return selectedAIs.filter((ai) => {
@@ -415,6 +424,34 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   ]);
 
   useEffect(() => {
+    let cancelled = false;
+    if (!hasVerifiedElevenLabs || currentStep !== 'personality') {
+      setElevenLabsSubscription(undefined);
+      setElevenLabsSubscriptionLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setElevenLabsSubscriptionLoading(true);
+    APIKeyService.getKey('elevenlabs')
+      .then((key) => key ? MediaGenerationService.getElevenLabsSubscription(key) : undefined)
+      .then((subscription) => {
+        if (!cancelled) setElevenLabsSubscription(subscription);
+      })
+      .catch(() => {
+        if (!cancelled) setElevenLabsSubscription(undefined);
+      })
+      .finally(() => {
+        if (!cancelled) setElevenLabsSubscriptionLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentStep, hasVerifiedElevenLabs]);
+
+  useEffect(() => {
     if (!hasVerifiedElevenLabs || debateVoiceOptions.length === 0) return;
     setDebateVoiceSelections((current) => {
       const next: Record<string, DebateVoiceSelection> = {};
@@ -501,6 +538,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     return {
       enabled: true,
       providerId: 'elevenlabs',
+      ttsModelId: debateTtsModelId,
       debaterVoices,
       ...(podcastModeEnabled && podcastMC && podcastMCVoice ? {
         podcast: {
@@ -518,6 +556,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
       } : {}),
     };
   }, [
+    debateTtsModelId,
     debateVoiceSelections,
     hasVerifiedElevenLabs,
     podcastMC,
@@ -584,6 +623,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
       setPodcastModeEnabled(false);
       setPodcastMC(null);
       setPodcastMCVoice(undefined);
+      setDebateTtsModelId(ELEVENLABS_DEFAULT_TTS_MODEL);
       setDebateVoicesLoadAttempted(false);
       setPendingSelectionTarget(null);
       setDebateVoiceSelections({});
@@ -1350,6 +1390,9 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
             podcastMCVoice={podcastMCVoice}
             onPodcastMCVoiceSelect={handlePodcastMCVoiceSelect}
             onReloadVoices={loadDebateVoices}
+            ttsModelId={debateTtsModelId}
+            onTtsModelChange={setDebateTtsModelId}
+            elevenLabsCreditSummary={elevenLabsCreditSummary}
           />
         )}
         </ResponsiveContainer>

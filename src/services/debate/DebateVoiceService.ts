@@ -7,8 +7,13 @@ import type { DebateAudioMetadata, DebateVoiceSelection, Message, MessageAttachm
 import MediaGenerationService, { type GeneratedAudioPayload } from '@/services/media/MediaGenerationService';
 import { persistDebateAudioDataUri } from './debateAudioStorage';
 import { sanitizeDebateSpeechForTTS } from './debateAudioSanitizer';
+import {
+  getElevenLabsCreditCheck,
+  estimateElevenLabsTtsCreditCost,
+  type ElevenLabsSubscriptionInfo,
+} from '@/services/media/elevenLabsCredits';
 
-export type DebateVoiceErrorCode = 'empty_speech' | 'speech_too_long' | 'generation_failed';
+export type DebateVoiceErrorCode = 'empty_speech' | 'speech_too_long' | 'insufficient_credits' | 'generation_failed';
 
 export const DEBATE_AUDIO_TTS_PROMPT_LIMIT = Math.min(3000, ELEVENLABS_DEFAULT_TTS_PROMPT_LIMIT);
 
@@ -33,6 +38,8 @@ export interface GenerateDebateVoiceAudioRequest {
   sessionId: string;
   message: Message;
   voice: DebateVoiceSelection;
+  ttsModelId?: string;
+  subscription?: ElevenLabsSubscriptionInfo;
 }
 
 export interface GeneratedDebateVoiceAudio {
@@ -62,6 +69,15 @@ export async function generateDebateVoiceAudio(
     );
   }
 
+  const ttsModelId = request.ttsModelId || ELEVENLABS_DEFAULT_TTS_MODEL;
+  const creditCheck = getElevenLabsCreditCheck(spokenText, ttsModelId, request.subscription);
+  if (creditCheck.shouldBlock) {
+    throw new DebateVoiceGenerationError(
+      'insufficient_credits',
+      creditCheck.message || 'Not enough ElevenLabs credits to generate this debate audio.'
+    );
+  }
+
   const generateAudio = dependencies.generateAudio || MediaGenerationService.generateElevenLabsAudio;
   const persistAudio = dependencies.persistAudio || persistDebateAudioDataUri;
   const now = dependencies.now || Date.now;
@@ -72,7 +88,7 @@ export async function generateDebateVoiceAudio(
       apiKey: request.apiKey,
       operation: 'text_to_speech',
       prompt: spokenText,
-      modelId: ELEVENLABS_DEFAULT_TTS_MODEL,
+      modelId: ttsModelId,
       voiceId: request.voice.voiceId,
       outputFormat: ELEVENLABS_DEFAULT_OUTPUT_FORMAT,
     });
@@ -102,9 +118,13 @@ export async function generateDebateVoiceAudio(
         voiceId: request.voice.voiceId,
         voiceName: request.voice.voiceName,
         modelId: audio.modelId,
+        ttsModelId: audio.modelId,
         generatedAt: now(),
         mimeType: persisted.mimeType,
         uri: persisted.uri,
+        estimatedCreditCost: estimateElevenLabsTtsCreditCost(spokenText, audio.modelId),
+        characterCost: audio.characterCost,
+        requestId: audio.requestId,
       },
     };
   } catch (error) {

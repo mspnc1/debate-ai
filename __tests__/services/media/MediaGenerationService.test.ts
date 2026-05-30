@@ -16,6 +16,17 @@ describe('MediaGenerationService', () => {
     } as unknown as Response;
   }
 
+  function mockAudioResponse(headers: Record<string, string> = {}): Response {
+    return {
+      ok: true,
+      status: 200,
+      arrayBuffer: jest.fn().mockResolvedValue(new Uint8Array([104, 105]).buffer),
+      headers: {
+        get: jest.fn((key: string) => headers[key.toLowerCase()] || null),
+      },
+    } as unknown as Response;
+  }
+
   beforeEach(() => {
     global.fetch = jest.fn();
   });
@@ -156,6 +167,60 @@ describe('MediaGenerationService', () => {
       prompt: 'Opening argument.',
       voiceId: 'voice-1',
     })).rejects.toThrow('ElevenLabs authentication failed: The API key is invalid or missing.');
+  });
+
+  it('defaults ElevenLabs TTS to Flash and records cost headers', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(mockAudioResponse({
+      'content-type': 'audio/mpeg',
+      'x-character-count': '19',
+      'request-id': 'req_123',
+    }));
+
+    const audio = await MediaGenerationService.generateElevenLabsAudio({
+      apiKey: 'elevenlabs_valid_key_123',
+      operation: 'text_to_speech',
+      prompt: 'Read this line',
+      voiceId: 'voice-1',
+    });
+
+    const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(JSON.parse(options.body)).toMatchObject({
+      text: 'Read this line',
+      model_id: 'eleven_flash_v2_5',
+    });
+    expect(audio).toMatchObject({
+      modelId: 'eleven_flash_v2_5',
+      characterCost: 19,
+      requestId: 'req_123',
+      mimeType: 'audio/mpeg',
+    });
+  });
+
+  it('looks up and parses ElevenLabs subscription credits', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(mockJsonResponse({
+      character_count: 1000,
+      character_limit: 1200,
+      max_credit_limit_extension: 0,
+      can_extend_character_limit: true,
+      next_character_count_reset_unix: 1704067200,
+    }));
+
+    const subscription = await MediaGenerationService.getElevenLabsSubscription('eleven-key');
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.elevenlabs.io/v1/user/subscription',
+      expect.objectContaining({
+        method: 'GET',
+        headers: { 'xi-api-key': 'eleven-key' },
+      })
+    );
+    expect(subscription).toMatchObject({
+      characterCount: 1000,
+      characterLimit: 1200,
+      remainingCredits: 200,
+      overageAllowed: false,
+      resetDateLabel: 'Jan 1, 2024',
+    });
   });
 
   it('rejects malformed Runway keys before sending a generation request', async () => {

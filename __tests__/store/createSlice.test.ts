@@ -103,6 +103,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { ImageService } from '@/services/images/ImageService';
 import { readStoredApiKey } from '@/services/apiKeys/apiKeyStorageCore';
+import MediaGenerationService from '@/services/media/MediaGenerationService';
 
 const initialState = reducer(undefined, { type: 'init' });
 const mockedGenerateImage = ImageService.generateImage as jest.Mock;
@@ -633,6 +634,37 @@ describe('createSlice', () => {
 
       resolveKey(null);
       await resultPromise;
+    });
+
+    it('blocks low-credit Create voiceover before calling ElevenLabs generation', async () => {
+      mockedReadStoredApiKey.mockResolvedValueOnce('eleven-key');
+      const subscriptionSpy = jest.spyOn(MediaGenerationService, 'getElevenLabsSubscription').mockResolvedValueOnce({
+        characterCount: 999,
+        characterLimit: 1000,
+        remainingCredits: 1,
+        overageAllowed: false,
+      });
+      const generateAudioSpy = jest.spyOn(MediaGenerationService, 'generateElevenLabsAudio');
+      const store = configureStore({
+        reducer: { create: reducer },
+      });
+
+      try {
+        await store.dispatch(generateCreateAudio({
+          prompt: 'Read this longer line',
+          operation: 'text_to_speech',
+        }));
+
+        expect(generateAudioSpy).not.toHaveBeenCalled();
+        expect(store.getState().create.lastMediaGenerationResult).toMatchObject({
+          mediaType: 'audio',
+          status: 'failed',
+          message: expect.stringContaining('Not enough ElevenLabs credits'),
+        });
+      } finally {
+        subscriptionSpy.mockRestore();
+        generateAudioSpy.mockRestore();
+      }
     });
 
     it('marks completed image generation as unseen create activity too', () => {

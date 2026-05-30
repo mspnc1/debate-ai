@@ -3,6 +3,10 @@ import {
   generateDebateVoiceAudio,
   DebateVoiceGenerationError,
 } from '@/services/debate/DebateVoiceService';
+import {
+  ELEVENLABS_DEFAULT_TTS_MODEL,
+  ELEVENLABS_MULTILINGUAL_TTS_MODEL,
+} from '@/config/mediaProviders';
 import type { Message } from '@/types';
 
 const message: Message = {
@@ -30,8 +34,10 @@ describe('generateDebateVoiceAudio', () => {
     const generateAudio = jest.fn().mockResolvedValue({
       dataUri: 'data:audio/mpeg;base64,YXVkaW8=',
       mimeType: 'audio/mpeg',
-      modelId: 'eleven_multilingual_v2',
+      modelId: ELEVENLABS_DEFAULT_TTS_MODEL,
       operation: 'text_to_speech',
+      characterCost: 25,
+      requestId: 'req_voice_1',
     });
     const persistAudio = jest.fn().mockResolvedValue({
       uri: 'file:///debate-audio/debate/msg-1.mp3',
@@ -54,6 +60,7 @@ describe('generateDebateVoiceAudio', () => {
       apiKey: 'key',
       operation: 'text_to_speech',
       prompt: 'A concise argument with evidence.',
+      modelId: ELEVENLABS_DEFAULT_TTS_MODEL,
       voiceId: 'voice-1',
     }));
     expect(persistAudio).toHaveBeenCalledWith('data:audio/mpeg;base64,YXVkaW8=', expect.objectContaining({
@@ -65,8 +72,66 @@ describe('generateDebateVoiceAudio', () => {
       status: 'ready',
       voiceId: 'voice-1',
       voiceName: 'Voice One',
+      modelId: ELEVENLABS_DEFAULT_TTS_MODEL,
+      ttsModelId: ELEVENLABS_DEFAULT_TTS_MODEL,
       generatedAt: 123,
+      characterCost: 25,
+      requestId: 'req_voice_1',
+      estimatedCreditCost: 17,
     });
+  });
+
+  it('passes through Multilingual v2 when explicitly selected', async () => {
+    const generateAudio = jest.fn().mockResolvedValue({
+      dataUri: 'data:audio/mpeg;base64,YXVkaW8=',
+      mimeType: 'audio/mpeg',
+      modelId: ELEVENLABS_MULTILINGUAL_TTS_MODEL,
+      operation: 'text_to_speech',
+    });
+    const persistAudio = jest.fn().mockResolvedValue({
+      uri: 'file:///debate-audio/debate/msg-1.mp3',
+      mimeType: 'audio/mpeg',
+      fileName: 'msg-1.mp3',
+    });
+
+    const result = await generateDebateVoiceAudio({
+      apiKey: 'key',
+      sessionId: 'debate-1',
+      message,
+      voice: { voiceId: 'voice-1', voiceName: 'Voice One' },
+      ttsModelId: ELEVENLABS_MULTILINGUAL_TTS_MODEL,
+    }, { generateAudio, persistAudio });
+
+    expect(generateAudio).toHaveBeenCalledWith(expect.objectContaining({
+      modelId: ELEVENLABS_MULTILINGUAL_TTS_MODEL,
+    }));
+    expect(result.metadata).toMatchObject({
+      modelId: ELEVENLABS_MULTILINGUAL_TTS_MODEL,
+      ttsModelId: ELEVENLABS_MULTILINGUAL_TTS_MODEL,
+      estimatedCreditCost: 33,
+    });
+  });
+
+  it('blocks low-credit auto-generation before calling ElevenLabs', async () => {
+    const generateAudio = jest.fn();
+
+    await expect(generateDebateVoiceAudio({
+      apiKey: 'key',
+      sessionId: 'debate-1',
+      message,
+      voice: { voiceId: 'voice-1', voiceName: 'Voice One' },
+      subscription: {
+        characterCount: 999,
+        characterLimit: 1000,
+        remainingCredits: 1,
+        overageAllowed: false,
+        resetDateLabel: 'Jan 1, 2024',
+      },
+    }, { generateAudio })).rejects.toMatchObject({
+      code: 'insufficient_credits',
+    } satisfies Partial<DebateVoiceGenerationError>);
+
+    expect(generateAudio).not.toHaveBeenCalled();
   });
 
   it('rejects empty speakable text before calling ElevenLabs', async () => {

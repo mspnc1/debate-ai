@@ -17,6 +17,10 @@ import type {
   MediaProviderVoiceOption,
 } from '@/types/media';
 import { bytesToBase64 } from './mediaFileCache';
+import {
+  parseElevenLabsSubscription,
+  type ElevenLabsSubscriptionInfo,
+} from './elevenLabsCredits';
 
 const RUNWAY_API_BASE = 'https://api.dev.runwayml.com/v1';
 const RUNWAY_API_VERSION = '2024-11-06';
@@ -61,6 +65,8 @@ export interface GeneratedAudioPayload {
   mimeType: string;
   modelId: string;
   operation: Extract<CreateMediaOperation, 'text_to_speech' | 'sound_effect'>;
+  characterCost?: number;
+  requestId?: string;
 }
 
 function mapRunwayStatus(status: string | undefined): CreateMediaAssetStatus {
@@ -126,6 +132,13 @@ function readProviderErrorStatus(parsed: unknown): string | undefined {
   }
 
   return readString(record, 'status') || readString(record, 'code');
+}
+
+function readHeaderNumber(headers: Headers, key: string): number | undefined {
+  const value = headers.get(key);
+  if (!value) return undefined;
+  const numeric = Number.parseInt(value, 10);
+  return Number.isFinite(numeric) && numeric >= 0 ? numeric : undefined;
 }
 
 function normalizeApiKey(apiKey: string): string {
@@ -468,7 +481,23 @@ export class MediaGenerationService {
       mimeType: responseMimeType,
       modelId,
       operation: request.operation,
+      characterCost: readHeaderNumber(response.headers, 'x-character-count'),
+      requestId: response.headers.get('request-id') || undefined,
     };
+  }
+
+  static async getElevenLabsSubscription(apiKey: string): Promise<ElevenLabsSubscriptionInfo> {
+    const response = await fetch(`${ELEVENLABS_API_BASE}/v1/user/subscription`, {
+      method: 'GET',
+      headers: { 'xi-api-key': normalizeApiKey(apiKey) },
+    });
+
+    if (!response.ok) {
+      throw await parseErrorResponse(response, 'ElevenLabs');
+    }
+
+    const data = await response.json();
+    return parseElevenLabsSubscription(data);
   }
 
   static async listElevenLabsOptions(

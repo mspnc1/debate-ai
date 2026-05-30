@@ -4,6 +4,7 @@ import { renderHookWithProviders } from '../../../test-utils/renderHookWithProvi
 import APIKeyService from '@/services/APIKeyService';
 import { StorageService } from '@/services/chat/StorageService';
 import { generateDebateVoiceAudio } from '@/services/debate/DebateVoiceService';
+import MediaGenerationService from '@/services/media/MediaGenerationService';
 import type { AI, DebateVoiceConfig, Message } from '@/types';
 import type { RootState } from '@/store';
 
@@ -18,6 +19,13 @@ jest.mock('@/services/chat/StorageService', () => ({
   StorageService: {
     loadSession: jest.fn(),
     mergeSession: jest.fn(),
+  },
+}));
+
+jest.mock('@/services/media/MediaGenerationService', () => ({
+  __esModule: true,
+  default: {
+    getElevenLabsSubscription: jest.fn(),
   },
 }));
 
@@ -55,6 +63,7 @@ const message: Message = {
 const voiceConfig: DebateVoiceConfig = {
   enabled: true,
   providerId: 'elevenlabs',
+  ttsModelId: 'eleven_flash_v2_5',
   debaterVoices: {
     claude: { voiceId: 'voice-1', voiceName: 'Voice One' },
   },
@@ -93,6 +102,12 @@ describe('useDebateVoiceGeneration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (APIKeyService.getKey as jest.Mock).mockResolvedValue('eleven-key');
+    (MediaGenerationService.getElevenLabsSubscription as jest.Mock).mockResolvedValue({
+      characterCount: 10,
+      characterLimit: 1000,
+      remainingCredits: 990,
+      overageAllowed: false,
+    });
     (StorageService.loadSession as jest.Mock).mockResolvedValue({
       id: 'debate-1',
       messages: [message],
@@ -107,7 +122,7 @@ describe('useDebateVoiceGeneration', () => {
         status: 'ready',
         voiceId: 'voice-1',
         voiceName: 'Voice One',
-        modelId: 'eleven_multilingual_v2',
+        modelId: 'eleven_flash_v2_5',
         generatedAt: 2,
         mimeType: 'audio/mpeg',
         uri: 'file:///debate/msg-1.mp3',
@@ -125,6 +140,10 @@ describe('useDebateVoiceGeneration', () => {
     await waitFor(() => {
       expect(generateDebateVoiceAudio).toHaveBeenCalledTimes(1);
     });
+    expect(generateDebateVoiceAudio).toHaveBeenCalledWith(expect.objectContaining({
+      ttsModelId: 'eleven_flash_v2_5',
+      subscription: expect.objectContaining({ remainingCredits: 990 }),
+    }));
 
     const updatedMessages = store.getState().chat.currentSession?.messages || [];
     expect(updatedMessages[0].metadata?.debateAudio?.status).toBe('ready');

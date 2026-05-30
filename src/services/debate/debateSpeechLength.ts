@@ -8,6 +8,7 @@ interface DebateSpeechLengthInput {
   presetId?: string;
   phase: PhaseId;
   cxRole?: CxRole;
+  voiceMode?: boolean;
 }
 
 export interface DebateSpeechLengthGuidance {
@@ -18,6 +19,7 @@ export interface DebateSpeechLengthGuidance {
 }
 
 const DEBATE_OUTPUT_SAFETY_TOKENS = 6144;
+const DEBATE_VOICE_OUTPUT_MIN_TOKENS = 256;
 
 const PRESET_MULTIPLIER: Record<string, number> = {
   short: 1,
@@ -67,7 +69,10 @@ function getMinWords(maxWords: number, phase: PhaseId): number {
   return Math.max(80, Math.round(maxWords * 0.7));
 }
 
-function getTokenCap(maxWords: number): number {
+function getTokenCap(maxWords: number, voiceMode?: boolean): number {
+  if (voiceMode) {
+    return Math.max(DEBATE_VOICE_OUTPUT_MIN_TOKENS, Math.ceil(maxWords * 2.5));
+  }
   return Math.max(DEBATE_OUTPUT_SAFETY_TOKENS, Math.ceil(maxWords * 2.2));
 }
 
@@ -110,7 +115,7 @@ export function getDebateSpeechLengthGuidance(input: DebateSpeechLengthInput): D
   const shouldScale = input.phase !== 'cross_examination' && input.formatId !== 'socratic';
   const maxWords = shouldScale ? applyPreset(baseMaxWords, input.presetId) : baseMaxWords;
   const minWords = getMinWords(maxWords, input.phase);
-  const maxTokens = getTokenCap(maxWords);
+  const maxTokens = getTokenCap(maxWords, input.voiceMode);
 
   return {
     minWords,

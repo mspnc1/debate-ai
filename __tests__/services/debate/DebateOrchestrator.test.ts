@@ -609,7 +609,7 @@ describe('DebateOrchestrator', () => {
       [],
       expect.any(Object),
       undefined,
-      expect.objectContaining({ maxTokens: 6144 }),
+      expect.objectContaining({ maxTokens: 550 }),
       'claude-sonnet-4-6'
     );
     expect(mcAdapter.sendMessage.mock.invocationCallOrder[0]).toBeLessThan(
@@ -723,7 +723,7 @@ describe('DebateOrchestrator', () => {
       'gpt-5'
     );
     expect(debaterAdapter.config.parameters).toEqual(expect.objectContaining({
-      maxTokens: 6144,
+      maxTokens: 550,
     }));
     expect(debaterAdapter.config.parameters).not.toEqual(expect.objectContaining({
       maxTokens: 1024,

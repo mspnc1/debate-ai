@@ -84,19 +84,27 @@ describe('DebatePersonalitySelector', () => {
   });
 
   it('shows optional per-AI voice controls when Debate Voices is on', () => {
+    const onTtsModelChange = jest.fn();
     const { getAllByText, getByText } = renderWithProviders(
       <DebatePersonalitySelector
         {...defaultProps}
         selectedAIs={mockAIs}
         voiceConfigAvailable
         voiceEnabled
+        ttsModelId="eleven_flash_v2_5"
+        onTtsModelChange={onTtsModelChange}
         voiceOptions={[{ id: 'voice-1', name: 'Voice One' } as MediaProviderVoiceOption]}
       />
     );
 
     expect(getByText('Debate Voices')).toBeTruthy();
+    expect(getByText('TTS Model')).toBeTruthy();
+    expect(getByText('Lower-cost default for debate and podcast audio.')).toBeTruthy();
     expect(getAllByText('Voice (optional)')).toHaveLength(mockAIs.length);
     expect(getAllByText('Choose a voice')).toHaveLength(mockAIs.length);
+
+    fireEvent.press(getByText('Multilingual'));
+    expect(onTtsModelChange).toHaveBeenCalledWith('eleven_multilingual_v2');
   });
 
   it('renders a separate voice-only MC card in podcast mode', () => {

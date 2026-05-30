@@ -254,10 +254,12 @@ jest.mock('@/services/APIKeyService', () => ({
 }));
 
 const mockListElevenLabsOptions = jest.fn();
+const mockGetElevenLabsSubscription = jest.fn();
 jest.mock('@/services/media/MediaGenerationService', () => ({
   __esModule: true,
   default: {
     listElevenLabsOptions: (...args: unknown[]) => mockListElevenLabsOptions(...args),
+    getElevenLabsSubscription: (...args: unknown[]) => mockGetElevenLabsSubscription(...args),
   },
 }));
 
@@ -323,7 +325,14 @@ beforeEach(() => {
   mockFindDebateById.mockReset();
   mockGetAPIKey.mockReset();
   mockListElevenLabsOptions.mockReset();
+  mockGetElevenLabsSubscription.mockReset();
   mockGetAPIKey.mockResolvedValue('eleven-key');
+  mockGetElevenLabsSubscription.mockResolvedValue({
+    characterCount: 100,
+    characterLimit: 1000,
+    remainingCredits: 900,
+    overageAllowed: false,
+  });
   mockListElevenLabsOptions.mockResolvedValue({
     success: true,
     providerId: 'elevenlabs',
@@ -763,6 +772,8 @@ describe('DebateSetupScreen', () => {
     }));
     expect(personalitySelectorProps.voiceConfigAvailable).toBe(true);
     expect(personalitySelectorProps.voiceOptions).toHaveLength(2);
+    expect(personalitySelectorProps.ttsModelId).toBe('eleven_flash_v2_5');
+    expect(personalitySelectorProps.elevenLabsCreditSummary).toContain('900 remaining');
 
     act(() => {
       personalitySelectorProps.onToggleVoiceEnabled(true);
@@ -777,6 +788,7 @@ describe('DebateSetupScreen', () => {
       voiceConfig: {
         enabled: true,
         providerId: 'elevenlabs',
+        ttsModelId: 'eleven_flash_v2_5',
         debaterVoices: {
           [claudeDebater.id]: { voiceId: 'voice-1', voiceName: 'Voice One' },
           [openaiDebater.id]: { voiceId: 'voice-2', voiceName: 'Voice Two' },
@@ -837,12 +849,18 @@ describe('DebateSetupScreen', () => {
     expect(personalitySelectorProps.podcastMC.provider).toBe('google');
     expect(personalitySelectorProps.podcastMCVoice).toEqual({ voiceId: 'voice-1', voiceName: 'Voice One' });
 
+    act(() => {
+      personalitySelectorProps.onTtsModelChange('eleven_multilingual_v2');
+    });
+    await flush();
+
     await act(async () => {
       await personalitySelectorProps.onStartDebate();
     });
 
     expect(navigation.navigate).toHaveBeenCalledWith('Debate', expect.objectContaining({
       voiceConfig: expect.objectContaining({
+        ttsModelId: 'eleven_multilingual_v2',
         podcast: {
           enabled: true,
           scriptMode: 'byok_ai',

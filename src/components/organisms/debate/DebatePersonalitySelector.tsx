@@ -9,8 +9,13 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { useTheme } from '../../../theme';
 import { Typography, GradientButton, Button, SectionHeader } from '../../molecules';
 import { AIAvatar } from '@/components/organisms/common/AIAvatar';
-import { AIConfig, type DebateVoiceSelection } from '../../../types';
+import type { AIConfig, DebateVoiceSelection } from '../../../types';
 import type { MediaProviderVoiceOption } from '@/types/media';
+import {
+  ELEVENLABS_DEFAULT_TTS_MODEL,
+  ELEVENLABS_FLASH_TTS_MODEL,
+  ELEVENLABS_MULTILINGUAL_TTS_MODEL,
+} from '@/config/mediaProviders';
 import { UNIVERSAL_PERSONALITIES } from '../../../config/personalities';
 // PersonalityService removed from this view to simplify UI
 import PersonalityModal from './PersonalityModal';
@@ -42,7 +47,23 @@ interface DebatePersonalitySelectorProps {
   podcastMCVoice?: DebateVoiceSelection;
   onPodcastMCVoiceSelect?: (voice: MediaProviderVoiceOption) => void;
   onReloadVoices?: () => void;
+  ttsModelId?: string;
+  onTtsModelChange?: (modelId: string) => void;
+  elevenLabsCreditSummary?: string;
 }
+
+const TTS_MODEL_OPTIONS = [
+  {
+    id: ELEVENLABS_FLASH_TTS_MODEL,
+    label: 'Flash',
+    description: 'Lower-cost default for debate and podcast audio.',
+  },
+  {
+    id: ELEVENLABS_MULTILINGUAL_TTS_MODEL,
+    label: 'Multilingual',
+    description: 'Higher-quality voiceover model with higher credit use.',
+  },
+];
 
 export const DebatePersonalitySelector: React.FC<DebatePersonalitySelectorProps> = ({
   // selectedTopic,
@@ -68,6 +89,9 @@ export const DebatePersonalitySelector: React.FC<DebatePersonalitySelectorProps>
   podcastMCVoice,
   onPodcastMCVoiceSelect,
   onReloadVoices,
+  ttsModelId = ELEVENLABS_DEFAULT_TTS_MODEL,
+  onTtsModelChange,
+  elevenLabsCreditSummary,
 }) => {
   const { theme } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
@@ -196,6 +220,12 @@ export const DebatePersonalitySelector: React.FC<DebatePersonalitySelectorProps>
             )}
           </View>
 
+          {!!elevenLabsCreditSummary && (
+            <Typography variant="caption" color="secondary" style={{ marginTop: theme.spacing.sm }}>
+              {elevenLabsCreditSummary}
+            </Typography>
+          )}
+
           {voiceControlsActive && (
             <View style={{ marginTop: theme.spacing.sm, gap: theme.spacing.xs }}>
               {voiceLoading && (
@@ -224,6 +254,26 @@ export const DebatePersonalitySelector: React.FC<DebatePersonalitySelectorProps>
                   <Button title="Reload voices" onPress={() => onReloadVoices?.()} variant="secondary" size="small" />
                 </View>
               )}
+
+              <View style={{ gap: theme.spacing.xs, marginTop: theme.spacing.xs }}>
+                <Typography variant="caption" weight="semibold" color="secondary">
+                  TTS Model
+                </Typography>
+                <View style={{ flexDirection: 'row', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+                  {TTS_MODEL_OPTIONS.map((model) => (
+                    <Button
+                      key={model.id}
+                      title={model.label}
+                      onPress={() => onTtsModelChange?.(model.id)}
+                      variant={ttsModelId === model.id ? 'primary' : 'secondary'}
+                      size="small"
+                    />
+                  ))}
+                </View>
+                <Typography variant="caption" color="secondary">
+                  {TTS_MODEL_OPTIONS.find((model) => model.id === ttsModelId)?.description || TTS_MODEL_OPTIONS[0].description}
+                </Typography>
+              </View>
             </View>
           )}
         </View>

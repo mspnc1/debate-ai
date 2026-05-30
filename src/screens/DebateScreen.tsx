@@ -12,7 +12,7 @@ import { ErrorService } from '@/services/errors/ErrorService';
 import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
 import { ContextBar, Typography } from '../components/molecules';
 import { useTheme } from '../theme';
-import { AI, type DebateVoiceConfig } from '../types';
+import type { AI, DebateVoiceConfig, Message } from '../types';
 import { usePersonality } from '@/hooks/usePersonality';
 import {
   useDebateSession,
@@ -63,6 +63,8 @@ import {
   type DebateVoicePackCandidate,
 } from '@/services/debate';
 import DebateAudioCompileService from '@/services/debate/debateAudioCompileService';
+import { sanitizeDebateSpeechForTTS } from '@/services/debate/debateAudioSanitizer';
+import { estimateElevenLabsTtsCreditCost } from '@/services/media/elevenLabsCredits';
 import { ActiveSessionPersistenceService, type ActiveDebateSessionSnapshot } from '@/services/lifecycle/ActiveSessionPersistenceService';
 import { AppLifecycleService } from '@/services/lifecycle/AppLifecycleService';
 import { useRecoverableExitGuard } from '@/hooks/lifecycle/useRecoverableExitGuard';
@@ -285,9 +287,30 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     ));
   }, []);
 
+  const handleRetryDebateAudio = useCallback((message: Message, speakerName?: string) => {
+    const audioStatus = message.metadata?.debateAudio?.status;
+    if (audioStatus === 'ready' || audioStatus === 'generating') return;
+    const spokenText = sanitizeDebateSpeechForTTS(message.content);
+    const estimatedCost = estimateElevenLabsTtsCreditCost(spokenText, voiceConfig?.ttsModelId);
+    const label = speakerName || message.sender;
+    Alert.alert(
+      'Retry voice clip?',
+      `Retrying ${label}'s clip will use about ${estimatedCost.toLocaleString()} ElevenLabs credits.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Retry',
+          onPress: () => debateVoice.retryMessageAudio(message),
+        },
+      ],
+      { cancelable: true }
+    );
+  }, [debateVoice, voiceConfig?.ttsModelId]);
+
   const handleRetryVoicePackClip = useCallback((candidate: DebateVoicePackCandidate) => {
-    debateVoice.retryMessageAudio(candidate.message);
-  }, [debateVoice]);
+    if (candidate.status === 'ready' || candidate.status === 'generating') return;
+    handleRetryDebateAudio(candidate.message, candidate.speakerName);
+  }, [handleRetryDebateAudio]);
 
   useEffect(() => {
     if (!voicePackModalVisible) return;
@@ -864,7 +887,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
             typingAIs={messages.typingAIs}
             bottomInset={bottomInset}
             canRetryAudio={debateVoice.canRetryAudio}
-            onRetryAudio={debateVoice.retryMessageAudio}
+            onRetryAudio={handleRetryDebateAudio}
             retryTurnMessageId={flow.continuation?.continueAction === 'retry_message' ? flow.continuation.retryMessageId : undefined}
             onRetryTurn={flow.continueDebate}
           />

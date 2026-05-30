@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import APIKeyService from '@/services/APIKeyService';
 import { StorageService } from '@/services/chat/StorageService';
 import { DebateVoiceGenerationError, generateDebateVoiceAudio } from '@/services/debate/DebateVoiceService';
+import MediaGenerationService from '@/services/media/MediaGenerationService';
 import { updateMessage, isApiKeyConfigured, type RootState } from '@/store';
 import type { AI, DebateAudioMetadata, DebateVoiceConfig, DebateVoiceSelection, Message, MessageAttachment } from '@/types';
 
@@ -203,12 +204,15 @@ export function useDebateVoiceGeneration({
       if (!apiKey) {
         throw new DebateVoiceGenerationError('generation_failed', 'Add an ElevenLabs API key before generating debate audio.');
       }
+      const subscription = await MediaGenerationService.getElevenLabsSubscription(apiKey).catch(() => undefined);
 
       const result = await generateDebateVoiceAudio({
         apiKey,
         sessionId,
         message,
         voice,
+        ttsModelId: voiceConfig.ttsModelId,
+        subscription,
       });
 
       const latestMessage = getMessageById(messagesRef.current, message.id) || message;

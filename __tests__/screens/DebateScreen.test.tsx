@@ -393,6 +393,7 @@ type RenderOptions = {
   voting?: Record<string, unknown>;
   topicSelection?: Record<string, unknown>;
   messages?: Record<string, unknown>;
+  voiceGeneration?: Record<string, unknown>;
   featureAccess?: Record<string, unknown>;
   routeParams?: Record<string, unknown>;
   store?: ReturnType<typeof createAppStore>;
@@ -405,6 +406,7 @@ const renderScreen = (options: RenderOptions = {}) => {
     voting: votingOverrides,
     topicSelection: topicOverrides,
     messages: messagesOverrides,
+    voiceGeneration: voiceGenerationOverrides,
     featureAccess,
     routeParams,
     store,
@@ -424,6 +426,7 @@ const renderScreen = (options: RenderOptions = {}) => {
   mockUseDebateVoiceGeneration.mockReturnValue({
     canRetryAudio: false,
     retryMessageAudio: jest.fn(),
+    ...voiceGenerationOverrides,
   });
   mockFeatureAccess.mockReturnValue({ isDemo: false, ...featureAccess });
 
@@ -1005,6 +1008,67 @@ describe('DebateScreen', () => {
         galleryTab: 'audio',
       });
     });
+  });
+
+  it('confirms failed speech audio retry before calling the retry generator', async () => {
+    const retryMessageAudio = jest.fn();
+    const failedMessage: Message = {
+      id: 'msg_failed',
+      sender: 'Claude',
+      senderType: 'ai',
+      content: 'A [concise retry](https://example.com) speech.',
+      timestamp: 1,
+      metadata: {
+        providerId: 'left',
+        debateSpeech: { speaker: 'aff', label: 'Opening statement' },
+        debateAudio: {
+          status: 'failed',
+          voiceId: 'voice-1',
+          voiceName: 'Aria',
+          error: 'Not enough credits',
+        },
+      },
+    };
+
+    renderScreen({
+      flow: { isDebateActive: true },
+      session: { isInitialized: true, session: { id: 'debate_1', topic: 'Resolved: podcasts matter.' }, orchestrator: {} },
+      messages: { messages: [failedMessage] },
+      voiceGeneration: {
+        canRetryAudio: true,
+        retryMessageAudio,
+      },
+      routeParams: {
+        topic: 'Resolved: podcasts matter.',
+        voiceConfig: {
+          enabled: true,
+          providerId: 'elevenlabs',
+          ttsModelId: 'eleven_flash_v2_5',
+          debaterVoices: {
+            left: { voiceId: 'voice-1', voiceName: 'Aria' },
+          },
+        },
+      },
+    });
+
+    act(() => {
+      mockDebateMessageListProps.onRetryAudio(failedMessage);
+    });
+
+    expect(retryMessageAudio).not.toHaveBeenCalled();
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Retry voice clip?',
+      "Retrying Claude's clip will use about 12 ElevenLabs credits.",
+      expect.any(Array),
+      { cancelable: true }
+    );
+
+    const buttons = (Alert.alert as jest.Mock).mock.calls[0][2] as Array<{ text: string; onPress?: () => void }>;
+    act(() => {
+      buttons.find((button) => button.text === 'Retry')?.onPress?.();
+    });
+
+    expect(retryMessageAudio).toHaveBeenCalledWith(failedMessage);
   });
 
   it('keeps the podcast modal stable when debate messages are rebuilt during render', async () => {

@@ -144,7 +144,7 @@ describe('ConnectionTestService', () => {
     });
     expect(JSON.parse(ttsRequest?.body as string)).toMatchObject({
       text: 'Hi.',
-      model_id: 'eleven_multilingual_v2',
+      model_id: 'eleven_flash_v2_5',
     });
   });
 

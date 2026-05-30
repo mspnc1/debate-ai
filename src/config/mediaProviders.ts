@@ -46,7 +46,9 @@ export const RUNWAY_DEFAULT_VIDEO_MODEL = 'gen4.5';
 export const RUNWAY_DEFAULT_ASPECT_RATIO = '1280:720';
 export const RUNWAY_DEFAULT_DURATION_SECONDS = 5;
 
-export const ELEVENLABS_DEFAULT_TTS_MODEL = 'eleven_multilingual_v2';
+export const ELEVENLABS_FLASH_TTS_MODEL = 'eleven_flash_v2_5';
+export const ELEVENLABS_MULTILINGUAL_TTS_MODEL = 'eleven_multilingual_v2';
+export const ELEVENLABS_DEFAULT_TTS_MODEL = ELEVENLABS_FLASH_TTS_MODEL;
 export const ELEVENLABS_DEFAULT_SFX_MODEL = 'eleven_text_to_sound_v2';
 export const ELEVENLABS_DEFAULT_OUTPUT_FORMAT = 'mp3_44100_128';
 export const ELEVENLABS_DEFAULT_VOICE_ID = 'JBFqnCBsd6RMkjVDRZzb';
@@ -249,20 +251,20 @@ export const MEDIA_PROVIDERS: MediaProviderInfo[] = [
         maxInputCharacters: 5000,
       },
       {
-        id: ELEVENLABS_DEFAULT_TTS_MODEL,
-        label: 'Multilingual v2',
-        description: 'Default high-quality TTS model for long-form voiceover.',
-        mediaType: 'audio',
-        operations: ['text_to_speech'],
-        maxInputCharacters: ELEVENLABS_DEFAULT_TTS_PROMPT_LIMIT,
-      },
-      {
-        id: 'eleven_flash_v2_5',
+        id: ELEVENLABS_FLASH_TTS_MODEL,
         label: 'Flash v2.5',
-        description: 'Low-latency multilingual TTS model.',
+        description: 'Default low-cost, low-latency multilingual TTS model.',
         mediaType: 'audio',
         operations: ['text_to_speech'],
         maxInputCharacters: 40000,
+      },
+      {
+        id: ELEVENLABS_MULTILINGUAL_TTS_MODEL,
+        label: 'Multilingual v2',
+        description: 'Higher-cost TTS model for long-form voiceover quality.',
+        mediaType: 'audio',
+        operations: ['text_to_speech'],
+        maxInputCharacters: ELEVENLABS_DEFAULT_TTS_PROMPT_LIMIT,
       },
       {
         id: ELEVENLABS_DEFAULT_SFX_MODEL,

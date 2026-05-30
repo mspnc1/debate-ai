@@ -131,6 +131,7 @@ export interface DebatePodcastConfig {
 export interface DebateVoiceConfig {
   enabled: true;
   providerId: 'elevenlabs';
+  ttsModelId?: string;
   debaterVoices: Record<string, DebateVoiceSelection>;
   podcast?: DebatePodcastConfig;
 }
@@ -144,6 +145,10 @@ export interface DebateAudioMetadata {
   mimeType?: string;
   uri?: string;
   error?: string;
+  characterCost?: number;
+  requestId?: string;
+  ttsModelId?: string;
+  estimatedCreditCost?: number;
 }
 
 export interface DebateInterstitialMetadata {

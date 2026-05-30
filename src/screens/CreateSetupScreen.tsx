@@ -92,6 +92,11 @@ import { getAIProviderIcon } from '../utils/aiProviderAssets';
 import { getImageMimeType } from '../services/images/fileCache';
 import APIKeyService from '../services/APIKeyService';
 import MediaGenerationService from '../services/media/MediaGenerationService';
+import {
+  getElevenLabsCreditCheck,
+  formatElevenLabsCreditSummary,
+  type ElevenLabsSubscriptionInfo,
+} from '../services/media/elevenLabsCredits';
 import { ErrorService } from '../services/errors/ErrorService';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
@@ -155,6 +160,17 @@ function mergeAudioVoices(
   return Array.from(voicesById.values());
 }
 
+function mergeAudioModels(
+  existing: MediaProviderModelOption[],
+  incoming: MediaProviderModelOption[]
+): MediaProviderModelOption[] {
+  const modelsById = new Map(existing.map((model) => [model.id, model]));
+  incoming.forEach((model) => {
+    modelsById.set(model.id, model);
+  });
+  return Array.from(modelsById.values());
+}
+
 export default function CreateSetupScreen() {
   const { theme, isDark } = useTheme();
   const navigation = useNavigation<NavigationProp>();
@@ -212,6 +228,8 @@ export default function CreateSetupScreen() {
   const [audioVoiceTotalCount, setAudioVoiceTotalCount] = useState<number | undefined>();
   const [audioVoiceSearch, setAudioVoiceSearch] = useState('');
   const [audioPicker, setAudioPicker] = useState<AudioPickerType | null>(null);
+  const [elevenLabsSubscription, setElevenLabsSubscription] = useState<ElevenLabsSubscriptionInfo | undefined>();
+  const [elevenLabsSubscriptionLoading, setElevenLabsSubscriptionLoading] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const videoOperation: Extract<CreateMediaOperation, 'text_to_video' | 'image_to_video'> = videoSourceUri
     ? 'image_to_video'
@@ -235,6 +253,7 @@ export default function CreateSetupScreen() {
   const primaryTintBackground = isDark ? theme.colors.overlays.medium : theme.colors.primary[50];
   const primaryTintStrongBackground = isDark ? theme.colors.overlays.strong : theme.colors.primary[100];
   const primaryAccentColor = isDark ? theme.colors.primary[300] : theme.colors.primary[600];
+  const elevenLabsCreditSummary = formatElevenLabsCreditSummary(elevenLabsSubscription, elevenLabsSubscriptionLoading);
 
   useEffect(() => {
     if (runwayModels.some((model) => model.id === videoModelId)) {
@@ -248,6 +267,34 @@ export default function CreateSetupScreen() {
     setVideoDuration(nextDurations[0] || RUNWAY_DEFAULT_DURATION_SECONDS);
     setVideoAspectRatio(nextRatios[0]?.id || RUNWAY_DEFAULT_ASPECT_RATIO);
   }, [runwayModels, videoModelId, videoOperation]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!hasElevenLabsKey || activeTab !== 'audio') {
+      setElevenLabsSubscription(undefined);
+      setElevenLabsSubscriptionLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setElevenLabsSubscriptionLoading(true);
+    APIKeyService.getKey('elevenlabs')
+      .then((key) => key ? MediaGenerationService.getElevenLabsSubscription(key) : undefined)
+      .then((subscription) => {
+        if (!cancelled) setElevenLabsSubscription(subscription);
+      })
+      .catch(() => {
+        if (!cancelled) setElevenLabsSubscription(undefined);
+      })
+      .finally(() => {
+        if (!cancelled) setElevenLabsSubscriptionLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, hasElevenLabsKey]);
 
   // Listen for keyboard show/hide to toggle Generate button visibility
   useEffect(() => {
@@ -298,7 +345,7 @@ export default function CreateSetupScreen() {
           sortDirection: 'asc',
         });
         setAudioVoices(options.voices || []);
-        setAudioModels(options.models || []);
+        setAudioModels(mergeAudioModels(getMediaModels('elevenlabs'), options.models || []));
         setAudioVoiceHasMore(Boolean(options.voiceHasMore));
         setAudioVoiceNextPageToken(options.voiceNextPageToken || null);
         setAudioVoiceTotalCount(options.voiceTotalCount);
@@ -622,9 +669,36 @@ export default function CreateSetupScreen() {
       return;
     }
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const submittedPrompt = audioPrompt;
     try {
+      if (audioOperation === 'text_to_speech') {
+        const key = await APIKeyService.getKey('elevenlabs');
+        if (!key) {
+          throw new Error('Add an ElevenLabs API key before generating audio.');
+        }
+        const subscription = await MediaGenerationService.getElevenLabsSubscription(key).catch(() => undefined);
+        const creditCheck = getElevenLabsCreditCheck(submittedPrompt.trim(), activeAudioModelId, subscription);
+        if (creditCheck.shouldBlock) {
+          ErrorService.showWarning(creditCheck.message || 'Not enough ElevenLabs credits to generate audio.', 'create');
+          return;
+        }
+        if (creditCheck.shouldWarn && creditCheck.message) {
+          const confirmed = await new Promise<boolean>((resolve) => {
+            Alert.alert(
+              'Use ElevenLabs credits?',
+              creditCheck.message,
+              [
+                { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+                { text: 'Generate', onPress: () => resolve(true) },
+              ],
+              { cancelable: true, onDismiss: () => resolve(false) }
+            );
+          });
+          if (!confirmed) return;
+        }
+      }
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await dispatch(generateCreateAudio({
         prompt: submittedPrompt,
         operation: audioOperation,
@@ -674,7 +748,7 @@ export default function CreateSetupScreen() {
 
       setAudioVoices((current) => mergeAudioVoices(current, options.voices || []));
       if (options.models?.length) {
-        setAudioModels(options.models);
+        setAudioModels((current) => mergeAudioModels(current.length > 0 ? current : getMediaModels('elevenlabs'), options.models || []));
       }
       setAudioVoiceHasMore(Boolean(options.voiceHasMore));
       setAudioVoiceNextPageToken(options.voiceNextPageToken || null);
@@ -1854,6 +1928,13 @@ export default function CreateSetupScreen() {
     return (
       <>
         {!hasElevenLabsKey && renderProviderSetup('ElevenLabs')}
+        {hasElevenLabsKey && elevenLabsCreditSummary && (
+          <View style={styles.section}>
+            <Typography variant="caption" color="secondary">
+              {elevenLabsCreditSummary}
+            </Typography>
+          </View>
+        )}
 
         <View style={styles.section}>
           <SectionHeader title="Audio Mode" subtitle="Voiceover or generated sound" icon="🎧" helpTopicId="create-audio-mode" />
