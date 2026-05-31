@@ -1,6 +1,6 @@
 import React from 'react';
 import { FlatList } from 'react-native';
-import { render, screen, waitFor, act } from '@testing-library/react-native';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react-native';
 import { ChatMessageList } from '../../../../src/components/organisms/chat/ChatMessageList';
 import { useTheme } from '../../../../src/theme';
 import { Message } from '../../../../src/types';
@@ -115,6 +115,12 @@ describe('ChatMessageList', () => {
     mockUseTheme.mockReturnValue(mockTheme);
     jest.useFakeTimers();
   });
+
+  const flushScheduledScroll = () => {
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+  };
 
   afterEach(() => {
     act(() => {
@@ -245,6 +251,7 @@ describe('ChatMessageList', () => {
       act(() => {
         UNSAFE_getByType(FlatList).props.onContentSizeChange();
       });
+      flushScheduledScroll();
 
       expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: false });
       scrollToEndSpy.mockRestore();
@@ -254,7 +261,7 @@ describe('ChatMessageList', () => {
       const flatListRef = createMockRef();
       const mockOnContentSizeChange = jest.fn();
 
-      const { rerender } = render(
+      const { UNSAFE_getByType } = render(
         <ChatMessageList
           messages={mockMessages}
           flatListRef={flatListRef}
@@ -262,26 +269,100 @@ describe('ChatMessageList', () => {
         />
       );
 
-      const moreMessages = [
-        ...mockMessages,
-        {
-          id: 'msg-3',
-          content: 'New message',
-          senderType: 'ai',
-          senderId: 'ai-1',
-          timestamp: Date.now(),
-        },
-      ];
+      act(() => {
+        UNSAFE_getByType(FlatList).props.onContentSizeChange();
+      });
 
-      rerender(
+      expect(mockOnContentSizeChange).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not force auto-scroll after the user drags away from the bottom', () => {
+      const flatListRef = createMockRef();
+      const scrollToEndSpy = jest.spyOn(FlatList.prototype, 'scrollToEnd').mockImplementation(() => {});
+
+      const { UNSAFE_getByType } = render(
         <ChatMessageList
-          messages={moreMessages}
+          messages={mockMessages}
           flatListRef={flatListRef}
-          onContentSizeChange={mockOnContentSizeChange}
         />
       );
+      const flatList = UNSAFE_getByType(FlatList);
+      flushScheduledScroll();
+      scrollToEndSpy.mockClear();
 
-      expect(mockOnContentSizeChange).toBeTruthy();
+      act(() => {
+        flatList.props.onScrollBeginDrag();
+      });
+      fireEvent.scroll(flatList, {
+        nativeEvent: {
+          contentOffset: { y: 0 },
+          contentSize: { height: 1000 },
+          layoutMeasurement: { height: 500 },
+        },
+      });
+      act(() => {
+        flatList.props.onScrollEndDrag({
+          nativeEvent: {
+            contentOffset: { y: 0 },
+            contentSize: { height: 1000 },
+            layoutMeasurement: { height: 500 },
+          },
+        });
+        flatList.props.onContentSizeChange();
+      });
+      flushScheduledScroll();
+
+      expect(scrollToEndSpy).not.toHaveBeenCalled();
+      scrollToEndSpy.mockRestore();
+    });
+
+    it('resumes auto-scroll after the user scrolls back to the bottom', () => {
+      const flatListRef = createMockRef();
+      const scrollToEndSpy = jest.spyOn(FlatList.prototype, 'scrollToEnd').mockImplementation(() => {});
+
+      const { UNSAFE_getByType } = render(
+        <ChatMessageList
+          messages={mockMessages}
+          flatListRef={flatListRef}
+        />
+      );
+      const flatList = UNSAFE_getByType(FlatList);
+      flushScheduledScroll();
+      scrollToEndSpy.mockClear();
+
+      act(() => {
+        flatList.props.onScrollBeginDrag();
+      });
+      fireEvent.scroll(flatList, {
+        nativeEvent: {
+          contentOffset: { y: 0 },
+          contentSize: { height: 1000 },
+          layoutMeasurement: { height: 500 },
+        },
+      });
+      act(() => {
+        flatList.props.onScrollEndDrag({
+          nativeEvent: {
+            contentOffset: { y: 0 },
+            contentSize: { height: 1000 },
+            layoutMeasurement: { height: 500 },
+          },
+        });
+      });
+      fireEvent.scroll(flatList, {
+        nativeEvent: {
+          contentOffset: { y: 500 },
+          contentSize: { height: 1000 },
+          layoutMeasurement: { height: 500 },
+        },
+      });
+      act(() => {
+        flatList.props.onContentSizeChange();
+      });
+      flushScheduledScroll();
+
+      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: false });
+      scrollToEndSpy.mockRestore();
     });
 
     it('scrolls to search result when searchTerm changes', async () => {

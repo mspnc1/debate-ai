@@ -435,10 +435,7 @@ describe('ChatScreen', () => {
     });
     expect(mockMessages.scrollToMessage).toHaveBeenCalledWith(2);
 
-    act(() => {
-      mockMessageListProps.onContentSizeChange();
-    });
-    expect(mockMessages.scrollToBottom).toHaveBeenCalledWith({ animated: false });
+    expect(mockMessageListProps.onContentSizeChange).toBeUndefined();
 
     expect(mockTypingIndicatorsProps.typingAIs).toEqual(['Claude']);
 

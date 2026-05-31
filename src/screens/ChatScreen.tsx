@@ -870,7 +870,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
             messages={messages.messages}
             flatListRef={messages.flatListRef}
             searchTerm={searchTerm}
-            onContentSizeChange={() => messages.scrollToBottom({ animated: false })}
             onScrollToSearchResult={handleScrollToSearchResult}
             canRefineImages={canRefineImages}
             onRefineImage={handleOpenRefinement}

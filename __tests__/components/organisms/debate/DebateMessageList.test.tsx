@@ -260,7 +260,7 @@ describe('DebateMessageList', () => {
       });
       flushScheduledScroll();
 
-      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: true });
+      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: false });
       scrollToEndSpy.mockRestore();
     });
 
@@ -289,7 +289,7 @@ describe('DebateMessageList', () => {
       );
       flushScheduledScroll();
 
-      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: true });
+      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: false });
       scrollToEndSpy.mockRestore();
     });
 
@@ -317,7 +317,7 @@ describe('DebateMessageList', () => {
       flushScheduledScroll();
 
       expect(queryByText(/New debate responses/i)).toBeNull();
-      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: true });
+      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: false });
       scrollToEndSpy.mockRestore();
     });
 
@@ -392,7 +392,7 @@ describe('DebateMessageList', () => {
       });
       flushScheduledScroll();
 
-      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: true });
+      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: false });
       scrollToEndSpy.mockRestore();
     });
 

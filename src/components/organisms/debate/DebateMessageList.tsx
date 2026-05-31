@@ -207,7 +207,7 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
   const lastMessageKeyRef = useRef('');
 
   // Auto-scroll to new messages
-  const scrollToEnd = useCallback((animated = true) => {
+  const scrollToEnd = useCallback((animated = false) => {
     if (scrollFrameRef.current !== null) return;
 
     scrollFrameRef.current = scheduleFrame(() => {
@@ -227,7 +227,7 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
     if (userPinnedAwayRef.current) {
       setShowScrollIndicator(true);
     } else {
-      scrollToEnd(true);
+      scrollToEnd(false);
     }
   }, [scrollToEnd]);
 
@@ -248,7 +248,7 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
     if (userPinnedAwayRef.current) {
       setShowScrollIndicator(true);
     } else {
-      scrollToEnd();
+      scrollToEnd(false);
     }
   }, [listEmpty, scrollToEnd]);
 
@@ -270,7 +270,7 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
     if (userPinnedAwayRef.current) {
       setShowScrollIndicator(true);
     } else {
-      scrollToEnd();
+      scrollToEnd(false);
     }
   }, [typingAIs, scrollToEnd]);
 
@@ -286,7 +286,7 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
       if (userPinnedAwayRef.current) {
         setShowScrollIndicator(true);
       } else {
-        scrollToEnd();
+        scrollToEnd(false);
       }
     }
   }, [messages, listEmpty, scrollToEnd]);
@@ -382,7 +382,7 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
     isAtBottomRef.current = true;
     userPinnedAwayRef.current = false;
     setShowScrollIndicator(false);
-    scrollToEnd();
+    scrollToEnd(true);
   }, [scrollToEnd]);
 
   useEffect(() => {
@@ -390,7 +390,7 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
     if (userPinnedAwayRef.current) {
       setShowScrollIndicator(true);
     } else {
-      scrollToEnd();
+      scrollToEnd(false);
     }
   }, [bottomInset, listEmpty, scrollToEnd]);
 
