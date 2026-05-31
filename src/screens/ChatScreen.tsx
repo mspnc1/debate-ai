@@ -87,7 +87,7 @@ interface ChatScreenProps {
 }
 
 const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   // Extract route parameters
   const { 
     searchTerm, 
@@ -219,7 +219,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
       .filter(stream => stream.isStreaming)
       .map(stream => stream.messageId);
     const interruptedMessageIds = messagesWithStreamingContent
-      .filter(message => message.metadata?.lifecycle?.status === 'interrupted' || activeStreamIds.includes(message.id))
+      .filter(message => message.metadata?.lifecycle?.status === 'interrupted')
       .map(message => message.id);
     const latestUserMessage = [...messagesWithStreamingContent].reverse().find(message => message.senderType === 'user');
 
@@ -283,8 +283,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
 
       if (snapshot.status === 'interrupted' || snapshot.interruptedMessageIds?.length) {
         setRecoveryNotice('The last response was interrupted. Retry when you are ready.');
-      } else if (snapshot.status === 'backgrounded') {
-        setRecoveryNotice('Your conversation was restored from the last app checkpoint.');
+      } else if (snapshot.status === 'active' && snapshot.pendingTurn) {
+        setRecoveryNotice('The last response was interrupted. Retry when you are ready.');
       }
     };
 
@@ -296,7 +296,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
 
     return AppLifecycleService.register({
       id: `chat-${session.currentSession.id}`,
-      onBackground: () => saveActiveChatSnapshot(activeStreams > 0 ? 'interrupted' : 'backgrounded', 'app_backgrounded'),
+      onBackground: () => saveActiveChatSnapshot(activeStreams > 0 ? 'active' : 'backgrounded', 'app_backgrounded'),
       onForeground: async () => {
         const snapshot = await ActiveSessionPersistenceService.loadSnapshot<ActiveChatSessionSnapshot>('chat', session.currentSession!.id);
         if (snapshot?.status === 'interrupted' || snapshot?.interruptedMessageIds?.length) {
@@ -832,8 +832,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
           <View style={[
             chatRecoveryStyles.banner,
             {
-              backgroundColor: theme.colors.warning[50],
-              borderColor: theme.colors.warning[300],
+              backgroundColor: isDark ? theme.colors.card : theme.colors.warning[50],
+              borderColor: isDark ? theme.colors.warning[700] : theme.colors.warning[300],
             },
           ]}>
             <Text style={[chatRecoveryStyles.bannerText, { color: theme.colors.text.primary }]}>
@@ -870,7 +870,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
             messages={messages.messages}
             flatListRef={messages.flatListRef}
             searchTerm={searchTerm}
-            onContentSizeChange={messages.scrollToBottom}
+            onContentSizeChange={() => messages.scrollToBottom({ animated: false })}
             onScrollToSearchResult={handleScrollToSearchResult}
             canRefineImages={canRefineImages}
             onRefineImage={handleOpenRefinement}

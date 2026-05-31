@@ -233,36 +233,21 @@ describe('ChatMessageList', () => {
   describe('Scrolling Behavior', () => {
     it('scrolls to end on content size change by default', () => {
       const flatListRef = createMockRef();
+      const scrollToEndSpy = jest.spyOn(FlatList.prototype, 'scrollToEnd').mockImplementation(() => {});
 
-      const { rerender } = render(
+      const { UNSAFE_getByType } = render(
         <ChatMessageList
           messages={mockMessages}
           flatListRef={flatListRef}
         />
       );
 
-      // Trigger content size change by adding more messages
-      const moreMessages = [
-        ...mockMessages,
-        {
-          id: 'msg-3',
-          content: 'New message',
-          senderType: 'ai',
-          senderId: 'ai-1',
-          timestamp: Date.now(),
-        },
-      ];
+      act(() => {
+        UNSAFE_getByType(FlatList).props.onContentSizeChange();
+      });
 
-      rerender(
-        <ChatMessageList
-          messages={moreMessages}
-          flatListRef={flatListRef}
-        />
-      );
-
-      // scrollToEnd should be called when content size changes
-      // Note: This is tested via the FlatList's onContentSizeChange callback
-      expect(flatListRef.current).toBeTruthy();
+      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: false });
+      scrollToEndSpy.mockRestore();
     });
 
     it('calls custom onContentSizeChange when provided', () => {

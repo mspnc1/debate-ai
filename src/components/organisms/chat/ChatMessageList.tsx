@@ -64,7 +64,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
       onContentSizeChange();
     } else {
       // Default behavior: scroll to end
-      flatListRef.current?.scrollToEnd();
+      flatListRef.current?.scrollToEnd({ animated: false });
     }
   };
 

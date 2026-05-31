@@ -31,6 +31,9 @@ const mockPrimeNextCompareTurn = jest.fn();
 const mockHasNextCompareTurn = jest.fn();
 const mockStreamResponse = jest.fn();
 const mockGetMergedPersonality = jest.fn();
+const mockLifecycleRegister = jest.fn(() => jest.fn());
+const mockSaveActiveSnapshot = jest.fn().mockResolvedValue(undefined);
+const mockLoadActiveSnapshot = jest.fn().mockResolvedValue(null);
 
 let mockHeaderProps: any;
 let mockCompareSplitViewProps: any;
@@ -130,6 +133,19 @@ jest.mock('@/services/streaming/StreamingService', () => ({
     streamResponse: (...args: unknown[]) => mockStreamResponse(...args),
     cancelAllStreams: jest.fn(),
   }),
+}));
+
+jest.mock('@/services/lifecycle/AppLifecycleService', () => ({
+  AppLifecycleService: {
+    register: (...args: unknown[]) => mockLifecycleRegister(...args),
+  },
+}));
+
+jest.mock('@/services/lifecycle/ActiveSessionPersistenceService', () => ({
+  ActiveSessionPersistenceService: {
+    saveSnapshot: (...args: unknown[]) => mockSaveActiveSnapshot(...args),
+    loadSnapshot: (...args: unknown[]) => mockLoadActiveSnapshot(...args),
+  },
 }));
 
 jest.mock('@/components/organisms/demo/CompareRecordPickerModal', () => ({
@@ -343,6 +359,12 @@ beforeEach(() => {
   mockStreamResponse.mockReset().mockImplementation(async (_config, _onChunk, onComplete) => {
     onComplete?.('streamed response');
   });
+  mockLifecycleRegister.mockClear();
+  mockLifecycleRegister.mockReturnValue(jest.fn());
+  mockSaveActiveSnapshot.mockClear();
+  mockSaveActiveSnapshot.mockResolvedValue(undefined);
+  mockLoadActiveSnapshot.mockClear();
+  mockLoadActiveSnapshot.mockResolvedValue(null);
   mockGetMergedPersonality.mockReset().mockReturnValue(null);
   mockUseMergedAvailability.mockImplementation(() => ({
     imageUpload: { supported: true },
@@ -387,6 +409,40 @@ describe('CompareScreen', () => {
 
     expect(mockChatInputProps.isProcessing).toBe(false);
     expect(mockChatInputProps.onStop).toEqual(expect.any(Function));
+  });
+
+  it('checkpoints active compare streams without marking them interrupted on app background', async () => {
+    mockStreamResponse.mockImplementation(() => new Promise(() => undefined));
+
+    const { renderResult } = renderScreen();
+
+    await act(async () => {
+      await mockChatInputProps.onSend('Compare this');
+    });
+
+    await waitFor(() => {
+      expect(mockChatInputProps.isProcessing).toBe(true);
+    });
+
+    const compareHandlers = mockLifecycleRegister.mock.calls
+      .map(call => call[0])
+      .filter((entry: { id?: string }) => entry.id?.startsWith('compare-')) as Array<{
+        onBackground?: (reason: string) => Promise<void>;
+      }>;
+    const handler = compareHandlers[compareHandlers.length - 1];
+    expect(handler).toBeTruthy();
+
+    await act(async () => {
+      await handler?.onBackground?.('background');
+    });
+
+    const savedSnapshot = mockSaveActiveSnapshot.mock.calls[mockSaveActiveSnapshot.mock.calls.length - 1][0];
+    expect(savedSnapshot.status).toBe('active');
+    expect(savedSnapshot.pendingTurn).toEqual(expect.objectContaining({
+      kind: 'compare_response',
+      reason: 'app_backgrounded',
+    }));
+    expect(renderResult.queryByText(/comparison was interrupted/i)).toBeNull();
   });
 
   it('navigates back when a required AI is missing', () => {

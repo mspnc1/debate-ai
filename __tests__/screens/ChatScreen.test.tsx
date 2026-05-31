@@ -180,11 +180,29 @@ const FileSystem = require('expo-file-system/legacy');
 const Sharing = require('expo-sharing');
 
 const mockStreamingCancel = jest.fn();
+const mockLifecycleRegister = jest.fn(() => jest.fn());
+const mockSaveActiveSnapshot = jest.fn().mockResolvedValue(undefined);
+const mockLoadActiveSnapshot = jest.fn().mockResolvedValue(null);
+const mockLoadLatestActiveSnapshot = jest.fn().mockResolvedValue(null);
 
 jest.mock('@/services/streaming/StreamingService', () => ({
   getStreamingService: () => ({
     cancelAllStreams: (...args: unknown[]) => mockStreamingCancel(...args),
   }),
+}));
+
+jest.mock('@/services/lifecycle/AppLifecycleService', () => ({
+  AppLifecycleService: {
+    register: (...args: unknown[]) => mockLifecycleRegister(...args),
+  },
+}));
+
+jest.mock('@/services/lifecycle/ActiveSessionPersistenceService', () => ({
+  ActiveSessionPersistenceService: {
+    saveSnapshot: (...args: unknown[]) => mockSaveActiveSnapshot(...args),
+    loadSnapshot: (...args: unknown[]) => mockLoadActiveSnapshot(...args),
+    loadLatestSnapshot: (...args: unknown[]) => mockLoadLatestActiveSnapshot(...args),
+  },
 }));
 
 const ChatScreen = require('@/screens/ChatScreen').default;
@@ -359,6 +377,14 @@ describe('ChatScreen', () => {
     mockAppendToPack.mockResolvedValue({ ok: true });
 
     mockStreamingCancel.mockClear();
+    mockLifecycleRegister.mockClear();
+    mockLifecycleRegister.mockReturnValue(jest.fn());
+    mockSaveActiveSnapshot.mockClear();
+    mockSaveActiveSnapshot.mockResolvedValue(undefined);
+    mockLoadActiveSnapshot.mockClear();
+    mockLoadActiveSnapshot.mockResolvedValue(null);
+    mockLoadLatestActiveSnapshot.mockClear();
+    mockLoadLatestActiveSnapshot.mockResolvedValue(null);
     mockHeaderProps = undefined;
     mockChatInputBarProps = undefined;
     mockMessageListProps = undefined;
@@ -409,6 +435,11 @@ describe('ChatScreen', () => {
     });
     expect(mockMessages.scrollToMessage).toHaveBeenCalledWith(2);
 
+    act(() => {
+      mockMessageListProps.onContentSizeChange();
+    });
+    expect(mockMessages.scrollToBottom).toHaveBeenCalledWith({ animated: false });
+
     expect(mockTypingIndicatorsProps.typingAIs).toEqual(['Claude']);
 
     act(() => {
@@ -444,6 +475,88 @@ describe('ChatScreen', () => {
     await waitFor(() => {
       expect(mockSession.saveSession).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('checkpoints active chat streams without marking them interrupted on app background', async () => {
+    mockSession.currentSession.messages = [
+      {
+        id: 'user-1',
+        sender: 'You',
+        senderType: 'user',
+        content: 'Prompt',
+        timestamp: 1,
+      },
+      {
+        id: 'ai-stream',
+        sender: 'Claude',
+        senderType: 'ai',
+        content: '',
+        timestamp: 2,
+      },
+    ];
+    mockMessages.messages = mockSession.currentSession.messages;
+
+    const { queryByText } = renderWithProviders(
+      <ChatScreen navigation={navigation} route={route} />,
+      {
+        preloadedState: {
+          streaming: {
+            streamingMessages: {
+              'ai-stream': {
+                messageId: 'ai-stream',
+                content: 'Partial answer',
+                isStreaming: true,
+                startTime: 1,
+                aiProvider: 'claude',
+                status: 'streaming',
+                cursorVisible: true,
+                chunksReceived: 1,
+                bytesReceived: 14,
+              },
+            },
+            streamingPreferences: {},
+            globalStreamingEnabled: true,
+            streamingSpeed: 'natural',
+            activeStreamCount: 1,
+            totalStreamsCompleted: 0,
+            providerVerificationErrors: {},
+          },
+        } as Partial<RootState>,
+      }
+    );
+
+    const handler = mockLifecycleRegister.mock.calls
+      .map(call => call[0])
+      .find((entry: { id?: string }) => entry.id === 'chat-session-1') as {
+        onBackground?: (reason: string) => Promise<void>;
+        onForeground?: () => Promise<void>;
+      };
+    expect(handler).toBeTruthy();
+
+    await act(async () => {
+      await handler.onBackground?.('background');
+    });
+
+    const savedSnapshot = mockSaveActiveSnapshot.mock.calls[mockSaveActiveSnapshot.mock.calls.length - 1][0];
+    expect(savedSnapshot.status).toBe('active');
+    expect(savedSnapshot.interruptedMessageIds).toEqual([]);
+    expect(savedSnapshot.pendingTurn).toEqual(expect.objectContaining({
+      kind: 'chat_response',
+      messageIds: ['ai-stream'],
+      reason: 'app_backgrounded',
+    }));
+
+    mockLoadActiveSnapshot.mockResolvedValueOnce({
+      status: 'active',
+      interruptedMessageIds: [],
+      pendingTurn: { kind: 'chat_response', messageIds: ['ai-stream'] },
+    });
+
+    await act(async () => {
+      await handler.onForeground?.();
+    });
+
+    expect(queryByText(/last response was interrupted/i)).toBeNull();
   });
 
   it('prevents sending messages in demo mode and opens subscription sheet', async () => {

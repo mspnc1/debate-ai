@@ -87,7 +87,7 @@ const getResponseCitations = (response: AIResponseResult): Citation[] | undefine
 );
 
 const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const { aiService, isInitialized } = useAIService();
   const dispatch = useDispatch();
   const { isDemo, canStartTrial } = useFeatureAccess();
@@ -342,9 +342,9 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
         ...snapshot.rightMessages,
       ].sort((a, b) => a.timestamp - b.timestamp);
 
-      setRecoveryNotice(snapshot.status === 'interrupted'
-        ? 'This comparison was interrupted. Retry your last prompt when ready.'
-        : 'This comparison was restored from the last app checkpoint.');
+      if (snapshot.status === 'interrupted' || (snapshot.status === 'active' && snapshot.pendingTurn)) {
+        setRecoveryNotice('This comparison was interrupted. Retry your last prompt when ready.');
+      }
     };
 
     void restoreSnapshot();
@@ -475,7 +475,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
   React.useEffect(() => {
     return AppLifecycleService.register({
       id: `compare-${sessionId}`,
-      onBackground: () => saveActiveCompareSnapshot(isProcessing ? 'interrupted' : 'backgrounded', 'app_backgrounded'),
+      onBackground: () => saveActiveCompareSnapshot(isProcessing ? 'active' : 'backgrounded', 'app_backgrounded'),
       onForeground: async () => {
         const snapshot = await ActiveSessionPersistenceService.loadSnapshot<ActiveCompareSessionSnapshot>('comparison', sessionId);
         if (snapshot?.status === 'interrupted') {
@@ -1352,8 +1352,8 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
           <View style={[
             styles.recoveryBanner,
             {
-              backgroundColor: theme.colors.warning[50],
-              borderColor: theme.colors.warning[300],
+              backgroundColor: isDark ? theme.colors.card : theme.colors.warning[50],
+              borderColor: isDark ? theme.colors.warning[700] : theme.colors.warning[300],
             },
           ]}>
             <Text style={[styles.recoveryText, { color: theme.colors.text.primary }]}>

@@ -10,7 +10,7 @@ export interface ChatMessagesHook {
   messages: Message[];
   flatListRef: React.RefObject<FlatList | null>;
   sendMessage: (content: string, mentions?: string[], attachments?: MessageAttachment[]) => void;
-  scrollToBottom: () => void;
+  scrollToBottom: (options?: { animated?: boolean }) => void;
   scrollToMessage: (messageIndex: number) => void;
   hasMessages: boolean;
   lastMessage: Message | null;
@@ -44,12 +44,12 @@ export const useChatMessages = (): ChatMessagesHook => {
     dispatch(addMessage(userMessage));
     
     // Auto-scroll to bottom
-    setTimeout(() => scrollToBottom(), 100);
+    setTimeout(() => scrollToBottom({ animated: true }), 100);
   };
 
-  const scrollToBottom = (): void => {
+  const scrollToBottom = (options: { animated?: boolean } = {}): void => {
     if (flatListRef.current && messages.length > 0) {
-      flatListRef.current.scrollToEnd({ animated: true });
+      flatListRef.current.scrollToEnd({ animated: options.animated ?? true });
     }
   };
 
