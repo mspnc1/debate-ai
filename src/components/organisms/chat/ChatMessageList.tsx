@@ -124,8 +124,8 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     }
   }, [onContentSizeChange, scrollToEnd]);
 
-  const isUserMessage = (m: Message) => m.senderType === 'user';
-  const renderMessage = ({ item, index }: { item: Message; index: number }) => {
+  const isUserMessage = useCallback((m: Message) => m.senderType === 'user', []);
+  const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
     const meta = item.metadata as { providerMetadata?: Record<string, unknown> } | undefined;
     const isGenerating = !!meta?.providerMetadata && meta.providerMetadata['imageGenerating'] === true;
     if (!isUserMessage(item) && isGenerating) {
@@ -142,7 +142,15 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
         searchTerm={searchTerm}
       />
     );
-  };
+  }, [
+    canRefineImages,
+    isUserMessage,
+    messages.length,
+    onCancelImage,
+    onRefineImage,
+    onRetryImage,
+    searchTerm,
+  ]);
 
   const renderEmptyState = () => (
     <Box style={styles.emptyState}>

@@ -6,6 +6,10 @@ import type { Message } from '@/types';
 import { RecordController } from '@/services/demo/RecordController';
 import { renderHookWithProviders } from '../../../test-utils/renderHookWithProviders';
 import { getPresetForFormat } from '@/config/debate/formats';
+import {
+  getStreamingContentSnapshot,
+  resetStreamingContentStore,
+} from '@/services/streaming/StreamingContentStore';
 
 jest.mock('@/services/demo/RecordController', () => {
   const recordControllerMock = {
@@ -59,6 +63,11 @@ describe('useDebateFlow', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    resetStreamingContentStore();
+  });
+
+  afterEach(() => {
+    resetStreamingContentStore();
   });
 
   const initialMessages: Message[] = [
@@ -250,12 +259,21 @@ describe('useDebateFlow', () => {
       orchestrator.emit({ type: 'stream_chunk', data: { messageId: 'stream-1', chunk: 'world', aiProvider: 'claude' }, timestamp: Date.now() });
     });
     expect(recordController.recordAssistantChunk).toHaveBeenCalledWith('claude', 'world');
-    expect(store.getState().streaming.streamingMessages['stream-1'].chunksReceived).toBe(2);
+    expect(getStreamingContentSnapshot('stream-1')).toMatchObject({
+      content: 'Hello world',
+      chunksReceived: 2,
+      isStreaming: true,
+    });
 
     act(() => {
       orchestrator.emit({ type: 'stream_error', data: { messageId: 'stream-1', error: 'network' }, timestamp: Date.now() });
     });
     expect(store.getState().streaming.streamingMessages['stream-1'].error).toBe('network');
+    expect(getStreamingContentSnapshot('stream-1')).toMatchObject({
+      error: 'network',
+      isStreaming: false,
+      status: 'failed',
+    });
 
     act(() => {
       orchestrator.emit({ type: 'stream_started', data: { messageId: 'ai-1', aiProvider: 'claude' }, timestamp: Date.now() });

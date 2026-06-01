@@ -96,11 +96,13 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
       content = processMessageContentWithCitations(content, message.metadata.citations);
     }
 
-    return sanitizeMarkdown(content, { showWarning: false });
+    return isStreaming ? content : sanitizeMarkdown(content, { showWarning: false });
   }, [isStreaming, streamingContent, message.content, hasCitations, message.metadata?.citations]);
 
   // Check if content needs lazy rendering
-  const isLongContent = useMemo(() => shouldLazyRender(displayContent), [displayContent]);
+  const isLongContent = useMemo(() => (
+    isStreaming ? false : shouldLazyRender(displayContent)
+  ), [isStreaming, displayContent]);
 
   // Create markdown styles
   const markdownStyles = useMemo(() => createMarkdownStyles(theme, isDark), [theme, isDark]);

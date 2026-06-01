@@ -594,7 +594,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     // Create synchronizer for dual streaming
     if (useSynchronizedStreaming) {
       synchronizerRef.current = new CompareStreamSynchronizer(
-        { syncIntervalMs: 80, maxBufferSizeChars: 200, startDelayMs: 150, startTimeoutMs: 500 },
+        { syncIntervalMs: 32, maxBufferSizeChars: 80, startDelayMs: 50, startTimeoutMs: 150 },
         {
           onLeftFlush: (content: string) => {
             setLeftTyping(false);

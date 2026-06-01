@@ -1,7 +1,6 @@
 import { AppDispatch, addMessage, setTypingAI, updateMessage } from '@/store';
 import {
   startStreaming,
-  updateStreamingContent,
   endStreaming,
   streamingError,
   clearStreamingMessage,
@@ -15,6 +14,13 @@ import { resolveProviderModelId } from '@/config/modelConfigs';
 import { getExpertOverrides } from '@/utils/expertMode';
 import { ensureAnswerContent } from '@/utils/citationUtils';
 import { getStreamingService, isStreamInterruptedError } from '@/services/streaming/StreamingService';
+import {
+  appendStreamingContent,
+  clearStreamingContent,
+  completeStreamingContent,
+  failStreamingContent,
+  startStreamingContent,
+} from '@/services/streaming/StreamingContentStore';
 import { RecordController } from '@/services/demo/RecordController';
 import { getCurrentTurnProviders, markProviderComplete } from '@/services/demo/DemoPlaybackRouter';
 import { ErrorService } from '@/services/errors/ErrorService';
@@ -293,6 +299,7 @@ export class ChatOrchestrator {
       webSearchEnabled,
     });
     this.dispatch(addMessage(aiMessage));
+    startStreamingContent({ messageId: aiMessage.id, aiProvider: ai.id });
     this.dispatch(startStreaming({ messageId: aiMessage.id, aiProvider: ai.id }));
 
     let streamedContent = '';
@@ -321,7 +328,7 @@ export class ChatOrchestrator {
       },
       (chunk: string) => {
         streamedContent += chunk;
-        this.dispatch(updateStreamingContent({ messageId: aiMessage.id, chunk }));
+        appendStreamingContent(aiMessage.id, chunk);
         try {
           if (RecordController.isActive()) {
             RecordController.recordAssistantChunk(ai.provider, chunk);
@@ -333,6 +340,7 @@ export class ChatOrchestrator {
       (finalChunk: string) => {
         streamedContent = finalChunk;
         finalContent = finalChunk;
+        completeStreamingContent(aiMessage.id, finalChunk);
         this.dispatch(endStreaming({ messageId: aiMessage.id, finalContent: finalChunk }));
         this.dispatch(updateMessage({ id: aiMessage.id, content: finalChunk }));
       },
@@ -342,6 +350,7 @@ export class ChatOrchestrator {
           const interruptedContent = partialContent.length > 0
             ? `${partialContent}\n\n_Response ${error.reason === 'interrupted' ? 'paused when the app backgrounded' : 'stopped'}. Retry when ready._`
             : `Response ${error.reason === 'interrupted' ? 'paused when the app backgrounded' : 'stopped'}. Retry when ready.`;
+          failStreamingContent(aiMessage.id, error.message, error.reason);
           this.dispatch(streamingError({ messageId: aiMessage.id, error: error.message }));
           this.dispatch(updateMessage({
             id: aiMessage.id,
@@ -359,6 +368,7 @@ export class ChatOrchestrator {
           return;
         }
 
+        failStreamingContent(aiMessage.id, error.message);
         this.dispatch(streamingError({ messageId: aiMessage.id, error: error.message }));
         const fallbackContent = await this.handleStreamingFallback({
           ai,
@@ -404,7 +414,7 @@ export class ChatOrchestrator {
               : imageB64
                 ? `\n\n![image](data:image/png;base64,${imageB64})\n\n`
                 : '\n\n[image content]\n\n';
-            this.dispatch(updateStreamingContent({ messageId: aiMessage.id, chunk: markdown }));
+            appendStreamingContent(aiMessage.id, markdown);
             try {
               if (RecordController.isActive()) {
                 RecordController.recordImageMarkdown(markdown);
@@ -423,7 +433,7 @@ export class ChatOrchestrator {
               || (record as { params?: unknown }).params
               || (record as { parameters?: unknown }).parameters;
             const snippet = '```json\n' + JSON.stringify(args, null, 2).slice(0, 400) + '\n```';
-            this.dispatch(updateStreamingContent({ messageId: aiMessage.id, chunk: `\n\n[${name} call]\n${snippet}\n` }));
+            appendStreamingContent(aiMessage.id, `\n\n[${name} call]\n${snippet}\n`);
           }
         } catch {
           /* noop */
@@ -572,6 +582,7 @@ export class ChatOrchestrator {
       );
 
       const response = typeof result === 'string' ? result : result.response;
+      clearStreamingContent(aiMessageId);
       this.dispatch(clearStreamingMessage(aiMessageId));
       this.dispatch(updateMessage({ id: aiMessageId, content: response }));
       updateStreamContent(response);
@@ -594,6 +605,7 @@ export class ChatOrchestrator {
       const userMessage = appError.userMessage || `Failed to get response from ${ai.name}`;
 
       this.dispatch(updateMessage({ id: aiMessageId, content: userMessage }));
+      failStreamingContent(aiMessageId, userMessage);
       this.dispatch(streamingError({ messageId: aiMessageId, error: userMessage }));
       updateStreamContent(userMessage);
       return userMessage;

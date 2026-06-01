@@ -106,6 +106,16 @@ describe('CompareStreamSynchronizer', () => {
       // Should have started syncing even without right
       expect(leftFlushes.length).toBeGreaterThan(0);
     });
+
+    it('should flush the full available buffer instead of pacing one side', () => {
+      synchronizer = createSynchronizer({ startTimeoutMs: 100 });
+
+      synchronizer.appendLeft('The faster side should not be throttled.');
+
+      jest.advanceTimersByTime(100);
+
+      expect(leftFlushes).toEqual(['The faster side should not be throttled.']);
+    });
   });
 
   describe('completion', () => {

@@ -51,8 +51,9 @@ import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import AppendToPackService from '@/services/demo/AppendToPackService';
-import { useSelector } from 'react-redux';
+import { shallowEqual, useSelector } from 'react-redux';
 import type { RootState } from '@/store';
+import { getStreamingContentSnapshot } from '@/services/streaming/StreamingContentStore';
 import { DebateRecordPickerModal } from '@/components/organisms/demo/DebateRecordPickerModal';
 import { FORMATS, getPresetForFormat, getPresetIdForRounds, type OxfordAudienceQuestions } from '@/config/debate/formats';
 import { getDebateSpeakerRoleLabel } from '@/utils/debateLabels';
@@ -137,13 +138,15 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   });
   const { isDemo, canStartTrial } = useFeatureAccess();
   const { getPersonality: getMergedPersonality } = usePersonality();
-  const streamingMessages = useSelector((state: RootState) => state.streaming.streamingMessages);
+  const activeStreamingMessageIds = useSelector((state: RootState) => (
+    Object.values(state.streaming.streamingMessages)
+      .filter(stream => stream.isStreaming)
+      .map(stream => stream.messageId)
+  ), shallowEqual);
   const activeDebateStreamIds = useMemo(() => {
     const debateMessageIds = new Set(messages.messages.map(message => message.id));
-    return Object.values(streamingMessages)
-      .filter(stream => stream.isStreaming && debateMessageIds.has(stream.messageId))
-      .map(stream => stream.messageId);
-  }, [messages.messages, streamingMessages]);
+    return activeStreamingMessageIds.filter(messageId => debateMessageIds.has(messageId));
+  }, [activeStreamingMessageIds, messages.messages]);
   const voicePackCandidates = useMemo(
     () => getDebateVoicePackCandidates(messages.messages),
     [messages.messages]
@@ -163,7 +166,11 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     reason?: string
   ) => {
     if (typeof session.orchestrator?.createSnapshot !== 'function') return;
-    const snapshot = session.orchestrator.createSnapshot(status, messages.messages);
+    const messagesWithStreamingContent = messages.messages.map((message) => {
+      const stream = getStreamingContentSnapshot(message.id);
+      return stream.exists && stream.content ? { ...message, content: stream.content } : message;
+    });
+    const snapshot = session.orchestrator.createSnapshot(status, messagesWithStreamingContent);
     if (!snapshot) return;
     const pendingMessageIds = activeDebateStreamIds.length > 0
       ? activeDebateStreamIds

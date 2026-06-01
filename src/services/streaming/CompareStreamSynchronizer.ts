@@ -2,17 +2,17 @@
  * CompareStreamSynchronizer
  *
  * Coordinates chunk delivery between two parallel AI streams in Compare mode
- * to provide a synchronized visual experience where both sides update together.
+ * at a shared flush cadence without slowing the faster provider.
  */
 
 export interface SyncConfig {
-  /** How often to flush synchronized content (default: 80ms) */
+  /** How often to flush synchronized content (default: 32ms) */
   syncIntervalMs: number;
-  /** Maximum buffer size before forced flush (default: 200 chars) */
+  /** Maximum buffer size before forced flush (default: 80 chars) */
   maxBufferSizeChars: number;
-  /** Initial delay to wait for both streams to start (default: 150ms) */
+  /** Initial delay to wait for both streams to start (default: 50ms) */
   startDelayMs: number;
-  /** Timeout to wait for second stream before releasing first (default: 500ms) */
+  /** Timeout to wait for second stream before releasing first (default: 150ms) */
   startTimeoutMs: number;
 }
 
@@ -29,10 +29,10 @@ type CompleteCallback = (finalContent: string) => void;
 type ErrorCallback = (error: Error) => void;
 
 const DEFAULT_CONFIG: SyncConfig = {
-  syncIntervalMs: 80,
-  maxBufferSizeChars: 200,
-  startDelayMs: 150,
-  startTimeoutMs: 500,
+  syncIntervalMs: 32,
+  maxBufferSizeChars: 80,
+  startDelayMs: 50,
+  startTimeoutMs: 150,
 };
 
 export class CompareStreamSynchronizer {
@@ -261,31 +261,11 @@ export class CompareStreamSynchronizer {
       return;
     }
 
-    // Determine flush amounts - try to balance visual progress
-    // If both have content, flush proportionally
-    // If only one has content and the other is not complete, flush smaller amount
-    // If only one has content and the other is complete, flush all
-
-    if (leftHasContent && rightHasContent) {
-      // Both have content - flush together
+    if (leftHasContent) {
       this.flushLeft();
+    }
+    if (rightHasContent) {
       this.flushRight();
-    } else if (leftHasContent && !rightHasContent) {
-      if (this.rightState.isComplete) {
-        // Right is done, flush all left
-        this.flushLeft();
-      } else {
-        // Right might catch up, flush portion of left
-        this.flushLeftPortion();
-      }
-    } else if (rightHasContent && !leftHasContent) {
-      if (this.leftState.isComplete) {
-        // Left is done, flush all right
-        this.flushRight();
-      } else {
-        // Left might catch up, flush portion of right
-        this.flushRightPortion();
-      }
     }
   }
 
@@ -309,63 +289,6 @@ export class CompareStreamSynchronizer {
       this.rightState.buffer = '';
       this.onRightFlush(content);
     }
-  }
-
-  /**
-   * Flush a portion of left buffer (for pacing)
-   */
-  private flushLeftPortion(): void {
-    if (this.leftState.buffer.length > 0) {
-      // Flush up to half or at natural boundaries
-      const content = this.leftState.buffer;
-      const flushAmount = this.findFlushBoundary(content, Math.ceil(content.length / 2));
-      const toFlush = content.slice(0, flushAmount);
-      this.leftState.buffer = content.slice(flushAmount);
-      if (toFlush.length > 0) {
-        this.onLeftFlush(toFlush);
-      }
-    }
-  }
-
-  /**
-   * Flush a portion of right buffer (for pacing)
-   */
-  private flushRightPortion(): void {
-    if (this.rightState.buffer.length > 0) {
-      // Flush up to half or at natural boundaries
-      const content = this.rightState.buffer;
-      const flushAmount = this.findFlushBoundary(content, Math.ceil(content.length / 2));
-      const toFlush = content.slice(0, flushAmount);
-      this.rightState.buffer = content.slice(flushAmount);
-      if (toFlush.length > 0) {
-        this.onRightFlush(toFlush);
-      }
-    }
-  }
-
-  /**
-   * Find a natural boundary to flush at (word/sentence boundary)
-   */
-  private findFlushBoundary(content: string, targetLength: number): number {
-    if (targetLength >= content.length) return content.length;
-
-    // Look for natural boundaries near target
-    const searchWindow = Math.min(20, Math.floor(targetLength / 2));
-    const searchStart = Math.max(0, targetLength - searchWindow);
-    const searchEnd = Math.min(content.length, targetLength + searchWindow);
-    const searchArea = content.slice(searchStart, searchEnd);
-
-    // Prefer sentence boundaries, then word boundaries
-    const boundaries = ['. ', '! ', '? ', '\n', ', ', ' '];
-    for (const boundary of boundaries) {
-      const idx = searchArea.lastIndexOf(boundary);
-      if (idx !== -1) {
-        return searchStart + idx + boundary.length;
-      }
-    }
-
-    // No natural boundary found, use target
-    return targetLength;
   }
 
   /**

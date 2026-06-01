@@ -87,7 +87,7 @@ const processMessageContent = (message: Message): string => {
   return message.content;
 };
 
-export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLast, searchTerm }) => {
+const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({ message, isLast, searchTerm }) => {
   const isUser = message.senderType === 'user';
   const { theme, isDark } = useTheme();
   const [copied, setCopied] = useState(false);
@@ -178,16 +178,17 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLast, s
   const aiColor = getAIColor();
 
   const markdownContent = useMemo(() => {
-    if (isUser || !displayContent) return '';
+    if (isUser || isStreaming || !displayContent) return '';
     return sanitizeMarkdown(
       processMessageContent({ ...message, content: displayContent }),
       { showWarning: !isCancelled } // Don't show warning for cancelled messages
     );
-  }, [isUser, displayContent, message, isCancelled]);
+  }, [isUser, isStreaming, displayContent, message, isCancelled]);
 
   const isLongContent = useMemo(() => {
+    if (isStreaming) return false;
     return shouldLazyRender(markdownContent);
-  }, [markdownContent]);
+  }, [isStreaming, markdownContent]);
 
   const markdownStyles = useMemo(() => createMarkdownStyles(theme, isDark), [theme, isDark]);
 
@@ -274,7 +275,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLast, s
         ) : (
           // AI messages - render markdown with streaming support
           <>
-            {isLongContent ? (
+            {isStreaming ? (
+              <Typography style={styles.streamingText} selectable>
+                {displayContent}
+              </Typography>
+            ) : isLongContent ? (
               <LazyMarkdownRenderer
                 content={markdownContent}
                 style={markdownStyles}
@@ -430,6 +435,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLast, s
   );
 };
 
+export const MessageBubble = React.memo(MessageBubbleComponent, (prevProps, nextProps) => (
+  prevProps.message === nextProps.message
+  && prevProps.isLast === nextProps.isLast
+  && prevProps.searchTerm === nextProps.searchTerm
+));
+
 const styles = StyleSheet.create({
   messageRow: {
     width: '100%',
@@ -488,6 +499,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 4,
+  },
+  streamingText: {
+    fontSize: 16,
+    lineHeight: 24,
   },
   copyButton: {
     position: 'absolute',

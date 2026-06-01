@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, Linking, Image } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { ContinueButton } from './ContinueButton';
 import { CompareTypingIndicator } from './CompareTypingIndicator';
@@ -186,20 +186,12 @@ export const CompareResponsePane: React.FC<CompareResponsePaneProps> = ({
   // Render streaming content
   const renderStreamingContent = () => {
     if (!streamingContent) return null;
-    const content = sanitizeMarkdown(streamingContent, { showWarning: false });
 
     return (
       <View style={messages.length > 0 ? styles.messageSpacing : undefined}>
-        <Markdown
-          style={markdownStyles}
-          onLinkPress={(url: string) => {
-            Linking.openURL(url).catch(err => console.error('Failed to open URL:', err));
-            return false;
-          }}
-          rules={selectableMarkdownRules}
-        >
-          {content}
-        </Markdown>
+        <Typography style={styles.streamingText} selectable>
+          {streamingContent}
+        </Typography>
       </View>
     );
   };
@@ -324,6 +316,10 @@ const styles = StyleSheet.create({
   },
   messageSpacing: {
     marginTop: 12,
+  },
+  streamingText: {
+    fontSize: 15,
+    lineHeight: 22,
   },
   imageAttachments: {
     marginTop: 8,

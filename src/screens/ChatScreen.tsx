@@ -6,7 +6,7 @@ import { ErrorService } from '@/services/errors/ErrorService';
 import { useAIService } from '../providers/AIServiceProvider';
 import { MessageAttachment } from '../types';
 import { getAttachmentSupport } from '../utils/attachmentUtils';
-import { useSelector, useDispatch } from 'react-redux';
+import { shallowEqual, useSelector, useDispatch } from 'react-redux';
 import {
   RootState,
   addMessage,
@@ -45,6 +45,10 @@ import {
 import { AIConfig, Message, AIProvider } from '../types';
 import { cancelAllStreams, selectActiveStreamCount } from '../store';
 import { getStreamingService } from '../services/streaming/StreamingService';
+import {
+  cancelActiveStreamingContent,
+  getStreamingContentSnapshot,
+} from '@/services/streaming/StreamingContentStore';
 import { DemoContentService } from '@/services/demo/DemoContentService';
 import { loadChatScript, primeNextChatTurn, hasNextChatTurn, isTurnComplete } from '@/services/demo/DemoPlaybackRouter';
 import { DemoEmptyState } from '@/components/organisms/demo';
@@ -102,7 +106,11 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   // Redux and streaming state
   const dispatch = useDispatch();
   const activeStreams = useSelector((state: RootState) => selectActiveStreamCount(state));
-  const streamingMessages = useSelector((state: RootState) => state.streaming.streamingMessages);
+  const activeStreamIds = useSelector((state: RootState) => (
+    Object.values(state.streaming.streamingMessages)
+      .filter(stream => stream.isStreaming)
+      .map(stream => stream.messageId)
+  ), shallowEqual);
   const aiPersonalities = useSelector((state: RootState) => state.chat.aiPersonalities);
   const selectedModels = useSelector((state: RootState) => state.chat.selectedModels);
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys);
@@ -183,8 +191,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   const getMessagesWithStreamingContent = React.useCallback((): Message[] => {
     const baseMessages = session.currentSession?.messages || [];
     return baseMessages.map((message) => {
-      const stream = streamingMessages[message.id];
-      if (!stream) return message;
+      const stream = getStreamingContentSnapshot(message.id);
+      if (!stream.exists) return message;
 
       const interrupted = stream.status === 'interrupted' || stream.status === 'cancelled';
       const content = stream.content || message.content;
@@ -204,7 +212,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
           : message.metadata,
       };
     });
-  }, [session.currentSession?.messages, streamingMessages]);
+  }, [session.currentSession?.messages]);
 
   const saveActiveChatSnapshot = React.useCallback(async (
     status: ActiveChatSessionSnapshot['status'] = 'active',
@@ -215,9 +223,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     const messagesWithStreamingContent = getMessagesWithStreamingContent();
     if (messagesWithStreamingContent.length === 0) return;
 
-    const activeStreamIds = Object.values(streamingMessages)
-      .filter(stream => stream.isStreaming)
-      .map(stream => stream.messageId);
     const interruptedMessageIds = messagesWithStreamingContent
       .filter(message => message.metadata?.lifecycle?.status === 'interrupted')
       .map(message => message.id);
@@ -254,7 +259,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     getMessagesWithStreamingContent,
     selectedModels,
     session.currentSession,
-    streamingMessages,
+    activeStreamIds,
   ]);
 
   const recoveryAttemptedRef = React.useRef(false);
@@ -311,14 +316,16 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   }, [activeStreams, saveActiveChatSnapshot, session.currentSession?.messages.length]);
 
   const markActiveStreamsInterrupted = React.useCallback((status: 'cancelled' | 'interrupted', reason: string) => {
-    Object.values(streamingMessages)
-      .filter(stream => stream.isStreaming)
-      .forEach(stream => {
+    activeStreamIds
+      .forEach(messageId => {
+        const stream = getStreamingContentSnapshot(messageId);
+        const content = stream.content || (status === 'interrupted'
+          ? 'Response paused when the app backgrounded. Retry when ready.'
+          : 'Response stopped. Retry when ready.');
+        cancelActiveStreamingContent(messageId, status);
         dispatch(updateMessage({
-          id: stream.messageId,
-          content: stream.content || (status === 'interrupted'
-            ? 'Response paused when the app backgrounded. Retry when ready.'
-            : 'Response stopped. Retry when ready.'),
+          id: messageId,
+          content,
           metadata: {
             lifecycle: {
               status,
@@ -329,7 +336,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
           },
         }));
       });
-  }, [dispatch, streamingMessages]);
+  }, [activeStreamIds, dispatch]);
 
   const handleStopResponses = React.useCallback(async () => {
     markActiveStreamsInterrupted('cancelled', 'user_stop');

@@ -162,8 +162,8 @@ class ChunkBuffer {
 export class StreamingService {
   private activeStreams: Map<string, StreamState> = new Map();
   private readonly defaultBufferConfig: BufferConfig = {
-    flushInterval: 60,  // Faster cadence for natural speed
-    maxBufferSize: 30,  // Flush smaller chunks for snappier updates
+    flushInterval: 32,
+    maxBufferSize: 80,
     enabled: true,
   };
 
@@ -257,13 +257,8 @@ export class StreamingService {
     // Determine buffer configuration
     const bufferConfig = config.bufferConfig || this.getBufferConfigForSpeed(config.speed);
 
-    // Create buffer with flush callback (log UI flushes, not raw adapter yields)
-    let flushCount = 0;
+    // Buffer display updates without slowing provider consumption.
     const onBufferFlush = (content: string) => {
-      flushCount++;
-      if (process.env.NODE_ENV === 'development' && (flushCount <= 3 || flushCount % 50 === 0)) {
-        console.warn(`[StreamingService] flush #${flushCount} (${content.length})`);
-      }
       onChunk(content);
     };
     const buffer = new ChunkBuffer(bufferConfig, onBufferFlush);
@@ -282,9 +277,6 @@ export class StreamingService {
     this.activeStreams.set(messageId, streamState);
 
     try {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn(`[StreamingService] Start stream ${messageId}`);
-      }
       // Check if adapter has streamMessage method
       type StreamingAdapter = BaseAdapter & {
         streamMessage: (
@@ -341,13 +333,6 @@ export class StreamingService {
             streamState.bytesReceived += chunk.length;
             fullContent += chunk;
 
-            // Add artificial delay for natural speed
-            if (config.speed === 'natural') {
-              await this.naturalDelay();
-            } else if (config.speed === 'slow') {
-              await this.slowDelay();
-            }
-
             // Buffer and flush chunk (UI flushes are logged in onBufferFlush)
             buffer.append(chunk);
           }
@@ -382,9 +367,6 @@ export class StreamingService {
       this.activeStreams.delete(messageId);
 
       // Call completion callback
-      if (process.env.NODE_ENV === 'development') {
-        console.warn(`[StreamingService] Complete ${messageId}, chunks=${streamState.chunksReceived}, bytes=${streamState.bytesReceived}, flushes=${flushCount}`);
-      }
       onComplete(fullContent);
 
     } catch (error) {
@@ -488,28 +470,14 @@ export class StreamingService {
         };
       case 'slow':
         return {
-          flushInterval: 200,
-          maxBufferSize: 30,
+          flushInterval: 90,
+          maxBufferSize: 40,
           enabled: true,
         };
       case 'natural':
       default:
         return this.defaultBufferConfig;
     }
-  }
-
-  /**
-   * Natural typing delay
-   */
-  private naturalDelay(): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, 8 + Math.random() * 22));
-  }
-
-  /**
-   * Slow typing delay
-   */
-  private slowDelay(): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 50));
   }
 
   /**

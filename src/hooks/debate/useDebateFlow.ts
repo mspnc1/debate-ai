@@ -9,10 +9,15 @@ import { RootState } from '../../store';
 import { addMessage, setTypingAI, updateMessage } from '../../store';
 import {
   startStreaming,
-  updateStreamingContent,
   endStreaming,
   streamingError,
 } from '../../store/streamingSlice';
+import {
+  appendStreamingContent,
+  completeStreamingContent,
+  failStreamingContent,
+  startStreamingContent,
+} from '@/services/streaming/StreamingContentStore';
 import { DebateOrchestrator, DebateEvent, DebateStatus, type DebateAudienceQuestionsPrompt, type DebateContinuationPrompt } from '../../services/debate';
 import type { PhaseId } from '../../services/debate';
 import type { OxfordAudienceQuestions } from '@/config/debate/formats';
@@ -201,13 +206,16 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
         updateTurnStatus();
         const messageId = String((event.data as { messageId?: string }).messageId || '');
         const aiProvider = String((event.data as { aiProvider?: string }).aiProvider || '');
-        if (messageId) dispatch(startStreaming({ messageId, aiProvider }));
+        if (messageId) {
+          startStreamingContent({ messageId, aiProvider });
+          dispatch(startStreaming({ messageId, aiProvider }));
+        }
         break;
       }
       case 'stream_chunk': {
         const messageId = String((event.data as { messageId?: string }).messageId || '');
         const chunk = String((event.data as { chunk?: string }).chunk || '');
-        if (messageId && chunk) dispatch(updateStreamingContent({ messageId, chunk }));
+        if (messageId && chunk) appendStreamingContent(messageId, chunk);
         // If recording a debate, capture chunks
         try {
           if (RecordController.isActive()) {
@@ -227,6 +235,7 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
         const lifecycle = (event.data as { lifecycle?: NonNullable<Message['metadata']>['lifecycle'] }).lifecycle;
         const normalizedAnswer = ensureAnswerContent(finalContent, citations, 'The AI');
         if (messageId) {
+          completeStreamingContent(messageId, normalizedAnswer.content);
           dispatch(endStreaming({ messageId, finalContent: normalizedAnswer.content }));
           // Persist final content to the chat store, including citations if present
           dispatch(updateMessage({
@@ -245,7 +254,10 @@ export const useDebateFlow = (orchestrator: DebateOrchestrator | null): UseDebat
       case 'stream_error': {
         const messageId = String((event.data as { messageId?: string }).messageId || '');
         const error = String((event.data as { error?: string }).error || 'Streaming error');
-        if (messageId) dispatch(streamingError({ messageId, error }));
+        if (messageId) {
+          failStreamingContent(messageId, error);
+          dispatch(streamingError({ messageId, error }));
+        }
         break;
       }
 

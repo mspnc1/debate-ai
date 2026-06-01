@@ -2,12 +2,15 @@ import { ChatOrchestrator } from '@/services/chat/ChatOrchestrator';
 import { addMessage, setTypingAI, updateMessage, type AppDispatch } from '@/store';
 import {
   startStreaming,
-  updateStreamingContent,
   endStreaming,
   streamingError,
   clearStreamingMessage,
   setProviderVerificationError,
 } from '@/store/streamingSlice';
+import {
+  getStreamingContentSnapshot,
+  resetStreamingContentStore,
+} from '@/services/streaming/StreamingContentStore';
 import type { AI, ChatSession, Message } from '@/types';
 import type { AIService } from '@/services/aiAdapter';
 
@@ -132,6 +135,7 @@ describe('ChatOrchestrator', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    resetStreamingContentStore();
   });
 
   it('streams responses when streaming is allowed and api key provided', async () => {
@@ -149,8 +153,15 @@ describe('ChatOrchestrator', () => {
 
     expect(dispatchMock).toHaveBeenCalledWith(expect.objectContaining({ type: addMessage.type }));
     expect(dispatchMock).toHaveBeenCalledWith(expect.objectContaining({ type: startStreaming.type }));
-    expect(dispatchMock).toHaveBeenCalledWith(expect.objectContaining({ type: updateStreamingContent.type }));
     expect(dispatchMock).toHaveBeenCalledWith(expect.objectContaining({ type: endStreaming.type }));
+    const startAction = dispatchMock.mock.calls
+      .map(call => call[0])
+      .find(action => action?.type === startStreaming.type);
+    expect(getStreamingContentSnapshot(startAction.payload.messageId)).toMatchObject({
+      content: 'final',
+      isStreaming: false,
+      status: 'completed',
+    });
     expect(service.sendMessage).not.toHaveBeenCalled();
     expect(adapter.getCapabilities).toHaveBeenCalled();
     expect(service.setPersonality).toHaveBeenCalledWith('claude', expect.objectContaining({
