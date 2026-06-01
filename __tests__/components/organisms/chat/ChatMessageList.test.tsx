@@ -242,7 +242,7 @@ describe('ChatMessageList', () => {
   });
 
   describe('Scrolling Behavior', () => {
-    it('scrolls to end on content size change by default', () => {
+    it('does not chase content size changes while a message is streaming', () => {
       const flatListRef = createMockRef();
       const scrollToEndSpy = jest.spyOn(FlatList.prototype, 'scrollToEnd').mockImplementation(() => {});
 
@@ -253,9 +253,47 @@ describe('ChatMessageList', () => {
         />
       );
 
+      flushScheduledScroll();
+      scrollToEndSpy.mockClear();
+
       act(() => {
         UNSAFE_getByType(FlatList).props.onContentSizeChange();
       });
+      flushScheduledScroll();
+
+      expect(scrollToEndSpy).not.toHaveBeenCalled();
+      scrollToEndSpy.mockRestore();
+    });
+
+    it('scrolls once when a new message is appended while following', () => {
+      const flatListRef = createMockRef();
+      const scrollToEndSpy = jest.spyOn(FlatList.prototype, 'scrollToEnd').mockImplementation(() => {});
+
+      const { rerender } = render(
+        <ChatMessageList
+          messages={mockMessages}
+          flatListRef={flatListRef}
+        />
+      );
+
+      flushScheduledScroll();
+      scrollToEndSpy.mockClear();
+
+      rerender(
+        <ChatMessageList
+          messages={[
+            ...mockMessages,
+            {
+              id: 'msg-3',
+              content: 'A new answer starts',
+              senderType: 'ai',
+              senderId: 'ai-2',
+              timestamp: Date.now(),
+            },
+          ]}
+          flatListRef={flatListRef}
+        />
+      );
       flushScheduledScroll();
 
       expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: false });
@@ -321,11 +359,11 @@ describe('ChatMessageList', () => {
       scrollToEndSpy.mockRestore();
     });
 
-    it('resumes auto-scroll after the user scrolls back to the bottom', () => {
+    it('resumes new-message auto-scroll after the user scrolls back to the bottom', () => {
       const flatListRef = createMockRef();
       const scrollToEndSpy = jest.spyOn(FlatList.prototype, 'scrollToEnd').mockImplementation(() => {});
 
-      const { UNSAFE_getByType } = render(
+      const { UNSAFE_getByType, rerender } = render(
         <ChatMessageList
           messages={mockMessages}
           flatListRef={flatListRef}
@@ -361,9 +399,22 @@ describe('ChatMessageList', () => {
           layoutMeasurement: { height: 500 },
         },
       });
-      act(() => {
-        flatList.props.onContentSizeChange();
-      });
+
+      rerender(
+        <ChatMessageList
+          messages={[
+            ...mockMessages,
+            {
+              id: 'msg-after-bottom',
+              content: 'New message',
+              senderType: 'ai',
+              senderId: 'ai-1',
+              timestamp: Date.now(),
+            },
+          ]}
+          flatListRef={flatListRef}
+        />
+      );
       flushScheduledScroll();
 
       expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: false });

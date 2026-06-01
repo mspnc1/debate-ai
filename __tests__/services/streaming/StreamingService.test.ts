@@ -122,7 +122,6 @@ describe('StreamingService', () => {
         adapterConfig: { provider: 'claude', apiKey: 'key', model: 'claude-3' },
         message: 'Hello',
         conversationHistory: [],
-        speed: 'instant',
       },
       (chunk) => {
         chunks.push(chunk);
@@ -161,7 +160,6 @@ describe('StreamingService', () => {
         },
         message: 'Hello',
         conversationHistory: [],
-        speed: 'instant',
       },
       () => {},
       () => {},
@@ -179,7 +177,7 @@ describe('StreamingService', () => {
     );
   });
 
-  it('buffers smooth display updates without blocking stream ingestion', async () => {
+  it('buffers display updates without blocking stream ingestion', async () => {
     jest.useFakeTimers();
     const adapter = new PausedStreamingAdapter({ provider: 'claude', apiKey: 'key', model: 'claude-3' });
     adapterSpy.mockReturnValue(adapter);
@@ -191,7 +189,6 @@ describe('StreamingService', () => {
         adapterConfig: { provider: 'claude', apiKey: 'key', model: 'claude-3' },
         message: 'ignored',
         conversationHistory: [],
-        speed: 'smooth',
       },
       chunk => {
         chunks.push(chunk);
@@ -205,7 +202,7 @@ describe('StreamingService', () => {
     await jest.advanceTimersByTimeAsync(0);
     expect(chunks).toEqual(['A']);
 
-    await jest.advanceTimersByTimeAsync(32);
+    await jest.advanceTimersByTimeAsync(48);
     expect(chunks).toEqual(['A', 'B']);
 
     adapter.resume?.();
@@ -250,7 +247,6 @@ describe('StreamingService', () => {
         adapterConfig: { provider: 'claude', apiKey: 'key', model: 'claude-3' },
         message: 'Checking',
         conversationHistory: [],
-        speed: 'instant',
       },
       (chunk) => {
         chunks.push(chunk);
@@ -279,7 +275,6 @@ describe('StreamingService', () => {
         adapterConfig: { provider: 'claude', apiKey: 'key', model: 'claude-3' },
         message: 'Pause',
         conversationHistory: [],
-        speed: 'instant',
       },
       () => {
         streamingService.interruptAllStreams();
@@ -314,7 +309,6 @@ describe('StreamingService', () => {
         modelOverride: 'gemini-3.5-flash',
         message: 'Retry safely',
         conversationHistory: [],
-        speed: 'instant',
       },
       (chunk) => {
         chunks.push(chunk);
@@ -350,7 +344,6 @@ describe('StreamingService', () => {
         modelOverride: 'gemini-3.5-flash',
         message: 'Do not duplicate',
         conversationHistory: [],
-        speed: 'instant',
       },
       (chunk) => {
         chunks.push(chunk);

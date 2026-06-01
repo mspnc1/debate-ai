@@ -87,7 +87,6 @@ const baseState: Partial<RootState> = {
   streaming: {
     streamingPreferences: { claude: { enabled: true } },
     globalStreamingEnabled: true,
-    streamingSpeed: 'instant',
     streamingMessages: {},
     activeStreamCount: 0,
     totalStreamsCompleted: 0,
@@ -126,7 +125,6 @@ describe('useAIResponsesWithStreaming', () => {
         allowStreaming: true,
         streamingPreferences: { claude: { enabled: true } },
         globalStreamingEnabled: true,
-        streamingSpeed: 'instant',
       })
     );
   });

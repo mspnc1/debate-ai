@@ -1,10 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RootState } from './index';
-import {
-  normalizeStreamingDisplayMode,
-  type StreamingDisplayMode,
-  type StreamingDisplayModeInput,
-} from '@/types/streaming';
 
 // Types for streaming state
 export interface StreamingMessage {
@@ -40,7 +35,6 @@ export interface StreamingState {
   
   // Global streaming settings
   globalStreamingEnabled: boolean;
-  streamingSpeed: StreamingDisplayMode;
   
   // Performance metrics
   activeStreamCount: number;
@@ -66,7 +60,6 @@ const initialState: StreamingState = {
     grok: { enabled: true, supported: true },
   },
   globalStreamingEnabled: true,
-  streamingSpeed: 'smooth',
   activeStreamCount: 0,
   totalStreamsCompleted: 0,
   providerVerificationErrors: {},
@@ -187,11 +180,6 @@ const streamingSlice = createSlice({
       state.globalStreamingEnabled = action.payload;
     },
     
-    // Set streaming display mode. Legacy natural/slow values normalize to smooth.
-    setStreamingSpeed: (state, action: PayloadAction<StreamingDisplayModeInput>) => {
-      state.streamingSpeed = normalizeStreamingDisplayMode(action.payload);
-    },
-    
     // Cancel all active streams
     cancelAllStreams: (state, action: PayloadAction<{
       reason?: 'cancelled' | 'interrupted';
@@ -231,7 +219,6 @@ export const {
   clearCompletedStreams,
   setProviderStreamingPreference,
   setGlobalStreaming,
-  setStreamingSpeed,
   cancelAllStreams,
   setProviderVerificationError,
 } = streamingSlice.actions;
@@ -255,9 +242,6 @@ export const selectProviderStreamingEnabled = (providerId: string) => (state: Ro
 
 export const selectProviderHasVerificationError = (providerId: string) => (state: RootState) =>
   state.streaming?.providerVerificationErrors[providerId] || false;
-
-export const selectStreamingSpeed = (state: RootState) =>
-  normalizeStreamingDisplayMode(state.streaming?.streamingSpeed as StreamingDisplayModeInput | undefined);
 
 export const selectActiveStreamCount = (state: RootState) =>
   state.streaming?.activeStreamCount || 0;

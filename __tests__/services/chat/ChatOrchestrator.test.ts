@@ -98,7 +98,6 @@ describe('ChatOrchestrator', () => {
     expertModeConfigs: {},
     streamingPreferences: { claude: { enabled: true } },
     globalStreamingEnabled: true,
-    streamingSpeed: 'instant' as const,
     allowStreaming: true,
     attachments: undefined,
     resumptionContext: undefined,

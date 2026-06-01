@@ -426,13 +426,11 @@ export {
   clearCompletedStreams,
   setProviderStreamingPreference,
   setGlobalStreaming,
-  setStreamingSpeed,
   cancelAllStreams,
   selectStreamingMessage,
   selectIsStreaming,
   selectStreamingContent,
   selectProviderStreamingEnabled,
-  selectStreamingSpeed,
   selectActiveStreamCount,
 } from './streamingSlice';
 

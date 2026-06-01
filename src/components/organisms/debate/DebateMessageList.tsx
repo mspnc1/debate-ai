@@ -4,7 +4,7 @@
  * Handles message rendering and typing indicators
  */
 
-import React, { useRef, useEffect, useLayoutEffect, memo, useCallback, useState } from 'react';
+import React, { useRef, useEffect, memo, useCallback, useState } from 'react';
 import { FlatList, ListRenderItem, NativeSyntheticEvent, NativeScrollEvent, TouchableOpacity, StyleSheet } from 'react-native';
 import { Box } from '../../atoms';
 import { Typography } from '../../molecules';
@@ -204,7 +204,7 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
   const scrollFrameRef = useRef<number | null>(null);
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   const { theme } = useTheme();
-  const lastMessageKeyRef = useRef('');
+  const latestAutoScrollMessageKeyRef = useRef('');
 
   // Auto-scroll to new messages
   const scrollToEnd = useCallback((animated = false) => {
@@ -226,10 +226,8 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
   const handleContentSizeChange = useCallback(() => {
     if (userPinnedAwayRef.current) {
       setShowScrollIndicator(true);
-    } else {
-      scrollToEnd(false);
     }
-  }, [scrollToEnd]);
+  }, []);
 
   // Scroll when new messages are added
   const listEmpty = messages.length === 0;
@@ -239,31 +237,28 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
       alignmentMapRef.current = {};
       lastAssignedSideRef.current = 'right';
       userPinnedAwayRef.current = false;
+      latestAutoScrollMessageKeyRef.current = '';
       setShowScrollIndicator(false);
     }
   }, [listEmpty]);
 
-  const handleContentUpdate = useCallback(() => {
-    if (listEmpty) return;
-    if (userPinnedAwayRef.current) {
-      setShowScrollIndicator(true);
-    } else {
-      scrollToEnd(false);
-    }
-  }, [listEmpty, scrollToEnd]);
-
-  useLayoutEffect(() => {
-    handleContentUpdate();
-  }, [messages.length, handleContentUpdate]);
-
-  const latestMessageFingerprint = messages.length > 0
-    ? `${messages[messages.length - 1].id}:${messages[messages.length - 1].content?.length ?? 0}:${messages[messages.length - 1].metadata?.citations?.length ?? 0}`
+  const latestMessageKey = messages.length > 0
+    ? `${messages.length}:${messages[messages.length - 1].id ?? 'unknown'}:${messages[messages.length - 1].timestamp ?? ''}`
     : '';
 
-  useLayoutEffect(() => {
-    if (!latestMessageFingerprint) return;
-    handleContentUpdate();
-  }, [latestMessageFingerprint, handleContentUpdate]);
+  useEffect(() => {
+    if (!latestMessageKey) return;
+    if (latestMessageKey !== latestAutoScrollMessageKeyRef.current) {
+      latestAutoScrollMessageKeyRef.current = latestMessageKey;
+      if (userPinnedAwayRef.current) {
+        setShowScrollIndicator(true);
+      } else {
+        scrollToEnd(false);
+      }
+    }
+  }, [latestMessageKey, scrollToEnd]);
+
+  const typingAIsKey = typingAIs.join('|');
 
   useEffect(() => {
     if (typingAIs.length === 0) return;
@@ -272,24 +267,7 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
     } else {
       scrollToEnd(false);
     }
-  }, [typingAIs, scrollToEnd]);
-
-  useEffect(() => {
-    if (listEmpty) {
-      lastMessageKeyRef.current = '';
-      return;
-    }
-    const lastMessage = messages[messages.length - 1];
-    const key = `${lastMessage.id ?? 'unknown'}:${lastMessage.timestamp ?? ''}:${lastMessage.content?.length ?? 0}`;
-    if (key !== lastMessageKeyRef.current) {
-      lastMessageKeyRef.current = key;
-      if (userPinnedAwayRef.current) {
-        setShowScrollIndicator(true);
-      } else {
-        scrollToEnd(false);
-      }
-    }
-  }, [messages, listEmpty, scrollToEnd]);
+  }, [typingAIs.length, typingAIsKey, scrollToEnd]);
 
   const getAlignment = useCallback((message: Message): 'left' | 'right' | 'center' => {
     if (message.sender === 'Debate Host' || message.sender === 'System') {

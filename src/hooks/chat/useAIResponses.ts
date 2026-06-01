@@ -92,7 +92,6 @@ export const useAIResponses = (isResuming?: boolean): AIResponsesHook => {
       expertModeConfigs,
       streamingPreferences: {},
       globalStreamingEnabled: false,
-      streamingSpeed: undefined,
       allowStreaming: false,
       isDemo: false,
     });
@@ -121,7 +120,6 @@ export const useAIResponses = (isResuming?: boolean): AIResponsesHook => {
       expertModeConfigs,
       streamingPreferences: {},
       globalStreamingEnabled: false,
-      streamingSpeed: undefined,
       allowStreaming: false,
       isDemo: false,
     });

@@ -29,7 +29,6 @@ import { AppError } from '@/errors/types/AppError';
 import { ErrorCode } from '@/errors/codes/ErrorCodes';
 import type { AIService, ResumptionContext } from '@/services/aiAdapter';
 import type { AI, ChatSession, Message, MessageAttachment, ModelParameters } from '@/types';
-import type { StreamingDisplayModeInput } from '@/types/streaming';
 
 interface StreamingPreferenceState {
   enabled?: boolean;
@@ -51,7 +50,6 @@ export interface ProcessUserMessageParams {
   expertModeConfigs: Record<string, unknown>;
   streamingPreferences?: Record<string, StreamingPreferenceState | undefined>;
   globalStreamingEnabled?: boolean;
-  streamingSpeed?: StreamingDisplayModeInput;
   allowStreaming: boolean;
   isDemo: boolean;
   webSearchEnabled?: boolean;
@@ -111,7 +109,6 @@ export class ChatOrchestrator {
       expertModeConfigs,
       streamingPreferences,
       globalStreamingEnabled,
-      streamingSpeed,
       allowStreaming,
       isDemo,
       webSearchEnabled,
@@ -213,7 +210,6 @@ export class ChatOrchestrator {
               apiKey: isDemo ? 'demo' : await this.getExecutionApiKey(ai.provider, apiKeys),
               expert,
               runtimeParameters,
-              streamingSpeed,
               webSearchEnabled,
             })
           : await this.handleNonStreamingResponse({
@@ -267,7 +263,6 @@ export class ChatOrchestrator {
     apiKey?: string;
     expert?: { enabled?: boolean; parameters?: Partial<ModelParameters> } | undefined;
     runtimeParameters?: Partial<ModelParameters> | undefined;
-    streamingSpeed?: StreamingDisplayModeInput;
     webSearchEnabled?: boolean;
   }): Promise<Message> {
     const {
@@ -280,7 +275,6 @@ export class ChatOrchestrator {
       apiKey,
       expert,
       runtimeParameters,
-      streamingSpeed,
       webSearchEnabled,
     } = options;
 
@@ -325,7 +319,6 @@ export class ChatOrchestrator {
         resumptionContext,
         attachments,
         modelOverride: ai.model,
-        speed: streamingSpeed,
       },
       (chunk: string) => {
         streamedContent += chunk;

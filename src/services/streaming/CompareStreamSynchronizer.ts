@@ -6,9 +6,9 @@
  */
 
 export interface SyncConfig {
-  /** How often to flush synchronized content (default: 32ms) */
+  /** How often to flush synchronized content (default: 48ms) */
   syncIntervalMs: number;
-  /** Maximum buffer size before forced flush (default: 80 chars) */
+  /** Maximum buffer size before forced flush (default: 120 chars) */
   maxBufferSizeChars: number;
   /** Initial delay to wait for both streams to start (default: 50ms) */
   startDelayMs: number;
@@ -29,8 +29,8 @@ type CompleteCallback = (finalContent: string) => void;
 type ErrorCallback = (error: Error) => void;
 
 const DEFAULT_CONFIG: SyncConfig = {
-  syncIntervalMs: 32,
-  maxBufferSizeChars: 80,
+  syncIntervalMs: 48,
+  maxBufferSizeChars: 120,
   startDelayMs: 50,
   startTimeoutMs: 150,
 };

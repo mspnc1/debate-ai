@@ -9,10 +9,8 @@ import reducer, {
   setProviderStreamingPreference,
   setGlobalStreaming,
   setProviderVerificationError,
-  setStreamingSpeed,
   selectStreamingMessage,
   selectProviderStreamingEnabled,
-  selectStreamingSpeed,
 } from '@/store/streamingSlice';
 import type { RootState } from '@/store';
 
@@ -97,17 +95,4 @@ describe('streamingSlice', () => {
     expect(state.streamingPreferences.claude.enabled).toBe(false);
   });
 
-  it('uses instant and smooth display modes while normalizing legacy speed values', () => {
-    let state = reducer(initialState, setStreamingSpeed('instant'));
-    expect(state.streamingSpeed).toBe('instant');
-
-    state = reducer(state, setStreamingSpeed('smooth'));
-    expect(state.streamingSpeed).toBe('smooth');
-
-    state = reducer(state, setStreamingSpeed('slow'));
-    expect(state.streamingSpeed).toBe('smooth');
-
-    const rootState = { streaming: { ...state, streamingSpeed: 'natural' } } as unknown as RootState;
-    expect(selectStreamingSpeed(rootState)).toBe('smooth');
-  });
 });

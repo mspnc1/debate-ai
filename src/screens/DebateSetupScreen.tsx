@@ -3,9 +3,8 @@ import { ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState, setAIPersonality, setAIModel, preserveTopic, clearPreservedTopic, setGlobalStreaming, setStreamingSpeed, isApiKeyConfigured } from '../store';
+import { RootState, setAIPersonality, setAIModel, preserveTopic, clearPreservedTopic, setGlobalStreaming, isApiKeyConfigured } from '../store';
 import { setProviderStreamingPreference } from '../store/streamingSlice';
-import { formatStreamingDisplayMode, getNextStreamingDisplayMode, normalizeStreamingDisplayMode } from '@/types/streaming';
 
 import { Box, ResponsiveContainer } from '../components/atoms';
 import { Button, Typography, GradientButton, InfoButton } from '../components/molecules';
@@ -1460,27 +1459,16 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
                 size="small"
                 style={{ alignSelf: 'flex-start' }}
               />
-              <Button
-                title={`Display: ${formatStreamingDisplayMode(streamingState?.streamingSpeed)}`}
-                onPress={() => {
-                  if (!streamingState?.globalStreamingEnabled) return;
-                  dispatch(setStreamingSpeed(getNextStreamingDisplayMode(streamingState?.streamingSpeed)));
-                }}
-                variant={streamingState?.globalStreamingEnabled ? 'secondary' : 'ghost'}
-                size="small"
-                disabled={!streamingState?.globalStreamingEnabled}
-              />
             </Box>
             {selectedStreamingProviders.map(ai => {
               const providerId = ai.provider;
               const providerPref = streamingState?.streamingPreferences?.[providerId]?.enabled ?? true;
               const hasVerificationError = !!streamingState?.providerVerificationErrors?.[providerId];
-              const displayMode = normalizeStreamingDisplayMode(streamingState?.streamingSpeed);
               const willStream = (streamingState?.globalStreamingEnabled ?? true) && providerPref && !hasVerificationError;
               const statusText = hasVerificationError
                 ? 'Won’t stream (verification required)'
                 : willStream
-                  ? `Will stream (${displayMode})`
+                  ? 'Will stream'
                   : 'Won’t stream';
               return (
                 <Box key={providerId} style={{

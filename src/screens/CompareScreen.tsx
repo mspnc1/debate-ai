@@ -45,7 +45,6 @@ import { ensureAnswerContent } from '@/utils/citationUtils';
 import { ActiveSessionPersistenceService, type ActiveCompareSessionSnapshot } from '@/services/lifecycle/ActiveSessionPersistenceService';
 import { AppLifecycleService } from '@/services/lifecycle/AppLifecycleService';
 import { useRecoverableExitGuard } from '@/hooks/lifecycle/useRecoverableExitGuard';
-import { normalizeStreamingDisplayMode } from '@/types/streaming';
 
 interface CompareScreenProps {
   navigation: {
@@ -572,7 +571,6 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     const hasRightKey = Boolean(rightApiKey);
     const shouldStreamLeft = globalEnabled && leftEnabled && !leftBlocked && hasLeftKey;
     const shouldStreamRight = globalEnabled && rightEnabled && !rightBlocked && hasRightKey;
-    const streamSpeed = normalizeStreamingDisplayMode(streamingState?.streamingSpeed);
 
     // Start typing indicators only for non-streaming sides
     const leftActive = (viewMode === 'split' && !continuedSide) || continuedSide === 'left' || viewMode === 'left-only' || viewMode === 'left-full';
@@ -590,12 +588,12 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     logComparePrompt('right', { ...rightAI, model: rightEffModel }, rightAI.personality || 'default', rightRuntime, rightAdapter, messageText);
 
     // Determine if we should use synchronized streaming (both AIs active and both streaming)
-    const useSynchronizedStreaming = streamSpeed === 'smooth' && leftActive && rightActive && shouldStreamLeft && shouldStreamRight;
+    const useSynchronizedStreaming = leftActive && rightActive && shouldStreamLeft && shouldStreamRight;
 
     // Create synchronizer for dual streaming
     if (useSynchronizedStreaming) {
       synchronizerRef.current = new CompareStreamSynchronizer(
-        { syncIntervalMs: 32, maxBufferSizeChars: 80, startDelayMs: 50, startTimeoutMs: 150 },
+        { syncIntervalMs: 48, maxBufferSizeChars: 120, startDelayMs: 50, startTimeoutMs: 150 },
         {
           onLeftFlush: (content: string) => {
             setLeftTyping(false);
@@ -672,7 +670,6 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
             conversationHistory: leftHistoryRef.current,
             attachments,
             modelOverride: leftEffModel,
-            speed: streamSpeed,
           },
           (chunk: string) => {
             try { if (RecordController.isActive()) { RecordController.recordAssistantChunk(leftAI.provider, chunk); } } catch (_e) { console.warn('compare left chunk record failed', _e); }
@@ -847,7 +844,6 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
             conversationHistory: rightHistoryRef.current,
             attachments,
             modelOverride: rightEffModel,
-            speed: streamSpeed,
           },
           (chunk: string) => {
             try { if (RecordController.isActive()) { RecordController.recordAssistantChunk(rightAI.provider, chunk); } } catch (_e) { console.warn('compare right chunk record failed', _e); }
@@ -1011,7 +1007,6 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     streamingState?.globalStreamingEnabled,
     streamingState?.streamingPreferences,
     streamingState?.providerVerificationErrors,
-    streamingState?.streamingSpeed,
     buildCompareRuntime,
     logComparePrompt,
     leftEffectiveModel,

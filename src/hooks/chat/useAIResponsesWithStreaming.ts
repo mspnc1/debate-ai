@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import { addMessage } from '../../store';
-import { selectStreamingSpeed } from '../../store/streamingSlice';
 import { Message, MessageAttachment } from '../../types';
 import { useAIService } from '../../providers/AIServiceProvider';
 import { ChatService, ChatOrchestrator } from '../../services/chat';
@@ -46,7 +45,6 @@ export const useAIResponsesWithStreaming = (isResuming?: boolean): AIResponsesHo
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
   const expertModeConfigs = useSelector((state: RootState) => state.settings.expertMode || {});
 
-  const streamingSpeed = useSelector(selectStreamingSpeed);
   const streamingPreferences = useSelector((state: RootState) => state.streaming?.streamingPreferences || {});
   const globalStreamingEnabled = useSelector((state: RootState) => state.streaming?.globalStreamingEnabled ?? true);
 
@@ -125,12 +123,11 @@ export const useAIResponsesWithStreaming = (isResuming?: boolean): AIResponsesHo
       expertModeConfigs,
       streamingPreferences,
       globalStreamingEnabled,
-      streamingSpeed,
       allowStreaming: true,
       isDemo,
       webSearchEnabled,
     });
-  }, [aiService, apiKeys, expertModeConfigs, globalStreamingEnabled, isDemo, isInitialized, isResuming, messages, selectedModels, aiPersonalities, mergedPersonalities, streamingPreferences, streamingSpeed, currentSession, hasResumed]);
+  }, [aiService, apiKeys, expertModeConfigs, globalStreamingEnabled, isDemo, isInitialized, isResuming, messages, selectedModels, aiPersonalities, mergedPersonalities, streamingPreferences, currentSession, hasResumed]);
 
   const sendAIResponses = useCallback(async (
     userMessage: Message,
@@ -180,12 +177,11 @@ export const useAIResponsesWithStreaming = (isResuming?: boolean): AIResponsesHo
       expertModeConfigs,
       streamingPreferences,
       globalStreamingEnabled,
-      streamingSpeed,
       allowStreaming: true,
       isDemo,
       webSearchEnabled,
     });
-  }, [aiService, apiKeys, dispatch, expertModeConfigs, globalStreamingEnabled, isDemo, isInitialized, messages, selectedModels, aiPersonalities, mergedPersonalities, streamingPreferences, streamingSpeed, currentSession]);
+  }, [aiService, apiKeys, dispatch, expertModeConfigs, globalStreamingEnabled, isDemo, isInitialized, messages, selectedModels, aiPersonalities, mergedPersonalities, streamingPreferences, currentSession]);
 
   return {
     typingAIs,

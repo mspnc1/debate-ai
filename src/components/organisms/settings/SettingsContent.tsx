@@ -1,13 +1,12 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState, setGlobalStreaming, setStreamingSpeed, setPremiumStatus, setRecordModeEnabled, isApiKeyConfigured, selectStreamingSpeed } from '../../../store';
+import { RootState, setGlobalStreaming, setPremiumStatus, setRecordModeEnabled, isApiKeyConfigured } from '../../../store';
 import { Typography, SheetHeader, SettingRow, Button } from '@/components/molecules';
 import { useTheme } from '../../../theme';
 import {
   useThemeSettings
 } from '../../../hooks/settings';
-import { formatStreamingDisplayMode, getNextStreamingDisplayMode } from '@/types/streaming';
 
 interface SettingsContentProps {
   onClose?: () => void;
@@ -28,23 +27,12 @@ export const SettingsContent: React.FC<SettingsContentProps> = ({
   const { theme } = useTheme();
   const dispatch = useDispatch();
   const streamingEnabled = useSelector((state: RootState) => state.streaming?.globalStreamingEnabled ?? true);
-  const streamingDisplayMode = useSelector(selectStreamingSpeed);
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
   const hasAnyApiKey = Object.values(apiKeys).some(isApiKeyConfigured);
   const recordModeEnabled = useSelector((state: RootState) => state.settings.recordModeEnabled ?? false);
   
   const themeSettings = useThemeSettings();
   const hasPremiumAccess = useSelector((state: RootState) => state.auth.isPremium);
-
-  const handleStreamingSpeedPress = () => {
-    if (!streamingEnabled) return;
-
-    dispatch(setStreamingSpeed(getNextStreamingDisplayMode(streamingDisplayMode)));
-  };
-
-  const getStreamingSpeedDisplay = () => {
-    return formatStreamingDisplayMode(streamingDisplayMode);
-  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -165,14 +153,6 @@ export const SettingsContent: React.FC<SettingsContentProps> = ({
               size="small"
             />
           }
-        />
-        
-        <SettingRow
-          title="Streaming Display"
-          subtitle={streamingEnabled ? `Currently: ${getStreamingSpeedDisplay()}` : 'Enable streaming to adjust display'}
-          icon="speedometer"
-          onPress={streamingEnabled ? handleStreamingSpeedPress : undefined}
-          disabled={!streamingEnabled}
         />
       </View>
       

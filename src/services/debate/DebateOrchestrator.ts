@@ -14,7 +14,7 @@ import { UNIVERSAL_PERSONALITIES, getPersonality, PersonalityOption } from '../.
 import { StorageService } from '../chat/StorageService';
 import { store } from '../../store';
 import { getStreamingService, isStreamInterruptedError } from '../streaming/StreamingService';
-import { selectStreamingSpeed, setProviderVerificationError } from '../../store/streamingSlice';
+import { setProviderVerificationError } from '../../store/streamingSlice';
 import {
   type AudienceDecisionResult,
   type AudienceStance,
@@ -822,7 +822,6 @@ export class DebateOrchestrator {
       const globalEnabled = streamingState?.globalStreamingEnabled ?? true;
       const providerHasVerificationError = !!streamingState?.providerVerificationErrors?.[providerId];
       const streamingAllowed = globalEnabled && providerEnabled && !providerHasVerificationError;
-      const streamSpeed = selectStreamingSpeed(store.getState());
 
       // Resolve expert parameters (expert model acts as default elsewhere; currentAI.model is authoritative here)
       const expert = getExpertOverrides((store.getState().settings?.expertMode || {}) as Record<string, unknown>, currentAI.provider) as {
@@ -956,7 +955,6 @@ export class DebateOrchestrator {
             message: contextualPrompt,
             conversationHistory: debateMessages,
             modelOverride: currentAI.model,
-            speed: streamSpeed,
           },
             (chunk: string) => {
             streamedContent += chunk;

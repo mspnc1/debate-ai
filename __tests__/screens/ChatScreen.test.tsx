@@ -513,7 +513,6 @@ describe('ChatScreen', () => {
             },
             streamingPreferences: {},
             globalStreamingEnabled: true,
-            streamingSpeed: 'smooth',
             activeStreamCount: 1,
             totalStreamsCompleted: 0,
             providerVerificationErrors: {},

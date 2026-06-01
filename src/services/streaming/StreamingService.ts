@@ -7,10 +7,6 @@ import { AppError } from '@/errors/types/AppError';
 import { ErrorCode } from '@/errors/codes/ErrorCodes';
 import { resolveProviderModelId } from '@/config/modelConfigs';
 import { withProviderRetry } from '@/services/retry/ProviderRetryService';
-import {
-  normalizeStreamingDisplayMode,
-  type StreamingDisplayModeInput,
-} from '@/types/streaming';
 
 // Chunk buffer configuration
 interface BufferConfig {
@@ -39,7 +35,6 @@ interface StreamConfig {
   attachments?: MessageAttachment[];
   modelOverride?: string;
   bufferConfig?: BufferConfig;
-  speed?: StreamingDisplayModeInput;
 }
 
 // Stream state tracking
@@ -152,8 +147,8 @@ class ChunkBuffer {
 export class StreamingService {
   private activeStreams: Map<string, StreamState> = new Map();
   private readonly defaultBufferConfig: BufferConfig = {
-    flushInterval: 32,
-    maxBufferSize: 80,
+    flushInterval: 48,
+    maxBufferSize: 120,
     enabled: true,
   };
 
@@ -245,7 +240,7 @@ export class StreamingService {
     const abortController = new AbortController();
 
     // Determine buffer configuration
-    const bufferConfig = config.bufferConfig || this.getBufferConfigForSpeed(config.speed);
+    const bufferConfig = config.bufferConfig || this.defaultBufferConfig;
 
     // Buffer display updates without slowing provider consumption.
     const onBufferFlush = (content: string) => {
@@ -445,23 +440,6 @@ export class StreamingService {
       bytesReceived: streamState.bytesReceived,
       averageChunkSize,
     };
-  }
-
-  /**
-   * Get buffer configuration based on speed preference
-   */
-  private getBufferConfigForSpeed(speed?: StreamingDisplayModeInput): BufferConfig {
-    switch (normalizeStreamingDisplayMode(speed)) {
-      case 'instant':
-        return {
-          flushInterval: 0,
-          maxBufferSize: 1,
-          enabled: false,  // No buffering for instant
-        };
-      case 'smooth':
-      default:
-        return this.defaultBufferConfig;
-    }
   }
 
   /**

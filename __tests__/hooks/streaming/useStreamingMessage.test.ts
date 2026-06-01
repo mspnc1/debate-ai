@@ -16,7 +16,6 @@ const buildStreamingState = (overrideMessages: RootState['streaming']['streaming
     grok: { enabled: true, supported: true },
   },
   globalStreamingEnabled: true,
-  streamingSpeed: 'smooth',
   activeStreamCount: 0,
   totalStreamsCompleted: 0,
   providerVerificationErrors: {},

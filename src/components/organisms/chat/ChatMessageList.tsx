@@ -54,6 +54,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   const userPinnedAwayRef = useRef(false);
   const userScrollInProgressRef = useRef(false);
   const scrollFrameRef = useRef<number | null>(null);
+  const latestAutoScrollMessageIdRef = useRef<string | null>(null);
 
   // Responsive padding for iPad
   const contentPadding = useMemo(() => ({
@@ -118,11 +119,36 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
 
   const handleContentSizeChange = useCallback(() => {
     onContentSizeChange?.();
+  }, [onContentSizeChange]);
 
-    if (!userPinnedAwayRef.current) {
+  const latestMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
+
+  useEffect(() => {
+    if (!latestMessageId) {
+      latestAutoScrollMessageIdRef.current = null;
+      return;
+    }
+
+    if (latestMessageId !== latestAutoScrollMessageIdRef.current) {
+      latestAutoScrollMessageIdRef.current = latestMessageId;
+      if (!userPinnedAwayRef.current) {
+        scrollToEnd(false);
+      }
+    }
+  }, [latestMessageId, scrollToEnd]);
+
+  useEffect(() => {
+    if (messages.length === 0) {
+      userPinnedAwayRef.current = false;
+      latestAutoScrollMessageIdRef.current = null;
+    }
+  }, [messages.length]);
+
+  const handleListLayout = useCallback(() => {
+    if (messages.length > 0 && !userPinnedAwayRef.current) {
       scrollToEnd(false);
     }
-  }, [onContentSizeChange, scrollToEnd]);
+  }, [messages.length, scrollToEnd]);
 
   const isUserMessage = useCallback((m: Message) => m.senderType === 'user', []);
   const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
@@ -164,6 +190,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
           renderItem={renderMessage}
           contentContainerStyle={[styles.messagesList, contentPadding]}
           onContentSizeChange={handleContentSizeChange}
+          onLayout={handleListLayout}
           onScroll={handleScroll}
           onScrollBeginDrag={handleScrollBeginDrag}
           onScrollEndDrag={handleScrollEndDrag}
