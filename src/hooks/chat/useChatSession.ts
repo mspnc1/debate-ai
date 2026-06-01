@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import { loadSession as loadSessionAction, endSession as endSessionAction } from '../../store';
@@ -19,23 +20,25 @@ export const useChatSession = (): ChatSessionHook => {
   const { currentSession } = useSelector((state: RootState) => state.chat);
   const isPremium = useSelector((state: RootState) => state.auth.isPremium);
 
-  const loadSession = async (id: string): Promise<void> => {
+  const loadSession = useCallback(async (id: string): Promise<void> => {
     try {
       const session = await StorageService.loadSession(id);
-      if (session) {
-        dispatch(loadSessionAction(session));
+      if (session && (session.sessionType === undefined || session.sessionType === 'chat')) {
+        dispatch(loadSessionAction({
+          ...session,
+          sessionType: 'chat',
+        }));
       }
     } catch (error) {
       console.error('Error loading session:', error);
     }
-  };
+  }, [dispatch]);
 
-  const saveSession = async (): Promise<void> => {
+  const saveSession = useCallback(async (): Promise<void> => {
     if (!currentSession) return;
     
-    // Don't save debate Redux sessions - debates save directly via DebateOrchestrator
-    if (currentSession.sessionType === 'debate') {
-      // Silent skip for debate sessions
+    // ChatScreen owns chat persistence only. Debate/compare flows save through their own screens.
+    if (currentSession.sessionType !== undefined && currentSession.sessionType !== 'chat') {
       return;
     }
     
@@ -52,11 +55,11 @@ export const useChatSession = (): ChatSessionHook => {
     } catch (error) {
       console.error('Error saving session:', error);
     }
-  };
+  }, [currentSession, isPremium]);
 
-  const endSession = (): void => {
+  const endSession = useCallback((): void => {
     dispatch(endSessionAction());
-  };
+  }, [dispatch]);
 
   return {
     currentSession,

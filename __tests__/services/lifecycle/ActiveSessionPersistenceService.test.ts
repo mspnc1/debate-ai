@@ -116,4 +116,95 @@ describe('ActiveSessionPersistenceService', () => {
       expect.objectContaining({ sessionId: 'session-interrupt', status: 'interrupted' })
     );
   });
+
+  it('rejects debate-shaped payloads stored under chat snapshot keys', async () => {
+    const key = 'activeSessionSnapshot_v1_chat_session-corrupt';
+    await AsyncStorage.setItem(key, JSON.stringify({
+      version: 1,
+      mode: 'chat',
+      sessionId: 'session-corrupt',
+      status: 'active',
+      updatedAt: 2000,
+      session: {
+        id: 'session-corrupt',
+        selectedAIs: [ai],
+        messages: [{
+          id: 'host-1',
+          sender: 'Debate Host',
+          senderType: 'user',
+          content: 'Cast your opening audience stance before the first speech.',
+          timestamp: 2000,
+        }],
+        isActive: true,
+        createdAt: 1000,
+        sessionType: 'debate',
+      },
+      messages: [],
+    }));
+
+    expect(await ActiveSessionPersistenceService.loadSnapshot('chat', 'session-corrupt')).toBeNull();
+  });
+
+  it('skips invalid latest snapshots and returns the newest valid chat snapshot', async () => {
+    await ActiveSessionPersistenceService.saveSnapshot({
+      mode: 'chat',
+      sessionId: 'session-valid',
+      status: 'active',
+      updatedAt: 1000,
+      selectedAIs: [ai],
+      messages: [userMessage],
+      session: {
+        id: 'session-valid',
+        selectedAIs: [ai],
+        messages: [userMessage],
+        isActive: true,
+        createdAt: 1000,
+        sessionType: 'chat',
+      },
+    });
+
+    const corruptKey = 'activeSessionSnapshot_v1_chat_session-corrupt';
+    await AsyncStorage.setItem(corruptKey, JSON.stringify({
+      version: 1,
+      mode: 'chat',
+      sessionId: 'session-corrupt',
+      status: 'active',
+      updatedAt: 2000,
+      session: {
+        id: 'session-corrupt',
+        selectedAIs: [ai],
+        messages: [{
+          id: 'host-1',
+          sender: 'Debate Host',
+          senderType: 'user',
+          content: 'Cast your opening audience stance before the first speech.',
+          timestamp: 2000,
+        }],
+        isActive: true,
+        createdAt: 1000,
+        sessionType: 'debate',
+      },
+      messages: [],
+    }));
+    await AsyncStorage.setItem('activeSessionSnapshots_index_v1', JSON.stringify([
+      {
+        mode: 'chat',
+        sessionId: 'session-corrupt',
+        key: corruptKey,
+        status: 'active',
+        updatedAt: 2000,
+      },
+      {
+        mode: 'chat',
+        sessionId: 'session-valid',
+        key: 'activeSessionSnapshot_v1_chat_session-valid',
+        status: 'active',
+        updatedAt: 1000,
+      },
+    ]));
+
+    expect(await ActiveSessionPersistenceService.loadLatestSnapshot('chat')).toEqual(
+      expect.objectContaining({ sessionId: 'session-valid' })
+    );
+  });
 });

@@ -101,6 +101,27 @@ describe('useChatSession', () => {
     expect(result.current.sessionId).toBeNull();
   });
 
+  it('does not load debate sessions through the chat session hook', async () => {
+    loadSessionSpy.mockResolvedValue(createSession({
+      id: 'debate-1',
+      sessionType: 'debate',
+      topic: 'Debate topic',
+    }));
+
+    const { result, store } = renderHookWithProviders(() => useChatSession(), {
+      preloadedState: {
+        chat: { ...baseChatState },
+        auth: { ...baseAuthState },
+      },
+    });
+
+    await act(async () => {
+      await result.current.loadSession('debate-1');
+    });
+
+    expect(store.getState().chat.currentSession).toBeNull();
+  });
+
   it('logs an error if storage throws while loading a session', async () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     loadSessionSpy.mockRejectedValue(new Error('boom'));
@@ -164,6 +185,25 @@ describe('useChatSession', () => {
 
   it('treats debate sessions as transient and skips persistence', async () => {
     const session = createSession({ id: 'debate-session', sessionType: 'debate' });
+
+    const { result } = renderHookWithProviders(() => useChatSession(), {
+      preloadedState: {
+        chat: { ...baseChatState, currentSession: session },
+        auth: { ...baseAuthState },
+      },
+    });
+
+    await act(async () => {
+      await result.current.saveSession();
+    });
+
+    expect(loadSessionSpy).not.toHaveBeenCalled();
+    expect(enforceLimitsSpy).not.toHaveBeenCalled();
+    expect(saveSessionSpy).not.toHaveBeenCalled();
+  });
+
+  it('skips comparison sessions because compare persistence owns them', async () => {
+    const session = createSession({ id: 'comparison-session', sessionType: 'comparison' });
 
     const { result } = renderHookWithProviders(() => useChatSession(), {
       preloadedState: {

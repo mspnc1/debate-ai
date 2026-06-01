@@ -165,6 +165,44 @@ const getSnapshotKey = (mode: ActiveSessionMode, sessionId: string): string =>
 const isObject = (value: unknown): value is Record<string, unknown> =>
   Boolean(value && typeof value === 'object' && !Array.isArray(value));
 
+const hasDebateOnlyMessages = (messages: unknown): boolean => {
+  if (!Array.isArray(messages)) return false;
+  return messages.some((message) => (
+    isObject(message)
+    && (
+      message.sender === 'Debate Host'
+      || message.content === 'Cast your opening audience stance before the first speech.'
+    )
+  ));
+};
+
+const isValidChatSnapshot = (value: Record<string, unknown>): boolean => {
+  const session = value.session;
+  if (!isObject(session)) return false;
+
+  const sessionId = String(value.sessionId);
+  const sessionType = session.sessionType;
+  if (session.id !== sessionId) return false;
+  if (typeof session.id === 'string' && session.id.startsWith('debate_')) return false;
+  if (sessionType !== undefined && sessionType !== 'chat') return false;
+  if ('debateSession' in value || 'debateConfig' in session || 'topic' in session) return false;
+  if (hasDebateOnlyMessages(session.messages) || hasDebateOnlyMessages(value.messages)) return false;
+
+  return Array.isArray(session.selectedAIs) && Array.isArray(session.messages);
+};
+
+const isModeCompatibleSnapshot = (value: Record<string, unknown>): boolean => {
+  if (value.mode === 'chat') {
+    return isValidChatSnapshot(value);
+  }
+
+  if (value.mode === 'debate') {
+    return isObject(value.debateSession) && Array.isArray(value.messages);
+  }
+
+  return true;
+};
+
 const scrubSensitiveFields = <T>(value: T): T => {
   if (Array.isArray(value)) {
     return value.map(item => scrubSensitiveFields(item)) as T;
@@ -189,7 +227,8 @@ const isSnapshot = (value: unknown): value is ActiveSessionSnapshot => {
   return value.version === STORAGE_VERSION
     && typeof value.sessionId === 'string'
     && typeof value.updatedAt === 'number'
-    && ['chat', 'comparison', 'debate', 'create'].includes(String(value.mode));
+    && ['chat', 'comparison', 'debate', 'create'].includes(String(value.mode))
+    && isModeCompatibleSnapshot(value);
 };
 
 export class ActiveSessionPersistenceService {
@@ -270,9 +309,12 @@ export class ActiveSessionPersistenceService {
     mode?: ActiveSessionMode
   ): Promise<T | null> {
     const index = await this.getIndex();
-    const entry = index.find(item => (!mode || item.mode === mode) && item.status !== 'completed');
-    if (!entry) return null;
-    return this.loadSnapshot<T>(entry.mode, entry.sessionId);
+    const candidates = index.filter(item => (!mode || item.mode === mode) && item.status !== 'completed');
+    for (const entry of candidates) {
+      const snapshot = await this.loadSnapshot<T>(entry.mode, entry.sessionId);
+      if (snapshot) return snapshot;
+    }
+    return null;
   }
 
   static async getAllSnapshots(mode?: ActiveSessionMode): Promise<ActiveSessionSnapshot[]> {

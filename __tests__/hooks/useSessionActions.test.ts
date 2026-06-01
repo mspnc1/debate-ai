@@ -161,7 +161,10 @@ describe('useSessionActions', () => {
       buttons?.find(btn => btn.text === 'Resume Chat')?.onPress?.();
     });
 
-    expect(mockLoadSession).toHaveBeenCalledWith(comparisonSession);
+    expect(mockLoadSession).toHaveBeenCalledWith({
+      ...comparisonSession,
+      sessionType: 'chat',
+    });
 
     alertSpy.mockRestore();
   });

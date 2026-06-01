@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AIServiceLoading, Header, HeaderActions } from '../components/organisms';
 import { ErrorService } from '@/services/errors/ErrorService';
 import { useAIService } from '../providers/AIServiceProvider';
-import { MessageAttachment } from '../types';
+import { MessageAttachment, type ChatSession } from '../types';
 import { getAttachmentSupport } from '../utils/attachmentUtils';
 import { shallowEqual, useSelector, useDispatch } from 'react-redux';
 import {
@@ -90,6 +90,33 @@ interface ChatScreenProps {
   };
 }
 
+const DEBATE_OPENING_AUDIENCE_STANCE = 'Cast your opening audience stance before the first speech.';
+
+const hasDebateOnlyMessages = (messages: Message[] = []): boolean =>
+  messages.some(message =>
+    message.sender === 'Debate Host'
+    || message.content === DEBATE_OPENING_AUDIENCE_STANCE
+  );
+
+const isChatScreenSession = (candidate: ChatSession | null | undefined): boolean => {
+  if (!candidate) return false;
+  if (candidate.id.startsWith('debate_')) return false;
+  if (candidate.sessionType !== undefined && candidate.sessionType !== 'chat') return false;
+  if (candidate.topic || candidate.debateConfig) return false;
+  if (hasDebateOnlyMessages(candidate.messages)) return false;
+  return true;
+};
+
+const isRestorableChatSnapshot = (
+  snapshot: ActiveChatSessionSnapshot | null,
+  expectedSessionId?: string
+): boolean => {
+  if (!snapshot || snapshot.mode !== 'chat') return false;
+  if (expectedSessionId && snapshot.sessionId !== expectedSessionId) return false;
+  return isChatScreenSession(snapshot.session)
+    && !hasDebateOnlyMessages(snapshot.messages || []);
+};
+
 const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   const { theme, isDark } = useTheme();
   // Extract route parameters
@@ -126,9 +153,14 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   const mentions = useMentions();
   const aiResponses = useAIResponsesWithStreaming(resuming);
   const quickStart = useQuickStart({ initialPrompt, userPrompt, autoSend });
+  const isCurrentSessionChat = isChatScreenSession(session.currentSession);
+  const selectedAIsForChat = React.useMemo(
+    () => isCurrentSessionChat ? session.currentSession?.selectedAIs || [] : [],
+    [isCurrentSessionChat, session.currentSession?.selectedAIs]
+  );
 
   const availability = useMergedModalityAvailability(
-    session.selectedAIs.map(ai => ({ provider: ai.provider, model: ai.model }))
+    selectedAIsForChat.map(ai => ({ provider: ai.provider, model: ai.model }))
   );
 
   // Web search availability - only show toggle when all selected AIs support it
@@ -155,17 +187,15 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   const [recoveryNotice, setRecoveryNotice] = React.useState<string | null>(null);
 
   const mapProvidersToMentions = React.useCallback((providers: string[]): string[] => {
-    if (!session.currentSession) return [];
-    const selected = session.currentSession.selectedAIs || [];
     const normalized = providers.map(p => p.toLowerCase());
     const results = new Set<string>();
-    for (const ai of selected) {
+    for (const ai of selectedAIsForChat) {
       if (normalized.includes(ai.provider.toLowerCase())) {
         results.add(ai.name.toLowerCase());
       }
     }
     return Array.from(results);
-  }, [session.currentSession]);
+  }, [selectedAIsForChat]);
 
   const computeMentionsForTurn = React.useCallback((content: string, providersForTurn: string[] = []) => {
     const textMentions = mentions.parseMentions(content);
@@ -218,7 +248,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     status: ActiveChatSessionSnapshot['status'] = 'active',
     reason?: string
   ) => {
-    if (!session.currentSession || session.currentSession.sessionType === 'debate') return;
+    const currentSession = session.currentSession;
+    if (!currentSession || !isChatScreenSession(currentSession)) return;
 
     const messagesWithStreamingContent = getMessagesWithStreamingContent();
     if (messagesWithStreamingContent.length === 0) return;
@@ -230,16 +261,16 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
 
     await ActiveSessionPersistenceService.saveSnapshot({
       mode: 'chat',
-      sessionId: session.currentSession.id,
+      sessionId: currentSession.id,
       status,
-      createdAt: session.currentSession.createdAt,
+      createdAt: currentSession.createdAt,
       session: {
-        ...session.currentSession,
+        ...currentSession,
         messages: messagesWithStreamingContent,
         isActive: status !== 'completed',
         lastMessageAt: Date.now(),
       },
-      selectedAIs: session.currentSession.selectedAIs,
+      selectedAIs: currentSession.selectedAIs,
       messages: messagesWithStreamingContent,
       selectedModels,
       aiPersonalities,
@@ -268,14 +299,33 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     recoveryAttemptedRef.current = true;
 
     const restoreSnapshot = async () => {
+      const fallbackToStoredChat = async () => {
+        if (route.params?.sessionId) {
+          await session.loadSession(route.params.sessionId);
+        }
+      };
+
       const snapshot = route.params?.sessionId
         ? await ActiveSessionPersistenceService.loadSnapshot<ActiveChatSessionSnapshot>('chat', route.params.sessionId)
         : await ActiveSessionPersistenceService.loadLatestSnapshot<ActiveChatSessionSnapshot>('chat');
 
-      if (!snapshot || snapshot.status === 'completed') return;
+      if (!snapshot || snapshot.status === 'completed') {
+        if (!snapshot && route.params?.sessionId) {
+          await ActiveSessionPersistenceService.clearSnapshot('chat', route.params.sessionId);
+        }
+        await fallbackToStoredChat();
+        return;
+      }
+
+      if (!isRestorableChatSnapshot(snapshot, route.params?.sessionId)) {
+        await ActiveSessionPersistenceService.clearSnapshot('chat', snapshot.sessionId);
+        await fallbackToStoredChat();
+        return;
+      }
 
       dispatch(loadSessionAction({
         ...snapshot.session,
+        sessionType: 'chat',
         messages: snapshot.messages || snapshot.session.messages,
         isActive: true,
       }));
@@ -294,17 +344,40 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     };
 
     void restoreSnapshot();
-  }, [dispatch, route.params?.sessionId, session.currentSession]);
+  }, [dispatch, route.params?.sessionId, session]);
+
+  const invalidSessionRecoveryKeyRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    const current = session.currentSession;
+    if (!current || isChatScreenSession(current)) return;
+
+    const recoveryKey = `${current.id}:${route.params?.sessionId || 'none'}`;
+    if (invalidSessionRecoveryKeyRef.current === recoveryKey) return;
+    invalidSessionRecoveryKeyRef.current = recoveryKey;
+
+    const recoverChatRoute = async () => {
+      if (route.params?.sessionId && route.params.sessionId !== current.id) {
+        await session.loadSession(route.params.sessionId);
+        return;
+      }
+      session.endSession();
+    };
+
+    void recoverChatRoute();
+  }, [route.params?.sessionId, session]);
 
   useEffect(() => {
-    if (!session.currentSession) return undefined;
+    const currentSession = session.currentSession;
+    if (!currentSession || !isChatScreenSession(currentSession)) return undefined;
 
     return AppLifecycleService.register({
-      id: `chat-${session.currentSession.id}`,
+      id: `chat-${currentSession.id}`,
       onBackground: () => saveActiveChatSnapshot(activeStreams > 0 ? 'active' : 'backgrounded', 'app_backgrounded'),
       onForeground: async () => {
-        const snapshot = await ActiveSessionPersistenceService.loadSnapshot<ActiveChatSessionSnapshot>('chat', session.currentSession!.id);
-        if (snapshot?.status === 'interrupted' || snapshot?.interruptedMessageIds?.length) {
+        const snapshot = await ActiveSessionPersistenceService.loadSnapshot<ActiveChatSessionSnapshot>('chat', currentSession.id);
+        if (snapshot
+          && isRestorableChatSnapshot(snapshot, currentSession.id)
+          && (snapshot.status === 'interrupted' || snapshot.interruptedMessageIds?.length)) {
           setRecoveryNotice('The last response was interrupted. Retry when you are ready.');
         }
       },
@@ -534,7 +607,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
       return;
     }
     
-    if (!session.currentSession) {
+    if (!isChatScreenSession(session.currentSession)) {
       return;
     }
 
@@ -568,7 +641,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
 
   // Auto-save session when it's created or messages change
   useEffect(() => {
-    if (session.currentSession) {
+    if (isChatScreenSession(session.currentSession)) {
       session.saveSession();
     }
   }, [session, session.currentSession?.id, session.currentSession?.messages.length]);
@@ -601,7 +674,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   useEffect(() => {
     const run = async () => {
       if (!isDemo) return;
-      if (!session.currentSession) return;
+      if (!isChatScreenSession(session.currentSession)) return;
       if (messages.messages.length > 0) return;
       const sampleId = route.params?.demoSampleId;
       if (!sampleId) return; // Wait for user selection from Home
@@ -624,7 +697,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     const prev = prevActiveStreamsRef.current;
     prevActiveStreamsRef.current = activeStreams;
     if (!isDemo) return;
-    if (!session.currentSession) return;
+    if (!isChatScreenSession(session.currentSession)) return;
     // Trigger on transition from >0 to 0 (responses ended)
     if (prev > 0 && activeStreams === 0 && hasNextChatTurn() && isTurnComplete()) {
       const t = setTimeout(async () => {
@@ -650,7 +723,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   const demoAdvanceGuardRef = React.useRef(false);
   useEffect(() => {
     if (!isDemo) return;
-    if (!session.currentSession) return;
+    if (!isChatScreenSession(session.currentSession)) return;
     if (!hasNextChatTurn()) {
       // Mark demo as complete if we have turns and no more to play
       if (demoTotalTurns > 0 && isTurnComplete()) {
@@ -706,7 +779,11 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     return <AIServiceLoading error={error} />;
   }
 
-  const aiNames = session.selectedAIs.map(ai => ai.name);
+  if (session.currentSession && !isCurrentSessionChat) {
+    return <AIServiceLoading />;
+  }
+
+  const aiNames = selectedAIsForChat.map(ai => ai.name);
   const conversationContextSubtitle = (() => {
     const count = aiNames.length;
 
@@ -888,7 +965,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
 
         {/* Mention Suggestions */}
         <ChatMentionSuggestions
-          suggestions={session.selectedAIs}
+          suggestions={selectedAIsForChat}
           onSelectMention={handleMentionSelect}
           visible={mentions.showMentions}
         />
@@ -902,7 +979,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
           onStop={handleStopResponses}
           placeholder="Type a message..."
           disabled={aiResponses.isProcessing}
-          attachmentSupport={getAttachmentSupport(session.selectedAIs)}
+          attachmentSupport={getAttachmentSupport(selectedAIsForChat)}
           maxAttachments={20}
           modalityAvailability={{
             imageUpload: availability.imageUpload.supported,
@@ -936,15 +1013,15 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
       {recordModeEnabled && (
         <ChatTopicPickerModal
           visible={topicPickerVisible}
-          providers={session.currentSession ? session.currentSession.selectedAIs.map(a => a.provider) : []}
-          personaId={session.currentSession && session.currentSession.selectedAIs.length === 1 ? (session.currentSession.selectedAIs[0].personality || 'default') : undefined}
+          providers={selectedAIsForChat.map(a => a.provider)}
+          personaId={selectedAIsForChat.length === 1 ? (selectedAIsForChat[0].personality || 'default') : undefined}
           allowNewSample={true}
           onClose={() => setTopicPickerVisible(false)}
           onSelect={async (sampleId, title) => {
             setTopicPickerVisible(false);
-            if (!session.currentSession) return;
+            if (!isChatScreenSession(session.currentSession)) return;
             try {
-              const providers = session.currentSession.selectedAIs.map(a => a.provider);
+              const providers = selectedAIsForChat.map(a => a.provider);
               const comboKey = DemoContentService.comboKey(providers);
               if (sampleId.startsWith('new:')) {
                 const rawId = sampleId.slice(4);

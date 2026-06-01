@@ -184,6 +184,7 @@ const mockLifecycleRegister = jest.fn(() => jest.fn());
 const mockSaveActiveSnapshot = jest.fn().mockResolvedValue(undefined);
 const mockLoadActiveSnapshot = jest.fn().mockResolvedValue(null);
 const mockLoadLatestActiveSnapshot = jest.fn().mockResolvedValue(null);
+const mockClearActiveSnapshot = jest.fn().mockResolvedValue(undefined);
 
 jest.mock('@/services/streaming/StreamingService', () => ({
   getStreamingService: () => ({
@@ -202,6 +203,7 @@ jest.mock('@/services/lifecycle/ActiveSessionPersistenceService', () => ({
     saveSnapshot: (...args: unknown[]) => mockSaveActiveSnapshot(...args),
     loadSnapshot: (...args: unknown[]) => mockLoadActiveSnapshot(...args),
     loadLatestSnapshot: (...args: unknown[]) => mockLoadLatestActiveSnapshot(...args),
+    clearSnapshot: (...args: unknown[]) => mockClearActiveSnapshot(...args),
   },
 }));
 
@@ -385,6 +387,8 @@ describe('ChatScreen', () => {
     mockLoadActiveSnapshot.mockResolvedValue(null);
     mockLoadLatestActiveSnapshot.mockClear();
     mockLoadLatestActiveSnapshot.mockResolvedValue(null);
+    mockClearActiveSnapshot.mockClear();
+    mockClearActiveSnapshot.mockResolvedValue(undefined);
     mockHeaderProps = undefined;
     mockChatInputBarProps = undefined;
     mockMessageListProps = undefined;
@@ -553,6 +557,100 @@ describe('ChatScreen', () => {
     });
 
     expect(queryByText(/last response was interrupted/i)).toBeNull();
+  });
+
+  it('rejects debate-shaped active snapshots on a chat route and falls back to stored chat', async () => {
+    const loadStoredChat = jest.fn().mockResolvedValue(undefined);
+    mockUseChatSession.mockReturnValue({
+      ...mockSession,
+      currentSession: null,
+      selectedAIs: [],
+      sessionId: null,
+      loadSession: loadStoredChat,
+    });
+    const debateHostMessage = {
+      id: 'host-1',
+      sender: 'Debate Host',
+      senderType: 'user' as const,
+      content: 'Cast your opening audience stance before the first speech.',
+      timestamp: 1,
+    };
+    mockLoadActiveSnapshot.mockResolvedValueOnce({
+      version: 1,
+      mode: 'chat',
+      sessionId: 'session-1',
+      status: 'active',
+      updatedAt: 2,
+      session: {
+        id: 'session-1',
+        selectedAIs: [
+          ...selectedAIs,
+          { id: 'gemini', provider: 'google', name: 'Gemini', model: 'gemini-1.5', color: '#222' },
+          { id: 'mistral', provider: 'mistral', name: 'Mistral', model: 'mistral-large', color: '#333' },
+        ],
+        messages: [debateHostMessage],
+        isActive: true,
+        createdAt: 1,
+        sessionType: 'debate',
+      },
+      messages: [debateHostMessage],
+    });
+
+    const { store } = renderWithProviders(
+      <ChatScreen navigation={navigation} route={route} />
+    );
+
+    await waitFor(() => {
+      expect(mockClearActiveSnapshot).toHaveBeenCalledWith('chat', 'session-1');
+    });
+
+    expect(loadStoredChat).toHaveBeenCalledWith('session-1');
+    expect(store.getState().chat.currentSession).toBeNull();
+  });
+
+  it('does not render debate-shaped redux sessions while recovering a chat route', async () => {
+    const loadStoredChat = jest.fn().mockResolvedValue(undefined);
+    const debateHostMessage = {
+      id: 'host-1',
+      sender: 'Debate Host',
+      senderType: 'user' as const,
+      content: 'Cast your opening audience stance before the first speech.',
+      timestamp: 1,
+    };
+    mockUseChatSession.mockReturnValue({
+      ...mockSession,
+      currentSession: {
+        id: 'debate-1',
+        selectedAIs: [
+          ...selectedAIs,
+          { id: 'gemini', provider: 'google', name: 'Gemini', model: 'gemini-1.5', color: '#222' },
+          { id: 'mistral', provider: 'mistral', name: 'Mistral', model: 'mistral-large', color: '#333' },
+        ],
+        messages: [debateHostMessage],
+        isActive: true,
+        createdAt: 1,
+        sessionType: 'debate',
+      },
+      selectedAIs: [
+        ...selectedAIs,
+        { id: 'gemini', provider: 'google', name: 'Gemini', model: 'gemini-1.5', color: '#222' },
+        { id: 'mistral', provider: 'mistral', name: 'Mistral', model: 'mistral-large', color: '#333' },
+      ],
+      loadSession: loadStoredChat,
+    });
+    mockMessages.messages = [debateHostMessage];
+
+    const { getByTestId, queryByTestId, queryByText } = renderWithProviders(
+      <ChatScreen navigation={navigation} route={route} />
+    );
+
+    expect(getByTestId('ai-service-loading')).toBeTruthy();
+    expect(queryByTestId('chat-message-list')).toBeNull();
+    expect(queryByText('Claude, GPT-4 & 2 others')).toBeNull();
+
+    await waitFor(() => {
+      expect(loadStoredChat).toHaveBeenCalledWith('session-1');
+    });
   });
 
   it('prevents sending messages in demo mode and opens subscription sheet', async () => {

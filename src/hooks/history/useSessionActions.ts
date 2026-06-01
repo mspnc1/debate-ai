@@ -153,7 +153,10 @@ export const useSessionActions = (
                   text: 'Resume Chat',
                   onPress: () => {
                     // Load as regular chat session
-                    dispatch(loadSession(session));
+                    dispatch(loadSession({
+                      ...session,
+                      sessionType: 'chat',
+                    }));
                     navigation.navigate('Chat', { 
                       sessionId: session.id, 
                       resuming: true 
