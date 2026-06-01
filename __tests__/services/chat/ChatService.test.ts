@@ -75,6 +75,30 @@ describe('ChatService', () => {
     expect(context.messages).toHaveLength(3);
   });
 
+  it('does not infer debate mode from message text when session type is chat', () => {
+    const messages: Message[] = [
+      { id: '1', sender: 'You', senderType: 'user', content: '[DEBATE MODE] stale marker', timestamp: 1 },
+      { id: '2', sender: 'Claude', senderType: 'ai', content: 'Normal chat answer', timestamp: 2 },
+    ];
+    const userMessage: Message = { id: '3', sender: 'You', senderType: 'user', content: 'continue', timestamp: 3 };
+
+    const context = ChatService.buildConversationContext(messages, userMessage, {
+      sessionType: 'chat',
+    });
+
+    expect(context.isDebateMode).toBe(false);
+  });
+
+  it('uses explicit debate session type for debate mode', () => {
+    const userMessage: Message = { id: '1', sender: 'You', senderType: 'user', content: 'Opening prompt', timestamp: 1 };
+
+    const context = ChatService.buildConversationContext([], userMessage, {
+      sessionType: 'debate',
+    });
+
+    expect(context.isDebateMode).toBe(true);
+  });
+
   it('builds round robin context and determines first AI in round', () => {
     const history: Message[] = [
       { id: '1', sender: 'You', senderType: 'user', content: 'Hello', timestamp: 1 },

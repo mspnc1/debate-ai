@@ -170,7 +170,7 @@ describe('useAIResponsesWithStreaming', () => {
     consoleSpy.mockRestore();
   });
 
-  it('passes resumption context when resuming conversations once', async () => {
+  it('does not inject provider resumption context for normal chat history resume', async () => {
     const messageHistory: Message[] = [
       baseMessage,
       { ...baseMessage, id: 'ai-1', sender: 'Claude', senderType: 'ai', content: 'Response', timestamp: 2 },
@@ -200,9 +200,12 @@ describe('useAIResponsesWithStreaming', () => {
       await result.current.sendAIResponses(baseMessage);
     });
 
-    expect(
-      orchestrator.processUserMessage.mock.calls.filter(call => call[0].resumptionContext?.isResuming)
-    ).toHaveLength(1);
+    expect(orchestrator.processUserMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        existingMessages: messageHistory,
+        resumptionContext: undefined,
+      })
+    );
   });
 
   it('respects demo gating by disabling streaming', async () => {

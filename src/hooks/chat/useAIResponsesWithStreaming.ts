@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import { addMessage } from '../../store';
@@ -7,7 +7,6 @@ import { useAIService } from '../../providers/AIServiceProvider';
 import { ChatService, ChatOrchestrator } from '../../services/chat';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
 import { usePersonality } from '@/hooks/usePersonality';
-import type { ResumptionContext } from '../../services/aiAdapter';
 
 export interface AIResponsesHook {
   typingAIs: string[];
@@ -31,7 +30,7 @@ export interface AIResponsesHook {
   isProcessing: boolean;
 }
 
-export const useAIResponsesWithStreaming = (isResuming?: boolean): AIResponsesHook => {
+export const useAIResponsesWithStreaming = (_isResuming?: boolean): AIResponsesHook => {
   const dispatch = useDispatch();
   const { aiService, isInitialized } = useAIService();
 
@@ -66,7 +65,6 @@ export const useAIResponsesWithStreaming = (isResuming?: boolean): AIResponsesHo
     return result;
   }, [aiPersonalities, getMergedPersonality]);
 
-  const [hasResumed, setHasResumed] = useState(false);
   const orchestratorRef = useRef<ChatOrchestrator | null>(null);
 
   useEffect(() => {
@@ -84,10 +82,6 @@ export const useAIResponsesWithStreaming = (isResuming?: boolean): AIResponsesHo
     orchestratorRef.current?.updateSession(currentSession ?? null);
   }, [currentSession]);
 
-  useEffect(() => {
-    setHasResumed(false);
-  }, [currentSession?.id]);
-
   const processAIResponses = useCallback(async (
     userMessage: Message,
     enrichedPrompt?: string,
@@ -100,22 +94,13 @@ export const useAIResponsesWithStreaming = (isResuming?: boolean): AIResponsesHo
       return;
     }
 
-    let resumptionContext: ResumptionContext | undefined;
-    if (isResuming && !hasResumed && messages.length > 0) {
-      resumptionContext = {
-        originalPrompt: messages[0],
-        isResuming: true,
-      };
-      setHasResumed(true);
-    }
-
     await orchestratorRef.current.processUserMessage({
       userMessage,
       existingMessages: existingMessagesOverride || messages,
       mentions: userMessage.mentions || [],
       enrichedPrompt,
       attachments,
-      resumptionContext,
+      resumptionContext: undefined,
       aiPersonalities,
       mergedPersonalities,
       selectedModels,
@@ -127,7 +112,7 @@ export const useAIResponsesWithStreaming = (isResuming?: boolean): AIResponsesHo
       isDemo,
       webSearchEnabled,
     });
-  }, [aiService, apiKeys, expertModeConfigs, globalStreamingEnabled, isDemo, isInitialized, isResuming, messages, selectedModels, aiPersonalities, mergedPersonalities, streamingPreferences, currentSession, hasResumed]);
+  }, [aiService, apiKeys, expertModeConfigs, globalStreamingEnabled, isDemo, isInitialized, messages, selectedModels, aiPersonalities, mergedPersonalities, streamingPreferences, currentSession]);
 
   const sendAIResponses = useCallback(async (
     userMessage: Message,

@@ -251,6 +251,44 @@ describe('ChatOrchestrator', () => {
     expect(dispatchMock).not.toHaveBeenCalledWith(expect.objectContaining({ type: startStreaming.type }));
   });
 
+  it('keeps resumed chat sessions out of debate mode despite stale debate marker text', async () => {
+    const { service } = mockAIService();
+    const staleHistory: Message[] = [
+      {
+        id: 'old-user',
+        sender: 'You',
+        senderType: 'user',
+        content: '[DEBATE MODE] Previous corrupted marker',
+        timestamp: Date.now() - 1000,
+      },
+    ];
+    mockStreamingService.streamResponse.mockImplementation(async (_config, onChunk, onComplete) => {
+      onChunk?.('chunk');
+      onComplete?.('final');
+    });
+
+    const orchestrator = new ChatOrchestrator(service, dispatch);
+    orchestrator.updateSession({ ...session, sessionType: 'chat', messages: staleHistory });
+    jest.spyOn(ChatOrchestrator.prototype as unknown as { sleep: (ms: number) => Promise<void> }, 'sleep').mockResolvedValue(undefined);
+
+    await orchestrator.processUserMessage(buildParams({
+      existingMessages: staleHistory,
+    }));
+
+    expect(mockStreamingService.streamResponse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adapterConfig: expect.objectContaining({
+          isDebateMode: false,
+        }),
+        message: expect.not.stringContaining('[DEBATE MODE ACTIVE]'),
+      }),
+      expect.any(Function),
+      expect.any(Function),
+      expect.any(Function),
+      expect.any(Function),
+    );
+  });
+
   it('does not persist citation-only empty non-streaming answers', async () => {
     const { adapter, service } = mockAIService();
     adapter.getCapabilities.mockReturnValue({ streaming: false });

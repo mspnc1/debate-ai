@@ -98,7 +98,7 @@ describe('useAIResponses', () => {
     );
   });
 
-  it('injects resumption context on first call when resuming', async () => {
+  it('does not inject provider resumption context for normal chat history resume', async () => {
     const stateWithHistory: Partial<RootState> = {
       ...baseState,
       chat: {
@@ -129,7 +129,8 @@ describe('useAIResponses', () => {
     const orchestrator = getOrchestratorInstance();
     expect(orchestrator.processUserMessage).toHaveBeenCalledWith(
       expect.objectContaining({
-        resumptionContext: expect.objectContaining({ isResuming: true }),
+        existingMessages: stateWithHistory.chat!.currentSession!.messages,
+        resumptionContext: undefined,
       })
     );
   });

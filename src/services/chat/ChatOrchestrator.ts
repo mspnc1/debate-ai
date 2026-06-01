@@ -120,7 +120,13 @@ export class ChatOrchestrator {
       return;
     }
 
-    let conversationContext = ChatService.buildConversationContext(existingMessages, userMessage);
+    const sessionType = this.session.sessionType ?? 'chat';
+    const conversationContextOptions = { sessionType };
+    let conversationContext = ChatService.buildConversationContext(
+      existingMessages,
+      userMessage,
+      conversationContextOptions
+    );
 
     for (const ai of responders) {
       const effectiveModel = resolveProviderModelId(
@@ -226,7 +232,8 @@ export class ChatOrchestrator {
 
         conversationContext = ChatService.buildRoundRobinContext(
           conversationContext.messages,
-          [aiMessage]
+          [aiMessage],
+          conversationContextOptions
         );
         resumptionContext = undefined;
       } catch (error) {
@@ -240,7 +247,8 @@ export class ChatOrchestrator {
         this.dispatch(addMessage(errorMessage));
         conversationContext = ChatService.buildRoundRobinContext(
           conversationContext.messages,
-          [errorMessage]
+          [errorMessage],
+          conversationContextOptions
         );
       } finally {
         if (isDemo) {

@@ -7,6 +7,11 @@ export interface ConversationContext {
   lastMessage?: string;
 }
 
+export interface ConversationContextOptions {
+  sessionType?: 'chat' | 'comparison' | 'debate';
+  isDebateMode?: boolean;
+}
+
 export class ChatService {
   /**
    * Creates a new user message with proper structure
@@ -94,12 +99,11 @@ export class ChatService {
    */
   static buildConversationContext(
     messages: Message[],
-    userMessage: Message
+    userMessage: Message,
+    options: ConversationContextOptions = {}
   ): ConversationContext {
     const allMessages = [...messages, userMessage];
-    const isDebateMode = allMessages.some(msg => 
-      msg.content.includes('[DEBATE MODE]')
-    );
+    const isDebateMode = ChatService.resolveDebateMode(allMessages, options);
 
     const lastAIMessage = allMessages
       .slice()
@@ -119,12 +123,11 @@ export class ChatService {
    */
   static buildRoundRobinContext(
     messages: Message[],
-    newResponses: Message[]
+    newResponses: Message[],
+    options: ConversationContextOptions = {}
   ): ConversationContext {
     const allMessages = [...messages, ...newResponses];
-    const isDebateMode = allMessages.some(msg => 
-      msg.content.includes('[DEBATE MODE]')
-    );
+    const isDebateMode = ChatService.resolveDebateMode(allMessages, options);
 
     const lastMessage = allMessages[allMessages.length - 1];
 
@@ -211,6 +214,23 @@ export class ChatService {
   static isDebateModeActive(messages: Message[]): boolean {
     return messages.some(msg => 
       msg.content.toLowerCase().includes('[debate mode]')
+    );
+  }
+
+  private static resolveDebateMode(
+    messages: Message[],
+    options: ConversationContextOptions
+  ): boolean {
+    if (typeof options.isDebateMode === 'boolean') {
+      return options.isDebateMode;
+    }
+
+    if (options.sessionType) {
+      return options.sessionType === 'debate';
+    }
+
+    return messages.some(msg =>
+      msg.content.includes('[DEBATE MODE]')
     );
   }
 }

@@ -86,6 +86,38 @@ describe('ChatService', () => {
       expect(context.lastMessage).toBe('Hello');
     });
 
+    it('keeps chat sessions out of debate mode even with stale marker text', () => {
+      const userMessage: Message = {
+        id: '2',
+        sender: 'You',
+        senderType: 'user',
+        content: '[DEBATE MODE] stale marker',
+        timestamp: Date.now(),
+      };
+
+      const context = ChatService.buildConversationContext(history, userMessage, {
+        sessionType: 'chat',
+      });
+
+      expect(context.isDebateMode).toBe(false);
+    });
+
+    it('uses explicit debate session type for debate context', () => {
+      const userMessage: Message = {
+        id: '2',
+        sender: 'You',
+        senderType: 'user',
+        content: 'Opening prompt',
+        timestamp: Date.now(),
+      };
+
+      const context = ChatService.buildConversationContext(history, userMessage, {
+        sessionType: 'debate',
+      });
+
+      expect(context.isDebateMode).toBe(true);
+    });
+
     it('buildRoundRobinContext uses merged responses', () => {
       const newResponses: Message[] = [
         {

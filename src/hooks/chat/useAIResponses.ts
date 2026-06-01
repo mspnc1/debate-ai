@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import { Message, MessageAttachment } from '../../types';
 import { useAIService } from '../../providers/AIServiceProvider';
 import { ChatService, ChatOrchestrator } from '../../services/chat';
 import { addMessage } from '../../store';
-import type { ResumptionContext } from '../../services/aiAdapter';
 
 export interface AIResponsesHook {
   typingAIs: string[];
@@ -22,7 +21,7 @@ export interface AIResponsesHook {
   isProcessing: boolean;
 }
 
-export const useAIResponses = (isResuming?: boolean): AIResponsesHook => {
+export const useAIResponses = (_isResuming?: boolean): AIResponsesHook => {
   const dispatch = useDispatch();
   const { aiService, isInitialized } = useAIService();
 
@@ -38,7 +37,6 @@ export const useAIResponses = (isResuming?: boolean): AIResponsesHook => {
 
   const messages = useMemo(() => currentSession?.messages ?? [], [currentSession?.messages]);
 
-  const [hasResumed, setHasResumed] = useState(false);
   const orchestratorRef = useRef<ChatOrchestrator | null>(null);
 
   useEffect(() => {
@@ -56,10 +54,6 @@ export const useAIResponses = (isResuming?: boolean): AIResponsesHook => {
     orchestratorRef.current?.updateSession(currentSession ?? null);
   }, [currentSession]);
 
-  useEffect(() => {
-    setHasResumed(false);
-  }, [currentSession?.id]);
-
   const sendAIResponses = useCallback(async (
     userMessage: Message,
     enrichedPrompt?: string,
@@ -70,22 +64,13 @@ export const useAIResponses = (isResuming?: boolean): AIResponsesHook => {
       return;
     }
 
-    let resumptionContext: ResumptionContext | undefined;
-    if (isResuming && !hasResumed && messages.length > 0) {
-      resumptionContext = {
-        originalPrompt: messages[0],
-        isResuming: true,
-      };
-      setHasResumed(true);
-    }
-
     await orchestratorRef.current.processUserMessage({
       userMessage,
       existingMessages: messages,
       mentions: userMessage.mentions || [],
       enrichedPrompt,
       attachments,
-      resumptionContext,
+      resumptionContext: undefined,
       aiPersonalities,
       selectedModels,
       apiKeys,
@@ -95,7 +80,7 @@ export const useAIResponses = (isResuming?: boolean): AIResponsesHook => {
       allowStreaming: false,
       isDemo: false,
     });
-  }, [aiService, apiKeys, expertModeConfigs, isInitialized, isResuming, messages, selectedModels, aiPersonalities, currentSession, hasResumed]);
+  }, [aiService, apiKeys, expertModeConfigs, isInitialized, messages, selectedModels, aiPersonalities, currentSession]);
 
   const sendQuickStartResponses = useCallback(async (
     userPrompt: string,
