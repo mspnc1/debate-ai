@@ -515,15 +515,11 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
       );
       const content = typeof response === 'string' ? response : response.response;
       const citations = typeof response === 'object' ? response.metadata?.citations : undefined;
-      const chunkSize = 8;
-      const delayMs = 12;
+      const chunkSize = 64;
 
       for (let i = 0; i < content.length; i += chunkSize) {
         if (abortSignal?.aborted) return;
         yield content.slice(i, i + chunkSize);
-        if (i + chunkSize < content.length) {
-          await new Promise(resolve => setTimeout(resolve, delayMs));
-        }
       }
 
       if (citations && citations.length > 0 && onEvent) {

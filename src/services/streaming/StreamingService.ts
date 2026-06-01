@@ -7,6 +7,10 @@ import { AppError } from '@/errors/types/AppError';
 import { ErrorCode } from '@/errors/codes/ErrorCodes';
 import { resolveProviderModelId } from '@/config/modelConfigs';
 import { withProviderRetry } from '@/services/retry/ProviderRetryService';
+import {
+  normalizeStreamingDisplayMode,
+  type StreamingDisplayModeInput,
+} from '@/types/streaming';
 
 // Chunk buffer configuration
 interface BufferConfig {
@@ -35,7 +39,7 @@ interface StreamConfig {
   attachments?: MessageAttachment[];
   modelOverride?: string;
   bufferConfig?: BufferConfig;
-  speed?: 'instant' | 'natural' | 'slow';
+  speed?: StreamingDisplayModeInput;
 }
 
 // Stream state tracking
@@ -78,7 +82,6 @@ class ChunkBuffer {
   private readonly config: BufferConfig;
   private readonly onFlush: (content: string) => void;
   private firstChunk = true;
-  private startTime = Date.now();
 
   constructor(config: BufferConfig, onFlush: (content: string) => void) {
     this.config = config;
@@ -111,28 +114,15 @@ class ChunkBuffer {
     const content = this.buffer.join('');
     const totalSize = content.length;
     
-    // Adaptive thresholds based on elapsed time
-    const elapsed = Date.now() - this.startTime;
-    const adaptiveSize = elapsed < 1000 ? 10 : this.config.maxBufferSize;
-    
-    // Flush at natural boundaries or size limit
-    return totalSize >= adaptiveSize ||
-           content.endsWith(' ') ||
-           content.endsWith('\n') ||
-           content.endsWith('.') ||
-           content.endsWith(',');
+    return totalSize >= this.config.maxBufferSize;
   }
 
   private scheduleFlush(): void {
     if (this.flushTimer) return;
 
-    // Adaptive timing - faster initially, slower later
-    const elapsed = Date.now() - this.startTime;
-    const adaptiveInterval = elapsed < 1000 ? 30 : this.config.flushInterval;
-
     this.flushTimer = setTimeout(() => {
       this.flush();
-    }, adaptiveInterval);
+    }, this.config.flushInterval);
   }
 
   flush(): void {
@@ -460,21 +450,15 @@ export class StreamingService {
   /**
    * Get buffer configuration based on speed preference
    */
-  private getBufferConfigForSpeed(speed?: 'instant' | 'natural' | 'slow'): BufferConfig {
-    switch (speed) {
+  private getBufferConfigForSpeed(speed?: StreamingDisplayModeInput): BufferConfig {
+    switch (normalizeStreamingDisplayMode(speed)) {
       case 'instant':
         return {
           flushInterval: 0,
           maxBufferSize: 1,
           enabled: false,  // No buffering for instant
         };
-      case 'slow':
-        return {
-          flushInterval: 90,
-          maxBufferSize: 40,
-          enabled: true,
-        };
-      case 'natural':
+      case 'smooth':
       default:
         return this.defaultBufferConfig;
     }

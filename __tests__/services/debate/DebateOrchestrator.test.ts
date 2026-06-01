@@ -45,7 +45,7 @@ const defaultState = {
       'gpt-4': { enabled: true },
     },
     globalStreamingEnabled: true,
-    streamingSpeed: 'natural',
+    streamingSpeed: 'smooth',
     providerVerificationErrors: {},
   },
   settings: {

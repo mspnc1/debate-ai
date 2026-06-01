@@ -77,6 +77,24 @@ describe('StreamingService', () => {
     }
   }
 
+  class PausedStreamingAdapter extends BaseAdapter {
+    sendMessage = jest.fn(async () => ({ response: 'fallback' }));
+    resume: (() => void) | null = null;
+
+    getCapabilities(): AdapterCapabilities {
+      return capabilities;
+    }
+
+    async *streamMessage(): AsyncGenerator<string, void, unknown> {
+      yield 'A';
+      yield 'B';
+      await new Promise<void>(resolve => {
+        this.resume = resolve;
+      });
+      yield 'C';
+    }
+  }
+
   let streamingService: StreamingService;
   let adapterSpy: jest.SpiedFunction<typeof AdapterFactory.createWithModel>;
 
@@ -88,6 +106,7 @@ describe('StreamingService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    jest.useRealTimers();
   });
 
   it('streams chunks through buffer and completes with aggregated content', async () => {
@@ -158,6 +177,40 @@ describe('StreamingService', () => {
       }),
       expect.any(String),
     );
+  });
+
+  it('buffers smooth display updates without blocking stream ingestion', async () => {
+    jest.useFakeTimers();
+    const adapter = new PausedStreamingAdapter({ provider: 'claude', apiKey: 'key', model: 'claude-3' });
+    adapterSpy.mockReturnValue(adapter);
+
+    const chunks: string[] = [];
+    const streamPromise = streamingService.streamResponse(
+      {
+        messageId: 'msg-smooth',
+        adapterConfig: { provider: 'claude', apiKey: 'key', model: 'claude-3' },
+        message: 'ignored',
+        conversationHistory: [],
+        speed: 'smooth',
+      },
+      chunk => {
+        chunks.push(chunk);
+      },
+      () => undefined,
+      () => {
+        throw new Error('Should not error');
+      },
+    );
+
+    await jest.advanceTimersByTimeAsync(0);
+    expect(chunks).toEqual(['A']);
+
+    await jest.advanceTimersByTimeAsync(32);
+    expect(chunks).toEqual(['A', 'B']);
+
+    adapter.resume?.();
+    await streamPromise;
+    expect(chunks).toEqual(['A', 'B', 'C']);
   });
 
   it('falls back to error callback when adapter lacks streaming', async () => {

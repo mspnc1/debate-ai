@@ -29,6 +29,7 @@ import { AppError } from '@/errors/types/AppError';
 import { ErrorCode } from '@/errors/codes/ErrorCodes';
 import type { AIService, ResumptionContext } from '@/services/aiAdapter';
 import type { AI, ChatSession, Message, MessageAttachment, ModelParameters } from '@/types';
+import type { StreamingDisplayModeInput } from '@/types/streaming';
 
 interface StreamingPreferenceState {
   enabled?: boolean;
@@ -50,7 +51,7 @@ export interface ProcessUserMessageParams {
   expertModeConfigs: Record<string, unknown>;
   streamingPreferences?: Record<string, StreamingPreferenceState | undefined>;
   globalStreamingEnabled?: boolean;
-  streamingSpeed?: 'instant' | 'natural' | 'slow';
+  streamingSpeed?: StreamingDisplayModeInput;
   allowStreaming: boolean;
   isDemo: boolean;
   webSearchEnabled?: boolean;
@@ -266,7 +267,7 @@ export class ChatOrchestrator {
     apiKey?: string;
     expert?: { enabled?: boolean; parameters?: Partial<ModelParameters> } | undefined;
     runtimeParameters?: Partial<ModelParameters> | undefined;
-    streamingSpeed?: 'instant' | 'natural' | 'slow';
+    streamingSpeed?: StreamingDisplayModeInput;
     webSearchEnabled?: boolean;
   }): Promise<Message> {
     const {

@@ -45,6 +45,7 @@ import { ensureAnswerContent } from '@/utils/citationUtils';
 import { ActiveSessionPersistenceService, type ActiveCompareSessionSnapshot } from '@/services/lifecycle/ActiveSessionPersistenceService';
 import { AppLifecycleService } from '@/services/lifecycle/AppLifecycleService';
 import { useRecoverableExitGuard } from '@/hooks/lifecycle/useRecoverableExitGuard';
+import { normalizeStreamingDisplayMode } from '@/types/streaming';
 
 interface CompareScreenProps {
   navigation: {
@@ -571,7 +572,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     const hasRightKey = Boolean(rightApiKey);
     const shouldStreamLeft = globalEnabled && leftEnabled && !leftBlocked && hasLeftKey;
     const shouldStreamRight = globalEnabled && rightEnabled && !rightBlocked && hasRightKey;
-    const streamSpeed = (streamingState?.streamingSpeed as 'instant' | 'natural' | 'slow') || 'natural';
+    const streamSpeed = normalizeStreamingDisplayMode(streamingState?.streamingSpeed);
 
     // Start typing indicators only for non-streaming sides
     const leftActive = (viewMode === 'split' && !continuedSide) || continuedSide === 'left' || viewMode === 'left-only' || viewMode === 'left-full';
@@ -589,7 +590,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     logComparePrompt('right', { ...rightAI, model: rightEffModel }, rightAI.personality || 'default', rightRuntime, rightAdapter, messageText);
 
     // Determine if we should use synchronized streaming (both AIs active and both streaming)
-    const useSynchronizedStreaming = leftActive && rightActive && shouldStreamLeft && shouldStreamRight;
+    const useSynchronizedStreaming = streamSpeed === 'smooth' && leftActive && rightActive && shouldStreamLeft && shouldStreamRight;
 
     // Create synchronizer for dual streaming
     if (useSynchronizedStreaming) {

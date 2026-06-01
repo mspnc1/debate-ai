@@ -11,6 +11,16 @@ import type {
 } from '../config/debate/formats';
 
 export type AIProvider = 'claude' | 'openai' | 'chatgpt' | 'google' | 'perplexity' | 'mistral' | 'cohere' | 'deepseek' | 'grok';
+export type {
+  LegacyStreamingDisplayMode,
+  StreamingDisplayMode,
+  StreamingDisplayModeInput,
+} from './streaming';
+export {
+  formatStreamingDisplayMode,
+  getNextStreamingDisplayMode,
+  normalizeStreamingDisplayMode,
+} from './streaming';
 export type UIMode = 'simple' | 'expert';
 export type SubscriptionTier = 'free' | 'pro' | 'business';
 

@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, setAIPersonality, setAIModel, preserveTopic, clearPreservedTopic, setGlobalStreaming, setStreamingSpeed, isApiKeyConfigured } from '../store';
 import { setProviderStreamingPreference } from '../store/streamingSlice';
+import { formatStreamingDisplayMode, getNextStreamingDisplayMode, normalizeStreamingDisplayMode } from '@/types/streaming';
 
 import { Box, ResponsiveContainer } from '../components/atoms';
 import { Button, Typography, GradientButton, InfoButton } from '../components/molecules';
@@ -1460,12 +1461,10 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
                 style={{ alignSelf: 'flex-start' }}
               />
               <Button
-                title={`Speed: ${((streamingState?.streamingSpeed || 'natural') as 'instant' | 'natural' | 'slow').replace(/^(\w)/, (m) => m.toUpperCase())}`}
+                title={`Display: ${formatStreamingDisplayMode(streamingState?.streamingSpeed)}`}
                 onPress={() => {
                   if (!streamingState?.globalStreamingEnabled) return;
-                  const current = (streamingState?.streamingSpeed || 'natural') as 'instant' | 'natural' | 'slow';
-                  const next = current === 'instant' ? 'natural' : current === 'natural' ? 'slow' : 'instant';
-                  dispatch(setStreamingSpeed(next));
+                  dispatch(setStreamingSpeed(getNextStreamingDisplayMode(streamingState?.streamingSpeed)));
                 }}
                 variant={streamingState?.globalStreamingEnabled ? 'secondary' : 'ghost'}
                 size="small"
@@ -1476,11 +1475,12 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
               const providerId = ai.provider;
               const providerPref = streamingState?.streamingPreferences?.[providerId]?.enabled ?? true;
               const hasVerificationError = !!streamingState?.providerVerificationErrors?.[providerId];
+              const displayMode = normalizeStreamingDisplayMode(streamingState?.streamingSpeed);
               const willStream = (streamingState?.globalStreamingEnabled ?? true) && providerPref && !hasVerificationError;
               const statusText = hasVerificationError
                 ? 'Won’t stream (verification required)'
                 : willStream
-                  ? 'Will stream'
+                  ? `Will stream (${displayMode})`
                   : 'Won’t stream';
               return (
                 <Box key={providerId} style={{

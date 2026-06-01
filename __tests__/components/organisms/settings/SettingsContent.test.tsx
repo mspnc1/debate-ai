@@ -66,7 +66,7 @@ describe('SettingsContent', () => {
         streamingMessages: {},
         streamingPreferences: {},
         globalStreamingEnabled: true,
-        streamingSpeed: 'natural',
+        streamingSpeed: 'smooth',
         activeStreamCount: 0,
         totalStreamsCompleted: 0,
         providerVerificationErrors: {},
@@ -107,10 +107,10 @@ describe('SettingsContent', () => {
     });
     expect(store.getState().streaming.globalStreamingEnabled).toBe(false);
 
-    const speedRowCall = mockSettingRow.mock.calls.find(([props]: any) => props.title === 'Streaming Speed');
+    const speedRowCall = mockSettingRow.mock.calls.find(([props]: any) => props.title === 'Streaming Display');
     act(() => {
       speedRowCall?.[0].onPress();
     });
-    expect(store.getState().streaming.streamingSpeed).toBe('slow');
+    expect(store.getState().streaming.streamingSpeed).toBe('instant');
   });
 });

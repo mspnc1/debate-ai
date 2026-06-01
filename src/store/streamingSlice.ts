@@ -1,5 +1,10 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RootState } from './index';
+import {
+  normalizeStreamingDisplayMode,
+  type StreamingDisplayMode,
+  type StreamingDisplayModeInput,
+} from '@/types/streaming';
 
 // Types for streaming state
 export interface StreamingMessage {
@@ -35,7 +40,7 @@ export interface StreamingState {
   
   // Global streaming settings
   globalStreamingEnabled: boolean;
-  streamingSpeed: 'instant' | 'natural' | 'slow';
+  streamingSpeed: StreamingDisplayMode;
   
   // Performance metrics
   activeStreamCount: number;
@@ -61,7 +66,7 @@ const initialState: StreamingState = {
     grok: { enabled: true, supported: true },
   },
   globalStreamingEnabled: true,
-  streamingSpeed: 'natural',
+  streamingSpeed: 'smooth',
   activeStreamCount: 0,
   totalStreamsCompleted: 0,
   providerVerificationErrors: {},
@@ -102,7 +107,7 @@ const streamingSlice = createSlice({
         stream.content += chunk;
         stream.chunksReceived++;
         stream.bytesReceived += chunk.length;
-        // Toggle cursor visibility for natural effect
+        // Toggle cursor visibility for the streaming cursor.
         stream.cursorVisible = stream.chunksReceived % 3 !== 0;
       }
     },
@@ -182,9 +187,9 @@ const streamingSlice = createSlice({
       state.globalStreamingEnabled = action.payload;
     },
     
-    // Set streaming speed
-    setStreamingSpeed: (state, action: PayloadAction<'instant' | 'natural' | 'slow'>) => {
-      state.streamingSpeed = action.payload;
+    // Set streaming display mode. Legacy natural/slow values normalize to smooth.
+    setStreamingSpeed: (state, action: PayloadAction<StreamingDisplayModeInput>) => {
+      state.streamingSpeed = normalizeStreamingDisplayMode(action.payload);
     },
     
     // Cancel all active streams
@@ -252,7 +257,7 @@ export const selectProviderHasVerificationError = (providerId: string) => (state
   state.streaming?.providerVerificationErrors[providerId] || false;
 
 export const selectStreamingSpeed = (state: RootState) =>
-  state.streaming?.streamingSpeed || 'natural';
+  normalizeStreamingDisplayMode(state.streaming?.streamingSpeed as StreamingDisplayModeInput | undefined);
 
 export const selectActiveStreamCount = (state: RootState) =>
   state.streaming?.activeStreamCount || 0;

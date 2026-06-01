@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState, setGlobalStreaming, setStreamingSpeed, setPremiumStatus, setRecordModeEnabled, isApiKeyConfigured } from '../../../store';
+import { RootState, setGlobalStreaming, setStreamingSpeed, setPremiumStatus, setRecordModeEnabled, isApiKeyConfigured, selectStreamingSpeed } from '../../../store';
 import { Typography, SheetHeader, SettingRow, Button } from '@/components/molecules';
 import { useTheme } from '../../../theme';
 import {
   useThemeSettings
 } from '../../../hooks/settings';
+import { formatStreamingDisplayMode, getNextStreamingDisplayMode } from '@/types/streaming';
 
 interface SettingsContentProps {
   onClose?: () => void;
@@ -27,7 +28,7 @@ export const SettingsContent: React.FC<SettingsContentProps> = ({
   const { theme } = useTheme();
   const dispatch = useDispatch();
   const streamingEnabled = useSelector((state: RootState) => state.streaming?.globalStreamingEnabled ?? true);
-  const streamingSpeed = useSelector((state: RootState) => state.streaming?.streamingSpeed ?? 'natural');
+  const streamingDisplayMode = useSelector(selectStreamingSpeed);
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
   const hasAnyApiKey = Object.values(apiKeys).some(isApiKeyConfigured);
   const recordModeEnabled = useSelector((state: RootState) => state.settings.recordModeEnabled ?? false);
@@ -37,15 +38,12 @@ export const SettingsContent: React.FC<SettingsContentProps> = ({
 
   const handleStreamingSpeedPress = () => {
     if (!streamingEnabled) return;
-    
-    // Cycle through speeds: instant -> natural -> slow -> instant
-    const nextSpeed = streamingSpeed === 'instant' ? 'natural' : 
-                     streamingSpeed === 'natural' ? 'slow' : 'instant';
-    dispatch(setStreamingSpeed(nextSpeed));
+
+    dispatch(setStreamingSpeed(getNextStreamingDisplayMode(streamingDisplayMode)));
   };
 
   const getStreamingSpeedDisplay = () => {
-    return streamingSpeed.charAt(0).toUpperCase() + streamingSpeed.slice(1);
+    return formatStreamingDisplayMode(streamingDisplayMode);
   };
 
   return (
@@ -170,8 +168,8 @@ export const SettingsContent: React.FC<SettingsContentProps> = ({
         />
         
         <SettingRow
-          title="Streaming Speed"
-          subtitle={streamingEnabled ? `Currently: ${getStreamingSpeedDisplay()}` : 'Enable streaming to adjust speed'}
+          title="Streaming Display"
+          subtitle={streamingEnabled ? `Currently: ${getStreamingSpeedDisplay()}` : 'Enable streaming to adjust display'}
           icon="speedometer"
           onPress={streamingEnabled ? handleStreamingSpeedPress : undefined}
           disabled={!streamingEnabled}

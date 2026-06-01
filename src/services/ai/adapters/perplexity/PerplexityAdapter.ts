@@ -196,7 +196,7 @@ export class PerplexityAdapter extends OpenAICompatibleAdapter {
    *
    * Perplexity's SSE streaming doesn't include citations in the stream chunks,
    * so we make a non-streaming request to get the full response with citations,
-   * then simulate streaming for a better UX.
+   * then return it in chunks. Display pacing is handled by StreamingService.
    */
   async *streamMessage(
     message: string,
@@ -220,19 +220,10 @@ export class PerplexityAdapter extends OpenAICompatibleAdapter {
     const content = typeof response === 'string' ? response : response.response;
     const citations = typeof response === 'object' ? response.metadata?.citations : undefined;
 
-    // Simulate streaming by yielding content in chunks
-    // This provides a smooth typing effect while preserving citation data
-    const chunkSize = 8; // Characters per chunk for natural typing feel
-    const delayMs = 12; // Delay between chunks
+    const chunkSize = 64;
 
     for (let i = 0; i < content.length; i += chunkSize) {
-      const chunk = content.slice(i, i + chunkSize);
-      yield chunk;
-
-      // Small delay for natural streaming feel
-      if (i + chunkSize < content.length) {
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-      }
+      yield content.slice(i, i + chunkSize);
     }
 
     // Emit citations via onEvent so they can be captured by the streaming service

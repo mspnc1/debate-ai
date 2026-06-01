@@ -53,7 +53,7 @@ const defaultState = (): RootState => ({
   } as any,
   streaming: {
     globalStreamingEnabled: false,
-    streamingSpeed: 'natural',
+    streamingSpeed: 'smooth',
     streamingPreferences: {},
     providerVerificationErrors: {},
   } as any,
@@ -546,7 +546,7 @@ describe('DebateSetupScreen', () => {
         streaming: {
           ...defaultState().streaming,
           globalStreamingEnabled: true,
-          streamingSpeed: 'natural',
+          streamingSpeed: 'smooth',
           streamingPreferences: {
             claude: { enabled: true },
             openai: { enabled: true },
@@ -588,8 +588,8 @@ describe('DebateSetupScreen', () => {
     fireEvent.press(renderResult.getByText('Streaming: On'));
     expect(mockDispatch).toHaveBeenCalledWith(setGlobalStreaming(false));
 
-    fireEvent.press(renderResult.getByText('Speed: Natural'));
-    expect(mockDispatch).toHaveBeenCalledWith(setStreamingSpeed('slow'));
+    fireEvent.press(renderResult.getByText('Display: Smooth'));
+    expect(mockDispatch).toHaveBeenCalledWith(setStreamingSpeed('instant'));
 
     const providerToggle = renderResult.getAllByText('Streaming On')[0];
     fireEvent.press(providerToggle);

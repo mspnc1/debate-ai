@@ -213,17 +213,11 @@ export class GeminiAdapter extends BaseAdapter {
       const content = typeof response === 'string' ? response : response.response;
       const citations = typeof response === 'object' ? response.metadata?.citations : undefined;
 
-      // Simulate streaming by yielding content in chunks
-      const chunkSize = 8;
-      const delayMs = 12;
+      // Return in chunks; StreamingService owns display pacing.
+      const chunkSize = 64;
 
       for (let i = 0; i < content.length; i += chunkSize) {
-        const chunk = content.slice(i, i + chunkSize);
-        yield chunk;
-
-        if (i + chunkSize < content.length) {
-          await new Promise(resolve => setTimeout(resolve, delayMs));
-        }
+        yield content.slice(i, i + chunkSize);
       }
 
       // Emit citations via onEvent
