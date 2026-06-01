@@ -14,14 +14,16 @@ describe('ChatEmptyState', () => {
   it('renders with default props', () => {
     const { getByText } = renderWithProviders(<ChatEmptyState />);
 
-    expect(getByText('💭')).toBeTruthy();
+    expect(getByText('Ionicons:chatbubble-ellipses-outline')).toBeTruthy();
     expect(getByText('Start the conversation')).toBeTruthy();
     expect(getByText('Type a message or @ mention specific AIs')).toBeTruthy();
   });
 
-  it('renders with custom emoji', () => {
-    const { getByText } = renderWithProviders(<ChatEmptyState emoji="🤖" />);
-    expect(getByText('🤖')).toBeTruthy();
+  it('renders with custom icon', () => {
+    const { getByText } = renderWithProviders(
+      <ChatEmptyState iconName="chatbubbles-outline" />
+    );
+    expect(getByText('Ionicons:chatbubbles-outline')).toBeTruthy();
   });
 
   it('renders with custom title', () => {
@@ -39,24 +41,23 @@ describe('ChatEmptyState', () => {
   it('renders with all custom props', () => {
     const { getByText } = renderWithProviders(
       <ChatEmptyState
-        emoji="🎭"
+        iconName="people-outline"
         title="Welcome to the debate"
         subtitle="Choose your participants and start"
       />
     );
 
-    expect(getByText('🎭')).toBeTruthy();
+    expect(getByText('Ionicons:people-outline')).toBeTruthy();
     expect(getByText('Welcome to the debate')).toBeTruthy();
     expect(getByText('Choose your participants and start')).toBeTruthy();
   });
 
   it('renders with empty strings', () => {
     const { queryByText } = renderWithProviders(
-      <ChatEmptyState emoji="" title="" subtitle="" />
+      <ChatEmptyState title="" subtitle="" />
     );
 
     // Should render but with empty content
-    expect(queryByText('💭')).toBeNull();
     expect(queryByText('Start the conversation')).toBeNull();
   });
 });

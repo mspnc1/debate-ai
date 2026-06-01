@@ -74,6 +74,11 @@ describe('ChatMessageList', () => {
     theme: {
       colors: {
         background: '#FFFFFF',
+        brand: '#007AFF',
+        border: '#EEEEEE',
+        overlays: {
+          soft: 'rgba(0, 0, 0, 0.03)',
+        },
         text: {
           primary: '#000000',
           secondary: '#666666',
@@ -140,7 +145,7 @@ describe('ChatMessageList', () => {
         />
       );
 
-      expect(screen.getByText('💭')).toBeTruthy();
+      expect(screen.getByText('Ionicons:chatbubble-ellipses-outline')).toBeTruthy();
       expect(screen.getByText('Start the conversation')).toBeTruthy();
       expect(screen.getByText('Type a message or @ mention specific AIs')).toBeTruthy();
     });

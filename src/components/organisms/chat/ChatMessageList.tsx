@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { FlatList, NativeScrollEvent, NativeSyntheticEvent, StyleSheet, View } from 'react-native';
-import { Box, ResponsiveContainer } from '../../atoms';
-import { Typography } from '../../molecules';
+import { ResponsiveContainer } from '../../atoms';
 import { MessageBubble } from '@/components/organisms/common/MessageBubble';
 import { ImageMessageRow } from './ImageMessageRow';
 import { ImageGeneratingRow } from './ImageGeneratingRow';
+import { ChatEmptyState } from './ChatEmptyState';
 import { useTheme } from '../../../theme';
 import { useResponsive } from '../../../hooks/useResponsive';
 import { Message, AIProvider } from '../../../types';
@@ -152,17 +152,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     searchTerm,
   ]);
 
-  const renderEmptyState = () => (
-    <Box style={styles.emptyState}>
-      <Typography style={styles.emptyStateEmoji}>💭</Typography>
-      <Typography variant="title" align="center" style={{ marginBottom: 8 }}>
-        Start the conversation
-      </Typography>
-      <Typography variant="body" color="secondary" align="center">
-        Type a message or @ mention specific AIs
-      </Typography>
-    </Box>
-  );
+  const renderEmptyState = () => <ChatEmptyState />;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -197,15 +187,5 @@ const styles = StyleSheet.create({
   messagesList: {
     paddingHorizontal: 16,
     paddingVertical: 16,
-  },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-  },
-  emptyStateEmoji: {
-    fontSize: 48,
-    marginBottom: 16,
   },
 });
