@@ -108,6 +108,7 @@ const chatSlice = createSlice({
     addMessage: (state, action: PayloadAction<Message>) => {
       if (state.currentSession) {
         state.currentSession.messages.push(action.payload);
+        state.currentSession.lastMessageAt = action.payload.timestamp || Date.now();
       }
     },
     updateMessage: (state, action: PayloadAction<{ id: string; content?: string; attachments?: MessageAttachment[]; metadata?: Partial<MessageMetadata> }>) => {
@@ -124,6 +125,7 @@ const chatSlice = createSlice({
             const currentMeta = state.currentSession.messages[messageIndex].metadata || {} as MessageMetadata;
             state.currentSession.messages[messageIndex].metadata = { ...currentMeta, ...action.payload.metadata } as MessageMetadata;
           }
+          state.currentSession.lastMessageAt = Date.now();
         }
       }
     },

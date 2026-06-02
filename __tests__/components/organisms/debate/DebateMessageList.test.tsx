@@ -292,9 +292,9 @@ describe('DebateMessageList', () => {
       scrollToEndSpy.mockRestore();
     });
 
-    it('scrolls once when a new debate message is appended while following', () => {
+    it('shows the latest-responses button when a new debate message is appended', () => {
       const scrollToEndSpy = createScrollToEndSpy();
-      const { rerender } = renderWithProviders(
+      const { getByText, rerender } = renderWithProviders(
         <DebateMessageList {...defaultProps} />
       );
 
@@ -312,13 +312,14 @@ describe('DebateMessageList', () => {
       );
       flushScheduledScroll();
 
-      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: false });
+      expect(getByText(/New debate responses/i)).toBeTruthy();
+      expect(scrollToEndSpy).not.toHaveBeenCalled();
       scrollToEndSpy.mockRestore();
     });
 
-    it('keeps auto-follow enabled after non-user scroll and momentum events', () => {
+    it('does not auto-follow after non-user scroll and momentum events', () => {
       const scrollToEndSpy = createScrollToEndSpy();
-      const { UNSAFE_getByType, queryByText, rerender } = renderWithProviders(
+      const { UNSAFE_getByType, getByText, rerender } = renderWithProviders(
         <DebateMessageList {...defaultProps} />
       );
       const { flatList } = getFlatList(UNSAFE_getByType);
@@ -347,8 +348,8 @@ describe('DebateMessageList', () => {
       );
       flushScheduledScroll();
 
-      expect(queryByText(/New debate responses/i)).toBeNull();
-      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: false });
+      expect(getByText(/New debate responses/i)).toBeTruthy();
+      expect(scrollToEndSpy).not.toHaveBeenCalled();
       scrollToEndSpy.mockRestore();
     });
 
@@ -387,9 +388,9 @@ describe('DebateMessageList', () => {
       scrollToEndSpy.mockRestore();
     });
 
-    it('resumes auto-follow after pressing the latest-responses button', () => {
+    it('scrolls only when pressing the latest-responses button', () => {
       const scrollToEndSpy = createScrollToEndSpy();
-      const { UNSAFE_getByType, getByLabelText, queryByText, rerender } = renderWithProviders(
+      const { UNSAFE_getByType, getByLabelText, getByText, queryByText, rerender } = renderWithProviders(
         <DebateMessageList {...defaultProps} />
       );
       const { flatList } = getFlatList(UNSAFE_getByType);
@@ -429,7 +430,8 @@ describe('DebateMessageList', () => {
       );
       flushScheduledScroll();
 
-      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: false });
+      expect(getByText(/New debate responses/i)).toBeTruthy();
+      expect(scrollToEndSpy).not.toHaveBeenCalled();
       scrollToEndSpy.mockRestore();
     });
 

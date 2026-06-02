@@ -42,9 +42,6 @@ export const useChatMessages = (): ChatMessagesHook => {
     
     // Dispatch to Redux
     dispatch(addMessage(userMessage));
-    
-    // Auto-scroll to bottom
-    setTimeout(() => scrollToBottom({ animated: true }), 100);
   };
 
   const scrollToBottom = (options: { animated?: boolean } = {}): void => {

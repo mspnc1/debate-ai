@@ -85,19 +85,28 @@ export class StorageService {
         // Skip saving Redux debate sessions - they should only be saved via DebateOrchestrator
         return;
       }
+
+      const latestMessageAt = session.messages.reduce(
+        (latest, message) => Math.max(latest, message.timestamp || 0),
+        session.lastMessageAt || session.createdAt
+      );
+      const sessionToSave: ChatSession = {
+        ...session,
+        lastMessageAt: latestMessageAt,
+      };
       
       // Save the individual session
       const sessionKey = this.getSessionKey(session.id);
-      await AsyncStorage.setItem(sessionKey, JSON.stringify(session));
+      await AsyncStorage.setItem(sessionKey, JSON.stringify(sessionToSave));
 
       // Update the index
       const index = await this.getSessionIndex();
       const indexEntry: SessionIndexEntry = {
-        id: session.id,
-        createdAt: session.createdAt,
-        lastMessageAt: session.lastMessageAt || session.createdAt,
-        messageCount: session.messages.length,
-        participants: session.selectedAIs.map(ai => ai.name)
+        id: sessionToSave.id,
+        createdAt: sessionToSave.createdAt,
+        lastMessageAt: sessionToSave.lastMessageAt || sessionToSave.createdAt,
+        messageCount: sessionToSave.messages.length,
+        participants: sessionToSave.selectedAIs.map(ai => ai.name)
       };
 
       // Update or add to index

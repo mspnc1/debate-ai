@@ -1,6 +1,6 @@
 import React from 'react';
 import { FlatList } from 'react-native';
-import { render, screen, waitFor, act, fireEvent } from '@testing-library/react-native';
+import { render, screen, waitFor, act } from '@testing-library/react-native';
 import { ChatMessageList } from '../../../../src/components/organisms/chat/ChatMessageList';
 import { useTheme } from '../../../../src/theme';
 import { Message } from '../../../../src/types';
@@ -265,7 +265,7 @@ describe('ChatMessageList', () => {
       scrollToEndSpy.mockRestore();
     });
 
-    it('scrolls once when a new message is appended while following', () => {
+    it('does not auto-scroll when a new message is appended', () => {
       const flatListRef = createMockRef();
       const scrollToEndSpy = jest.spyOn(FlatList.prototype, 'scrollToEnd').mockImplementation(() => {});
 
@@ -296,7 +296,7 @@ describe('ChatMessageList', () => {
       );
       flushScheduledScroll();
 
-      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: false });
+      expect(scrollToEndSpy).not.toHaveBeenCalled();
       scrollToEndSpy.mockRestore();
     });
 
@@ -319,7 +319,7 @@ describe('ChatMessageList', () => {
       expect(mockOnContentSizeChange).toHaveBeenCalledTimes(1);
     });
 
-    it('does not force auto-scroll after the user drags away from the bottom', () => {
+    it('does not force auto-scroll after content size changes', () => {
       const flatListRef = createMockRef();
       const scrollToEndSpy = jest.spyOn(FlatList.prototype, 'scrollToEnd').mockImplementation(() => {});
 
@@ -334,23 +334,6 @@ describe('ChatMessageList', () => {
       scrollToEndSpy.mockClear();
 
       act(() => {
-        flatList.props.onScrollBeginDrag();
-      });
-      fireEvent.scroll(flatList, {
-        nativeEvent: {
-          contentOffset: { y: 0 },
-          contentSize: { height: 1000 },
-          layoutMeasurement: { height: 500 },
-        },
-      });
-      act(() => {
-        flatList.props.onScrollEndDrag({
-          nativeEvent: {
-            contentOffset: { y: 0 },
-            contentSize: { height: 1000 },
-            layoutMeasurement: { height: 500 },
-          },
-        });
         flatList.props.onContentSizeChange();
       });
       flushScheduledScroll();
@@ -359,46 +342,18 @@ describe('ChatMessageList', () => {
       scrollToEndSpy.mockRestore();
     });
 
-    it('resumes new-message auto-scroll after the user scrolls back to the bottom', () => {
+    it('does not auto-scroll even if the user was already at the bottom', () => {
       const flatListRef = createMockRef();
       const scrollToEndSpy = jest.spyOn(FlatList.prototype, 'scrollToEnd').mockImplementation(() => {});
 
-      const { UNSAFE_getByType, rerender } = render(
+      const { rerender } = render(
         <ChatMessageList
           messages={mockMessages}
           flatListRef={flatListRef}
         />
       );
-      const flatList = UNSAFE_getByType(FlatList);
       flushScheduledScroll();
       scrollToEndSpy.mockClear();
-
-      act(() => {
-        flatList.props.onScrollBeginDrag();
-      });
-      fireEvent.scroll(flatList, {
-        nativeEvent: {
-          contentOffset: { y: 0 },
-          contentSize: { height: 1000 },
-          layoutMeasurement: { height: 500 },
-        },
-      });
-      act(() => {
-        flatList.props.onScrollEndDrag({
-          nativeEvent: {
-            contentOffset: { y: 0 },
-            contentSize: { height: 1000 },
-            layoutMeasurement: { height: 500 },
-          },
-        });
-      });
-      fireEvent.scroll(flatList, {
-        nativeEvent: {
-          contentOffset: { y: 500 },
-          contentSize: { height: 1000 },
-          layoutMeasurement: { height: 500 },
-        },
-      });
 
       rerender(
         <ChatMessageList
@@ -417,7 +372,7 @@ describe('ChatMessageList', () => {
       );
       flushScheduledScroll();
 
-      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: false });
+      expect(scrollToEndSpy).not.toHaveBeenCalled();
       scrollToEndSpy.mockRestore();
     });
 

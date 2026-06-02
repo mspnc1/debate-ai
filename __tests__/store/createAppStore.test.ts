@@ -1,4 +1,4 @@
-import { createAppStore, loadSession } from '@/store';
+import { addMessage, createAppStore, loadSession, updateMessage } from '@/store';
 
 describe('createAppStore', () => {
   it('hydrates store with preloaded state', () => {
@@ -33,5 +33,35 @@ describe('createAppStore', () => {
     }));
 
     expect(store.getState().chat.currentSession?.selectedAIs.map(ai => ai.provider)).toEqual(['openai']);
+  });
+
+  it('updates chat session lastMessageAt when messages are added or finalized', () => {
+    const store = createAppStore();
+
+    store.dispatch(loadSession({
+      id: 'session-1',
+      selectedAIs: [],
+      messages: [],
+      isActive: false,
+      createdAt: 100,
+      lastMessageAt: 100,
+      sessionType: 'chat',
+    }));
+
+    store.dispatch(addMessage({
+      id: 'msg-1',
+      sender: 'You',
+      senderType: 'user',
+      content: 'Hello',
+      timestamp: 500,
+    }));
+
+    expect(store.getState().chat.currentSession?.lastMessageAt).toBe(500);
+
+    jest.spyOn(Date, 'now').mockReturnValue(800);
+    store.dispatch(updateMessage({ id: 'msg-1', content: 'Hello again' }));
+
+    expect(store.getState().chat.currentSession?.lastMessageAt).toBe(800);
+    jest.restoreAllMocks();
   });
 });

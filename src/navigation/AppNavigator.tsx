@@ -43,6 +43,9 @@ const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
 const NAVIGATION_STATE_KEY = 'navigationState_v2';
 const LEGACY_NAVIGATION_STATE_KEY = 'navigationState_v1';
+const TAB_ROUTE_NAMES = ['Home', 'DebateTab', 'Compare', 'CreateTab', 'History'] as const;
+
+type TabRouteName = typeof TAB_ROUTE_NAMES[number];
 
 const ROUTE_NAMES = new Set([
   'Welcome',
@@ -133,16 +136,62 @@ const getActiveRouteName = (state: InitialState): string | undefined => {
   return typeof route.name === 'string' ? route.name : undefined;
 };
 
+const createMainTabsRoute = (activeTab: TabRouteName): InitialState['routes'][number] => ({
+  name: 'MainTabs',
+  state: {
+    index: TAB_ROUTE_NAMES.indexOf(activeTab),
+    routes: TAB_ROUTE_NAMES.map(name => ({ name })),
+  },
+} as unknown as InitialState['routes'][number]);
+
+const getSetupTabForStackRoute = (routeName: string): TabRouteName | undefined => {
+  switch (routeName) {
+    case 'Chat':
+      return 'Home';
+    case 'Debate':
+      return 'DebateTab';
+    case 'CompareSession':
+      return 'Compare';
+    case 'CreateSession':
+      return 'CreateTab';
+    default:
+      return undefined;
+  }
+};
+
+const normalizeRestoredNavigationState = (state: InitialState | undefined): InitialState | undefined => {
+  if (!state) return undefined;
+
+  const index = typeof state.index === 'number' ? state.index : state.routes.length - 1;
+  const activeRoute = state.routes[index];
+  const activeRouteName = typeof activeRoute?.name === 'string' ? activeRoute.name : undefined;
+  if (!activeRoute || !activeRouteName) return state;
+
+  const setupTab = getSetupTabForStackRoute(activeRouteName);
+  if (!setupTab) return state;
+
+  return {
+    ...state,
+    index: 1,
+    routes: [
+      createMainTabsRoute(setupTab),
+      activeRoute,
+    ],
+  };
+};
+
 const getInitialNavigationState = (currentRaw: string | null, legacyRaw: string | null): InitialState | undefined => {
   const current = parseNavigationState(currentRaw);
-  if (current) return current;
+  if (current) return normalizeRestoredNavigationState(current);
 
   const legacy = parseNavigationState(legacyRaw);
   if (!legacy) return undefined;
 
   // v1 is known to strand users on the Debate setup tab after OTA reloads.
   // Migrate only if the active route is a concrete screen that is not that tab.
-  return getActiveRouteName(legacy) === 'DebateTab' ? undefined : legacy;
+  return getActiveRouteName(legacy) === 'DebateTab'
+    ? undefined
+    : normalizeRestoredNavigationState(legacy);
 };
 
 const CreateActivityBridge = () => {
@@ -408,7 +457,10 @@ export default function AppNavigator() {
           initialState={shouldShowMainApp ? initialNavigationState : undefined}
           onStateChange={(state) => {
             if (!shouldShowMainApp || !state) return;
-            AsyncStorage.setItem(NAVIGATION_STATE_KEY, JSON.stringify(state)).catch(() => {});
+            const persistedState = isValidNavigationState(state)
+              ? normalizeRestoredNavigationState(state)
+              : state;
+            AsyncStorage.setItem(NAVIGATION_STATE_KEY, JSON.stringify(persistedState)).catch(() => {});
           }}
         >
           <Stack.Navigator

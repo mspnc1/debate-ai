@@ -136,6 +136,14 @@ jest.mock('@/hooks/usePersonality', () => ({
 
 const AppNavigator = require('@/navigation/AppNavigator').default;
 
+const mainTabsStateFor = (activeTab: string) => ({
+  name: 'MainTabs',
+  state: {
+    index: ['Home', 'DebateTab', 'Compare', 'CreateTab', 'History'].indexOf(activeTab),
+    routes: ['Home', 'DebateTab', 'Compare', 'CreateTab', 'History'].map(name => ({ name })),
+  },
+});
+
 describe('AppNavigator', () => {
   beforeEach(async () => {
     await AsyncStorage.clear();
@@ -212,7 +220,13 @@ describe('AppNavigator', () => {
     });
 
     await waitFor(() => {
-      expect(mockNavigationContainerProps?.initialState).toEqual(persistedState);
+      expect(mockNavigationContainerProps?.initialState).toEqual({
+        index: 1,
+        routes: [
+          mainTabsStateFor('Home'),
+          persistedState.routes[1],
+        ],
+      });
     });
     await expect(AsyncStorage.getItem('navigationState_v1')).resolves.toBeNull();
   });
@@ -235,7 +249,51 @@ describe('AppNavigator', () => {
     });
 
     await waitFor(() => {
-      expect(mockNavigationContainerProps?.initialState).toEqual(legacyState);
+      expect(mockNavigationContainerProps?.initialState).toEqual({
+        index: 1,
+        routes: [
+          mainTabsStateFor('Home'),
+          legacyState.routes[1],
+        ],
+      });
+    });
+  });
+
+  it('rebases restored chat routes over the Chat setup tab instead of a stale Debate tab', async () => {
+    const persistedState = {
+      index: 1,
+      routes: [
+        {
+          name: 'MainTabs',
+          state: {
+            index: 1,
+            routes: [
+              { name: 'Home' },
+              { name: 'DebateTab' },
+              { name: 'Compare' },
+            ],
+          },
+        },
+        { name: 'Chat', params: { sessionId: 'session-chat' } },
+      ],
+    };
+    await AsyncStorage.setItem('navigationState_v2', JSON.stringify(persistedState));
+
+    renderWithProviders(<AppNavigator />, {
+      preloadedState: {
+        auth: resolvedAuth,
+        settings: { ...baseSettings, hasCompletedOnboarding: true },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mockNavigationContainerProps?.initialState).toEqual({
+        index: 1,
+        routes: [
+          mainTabsStateFor('Home'),
+          persistedState.routes[1],
+        ],
+      });
     });
   });
 
@@ -310,7 +368,13 @@ describe('AppNavigator', () => {
     });
     (mockNavigationContainerProps?.onStateChange as (state: unknown) => void)(currentState);
 
-    await expect(AsyncStorage.getItem('navigationState_v2')).resolves.toBe(JSON.stringify(currentState));
+    await expect(AsyncStorage.getItem('navigationState_v2')).resolves.toBe(JSON.stringify({
+      index: 1,
+      routes: [
+        mainTabsStateFor('Home'),
+        currentState.routes[1],
+      ],
+    }));
   });
 
   it('does not interrupt provider streams from the global lifecycle bridge', async () => {

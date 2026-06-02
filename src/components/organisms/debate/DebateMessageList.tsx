@@ -117,19 +117,6 @@ const getCitationMetadataKey = (message: Message): string => {
   ].join(':');
 };
 
-const scheduleFrame = (callback: (timestamp: number) => void): number =>
-  typeof requestAnimationFrame === 'function'
-    ? requestAnimationFrame(callback)
-    : (setTimeout(() => callback(Date.now()), 0) as unknown as number);
-
-const cancelFrame = (frame: number): void => {
-  if (typeof cancelAnimationFrame === 'function') {
-    cancelAnimationFrame(frame);
-  } else {
-    clearTimeout(frame as unknown as ReturnType<typeof setTimeout>);
-  }
-};
-
 // Memoized message item component - optimized
 const MessageItem = memo<{
   message: Message;
@@ -201,43 +188,27 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
   const isAtBottomRef = useRef(true);
   const userPinnedAwayRef = useRef(false);
   const userScrollInProgressRef = useRef(false);
-  const scrollFrameRef = useRef<number | null>(null);
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   const { theme } = useTheme();
-  const latestAutoScrollMessageKeyRef = useRef('');
+  const latestMessageKeyRef = useRef('');
+  const listEmpty = messages.length === 0;
 
-  // Auto-scroll to new messages
-  const scrollToEnd = useCallback((animated = false) => {
-    if (scrollFrameRef.current !== null) return;
-
-    scrollFrameRef.current = scheduleFrame(() => {
-      scrollFrameRef.current = null;
-      flatListRef.current?.scrollToEnd({ animated });
-    });
+  const scrollToEnd = useCallback((animated = true) => {
+    flatListRef.current?.scrollToEnd({ animated });
   }, []);
 
-  useEffect(() => () => {
-    if (scrollFrameRef.current !== null) {
-      cancelFrame(scrollFrameRef.current);
-    }
-  }, []);
-
-  // Handle content size changes while respecting user scroll position.
   const handleContentSizeChange = useCallback(() => {
-    if (userPinnedAwayRef.current) {
+    if (!listEmpty) {
       setShowScrollIndicator(true);
     }
-  }, []);
-
-  // Scroll when new messages are added
-  const listEmpty = messages.length === 0;
+  }, [listEmpty]);
 
   useEffect(() => {
     if (listEmpty) {
       alignmentMapRef.current = {};
       lastAssignedSideRef.current = 'right';
       userPinnedAwayRef.current = false;
-      latestAutoScrollMessageKeyRef.current = '';
+      latestMessageKeyRef.current = '';
       setShowScrollIndicator(false);
     }
   }, [listEmpty]);
@@ -248,26 +219,22 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
 
   useEffect(() => {
     if (!latestMessageKey) return;
-    if (latestMessageKey !== latestAutoScrollMessageKeyRef.current) {
-      latestAutoScrollMessageKeyRef.current = latestMessageKey;
-      if (userPinnedAwayRef.current) {
-        setShowScrollIndicator(true);
-      } else {
-        scrollToEnd(false);
-      }
+    if (!latestMessageKeyRef.current) {
+      latestMessageKeyRef.current = latestMessageKey;
+      return;
     }
-  }, [latestMessageKey, scrollToEnd]);
+    if (latestMessageKey !== latestMessageKeyRef.current) {
+      latestMessageKeyRef.current = latestMessageKey;
+      setShowScrollIndicator(true);
+    }
+  }, [latestMessageKey]);
 
   const typingAIsKey = typingAIs.join('|');
 
   useEffect(() => {
     if (typingAIs.length === 0) return;
-    if (userPinnedAwayRef.current) {
-      setShowScrollIndicator(true);
-    } else {
-      scrollToEnd(false);
-    }
-  }, [typingAIs.length, typingAIsKey, scrollToEnd]);
+    setShowScrollIndicator(true);
+  }, [typingAIs.length, typingAIsKey]);
 
   const getAlignment = useCallback((message: Message): 'left' | 'right' | 'center' => {
     if (message.sender === 'Debate Host' || message.sender === 'System') {
@@ -362,15 +329,6 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
     setShowScrollIndicator(false);
     scrollToEnd(true);
   }, [scrollToEnd]);
-
-  useEffect(() => {
-    if (listEmpty) return;
-    if (userPinnedAwayRef.current) {
-      setShowScrollIndicator(true);
-    } else {
-      scrollToEnd(false);
-    }
-  }, [bottomInset, listEmpty, scrollToEnd]);
 
   const effectiveBottomPadding = 32 + bottomInset;
   const indicatorBottomOffset = 24 + bottomInset;

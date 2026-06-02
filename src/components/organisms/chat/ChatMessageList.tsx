@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { FlatList, NativeScrollEvent, NativeSyntheticEvent, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo } from 'react';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { ResponsiveContainer } from '../../atoms';
 import { MessageBubble } from '@/components/organisms/common/MessageBubble';
 import { ImageMessageRow } from './ImageMessageRow';
@@ -8,21 +8,6 @@ import { ChatEmptyState } from './ChatEmptyState';
 import { useTheme } from '../../../theme';
 import { useResponsive } from '../../../hooks/useResponsive';
 import { Message, AIProvider } from '../../../types';
-
-const BOTTOM_THRESHOLD = 48;
-
-const scheduleFrame = (callback: (timestamp: number) => void): number =>
-  typeof requestAnimationFrame === 'function'
-    ? requestAnimationFrame(callback)
-    : (setTimeout(() => callback(Date.now()), 0) as unknown as number);
-
-const cancelFrame = (frame: number): void => {
-  if (typeof cancelAnimationFrame === 'function') {
-    cancelAnimationFrame(frame);
-  } else {
-    clearTimeout(frame as unknown as ReturnType<typeof setTimeout>);
-  }
-};
 
 export interface ChatMessageListProps {
   messages: Message[];
@@ -51,10 +36,6 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
 }) => {
   const { theme } = useTheme();
   const { responsive, rs } = useResponsive();
-  const userPinnedAwayRef = useRef(false);
-  const userScrollInProgressRef = useRef(false);
-  const scrollFrameRef = useRef<number | null>(null);
-  const latestAutoScrollMessageIdRef = useRef<string | null>(null);
 
   // Responsive padding for iPad
   const contentPadding = useMemo(() => ({
@@ -78,77 +59,9 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     }
   }, [searchTerm, messages, onScrollToSearchResult]);
 
-  const scrollToEnd = useCallback((animated = false) => {
-    if (scrollFrameRef.current !== null) return;
-
-    scrollFrameRef.current = scheduleFrame(() => {
-      scrollFrameRef.current = null;
-      flatListRef.current?.scrollToEnd({ animated });
-    });
-  }, [flatListRef]);
-
-  useEffect(() => () => {
-    if (scrollFrameRef.current !== null) {
-      cancelFrame(scrollFrameRef.current);
-    }
-  }, []);
-
-  const updatePinnedStateFromScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-    const atBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - BOTTOM_THRESHOLD;
-
-    if (atBottom) {
-      userPinnedAwayRef.current = false;
-    } else if (userScrollInProgressRef.current) {
-      userPinnedAwayRef.current = true;
-    }
-  }, []);
-
-  const handleScrollBeginDrag = useCallback(() => {
-    userScrollInProgressRef.current = true;
-  }, []);
-
-  const handleScrollEndDrag = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    updatePinnedStateFromScroll(event);
-    userScrollInProgressRef.current = false;
-  }, [updatePinnedStateFromScroll]);
-
-  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    updatePinnedStateFromScroll(event);
-  }, [updatePinnedStateFromScroll]);
-
   const handleContentSizeChange = useCallback(() => {
     onContentSizeChange?.();
   }, [onContentSizeChange]);
-
-  const latestMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
-
-  useEffect(() => {
-    if (!latestMessageId) {
-      latestAutoScrollMessageIdRef.current = null;
-      return;
-    }
-
-    if (latestMessageId !== latestAutoScrollMessageIdRef.current) {
-      latestAutoScrollMessageIdRef.current = latestMessageId;
-      if (!userPinnedAwayRef.current) {
-        scrollToEnd(false);
-      }
-    }
-  }, [latestMessageId, scrollToEnd]);
-
-  useEffect(() => {
-    if (messages.length === 0) {
-      userPinnedAwayRef.current = false;
-      latestAutoScrollMessageIdRef.current = null;
-    }
-  }, [messages.length]);
-
-  const handleListLayout = useCallback(() => {
-    if (messages.length > 0 && !userPinnedAwayRef.current) {
-      scrollToEnd(false);
-    }
-  }, [messages.length, scrollToEnd]);
 
   const isUserMessage = useCallback((m: Message) => m.senderType === 'user', []);
   const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
@@ -190,11 +103,6 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
           renderItem={renderMessage}
           contentContainerStyle={[styles.messagesList, contentPadding]}
           onContentSizeChange={handleContentSizeChange}
-          onLayout={handleListLayout}
-          onScroll={handleScroll}
-          onScrollBeginDrag={handleScrollBeginDrag}
-          onScrollEndDrag={handleScrollEndDrag}
-          onMomentumScrollEnd={handleScrollEndDrag}
           scrollEventThrottle={80}
           style={{ backgroundColor: theme.colors.background }}
           ListEmptyComponent={renderEmptyState}

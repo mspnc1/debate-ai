@@ -43,9 +43,22 @@ jest.mock('@/hooks/useFeatureAccess', () => ({
 }));
 
 const mockGetAttachmentSupport = jest.fn();
+const mockValidateMessageContent = jest.fn();
+const mockCreateUserMessage = jest.fn();
+const mockStorageSaveSession = jest.fn();
 
 jest.mock('@/utils/attachmentUtils', () => ({
   getAttachmentSupport: (...args: unknown[]) => mockGetAttachmentSupport(...args),
+}));
+
+jest.mock('@/services/chat', () => ({
+  ChatService: {
+    validateMessageContent: (...args: unknown[]) => mockValidateMessageContent(...args),
+    createUserMessage: (...args: unknown[]) => mockCreateUserMessage(...args),
+  },
+  StorageService: {
+    saveSession: (...args: unknown[]) => mockStorageSaveSession(...args),
+  },
 }));
 
 let mockHeaderProps: any;
@@ -363,6 +376,16 @@ describe('ChatScreen', () => {
     });
 
     mockGetAttachmentSupport.mockReturnValue({ images: true, documents: false });
+    mockValidateMessageContent.mockReturnValue({ isValid: true });
+    mockCreateUserMessage.mockImplementation((content: string, mentions: string[] = []) => ({
+      id: 'msg-created',
+      sender: 'You',
+      senderType: 'user',
+      content: content.trim(),
+      timestamp: Date.now(),
+      mentions,
+    }));
+    mockStorageSaveSession.mockResolvedValue(undefined);
 
     mockDemoContentService.findChatById.mockResolvedValue(null);
     mockDemoContentService.listChatSamples.mockReturnValue([]);
@@ -460,10 +483,36 @@ describe('ChatScreen', () => {
     });
 
     expect(mockMentionsApi.parseMentions).toHaveBeenCalledWith('Custom message');
-    expect(mockMessages.sendMessage).toHaveBeenCalledWith('Custom message', ['claude'], undefined);
+    expect(mockMessages.sendMessage).not.toHaveBeenCalled();
     expect(mockInput.clearInput).toHaveBeenCalledTimes(1);
     expect(mockInput.dismissKeyboard).toHaveBeenCalledTimes(1);
-    expect(mockAIResponsesData.sendAIResponses).toHaveBeenCalledTimes(1);
+    expect(mockStorageSaveSession).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'session-1',
+      sessionType: 'chat',
+      messages: [expect.objectContaining({
+        sender: 'You',
+        senderType: 'user',
+        content: 'Custom message',
+        mentions: ['claude'],
+      })],
+    }));
+    expect(mockSaveActiveSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      mode: 'chat',
+      sessionId: 'session-1',
+      status: 'active',
+      messages: [expect.objectContaining({ content: 'Custom message' })],
+    }));
+    expect(mockAIResponsesData.sendAIResponses).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sender: 'You',
+        senderType: 'user',
+        content: 'Custom message',
+        mentions: ['claude'],
+      }),
+      undefined,
+      undefined,
+      false,
+    );
 
     act(() => {
       mockChatInputBarProps.onStop();
@@ -473,9 +522,7 @@ describe('ChatScreen', () => {
     fireEvent.press(getByTestId('demo-banner'));
     expect(store.getState().navigation.activeSheet).toBe('subscription');
 
-    await waitFor(() => {
-      expect(mockSession.saveSession).toHaveBeenCalledTimes(1);
-    });
+    expect(mockSession.saveSession).not.toHaveBeenCalled();
   });
 
   it('checkpoints active chat streams without marking them interrupted on app background', async () => {

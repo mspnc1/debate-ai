@@ -59,6 +59,7 @@ import { ContextBar, DemoProgressIndicator } from '@/components/molecules';
 import { getTotalChatTurns, getCurrentChatTurnIndex } from '@/services/demo/DemoPlaybackRouter';
 import { ChatTopicPickerModal } from '@/components/organisms/demo/ChatTopicPickerModal';
 import { RecordController } from '@/services/demo/RecordController';
+import { ChatService, StorageService } from '@/services/chat';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -219,8 +220,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     await aiResponses.sendAIResponses(userMessage);
   }, [aiResponses, computeMentionsForTurn, messages]);
 
-  const getMessagesWithStreamingContent = React.useCallback((): Message[] => {
-    const baseMessages = session.currentSession?.messages || [];
+  const getMessagesWithStreamingContent = React.useCallback((sourceMessages?: Message[]): Message[] => {
+    const baseMessages = sourceMessages || session.currentSession?.messages || [];
     return baseMessages.map((message) => {
       const stream = getStreamingContentSnapshot(message.id);
       if (!stream.exists) return message;
@@ -247,12 +248,13 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
 
   const saveActiveChatSnapshot = React.useCallback(async (
     status: ActiveChatSessionSnapshot['status'] = 'active',
-    reason?: string
+    reason?: string,
+    sessionOverride?: ChatSession
   ) => {
-    const currentSession = session.currentSession;
+    const currentSession = sessionOverride || session.currentSession;
     if (!currentSession || !isChatScreenSession(currentSession)) return;
 
-    const messagesWithStreamingContent = getMessagesWithStreamingContent();
+    const messagesWithStreamingContent = getMessagesWithStreamingContent(currentSession.messages);
     if (messagesWithStreamingContent.length === 0) return;
 
     const interruptedMessageIds = messagesWithStreamingContent
@@ -293,6 +295,37 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     session.currentSession,
     activeStreamIds,
   ]);
+
+  const persistChatCheckpoint = React.useCallback(async (
+    chatSession: ChatSession,
+    status: ActiveChatSessionSnapshot['status'] = 'active',
+    reason?: string
+  ) => {
+    if (!isChatScreenSession(chatSession) || chatSession.messages.length === 0) return;
+
+    const latestMessageAt = chatSession.messages.reduce(
+      (latest, message) => Math.max(latest, message.timestamp || 0),
+      chatSession.lastMessageAt || chatSession.createdAt
+    );
+    const sessionToSave: ChatSession = {
+      ...chatSession,
+      sessionType: 'chat',
+      lastMessageAt: latestMessageAt,
+    };
+
+    try {
+      await Promise.all([
+        StorageService.saveSession(sessionToSave),
+        saveActiveChatSnapshot(status, reason, sessionToSave),
+      ]);
+    } catch (error) {
+      ErrorService.handleSilent(error, {
+        action: 'persistChatCheckpoint',
+        sessionId: sessionToSave.id,
+        status,
+      });
+    }
+  }, [saveActiveChatSnapshot]);
 
   const recoveryAttemptedRef = React.useRef(false);
   useEffect(() => {
@@ -383,10 +416,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
       },
     });
   }, [activeStreams, saveActiveChatSnapshot, session.currentSession]);
-
-  useEffect(() => {
-    void saveActiveChatSnapshot(activeStreams > 0 ? 'active' : 'backgrounded');
-  }, [activeStreams, saveActiveChatSnapshot, session.currentSession?.messages.length]);
 
   const markActiveStreamsInterrupted = React.useCallback((status: 'cancelled' | 'interrupted', reason: string) => {
     activeStreamIds
@@ -607,9 +636,11 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
       return;
     }
     
-    if (!isChatScreenSession(session.currentSession)) {
+    const currentSession = session.currentSession;
+    if (!isChatScreenSession(currentSession)) {
       return;
     }
+    const chatSession = currentSession as ChatSession;
 
     // Parse mentions from the message
     const messageMentions = mentions.parseMentions(textToSend);
@@ -617,34 +648,75 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     // If recording, capture the user message text
     try { if (RecordController.isActive() && textToSend.trim()) { RecordController.recordUserMessage(textToSend.trim()); } } catch { /* ignore */ }
 
-    // Send user message with attachments
-    messages.sendMessage(textToSend, messageMentions, attachments);
+    if (!attachments || attachments.length === 0) {
+      const validation = ChatService.validateMessageContent(textToSend);
+      if (!validation.isValid) {
+        console.error('Invalid message:', validation.error);
+        return;
+      }
+    }
+
+    const timestamp = Date.now();
+    const userMessage: Message = {
+      ...ChatService.createUserMessage(textToSend, messageMentions),
+      id: `msg_${timestamp}`,
+      timestamp,
+      attachments,
+    };
+    const updatedSession: ChatSession = {
+      ...chatSession,
+      sessionType: 'chat',
+      messages: [...chatSession.messages, userMessage],
+      lastMessageAt: userMessage.timestamp,
+    };
+
+    dispatch(addMessage(userMessage));
+    const checkpoint = persistChatCheckpoint(updatedSession, 'active', 'user_send');
     
     // Clear input and dismiss keyboard
     input.clearInput();
     input.dismissKeyboard();
 
-    // Create user message object for AI responses
-    const userMessage = {
-      id: `msg_${Date.now()}`,
-      sender: 'You',
-      senderType: 'user' as const,
-      content: textToSend.trim(),
-      timestamp: Date.now(),
-      mentions: messageMentions,
-      attachments,
-    };
+    await checkpoint;
 
     // Trigger AI responses with attachments and web search if enabled
     await aiResponses.sendAIResponses(userMessage, undefined, attachments, webSearchEnabled);
-  }, [dispatch, input, session.currentSession, mentions, messages, aiResponses, isDemo, webSearchEnabled]);
+  }, [dispatch, input, session.currentSession, mentions, aiResponses, isDemo, webSearchEnabled, persistChatCheckpoint]);
 
-  // Auto-save session when it's created or messages change
+  const messagePersistenceSignature = React.useMemo(() => {
+    const currentSession = session.currentSession;
+    if (!isChatScreenSession(currentSession)) return '';
+    const chatSession = currentSession as ChatSession;
+    return chatSession.messages
+      .map(message => [
+        message.id,
+        message.timestamp,
+        message.content.length,
+        message.attachments?.length || 0,
+        message.metadata?.lifecycle?.status || '',
+        message.metadata?.citations?.length || 0,
+        message.metadata?.providerMetadata ? JSON.stringify(message.metadata.providerMetadata).length : 0,
+      ].join(':'))
+      .join('|');
+  }, [session.currentSession]);
+
+  // Auto-save session when it is created or messages are added/finalized.
   useEffect(() => {
-    if (isChatScreenSession(session.currentSession)) {
-      session.saveSession();
+    const currentSession = session.currentSession;
+    if (isChatScreenSession(currentSession)) {
+      void persistChatCheckpoint(
+        currentSession as ChatSession,
+        activeStreams > 0 ? 'active' : 'backgrounded',
+        'message_update'
+      );
     }
-  }, [session, session.currentSession?.id, session.currentSession?.messages.length]);
+  }, [
+    activeStreams,
+    messagePersistenceSignature,
+    persistChatCheckpoint,
+    session.currentSession,
+    session.currentSession?.id,
+  ]);
 
   // Handle Quick Start auto-send logic
   useEffect(() => {
