@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, KeyboardAvoidingView } from 'react-native';
 import { act, waitFor } from '@testing-library/react-native';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
 import { createAppStore, showSheet } from '@/store';
@@ -10,16 +10,16 @@ import type { AIConfig, ChatSession, Message } from '@/types';
 
 const leftAI: AIConfig = {
   id: 'left-ai',
-  provider: 'anthropic',
+  provider: 'claude',
   name: 'Claude',
-  model: 'claude-3-opus',
+  model: 'claude-sonnet-4-6',
 };
 
 const rightAI: AIConfig = {
   id: 'right-ai',
   provider: 'openai',
-  name: 'GPT-4',
-  model: 'gpt-4-turbo',
+  name: 'ChatGPT',
+  model: 'gpt-5.5',
 };
 
 const mockUseAIService = jest.fn();
@@ -383,6 +383,31 @@ beforeEach(() => {
 });
 
 describe('CompareScreen', () => {
+  it('renders split-width AI metadata cards under the header', () => {
+    const georgeLeft = { ...leftAI, personality: 'george' };
+
+    const { renderResult } = renderScreen({ params: { leftAI: georgeLeft, rightAI } });
+
+    expect(renderResult.getByTestId('compare-ai-metadata-header')).toBeTruthy();
+    expect(renderResult.getByText('Left')).toBeTruthy();
+    expect(renderResult.getByText('Right')).toBeTruthy();
+    expect(renderResult.getByText('Claude')).toBeTruthy();
+    expect(renderResult.getByText('Claude Sonnet 4.6')).toBeTruthy();
+    expect(renderResult.getByText('George')).toBeTruthy();
+    expect(renderResult.getByText('ChatGPT')).toBeTruthy();
+    expect(renderResult.getByText('GPT-5.5')).toBeTruthy();
+    expect(renderResult.queryByText('Face-off')).toBeNull();
+    expect(renderResult.queryByText('Different minds, same prompt.')).toBeNull();
+  });
+
+  it('uses the same zero-offset keyboard avoidance as Chat', () => {
+    const { renderResult } = renderScreen();
+
+    const keyboardAvoidingView = renderResult.UNSAFE_getByType(KeyboardAvoidingView);
+
+    expect(keyboardAvoidingView.props.keyboardVerticalOffset).toBe(0);
+  });
+
   it('renders header and resumed comparison state with divergent session', async () => {
     const session = createResumedSession({ hasDiverged: true, continuedWithAI: leftAI.name });
     const preloadedState: Partial<RootState> = {

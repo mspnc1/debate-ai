@@ -20,14 +20,14 @@ import { useAIService } from '../providers/AIServiceProvider';
 import { AIConfig, Message, ChatSession, MessageAttachment, Citation } from '../types';
 import { StorageService } from '../services/chat/StorageService';
 import { getExpertOverrides } from '../utils/expertMode';
-import { resolveProviderModelId } from '@/config/modelConfigs';
+import { getModelById, resolveProviderModelId } from '@/config/modelConfigs';
+import { getProviderById } from '@/config/aiProviders';
 import { getPersonality } from '@/config/personalities';
 import { buildPersonalityRuntime, mergeRuntimeModelParameters } from '@/services/personality';
 import { PromptDebugLogger } from '@/services/debug/PromptDebugLogger';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
 import { usePersonality } from '@/hooks/usePersonality';
 import { DemoBanner } from '@/components/molecules/subscription/DemoBanner';
-import { ContextBar } from '@/components/molecules';
 import { useDispatch } from 'react-redux';
 import { showSheet } from '@/store';
 import { DemoContentService } from '@/services/demo/DemoContentService';
@@ -85,6 +85,131 @@ const getResponseModel = (response: AIResponseResult, fallbackModel: string): st
 const getResponseCitations = (response: AIResponseResult): Citation[] | undefined => (
   typeof response === 'string' ? undefined : response.metadata?.citations
 );
+
+const PROVIDER_LABEL_FALLBACKS: Partial<Record<AIConfig['provider'], string>> = {
+  chatgpt: 'ChatGPT',
+  claude: 'Claude',
+  cohere: 'Cohere',
+  deepseek: 'DeepSeek',
+  google: 'Gemini',
+  grok: 'Grok',
+  mistral: 'Mistral',
+  openai: 'ChatGPT',
+  perplexity: 'Perplexity',
+};
+
+const humanizeIdentifier = (value: string): string => (
+  value
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+);
+
+const getProviderLabel = (ai: AIConfig): string => (
+  getProviderById(ai.provider)?.name
+    || PROVIDER_LABEL_FALLBACKS[ai.provider]
+    || humanizeIdentifier(ai.provider)
+);
+
+const getModelLabel = (ai: AIConfig): string => (
+  ai.modelConfig?.displayName
+    || getModelById(ai.provider, ai.model)?.name
+    || humanizeIdentifier(ai.model)
+);
+
+const getPersonalityLabel = (ai: AIConfig): string | null => {
+  if (!ai.personality || ai.personality === 'default') {
+    return null;
+  }
+
+  return getPersonality(ai.personality)?.name || humanizeIdentifier(ai.personality);
+};
+
+interface CompareAIMetadataCardProps {
+  ai: AIConfig;
+  side: 'left' | 'right';
+}
+
+const CompareAIMetadataCard: React.FC<CompareAIMetadataCardProps> = ({ ai, side }) => {
+  const { theme, isDark } = useTheme();
+  const personalityLabel = getPersonalityLabel(ai);
+  const accentColor = ai.color || theme.colors.primary[500];
+
+  return (
+    <View
+      style={[
+        styles.aiMetadataCard,
+        {
+          backgroundColor: isDark ? theme.colors.card : theme.colors.surface,
+          borderColor: theme.colors.border,
+        },
+      ]}
+    >
+      <View style={[styles.aiMetadataAccent, { backgroundColor: accentColor }]} />
+      <View style={styles.aiMetadataCopy}>
+        <Text
+          style={[styles.aiMetadataSideLabel, { color: theme.colors.text.secondary }]}
+          numberOfLines={1}
+        >
+          {side === 'left' ? 'Left' : 'Right'}
+        </Text>
+        <Text
+          style={[styles.aiMetadataProvider, { color: theme.colors.text.primary }]}
+          numberOfLines={1}
+        >
+          {getProviderLabel(ai)}
+        </Text>
+        <Text
+          style={[styles.aiMetadataDetail, { color: theme.colors.text.secondary }]}
+          numberOfLines={1}
+        >
+          {getModelLabel(ai)}
+        </Text>
+        {personalityLabel && (
+          <Text
+            style={[styles.aiMetadataDetail, { color: theme.colors.text.secondary }]}
+            numberOfLines={1}
+          >
+            {personalityLabel}
+          </Text>
+        )}
+      </View>
+    </View>
+  );
+};
+
+interface CompareAIMetadataHeaderProps {
+  leftAI: AIConfig;
+  rightAI: AIConfig;
+}
+
+const CompareAIMetadataHeader: React.FC<CompareAIMetadataHeaderProps> = ({ leftAI, rightAI }) => {
+  const { theme } = useTheme();
+
+  return (
+    <View
+      style={[
+        styles.aiMetadataHeader,
+        {
+          backgroundColor: theme.colors.background,
+          borderBottomColor: theme.colors.border,
+        },
+      ]}
+      testID="compare-ai-metadata-header"
+    >
+      <View style={styles.aiMetadataRow}>
+        <View style={styles.aiMetadataLeftPane}>
+          <CompareAIMetadataCard ai={leftAI} side="left" />
+        </View>
+        <View style={[styles.aiMetadataDivider, { backgroundColor: theme.colors.border }]} />
+        <View style={styles.aiMetadataRightPane}>
+          <CompareAIMetadataCard ai={rightAI} side="right" />
+        </View>
+      </View>
+    </View>
+  );
+};
 
 const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
   const { theme, isDark } = useTheme();
@@ -1247,15 +1372,16 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
   }
   
   return (
-    <KeyboardAvoidingView 
-      style={styles.keyboardContainer}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      edges={['left', 'right', 'bottom']}
     >
-      <SafeAreaView 
-        style={[styles.container, { backgroundColor: theme.colors.background }]}
-        edges={['left', 'right', 'bottom']}
+      <KeyboardAvoidingView
+        style={styles.keyboardContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
+        <View style={styles.screenContent}>
         <Header
           variant="gradient"
           slim
@@ -1317,15 +1443,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
           showDemoBadge={isDemo}
         />
 
-        <ContextBar
-          title="Face-off"
-          subtitle="Different minds, same prompt."
-          items={[
-            { label: 'Left', value: leftAI.name, accentColor: leftAI.color },
-            { label: 'Right', value: rightAI.name, accentColor: rightAI.color },
-          ]}
-          testID="compare-context-bar"
-        />
+        <CompareAIMetadataHeader leftAI={leftAI} rightAI={rightAI} />
 
         {isDemo && compareSamples.length > 0 && (
           <DemoSamplesBar
@@ -1417,38 +1535,36 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
         </ScrollView>
         
         {/* Input Bar */}
-        <SafeAreaView edges={['bottom']} style={styles.inputContainer}>
-          <ChatInputBar
-            inputText={inputText}
-            onInputChange={setInputText}
-            onSend={handleSend}
-            placeholder={
-              continuedSide === 'left' ? `Ask ${leftAI.name}...` :
-              continuedSide === 'right' ? `Ask ${rightAI.name}...` :
-              "Ask both AIs..."
-            }
-            disabled={isProcessing}
-            isProcessing={isProcessing}
-            onStop={handleStopCompare}
-            imageGenerationEnabled={false}
-            modalityAvailability={{
-              imageUpload: availability.imageUpload.supported,
-              documentUpload: availability.documentUpload.supported,
-              imageGeneration: false,
-              videoGeneration: availability.videoGeneration.supported,
-            }}
-            modalityReasons={{
-              imageUpload: availability.imageUpload.supported ? undefined : 'Selected model(s) do not support image input',
-              documentUpload: availability.documentUpload.supported ? undefined : 'Selected model(s) do not support document/PDF input',
-              imageGeneration: 'Use Create mode to generate images',
-              videoGeneration: availability.videoGeneration.supported ? undefined : 'Selected provider(s) do not support video generation',
-            }}
-            webSearchAvailable={webSearchAvailable}
-            webSearchEnabled={webSearchEnabled}
-            onWebSearchToggle={() => dispatch(setWebSearchPreferred(!webSearchPreferred))}
-          />
-        </SafeAreaView>
-      </SafeAreaView>
+        <ChatInputBar
+          inputText={inputText}
+          onInputChange={setInputText}
+          onSend={handleSend}
+          placeholder={
+            continuedSide === 'left' ? `Ask ${leftAI.name}...` :
+            continuedSide === 'right' ? `Ask ${rightAI.name}...` :
+            "Ask both AIs..."
+          }
+          disabled={isProcessing}
+          isProcessing={isProcessing}
+          onStop={handleStopCompare}
+          imageGenerationEnabled={false}
+          modalityAvailability={{
+            imageUpload: availability.imageUpload.supported,
+            documentUpload: availability.documentUpload.supported,
+            imageGeneration: false,
+            videoGeneration: availability.videoGeneration.supported,
+          }}
+          modalityReasons={{
+            imageUpload: availability.imageUpload.supported ? undefined : 'Selected model(s) do not support image input',
+            documentUpload: availability.documentUpload.supported ? undefined : 'Selected model(s) do not support document/PDF input',
+            imageGeneration: 'Use Create mode to generate images',
+            videoGeneration: availability.videoGeneration.supported ? undefined : 'Selected provider(s) do not support video generation',
+          }}
+          webSearchAvailable={webSearchAvailable}
+          webSearchEnabled={webSearchEnabled}
+          onWebSearchToggle={() => dispatch(setWebSearchPreferred(!webSearchPreferred))}
+        />
+        </View>
       {recordModeEnabled && (
         <CompareRecordPickerModal
           visible={pickerVisible}
@@ -1479,12 +1595,13 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
           }}
         />
       )}
+      </KeyboardAvoidingView>
       <ImageLightboxModal
         visible={!!lightboxUri}
         uri={lightboxUri || ''}
         onClose={() => setLightboxUri(null)}
       />
-    </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
@@ -1494,6 +1611,63 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+  },
+  screenContent: {
+    flex: 1,
+  },
+  aiMetadataHeader: {
+    width: '100%',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 6,
+  },
+  aiMetadataRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 4,
+  },
+  aiMetadataLeftPane: {
+    flex: 1,
+    paddingRight: 2,
+  },
+  aiMetadataRightPane: {
+    flex: 1,
+    paddingLeft: 2,
+  },
+  aiMetadataDivider: {
+    width: 1,
+    marginVertical: 4,
+  },
+  aiMetadataCard: {
+    minHeight: 76,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 8,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  aiMetadataAccent: {
+    width: 4,
+  },
+  aiMetadataCopy: {
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    justifyContent: 'center',
+  },
+  aiMetadataSideLabel: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  aiMetadataProvider: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '700',
+  },
+  aiMetadataDetail: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
   },
   mainContent: {
     flex: 1,
@@ -1523,12 +1697,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     marginLeft: 16,
-  },
-  inputContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.1)',
   },
 });
 
