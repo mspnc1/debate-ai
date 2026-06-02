@@ -158,6 +158,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     () => isCurrentSessionChat ? session.currentSession?.selectedAIs || [] : [],
     [isCurrentSessionChat, session.currentSession?.selectedAIs]
   );
+  const displayMessages = session.currentSession && !isCurrentSessionChat ? [] : messages.messages;
 
   const availability = useMergedModalityAvailability(
     selectedAIsForChat.map(ai => ({ provider: ai.provider, model: ai.model }))
@@ -356,11 +357,10 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     invalidSessionRecoveryKeyRef.current = recoveryKey;
 
     const recoverChatRoute = async () => {
-      if (route.params?.sessionId && route.params.sessionId !== current.id) {
-        await session.loadSession(route.params.sessionId);
-        return;
-      }
       session.endSession();
+      if (route.params?.sessionId) {
+        await session.loadSession(route.params.sessionId);
+      }
     };
 
     void recoverChatRoute();
@@ -779,10 +779,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     return <AIServiceLoading error={error} />;
   }
 
-  if (session.currentSession && !isCurrentSessionChat) {
-    return <AIServiceLoading />;
-  }
-
   const aiNames = selectedAIsForChat.map(ai => ai.name);
   const conversationContextSubtitle = (() => {
     const count = aiNames.length;
@@ -943,7 +939,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         )}
 
         {/* Message List or Demo Empty State */}
-        {isDemo && messages.messages.length === 0 ? (
+        {isDemo && displayMessages.length === 0 ? (
           <DemoEmptyState
             title="Demo Conversation"
             subtitle="This is a simulated preview of the AI chat experience"
@@ -951,7 +947,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
           />
         ) : (
           <ChatMessageList
-            messages={messages.messages}
+            messages={displayMessages}
             flatListRef={messages.flatListRef}
             searchTerm={searchTerm}
             onScrollToSearchResult={handleScrollToSearchResult}

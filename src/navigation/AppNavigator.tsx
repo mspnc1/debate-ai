@@ -41,7 +41,109 @@ import PersonalitySystemScreen from '../screens/PersonalitySystemScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
-const NAVIGATION_STATE_KEY = 'navigationState_v1';
+const NAVIGATION_STATE_KEY = 'navigationState_v2';
+const LEGACY_NAVIGATION_STATE_KEY = 'navigationState_v1';
+
+const ROUTE_NAMES = new Set([
+  'Welcome',
+  'MainTabs',
+  'Home',
+  'DebateTab',
+  'Compare',
+  'CreateTab',
+  'History',
+  'Chat',
+  'Debate',
+  'DebateTranscript',
+  'CompareSession',
+  'CreateSession',
+  'APIConfig',
+  'Stats',
+  'PrivacyPolicy',
+  'TermsOfService',
+  'Subscription',
+  'ExpertMode',
+  'PersonalitySystem',
+]);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value && typeof value === 'object' && !Array.isArray(value));
+
+const hasStringParam = (route: Record<string, unknown>, key: string): boolean => {
+  const params = route.params;
+  return isRecord(params) && typeof params[key] === 'string' && params[key].length > 0;
+};
+
+const isValidNavigationRoute = (route: unknown, depth = 0): route is Record<string, unknown> => {
+  if (!isRecord(route) || typeof route.name !== 'string' || !ROUTE_NAMES.has(route.name)) {
+    return false;
+  }
+
+  if (route.name === 'Chat' && !hasStringParam(route, 'sessionId')) {
+    return false;
+  }
+
+  if (route.name === 'Debate') {
+    const params = route.params;
+    if (!isRecord(params) || !Array.isArray(params.selectedAIs)) {
+      return false;
+    }
+  }
+
+  if (route.name === 'CompareSession') {
+    const params = route.params;
+    if (!isRecord(params) || !isRecord(params.leftAI) || !isRecord(params.rightAI)) {
+      return false;
+    }
+  }
+
+  if ('state' in route && route.state !== undefined) {
+    return depth < 4 && isValidNavigationState(route.state, depth + 1);
+  }
+
+  return true;
+};
+
+const isValidNavigationState = (value: unknown, depth = 0): value is InitialState => {
+  if (!isRecord(value) || !Array.isArray(value.routes)) return false;
+  if (value.routes.length === 0) return false;
+  if (typeof value.index === 'number' && (value.index < 0 || value.index >= value.routes.length)) {
+    return false;
+  }
+  return value.routes.every(route => isValidNavigationRoute(route, depth));
+};
+
+const parseNavigationState = (raw: string | null): InitialState | undefined => {
+  if (!raw) return undefined;
+  try {
+    const parsed = JSON.parse(raw);
+    return isValidNavigationState(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const getActiveRouteName = (state: InitialState): string | undefined => {
+  const index = typeof state.index === 'number' ? state.index : state.routes.length - 1;
+  const route = state.routes[index];
+  if (!route) return undefined;
+  if (route.state && isValidNavigationState(route.state)) {
+    return getActiveRouteName(route.state);
+  }
+  return typeof route.name === 'string' ? route.name : undefined;
+};
+
+const getInitialNavigationState = (currentRaw: string | null, legacyRaw: string | null): InitialState | undefined => {
+  const current = parseNavigationState(currentRaw);
+  if (current) return current;
+
+  const legacy = parseNavigationState(legacyRaw);
+  if (!legacy) return undefined;
+
+  // v1 is known to strand users on the Debate setup tab after OTA reloads.
+  // Migrate only if the active route is a concrete screen that is not that tab.
+  return getActiveRouteName(legacy) === 'DebateTab' ? undefined : legacy;
+};
 
 const CreateActivityBridge = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -239,13 +341,17 @@ export default function AppNavigator() {
 
   useEffect(() => {
     let mounted = true;
-    AsyncStorage.getItem(NAVIGATION_STATE_KEY)
-      .then(raw => {
-        if (!mounted || !raw) return;
-        setInitialNavigationState(JSON.parse(raw) as InitialState);
+    Promise.all([
+      AsyncStorage.getItem(NAVIGATION_STATE_KEY),
+      AsyncStorage.getItem(LEGACY_NAVIGATION_STATE_KEY),
+      AsyncStorage.removeItem(LEGACY_NAVIGATION_STATE_KEY),
+    ])
+      .then(([currentRaw, legacyRaw]) => {
+        if (!mounted) return;
+        setInitialNavigationState(getInitialNavigationState(currentRaw, legacyRaw));
       })
       .catch(() => {
-        // Navigation persistence is a recovery assist only.
+        // Navigation persistence is best-effort only.
       })
       .finally(() => {
         if (mounted) setIsNavigationStateReady(true);
@@ -301,7 +407,7 @@ export default function AppNavigator() {
           theme={navigationTheme}
           initialState={shouldShowMainApp ? initialNavigationState : undefined}
           onStateChange={(state) => {
-            if (!shouldShowMainApp) return;
+            if (!shouldShowMainApp || !state) return;
             AsyncStorage.setItem(NAVIGATION_STATE_KEY, JSON.stringify(state)).catch(() => {});
           }}
         >

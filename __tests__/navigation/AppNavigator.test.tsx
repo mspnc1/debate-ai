@@ -1,9 +1,11 @@
 import React from 'react';
 import { waitFor } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
 import { createAppStore } from '@/store';
 import type { RootState } from '@/store';
 
+let mockNavigationContainerProps: Record<string, unknown> | undefined;
 const mockLifecycleHandlers: Array<Record<string, unknown>> = [];
 const mockLifecycleStart = jest.fn();
 const mockLifecycleRegister = jest.fn((handler: Record<string, unknown>) => {
@@ -31,7 +33,10 @@ jest.mock('react-native-view-shot', () => ({
 }));
 
 jest.mock('@react-navigation/native', () => ({
-  NavigationContainer: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  NavigationContainer: (props: { children: React.ReactNode }) => {
+    mockNavigationContainerProps = props as unknown as Record<string, unknown>;
+    return <>{props.children}</>;
+  },
   DefaultTheme: {},
   DarkTheme: {},
   useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
@@ -132,7 +137,9 @@ jest.mock('@/hooks/usePersonality', () => ({
 const AppNavigator = require('@/navigation/AppNavigator').default;
 
 describe('AppNavigator', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    mockNavigationContainerProps = undefined;
     mockLifecycleHandlers.length = 0;
     mockLifecycleStart.mockClear();
     mockLifecycleRegister.mockClear();
@@ -181,6 +188,129 @@ describe('AppNavigator', () => {
       expect(getByText('Home Screen')).toBeTruthy();
     });
     expect(queryByText('Welcome Screen')).toBeNull();
+  });
+
+  it('restores valid v2 navigation state and clears legacy v1 state', async () => {
+    const persistedState = {
+      index: 1,
+      routes: [
+        { name: 'MainTabs' },
+        { name: 'Chat', params: { sessionId: 'session-restore' } },
+      ],
+    };
+    await AsyncStorage.setItem('navigationState_v2', JSON.stringify(persistedState));
+    await AsyncStorage.setItem('navigationState_v1', JSON.stringify({
+      index: 0,
+      routes: [{ name: 'MainTabs', state: { index: 1, routes: [{ name: 'Home' }, { name: 'DebateTab' }] } }],
+    }));
+
+    renderWithProviders(<AppNavigator />, {
+      preloadedState: {
+        auth: resolvedAuth,
+        settings: { ...baseSettings, hasCompletedOnboarding: true },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mockNavigationContainerProps?.initialState).toEqual(persistedState);
+    });
+    await expect(AsyncStorage.getItem('navigationState_v1')).resolves.toBeNull();
+  });
+
+  it('migrates a valid legacy chat route when v2 state is not available', async () => {
+    const legacyState = {
+      index: 1,
+      routes: [
+        { name: 'MainTabs' },
+        { name: 'Chat', params: { sessionId: 'session-legacy-chat' } },
+      ],
+    };
+    await AsyncStorage.setItem('navigationState_v1', JSON.stringify(legacyState));
+
+    renderWithProviders(<AppNavigator />, {
+      preloadedState: {
+        auth: resolvedAuth,
+        settings: { ...baseSettings, hasCompletedOnboarding: true },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mockNavigationContainerProps?.initialState).toEqual(legacyState);
+    });
+  });
+
+  it('does not restore the legacy Debate setup tab state that caused OTA reload loops', async () => {
+    await AsyncStorage.setItem('navigationState_v1', JSON.stringify({
+      index: 0,
+      routes: [{
+        name: 'MainTabs',
+        state: {
+          index: 1,
+          routes: [
+            { name: 'Home' },
+            { name: 'DebateTab' },
+          ],
+        },
+      }],
+    }));
+
+    renderWithProviders(<AppNavigator />, {
+      preloadedState: {
+        auth: resolvedAuth,
+        settings: { ...baseSettings, hasCompletedOnboarding: true },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mockNavigationContainerProps).toBeDefined();
+    });
+    expect(mockNavigationContainerProps?.initialState).toBeUndefined();
+  });
+
+  it('ignores invalid persisted navigation state instead of restoring a broken screen', async () => {
+    await AsyncStorage.setItem('navigationState_v2', JSON.stringify({
+      index: 1,
+      routes: [
+        { name: 'MainTabs' },
+        { name: 'Chat', params: {} },
+      ],
+    }));
+
+    renderWithProviders(<AppNavigator />, {
+      preloadedState: {
+        auth: resolvedAuth,
+        settings: { ...baseSettings, hasCompletedOnboarding: true },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mockNavigationContainerProps).toBeDefined();
+    });
+    expect(mockNavigationContainerProps?.initialState).toBeUndefined();
+  });
+
+  it('persists current navigation state to v2 on navigation changes', async () => {
+    const currentState = {
+      index: 1,
+      routes: [
+        { name: 'MainTabs' },
+        { name: 'Chat', params: { sessionId: 'session-current' } },
+      ],
+    };
+
+    renderWithProviders(<AppNavigator />, {
+      preloadedState: {
+        auth: resolvedAuth,
+        settings: { ...baseSettings, hasCompletedOnboarding: true },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mockNavigationContainerProps?.onStateChange).toBeDefined();
+    });
+    (mockNavigationContainerProps?.onStateChange as (state: unknown) => void)(currentState);
+
+    await expect(AsyncStorage.getItem('navigationState_v2')).resolves.toBe(JSON.stringify(currentState));
   });
 
   it('does not interrupt provider streams from the global lifecycle bridge', async () => {

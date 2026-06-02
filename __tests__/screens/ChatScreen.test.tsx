@@ -644,11 +644,13 @@ describe('ChatScreen', () => {
       <ChatScreen navigation={navigation} route={route} />
     );
 
-    expect(getByTestId('ai-service-loading')).toBeTruthy();
-    expect(queryByTestId('chat-message-list')).toBeNull();
+    expect(queryByTestId('ai-service-loading')).toBeNull();
+    expect(getByTestId('chat-message-list')).toBeTruthy();
+    expect(mockMessageListProps.messages).toEqual([]);
     expect(queryByText('Claude, GPT-4 & 2 others')).toBeNull();
 
     await waitFor(() => {
+      expect(mockSession.endSession).toHaveBeenCalled();
       expect(loadStoredChat).toHaveBeenCalledWith('session-1');
     });
   });
