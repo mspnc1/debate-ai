@@ -51,12 +51,13 @@ const makeHistoryState = (overrides: Record<string, unknown> = {}) => {
   const {
     sessions = [createSession({})],
     isLoading = false,
+    isRefreshing = false,
     error = null,
     refresh = jest.fn(),
     ...rest
   } = overrides;
 
-  return { sessions, isLoading, error, refresh, ...rest };
+  return { sessions, isLoading, isRefreshing, error, refresh, ...rest };
 };
 
 const makeSearchState = (
@@ -123,10 +124,12 @@ jest.mock('@/hooks/history', () => ({
   useSessionPagination: (...args: unknown[]) => mockUseSessionPagination(...args),
 }));
 
+let focusEffectCallback: (() => void | (() => void)) | undefined;
 let focusEffectCleanup: (() => void) | undefined;
 
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (cb: () => void | (() => void)) => {
+    focusEffectCallback = cb;
     const { useEffect } = require('react');
     useEffect(() => {
       const cleanup = cb();
@@ -312,6 +315,7 @@ describe('HistoryScreen', () => {
     alertSpy.mockReset();
     mockShowSuccess.mockClear();
     mockHandleWithToast.mockClear();
+    focusEffectCallback = undefined;
     focusEffectCleanup = undefined;
     mockHeaderProps = undefined;
     mockHistorySearchProps = undefined;
@@ -336,7 +340,7 @@ describe('HistoryScreen', () => {
     expect(typeof mockHistoryListProps.onSessionDelete).toBe('function');
     expect(mockHistoryListProps.selectionMode).toBe(false);
     expect(mockHistoryListProps.searchTerm).toBe(sessionSearchState.searchQuery);
-    expect(mockHistoryListProps.refreshing).toBe(sessionHistoryState.isLoading);
+    expect(mockHistoryListProps.refreshing).toBe(sessionHistoryState.isRefreshing);
     expect(mockHistoryListProps.onRefresh).toBe(sessionHistoryState.refresh);
 
     mockHistoryListProps.onSessionPress('session-1');
@@ -391,6 +395,11 @@ describe('HistoryScreen', () => {
   it('refreshes sessions after focus effect delay', () => {
     renderHistoryScreen();
     expect(sessionHistoryState.refresh).not.toHaveBeenCalled();
+
+    act(() => {
+      const cleanup = focusEffectCallback?.();
+      focusEffectCleanup = typeof cleanup === 'function' ? cleanup : undefined;
+    });
 
     act(() => {
       jest.advanceTimersByTime(300);

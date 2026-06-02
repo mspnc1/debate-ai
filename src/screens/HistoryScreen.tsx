@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScrollView, View, StyleSheet } from 'react-native';
 import { Box } from '../components/atoms';
@@ -44,12 +44,13 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
   const [selectedSession, setSelectedSession] = useState<ChatSession | null>(null);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
+  const hasFocusedOnceRef = useRef(false);
 
   // Show split view on iPad landscape with sufficient width
   const showSplitView = isTablet && isLandscape && width > 1024;
   
   // Compose hooks for different concerns
-  const { sessions, isLoading, error, refresh } = useSessionHistory();
+  const { sessions, isLoading, isRefreshing, error, refresh } = useSessionHistory();
   const { searchQuery, setSearchQuery, filteredSessions, clearSearch } = useSessionSearch(sessions);
   const { deleteSession, resumeSession, bulkDelete } = useSessionActions(navigation, refresh);
   useSessionStats(sessions); // For future analytics features
@@ -190,6 +191,11 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
   // Refresh sessions when screen comes into focus (tab navigation)
   useFocusEffect(
     React.useCallback(() => {
+      if (!hasFocusedOnceRef.current) {
+        hasFocusedOnceRef.current = true;
+        return undefined;
+      }
+
       // Increased delay to ensure storage operations complete
       const timer = setTimeout(() => {
         refresh();
@@ -304,7 +310,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
         selectedSessionIds={selectedSessionIds}
         selectionMode={selectionMode}
         searchTerm={searchQuery}
-        refreshing={isLoading}
+        refreshing={isRefreshing}
         onRefresh={refresh}
         testID="history-session-list"
         onLoadMore={shouldUsePagination ? loadMore : undefined}

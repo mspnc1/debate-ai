@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { StorageService } from '../../services/chat';
 import { ChatSession } from '../../types';
 import { UseSessionHistoryReturn, SessionValidationResult } from '../../types/history';
@@ -6,16 +6,26 @@ import { UseSessionHistoryReturn, SessionValidationResult } from '../../types/hi
 export const useSessionHistory = (): UseSessionHistoryReturn => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [validationResult] = useState<SessionValidationResult | undefined>(undefined);
+  const hasLoadedOnceRef = useRef(false);
+  const loadRequestIdRef = useRef(0);
 
 
   /**
    * Load sessions from storage
    */
-  const loadSessions = useCallback(async () => {
+  const loadSessions = useCallback(async (showRefreshIndicator = false) => {
+    const requestId = ++loadRequestIdRef.current;
+    const isInitialLoad = !hasLoadedOnceRef.current;
+
     try {
-      setIsLoading(true);
+      if (isInitialLoad) {
+        setIsLoading(true);
+      } else if (showRefreshIndicator) {
+        setIsRefreshing(true);
+      }
       setError(null);
 
       // Simple direct load with timeout
@@ -39,17 +49,30 @@ export const useSessionHistory = (): UseSessionHistoryReturn => {
       // Free users get 3 chats + 3 comparisons + 3 debates = 9 total possible
       const limitedSessions = allSessions;
 
-      setSessions(limitedSessions);
+      if (requestId === loadRequestIdRef.current) {
+        setSessions(limitedSessions);
+        hasLoadedOnceRef.current = true;
+      }
 
     } catch (err) {
+      if (requestId !== loadRequestIdRef.current) {
+        return;
+      }
       const error = err instanceof Error ? err : new Error('Failed to load sessions');
       setError(error);
       console.error('Error loading chat history:', error);
       // Set empty array on error to prevent crashes
       setSessions([]);
+      hasLoadedOnceRef.current = true;
     } finally {
-      // Always set loading to false
-      setIsLoading(false);
+      if (requestId === loadRequestIdRef.current) {
+        if (isInitialLoad) {
+          setIsLoading(false);
+        }
+        if (!isInitialLoad && showRefreshIndicator) {
+          setIsRefreshing(false);
+        }
+      }
     }
   }, []);
 
@@ -57,7 +80,7 @@ export const useSessionHistory = (): UseSessionHistoryReturn => {
    * Refresh sessions (public API for manual refresh)
    */
   const refresh = useCallback(async () => {
-    await loadSessions();
+    await loadSessions(true);
   }, [loadSessions]);
 
   /**
@@ -84,6 +107,7 @@ export const useSessionHistory = (): UseSessionHistoryReturn => {
   return {
     sessions,
     isLoading,
+    isRefreshing,
     error,
     refresh,
     clearHistory,

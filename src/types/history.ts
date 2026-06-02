@@ -181,6 +181,7 @@ export interface EmptyHistoryStateProps {
 export interface UseSessionHistoryReturn {
   sessions: ChatSession[];
   isLoading: boolean;
+  isRefreshing: boolean;
   error: Error | null;
   refresh: () => Promise<void>;
   clearHistory: () => Promise<void>;

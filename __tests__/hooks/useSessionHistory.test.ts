@@ -74,6 +74,39 @@ describe('useSessionHistory', () => {
     expect(mockGetAllSessions).toHaveBeenCalledTimes(2);
   });
 
+  it('refreshes in place after the initial load without re-entering initial loading', async () => {
+    const initialSessions: ChatSession[] = [{ ...baseSession, id: 'session-1' }];
+    const refreshedSessions: ChatSession[] = [{ ...baseSession, id: 'session-2' }];
+    let resolveRefresh!: (sessions: ChatSession[]) => void;
+
+    mockGetAllSessions.mockResolvedValueOnce(initialSessions);
+    mockGetAllSessions.mockImplementationOnce(() => new Promise(resolve => {
+      resolveRefresh = resolve;
+    }));
+
+    const { result } = renderHookWithProviders(() => useSessionHistory());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isRefreshing).toBe(false);
+
+    let refreshPromise!: Promise<void>;
+    act(() => {
+      refreshPromise = result.current.refresh();
+    });
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.isRefreshing).toBe(true);
+
+    await act(async () => {
+      resolveRefresh(refreshedSessions);
+      await refreshPromise;
+    });
+
+    expect(result.current.sessions).toEqual(refreshedSessions);
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.isRefreshing).toBe(false);
+  });
+
   it('clears history and resets sessions to empty array', async () => {
     mockGetAllSessions.mockResolvedValueOnce([{ ...baseSession }]);
     mockClearAllSessions.mockResolvedValueOnce(undefined);
