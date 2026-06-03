@@ -1,7 +1,10 @@
 const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
 const {
+  buildDebatePodcastInputSequence,
   buildConcatFilter,
+  DEBATE_PODCAST_OPENING_TRACK,
+  DEBATE_PODCAST_OUTRO_TRACK,
   DEFAULT_DEBATE_AUDIO_PAUSE_MS,
   normalizeCompileClips,
 } = require('../lib/debateAudioCompile');
@@ -51,5 +54,28 @@ describe('debate audio compile helpers', () => {
         '[2:a]aresample=44100,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[a2];' +
         '[a0][a1][a2]concat=n=3:v=0:a=1[out]'
     );
+  });
+
+  it('wraps podcast clips with the bundled opening and closing tracks', () => {
+    assert.equal(DEBATE_PODCAST_OPENING_TRACK, 'Arena Opening.mp3');
+    assert.equal(DEBATE_PODCAST_OUTRO_TRACK, 'Symposium Converge.mp3');
+    assert.deepEqual(buildDebatePodcastInputSequence(2, [900, 1200]), [
+      { kind: 'track', track: 'opening' },
+      { kind: 'silence', pauseMs: DEFAULT_DEBATE_AUDIO_PAUSE_MS },
+      { kind: 'clip', clipIndex: 0 },
+      { kind: 'silence', pauseMs: 900 },
+      { kind: 'clip', clipIndex: 1 },
+      { kind: 'silence', pauseMs: 1200 },
+      { kind: 'track', track: 'outro' },
+    ]);
+  });
+
+  it('lets a zero pause start the closing track immediately after the last clip', () => {
+    assert.deepEqual(buildDebatePodcastInputSequence(1, [0]), [
+      { kind: 'track', track: 'opening' },
+      { kind: 'silence', pauseMs: DEFAULT_DEBATE_AUDIO_PAUSE_MS },
+      { kind: 'clip', clipIndex: 0 },
+      { kind: 'track', track: 'outro' },
+    ]);
   });
 });

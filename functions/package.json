@@ -6,7 +6,7 @@
   },
   "main": "lib/index.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json && rm -rf lib/exports/templates && mkdir -p lib/exports/templates && cp -R src/exports/templates/. lib/exports/templates/ && node scripts/vendor-vega.mjs",
+    "build": "tsc -p tsconfig.json && rm -rf lib/exports/templates && mkdir -p lib/exports/templates && cp -R src/exports/templates/. lib/exports/templates/ && node scripts/copy-debate-podcast-media.mjs && node scripts/vendor-vega.mjs",
     "test": "npm run build && node --test test/*.test.js",
     "salesforce-docs:index": "npm run build && node scripts/salesforce-docs-index.mjs",
     "watch": "tsc -w -p tsconfig.json"

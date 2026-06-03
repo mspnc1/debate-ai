@@ -21,8 +21,18 @@ const MAX_CLIP_BYTES = 25 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 250 * 1024 * 1024;
 const MAX_PAUSE_MS = 10_000;
 export const DEFAULT_DEBATE_AUDIO_PAUSE_MS = 1500;
+export const DEBATE_PODCAST_OPENING_TRACK = 'Arena Opening.mp3';
+export const DEBATE_PODCAST_OUTRO_TRACK = 'Symposium Converge.mp3';
 const UPLOAD_URL_TTL_MS = 30 * 60 * 1000;
 const DOWNLOAD_URL_TTL_MS = 24 * 60 * 60 * 1000;
+const BUNDLED_DEBATE_PODCAST_MEDIA_DIR = path.join(__dirname, 'debate-podcast-media');
+
+type DebatePodcastTrackKey = 'opening' | 'outro';
+
+type DebatePodcastInputSequenceStep =
+  | { kind: 'track'; track: DebatePodcastTrackKey }
+  | { kind: 'clip'; clipIndex: number }
+  | { kind: 'silence'; pauseMs: number };
 
 type CompileClipInput = {
   id?: unknown;
@@ -150,6 +160,47 @@ export function buildConcatFilter(inputCount: number): string {
   return `${normalized.join(';')};${labels}concat=n=${inputCount}:v=0:a=1[out]`;
 }
 
+export function buildDebatePodcastInputSequence(
+  clipCount: number,
+  pauseAfterMsByClip: number[]
+): DebatePodcastInputSequenceStep[] {
+  if (clipCount <= 0) {
+    throw new Error('At least one clip is required.');
+  }
+
+  const sequence: DebatePodcastInputSequenceStep[] = [
+    { kind: 'track', track: 'opening' },
+  ];
+
+  if (DEFAULT_DEBATE_AUDIO_PAUSE_MS > 0) {
+    sequence.push({ kind: 'silence', pauseMs: DEFAULT_DEBATE_AUDIO_PAUSE_MS });
+  }
+
+  for (let index = 0; index < clipCount; index += 1) {
+    sequence.push({ kind: 'clip', clipIndex: index });
+    const pauseMs = pauseAfterMsByClip[index] ?? DEFAULT_DEBATE_AUDIO_PAUSE_MS;
+    if (pauseMs > 0) {
+      sequence.push({ kind: 'silence', pauseMs });
+    }
+  }
+
+  sequence.push({ kind: 'track', track: 'outro' });
+  return sequence;
+}
+
+async function resolveBundledPodcastMediaPath(fileName: string): Promise<string> {
+  const mediaPath = path.join(BUNDLED_DEBATE_PODCAST_MEDIA_DIR, fileName);
+  try {
+    const stats = await fs.stat(mediaPath);
+    if (stats.isFile()) {
+      return mediaPath;
+    }
+  } catch {
+    // Throw a clearer Functions error below.
+  }
+  throw new HttpsError('failed-precondition', `Bundled debate podcast media is missing: ${fileName}.`);
+}
+
 function escapeFfmpegText(value: string): string {
   return value.replace(/[\\:']/g, '\\$&');
 }
@@ -189,6 +240,19 @@ async function createSilenceFile(workDir: string, pauseMs: number): Promise<stri
     '-b:a', OUTPUT_BITRATE,
     silencePath,
   ], `creating ${pauseMs}ms silence`);
+  return silencePath;
+}
+
+async function getSilenceFile(
+  workDir: string,
+  silenceByPause: Map<number, string>,
+  pauseMs: number
+): Promise<string> {
+  let silencePath = silenceByPause.get(pauseMs);
+  if (!silencePath) {
+    silencePath = await createSilenceFile(workDir, pauseMs);
+    silenceByPause.set(pauseMs, silencePath);
+  }
   return silencePath;
 }
 
@@ -314,19 +378,26 @@ export const compileDebateAudioPack = onCall(
         return localPath;
       }));
 
+      const bundledTrackPaths: Record<DebatePodcastTrackKey, string> = {
+        opening: await resolveBundledPodcastMediaPath(DEBATE_PODCAST_OPENING_TRACK),
+        outro: await resolveBundledPodcastMediaPath(DEBATE_PODCAST_OUTRO_TRACK),
+      };
       const silenceByPause = new Map<number, string>();
+      const inputSequence = buildDebatePodcastInputSequence(
+        localClipPaths.length,
+        job.clips.map((clip) => clip.pauseAfterMs)
+      );
       const orderedInputs: string[] = [];
-      for (let index = 0; index < localClipPaths.length; index += 1) {
-        orderedInputs.push(localClipPaths[index]);
-        const pauseMs = job.clips[index]?.pauseAfterMs ?? 0;
-        if (index < localClipPaths.length - 1 && pauseMs > 0) {
-          let silencePath = silenceByPause.get(pauseMs);
-          if (!silencePath) {
-            silencePath = await createSilenceFile(workDir, pauseMs);
-            silenceByPause.set(pauseMs, silencePath);
-          }
-          orderedInputs.push(silencePath);
+      for (const step of inputSequence) {
+        if (step.kind === 'track') {
+          orderedInputs.push(bundledTrackPaths[step.track]);
+          continue;
         }
+        if (step.kind === 'clip') {
+          orderedInputs.push(localClipPaths[step.clipIndex]);
+          continue;
+        }
+        orderedInputs.push(await getSilenceFile(workDir, silenceByPause, step.pauseMs));
       }
 
       const outputPath = path.join(workDir, 'debate-podcast.mp3');
