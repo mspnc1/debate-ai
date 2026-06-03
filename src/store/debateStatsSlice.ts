@@ -1,6 +1,13 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import type { DebateVoteResult } from '@/types';
 
+export interface DebateParticipantMetadata {
+  id: string;
+  provider?: string;
+  model?: string;
+  name?: string;
+}
+
 export interface DebateStats {
   [aiId: string]: {
     totalDebates: number;
@@ -24,6 +31,7 @@ export interface DebateRound {
   debateId: string;
   topic: string;
   participants: string[];
+  participantDetails?: Record<string, DebateParticipantMetadata>;
   roundWinners: { [round: number]: string };
   voteResults?: DebateVoteResult[];
   overallWinner?: string;
@@ -46,18 +54,42 @@ const initialState: DebateStatsState = {
   preservedTopicMode: 'preset',
 };
 
+const normalizeParticipantDetails = (
+  participantDetails?: DebateParticipantMetadata[] | Record<string, DebateParticipantMetadata>
+): Record<string, DebateParticipantMetadata> | undefined => {
+  if (!participantDetails) return undefined;
+
+  const details = Array.isArray(participantDetails)
+    ? participantDetails.reduce<Record<string, DebateParticipantMetadata>>((acc, participant) => {
+      if (participant.id) {
+        acc[participant.id] = participant;
+      }
+      return acc;
+    }, {})
+    : participantDetails;
+
+  return Object.keys(details).length > 0 ? details : undefined;
+};
+
 const debateStatsSlice = createSlice({
   name: 'debateStats',
   initialState,
   reducers: {
-    startDebate: (state, action: PayloadAction<{ debateId: string; topic: string; participants: string[] }>) => {
-      const { debateId, topic, participants } = action.payload;
+    startDebate: (state, action: PayloadAction<{
+      debateId: string;
+      topic: string;
+      participants: string[];
+      participantDetails?: DebateParticipantMetadata[] | Record<string, DebateParticipantMetadata>;
+    }>) => {
+      const { debateId, topic, participants, participantDetails } = action.payload;
+      const normalizedParticipantDetails = normalizeParticipantDetails(participantDetails);
       
       // Initialize current debate
       state.currentDebate = {
         debateId,
         topic,
         participants,
+        ...(normalizedParticipantDetails ? { participantDetails: normalizedParticipantDetails } : {}),
         roundWinners: {},
         timestamp: Date.now(),
       };

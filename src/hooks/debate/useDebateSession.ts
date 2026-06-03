@@ -12,6 +12,7 @@ import { AI, type DebateVoiceConfig } from '../../types';
 import { PersonalityOption } from '@/config/personalities';
 import type { DebateFormatId } from '@/config/debate/formats';
 import type { ActiveDebateSessionSnapshot } from '@/services/lifecycle/ActiveSessionPersistenceService';
+import type { DebateParticipantMetadata } from '@/store/debateStatsSlice';
 
 export interface UseDebateSessionReturn {
   session: DebateSession | null;
@@ -37,6 +38,15 @@ export interface UseDebateSessionReturn {
   hydrateSessionFromSnapshot: (snapshot: ActiveDebateSessionSnapshot) => Promise<void>;
   error: string | null;
 }
+
+const mapParticipantsToStatsMetadata = (participants: AI[]): DebateParticipantMetadata[] => (
+  participants.map((participant) => ({
+    id: participant.id,
+    provider: participant.provider,
+    model: participant.model,
+    name: participant.name,
+  }))
+);
 
 export const useDebateSession = (_selectedAIs: AI[]): UseDebateSessionReturn => {
   const dispatch = useDispatch();
@@ -90,7 +100,8 @@ export const useDebateSession = (_selectedAIs: AI[]): UseDebateSessionReturn => 
       dispatch(startDebate({ 
         debateId: debateSession.id, 
         topic, 
-        participants: participants.map(ai => ai.id) 
+        participants: participants.map(ai => ai.id),
+        participantDetails: mapParticipantsToStatsMetadata(participants),
       }));
       
       setSession(debateSession);
@@ -150,6 +161,7 @@ export const useDebateSession = (_selectedAIs: AI[]): UseDebateSessionReturn => 
         debateId: debateSession.id,
         topic: debateSession.topic,
         participants: debateSession.participants.map(ai => ai.id),
+        participantDetails: mapParticipantsToStatsMetadata(debateSession.participants),
       }));
       setSession(debateSession);
       setStatus(debateSession.status);

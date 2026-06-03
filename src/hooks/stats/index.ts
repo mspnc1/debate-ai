@@ -8,3 +8,4 @@ export * from './useSortedStats';
 export * from './useAIProviderInfo';
 export * from './useStatsAnimations';
 export * from './useChartData';
+export * from './useStatsRollups';

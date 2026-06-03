@@ -3,6 +3,7 @@ import { useTheme } from '../../theme';
 import { AI_PROVIDERS } from '../../config/aiProviders';
 import { AI_BRAND_COLORS } from '../../constants/aiColors';
 import { AIInfo } from '../../types/stats';
+import { resolveStatsProviderId } from '../../services/stats';
 
 /**
  * Custom hook for resolving AI provider information
@@ -14,7 +15,8 @@ export const useAIProviderInfo = () => {
   // Memoized AI provider resolution function
   const getAIInfo = useMemo(() => {
     return (aiId: string): AIInfo => {
-      const provider = AI_PROVIDERS.find(p => p.id === aiId);
+      const resolvedProviderId = resolveStatsProviderId(aiId) || aiId;
+      const provider = AI_PROVIDERS.find(p => p.id === resolvedProviderId);
       
       if (!provider) {
         return {
@@ -24,9 +26,9 @@ export const useAIProviderInfo = () => {
       }
       
       // Handle special cases for OpenAI/ChatGPT aliases
-      const colorKey = (aiId === 'openai' || aiId === 'chatgpt') ? 'openai' :
-        aiId === 'google' ? 'gemini' :
-        aiId;
+      const colorKey = (resolvedProviderId === 'openai' || resolvedProviderId === 'chatgpt') ? 'openai' :
+        resolvedProviderId === 'google' ? 'gemini' :
+        resolvedProviderId;
       const brandColors = AI_BRAND_COLORS[colorKey as keyof typeof AI_BRAND_COLORS];
       
       return {
@@ -62,7 +64,8 @@ export const useAIProviderInfo = () => {
   // Check if AI provider exists
   const isValidAI = useMemo(() => {
     return (aiId: string): boolean => {
-      return AI_PROVIDERS.some(p => p.id === aiId);
+      const resolvedProviderId = resolveStatsProviderId(aiId) || aiId;
+      return AI_PROVIDERS.some(p => p.id === resolvedProviderId);
     };
   }, []);
   

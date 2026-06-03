@@ -1,6 +1,13 @@
 import { BrandColor } from '../constants/aiColors';
 import type { DebateVoteResult } from './index';
 
+export interface DebateParticipantMetadata {
+  id: string;
+  provider?: string;
+  model?: string;
+  name?: string;
+}
+
 export interface AIStats {
   winRate: number;
   roundWinRate: number;
@@ -22,9 +29,11 @@ export interface DebateRound {
   debateId: string;
   topic: string;
   participants: string[];
+  participantDetails?: Record<string, DebateParticipantMetadata>;
   roundWinners: { [round: number]: string };
   voteResults?: DebateVoteResult[];
   overallWinner?: string;
+  overallWinners?: string[];
   timestamp: number;
 }
 
