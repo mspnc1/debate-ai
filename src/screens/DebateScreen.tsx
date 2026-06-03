@@ -1120,7 +1120,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
           <Header
             variant="gradient"
             slim
-            title="Settle an Argument"
+            title="Debate Arena"
             showBackButton={true}
             onBack={handleStartOver}
             animated={true}
@@ -1146,7 +1146,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
           <Header
             variant="gradient"
             slim
-            title="Settle an Argument"
+            title="Debate Arena"
             showBackButton={true}
             onBack={handleStartOver}
             animated={true}

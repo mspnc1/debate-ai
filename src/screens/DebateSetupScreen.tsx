@@ -1109,7 +1109,7 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
       <Header
         variant="gradient"
         slim
-        title="Settle an Argument"
+        title="Debate Arena"
         rightElement={<HeaderActions variant="gradient" helpTopicId="debate-formats" />}
       />
       <TrialBanner />

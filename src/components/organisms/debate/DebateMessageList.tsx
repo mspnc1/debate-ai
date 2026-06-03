@@ -5,9 +5,18 @@
  */
 
 import React, { useRef, useEffect, memo, useCallback, useState } from 'react';
-import { FlatList, ListRenderItem, NativeSyntheticEvent, NativeScrollEvent, TouchableOpacity, StyleSheet } from 'react-native';
+import {
+  Animated,
+  Easing,
+  FlatList,
+  ListRenderItem,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+  TouchableOpacity,
+  StyleSheet,
+  LayoutChangeEvent,
+} from 'react-native';
 import { Box } from '../../atoms';
-import { Typography } from '../../molecules';
 import { DebateMessageBubble, DebateTypingIndicator } from '../../molecules';
 import { SystemAnnouncement } from './SystemAnnouncement';
 import { Message } from '../../../types';
@@ -117,6 +126,10 @@ const getCitationMetadataKey = (message: Message): string => {
   ].join(':');
 };
 
+const SCROLL_INDICATOR_REVEAL_DELAY_MS = 650;
+const BOTTOM_VISIBILITY_THRESHOLD = 32;
+const IS_TEST_ENV = process.env.NODE_ENV === 'test';
+
 // Memoized message item component - optimized
 const MessageItem = memo<{
   message: Message;
@@ -188,7 +201,16 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
   const isAtBottomRef = useRef(true);
   const userPinnedAwayRef = useRef(false);
   const userScrollInProgressRef = useRef(false);
+  const hasInitializedContentSizeRef = useRef(false);
+  const pendingLatestContentRevealRef = useRef(false);
+  const indicatorRevealTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollMetricsRef = useRef({
+    contentHeight: 0,
+    layoutHeight: 0,
+    offsetY: 0,
+  });
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
+  const indicatorAnimatedValue = useRef(new Animated.Value(0)).current;
   const { theme } = useTheme();
   const latestMessageKeyRef = useRef('');
   const listEmpty = messages.length === 0;
@@ -197,21 +219,125 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
     flatListRef.current?.scrollToEnd({ animated });
   }, []);
 
-  const handleContentSizeChange = useCallback(() => {
-    if (!listEmpty) {
-      setShowScrollIndicator(true);
+  const clearIndicatorRevealTimeout = useCallback(() => {
+    if (indicatorRevealTimeoutRef.current) {
+      clearTimeout(indicatorRevealTimeoutRef.current);
+      indicatorRevealTimeoutRef.current = null;
     }
-  }, [listEmpty]);
+  }, []);
+
+  const hasContentBelowViewport = useCallback(() => {
+    const { contentHeight, layoutHeight, offsetY } = scrollMetricsRef.current;
+    if (layoutHeight <= 0 || contentHeight <= 0) {
+      return !isAtBottomRef.current || userPinnedAwayRef.current;
+    }
+    return offsetY + layoutHeight < contentHeight - BOTTOM_VISIBILITY_THRESHOLD;
+  }, []);
+
+  const syncBottomStateFromMetrics = useCallback(() => {
+    const belowViewport = hasContentBelowViewport();
+    isAtBottomRef.current = !belowViewport;
+    if (!belowViewport) {
+      userPinnedAwayRef.current = false;
+    }
+    return belowViewport;
+  }, [hasContentBelowViewport]);
+
+  const hideScrollIndicator = useCallback(() => {
+    clearIndicatorRevealTimeout();
+    setShowScrollIndicator(false);
+  }, [clearIndicatorRevealTimeout]);
+
+  const requestScrollIndicatorReveal = useCallback(() => {
+    if (listEmpty || !hasContentBelowViewport()) {
+      hideScrollIndicator();
+      return;
+    }
+
+    clearIndicatorRevealTimeout();
+    indicatorRevealTimeoutRef.current = setTimeout(() => {
+      indicatorRevealTimeoutRef.current = null;
+      if (!hasContentBelowViewport()) {
+        setShowScrollIndicator(false);
+        return;
+      }
+      setShowScrollIndicator(true);
+    }, SCROLL_INDICATOR_REVEAL_DELAY_MS);
+  }, [clearIndicatorRevealTimeout, hasContentBelowViewport, hideScrollIndicator, listEmpty]);
+
+  const handleContentSizeChange = useCallback((_: number, height: number) => {
+    if (height > 0) {
+      scrollMetricsRef.current.contentHeight = height;
+    }
+
+    if (!hasInitializedContentSizeRef.current) {
+      hasInitializedContentSizeRef.current = true;
+      const hasContentBelow = syncBottomStateFromMetrics();
+      if (hasContentBelow && (userPinnedAwayRef.current || pendingLatestContentRevealRef.current)) {
+        pendingLatestContentRevealRef.current = false;
+        requestScrollIndicatorReveal();
+      } else {
+        pendingLatestContentRevealRef.current = false;
+        hideScrollIndicator();
+      }
+      return;
+    }
+
+    if (syncBottomStateFromMetrics()) {
+      pendingLatestContentRevealRef.current = false;
+      requestScrollIndicatorReveal();
+    } else {
+      pendingLatestContentRevealRef.current = false;
+      hideScrollIndicator();
+    }
+  }, [hideScrollIndicator, requestScrollIndicatorReveal, syncBottomStateFromMetrics]);
+
+  const handleListLayout = useCallback((event: LayoutChangeEvent) => {
+    scrollMetricsRef.current.layoutHeight = event.nativeEvent.layout.height;
+    const hasContentBelow = syncBottomStateFromMetrics();
+    if (hasContentBelow && userPinnedAwayRef.current) {
+      requestScrollIndicatorReveal();
+    } else if (!hasContentBelow) {
+      hideScrollIndicator();
+    }
+  }, [hideScrollIndicator, requestScrollIndicatorReveal, syncBottomStateFromMetrics]);
+
+  useEffect(() => {
+    return () => {
+      clearIndicatorRevealTimeout();
+    };
+  }, [clearIndicatorRevealTimeout]);
+
+  useEffect(() => {
+    if (IS_TEST_ENV) {
+      indicatorAnimatedValue.setValue(showScrollIndicator ? 1 : 0);
+      return;
+    }
+
+    Animated.timing(indicatorAnimatedValue, {
+      toValue: showScrollIndicator ? 1 : 0,
+      duration: showScrollIndicator ? 180 : 120,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [indicatorAnimatedValue, showScrollIndicator]);
 
   useEffect(() => {
     if (listEmpty) {
       alignmentMapRef.current = {};
       lastAssignedSideRef.current = 'right';
       userPinnedAwayRef.current = false;
+      hasInitializedContentSizeRef.current = false;
+      pendingLatestContentRevealRef.current = false;
+      scrollMetricsRef.current = {
+        contentHeight: 0,
+        layoutHeight: 0,
+        offsetY: 0,
+      };
       latestMessageKeyRef.current = '';
-      setShowScrollIndicator(false);
+      hideScrollIndicator();
     }
-  }, [listEmpty]);
+  }, [hideScrollIndicator, listEmpty]);
 
   const latestMessageKey = messages.length > 0
     ? `${messages.length}:${messages[messages.length - 1].id ?? 'unknown'}:${messages[messages.length - 1].timestamp ?? ''}`
@@ -225,16 +351,10 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
     }
     if (latestMessageKey !== latestMessageKeyRef.current) {
       latestMessageKeyRef.current = latestMessageKey;
-      setShowScrollIndicator(true);
+      pendingLatestContentRevealRef.current = true;
+      requestScrollIndicatorReveal();
     }
-  }, [latestMessageKey]);
-
-  const typingAIsKey = typingAIs.join('|');
-
-  useEffect(() => {
-    if (typingAIs.length === 0) return;
-    setShowScrollIndicator(true);
-  }, [typingAIs.length, typingAIsKey]);
+  }, [latestMessageKey, requestScrollIndicatorReveal]);
 
   const getAlignment = useCallback((message: Message): 'left' | 'right' | 'center' => {
     if (message.sender === 'Debate Host' || message.sender === 'System') {
@@ -304,34 +424,49 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
   const handleScrollEndDrag = useCallback(() => {
     if (userScrollInProgressRef.current && !isAtBottomRef.current) {
       userPinnedAwayRef.current = true;
-      setShowScrollIndicator(true);
+      requestScrollIndicatorReveal();
     }
     userScrollInProgressRef.current = false;
-  }, []);
+  }, [requestScrollIndicatorReveal]);
 
   const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-    const paddingToBottom = 32;
-    const atBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - paddingToBottom;
+    scrollMetricsRef.current = {
+      contentHeight: contentSize.height,
+      layoutHeight: layoutMeasurement.height,
+      offsetY: contentOffset.y,
+    };
+    const atBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - BOTTOM_VISIBILITY_THRESHOLD;
     isAtBottomRef.current = atBottom;
     if (atBottom) {
       userPinnedAwayRef.current = false;
-      setShowScrollIndicator(false);
+      hideScrollIndicator();
     } else if (userScrollInProgressRef.current) {
       userPinnedAwayRef.current = true;
-      setShowScrollIndicator(true);
+      requestScrollIndicatorReveal();
     }
-  }, []);
+  }, [hideScrollIndicator, requestScrollIndicatorReveal]);
 
   const handleScrollToLatest = useCallback(() => {
     isAtBottomRef.current = true;
     userPinnedAwayRef.current = false;
-    setShowScrollIndicator(false);
+    hideScrollIndicator();
     scrollToEnd(true);
-  }, [scrollToEnd]);
+  }, [hideScrollIndicator, scrollToEnd]);
 
   const effectiveBottomPadding = 32 + bottomInset;
   const indicatorBottomOffset = 24 + bottomInset;
+  const indicatorAnimatedStyle = {
+    opacity: indicatorAnimatedValue,
+    transform: [
+      {
+        translateY: indicatorAnimatedValue.interpolate({
+          inputRange: [0, 1],
+          outputRange: [6, 0],
+        }),
+      },
+    ],
+  };
 
   return (
     <>
@@ -352,6 +487,7 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
         onScrollEndDrag={handleScrollEndDrag}
         onMomentumScrollEnd={handleScrollEndDrag}
         onContentSizeChange={handleContentSizeChange}
+        onLayout={handleListLayout}
         scrollEventThrottle={16}
         // Performance optimizations
         removeClippedSubviews={true}
@@ -363,7 +499,7 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
         getItemLayout={undefined as unknown as never}
       />
       {showScrollIndicator && (
-        <Box
+        <Animated.View
           style={[
             styles.scrollIndicator,
             {
@@ -371,20 +507,19 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
               borderColor: theme.colors.border,
               bottom: indicatorBottomOffset,
             },
+            indicatorAnimatedStyle,
           ]}
         >
           <TouchableOpacity
             onPress={handleScrollToLatest}
             style={styles.scrollButton}
+            testID="debate-latest-responses-button"
             accessibilityRole="button"
-            accessibilityLabel="Scroll to the latest responses"
+            accessibilityLabel="Scroll to latest debate responses"
           >
-            <Ionicons name="arrow-down" size={18} color={theme.colors.text.primary} />
-            <Typography variant="caption" weight="semibold" style={{ marginLeft: 6 }}>
-              New debate responses
-            </Typography>
+            <Ionicons name="arrow-down" size={20} color={theme.colors.primary[500]} />
           </TouchableOpacity>
-        </Box>
+        </Animated.View>
       )}
     </>
   );
@@ -395,9 +530,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 24,
     alignSelf: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
     shadowColor: 'rgba(0,0,0,0.12)',
     shadowOffset: { width: 0, height: 4 },
@@ -406,9 +541,8 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   scrollButton: {
-    flexDirection: 'row',
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
   },
 });

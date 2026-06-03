@@ -60,6 +60,12 @@ const flushScheduledScroll = () => {
   });
 };
 
+const advanceScrollIndicatorDelay = (ms = 650) => {
+  act(() => {
+    jest.advanceTimersByTime(ms);
+  });
+};
+
 describe('DebateMessageList', () => {
   const mockMessages: Message[] = [
     { id: '1', sender: 'Claude', content: 'Opening argument', timestamp: new Date() },
@@ -292,14 +298,21 @@ describe('DebateMessageList', () => {
       scrollToEndSpy.mockRestore();
     });
 
-    it('shows the latest-responses button when a new debate message is appended', () => {
+    it('delays the latest-responses arrow when a new debate message is appended below view', () => {
       const scrollToEndSpy = createScrollToEndSpy();
-      const { getByText, rerender } = renderWithProviders(
+      const { UNSAFE_getByType, getByLabelText, queryByLabelText, rerender } = renderWithProviders(
         <DebateMessageList {...defaultProps} />
       );
+      const { flatList } = getFlatList(UNSAFE_getByType);
 
       flushScheduledScroll();
       scrollToEndSpy.mockClear();
+      act(() => {
+        (flatList.props.onLayout as (event: unknown) => void)({
+          nativeEvent: { layout: { height: 500 } },
+        });
+        (flatList.props.onContentSizeChange as (_: number, height: number) => void)(0, 1000);
+      });
 
       rerender(
         <DebateMessageList
@@ -310,16 +323,23 @@ describe('DebateMessageList', () => {
           ]}
         />
       );
-      flushScheduledScroll();
+      act(() => {
+        (flatList.props.onContentSizeChange as (_: number, height: number) => void)(0, 1200);
+      });
 
-      expect(getByText(/New debate responses/i)).toBeTruthy();
+      expect(queryByLabelText('Scroll to latest debate responses')).toBeNull();
+      advanceScrollIndicatorDelay(649);
+      expect(queryByLabelText('Scroll to latest debate responses')).toBeNull();
+      advanceScrollIndicatorDelay(1);
+
+      expect(getByLabelText('Scroll to latest debate responses')).toBeTruthy();
       expect(scrollToEndSpy).not.toHaveBeenCalled();
       scrollToEndSpy.mockRestore();
     });
 
     it('does not auto-follow after non-user scroll and momentum events', () => {
       const scrollToEndSpy = createScrollToEndSpy();
-      const { UNSAFE_getByType, getByText, rerender } = renderWithProviders(
+      const { UNSAFE_getByType, getByLabelText, rerender } = renderWithProviders(
         <DebateMessageList {...defaultProps} />
       );
       const { flatList } = getFlatList(UNSAFE_getByType);
@@ -348,14 +368,14 @@ describe('DebateMessageList', () => {
       );
       flushScheduledScroll();
 
-      expect(getByText(/New debate responses/i)).toBeTruthy();
+      expect(getByLabelText('Scroll to latest debate responses')).toBeTruthy();
       expect(scrollToEndSpy).not.toHaveBeenCalled();
       scrollToEndSpy.mockRestore();
     });
 
     it('shows the latest-responses button instead of auto-scrolling after user drags away', () => {
       const scrollToEndSpy = createScrollToEndSpy();
-      const { UNSAFE_getByType, getByText } = renderWithProviders(
+      const { UNSAFE_getByType, getByLabelText } = renderWithProviders(
         <DebateMessageList {...defaultProps} />
       );
       const { flatList } = getFlatList(UNSAFE_getByType);
@@ -383,14 +403,14 @@ describe('DebateMessageList', () => {
       });
       flushScheduledScroll();
 
-      expect(getByText(/New debate responses/i)).toBeTruthy();
+      expect(getByLabelText('Scroll to latest debate responses')).toBeTruthy();
       expect(scrollToEndSpy).not.toHaveBeenCalled();
       scrollToEndSpy.mockRestore();
     });
 
     it('scrolls only when pressing the latest-responses button', () => {
       const scrollToEndSpy = createScrollToEndSpy();
-      const { UNSAFE_getByType, getByLabelText, getByText, queryByText, rerender } = renderWithProviders(
+      const { UNSAFE_getByType, getByLabelText, queryByLabelText, rerender } = renderWithProviders(
         <DebateMessageList {...defaultProps} />
       );
       const { flatList } = getFlatList(UNSAFE_getByType);
@@ -412,10 +432,11 @@ describe('DebateMessageList', () => {
         (flatList.props.onScrollEndDrag as () => void)();
       });
 
-      fireEvent.press(getByLabelText('Scroll to the latest responses'));
+      flushScheduledScroll();
+      fireEvent.press(getByLabelText('Scroll to latest debate responses'));
       flushScheduledScroll();
 
-      expect(queryByText(/New debate responses/i)).toBeNull();
+      expect(queryByLabelText('Scroll to latest debate responses')).toBeNull();
       expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: true });
 
       scrollToEndSpy.mockClear();
@@ -430,7 +451,7 @@ describe('DebateMessageList', () => {
       );
       flushScheduledScroll();
 
-      expect(getByText(/New debate responses/i)).toBeTruthy();
+      expect(getByLabelText('Scroll to latest debate responses')).toBeTruthy();
       expect(scrollToEndSpy).not.toHaveBeenCalled();
       scrollToEndSpy.mockRestore();
     });
@@ -457,7 +478,7 @@ describe('DebateMessageList', () => {
     });
 
     it('handles scroll to latest button press', () => {
-      const { getByText, UNSAFE_getByType } = renderWithProviders(
+      const { getByLabelText, UNSAFE_getByType } = renderWithProviders(
         <DebateMessageList {...defaultProps} />
       );
 
@@ -475,10 +496,8 @@ describe('DebateMessageList', () => {
 
       // Find and press scroll button if it exists
       try {
-        const scrollButton = getByText(/New debate responses/i).parent;
-        if (scrollButton) {
-          fireEvent.press(scrollButton);
-        }
+        flushScheduledScroll();
+        fireEvent.press(getByLabelText('Scroll to latest debate responses'));
       } catch {
         // Button might not be visible, that's okay
       }

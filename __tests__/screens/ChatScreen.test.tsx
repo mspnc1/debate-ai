@@ -447,7 +447,7 @@ describe('ChatScreen', () => {
     );
 
     expect(getByTestId('chat-message-list')).toBeTruthy();
-    expect(mockHeaderProps.title).toBe('Conversation');
+    expect(mockHeaderProps.title).toBe("Let's Talk");
     expect(mockHeaderProps.slim).toBe(true);
     expect(getByText('Claude meets GPT-4')).toBeTruthy();
 

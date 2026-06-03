@@ -473,7 +473,7 @@ describe('DebateScreen', () => {
 
     expect(mockHeaderProps).toEqual(expect.objectContaining({
       slim: true,
-      title: 'Settle an Argument',
+      title: 'Debate Arena',
     }));
     expect(mockContextBarProps.subtitle).toContain('Climate Policy');
     expect(mockDebateMessageListProps).toBeUndefined();
@@ -570,7 +570,7 @@ describe('DebateScreen', () => {
     expect(mockDebateSessionHeaderProps?.teams[1].participants[0].name).toBe('GPT-4');
     expect(mockHeaderProps).toEqual(expect.objectContaining({
       slim: true,
-      title: 'Settle an Argument',
+      title: 'Debate Arena',
     }));
     expect(mockDebateSessionHeaderProps?.chrome).toBe('context');
     expect(mockVotingInterfaceProps).toBeDefined();

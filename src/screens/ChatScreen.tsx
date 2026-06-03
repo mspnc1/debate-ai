@@ -880,7 +880,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         <Header
           variant="gradient"
           slim
-          title="Conversation"
+          title="Let's Talk"
           onBack={() => confirmChatLeave(navigation.goBack)}
           showBackButton={true}
           animated={true}
