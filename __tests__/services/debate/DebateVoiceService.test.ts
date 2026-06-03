@@ -150,22 +150,38 @@ describe('generateDebateVoiceAudio', () => {
     expect(generateAudio).not.toHaveBeenCalled();
   });
 
-  it('rejects oversized debate turns before generating long audio clips', async () => {
-    const generateAudio = jest.fn();
+  it('trims oversized debate turns to the audio budget instead of rejecting them', async () => {
+    const generateAudio = jest.fn().mockResolvedValue({
+      dataUri: 'data:audio/mpeg;base64,YXVkaW8=',
+      mimeType: 'audio/mpeg',
+      modelId: ELEVENLABS_DEFAULT_TTS_MODEL,
+      operation: 'text_to_speech',
+      characterCost: 10,
+      requestId: 'req_trim',
+    });
+    const persistAudio = jest.fn().mockResolvedValue({
+      uri: 'file:///debate-audio/debate/msg-1.mp3',
+      mimeType: 'audio/mpeg',
+      fileName: 'msg-1.mp3',
+    });
     const oversizedMessage = {
       ...message,
       content: 'word '.repeat(DEBATE_AUDIO_TTS_PROMPT_LIMIT),
     };
 
-    await expect(generateDebateVoiceAudio({
+    const result = await generateDebateVoiceAudio({
       apiKey: 'key',
       sessionId: 'debate-1',
       message: oversizedMessage,
       voice: { voiceId: 'voice-1', voiceName: 'Voice One' },
-    }, { generateAudio })).rejects.toMatchObject({
-      code: 'speech_too_long',
-    } satisfies Partial<DebateVoiceGenerationError>);
+    }, { generateAudio, persistAudio, now: () => 123 });
 
-    expect(generateAudio).not.toHaveBeenCalled();
+    // Audio is generated from a budget-trimmed prompt rather than rejecting the turn.
+    expect(generateAudio).toHaveBeenCalledTimes(1);
+    const spokenPrompt = generateAudio.mock.calls[0][0].prompt as string;
+    expect(spokenPrompt.length).toBeLessThanOrEqual(DEBATE_AUDIO_TTS_PROMPT_LIMIT);
+    // The trim is recorded so the shorter audio is explainable; the transcript stays full.
+    expect(result.metadata).toMatchObject({ status: 'ready', trimmedForTts: true });
+    expect(result.metadata.untrimmedCharacterCount ?? 0).toBeGreaterThan(DEBATE_AUDIO_TTS_PROMPT_LIMIT);
   });
 });

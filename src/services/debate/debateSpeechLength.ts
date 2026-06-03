@@ -19,7 +19,11 @@ export interface DebateSpeechLengthGuidance {
 }
 
 const DEBATE_OUTPUT_SAFETY_TOKENS = 6144;
-const DEBATE_VOICE_OUTPUT_MIN_TOKENS = 256;
+// Generous voice ceiling: a runaway safety net, NOT a length control. Deliberately set well above
+// the 3000-char TTS budget (~750 tokens) so a token-limit finish is rare. Per-phase length is
+// controlled by the prompt word guidance, and audio length is bounded at the TTS boundary on
+// completed text (see DebateVoiceService).
+const DEBATE_VOICE_OUTPUT_SAFETY_TOKENS = 1536;
 
 const PRESET_MULTIPLIER: Record<string, number> = {
   short: 1,
@@ -71,7 +75,8 @@ function getMinWords(maxWords: number, phase: PhaseId): number {
 
 function getTokenCap(maxWords: number, voiceMode?: boolean): number {
   if (voiceMode) {
-    return Math.max(DEBATE_VOICE_OUTPUT_MIN_TOKENS, Math.ceil(maxWords * 2.5));
+    // Constant safety net — intentionally independent of maxWords. Length is the prompt's job.
+    return DEBATE_VOICE_OUTPUT_SAFETY_TOKENS;
   }
   return Math.max(DEBATE_OUTPUT_SAFETY_TOKENS, Math.ceil(maxWords * 2.2));
 }
@@ -125,17 +130,23 @@ export function getDebateSpeechLengthGuidance(input: DebateSpeechLengthInput): D
   };
 }
 
+/**
+ * Applies the debate output-token SAFETY NET to model parameters.
+ *
+ * `safetyFloorTokens` is a runaway guard, not a length control. The effective ceiling is the GREATER
+ * of any caller-supplied maxTokens (Expert Mode, personality params) and the safety floor — so a user
+ * can raise the ceiling but a low Expert/personality cap can never lower it below the floor and
+ * silently reintroduce mid-sentence truncation in debate.
+ */
 export function applyDebateOutputTokenCap(
   parameters: Partial<ModelParameters> | undefined,
-  maxTokens: number,
-  expertEnabled?: boolean
+  safetyFloorTokens: number
 ): Partial<ModelParameters> | undefined {
-  if (expertEnabled) {
-    return parameters;
-  }
+  const existing = parameters?.maxTokens;
+  const effective = Math.max(typeof existing === 'number' ? existing : 0, safetyFloorTokens);
 
   return {
     ...(parameters || {}),
-    maxTokens,
+    maxTokens: effective,
   };
 }

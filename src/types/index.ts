@@ -149,6 +149,11 @@ export interface DebateAudioMetadata {
   requestId?: string;
   ttsModelId?: string;
   estimatedCreditCost?: number;
+  // True when the spoken/synthesized text was shortened to fit the TTS character budget. The full
+  // transcript (message.content) is never mutated — only the generated audio is bounded.
+  trimmedForTts?: boolean;
+  // Character count of the sanitized speech BEFORE any TTS trim (only set when trimmedForTts).
+  untrimmedCharacterCount?: number;
 }
 
 export interface DebateInterstitialMetadata {

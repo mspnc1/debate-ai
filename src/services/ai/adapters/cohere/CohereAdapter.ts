@@ -9,6 +9,7 @@ import {
 } from '../../types/adapter.types';
 import EventSource, { CustomEvent } from 'react-native-sse';
 import { extractSSEErrorMessage } from '../../utils/extractSSEErrorMessage';
+import { normalizeFinishReason } from '../../utils/normalizeFinishReason';
 
 // Define Cohere's SSE event types
 type CohereEventTypes = 'message-start' | 'content-start' | 'content-delta' | 'content-end' | 'message-end' | 'message';
@@ -21,6 +22,7 @@ type CohereChatResponse = {
     content?: CohereContentPart[];
   };
   text?: string;
+  finish_reason?: string;
 };
 
 export class CohereAdapter extends BaseAdapter {
@@ -168,6 +170,7 @@ export class CohereAdapter extends BaseAdapter {
       return {
         response: responseText,
         modelUsed: model,
+        finishReason: normalizeFinishReason(data.finish_reason),
         usage: data.usage ? {
           promptTokens: data.usage.tokens?.input_tokens || data.usage.billed_units?.input_tokens,
           completionTokens: data.usage.tokens?.output_tokens || data.usage.billed_units?.output_tokens,
@@ -263,8 +266,15 @@ export class CohereAdapter extends BaseAdapter {
 
     // Handle message-end event for stream completion
     es.addEventListener('message-end', (event: CustomEvent<'message-end'>) => {
+      let parsed: Record<string, unknown> = {};
+      try { parsed = event?.data ? JSON.parse(event.data) : {}; } catch { /* noop */ }
       if (onEvent) {
-        try { onEvent({ type: 'message-end', ...(event?.data ? JSON.parse(event.data) : {}) }); } catch { /* noop */ }
+        try { onEvent({ type: 'message-end', ...parsed }); } catch { /* noop */ }
+        // Cohere v2 carries the stop reason on `delta.finish_reason` (e.g. MAX_TOKENS, COMPLETE).
+        // message-end is a definitive completion, so absence of a reason means a normal stop.
+        const rawFinish = (parsed?.delta as { finish_reason?: string } | undefined)?.finish_reason
+          ?? (parsed as { finish_reason?: string }).finish_reason;
+        try { onEvent({ type: 'finish', reason: normalizeFinishReason(rawFinish) ?? 'stop' }); } catch { /* noop */ }
       }
       isComplete = true;
       try { es.close(); } catch { /* noop */ }
@@ -325,6 +335,10 @@ export class CohereAdapter extends BaseAdapter {
         }
 
         if (data.type === 'message-end') {
+          if (onEvent) {
+            const rawFinish = data.delta?.finish_reason ?? data.finish_reason;
+            try { onEvent({ type: 'finish', reason: normalizeFinishReason(rawFinish) ?? 'stop' }); } catch { /* noop */ }
+          }
           isComplete = true;
           try { es.close(); } catch { /* noop */ }
           if (resolver) {

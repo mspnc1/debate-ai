@@ -10,6 +10,7 @@ import {
 } from '../types/adapter.types';
 import EventSource from 'react-native-sse';
 import { extractSSEErrorMessage } from '../utils/extractSSEErrorMessage';
+import { normalizeFinishReason } from '../utils/normalizeFinishReason';
 
 export abstract class OpenAICompatibleAdapter extends BaseAdapter {
   protected abstract getProviderConfig(): ProviderConfig;
@@ -126,10 +127,11 @@ export abstract class OpenAICompatibleAdapter extends BaseAdapter {
       
       const data = await response.json();
       const responseContent = this.normalizeTextContent(data.choices?.[0]?.message?.content);
-      
+
       return {
         response: responseContent,
         modelUsed: data.model,
+        finishReason: normalizeFinishReason(data.choices?.[0]?.finish_reason),
         usage: data.usage ? {
           promptTokens: data.usage.prompt_tokens,
           completionTokens: data.usage.completion_tokens,
@@ -183,7 +185,9 @@ export abstract class OpenAICompatibleAdapter extends BaseAdapter {
     conversationHistory: Message[] = [],
     attachments?: MessageAttachment[],
     resumptionContext?: ResumptionContext,
-    modelOverride?: string
+    modelOverride?: string,
+    abortSignal?: AbortSignal,
+    onEvent?: (event: unknown) => void
   ): AsyncGenerator<string, void, unknown> {
     const config = this.getProviderConfig();
     const resolvedModel = modelOverride || 
@@ -293,6 +297,23 @@ export abstract class OpenAICompatibleAdapter extends BaseAdapter {
     let isComplete = false;
     let errorOccurred: Error | null = null;
 
+    // Honor caller-driven cancellation (StreamingService passes the abort signal).
+    const abortHandler = () => {
+      if (onEvent) {
+        try { onEvent({ type: 'finish', reason: 'aborted' }); } catch { /* noop */ }
+      }
+      isComplete = true;
+      try { es.close(); } catch { /* noop */ }
+      if (resolver) { const r = resolver; resolver = null; r({ value: undefined, done: true }); }
+    };
+    if (abortSignal) {
+      if (abortSignal.aborted) {
+        abortHandler();
+      } else {
+        abortSignal.addEventListener('abort', abortHandler);
+      }
+    }
+
     es.addEventListener('message', (event) => {
       try {
         const line = event.data;
@@ -311,6 +332,9 @@ export abstract class OpenAICompatibleAdapter extends BaseAdapter {
           else eventQueue.push(content);
         }
         if (finishReason) {
+          if (onEvent) {
+            try { onEvent({ type: 'finish', reason: normalizeFinishReason(finishReason) }); } catch { /* noop */ }
+          }
           isComplete = true;
           try { es.close(); } catch { /* noop */ }
           if (resolver) { const r = resolver; resolver = null; r({ value: undefined, done: true }); }
@@ -348,6 +372,9 @@ export abstract class OpenAICompatibleAdapter extends BaseAdapter {
       }
     } finally {
       try { es.close(); } catch { /* noop */ }
+      if (abortSignal) {
+        try { abortSignal.removeEventListener('abort', abortHandler); } catch { /* noop */ }
+      }
     }
   }
 }

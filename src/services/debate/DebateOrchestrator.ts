@@ -13,8 +13,7 @@ import { DEBATE_CONSTANTS } from '../../config/debateConstants';
 import { UNIVERSAL_PERSONALITIES, getPersonality, PersonalityOption } from '../../config/personalities';
 import { StorageService } from '../chat/StorageService';
 import { store } from '../../store';
-import { getStreamingService, isStreamInterruptedError } from '../streaming/StreamingService';
-import { setProviderVerificationError } from '../../store/streamingSlice';
+import { getStreamingService } from '../streaming/StreamingService';
 import {
   type AudienceDecisionResult,
   type AudienceStance,
@@ -34,11 +33,10 @@ import { ErrorService } from '@/services/errors/ErrorService';
 import { AppError } from '@/errors/types/AppError';
 import { ErrorCode } from '@/errors/codes/ErrorCodes';
 import { mergeAvailabilitiesStrict } from '@/hooks/multimodal/useModalityAvailability';
-import { ensureAnswerContent } from '@/utils/citationUtils';
 import { resolveProviderModelId } from '@/config/modelConfigs';
 import { buildPersonalityRuntime, mergeRuntimeModelParameters } from '@/services/personality';
-import { classifyProviderRetry, withProviderRetry } from '@/services/retry/ProviderRetryService';
 import { applyDebateOutputTokenCap, getDebateSpeechLengthGuidance } from './debateSpeechLength';
+import { DebateTurnRunner, type DebateTurnFailed } from './DebateTurnRunner';
 import { createDebateInterstitialMessage } from './DebateInterstitialService';
 import type {
   ActiveDebateSessionSnapshot,
@@ -161,6 +159,7 @@ export class DebateOrchestrator {
   private votingService: VotingService | null = null;
   private promptBuilder: DebatePromptBuilder;
   private aiService: AIService;
+  private turnRunner: DebateTurnRunner = new DebateTurnRunner();
   private eventHandlers: DebateEventHandler[] = [];
   private timeouts: Map<string, NodeJS.Timeout> = new Map();
   private currentMessages: Message[] = [];
@@ -458,6 +457,121 @@ export class DebateOrchestrator {
     const retryNote = `${aiName} could not finish this turn. Retry the turn when you are ready.`;
 
     return partial ? `${partial}\n\n_${retryNote}_` : retryNote;
+  }
+
+  /**
+   * Renders a failed turn as a paused, retryable (or blocked) card and surfaces the retry
+   * continuation. This is the single place every failure mode from DebateTurnRunner is presented,
+   * replacing the previously duplicated interrupted / fallback-failure / non-recoverable branches.
+   */
+  private emitFailedDebateTurn(
+    result: DebateTurnFailed,
+    ctx: {
+      currentAI: AI;
+      personalityName: string;
+      messageId: string;
+      messageIndex: number;
+      phase: MessageSpec['phase'];
+      messageSpec: MessageSpec;
+      debateSpeech: DebateSpeechMetadata | undefined;
+      turnMessages: Message[];
+      useStreaming: boolean;
+    }
+  ): void {
+    const { currentAI, personalityName, messageId, messageIndex, phase, messageSpec, debateSpeech, turnMessages, useStreaming } = ctx;
+    const partial = result.partialText.trim();
+
+    let content: string;
+    let lifecycleStatus: 'interrupted' | 'cancelled' | 'failed' = 'failed';
+    let lifecycleReason: string = result.detail;
+    let title = 'Debate turn failed';
+    let message = 'The provider could not finish this turn. Retry when you are ready.';
+
+    switch (result.reason) {
+      case 'length':
+        content = this.buildRetryableTurnFailureContent(currentAI.name, partial);
+        lifecycleStatus = 'interrupted';
+        lifecycleReason = 'token_limit';
+        title = 'Debate turn truncated';
+        message = 'The response hit the length limit before it finished. Retry this turn when you are ready.';
+        break;
+      case 'content_filter':
+        content = `${currentAI.name}'s response was blocked by the provider's content filter.`;
+        lifecycleStatus = 'failed';
+        lifecycleReason = 'content_filter';
+        title = 'Response blocked';
+        message = 'The provider blocked this response. Retry this turn when you are ready.';
+        break;
+      case 'cancelled':
+        content = partial
+          ? `${partial}\n\n_Response stopped. Retry this debate turn when ready._`
+          : 'Response stopped. Retry this debate turn when ready.';
+        lifecycleStatus = 'cancelled';
+        lifecycleReason = result.detail || 'cancelled';
+        title = 'Debate stopped';
+        message = 'The active response was stopped. Retry this turn when you are ready.';
+        break;
+      case 'interrupted':
+        content = partial
+          ? `${partial}\n\n_Response interrupted before it finished. Retry this debate turn when ready._`
+          : 'Response interrupted before it finished. Retry this debate turn when ready.';
+        lifecycleStatus = 'interrupted';
+        lifecycleReason = result.detail || 'app_backgrounded';
+        title = 'Debate interrupted';
+        message = 'The active response was interrupted. Retry this turn when you are ready.';
+        break;
+      case 'too_short':
+      case 'empty':
+      case 'provider_error':
+      default:
+        content = this.buildRetryableTurnFailureContent(currentAI.name, partial);
+        break;
+    }
+
+    const lifecycle = {
+      status: lifecycleStatus,
+      reason: lifecycleReason,
+      interruptedAt: Date.now(),
+      partial: partial.length > 0,
+      retryable: true,
+    };
+
+    const failedMessage: Message = {
+      id: messageId,
+      sender: `${currentAI.name} (${personalityName})`,
+      senderType: 'ai',
+      content,
+      timestamp: Date.now(),
+      metadata: {
+        ...this.buildAIResponseMetadata(currentAI, currentAI.model, undefined, debateSpeech),
+        lifecycle,
+      },
+    };
+    this.currentMessages = [...turnMessages, failedMessage];
+
+    if (useStreaming) {
+      this.emitEvent({
+        type: 'stream_completed',
+        data: { messageId, finalContent: content, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), lifecycle, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole },
+        timestamp: Date.now(),
+      });
+    } else {
+      this.emitEvent({
+        type: 'message_added',
+        data: { message: failedMessage, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole },
+        timestamp: Date.now(),
+      });
+    }
+    this.emitTypingStoppedForAI(currentAI);
+
+    this.emitRetryContinuation({
+      title,
+      message,
+      completedMessageIndex: Math.max(messageIndex - 1, 0),
+      nextMessageIndex: messageIndex,
+      retryMessageId: messageId,
+      retryMessages: turnMessages,
+    });
   }
 
   private isSyntheticDebateErrorContent(content: string, aiName: string): boolean {
@@ -868,8 +982,7 @@ export class DebateOrchestrator {
           expert.parameters,
           runtime.modelParameters
         ),
-        speechLength.maxTokens,
-        expert.enabled
+        speechLength.maxTokens
       );
 
       // Compose a stance-aware, persona- and format-inflected system prompt for this AI
@@ -878,9 +991,7 @@ export class DebateOrchestrator {
           adapter.setTemporaryPersonality(runtime.personalityConfig);
           // Ensure debate mode is active for turn mapping
           adapter.config.isDebateMode = true;
-          if (runtimeParameters) {
-            adapter.config.parameters = runtimeParameters;
-          }
+          // Effective parameters are applied to the adapter inside DebateTurnRunner (single owner).
           this.applyWebSearchConfig(adapter);
 
           // Debug logging
@@ -907,25 +1018,21 @@ export class DebateOrchestrator {
         }
       } catch { /* ignore persona application errors */ }
 
-      if (adapter && supportsStreaming && streamingAllowed) {
-        // Apply expert parameters when enabled; otherwise use personality model parameters.
-        try {
-          if (runtimeParameters) {
-            adapter.config.parameters = runtimeParameters;
-          }
-        } catch { /* ignore */ }
-        // Create placeholder message and emit immediately
-        const personalityName = UNIVERSAL_PERSONALITIES.find(p => p.id === personalityId)?.name || 'Default';
+      const useStreaming = !!(adapter && supportsStreaming && streamingAllowed);
+      const personalityName = UNIVERSAL_PERSONALITIES.find(p => p.id === personalityId)?.name || 'Default';
+      const messageId = `msg_${Date.now()}_${currentAI.id}`;
+      const turnTimestamp = Date.now();
+
+      // For streaming, show an immediate empty placeholder + stream lifecycle so chunks render live.
+      if (useStreaming) {
         const placeholderMessage: Message = {
-          id: `msg_${Date.now()}_${currentAI.id}`,
+          id: messageId,
           sender: `${currentAI.name} (${personalityName})`,
           senderType: 'ai',
           content: '',
-          timestamp: Date.now(),
+          timestamp: turnTimestamp,
           metadata: this.buildAIResponseMetadata(currentAI, currentAI.model, undefined, debateSpeech),
         };
-
-        const messageId = placeholderMessage.id;
         this.currentMessages = [...turnMessages, placeholderMessage];
         this.emitEvent({
           type: 'message_added',
@@ -938,364 +1045,74 @@ export class DebateOrchestrator {
           timestamp: Date.now(),
         });
         this.emitTypingStoppedForAI(currentAI);
+      }
 
-        const streamingService = getStreamingService();
-        let finalContent = '';
-        let hadError = false;
-        let wasInterrupted = false;
-        let streamStopReason: 'cancelled' | 'interrupted' | null = null;
-        let streamedContent = '';
-        let capturedCitations: Citation[] | undefined;
+      // Single generation entry point: owns streaming vs non-streaming, the retry policy,
+      // finish-reason capture, normalization and turn assessment. Returns completed | failed.
+      const turnResult = await this.turnRunner.generateTurn({
+        adapter,
+        aiService: this.aiService,
+        provider: currentAI.provider,
+        providerId,
+        model: currentAI.model,
+        aiName: currentAI.name,
+        prompt: contextualPrompt,
+        history: debateMessages,
+        personalityConfig: runtime.personalityConfig,
+        parameters: runtimeParameters,
+        minWords: speechLength.minWords,
+        useStreaming,
+        messageId,
+        isSyntheticError: (content: string) => this.isSyntheticDebateErrorContent(content, currentAI.name),
+        onChunk: useStreaming
+          ? (chunk: string) => this.emitEvent({ type: 'stream_chunk', data: { messageId, chunk, aiProvider: currentAI.id, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() })
+          : undefined,
+        onStreamError: useStreaming
+          ? (error: string) => this.emitEvent({ type: 'stream_error', data: { messageId, error, aiProvider: currentAI.id, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() })
+          : undefined,
+      });
 
-        let errorForFallback: string | null = null;
-        await streamingService.streamResponse(
-          {
-            messageId,
-            adapter,
-            message: contextualPrompt,
-            conversationHistory: debateMessages,
-            modelOverride: currentAI.model,
-          },
-            (chunk: string) => {
-            streamedContent += chunk;
-            this.emitEvent({ type: 'stream_chunk', data: { messageId, chunk, aiProvider: currentAI.id, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
-          },
-          (completeText: string) => {
-            const normalizedAnswer = ensureAnswerContent(completeText, capturedCitations, currentAI.name);
-            if (this.isSyntheticDebateErrorContent(normalizedAnswer.content, currentAI.name)) {
-              hadError = true;
-              errorForFallback = normalizedAnswer.content;
-              this.emitEvent({ type: 'stream_error', data: { messageId, error: errorForFallback, aiProvider: currentAI.id, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
-              return;
-            }
-            finalContent = normalizedAnswer.content;
-            capturedCitations = normalizedAnswer.citations;
-            if (normalizedAnswer.content.trim().length > 0) {
-              this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), citations: normalizedAnswer.citations, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
-            }
-          },
-          (err: Error) => {
-            if (isStreamInterruptedError(err)) {
-              hadError = true;
-              wasInterrupted = true;
-              streamStopReason = err.reason;
-              errorForFallback = err.message;
-              this.emitEvent({ type: 'stream_error', data: { messageId, error: err.message, aiProvider: currentAI.id, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
-              return;
-            }
-            hadError = true;
-            const msg = err?.message || '';
-            errorForFallback = msg;
-            this.emitEvent({ type: 'stream_error', data: { messageId, error: msg, aiProvider: currentAI.id, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
-          },
-          (event: unknown) => {
-            // Handle citation events from providers like Perplexity
-            try {
-              const e = event as Record<string, unknown>;
-              const type = String(e?.type || '');
-              if (type === 'citations') {
-                const citations = (e as { citations?: Citation[] }).citations;
-                if (citations && citations.length > 0) {
-                  capturedCitations = citations;
-                }
-              }
-            } catch { /* ignore event handling errors */ }
-          }
-        );
+      if (turnResult.status === 'failed') {
+        this.emitFailedDebateTurn(turnResult, {
+          currentAI,
+          personalityName,
+          messageId,
+          messageIndex,
+          phase,
+          messageSpec,
+          debateSpeech,
+          turnMessages,
+          useStreaming,
+        });
+        return;
+      }
 
-        if (!hadError && finalContent.trim().length === 0) {
-          hadError = true;
-          errorForFallback = 'Streaming returned an empty response';
-          this.emitEvent({ type: 'stream_error', data: { messageId, error: errorForFallback, aiProvider: currentAI.id, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
-        }
+      const completedMessage: Message = {
+        id: messageId,
+        sender: `${currentAI.name} (${personalityName})`,
+        senderType: 'ai',
+        content: turnResult.text,
+        timestamp: turnTimestamp,
+        metadata: this.buildAIResponseMetadata(currentAI, turnResult.modelUsed || currentAI.model, turnResult.citations, debateSpeech),
+      };
+      this.currentMessages = [...turnMessages, completedMessage];
 
-        if (wasInterrupted) {
-          const partialContent = streamedContent.trim();
-          const wasCancelled = streamStopReason === 'cancelled';
-          const interruptionNote = wasCancelled
-            ? 'Response stopped. Retry this debate turn when ready.'
-            : 'Response interrupted before it finished. Retry this debate turn when ready.';
-          const interruptedContent = partialContent.length > 0
-            ? `${partialContent}\n\n_${interruptionNote}_`
-            : interruptionNote;
-          const lifecycle = {
-            status: wasCancelled ? 'cancelled' as const : 'interrupted' as const,
-            reason: errorForFallback || 'app_backgrounded',
-            interruptedAt: Date.now(),
-            partial: partialContent.length > 0,
-            retryable: true,
-          };
-          this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: interruptedContent, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), lifecycle, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
-          const updated = {
-            ...placeholderMessage,
-            content: interruptedContent,
-            metadata: {
-              ...this.buildAIResponseMetadata(currentAI, currentAI.model, undefined, debateSpeech),
-              lifecycle,
-            },
-          };
-          this.currentMessages = [...turnMessages, updated];
-          this.emitRetryContinuation({
-            title: wasCancelled ? 'Debate stopped' : 'Debate interrupted',
-            message: wasCancelled
-              ? 'The active response was stopped. Retry this turn when you are ready.'
-              : 'The active response was interrupted. Retry this turn when you are ready.',
-            completedMessageIndex: Math.max(messageIndex - 1, 0),
-            nextMessageIndex: messageIndex,
-            retryMessageId: messageId,
-            retryMessages: turnMessages,
-          });
-          return;
-        }
-
-        if (!hadError) {
-          // Update local message content for subsequent prompts/history, including citations if captured
-          const updated = {
-            ...placeholderMessage,
-            content: finalContent,
-            metadata: this.buildAIResponseMetadata(currentAI, currentAI.model, capturedCitations, debateSpeech),
-          };
-          this.currentMessages = [...turnMessages, updated];
-        } else {
-          // Determine if we should fallback to non-streaming
-          const msgStr = String(errorForFallback || '');
-          const isVerificationError = (
-            msgStr.includes('organization verification') ||
-            msgStr.includes('Streaming requires organization verification') ||
-            msgStr.includes('must be verified to stream') ||
-            msgStr.includes('Verify Organization')
-          );
-          const lower = msgStr.toLowerCase();
-          const isOverloadError = (
-            lower.includes('overload') ||
-            lower.includes('temporarily busy') ||
-            lower.includes('rate limit')
-          );
-          const isEmptyResponseError = lower.includes('empty response');
-          const isProviderRetryableError = classifyProviderRetry(
-            new Error(msgStr),
-            { provider: currentAI.provider, model: currentAI.model }
-          ).retryable;
-
-          if (isVerificationError) {
-            try {
-              store.dispatch(setProviderVerificationError({ providerId, hasError: true }));
-            } catch { /* ignore */ }
-          }
-
-          if (isVerificationError || isOverloadError || isEmptyResponseError || isProviderRetryableError) {
-            try {
-              // Ensure adapter carries expert or personality parameters on fallback
-              try {
-                if (runtimeParameters) {
-                  adapter.config.parameters = runtimeParameters;
-                }
-              } catch { /* ignore */ }
-              const fallback = await withProviderRetry(
-                async () => adapter && typeof adapter.sendMessage === 'function'
-                  ? adapter.sendMessage(
-                    contextualPrompt,
-                    debateMessages,
-                    undefined,
-                    undefined,
-                    currentAI.model
-                  )
-                  : this.aiService.sendMessage(
-                    currentAI.provider,
-                    contextualPrompt,
-                    debateMessages,
-                    runtime.personalityConfig,
-                    undefined,
-                    runtimeParameters,
-                    currentAI.model
-                  ),
-                {
-                  provider: currentAI.provider,
-                  model: currentAI.model,
-                  operation: 'debate_fallback_response',
-                }
-              );
-              const { response: text } = typeof fallback === 'string' ? { response: fallback } : fallback;
-              const fallbackMetadata = typeof fallback === 'string'
-                ? undefined
-                : (fallback as { metadata?: { citations?: Citation[] } }).metadata;
-              const normalizedAnswer = ensureAnswerContent(text, fallbackMetadata?.citations, currentAI.name);
-              if (normalizedAnswer.content.trim().length === 0) {
-                throw new Error('Fallback returned an empty response');
-              }
-              if (this.isSyntheticDebateErrorContent(normalizedAnswer.content, currentAI.name)) {
-                throw new Error(errorForFallback || normalizedAnswer.content);
-              }
-              finalContent = normalizedAnswer.content;
-              // Emit completion to update the placeholder message and end stream state in UI
-              this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: normalizedAnswer.content, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), citations: normalizedAnswer.citations, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
-              const updated = {
-                ...placeholderMessage,
-                content: normalizedAnswer.content,
-                metadata: this.buildAIResponseMetadata(currentAI, currentAI.model, normalizedAnswer.citations, debateSpeech),
-              };
-              this.currentMessages = [...turnMessages, updated];
-            } catch (fallbackError) {
-              // As last resort, update the placeholder with a visible error so the flow does not keep a blank AI turn.
-              const errorContent = this.buildRetryableTurnFailureContent(currentAI.name, streamedContent);
-              const reason = fallbackError instanceof Error
-                ? fallbackError.message
-                : errorForFallback || 'Provider response failed';
-              const lifecycle = {
-                status: 'failed' as const,
-                reason,
-                interruptedAt: Date.now(),
-                partial: streamedContent.trim().length > 0,
-                retryable: true,
-              };
-              this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: errorContent, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), lifecycle, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
-              const updated = {
-                ...placeholderMessage,
-                content: errorContent,
-                metadata: {
-                  ...this.buildAIResponseMetadata(currentAI, currentAI.model, undefined, debateSpeech),
-                  lifecycle,
-                },
-              };
-              this.currentMessages = [...turnMessages, updated];
-              this.emitRetryContinuation({
-                title: 'Debate turn failed',
-                message: 'The provider could not finish this turn. Retry when you are ready.',
-                completedMessageIndex: Math.max(messageIndex - 1, 0),
-                nextMessageIndex: messageIndex,
-                retryMessageId: messageId,
-                retryMessages: turnMessages,
-              });
-              return;
-            }
-          } else {
-            // Non-recoverable error: update the placeholder with a visible error.
-            const errorContent = this.buildRetryableTurnFailureContent(currentAI.name, streamedContent);
-            const lifecycle = {
-              status: 'failed' as const,
-              reason: errorForFallback || 'Provider response failed',
-              interruptedAt: Date.now(),
-              partial: streamedContent.trim().length > 0,
-              retryable: true,
-            };
-            this.emitEvent({ type: 'stream_completed', data: { messageId, finalContent: errorContent, modelUsed: currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), lifecycle, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole }, timestamp: Date.now() });
-            const updated = {
-              ...placeholderMessage,
-              content: errorContent,
-              metadata: {
-                ...this.buildAIResponseMetadata(currentAI, currentAI.model, undefined, debateSpeech),
-                lifecycle,
-              },
-            };
-            this.currentMessages = [...turnMessages, updated];
-            this.emitRetryContinuation({
-              title: 'Debate turn failed',
-              message: 'The provider could not finish this turn. Retry when you are ready.',
-              completedMessageIndex: Math.max(messageIndex - 1, 0),
-              nextMessageIndex: messageIndex,
-              retryMessageId: messageId,
-              retryMessages: turnMessages,
-            });
-            return;
-          }
-        }
-
-        await this.continueAfterMessage(messageIndex, this.currentMessages, true);
-      } else {
-        // Apply expert parameters when enabled; otherwise use personality model parameters.
-        try {
-          if (runtimeParameters && adapter) {
-            adapter.config.parameters = runtimeParameters;
-          }
-          this.applyWebSearchConfig(adapter);
-        } catch { /* ignore */ }
-
-        const response = await withProviderRetry(
-          async () => adapter && typeof adapter.sendMessage === 'function'
-            ? adapter.sendMessage(
-              contextualPrompt,
-              debateMessages,
-              undefined,
-              undefined,
-              currentAI.model
-            )
-            : this.aiService.sendMessage(
-              currentAI.provider,
-              contextualPrompt,
-              debateMessages,
-              runtime.personalityConfig,
-              undefined,
-              runtimeParameters,
-              currentAI.model
-            ),
-          {
-            provider: currentAI.provider,
-            model: currentAI.model,
-            operation: 'debate_response',
-          }
-        );
-
-        // Best-effort debug: log the prompts for non-streaming path too
-        try {
-          const debugAdapter = this.aiService.getAdapter(currentAI.id) || this.aiService.getAdapter(currentAI.provider);
-          if (debugAdapter) {
-            // Ensure adapter reflects the composed personality for logging
-            try {
-              debugAdapter.setTemporaryPersonality(runtime.personalityConfig);
-              debugAdapter.config.isDebateMode = true;
-            } catch { /* noop: debug logging helper */ }
-            const sysCombined = debugAdapter.debugGetSystemPrompt();
-            const { PromptDebugLogger } = await import('../debug/PromptDebugLogger');
-            PromptDebugLogger.logTurn('nonstream-turn', {
-              aiId: currentAI.id,
-              aiName: currentAI.name,
-              model: currentAI.model,
-              personalityId,
-              personalityName: runtime.debug.personalityName,
-              stance,
-              civility,
-              format: { id: format.id, name: format.name },
-              phase,
-              round: currentRound,
-              messageCount: messageIndex + 1,
-              systemPromptApplied: runtime.systemPrompt,
-              systemPromptAdapter: sysCombined,
-              userPrompt: contextualPrompt,
-            });
-          }
-        } catch { /* ignore debug log errors */ }
-
-        const personalityName = UNIVERSAL_PERSONALITIES.find(p => p.id === personalityId)?.name || 'Default';
-        const responseText = typeof response === 'string' ? response : response.response;
-        const modelUsed = typeof response === 'string' ? currentAI.model : response.modelUsed;
-        const responseMetadata = typeof response === 'string'
-          ? undefined
-          : (response as { metadata?: { citations?: Citation[] } }).metadata;
-        const normalizedAnswer = ensureAnswerContent(responseText, responseMetadata?.citations, currentAI.name);
-        if (normalizedAnswer.content.trim().length === 0) {
-          throw new Error(`${currentAI.name} returned an empty response`);
-        }
-        if (this.isSyntheticDebateErrorContent(normalizedAnswer.content, currentAI.name)) {
-          throw new Error(normalizedAnswer.content);
-        }
-        const aiMessage: Message = {
-          id: `msg_${Date.now()}_${currentAI.id}`,
-          sender: `${currentAI.name} (${personalityName})`,
-          senderType: 'ai',
-          content: normalizedAnswer.content,
-          timestamp: Date.now(),
-          metadata: this.buildAIResponseMetadata(currentAI, modelUsed, normalizedAnswer.citations, debateSpeech),
-        };
-        this.currentMessages = [...turnMessages, aiMessage];
+      if (useStreaming) {
         this.emitEvent({
-          type: 'message_added',
-          data: { message: aiMessage, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole },
+          type: 'stream_completed',
+          data: { messageId, finalContent: turnResult.text, modelUsed: turnResult.modelUsed || currentAI.model, aiProvider: currentAI.id, webSearchEnabled: this.getWebSearchEnabled(), citations: turnResult.citations, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole },
           timestamp: Date.now(),
         });
-        this.emitTypingStoppedForAI(currentAI);
-
-        await this.continueAfterMessage(messageIndex, this.currentMessages, false);
+      } else {
+        this.emitEvent({
+          type: 'message_added',
+          data: { message: completedMessage, messageIndex, phase, messageLabel: messageSpec.label, cxRole: messageSpec.cxRole },
+          timestamp: Date.now(),
+        });
       }
+      this.emitTypingStoppedForAI(currentAI);
+
+      await this.continueAfterMessage(messageIndex, this.currentMessages, useStreaming);
 
     } catch (error) {
       // Use ErrorService for centralized error handling

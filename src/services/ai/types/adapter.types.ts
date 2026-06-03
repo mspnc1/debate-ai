@@ -29,9 +29,28 @@ export interface AdapterCapabilities {
   contextWindow: number;
 }
 
+/**
+ * Canonical, provider-agnostic reason a generation ended.
+ * Adapters map their native finish signals onto this enum so the rest of the app never has to
+ * special-case provider wording (e.g. Cohere `MAX_TOKENS` and OpenAI `length` both map to 'length').
+ * - 'stop'           the model finished its turn normally
+ * - 'length'         the model was cut off by the output-token ceiling (it did NOT finish)
+ * - 'content_filter' the provider blocked the content (safety) — not a transient error
+ * - 'error'          the stream errored
+ * - 'aborted'        the caller aborted the stream
+ */
+export type StreamFinishReason = 'stop' | 'length' | 'content_filter' | 'error' | 'aborted';
+
+/** Emitted via the adapter `onEvent` callback when a stream's finish reason is known. */
+export interface StreamFinishEvent {
+  type: 'finish';
+  reason: StreamFinishReason;
+}
+
 export interface AdapterResponse {
   response: string;
   modelUsed?: string;
+  finishReason?: StreamFinishReason;
   usage?: {
     promptTokens?: number;
     completionTokens?: number;

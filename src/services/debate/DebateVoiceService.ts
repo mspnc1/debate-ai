@@ -7,6 +7,7 @@ import type { DebateAudioMetadata, DebateVoiceSelection, Message, MessageAttachm
 import MediaGenerationService, { type GeneratedAudioPayload } from '@/services/media/MediaGenerationService';
 import { persistDebateAudioDataUri } from './debateAudioStorage';
 import { sanitizeDebateSpeechForTTS } from './debateAudioSanitizer';
+import { trimToSentenceWithinBudget } from './debateSentenceTrim';
 import {
   getElevenLabsCreditCheck,
   estimateElevenLabsTtsCreditCost,
@@ -58,15 +59,21 @@ export async function generateDebateVoiceAudio(
   request: GenerateDebateVoiceAudioRequest,
   dependencies: GenerateDebateVoiceAudioDependencies = {}
 ): Promise<GeneratedDebateVoiceAudio> {
-  const spokenText = sanitizeDebateSpeechForTTS(request.message.content);
-  if (!spokenText) {
+  const fullSpokenText = sanitizeDebateSpeechForTTS(request.message.content);
+  if (!fullSpokenText) {
     throw new DebateVoiceGenerationError('empty_speech', 'There is no speakable text for this debate turn.');
   }
-  if (spokenText.length > DEBATE_AUDIO_TTS_PROMPT_LIMIT) {
-    throw new DebateVoiceGenerationError(
-      'speech_too_long',
-      `This debate turn is too long for debate audio (${spokenText.length}/${DEBATE_AUDIO_TTS_PROMPT_LIMIT} characters).`
-    );
+
+  // Bound the AUDIO to the TTS character budget on completed text, rather than rejecting the turn.
+  // The transcript (request.message.content) stays full; only the synthesized clip is shortened, and
+  // we record that it happened so the UI/metadata can explain the shorter audio.
+  const untrimmedLength = fullSpokenText.length;
+  const wasTrimmedForTts = untrimmedLength > DEBATE_AUDIO_TTS_PROMPT_LIMIT;
+  const spokenText = wasTrimmedForTts
+    ? trimToSentenceWithinBudget(fullSpokenText, DEBATE_AUDIO_TTS_PROMPT_LIMIT)
+    : fullSpokenText;
+  if (!spokenText) {
+    throw new DebateVoiceGenerationError('empty_speech', 'There is no speakable text for this debate turn.');
   }
 
   const ttsModelId = request.ttsModelId || ELEVENLABS_DEFAULT_TTS_MODEL;
@@ -125,6 +132,7 @@ export async function generateDebateVoiceAudio(
         estimatedCreditCost: estimateElevenLabsTtsCreditCost(spokenText, audio.modelId),
         characterCost: audio.characterCost,
         requestId: audio.requestId,
+        ...(wasTrimmedForTts ? { trimmedForTts: true, untrimmedCharacterCount: untrimmedLength } : {}),
       },
     };
   } catch (error) {

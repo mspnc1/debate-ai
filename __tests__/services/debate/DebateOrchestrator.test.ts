@@ -6,6 +6,9 @@ import type { AI, DebateVoiceConfig, Message } from '@/types';
 import type { AdapterCapabilities, FormattedMessage, SendMessageResponse } from '@/services/ai/types/adapter.types';
 import { setProviderVerificationError } from '@/store/streamingSlice';
 
+// A realistic-length debate speech for stubs (above the assessTurn short-fragment floor).
+const VALID_SPEECH = 'Cancel culture, properly understood, is communities choosing to withdraw their support from people who have caused real and demonstrable harm. That is a feature of free association, not a flaw, and the proposition has offered no principled reason why ordinary citizens should be compelled to keep platforming those who abuse their influence.';
+
 const mockMergeAvailabilitiesStrict = jest.fn();
 jest.mock('@/hooks/multimodal/useModalityAvailability', () => ({
   mergeAvailabilitiesStrict: (...args: unknown[]) => mockMergeAvailabilitiesStrict(...args),
@@ -85,7 +88,9 @@ class FormattingDebateAdapter extends BaseAdapter {
   ): Promise<SendMessageResponse> {
     this.formattedHistories.push(this.formatHistory(conversationHistory));
     return {
-      response: `${this.config.identityId || this.config.provider} response`,
+      // Identity prefix (for history-isolation assertions) + realistic length so it clears the
+      // assessTurn short-fragment floor and does not trigger a fallback.
+      response: `${this.config.identityId || this.config.provider} response. ${VALID_SPEECH}`,
       modelUsed: this.config.model,
     };
   }
@@ -134,7 +139,7 @@ describe('DebateOrchestrator', () => {
 
     const aiService = {
       getAdapter: jest.fn(() => adapter),
-      sendMessage: jest.fn().mockResolvedValue({ response: 'Recovered after verification error' }),
+      sendMessage: jest.fn().mockResolvedValue({ response: VALID_SPEECH }),
     };
 
     mockStreamingService.streamResponse.mockImplementation(async (_config, _onChunk, _onComplete, onError) => {
@@ -299,7 +304,7 @@ describe('DebateOrchestrator', () => {
         onChunk('partial');
         streamChunks.push('partial');
       }
-      onComplete?.('finalized');
+      onComplete?.(VALID_SPEECH);
     });
 
     const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
@@ -371,7 +376,7 @@ describe('DebateOrchestrator', () => {
     };
 
     mockStreamingService.streamResponse.mockImplementation(async (_config, _onChunk, onComplete) => {
-      onComplete?.('finalized');
+      onComplete?.(VALID_SPEECH);
     });
 
     const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
@@ -423,7 +428,7 @@ describe('DebateOrchestrator', () => {
     };
     const aiService = {
       getAdapter: jest.fn(() => adapter),
-      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+      sendMessage: jest.fn().mockResolvedValue({ response: VALID_SPEECH }),
     };
     const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
 
@@ -450,7 +455,7 @@ describe('DebateOrchestrator', () => {
     jest.useFakeTimers();
     const aiService = {
       getAdapter: jest.fn(),
-      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+      sendMessage: jest.fn().mockResolvedValue({ response: VALID_SPEECH }),
     };
     const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
     const votingEvents: Array<Record<string, unknown>> = [];
@@ -513,7 +518,7 @@ describe('DebateOrchestrator', () => {
       ensureAdapter: jest.fn(async (adapterId: string) => (
         adapterId.startsWith('podcast-mc:') ? mcAdapter : turnAdapter
       )),
-      sendMessage: jest.fn().mockResolvedValue({ response: 'Opening argument delivered.', modelUsed: 'claude-3-opus' }),
+      sendMessage: jest.fn().mockResolvedValue({ response: VALID_SPEECH, modelUsed: 'claude-3-opus' }),
     };
     const voiceConfig: DebateVoiceConfig = {
       enabled: true,
@@ -608,7 +613,7 @@ describe('DebateOrchestrator', () => {
       [],
       expect.any(Object),
       undefined,
-      expect.objectContaining({ maxTokens: 550 }),
+      expect.objectContaining({ maxTokens: 1536 }),
       'claude-sonnet-4-6'
     );
     expect(mcAdapter.sendMessage.mock.invocationCallOrder[0]).toBeLessThan(
@@ -631,7 +636,7 @@ describe('DebateOrchestrator', () => {
       data: expect.objectContaining({
         message: expect.objectContaining({
           senderType: 'ai',
-          content: 'Opening argument delivered.',
+          content: VALID_SPEECH,
         }),
       }),
     }));
@@ -651,7 +656,7 @@ describe('DebateOrchestrator', () => {
     const debaterAdapter = {
       config: {} as Record<string, unknown>,
       getCapabilities: jest.fn(() => ({ streaming: false })),
-      sendMessage: jest.fn().mockResolvedValue({ response: 'Opening argument delivered.', modelUsed: 'gpt-5' }),
+      sendMessage: jest.fn().mockResolvedValue({ response: VALID_SPEECH, modelUsed: 'gpt-5' }),
       setTemporaryPersonality: jest.fn(),
       debugGetSystemPrompt: jest.fn(() => ''),
     };
@@ -722,7 +727,7 @@ describe('DebateOrchestrator', () => {
       'gpt-5'
     );
     expect(debaterAdapter.config.parameters).toEqual(expect.objectContaining({
-      maxTokens: 550,
+      maxTokens: 1536,
     }));
     expect(debaterAdapter.config.parameters).not.toEqual(expect.objectContaining({
       maxTokens: 1024,
@@ -801,7 +806,7 @@ describe('DebateOrchestrator', () => {
     const secondMessage = addedMessages.filter((message) => message.senderType === 'ai')[1];
 
     expect(secondAdapter.formattedHistories[0]).toEqual([
-      { role: 'user', content: '[ChatGPT 1 (Default)] openai-slot-1 response' },
+      { role: 'user', content: `[ChatGPT 1 (Default)] openai-slot-1 response. ${VALID_SPEECH}` },
     ]);
     expect(secondMessage?.metadata).toEqual(expect.objectContaining({
       aiId: 'openai-slot-2',
@@ -821,7 +826,7 @@ describe('DebateOrchestrator', () => {
       config: {} as Record<string, unknown>,
       getCapabilities: jest.fn(() => ({ streaming: true })),
       sendMessage: jest.fn().mockResolvedValue({
-        response: 'Recovered fallback speech.',
+        response: VALID_SPEECH,
         modelUsed: 'claude-sonnet-4-6',
       }),
       setTemporaryPersonality: jest.fn(),
@@ -864,7 +869,7 @@ describe('DebateOrchestrator', () => {
     );
     expect(completedEvents).toHaveLength(1);
     expect(completedEvents[0]).toEqual(expect.objectContaining({
-      finalContent: 'Recovered fallback speech.',
+      finalContent: VALID_SPEECH,
       aiProvider: 'claude',
       messageIndex: 0,
     }));
@@ -908,7 +913,7 @@ describe('DebateOrchestrator', () => {
     };
 
     mockStreamingService.streamResponse.mockImplementation(async (_config, _onChunk, onComplete) => {
-      onComplete?.('Opening argument delivered.');
+      onComplete?.(VALID_SPEECH);
     });
 
     const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
@@ -1001,7 +1006,7 @@ describe('DebateOrchestrator', () => {
     };
     const aiService = {
       getAdapter: jest.fn(() => adapter),
-      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+      sendMessage: jest.fn().mockResolvedValue({ response: VALID_SPEECH }),
     };
     const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
     const continuationEvents: Array<Record<string, unknown>> = [];
@@ -1054,7 +1059,7 @@ describe('DebateOrchestrator', () => {
     };
     const aiService = {
       getAdapter: jest.fn(() => adapter),
-      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+      sendMessage: jest.fn().mockResolvedValue({ response: VALID_SPEECH }),
     };
     const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
     const continuationEvents: Array<Record<string, unknown>> = [];
@@ -1106,7 +1111,7 @@ describe('DebateOrchestrator', () => {
     };
     const aiService = {
       getAdapter: jest.fn(() => adapter),
-      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+      sendMessage: jest.fn().mockResolvedValue({ response: VALID_SPEECH }),
     };
     const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
     const continuationEvents: Array<Record<string, unknown>> = [];
@@ -1162,7 +1167,7 @@ describe('DebateOrchestrator', () => {
     };
     const aiService = {
       getAdapter: jest.fn(() => adapter),
-      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+      sendMessage: jest.fn().mockResolvedValue({ response: VALID_SPEECH }),
     };
     const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
     const continuationEvents: Array<Record<string, unknown>> = [];
@@ -1218,7 +1223,7 @@ describe('DebateOrchestrator', () => {
     };
     const aiService = {
       getAdapter: jest.fn(() => adapter),
-      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+      sendMessage: jest.fn().mockResolvedValue({ response: VALID_SPEECH }),
     };
     const teamParticipants: AI[] = [
       participants[0],
@@ -1274,7 +1279,7 @@ describe('DebateOrchestrator', () => {
     };
     const aiService = {
       getAdapter: jest.fn(() => adapter),
-      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+      sendMessage: jest.fn().mockResolvedValue({ response: VALID_SPEECH }),
     };
     const teamParticipants: AI[] = [
       participants[0],
@@ -1321,7 +1326,7 @@ describe('DebateOrchestrator', () => {
     };
     const aiService = {
       getAdapter: jest.fn(() => adapter),
-      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+      sendMessage: jest.fn().mockResolvedValue({ response: VALID_SPEECH }),
     };
     const teamParticipants: AI[] = [
       participants[0],
@@ -1434,7 +1439,7 @@ describe('DebateOrchestrator', () => {
     };
     const aiService = {
       getAdapter: jest.fn(() => adapter),
-      sendMessage: jest.fn().mockResolvedValue({ response: 'ok', modelUsed: 'gpt-5' }),
+      sendMessage: jest.fn().mockResolvedValue({ response: VALID_SPEECH, modelUsed: 'gpt-5' }),
     };
     const teamParticipants: AI[] = [
       participants[0],
@@ -1531,7 +1536,7 @@ describe('DebateOrchestrator', () => {
     };
     const aiService = {
       getAdapter: jest.fn(() => adapter),
-      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+      sendMessage: jest.fn().mockResolvedValue({ response: VALID_SPEECH }),
     };
     const teamParticipants: AI[] = [
       participants[0],
@@ -1594,7 +1599,7 @@ describe('DebateOrchestrator', () => {
     };
     const aiService = {
       getAdapter: jest.fn(() => adapter),
-      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+      sendMessage: jest.fn().mockResolvedValue({ response: VALID_SPEECH }),
     };
     const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
     const addedMessages: Message[] = [];
@@ -1648,7 +1653,7 @@ describe('DebateOrchestrator', () => {
     };
     const aiService = {
       getAdapter: jest.fn(() => adapter),
-      sendMessage: jest.fn().mockResolvedValue({ response: 'ok' }),
+      sendMessage: jest.fn().mockResolvedValue({ response: VALID_SPEECH }),
     };
     const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
 
@@ -1738,7 +1743,7 @@ describe('DebateOrchestrator', () => {
       };
 
       mockStreamingService.streamResponse.mockImplementation(async (_config, _onChunk, onComplete) => {
-        onComplete?.('response');
+        onComplete?.(VALID_SPEECH);
       });
 
       const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
@@ -1775,7 +1780,7 @@ describe('DebateOrchestrator', () => {
       };
 
       mockStreamingService.streamResponse.mockImplementation(async (_config, _onChunk, onComplete) => {
-        onComplete?.('response');
+        onComplete?.(VALID_SPEECH);
       });
 
       const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
@@ -1804,7 +1809,7 @@ describe('DebateOrchestrator', () => {
       };
 
       mockStreamingService.streamResponse.mockImplementation(async (_config, _onChunk, onComplete) => {
-        onComplete?.('response');
+        onComplete?.(VALID_SPEECH);
       });
 
       mockMergeAvailabilitiesStrict.mockReturnValueOnce({
@@ -1859,7 +1864,7 @@ describe('DebateOrchestrator', () => {
       const aiService = {
         getAdapter: jest.fn(() => adapter),
         sendMessage: jest.fn().mockResolvedValue({
-          response: 'Recovered with sources [1]',
+          response: VALID_SPEECH + ' [1]',
           metadata: { citations },
         }),
       };
