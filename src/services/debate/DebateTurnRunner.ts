@@ -84,8 +84,6 @@ export interface DebateTurnFailed {
   /** Cleaned partial text to show on the retry card (already sentence-trimmed for length). */
   partialText: string;
   retryable: boolean;
-  /** True for content-filter blocks. */
-  blocked: boolean;
   streamed: boolean;
 }
 
@@ -162,7 +160,6 @@ export class DebateTurnRunner {
         detail: streamErrorMessage || 'Stream interrupted',
         partialText: streamedContent.trim(),
         retryable: true,
-        blocked: false,
         streamed: true,
       };
     }
@@ -196,13 +193,15 @@ export class DebateTurnRunner {
       return this.failFromAssessment(assessment.reason, normalized.content, streamedContent, true);
     }
 
-    // empty / too_short / synthetic_error -> surface the streaming error, then one fallback.
+    // empty / too_short / error / synthetic_error -> surface the streaming error, then one fallback.
     req.onStreamError?.(
       assessment.reason === 'empty'
         ? 'Streaming returned an empty response'
         : assessment.reason === 'too_short'
           ? 'Streaming returned a too-short response'
-          : normalized.content
+          : assessment.reason === 'error'
+            ? 'Streaming ended with a provider error'
+            : normalized.content
     );
     return this.runFallback(req, streamedContent);
   }
@@ -241,7 +240,6 @@ export class DebateTurnRunner {
       detail: msg || 'Provider response failed',
       partialText: streamingPartial.trim(),
       retryable: true,
-      blocked: false,
       streamed: true,
     };
   }
@@ -302,7 +300,6 @@ export class DebateTurnRunner {
         detail,
         partialText: streamingPartial.trim(),
         retryable: true,
-        blocked: false,
         streamed: false,
       };
     }
@@ -361,7 +358,6 @@ export class DebateTurnRunner {
         detail,
         partialText: '',
         retryable: true,
-        blocked: false,
         streamed: false,
       };
     }
@@ -381,7 +377,6 @@ export class DebateTurnRunner {
           detail: 'Provider stopped at the output token limit before finishing the turn',
           partialText: trimToLastCompleteSentence(content).trim(),
           retryable: true,
-          blocked: false,
           streamed,
         };
       case 'content_filter':
@@ -391,7 +386,6 @@ export class DebateTurnRunner {
           detail: 'Provider blocked the response (content filter)',
           partialText: '',
           retryable: true,
-          blocked: true,
           streamed,
         };
       case 'too_short':
@@ -401,7 +395,6 @@ export class DebateTurnRunner {
           detail: 'Response was too short to be a valid debate turn',
           partialText: '',
           retryable: true,
-          blocked: false,
           streamed,
         };
       case 'empty':
@@ -411,7 +404,6 @@ export class DebateTurnRunner {
           detail: 'Provider returned an empty response',
           partialText: streamingPartial.trim(),
           retryable: true,
-          blocked: false,
           streamed,
         };
       case 'synthetic_error':
@@ -422,7 +414,6 @@ export class DebateTurnRunner {
           detail: 'Provider returned an error response',
           partialText: streamingPartial.trim(),
           retryable: true,
-          blocked: false,
           streamed,
         };
     }

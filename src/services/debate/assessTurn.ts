@@ -8,7 +8,7 @@ import type { StreamFinishReason } from '@/services/ai/types/adapter.types';
  * from the plan: a content block is terminal, an empty/garbage turn fails, and a token-limit finish
  * means the model did NOT finish (so it is not a valid speech even if substantial).
  */
-export type TurnFailureReason = 'empty' | 'too_short' | 'length' | 'content_filter' | 'synthetic_error';
+export type TurnFailureReason = 'empty' | 'too_short' | 'length' | 'content_filter' | 'synthetic_error' | 'error';
 
 export type TurnAssessment = { ok: true } | { ok: false; reason: TurnFailureReason };
 
@@ -53,6 +53,12 @@ export function assessTurn(input: AssessTurnInput): TurnAssessment {
 
   if (isSyntheticError) {
     return { ok: false, reason: 'synthetic_error' };
+  }
+
+  // A terminal provider error / abort means the request did not complete normally, even if some
+  // partial text arrived (e.g. Cohere ERROR, DeepSeek insufficient_system_resource).
+  if (finishReason === 'error' || finishReason === 'aborted') {
+    return { ok: false, reason: 'error' };
   }
 
   // A token-limit finish means the model was cut off — an unfinished turn, not a valid speech.

@@ -32,6 +32,21 @@ describe('assessTurn', () => {
     });
   });
 
+  it('rejects a provider error finish even with substantial partial text', () => {
+    // e.g. Cohere ERROR or DeepSeek insufficient_system_resource normalized to 'error'.
+    expect(assessTurn({ text: longSpeech, finishReason: 'error', minWords: 180 })).toEqual({
+      ok: false,
+      reason: 'error',
+    });
+  });
+
+  it('rejects an aborted finish', () => {
+    expect(assessTurn({ text: longSpeech, finishReason: 'aborted', minWords: 180 })).toEqual({
+      ok: false,
+      reason: 'error',
+    });
+  });
+
   it('rejects a tiny fragment as too_short', () => {
     expect(assessTurn({ text: 'The most', finishReason: 'stop', minWords: 180 })).toEqual({
       ok: false,

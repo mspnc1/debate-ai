@@ -17,18 +17,29 @@ export function normalizeFinishReason(
   if (raw === null || raw === undefined || raw === '') return undefined;
   const r = String(raw).toLowerCase();
 
-  if (r.includes('max_tokens') || r.includes('max-tokens') || r === 'length' || r.includes('token_limit')) {
+  // Token-limit truncation: OpenAI `length`/`max_tokens`, OpenAI Responses `max_output_tokens`,
+  // Cohere/Gemini `MAX_TOKENS`.
+  if ((r.includes('max') && r.includes('token')) || r === 'length' || r.includes('token_limit')) {
     return 'length';
   }
-  if ((r.includes('content') && (r.includes('filter') || r.includes('block'))) || r.includes('toxic') || r.includes('safety')) {
+  // Safety / content blocks: OpenAI `content_filter`; Gemini SAFETY / RECITATION / BLOCKLIST /
+  // PROHIBITED_CONTENT / SPII; Cohere ERROR_TOXIC; Claude `refusal`.
+  if (
+    (r.includes('content') && (r.includes('filter') || r.includes('block'))) ||
+    r.includes('toxic') || r.includes('safety') || r.includes('recitation') ||
+    r.includes('blocklist') || r.includes('prohibited') || r.includes('spii') ||
+    r.includes('refusal')
+  ) {
     return 'content_filter';
   }
   if (r.includes('cancel') || r.includes('abort')) {
     return 'aborted';
   }
-  if (r.includes('error')) {
+  // Provider could not finish the request: Cohere ERROR / ERROR_LIMIT;
+  // DeepSeek `insufficient_system_resource`.
+  if (r.includes('error') || r.includes('insufficient') || r.includes('resource')) {
     return 'error';
   }
-  // 'stop', 'complete', 'stop_sequence', 'end_turn', 'tool_calls', 'function_call', etc.
+  // 'stop', 'complete', 'stop_sequence', 'end_turn', 'tool_calls', 'function_call', 'other', etc.
   return 'stop';
 }

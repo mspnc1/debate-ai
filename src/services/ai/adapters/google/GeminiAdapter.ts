@@ -8,6 +8,7 @@ import {
 } from '../../types/adapter.types';
 import EventSource from 'react-native-sse';
 import { extractSSEErrorMessage } from '../../utils/extractSSEErrorMessage';
+import { normalizeFinishReason } from '../../utils/normalizeFinishReason';
 import { buildGeminiGenerationConfig, extractGeminiText } from './geminiGenerationConfig';
 
 export class GeminiAdapter extends BaseAdapter {
@@ -153,6 +154,7 @@ export class GeminiAdapter extends BaseAdapter {
       return {
         response: responseText,
         modelUsed: resolvedModel,
+        finishReason: normalizeFinishReason(data.candidates?.[0]?.finishReason),
         usage: data.usageMetadata ? {
           promptTokens: data.usageMetadata.promptTokenCount,
           completionTokens: data.usageMetadata.candidatesTokenCount,
@@ -283,6 +285,9 @@ export class GeminiAdapter extends BaseAdapter {
         }
         const finishReason = data.candidates?.[0]?.finishReason as string | undefined;
         if (finishReason) {
+          if (onEvent) {
+            try { onEvent({ type: 'finish', reason: normalizeFinishReason(finishReason) ?? 'stop' }); } catch { /* noop */ }
+          }
           isComplete = true;
           try { es.close(); } catch { /* noop */ }
           if (resolver) { const r = resolver; resolver = null; r({ value: undefined, done: true }); }

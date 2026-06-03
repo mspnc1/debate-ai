@@ -8,6 +8,7 @@ import {
 } from '../../types/adapter.types';
 import EventSource, { CustomEvent } from 'react-native-sse';
 import { extractSSEErrorMessage, mapErrorTypeToMessage } from '../../utils/extractSSEErrorMessage';
+import { normalizeFinishReason } from '../../utils/normalizeFinishReason';
 
 // Define Claude's custom SSE event types
 type ClaudeEventTypes = 'message_start' | 'content_block_start' | 'content_block_delta' | 'content_block_stop' | 'message_stop' | 'ping' | 'message';
@@ -159,6 +160,7 @@ export class ClaudeAdapter extends BaseAdapter {
         return {
           response: data.content[0].text,
           modelUsed: data.model,
+          finishReason: normalizeFinishReason(data.stop_reason),
           usage: data.usage ? {
             promptTokens: data.usage.input_tokens,
             completionTokens: data.usage.output_tokens,
@@ -303,6 +305,11 @@ export class ClaudeAdapter extends BaseAdapter {
         const data = evt?.data ? JSON.parse(evt.data) : {};
         const t = data?.type as string | undefined;
         if (t && onEvent) onEvent(data);
+        // Claude reports its stop reason on message_delta (e.g. 'max_tokens', 'end_turn', 'refusal').
+        const stopReason = data?.delta?.stop_reason as string | undefined;
+        if (t === 'message_delta' && stopReason && onEvent) {
+          try { onEvent({ type: 'finish', reason: normalizeFinishReason(stopReason) ?? 'stop' }); } catch { /* noop */ }
+        }
       } catch { /* ignore parse issues */ }
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

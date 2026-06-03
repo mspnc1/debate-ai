@@ -5,6 +5,7 @@ import { getModelById } from '../../../../config/modelConfigs';
 import { getDefaultModel, resolveModelAlias } from '../../../../config/providers/modelRegistry';
 import EventSource from 'react-native-sse';
 import { extractSSEErrorMessage } from '../../utils/extractSSEErrorMessage';
+import { normalizeFinishReason } from '../../utils/normalizeFinishReason';
 
 type ChatGPTContentPart = {
   type: string;
@@ -374,9 +375,14 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
       total_tokens?: number;
     } | undefined;
 
+    const responsesStatus = (data as { status?: string }).status;
+    const incompleteReason = (data as { incomplete_details?: { reason?: string } }).incomplete_details?.reason;
     return {
       response: responseText,
       modelUsed: typeof data.model === 'string' ? data.model : resolvedModel,
+      finishReason: responsesStatus === 'incomplete'
+        ? (normalizeFinishReason(incompleteReason) ?? 'length')
+        : 'stop',
       usage: usage ? {
         promptTokens: usage.input_tokens ?? usage.prompt_tokens,
         completionTokens: usage.output_tokens ?? usage.completion_tokens,
@@ -474,6 +480,7 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
       return {
         response: data.choices[0].message.content || '',
         modelUsed: data.model,
+        finishReason: normalizeFinishReason(data.choices?.[0]?.finish_reason),
         usage: data.usage ? {
           promptTokens: data.usage.prompt_tokens,
           completionTokens: data.usage.completion_tokens,
@@ -722,6 +729,7 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
           else eventQueue.push(t);
         } else if (type === 'response.error') {
           errorMsg = obj?.error?.message || 'Upstream error';
+          if (onEvent) { try { onEvent({ type: 'finish', reason: 'error' }); } catch { /* noop */ } }
           isComplete = true;
           try { es.close(); } catch { /* noop */ }
           if (resolver) { const r = resolver; resolver = null; r({ value: undefined, done: true }); }
@@ -743,12 +751,23 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
           isComplete = true;
           try { es.close(); } catch { /* noop */ }
           if (resolver) { const r = resolver; resolver = null; r({ value: undefined, done: true }); }
-        } else if (type === 'response.completed') {
+        } else if (type === 'response.completed' || type === 'response.incomplete') {
           // Try to extract a final text from the completed event and enqueue once
           const finalFromEvent = extractTextFromOutput(obj?.response ?? obj?.output ?? obj);
           if (finalFromEvent) {
             if (resolver) { const r = resolver; resolver = null; r({ value: finalFromEvent, done: false }); }
             else eventQueue.push(finalFromEvent);
+          }
+
+          // Surface a canonical finish reason. The Responses API reports truncation via
+          // status: 'incomplete' + incomplete_details.reason (e.g. 'max_output_tokens').
+          if (onEvent) {
+            const resp = (obj?.response ?? obj) as { status?: string; incomplete_details?: { reason?: string } } | undefined;
+            const isIncomplete = type === 'response.incomplete' || resp?.status === 'incomplete';
+            const reason = isIncomplete
+              ? (normalizeFinishReason(resp?.incomplete_details?.reason) ?? 'length')
+              : 'stop';
+            try { onEvent({ type: 'finish', reason }); } catch { /* noop */ }
           }
 
           isComplete = true;
@@ -775,6 +794,10 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
     esAny.addEventListener('response.completed', (evt) => {
       const anyEvt = evt as unknown as { data: string | null };
       handleEventData(anyEvt?.data, 'response.completed');
+    });
+    esAny.addEventListener('response.incomplete', (evt) => {
+      const anyEvt = evt as unknown as { data: string | null };
+      handleEventData(anyEvt?.data, 'response.incomplete');
     });
     esAny.addEventListener('response.delta', (evt) => {
       const anyEvt = evt as unknown as { data: string | null };
