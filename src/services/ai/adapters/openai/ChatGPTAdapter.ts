@@ -710,6 +710,9 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
       return citations;
     };
 
+    // Whether any output text has been delivered yet (via deltas or a fallback full-text event).
+    // Used to avoid double-enqueuing the full text from output_text.done / response.completed.
+    let sawText = false;
     const handleEventData = (dataStr: string | null | undefined, eventType?: string) => {
       if (!dataStr || dataStr === '[DONE]') return;
       try {
@@ -721,10 +724,12 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
         }
         const type = eventType || obj?.type;
         if (type === 'response.output_text.delta' && typeof obj.delta === 'string') {
+          sawText = true;
           if (resolver) { const r = resolver; resolver = null; r({ value: obj.delta, done: false }); }
           else eventQueue.push(obj.delta);
         } else if (type === 'response.delta' && obj?.delta?.type === 'output_text.delta' && typeof obj.delta.text === 'string') {
           const t = obj.delta.text as string;
+          sawText = true;
           if (resolver) { const r = resolver; resolver = null; r({ value: t, done: false }); }
           else eventQueue.push(t);
         } else if (type === 'response.error') {
@@ -748,13 +753,20 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
             }
           }
 
-          isComplete = true;
-          try { es.close(); } catch { /* noop */ }
-          if (resolver) { const r = resolver; resolver = null; r({ value: undefined, done: true }); }
+          // output_text.done finalizes text content but is NOT the terminal lifecycle event.
+          // Only enqueue its full text as a fallback when no deltas streamed, and do NOT close —
+          // wait for response.completed / response.incomplete, which carries the finish reason
+          // (so a max_output_tokens truncation is surfaced as { type: 'finish', reason: 'length' }).
+          if (!sawText && text) {
+            sawText = true;
+            if (resolver) { const r = resolver; resolver = null; r({ value: text, done: false }); }
+            else eventQueue.push(text);
+          }
         } else if (type === 'response.completed' || type === 'response.incomplete') {
-          // Try to extract a final text from the completed event and enqueue once
+          // Try to extract a final text from the completed event and enqueue once (fallback only).
           const finalFromEvent = extractTextFromOutput(obj?.response ?? obj?.output ?? obj);
-          if (finalFromEvent) {
+          if (!sawText && finalFromEvent) {
+            sawText = true;
             if (resolver) { const r = resolver; resolver = null; r({ value: finalFromEvent, done: false }); }
             else eventQueue.push(finalFromEvent);
           }

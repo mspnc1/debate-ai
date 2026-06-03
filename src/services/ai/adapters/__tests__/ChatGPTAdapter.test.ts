@@ -286,14 +286,40 @@ describe('ChatGPTAdapter', () => {
     eventSource.emit('response.output_text.delta', JSON.stringify({ delta: ' there' }));
     await expect(secondChunkPromise).resolves.toEqual({ value: ' there', done: false });
 
-    // The done event signals completion without yielding additional content
+    // output_text.done finalizes the text content but is NOT the terminal lifecycle event:
+    // response.completed terminates the stream and emits the canonical finish reason.
     const finalChunkPromise = iterator.next();
-    eventSource.emit(
-      'response.output_text.done',
-      JSON.stringify({ text: 'Hi there' })
-    );
+    eventSource.emit('response.output_text.done', JSON.stringify({ text: 'Hi there' }));
+    eventSource.emit('response.completed', JSON.stringify({ response: { status: 'completed' } }));
     await expect(finalChunkPromise).resolves.toEqual({ value: undefined, done: true });
     expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'response.output_text.done' }));
+    expect(onEvent).toHaveBeenCalledWith({ type: 'finish', reason: 'stop' });
+    expect(eventSource.close).toHaveBeenCalled();
+  });
+
+  it('emits a length finish when the Responses stream is truncated at max_output_tokens', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ id: 'gpt-5' }] }) } as unknown as Response);
+    const adapter = new ChatGPTAdapter(baseConfig);
+    const onEvent = jest.fn();
+
+    const iterator = adapter.streamMessage('Hello there', [], undefined, undefined, undefined, undefined, onEvent);
+    const firstChunk = iterator.next();
+    await flushMicrotasks();
+    const eventSource = mockEventSourceInstances[0];
+    if (!eventSource) throw new Error('EventSource not created');
+
+    eventSource.emit('response.output_text.delta', JSON.stringify({ delta: 'Partial' }));
+    await expect(firstChunk).resolves.toEqual({ value: 'Partial', done: false });
+
+    // The model hit the output token ceiling: text is finalized, then response.incomplete terminates.
+    const finalChunkPromise = iterator.next();
+    eventSource.emit('response.output_text.done', JSON.stringify({ text: 'Partial' }));
+    eventSource.emit(
+      'response.incomplete',
+      JSON.stringify({ response: { status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' } } })
+    );
+    await expect(finalChunkPromise).resolves.toEqual({ value: undefined, done: true });
+    expect(onEvent).toHaveBeenCalledWith({ type: 'finish', reason: 'length' });
     expect(eventSource.close).toHaveBeenCalled();
   });
 
