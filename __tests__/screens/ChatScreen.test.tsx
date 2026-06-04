@@ -958,7 +958,7 @@ describe('ChatScreen', () => {
       selectedAIs[1],
       { id: 'gemini', provider: 'google', name: 'Gemini', model: 'gemini-1.5', color: '#222' },
     ]);
-    expect(trio.getByText('Claude, GPT-4 & 1 more')).toBeTruthy();
+    expect(trio.getByText('Claude, GPT-4 & Gemini')).toBeTruthy();
     trio.unmount();
 
     const quartet = renderScenario([

@@ -862,7 +862,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     } else if (count === 2) {
       return `${aiNames[0]} meets ${aiNames[1]}`;
     } else if (count === 3) {
-      return `${aiNames[0]}, ${aiNames[1]} & 1 more`;
+      return `${aiNames[0]}, ${aiNames[1]} & ${aiNames[2]}`;
     }
 
     return `${aiNames[0]}, ${aiNames[1]} & ${count - 2} others`;
