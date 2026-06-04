@@ -880,7 +880,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         <Header
           variant="gradient"
           slim
-          title="Let's Talk"
+          title="The Forum"
           onBack={() => confirmChatLeave(navigation.goBack)}
           showBackButton={true}
           animated={true}
@@ -939,7 +939,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         />
 
         <ContextBar
-          title="In the room"
+          title="In the Forum"
           subtitle={conversationContextSubtitle}
           testID="chat-context-bar"
         />

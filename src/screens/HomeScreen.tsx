@@ -82,7 +82,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       <Header
         variant="gradient"
         slim
-        title="Let's Talk"
+        title="The Forum"
         rightElement={<HeaderActions variant="gradient" helpCategoryId="chat" />}
       />
 

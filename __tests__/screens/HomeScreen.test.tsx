@@ -240,7 +240,7 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
     expect(mockHeaderProps).toBeDefined();
     // The header is now a clean slim bar with a task-oriented title; no greeting/demo badge.
     expect(mockHeaderProps.slim).toBe(true);
-    expect(mockHeaderProps.title).toBe("Let's Talk");
+    expect(mockHeaderProps.title).toBe('The Forum');
     expect(mockHeaderActionsProps).toBeDefined();
     expect(mockHeaderActionsProps.variant).toBe('gradient');
     expect(mockHeaderActionsProps.helpCategoryId).toBe('chat');

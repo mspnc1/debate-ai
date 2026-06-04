@@ -447,7 +447,7 @@ describe('ChatScreen', () => {
     );
 
     expect(getByTestId('chat-message-list')).toBeTruthy();
-    expect(mockHeaderProps.title).toBe("Let's Talk");
+    expect(mockHeaderProps.title).toBe('The Forum');
     expect(mockHeaderProps.slim).toBe(true);
     expect(getByText('Claude meets GPT-4')).toBeTruthy();
 
@@ -945,6 +945,7 @@ describe('ChatScreen', () => {
     };
 
     const noAI = renderScenario([]);
+    expect(noAI.getByText('In the Forum')).toBeTruthy();
     expect(noAI.getByText('Preparing symposium')).toBeTruthy();
     noAI.unmount();
 
