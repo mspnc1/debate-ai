@@ -2111,7 +2111,7 @@ export default function CreateSetupScreen() {
         <Header
           variant="gradient"
           slim
-          title="Create Studio"
+          title="The Studio"
           rightElement={<HeaderActions variant="gradient" helpCategoryId="create" />}
         />
         <View style={styles.premiumGate}>
@@ -2121,7 +2121,7 @@ export default function CreateSetupScreen() {
             color={theme.colors.primary[500]}
           />
           <Typography variant="title" style={styles.premiumTitle}>
-            Create Mode
+            The Studio
           </Typography>
           <Typography
             variant="body"
@@ -2149,7 +2149,7 @@ export default function CreateSetupScreen() {
       <Header
         variant="gradient"
         slim
-        title="Create Studio"
+        title="The Studio"
         rightElement={renderHeaderRight()}
       />
       <KeyboardAvoidingView

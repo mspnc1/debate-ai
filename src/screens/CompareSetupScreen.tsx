@@ -154,7 +154,7 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
       <Header
         variant="gradient"
         slim
-        title="Spot the Difference"
+        title="The Lens"
         rightElement={<HeaderActions variant="gradient" helpTopicId="compare-mode" />}
       />
       <TrialBanner />

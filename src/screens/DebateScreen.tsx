@@ -1120,7 +1120,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
           <Header
             variant="gradient"
             slim
-            title="Debate Arena"
+            title="The Arena"
             showBackButton={true}
             onBack={handleStartOver}
             animated={true}
@@ -1146,7 +1146,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
           <Header
             variant="gradient"
             slim
-            title="Debate Arena"
+            title="The Arena"
             showBackButton={true}
             onBack={handleStartOver}
             animated={true}
@@ -1155,7 +1155,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
             showDemoBadge={isDemo}
           />
           <ContextBar
-            title="Motion"
+            title="In the Arena"
             subtitle={displayedMotion}
             rightElement={
               genericHeaderSubtitle ? (

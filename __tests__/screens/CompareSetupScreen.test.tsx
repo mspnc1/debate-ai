@@ -167,10 +167,11 @@ describe('CompareSetupScreen', () => {
   });
 
   it('starts comparison when both sides selected', () => {
-    renderWithProviders(
+    const { getByText } = renderWithProviders(
       <CompareSetupScreen navigation={navigation as any} />
     );
 
+    expect(getByText('The Lens')).toBeTruthy();
     expect(mockSelectorStore.selectors.length).toBe(2);
     const leftProps = mockSelectorStore.selectors[0];
     const rightProps = mockSelectorStore.selectors[1];

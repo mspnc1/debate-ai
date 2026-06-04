@@ -461,8 +461,9 @@ describe('CreateSetupScreen', () => {
 
   describe('rendering', () => {
     it('renders header with correct title', () => {
-      const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
       expect(getByTestId('header')).toBeTruthy();
+      expect(getByText('The Studio')).toBeTruthy();
     });
 
     it('renders the shared provider selector grid', () => {
@@ -500,8 +501,8 @@ describe('CreateSetupScreen', () => {
   describe('demo mode gating', () => {
     it('shows upgrade gate for demo users', () => {
       mockUseFeatureAccess.mockReturnValue({ membershipStatus: 'demo', isDemo: true, isPremium: false });
-      const { getByText } = renderWithProviders(<CreateSetupScreen />);
-      expect(getByText('Create Mode')).toBeTruthy();
+      const { getAllByText, getByText } = renderWithProviders(<CreateSetupScreen />);
+      expect(getAllByText('The Studio')).toHaveLength(2);
       expect(getByText('Upgrade to Premium')).toBeTruthy();
     });
 

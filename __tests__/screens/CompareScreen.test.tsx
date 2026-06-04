@@ -420,6 +420,7 @@ describe('CompareScreen', () => {
 
     expect(mockHeaderProps).toBeDefined();
     expect(mockHeaderProps.slim).toBe(true);
+    expect(mockHeaderProps.title).toBe('The Lens');
     expect(renderResult.getByText(leftAI.name)).toBeTruthy();
     expect(renderResult.getByText(rightAI.name)).toBeTruthy();
     expect(mockCompareSplitViewProps).toBeDefined();

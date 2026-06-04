@@ -367,6 +367,7 @@ describe('DebateSetupScreen', () => {
 
     const testIds = collectTestIds(renderResult.toJSON());
 
+    expect(renderResult.getByText('The Arena')).toBeTruthy();
     expect(testIds.indexOf('header')).toBeGreaterThanOrEqual(0);
     expect(testIds.indexOf('trial-banner')).toBeGreaterThanOrEqual(0);
     expect(testIds.indexOf('header')).toBeLessThan(testIds.indexOf('trial-banner'));

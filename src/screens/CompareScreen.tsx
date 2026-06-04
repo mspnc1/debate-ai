@@ -1385,7 +1385,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
         <Header
           variant="gradient"
           slim
-          title="Comparison"
+          title="The Lens"
           animated={true}
           rightElement={<HeaderActions variant="gradient" helpTopicId="compare-mode" />}
           actionButton={recordModeEnabled ? {
