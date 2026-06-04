@@ -141,6 +141,14 @@ function getPreferredResolution(model: ImageModelConfig, requestedResolution?: s
   return model.resolutions[0];
 }
 
+function normalizeXaiResolution(resolution?: string): '1k' | '2k' | undefined {
+  const normalized = resolution?.trim().toLowerCase();
+  if (normalized === '1k' || normalized === '2k') {
+    return normalized;
+  }
+  return undefined;
+}
+
 export class ImageService {
   static async generateImage(opts: GenerateImageOptions): Promise<GeneratedImage[]> {
     const normalizedOpts = {
@@ -320,7 +328,7 @@ export class ImageService {
     if (count > 1) {
       body.n = count;
     }
-    const preferredResolution = getPreferredResolution(model, opts.resolution);
+    const preferredResolution = normalizeXaiResolution(getPreferredResolution(model, opts.resolution));
     if (preferredResolution) {
       body.resolution = preferredResolution;
     }
@@ -373,7 +381,7 @@ export class ImageService {
     if (aspectRatio) {
       body.aspect_ratio = aspectRatio;
     }
-    const preferredResolution = getPreferredResolution(model, opts.resolution);
+    const preferredResolution = normalizeXaiResolution(getPreferredResolution(model, opts.resolution));
     if (preferredResolution) {
       body.resolution = preferredResolution;
     }

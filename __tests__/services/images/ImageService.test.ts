@@ -247,6 +247,7 @@ describe('ImageService', () => {
         model: 'grok-imagine-image',
         prompt: 'a dog',
         aspect_ratio: '1:1',
+        resolution: '1k',
       });
       expect(result).toEqual([{ url: '/documents/images/grok.png', mimeType: 'image/png' }]);
     });
@@ -280,6 +281,7 @@ describe('ImageService', () => {
       expect(body).toMatchObject({
         model: 'grok-imagine-image',
         prompt: 'Improve this image',
+        resolution: '1k',
         image: {
           url: 'data:image/png;base64,c291cmNlX2ltYWdl',
         },
@@ -309,7 +311,7 @@ describe('ImageService', () => {
         model: 'grok-imagine-image',
         prompt: 'Use these references',
         aspect_ratio: '16:9',
-        resolution: '2K',
+        resolution: '2k',
         n: 4,
       });
       expect(body.images).toEqual([
