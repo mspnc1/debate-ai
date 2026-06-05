@@ -14,7 +14,7 @@
       "backgroundColor": "#1A1A1A"
     },
     "ios": {
-      "buildNumber": "23",
+      "buildNumber": "24",
       "supportsTablet": true,
       "bundleIdentifier": "com.braveheartinnovations.debateai",
       "googleServicesFile": "./GoogleService-Info.plist",
@@ -51,7 +51,7 @@
       },
       "package": "com.braveheartinnovations.debateai",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 32
+      "versionCode": 33
     },
     "web": {
       "favicon": "./assets/favicon.png"
