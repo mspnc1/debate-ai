@@ -22,6 +22,7 @@ interface DebateVoicePackModalProps {
   candidates: DebateVoicePackCandidate[];
   selectedIds: string[];
   isSaving: boolean;
+  savingLabel?: string;
   canRetryAudio: boolean;
   onToggleClip: (id: string) => void;
   onSelectAllReady: () => void;
@@ -60,6 +61,7 @@ export const DebateVoicePackModal: React.FC<DebateVoicePackModalProps> = ({
   candidates,
   selectedIds,
   isSaving,
+  savingLabel,
   canRetryAudio,
   onToggleClip,
   onSelectAllReady,
@@ -287,7 +289,7 @@ export const DebateVoicePackModal: React.FC<DebateVoicePackModalProps> = ({
               <Ionicons name="musical-notes-outline" size={20} color="#FFFFFF" />
             )}
             <Typography variant="button" weight="semibold" style={{ color: '#FFFFFF' }}>
-              {isSaving ? 'Generating...' : 'Generate Podcast File'}
+              {isSaving ? savingLabel || 'Generating...' : 'Generate Podcast File'}
             </Typography>
           </TouchableOpacity>
         </View>

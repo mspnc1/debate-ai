@@ -63,7 +63,7 @@ import {
   getDebateVoicePackCandidates,
   type DebateVoicePackCandidate,
 } from '@/services/debate';
-import DebateAudioCompileService from '@/services/debate/debateAudioCompileService';
+import DebateAudioCompileService, { type DebateAudioCompileStage } from '@/services/debate/debateAudioCompileService';
 import { sanitizeDebateSpeechForTTS } from '@/services/debate/debateAudioSanitizer';
 import { estimateElevenLabsTtsCreditCost } from '@/services/media/elevenLabsCredits';
 import { ActiveSessionPersistenceService, type ActiveDebateSessionSnapshot } from '@/services/lifecycle/ActiveSessionPersistenceService';
@@ -104,6 +104,23 @@ function areStringArraysEqual(left: string[], right: string[]): boolean {
   return left.every((value, index) => value === right[index]);
 }
 
+function getPodcastGenerationLabel(stage: DebateAudioCompileStage | null): string | undefined {
+  switch (stage) {
+    case 'preparing':
+      return 'Preparing...';
+    case 'creating_session':
+      return 'Starting compile...';
+    case 'uploading':
+      return 'Uploading clips...';
+    case 'compiling':
+      return 'Compiling podcast...';
+    case 'downloading':
+      return 'Downloading file...';
+    default:
+      return undefined;
+  }
+}
+
 const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   const { theme } = useTheme();
   const dispatch = useDispatch<AppDispatch>();
@@ -119,6 +136,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   const [voicePackModalVisible, setVoicePackModalVisible] = useState(false);
   const [voicePackSelectedIds, setVoicePackSelectedIds] = useState<string[]>([]);
   const [isSavingVoicePack, setIsSavingVoicePack] = useState(false);
+  const [voicePackSaveStage, setVoicePackSaveStage] = useState<DebateAudioCompileStage | null>(null);
   const [pendingGalleryFocusMediaId, setPendingGalleryFocusMediaId] = useState<string | null>(null);
   const [debateRecoveryChecked, setDebateRecoveryChecked] = useState(false);
   const selectedSampleRef = React.useRef<DemoDebate | null>(null);
@@ -709,7 +727,9 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         candidates: voicePackCandidates,
         selectedCandidateIds: voicePackSelectedIds,
       });
-      const compiledAudio = await DebateAudioCompileService.compileDebateVoicePack(plan.manifest);
+      const compiledAudio = await DebateAudioCompileService.compileDebateVoicePack(plan.manifest, {
+        onStageChange: setVoicePackSaveStage,
+      });
       const entry = createDebatePodcastGalleryEntry(plan, compiledAudio);
 
       await dispatch(addToMediaGalleryWithCleanup(entry)).unwrap();
@@ -720,6 +740,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     } catch (error) {
       ErrorService.handleWithToast(error, { feature: 'debate' });
     } finally {
+      setVoicePackSaveStage(null);
       setIsSavingVoicePack(false);
     }
   }, [
@@ -1209,6 +1230,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         candidates={voicePackCandidates}
         selectedIds={voicePackSelectedIds}
         isSaving={isSavingVoicePack}
+        savingLabel={getPodcastGenerationLabel(voicePackSaveStage)}
         canRetryAudio={debateVoice.canRetryAudio}
         onToggleClip={handleToggleVoicePackClip}
         onSelectAllReady={handleSelectAllReadyVoicePackClips}

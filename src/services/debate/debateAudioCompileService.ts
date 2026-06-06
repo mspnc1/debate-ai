@@ -50,9 +50,28 @@ interface CompileDependencies {
   downloadAsync?: typeof FileSystem.downloadAsync;
   createSession?: (request: CreateCompileSessionRequest) => Promise<CreateCompileSessionResponse>;
   compilePack?: (request: CompilePackRequest) => Promise<CompilePackResponse>;
+  onStageChange?: (stage: DebateAudioCompileStage) => void;
+  createSessionTimeoutMs?: number;
+  uploadTimeoutMs?: number;
+  compileTimeoutMs?: number;
+  downloadTimeoutMs?: number;
 }
 
 let functionsModulePromise: Promise<typeof import('@react-native-firebase/functions')> | null = null;
+
+export type DebateAudioCompileStage =
+  | 'preparing'
+  | 'creating_session'
+  | 'uploading'
+  | 'compiling'
+  | 'downloading';
+
+export const DEBATE_AUDIO_CREATE_SESSION_TIMEOUT_MS = 60_000;
+export const DEBATE_AUDIO_UPLOAD_TIMEOUT_MS = 120_000;
+export const DEBATE_AUDIO_COMPILE_TIMEOUT_MS = 8 * 60_000;
+export const DEBATE_AUDIO_DOWNLOAD_TIMEOUT_MS = 120_000;
+
+const FOREGROUND_FILE_SESSION_TYPE = FileSystem.FileSystemSessionType?.FOREGROUND ?? 1;
 
 async function loadFunctionsModule(): Promise<typeof import('@react-native-firebase/functions')> {
   if (!functionsModulePromise) {
@@ -64,23 +83,35 @@ async function loadFunctionsModule(): Promise<typeof import('@react-native-fireb
   return functionsModulePromise;
 }
 
-async function callFunction<Request, Response>(name: string, payload: Request): Promise<Response> {
+async function callFunction<Request, Response>(
+  name: string,
+  payload: Request,
+  timeoutMs?: number
+): Promise<Response> {
   const functionsModule = await loadFunctionsModule();
   const functions = functionsModule.getFunctions();
-  const callable = functionsModule.httpsCallable<Request, Response>(functions, name);
+  const options = timeoutMs ? { timeout: timeoutMs } : undefined;
+  const callable = functionsModule.httpsCallable<Request, Response>(functions, name, options);
   const result = await callable(payload);
   return result.data;
 }
 
-async function createCompileSession(request: CreateCompileSessionRequest): Promise<CreateCompileSessionResponse> {
+async function createCompileSession(
+  request: CreateCompileSessionRequest,
+  timeoutMs = DEBATE_AUDIO_CREATE_SESSION_TIMEOUT_MS
+): Promise<CreateCompileSessionResponse> {
   return callFunction<CreateCompileSessionRequest, CreateCompileSessionResponse>(
     'createDebateAudioCompileSession',
-    request
+    request,
+    timeoutMs
   );
 }
 
-async function compilePack(request: CompilePackRequest): Promise<CompilePackResponse> {
-  return callFunction<CompilePackRequest, CompilePackResponse>('compileDebateAudioPack', request);
+async function compilePack(
+  request: CompilePackRequest,
+  timeoutMs = DEBATE_AUDIO_COMPILE_TIMEOUT_MS
+): Promise<CompilePackResponse> {
+  return callFunction<CompilePackRequest, CompilePackResponse>('compileDebateAudioPack', request, timeoutMs);
 }
 
 function ensureVoicePackDirectory(manifest: DebateVoicePackManifest): string {
@@ -103,6 +134,27 @@ function getFileSize(info: Awaited<ReturnType<typeof FileSystem.getInfoAsync>>):
 
 function buildLocalCompiledFileName(jobId: string): string {
   return `compiled_${jobId}.mp3`;
+}
+
+function stageTimeoutMessage(stage: string): string {
+  return `Podcast generation timed out while ${stage}. Please try again with fewer clips or a stronger connection.`;
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return promise;
+  }
+
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  });
 }
 
 export async function buildCompileSessionRequest(
@@ -145,30 +197,52 @@ export async function compileDebateVoicePack(
   const downloadAsync = dependencies.downloadAsync || FileSystem.downloadAsync;
   const sessionFactory = dependencies.createSession || createCompileSession;
   const compiler = dependencies.compilePack || compilePack;
+  const onStageChange = dependencies.onStageChange;
+  const createSessionTimeoutMs = dependencies.createSessionTimeoutMs ?? DEBATE_AUDIO_CREATE_SESSION_TIMEOUT_MS;
+  const uploadTimeoutMs = dependencies.uploadTimeoutMs ?? DEBATE_AUDIO_UPLOAD_TIMEOUT_MS;
+  const compileTimeoutMs = dependencies.compileTimeoutMs ?? DEBATE_AUDIO_COMPILE_TIMEOUT_MS;
+  const downloadTimeoutMs = dependencies.downloadTimeoutMs ?? DEBATE_AUDIO_DOWNLOAD_TIMEOUT_MS;
   const directoryUri = ensureVoicePackDirectory(manifest);
 
+  onStageChange?.('preparing');
   const request = await buildCompileSessionRequest(manifest, getInfoAsync);
-  const session = await sessionFactory(request);
+  onStageChange?.('creating_session');
+  const session = await withTimeout(
+    sessionFactory(request),
+    createSessionTimeoutMs,
+    stageTimeoutMessage('starting the compile job')
+  );
   const uploadTargetsById = new Map(session.uploadUrls.map((target) => [target.clipId, target]));
 
+  onStageChange?.('uploading');
   await Promise.all(manifest.clips.map(async (clip) => {
     const target = uploadTargetsById.get(clip.id);
     if (!target) {
       throw new Error(`Upload target missing for ${clip.speakerName}.`);
     }
-    const result = await uploadAsync(target.uploadUrl, clip.uri, {
-      httpMethod: 'PUT',
-      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-      headers: {
-        'Content-Type': target.contentType || clip.mimeType,
-      },
-    });
+    const result = await withTimeout(
+      uploadAsync(target.uploadUrl, clip.uri, {
+        httpMethod: 'PUT',
+        uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+        sessionType: FOREGROUND_FILE_SESSION_TYPE,
+        headers: {
+          'Content-Type': target.contentType || clip.mimeType,
+        },
+      }),
+      uploadTimeoutMs,
+      stageTimeoutMessage(`uploading ${clip.speakerName}'s voice clip`)
+    );
     if (result.status < 200 || result.status >= 300) {
       throw new Error(`Failed to upload ${clip.speakerName}'s voice clip.`);
     }
   }));
 
-  const compiled = await compiler({ jobId: session.jobId });
+  onStageChange?.('compiling');
+  const compiled = await withTimeout(
+    compiler({ jobId: session.jobId }),
+    compileTimeoutMs,
+    stageTimeoutMessage('compiling the podcast')
+  );
   await makeDirectoryAsync(directoryUri, { intermediates: true }).catch(() => undefined);
 
   const previousCompiledUri = manifest.compiledAudio?.uri;
@@ -178,7 +252,17 @@ export async function compileDebateVoicePack(
 
   const fileName = buildLocalCompiledFileName(session.jobId);
   const localUri = `${directoryUri}${fileName}`;
-  await downloadAsync(compiled.downloadUrl, localUri);
+  onStageChange?.('downloading');
+  const downloadResult = await withTimeout(
+    downloadAsync(compiled.downloadUrl, localUri, {
+      sessionType: FOREGROUND_FILE_SESSION_TYPE,
+    }),
+    downloadTimeoutMs,
+    stageTimeoutMessage('downloading the podcast file')
+  );
+  if (downloadResult.status < 200 || downloadResult.status >= 300) {
+    throw new Error('Failed to download the generated podcast file.');
+  }
 
   return {
     id: session.jobId,

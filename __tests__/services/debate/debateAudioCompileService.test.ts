@@ -2,6 +2,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import {
   buildCompileSessionRequest,
   compileDebateVoicePack,
+  DEBATE_AUDIO_DOWNLOAD_TIMEOUT_MS,
+  DEBATE_AUDIO_UPLOAD_TIMEOUT_MS,
 } from '@/services/debate/debateAudioCompileService';
 import type { DebateVoicePackManifest } from '@/types/media';
 
@@ -86,6 +88,7 @@ describe('debateAudioCompileService', () => {
     const uploadAsync = jest.fn().mockResolvedValue({ status: 200, body: '', headers: {} }) as unknown as typeof FileSystem.uploadAsync;
     const downloadAsync = jest.fn().mockResolvedValue({ uri: 'file:///packs/debate_1/compiled_job-1.mp3', status: 200, headers: {} }) as unknown as typeof FileSystem.downloadAsync;
     const makeDirectoryAsync = jest.fn().mockResolvedValue(undefined) as unknown as typeof FileSystem.makeDirectoryAsync;
+    const onStageChange = jest.fn();
     const createSession = jest.fn().mockResolvedValue({
       jobId: 'job-1',
       outputMimeType: 'audio/mpeg',
@@ -123,6 +126,7 @@ describe('debateAudioCompileService', () => {
       makeDirectoryAsync,
       createSession,
       compilePack,
+      onStageChange,
     })).resolves.toEqual({
       id: 'job-1',
       uri: 'file:///packs/debate_1/compiled_job-1.mp3',
@@ -146,6 +150,7 @@ describe('debateAudioCompileService', () => {
       expect.objectContaining({
         httpMethod: 'PUT',
         uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+        sessionType: 1,
         headers: { 'Content-Type': 'audio/mpeg' },
       })
     );
@@ -153,7 +158,62 @@ describe('debateAudioCompileService', () => {
     expect(makeDirectoryAsync).toHaveBeenCalledWith('file:///packs/debate_1/', { intermediates: true });
     expect(downloadAsync).toHaveBeenCalledWith(
       'https://download.example/output.mp3',
-      'file:///packs/debate_1/compiled_job-1.mp3'
+      'file:///packs/debate_1/compiled_job-1.mp3',
+      { sessionType: 1 }
     );
+    expect(onStageChange).toHaveBeenNthCalledWith(1, 'preparing');
+    expect(onStageChange).toHaveBeenNthCalledWith(2, 'creating_session');
+    expect(onStageChange).toHaveBeenNthCalledWith(3, 'uploading');
+    expect(onStageChange).toHaveBeenNthCalledWith(4, 'compiling');
+    expect(onStageChange).toHaveBeenNthCalledWith(5, 'downloading');
+  });
+
+  it('rejects instead of spinning forever when the compile callable does not settle', async () => {
+    const getInfoAsync = jest.fn(async (uri: string) => ({
+      exists: true,
+      uri,
+      size: 1024,
+      isDirectory: false,
+      modificationTime: 0,
+    })) as unknown as typeof FileSystem.getInfoAsync;
+    const uploadAsync = jest.fn().mockResolvedValue({ status: 200, body: '', headers: {} }) as unknown as typeof FileSystem.uploadAsync;
+    const downloadAsync = jest.fn() as unknown as typeof FileSystem.downloadAsync;
+    const makeDirectoryAsync = jest.fn().mockResolvedValue(undefined) as unknown as typeof FileSystem.makeDirectoryAsync;
+    const createSession = jest.fn().mockResolvedValue({
+      jobId: 'job-1',
+      outputMimeType: 'audio/mpeg',
+      uploadUrls: [
+        {
+          clipId: 'clip_1',
+          uploadUrl: 'https://upload.example/clip-1',
+          storagePath: 'tmp/clip-1.mp3',
+          expiresAt: 2000,
+          contentType: 'audio/mpeg',
+        },
+        {
+          clipId: 'clip_2',
+          uploadUrl: 'https://upload.example/clip-2',
+          storagePath: 'tmp/clip-2.mp3',
+          expiresAt: 2000,
+          contentType: 'audio/mpeg',
+        },
+      ],
+    });
+    const compilePack = jest.fn(() => new Promise(() => undefined));
+
+    const promise = compileDebateVoicePack(manifest, {
+      getInfoAsync,
+      uploadAsync,
+      downloadAsync,
+      makeDirectoryAsync,
+      createSession,
+      compilePack,
+      uploadTimeoutMs: DEBATE_AUDIO_UPLOAD_TIMEOUT_MS,
+      compileTimeoutMs: 1,
+      downloadTimeoutMs: DEBATE_AUDIO_DOWNLOAD_TIMEOUT_MS,
+    });
+
+    await expect(promise).rejects.toThrow('Podcast generation timed out while compiling the podcast');
+    expect(downloadAsync).not.toHaveBeenCalled();
   });
 });

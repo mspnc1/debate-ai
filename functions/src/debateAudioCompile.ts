@@ -24,6 +24,8 @@ export const DEFAULT_DEBATE_AUDIO_PAUSE_MS = 1500;
 export const DEBATE_PODCAST_OPENING_HANDOFF_MS = 500;
 export const DEBATE_PODCAST_OPENING_TRACK = 'Arena Opening.mp3';
 export const DEBATE_PODCAST_OUTRO_TRACK = 'Symposium Converge.mp3';
+const CLIP_DOWNLOAD_CONCURRENCY = 4;
+const FFMPEG_TIMEOUT_MS = 8 * 60 * 1000;
 const UPLOAD_URL_TTL_MS = 30 * 60 * 1000;
 const DOWNLOAD_URL_TTL_MS = 24 * 60 * 60 * 1000;
 const BUNDLED_DEBATE_PODCAST_MEDIA_DIR = path.join(__dirname, 'debate-podcast-media');
@@ -206,7 +208,7 @@ function escapeFfmpegText(value: string): string {
   return value.replace(/[\\:']/g, '\\$&');
 }
 
-async function runFfmpeg(args: string[], description: string): Promise<void> {
+async function runFfmpeg(args: string[], description: string, timeoutMs = FFMPEG_TIMEOUT_MS): Promise<void> {
   if (!ffmpegPath) {
     throw new HttpsError('internal', 'FFmpeg is not available in this Functions runtime.');
   }
@@ -214,17 +216,39 @@ async function runFfmpeg(args: string[], description: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const child = spawn(ffmpegPath, args, { stdio: ['ignore', 'ignore', 'pipe'] });
     const stderr: Buffer[] = [];
+    let settled = false;
+    const timeoutId = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      child.kill('SIGKILL');
+      reject(new Error(`${description} timed out after ${Math.round(timeoutMs / 1000)} seconds.`));
+    }, timeoutMs);
+
+    const finish = (error?: Error) => {
+      if (settled) return false;
+      settled = true;
+      clearTimeout(timeoutId);
+      if (error) {
+        reject(error);
+      } else {
+        resolve();
+      }
+      return true;
+    };
+
     child.stderr.on('data', (chunk: Buffer) => {
       stderr.push(chunk);
     });
-    child.on('error', reject);
+    child.on('error', (error) => {
+      finish(error);
+    });
     child.on('close', (code) => {
       if (code === 0) {
-        resolve();
+        finish();
         return;
       }
       const detail = Buffer.concat(stderr).toString('utf8').slice(-2000);
-      reject(new Error(`${description} failed with exit code ${code}: ${detail}`));
+      finish(new Error(`${description} failed with exit code ${code}: ${detail}`));
     });
   });
 }
@@ -278,6 +302,26 @@ async function cleanupStorage(paths: string[]): Promise<void> {
       console.warn('[debateAudioCompile] Failed to delete temporary object', { storagePath, error });
     }
   }));
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const workerCount = Math.min(Math.max(1, concurrency), items.length);
+
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  }));
+
+  return results;
 }
 
 export const createDebateAudioCompileSession = onCall(
@@ -367,17 +411,19 @@ export const compileDebateAudioPack = onCall(
     const tempStoragePaths = job.clips.map((clip) => clip.storagePath);
 
     try {
+      console.info('[debateAudioCompile] Starting compile', { jobId, clipCount: job.clips.length });
       const actualSizes = await Promise.all(job.clips.map((clip) => getExistingUploadedSize(clip.storagePath)));
       const actualTotalBytes = actualSizes.reduce((sum, size) => sum + size, 0);
       if (actualTotalBytes > MAX_TOTAL_BYTES) {
         throw new HttpsError('invalid-argument', 'Uploaded audio clips are too large to compile.');
       }
 
-      const localClipPaths = await Promise.all(job.clips.map(async (clip, index) => {
+      const localClipPaths = await mapWithConcurrency(job.clips, CLIP_DOWNLOAD_CONCURRENCY, async (clip, index) => {
         const localPath = path.join(workDir, `clip_${String(index + 1).padStart(3, '0')}.${extensionForMimeType(clip.mimeType)}`);
         await bucket().file(clip.storagePath).download({ destination: localPath });
         return localPath;
-      }));
+      });
+      console.info('[debateAudioCompile] Downloaded clips', { jobId, clipCount: localClipPaths.length });
 
       const bundledTrackPaths: Record<DebatePodcastTrackKey, string> = {
         opening: await resolveBundledPodcastMediaPath(DEBATE_PODCAST_OPENING_TRACK),
@@ -405,7 +451,9 @@ export const compileDebateAudioPack = onCall(
       const inputArgs = orderedInputs.flatMap((inputPath) => ['-i', inputPath]);
       const title = job.topic ? `title=${escapeFfmpegText(job.topic)}` : undefined;
       const metadataArgs = title ? ['-metadata', title] : [];
+      console.info('[debateAudioCompile] Running FFmpeg', { jobId, inputCount: orderedInputs.length });
       await runFfmpeg([
+        '-nostdin',
         '-y',
         ...inputArgs,
         '-filter_complex', buildConcatFilter(orderedInputs.length),
@@ -417,6 +465,7 @@ export const compileDebateAudioPack = onCall(
         ...metadataArgs,
         outputPath,
       ], 'compiling debate audio');
+      console.info('[debateAudioCompile] FFmpeg complete', { jobId });
 
       const outputFile = bucket().file(job.outputStoragePath);
       await outputFile.save(await fs.readFile(outputPath), {
@@ -445,6 +494,10 @@ export const compileDebateAudioPack = onCall(
         outputSizeBytes: Number(outputMetadata.size || 0),
         completedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
+      });
+      console.info('[debateAudioCompile] Compile succeeded', {
+        jobId,
+        sizeBytes: Number(outputMetadata.size || 0),
       });
 
       return {

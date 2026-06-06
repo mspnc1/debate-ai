@@ -993,6 +993,8 @@ describe('DebateScreen', () => {
           messageId: 'msg_1_openai',
           uri: 'file:///debate/msg_1.mp3',
         })],
+      }), expect.objectContaining({
+        onStageChange: expect.any(Function),
       }));
       expect(store.getState().create.mediaGallery[0]).toMatchObject({
         mediaType: 'audio',
