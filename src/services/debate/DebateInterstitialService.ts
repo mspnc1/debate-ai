@@ -2,6 +2,7 @@ import type { AI, Citation, DebateInterstitialKind, DebatePodcastFlowStep, Messa
 import type { AudienceDecisionResult, DebateSideId, MessageSpec, PhaseId, PresetConfig } from '@/config/debate/formats';
 import { AIService } from '@/services/aiAdapter';
 import { getModelById, resolveProviderModelId } from '@/config/modelConfigs';
+import { getProviderErrorMessage, withProviderRetry } from '@/services/retry/ProviderRetryService';
 import type { DebateSession } from './DebateOrchestrator';
 
 const MC_SENDER = 'Debate MC';
@@ -14,6 +15,19 @@ const INTERNAL_CUE_LEAK_PATTERN = /\b(?:vote[_\s-]*segue|phase[_\s-]*segue|mc\s+
 const RECENT_MC_LIMIT = 3;
 const MAX_MC_SCRIPT_CHARS = 700;
 const MC_OUTPUT_SAFETY_TOKENS = 1024;
+
+type McFallbackReason =
+  | 'provider_error'
+  | 'empty_output'
+  | 'third_party_brand'
+  | 'internal_cue'
+  | 'too_long'
+  | 'missing_audience_question'
+  | 'premature_judgment';
+
+type McScriptValidation =
+  | { ok: true; script: string }
+  | { ok: false; reason: Exclude<McFallbackReason, 'provider_error'> };
 
 const PHASE_LABELS: Record<PhaseId, string> = {
   opening: 'opening speeches',
@@ -90,6 +104,24 @@ function namesFor(participants: AI[]): string {
   if (participants.length === 0) return 'the side';
   if (participants.length === 1) return participants[0].name;
   return `${participants.slice(0, -1).map((participant) => participant.name).join(', ')} and ${participants[participants.length - 1].name}`;
+}
+
+function buildIntroListeningFrame(topic: string): string {
+  const normalized = topic.toLowerCase();
+
+  if (/\b(?:minecraft|video games?|games?|gaming|players?|versions?|editions?|modding|servers?|console|pc)\b/i.test(normalized)) {
+    return 'Listen for how each side defines the standard of comparison, from play experience to community support and technical tradeoffs.';
+  }
+
+  if (/\b(?:which|what)\b.*\b(?:better|best|superior|preferable)\b|\b(?:better|best|superior|preferable)\b/i.test(normalized)) {
+    return 'Listen for how each side defines the standard of comparison and which tradeoffs matter most.';
+  }
+
+  if (/\bshould\b/i.test(normalized)) {
+    return 'Listen for how each side weighs benefits, costs, and consequences without assuming the answer.';
+  }
+
+  return 'Listen for the key definitions, tradeoffs, and examples each side uses to test the motion.';
 }
 
 function getParticipantForMessageSpec(participants: AI[], preset: PresetConfig, messageSpec?: MessageSpec): AI | undefined {
@@ -197,23 +229,34 @@ function trimAtSentenceBoundary(text: string): string {
   return trimmed.length > 0 ? trimmed : '';
 }
 
-function cleanGeneratedScript(text: string): string {
-  const cleaned = text
+function validateGeneratedScript(text: string): McScriptValidation {
+  const normalized = text
     .replace(/^["'\s]+|["'\s]+$/g, '')
     .replace(/\s+/g, ' ')
-    .trim()
+    .trim();
+
+  if (INTERNAL_CUE_LEAK_PATTERN.test(normalized)) {
+    return { ok: false, reason: 'internal_cue' };
+  }
+
+  const cleaned = normalized
     .replace(INTERNAL_CUE_PREFIX_PATTERN, '')
     .trim();
 
-  if (
-    !cleaned ||
-    THIRD_PARTY_DEBATE_BRAND_PATTERN.test(cleaned) ||
-    INTERNAL_CUE_LEAK_PATTERN.test(cleaned)
-  ) {
-    return '';
+  if (!cleaned) {
+    return { ok: false, reason: 'empty_output' };
   }
 
-  return trimAtSentenceBoundary(cleaned);
+  if (THIRD_PARTY_DEBATE_BRAND_PATTERN.test(cleaned)) {
+    return { ok: false, reason: 'third_party_brand' };
+  }
+
+  const script = trimAtSentenceBoundary(cleaned);
+  if (!script) {
+    return { ok: false, reason: 'too_long' };
+  }
+
+  return { ok: true, script };
 }
 
 function getMcParameters(): Partial<ModelParameters> {
@@ -345,6 +388,30 @@ async function sendMcPrompt(
   ) as Promise<CitationBackedResult>;
 }
 
+async function sendMcPromptWithRetry(
+  input: CreateDebateInterstitialInput,
+  adapter: McAdapter | undefined,
+  parameters: Partial<ModelParameters>
+): Promise<CitationBackedResult> {
+  const podcast = input.session.voiceConfig?.podcast;
+  return withProviderRetry(
+    () => sendMcPrompt(input, adapter, parameters),
+    {
+      provider: podcast?.mc.provider,
+      model: getResolvedMcModel(input.session),
+      operation: 'debate_mc_interstitial',
+    }
+  );
+}
+
+function sanitizeFallbackDetail(error: unknown): string {
+  return getProviderErrorMessage(error)
+    .replace(/\bsk-[A-Za-z0-9_-]+\b/g, '[redacted]')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 220);
+}
+
 export function buildDebateInterstitialTemplate(input: Omit<CreateDebateInterstitialInput, 'aiService' | 'now'>): string {
   const { session, kind, completedMessageSpec, nextMessageSpec, votingLabel, winnerName, audienceResult } = input;
   const proposition = namesFor(getSideParticipants(session.participants, session.preset, 'aff'));
@@ -355,7 +422,7 @@ export function buildDebateInterstitialTemplate(input: Omit<CreateDebateIntersti
 
   switch (kind) {
     case 'intro':
-      return `${MC_INTRO_OPENING_LINE} The motion is: ${session.topic}. This question sits at the intersection of public values, practical tradeoffs, and the choices people ask institutions to make. Speaking for the motion: ${proposition}. Speaking against it: ${opposition}.`;
+      return `${MC_INTRO_OPENING_LINE} The motion is: ${session.topic}. ${buildIntroListeningFrame(session.topic)} Speaking for the motion: ${proposition}. Speaking against it: ${opposition}.`;
     case 'phase_segue':
       if (nextMessageSpec?.phase === 'question' && !session.audienceQuestions) {
         return `That concludes ${completedPhase || 'this phase'}. We will collect audience questions now, and each side will hear its question from the MC before answering.`;
@@ -388,7 +455,7 @@ function buildPrompt(input: Omit<CreateDebateInterstitialInput, 'aiService' | 'n
   const liveContextEnabled = mcModelSupportsWebSearch(session);
   const recentLines = recentMcMessages?.slice(-RECENT_MC_LIMIT).filter(Boolean);
   const beatInstructionMap: Record<DebateInterstitialKind, string> = {
-    intro: 'Intro beat: preserve the required opening line, then frame the motion with neutral public-radio context: why this issue matters, historical resonance or current stakes, and what tension the audience should listen for. Do not answer the motion.',
+    intro: 'Intro beat: preserve the required opening line, then frame the motion with one concrete, topic-specific listening lens. If the topic is entertainment, gaming, products, sports, culture, or personal preference, do not recast it as public policy, institutional choice, or civic values. Do not answer the motion.',
     phase_segue: 'Segue beat: connect the completed phase to the next phase with color commentary about the debate structure or stakes. Do not score arguments or imply which side is ahead.',
     audience_question: 'Audience Q&A beat: read the submitted question aloud exactly, then add at most one short neutral setup for the answering side. Do not reword the question.',
     vote_segue: 'Voting beat: invite careful evaluation of burdens, clarity, and persuasion without telling the audience how to vote.',
@@ -404,16 +471,17 @@ function buildPrompt(input: Omit<CreateDebateInterstitialInput, 'aiService' | 'n
 
   return [
     'Write one concise podcast host interstitial for an AI debate.',
-    'Host voice: neutral public radio host; polished, vivid, grounded, and not comedic.',
-    'Use stakes framing, not argument framing: explain why people care, not which side is correct.',
+    'Host voice: neutral podcast host; clear, topic-specific, grounded, and not comedic.',
+    'Use listening framing, not argument framing: explain what the audience should evaluate, not which side is correct.',
     'Style: no markdown, no stage directions, no headings, no labels, one paragraph.',
     'Return only the exact words the host should say aloud.',
     kind === 'intro' || kind === 'phase_segue' ? 'Length: 2-4 sentences.' : 'Length: 1-2 sentences.',
     'Do not reference third-party debate brands or programs.',
+    'Do not use generic civics filler such as public values, institutional choices, or historical resonance unless the motion explicitly calls for that domain.',
     'Neutrality rule: do not say either side is stronger, more persuasive, more factual, ahead, winning, right, or wrong unless a vote/result has occurred.',
     liveContextEnabled
       ? 'Context mode: live web context is available. You may use broad current context if relevant, but keep it concise and do not include source lists or citation callouts in the script.'
-      : 'Context mode: broad context only. Do not make specific current claims, cite dates, quote statistics, or name recent events; use timeless historical or civic framing instead.',
+      : 'Context mode: broad context only. Do not make specific current claims, cite dates, quote statistics, or name recent events; use only the motion itself and general background.',
     beatInstructionMap[kind],
     kind === 'audience_question' ? 'Audience Q&A requirement: read the submitted question aloud exactly before the answerer responds.' : undefined,
     kind === 'intro' ? `Intro opening line to preserve: ${MC_INTRO_OPENING_LINE}` : undefined,
@@ -444,6 +512,8 @@ export async function createDebateInterstitialMessage(input: CreateDebateInterst
   const mcWebSearchEnabled = mcModelSupportsWebSearch(input.session);
   let content = template;
   let usedTemplateFallback = true;
+  let fallbackReason: McFallbackReason | undefined;
+  let fallbackDetail: string | undefined;
   let generatedByModel: string | undefined;
   let citations: Citation[] | undefined;
   let adapter: McAdapter | undefined;
@@ -457,22 +527,37 @@ export async function createDebateInterstitialMessage(input: CreateDebateInterst
     snapshot = webSearchConfig.snapshot;
     webSearchApplied = mcWebSearchEnabled && Boolean(adapter?.config);
 
-    const result = await sendMcPrompt(input, adapter, mcParameters);
-    const generated = cleanGeneratedScript(result.response);
-    if (
-      generated &&
-      (input.kind !== 'audience_question' ||
-        generatedCopyIncludesAudienceQuestion(generated, input.session, input.nextMessageSpec)) &&
-      !generatedCopyPrematurelyJudgesSide(generated, input)
+    const result = await sendMcPromptWithRetry(input, adapter, mcParameters);
+    const generated = validateGeneratedScript(result.response);
+    if (!generated.ok) {
+      fallbackReason = generated.reason;
+    } else if (
+      input.kind === 'audience_question' &&
+      !generatedCopyIncludesAudienceQuestion(generated.script, input.session, input.nextMessageSpec)
     ) {
-      content = generated;
+      fallbackReason = 'missing_audience_question';
+    } else if (generatedCopyPrematurelyJudgesSide(generated.script, input)) {
+      fallbackReason = 'premature_judgment';
+    } else {
+      content = generated.script;
       usedTemplateFallback = false;
       generatedByModel = result.modelUsed || podcast.mc.model;
       citations = mcWebSearchEnabled && result.metadata?.citations?.length
         ? result.metadata.citations
         : undefined;
     }
-  } catch {
+  } catch (error) {
+    fallbackReason = 'provider_error';
+    fallbackDetail = sanitizeFallbackDetail(error);
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[DebateInterstitialService] Falling back to local MC template', {
+        kind: input.kind,
+        provider: podcast.mc.provider,
+        model: getResolvedMcModel(input.session),
+        reason: fallbackReason,
+        detail: fallbackDetail,
+      });
+    }
     usedTemplateFallback = true;
   } finally {
     restoreMcWebSearch(adapter, snapshot);
@@ -492,6 +577,8 @@ export async function createDebateInterstitialMessage(input: CreateDebateInterst
         generatedByProvider: podcast.mc.provider,
         generatedByModel,
         usedTemplateFallback,
+        fallbackReason,
+        fallbackDetail,
       },
       ...(webSearchApplied && !usedTemplateFallback ? { webSearchEnabled: true } : {}),
       ...(citations ? { citations } : {}),

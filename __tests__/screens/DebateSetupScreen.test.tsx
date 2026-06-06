@@ -843,7 +843,22 @@ describe('DebateSetupScreen', () => {
 
     expect(personalitySelectorProps.podcastModeEnabled).toBe(true);
     expect(personalitySelectorProps.podcastMC.provider).toBe('google');
-    expect(personalitySelectorProps.podcastMCVoice).toEqual({ voiceId: 'voice-1', voiceName: 'Voice One' });
+    expect(personalitySelectorProps.podcastMCVoice).toBeUndefined();
+
+    await act(async () => {
+      await personalitySelectorProps.onStartDebate();
+    });
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Choose an MC Voice',
+      'Choose an ElevenLabs voice for the podcast MC before starting.',
+    );
+    expect(navigation.navigate).not.toHaveBeenCalledWith('Debate', expect.anything());
+
+    act(() => {
+      personalitySelectorProps.onPodcastMCVoiceSelect({ id: 'voice-host', name: 'Host Voice' });
+    });
+    await flush();
+    (Alert.alert as jest.Mock).mockClear();
 
     act(() => {
       personalitySelectorProps.onTtsModelChange('eleven_multilingual_v2');
@@ -865,7 +880,7 @@ describe('DebateSetupScreen', () => {
             provider: 'google',
             model: expect.any(String),
           }),
-          mcVoice: { voiceId: 'voice-1', voiceName: 'Voice One' },
+          mcVoice: { voiceId: 'voice-host', voiceName: 'Host Voice' },
         },
       }),
     }));

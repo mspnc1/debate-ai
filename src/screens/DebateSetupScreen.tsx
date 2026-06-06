@@ -622,20 +622,6 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
     });
   }, [debateVoiceOptions, hasVerifiedElevenLabs, selectedAIs]);
 
-  useEffect(() => {
-    if (!podcastModeEnabled || !hasVerifiedElevenLabs || debateVoiceOptions.length === 0) return;
-    setPodcastMCVoice((current) => {
-      if (current) return current;
-      const debaterVoiceIds = new Set(Object.values(debateVoiceSelections).map((selection) => selection.voiceId));
-      const sortedVoices = sortDebateVoicesForRole(debateVoiceOptions, 'mc');
-      const fallbackVoice = sortedVoices.find((voice) => !debaterVoiceIds.has(voice.id)) || sortedVoices[0];
-      return fallbackVoice ? {
-        voiceId: fallbackVoice.id,
-        voiceName: fallbackVoice.name,
-      } : current;
-    });
-  }, [debateVoiceOptions, debateVoiceSelections, hasVerifiedElevenLabs, podcastModeEnabled]);
-
   const handleVoiceDebateToggle = useCallback((enabled: boolean) => {
     setVoiceDebateEnabled(enabled);
     if (enabled && debateVoiceOptions.length === 0) {

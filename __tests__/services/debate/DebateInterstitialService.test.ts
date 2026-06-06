@@ -135,7 +135,7 @@ describe('DebateInterstitialService', () => {
     });
   });
 
-  it('prompts the MC as a neutral public-radio host with stakes framing', async () => {
+  it('prompts the MC as a neutral topic-specific host with listening framing', async () => {
     const aiService = {
       sendMessage: jest.fn().mockResolvedValue({
         response: 'Welcome to the debate. This motion reaches into everyday choices and public priorities.',
@@ -151,9 +151,10 @@ describe('DebateInterstitialService', () => {
     });
 
     const prompt = aiService.sendMessage.mock.calls[0][1] as string;
-    expect(prompt).toContain('neutral public radio host');
-    expect(prompt).toContain('Use stakes framing, not argument framing');
+    expect(prompt).toContain('neutral podcast host');
+    expect(prompt).toContain('Use listening framing, not argument framing');
     expect(prompt).toContain('Intro beat: preserve the required opening line');
+    expect(prompt).toContain('do not recast it as public policy, institutional choice, or civic values');
     expect(prompt).toContain('Neutrality rule: do not say either side is stronger');
     expect(prompt).toContain('Context mode: live web context is available');
   });
@@ -370,6 +371,7 @@ describe('DebateInterstitialService', () => {
     expect(message?.content).toContain('Welcome to the Symposium AI Debate Arena');
     expect(message?.content).not.toContain('clearly stronger');
     expect(message?.metadata?.debateInterstitial?.usedTemplateFallback).toBe(true);
+    expect(message?.metadata?.debateInterstitial?.fallbackReason).toBe('premature_judgment');
   });
 
   it('opens local intro templates with the Symposium AI debate arena line', () => {
@@ -380,6 +382,26 @@ describe('DebateInterstitialService', () => {
 
     expect(copy).toContain('Welcome to the Symposium AI Debate Arena: where ideas converge, and understanding emerges.');
     expect(copy).toContain('The motion is: Resolved: public transit should be free.');
+    expect(copy).not.toContain('public values');
+    expect(copy).not.toContain('institutions');
+  });
+
+  it('uses comparison framing for Minecraft-style local intro templates', () => {
+    const session = {
+      ...createSession(),
+      topic: 'Which version of Minecraft is superior?',
+    };
+
+    const copy = buildDebateInterstitialTemplate({
+      session,
+      kind: 'intro',
+    });
+
+    expect(copy).toContain('Which version of Minecraft is superior?');
+    expect(copy).toContain('play experience');
+    expect(copy).toContain('community support');
+    expect(copy).not.toContain('public values');
+    expect(copy).not.toContain('institutions');
   });
 
   it('falls back to local copy if generated copy references a third-party debate brand', async () => {
@@ -403,6 +425,7 @@ describe('DebateInterstitialService', () => {
     expect(message?.metadata?.debateInterstitial).toMatchObject({
       kind: 'intro',
       usedTemplateFallback: true,
+      fallbackReason: 'third_party_brand',
     });
   });
 
@@ -445,6 +468,7 @@ describe('DebateInterstitialService', () => {
 
     expect(message?.content).toContain('Welcome to the Symposium AI Debate Arena');
     expect(message?.metadata?.debateInterstitial?.usedTemplateFallback).toBe(true);
+    expect(message?.metadata?.debateInterstitial?.fallbackReason).toBe('too_long');
   });
 
   it('falls back to deterministic local copy when MC generation fails', async () => {
@@ -465,7 +489,9 @@ describe('DebateInterstitialService', () => {
     expect(message?.metadata?.debateInterstitial).toMatchObject({
       kind: 'phase_segue',
       usedTemplateFallback: true,
+      fallbackReason: 'provider_error',
     });
+    expect(message?.metadata?.debateInterstitial?.fallbackDetail).toContain('missing key');
   });
 
   it('does not let internal vote cue labels leak into spoken MC copy', async () => {
@@ -490,6 +516,7 @@ describe('DebateInterstitialService', () => {
     expect(message?.metadata?.debateInterstitial).toMatchObject({
       kind: 'vote_segue',
       usedTemplateFallback: true,
+      fallbackReason: 'internal_cue',
     });
   });
 
@@ -547,6 +574,7 @@ describe('DebateInterstitialService', () => {
       kind: 'audience_question',
       label: 'MC Audience Question',
       usedTemplateFallback: true,
+      fallbackReason: 'missing_audience_question',
     });
   });
 });

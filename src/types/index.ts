@@ -163,6 +163,8 @@ export interface DebateInterstitialMetadata {
   generatedByProvider?: AIProvider;
   generatedByModel?: string;
   usedTemplateFallback?: boolean;
+  fallbackReason?: string;
+  fallbackDetail?: string;
 }
 
 export interface MessageMetadata {
