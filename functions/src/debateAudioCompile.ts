@@ -16,6 +16,9 @@ const STORAGE_BUCKET = 'symposium-ai.firebasestorage.app';
 const COMPILE_ROOT = 'debate-audio-compile';
 const OUTPUT_MIME_TYPE = 'audio/mpeg';
 const OUTPUT_BITRATE = '128k';
+export const DEBATE_PODCAST_ARTIST = 'SymposiumAI';
+export const DEBATE_PODCAST_AUTHOR = 'Braveheart Innovations';
+export const DEBATE_PODCAST_ALBUM = 'SymposiumAI Debate Podcast';
 const MAX_CLIPS = 80;
 const MAX_CLIP_BYTES = 25 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 250 * 1024 * 1024;
@@ -206,6 +209,24 @@ async function resolveBundledPodcastMediaPath(fileName: string): Promise<string>
 
 function escapeFfmpegText(value: string): string {
   return value.replace(/[\\:']/g, '\\$&');
+}
+
+export function buildOutputMetadataArgs(topic?: string): string[] {
+  const title = topic?.trim() || 'Debate Podcast';
+  const tags: Array<[string, string]> = [
+    ['title', title],
+    ['artist', DEBATE_PODCAST_ARTIST],
+    ['album_artist', DEBATE_PODCAST_AUTHOR],
+    ['author', DEBATE_PODCAST_AUTHOR],
+    ['album', DEBATE_PODCAST_ALBUM],
+    ['genre', 'Podcast'],
+  ];
+
+  return [
+    '-map_metadata', '-1',
+    '-id3v2_version', '3',
+    ...tags.flatMap(([key, value]) => ['-metadata', `${key}=${escapeFfmpegText(value)}`]),
+  ];
 }
 
 async function runFfmpeg(args: string[], description: string, timeoutMs = FFMPEG_TIMEOUT_MS): Promise<void> {
@@ -449,8 +470,7 @@ export const compileDebateAudioPack = onCall(
 
       const outputPath = path.join(workDir, 'debate-podcast.mp3');
       const inputArgs = orderedInputs.flatMap((inputPath) => ['-i', inputPath]);
-      const title = job.topic ? `title=${escapeFfmpegText(job.topic)}` : undefined;
-      const metadataArgs = title ? ['-metadata', title] : [];
+      const metadataArgs = buildOutputMetadataArgs(job.topic);
       console.info('[debateAudioCompile] Running FFmpeg', { jobId, inputCount: orderedInputs.length });
       await runFfmpeg([
         '-nostdin',

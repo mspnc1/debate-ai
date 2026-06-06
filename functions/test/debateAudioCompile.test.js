@@ -3,6 +3,10 @@ const { describe, it } = require('node:test');
 const {
   buildDebatePodcastInputSequence,
   buildConcatFilter,
+  buildOutputMetadataArgs,
+  DEBATE_PODCAST_ALBUM,
+  DEBATE_PODCAST_ARTIST,
+  DEBATE_PODCAST_AUTHOR,
   DEBATE_PODCAST_OPENING_TRACK,
   DEBATE_PODCAST_OUTRO_TRACK,
   DEBATE_PODCAST_OPENING_HANDOFF_MS,
@@ -69,6 +73,19 @@ describe('debate audio compile helpers', () => {
       { kind: 'clip', clipIndex: 1 },
       { kind: 'silence', pauseMs: 1200 },
       { kind: 'track', track: 'outro' },
+    ]);
+  });
+
+  it('strips inherited clip metadata and writes Symposium podcast tags', () => {
+    assert.deepEqual(buildOutputMetadataArgs('Java vs Bedrock'), [
+      '-map_metadata', '-1',
+      '-id3v2_version', '3',
+      '-metadata', 'title=Java vs Bedrock',
+      '-metadata', `artist=${DEBATE_PODCAST_ARTIST}`,
+      '-metadata', `album_artist=${DEBATE_PODCAST_AUTHOR}`,
+      '-metadata', `author=${DEBATE_PODCAST_AUTHOR}`,
+      '-metadata', `album=${DEBATE_PODCAST_ALBUM}`,
+      '-metadata', 'genre=Podcast',
     ]);
   });
 
