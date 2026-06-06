@@ -13,6 +13,7 @@ import type {
 const mockRecentList = jest.fn();
 const mockRecentRecord = jest.fn();
 const mockFavList = jest.fn();
+const mockFavListIds = jest.fn();
 const mockFavAdd = jest.fn();
 const mockFavRemove = jest.fn();
 
@@ -35,6 +36,7 @@ jest.mock('@/services/debate/DebateVoiceRecentService', () => ({
 jest.mock('@/services/debate/DebateVoiceFavoriteService', () => ({
   DebateVoiceFavoriteService: {
     list: (...args: unknown[]) => mockFavList(...args),
+    listIds: (...args: unknown[]) => mockFavListIds(...args),
     add: (...args: unknown[]) => mockFavAdd(...args),
     remove: (...args: unknown[]) => mockFavRemove(...args),
   },
@@ -88,6 +90,7 @@ describe('DebateVoicePicker', () => {
     ]);
     mockRecentRecord.mockResolvedValue(undefined);
     mockFavList.mockResolvedValue([]);
+    mockFavListIds.mockResolvedValue([]);
     mockFavAdd.mockResolvedValue(undefined);
     mockFavRemove.mockResolvedValue(undefined);
   });
@@ -222,6 +225,28 @@ describe('DebateVoicePicker', () => {
     expect(mockFavAdd).toHaveBeenCalledWith(expect.objectContaining({ id: 'voice-host' }));
   });
 
+  it('shows persisted favorites on first open before loading default voices', async () => {
+    const favoriteVoice: MediaProviderVoiceOption = {
+      id: 'favorite-voice',
+      name: 'Saved Favorite',
+      voice_id: 'favorite-voice',
+      category: 'cloned',
+      sourceVoiceType: 'personal',
+    };
+    mockFavList.mockResolvedValue([favoriteVoice]);
+    mockFavListIds.mockResolvedValue(['favorite-voice']);
+    const onLoadVoices = jest.fn(async (): Promise<MediaProviderOptionsResponse> => singlePage(defaultVoices, 2));
+
+    const { getByText, queryByText } = renderWithProviders(
+      <DebateVoicePicker visible target={{ kind: 'debater', ai: debater }} voiceSelections={{}} onClose={jest.fn()} onLoadVoices={onLoadVoices} onVoiceSelect={jest.fn()} />
+    );
+    await flush(0);
+
+    await waitFor(() => { expect(getByText('Saved Favorite')).toBeTruthy(); });
+    expect(queryByText('Studio Host')).toBeNull();
+    expect(onLoadVoices).not.toHaveBeenCalled();
+  });
+
   it('browses the community library and adds + favorites a voice on select', async () => {
     const onLoadVoices = jest.fn(async (): Promise<MediaProviderOptionsResponse> => singlePage(defaultVoices, 2));
     const communityVoice: MediaProviderVoiceOption = {
@@ -251,7 +276,7 @@ describe('DebateVoicePicker', () => {
     await flush(0);
     await waitFor(() => { expect(onAddSharedVoice).toHaveBeenCalledWith(expect.objectContaining({ id: 'shared-voice' })); });
     await waitFor(() => { expect(onVoiceSelect).toHaveBeenCalledWith('debater-1', expect.objectContaining({ id: 'added-voice' })); });
-    expect(mockFavAdd).toHaveBeenCalledWith(expect.objectContaining({ id: 'added-voice' }));
+    expect(mockFavAdd).toHaveBeenCalledWith(expect.objectContaining({ id: 'added-voice' }), ['shared-voice']);
     expect(onClose).toHaveBeenCalled();
   });
 

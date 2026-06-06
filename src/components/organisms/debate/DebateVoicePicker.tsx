@@ -327,6 +327,7 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [localVoiceListsReady, setLocalVoiceListsReady] = useState(false);
   const [recentVoices, setRecentVoices] = useState<DebateRecentVoiceSelection[]>([]);
   const [favoriteVoices, setFavoriteVoices] = useState<MediaProviderVoiceOption[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
@@ -413,9 +414,9 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
   }, [clearPreviewTimer, previewPlayer]);
 
   const refreshFavorites = useCallback(() => {
-    DebateVoiceFavoriteService.list().then((favorites) => {
+    Promise.all([DebateVoiceFavoriteService.list(), DebateVoiceFavoriteService.listIds()]).then(([favorites, ids]) => {
       setFavoriteVoices(favorites);
-      setFavoriteIds(new Set(favorites.map((voice) => voice.id)));
+      setFavoriteIds(new Set(ids));
     }).catch(() => {});
   }, []);
 
@@ -507,15 +508,18 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
     setNextPageToken(null);
     setTotalCount(undefined);
     setLoadError(null);
+    setLocalVoiceListsReady(false);
     setBusyVoiceId(null);
+    requestIdRef.current += 1;
     let cancelled = false;
-    Promise.all([DebateVoiceRecentService.list(), DebateVoiceFavoriteService.list()])
-      .then(([recents, favorites]) => {
+    Promise.all([DebateVoiceRecentService.list(), DebateVoiceFavoriteService.list(), DebateVoiceFavoriteService.listIds()])
+      .then(([recents, favorites, favoriteVoiceIds]) => {
         if (cancelled) return;
         setRecentVoices(recents);
         setFavoriteVoices(favorites);
-        setFavoriteIds(new Set(favorites.map((voice) => voice.id)));
+        setFavoriteIds(new Set(favoriteVoiceIds));
         setActiveSourceId(favorites.length > 0 ? 'favorites' : 'default');
+        setLocalVoiceListsReady(true);
       })
       .catch(() => {
         if (cancelled) return;
@@ -523,6 +527,7 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
         setFavoriteVoices([]);
         setFavoriteIds(new Set());
         setActiveSourceId('default');
+        setLocalVoiceListsReady(true);
       });
     return () => { cancelled = true; };
   }, [targetKey, target?.kind, visible]);
@@ -539,6 +544,7 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
   // Favorites are local — mirror them straight into the list.
   useEffect(() => {
     if (!visible || activeSourceId !== 'favorites') return;
+    requestIdRef.current += 1;
     setLoadedVoices(favoriteVoices);
     setHasMore(false);
     setNextPageToken(null);
@@ -549,11 +555,11 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
 
   // Network sources (re)load on filter/search/sort changes.
   useEffect(() => {
-    if (!visible || activeSourceId === 'favorites') return;
+    if (!visible || !localVoiceListsReady || activeSourceId === 'favorites') return;
     const delay = searchText.trim() ? 350 : 0;
     const timer = setTimeout(() => { void loadVoices({ page: 0 }); }, delay);
     return () => clearTimeout(timer);
-  }, [activeCategory, activeSourceId, exploreFilters, loadVoices, searchText, sortBy, visible]);
+  }, [activeCategory, activeSourceId, exploreFilters, loadVoices, localVoiceListsReady, searchText, sortBy, visible]);
 
   useEffect(() => { if (!visible) stopPreview(); }, [stopPreview, visible]);
 
@@ -602,7 +608,7 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
       onAddSharedVoice(voice)
         .then((added) => {
           // Using a community voice also curates it into Favorites.
-          DebateVoiceFavoriteService.add(added).then(refreshFavorites).catch(() => {});
+          DebateVoiceFavoriteService.add(added, [voice.id]).then(refreshFavorites).catch(() => {});
           commitSelection(added);
         })
         .catch(() => { /* error toast surfaced upstream */ })
@@ -622,7 +628,7 @@ export const DebateVoicePicker: React.FC<DebateVoicePickerProps> = ({
       if (!onAddSharedVoice) return;
       setBusyVoiceId(voice.id);
       onAddSharedVoice(voice)
-        .then((added) => DebateVoiceFavoriteService.add(added).then(() => {
+        .then((added) => DebateVoiceFavoriteService.add(added, [voice.id]).then(() => {
           setFavoriteIds((prev) => { const next = new Set(prev); next.add(voice.id); next.add(added.id); return next; });
           refreshFavorites();
         }))

@@ -10,6 +10,7 @@ const MAX_FAVORITE_VOICES = 100;
 export interface DebateFavoriteVoice {
   voiceId: string;
   voiceName: string;
+  alternateVoiceIds?: string[];
   category?: string | null;
   description?: string | null;
   labels?: Record<string, string>;
@@ -27,6 +28,15 @@ function normalizeLabels(labels?: Record<string, string>): Record<string, string
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
+function normalizeAlternateVoiceIds(value: unknown, canonicalVoiceId: string): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const ids = Array.from(new Set(value
+    .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    .map((item) => item.trim())
+    .filter((item) => item !== canonicalVoiceId)));
+  return ids.length > 0 ? ids : undefined;
+}
+
 function normalizeFavorite(input: unknown): DebateFavoriteVoice | null {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
   const record = input as Record<string, unknown>;
@@ -36,6 +46,7 @@ function normalizeFavorite(input: unknown): DebateFavoriteVoice | null {
   return {
     voiceId: record.voiceId,
     voiceName: record.voiceName,
+    alternateVoiceIds: normalizeAlternateVoiceIds(record.alternateVoiceIds, record.voiceId),
     category: typeof record.category === 'string' ? record.category : null,
     description: typeof record.description === 'string' ? record.description : null,
     labels: normalizeLabels(record.labels as Record<string, string> | undefined),
@@ -53,10 +64,11 @@ function normalizeFavorite(input: unknown): DebateFavoriteVoice | null {
   };
 }
 
-function toFavorite(voice: MediaProviderVoiceOption): DebateFavoriteVoice {
+function toFavorite(voice: MediaProviderVoiceOption, alternateVoiceIds: string[] = []): DebateFavoriteVoice {
   return {
     voiceId: voice.id,
     voiceName: voice.name,
+    alternateVoiceIds: normalizeAlternateVoiceIds(alternateVoiceIds, voice.id),
     category: voice.category,
     description: voice.description,
     labels: normalizeLabels(voice.labels),
@@ -107,19 +119,30 @@ export class DebateVoiceFavoriteService {
   }
 
   static async listIds(): Promise<string[]> {
-    return (await readFavorites()).map((favorite) => favorite.voiceId);
+    return (await readFavorites()).flatMap((favorite) => [
+      favorite.voiceId,
+      ...(favorite.alternateVoiceIds || []),
+    ]);
   }
 
-  static async add(voice: MediaProviderVoiceOption): Promise<void> {
+  static async add(voice: MediaProviderVoiceOption, alternateVoiceIds: string[] = []): Promise<void> {
     const current = await readFavorites();
-    if (current.some((favorite) => favorite.voiceId === voice.id)) return;
-    const next = [toFavorite(voice), ...current].slice(0, MAX_FAVORITE_VOICES);
+    const incomingAlternateIds = normalizeAlternateVoiceIds(alternateVoiceIds, voice.id) || [];
+    if (current.some((favorite) => (
+      favorite.voiceId === voice.id
+      || favorite.alternateVoiceIds?.includes(voice.id)
+      || incomingAlternateIds.includes(favorite.voiceId)
+      || incomingAlternateIds.some((id) => favorite.alternateVoiceIds?.includes(id))
+    ))) return;
+    const next = [toFavorite(voice, incomingAlternateIds), ...current].slice(0, MAX_FAVORITE_VOICES);
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }
 
   static async remove(voiceId: string): Promise<void> {
     const current = await readFavorites();
-    const next = current.filter((favorite) => favorite.voiceId !== voiceId);
+    const next = current.filter((favorite) => (
+      favorite.voiceId !== voiceId && !favorite.alternateVoiceIds?.includes(voiceId)
+    ));
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }
 }
