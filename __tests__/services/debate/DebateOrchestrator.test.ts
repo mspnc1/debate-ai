@@ -1429,6 +1429,71 @@ describe('DebateOrchestrator', () => {
     jest.useRealTimers();
   });
 
+  it('includes the same speaker earlier argument in Oxford Q&A summary prompts as anti-repeat context', async () => {
+    jest.useFakeTimers();
+    const adapter = {
+      config: {} as Record<string, unknown>,
+      getCapabilities: jest.fn(() => ({ streaming: false })),
+      setTemporaryPersonality: jest.fn(),
+      debugGetSystemPrompt: jest.fn(() => ''),
+    };
+    const aiService = {
+      getAdapter: jest.fn(() => adapter),
+      sendMessage: jest.fn().mockResolvedValue({ response: VALID_SPEECH }),
+    };
+    const teamParticipants: AI[] = [
+      participants[0],
+      participants[1],
+      { id: 'gemini', provider: 'google', name: 'Gemini', model: 'gemini-3.5-flash' } as AI,
+      { id: 'grok', provider: 'grok', name: 'Grok', model: 'grok-4' } as AI,
+    ];
+    const earlierArgument: Message = {
+      id: 'msg-earlier-gemini',
+      sender: 'Gemini (Default)',
+      senderType: 'ai',
+      content: 'The affirmative first argument focused on funding, implementation risk, and public trust.',
+      timestamp: 10,
+      metadata: {
+        aiId: 'gemini',
+        providerId: 'google',
+        debateSpeech: {
+          formatId: 'oxford',
+          presetId: 'long',
+          messageIndex: 2,
+          totalMessages: 8,
+          phase: 'rebuttal',
+          speaker: 'aff',
+          speakerSlot: 1,
+          label: 'Affirmative First Argument',
+        },
+      },
+    };
+    const orchestrator = new DebateOrchestrator(aiService as unknown as Parameters<typeof DebateOrchestrator>[0]);
+
+    await orchestrator.initializeDebate('AI ethics', teamParticipants, {}, {
+      formatId: 'oxford',
+      rounds: 7,
+    });
+    await orchestrator.executeDebateMessage(6, [earlierArgument]);
+
+    expect(aiService.sendMessage).toHaveBeenCalledWith(
+      'google',
+      expect.stringContaining('Turn: Affirmative Summary Speech'),
+      expect.any(Array),
+      expect.any(Object),
+      undefined,
+      expect.objectContaining({ maxTokens: 6144 }),
+      'gemini-3.5-flash'
+    );
+    const summaryPrompt = aiService.sendMessage.mock.calls[0][1] as string;
+    expect(summaryPrompt).toContain('Earlier speech by you to avoid repeating');
+    expect(summaryPrompt).toContain('funding, implementation risk, and public trust');
+    expect(summaryPrompt).toContain('Do not restate that speech');
+
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
   it('adds MC audience question interstitials before podcast Q&A answers', async () => {
     jest.useFakeTimers();
     const adapter = {

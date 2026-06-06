@@ -336,6 +336,56 @@ describe('debateVoicePack', () => {
     expect(plan.manifest.clips.every((clip) => clip.pauseAfterMs === DEBATE_VOICE_PACK_PAUSE_MS)).toBe(true);
   });
 
+  it('allows podcast compilation when the MC intro exists but is not ready', () => {
+    const introMessage: Message = {
+      id: 'mc-intro',
+      sender: 'Debate MC',
+      senderType: 'user',
+      content: 'Welcome to the debate.',
+      timestamp: 100,
+      metadata: {
+        debateInterstitial: {
+          kind: 'intro',
+          flowStep: 'podcast_intro',
+          label: 'MC Introduction',
+        },
+        debateAudio: {
+          status: 'generating',
+          voiceId: 'voice-host',
+          voiceName: 'Host',
+        },
+      },
+    };
+    const debaterMessage = createDebateMessage({
+      id: 'msg_1_openai',
+      attachments: [{ type: 'audio', uri: 'file:///debate/msg_1.mp3', mimeType: 'audio/mpeg' }],
+      metadata: {
+        providerId: 'openai',
+        debateSpeech: { speaker: 'aff', label: 'Opening statement' },
+        debateAudio: {
+          status: 'ready',
+          voiceId: 'voice_1',
+          voiceName: 'Aria',
+          uri: 'file:///debate/msg_1.mp3',
+          mimeType: 'audio/mpeg',
+        },
+      },
+    });
+    const candidates = getDebateVoicePackCandidates([introMessage, debaterMessage]);
+
+    const plan = buildDebatePodcastCompilePlan({
+      sessionId: 'debate_1',
+      topic: 'Resolved: podcasts matter.',
+      participants,
+      candidates,
+      selectedCandidateIds: ['msg_1_openai'],
+    }, {
+      now: () => 123,
+    });
+
+    expect(plan.manifest.clips.map((clip) => clip.messageId)).toEqual(['msg_1_openai']);
+  });
+
   it('creates a final podcast Gallery entry without retaining a voice pack manifest', () => {
     const plan = buildDebatePodcastCompilePlan({
       sessionId: 'debate_1',

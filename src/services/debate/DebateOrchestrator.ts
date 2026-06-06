@@ -891,6 +891,9 @@ export class DebateOrchestrator {
       // Build per-turn prompt with the orchestrator-resolved speech role.
       const personalityId = personalities[currentAI.id] || 'default';
       const previousMessage = this.promptBuilder.extractPreviousMessage(turnMessages, currentAI);
+      const sameSpeakerPreviousMessage = phase === 'closing' || phase === 'final_rebuttal' || phase === 'synthesis'
+        ? this.promptBuilder.extractPreviousMessageFromSameSpeaker(turnMessages, currentAI)
+        : undefined;
       const roleContext = this.buildRoleContext(aiIndex, messageSpec);
       const speechLength = getDebateSpeechLengthGuidance({
         formatId: format.id,
@@ -911,6 +914,7 @@ export class DebateOrchestrator {
         personalityId,
         messageLabel: messageSpec.label,
         roleBrief: roleContext.roleBrief,
+        sameSpeakerPreviousMessage,
         cxRole: messageSpec.cxRole,
         audienceQuestion,
       });

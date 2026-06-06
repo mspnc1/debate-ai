@@ -209,6 +209,20 @@ describe('DebatePromptBuilder', () => {
     expect(builder.extractPreviousMessage(messages, gpt)).toBe('Opening statement.');
   });
 
+  it('tells closing speakers not to repeat their own earlier speech', () => {
+    const prompt = builder.buildTurnPrompt({
+      topic: 'AI should assist in education.',
+      phase: 'closing',
+      format: OXFORD_FORMAT,
+      messageLabel: 'Affirmative Summary Speech',
+      sameSpeakerPreviousMessage: 'The first argument centered on personalized tutoring and teacher time.',
+    });
+
+    expect(prompt).toContain('Earlier speech by you to avoid repeating');
+    expect(prompt).toContain('personalized tutoring and teacher time');
+    expect(prompt).toContain('Do not restate that speech');
+  });
+
   it('ensures debate mode marker is present and validates prompt content', () => {
     const rawPrompt = 'Continue debating the motion.';
     const withMarker = builder.addDebateModeMarker(rawPrompt);

@@ -166,13 +166,14 @@ export class DebatePromptBuilder {
     personalityId?: string;
     messageLabel?: string;
     roleBrief?: string;
+    sameSpeakerPreviousMessage?: string;
     cxRole?: 'questioner' | 'answerer';
     audienceQuestion?: string;
     // Optional customized personality data for style nudges
     customizedTone?: Partial<PersonalityTone>;
     customizedDebateProfile?: Partial<PersonalityDebateProfile>;
   }): string {
-    const { topic, phase, previousMessage, isFinalRound, guidance, civilityLevel, format, presetId, personalityId, messageLabel, roleBrief, cxRole, audienceQuestion, customizedTone, customizedDebateProfile } = params;
+    const { topic, phase, previousMessage, isFinalRound, guidance, civilityLevel, format, presetId, personalityId, messageLabel, roleBrief, sameSpeakerPreviousMessage, cxRole, audienceQuestion, customizedTone, customizedDebateProfile } = params;
     const base = guidance || '';
     const prev = previousMessage ? `${DEBATE_CONSTANTS.PROMPT_MARKERS.PREVIOUS_SPEAKER}"${previousMessage}"` : '';
     const isSocratic = format?.id === 'socratic';
@@ -224,6 +225,9 @@ export class DebatePromptBuilder {
     const audienceQuestionLine = audienceQuestion
       ? `Audience question for your side: "${audienceQuestion}"`
       : '';
+    const sameSpeakerPreviousLine = sameSpeakerPreviousMessage && (phase === 'closing' || phase === 'final_rebuttal' || phase === 'synthesis')
+      ? `Earlier speech by you to avoid repeating: "${this.getContextSnippet(sameSpeakerPreviousMessage)}"\nDo not restate that speech. Use it only as source material for a fresh summary that weighs what happened since.`
+      : '';
     const lengthGuidance = getDebateSpeechLengthGuidance({
       formatId: format?.id,
       presetId,
@@ -240,6 +244,7 @@ export class DebatePromptBuilder {
       formatAwarePhaseHint,
       formatConstraint,
       audienceQuestionLine,
+      sameSpeakerPreviousLine,
       lengthGuidance,
       prevGuarded,
       base,
@@ -263,6 +268,23 @@ export class DebatePromptBuilder {
       }
     }
     return undefined;
+  }
+
+  extractPreviousMessageFromSameSpeaker(messages: Message[], currentAI: AI): string | undefined {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages[i];
+      if (message.senderType !== 'ai' || !message.content.trim()) continue;
+      if (message.metadata?.aiId === currentAI.id || message.sender.startsWith(currentAI.name)) {
+        return message.content;
+      }
+    }
+    return undefined;
+  }
+
+  private getContextSnippet(text: string): string {
+    const normalized = text.replace(/\s+/g, ' ').trim();
+    if (normalized.length <= 520) return normalized;
+    return `${normalized.slice(0, 517)}...`;
   }
   
   /**

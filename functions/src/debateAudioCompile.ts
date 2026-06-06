@@ -21,6 +21,7 @@ const MAX_CLIP_BYTES = 25 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 250 * 1024 * 1024;
 const MAX_PAUSE_MS = 10_000;
 export const DEFAULT_DEBATE_AUDIO_PAUSE_MS = 1500;
+export const DEBATE_PODCAST_OPENING_HANDOFF_MS = 500;
 export const DEBATE_PODCAST_OPENING_TRACK = 'Arena Opening.mp3';
 export const DEBATE_PODCAST_OUTRO_TRACK = 'Symposium Converge.mp3';
 const UPLOAD_URL_TTL_MS = 30 * 60 * 1000;
@@ -172,8 +173,8 @@ export function buildDebatePodcastInputSequence(
     { kind: 'track', track: 'opening' },
   ];
 
-  if (DEFAULT_DEBATE_AUDIO_PAUSE_MS > 0) {
-    sequence.push({ kind: 'silence', pauseMs: DEFAULT_DEBATE_AUDIO_PAUSE_MS });
+  if (DEBATE_PODCAST_OPENING_HANDOFF_MS > 0) {
+    sequence.push({ kind: 'silence', pauseMs: DEBATE_PODCAST_OPENING_HANDOFF_MS });
   }
 
   for (let index = 0; index < clipCount; index += 1) {

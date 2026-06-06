@@ -38,6 +38,23 @@ function getStatusLabel(candidate: DebateVoicePackCandidate): string {
   return 'No voice clip yet';
 }
 
+function isIntroCandidate(candidate: DebateVoicePackCandidate): boolean {
+  return candidate.message.metadata?.debateInterstitial?.kind === 'intro';
+}
+
+function getIntroWarningText(candidate: DebateVoicePackCandidate): string {
+  if (candidate.status === 'generating') {
+    return 'The MC opening statement is still generating. Generate now to omit it, or wait for the clip to finish.';
+  }
+  if (candidate.status === 'failed') {
+    return 'The MC opening statement failed. Generate now to omit it, or regenerate it first if the extra ElevenLabs cost is worthwhile.';
+  }
+  if (candidate.status === 'ready') {
+    return 'The MC opening statement is not selected. Generate now to omit it, or select it before creating the podcast.';
+  }
+  return 'The MC opening statement has no voice clip. Generate now to omit it, or regenerate it first if the extra ElevenLabs cost is worthwhile.';
+}
+
 export const DebateVoicePackModal: React.FC<DebateVoicePackModalProps> = ({
   visible,
   candidates,
@@ -57,6 +74,23 @@ export const DebateVoicePackModal: React.FC<DebateVoicePackModalProps> = ({
   const readyCount = candidates.filter((candidate) => candidate.status === 'ready').length;
   const selectedCount = selectedIds.length;
   const canSave = selectedCount > 0 && !isSaving;
+  const unavailableCandidates = candidates.filter((candidate) => candidate.status !== 'ready');
+  const introCandidate = candidates.find(isIntroCandidate);
+  const introWillBeOmitted = Boolean(introCandidate && !selectedSet.has(introCandidate.id));
+  const canRetryIntro = Boolean(
+    introCandidate &&
+      canRetryAudio &&
+      introCandidate.status !== 'ready' &&
+      introCandidate.status !== 'generating'
+  );
+  const warningTitle = introWillBeOmitted
+    ? 'MC opening statement will be omitted'
+    : unavailableCandidates.length > 0
+      ? `${unavailableCandidates.length} clip${unavailableCandidates.length === 1 ? '' : 's'} unavailable`
+      : undefined;
+  const warningText = introCandidate && introWillBeOmitted
+    ? getIntroWarningText(introCandidate)
+    : 'Generate now to include selected ready clips only, or use the refresh buttons below if regenerating unavailable clips is worthwhile.';
   const topSystemInset = Math.max(insets.top, Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0);
   const bottomSystemInset = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 0);
 
@@ -114,6 +148,42 @@ export const DebateVoicePackModal: React.FC<DebateVoicePackModalProps> = ({
             <Typography variant="caption" weight="semibold">Clear</Typography>
           </TouchableOpacity>
         </View>
+
+        {warningTitle && (
+          <View
+            style={[
+              styles.warningBanner,
+              {
+                backgroundColor: isDark ? theme.colors.overlays.medium : theme.colors.warning[50],
+                borderColor: theme.colors.warning[300],
+              },
+            ]}
+          >
+            <Ionicons name="alert-circle-outline" size={20} color={theme.colors.warning[700]} />
+            <View style={styles.warningBody}>
+              <Typography variant="caption" weight="semibold" style={{ color: theme.colors.warning[800] }}>
+                {warningTitle}
+              </Typography>
+              <Typography variant="caption" style={{ color: isDark ? theme.colors.warning[100] : theme.colors.text.secondary }}>
+                {warningText}
+              </Typography>
+            </View>
+            {canRetryIntro && introCandidate && (
+              <TouchableOpacity
+                style={[styles.warningAction, { borderColor: theme.colors.warning[600] }]}
+                onPress={() => onRetryClip(introCandidate)}
+                accessibilityRole="button"
+                accessibilityLabel="Regenerate MC opening statement"
+                testID="voice-pack-regenerate-intro"
+              >
+                <Ionicons name="refresh" size={15} color={theme.colors.warning[700]} />
+                <Typography variant="caption" weight="semibold" style={{ color: theme.colors.warning[700] }}>
+                  Regenerate
+                </Typography>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {candidates.map((candidate, index) => {
@@ -255,6 +325,31 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  warningBanner: {
+    marginHorizontal: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  warningBody: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  warningAction: {
+    minHeight: 34,
+    borderWidth: 1,
+    borderRadius: 17,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
   },
   list: {
     paddingHorizontal: 12,
