@@ -9,7 +9,7 @@ const sourceDir = path.join(repoRoot, 'media');
 const targetDir = path.join(functionsDir, 'lib', 'debate-podcast-media');
 const requiredFiles = [
   'Arena Opening.mp3',
-  'Symposium Converge.mp3',
+  'Arena Closing.mp3',
 ];
 
 await rm(targetDir, { recursive: true, force: true });

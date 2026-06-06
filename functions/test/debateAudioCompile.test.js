@@ -59,7 +59,7 @@ describe('debate audio compile helpers', () => {
 
   it('wraps podcast clips with the bundled opening and closing tracks', () => {
     assert.equal(DEBATE_PODCAST_OPENING_TRACK, 'Arena Opening.mp3');
-    assert.equal(DEBATE_PODCAST_OUTRO_TRACK, 'Symposium Converge.mp3');
+    assert.equal(DEBATE_PODCAST_OUTRO_TRACK, 'Arena Closing.mp3');
     assert.equal(DEBATE_PODCAST_OPENING_HANDOFF_MS, 500);
     assert.deepEqual(buildDebatePodcastInputSequence(2, [900, 1200]), [
       { kind: 'track', track: 'opening' },
