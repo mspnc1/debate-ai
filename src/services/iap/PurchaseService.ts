@@ -11,7 +11,7 @@ import type {
   SubscriptionProductReplacementParamsAndroid,
 } from 'react-native-iap';
 import { SUBSCRIPTION_PRODUCTS, type PlanType } from '@/services/iap/products';
-import { isAndroidEmulatorStoreUnavailable } from '@/services/iap/environment';
+import { isStorePurchaseUnavailableInCurrentEnvironment } from '@/services/iap/environment';
 import { getIapModule, getLoadedIapModule } from '@/services/iap/nativeModule';
 import * as Crypto from 'expo-crypto';
 import Constants from 'expo-constants';
@@ -70,6 +70,8 @@ type AndroidStorePurchaseOwnershipStatus = 'owned' | 'foreign' | 'unverified';
 const ANDROID_SUBSCRIPTION_REPLACEMENT_MODE = 'without-proration' as const;
 const STORE_ACCOUNT_MISMATCH_MESSAGE =
   'Google Play is returning a purchase linked to a different app account on this device. Open Play Store with the Google account you want to use, clear the Play Store cache, then restart the app and try again.';
+const IOS_SIMULATOR_STORE_UNAVAILABLE_MESSAGE =
+  'In-app purchases are not available in this iOS Simulator build. Test purchases on a physical TestFlight/App Store build or configure StoreKit testing.';
 
 /** Timeout helper for promises */
 function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> {
@@ -211,6 +213,12 @@ const IAP_ERROR_MESSAGES: Record<string, string> = {
   'user-cancelled': 'Purchase was cancelled.',
   'purchase-error': 'Google Play could not complete the purchase. Please check your Play Store sign-in and payment setup, then try again.',
 };
+
+function getStoreUnavailableUserMessage(): string {
+  return Platform.OS === 'ios'
+    ? IOS_SIMULATOR_STORE_UNAVAILABLE_MESSAGE
+    : IAP_ERROR_MESSAGES.E_BILLING_UNAVAILABLE;
+}
 
 /** User-friendly messages for Firebase validation errors */
 const VALIDATION_ERROR_MESSAGES: Record<string, string> = {
@@ -512,7 +520,7 @@ export class PurchaseService {
       return { success: true };
     }
 
-    if (isAndroidEmulatorStoreUnavailable()) {
+    if (isStorePurchaseUnavailableInCurrentEnvironment()) {
       return { success: false, skipped: true };
     }
 
@@ -603,7 +611,7 @@ export class PurchaseService {
     products: string[];
     unavailable: string[];
   }> {
-    if (isAndroidEmulatorStoreUnavailable()) {
+    if (isStorePurchaseUnavailableInCurrentEnvironment()) {
       return { available: false, products: [], unavailable: Object.values(SUBSCRIPTION_PRODUCTS) };
     }
 
@@ -640,7 +648,7 @@ export class PurchaseService {
     productsMissing: string[];
     platform: string;
   }> {
-    if (isAndroidEmulatorStoreUnavailable()) {
+    if (isStorePurchaseUnavailableInCurrentEnvironment()) {
       return {
         connectionOk: false,
         productsAvailable: [],
@@ -671,11 +679,11 @@ export class PurchaseService {
 
     const includeTrialOffer = options.includeTrialOffer === true;
 
-    if (isAndroidEmulatorStoreUnavailable()) {
+    if (isStorePurchaseUnavailableInCurrentEnvironment()) {
       return {
         success: false,
         errorCode: 'E_BILLING_UNAVAILABLE',
-        userMessage: IAP_ERROR_MESSAGES.E_BILLING_UNAVAILABLE,
+        userMessage: getStoreUnavailableUserMessage(),
       } as const;
     }
 
@@ -1018,11 +1026,11 @@ export class PurchaseService {
   }
 
   static async purchaseLifetime() {
-    if (isAndroidEmulatorStoreUnavailable()) {
+    if (isStorePurchaseUnavailableInCurrentEnvironment()) {
       return {
         success: false,
         errorCode: 'E_BILLING_UNAVAILABLE',
-        userMessage: IAP_ERROR_MESSAGES.E_BILLING_UNAVAILABLE,
+        userMessage: getStoreUnavailableUserMessage(),
       } as const;
     }
 
@@ -1398,11 +1406,11 @@ export class PurchaseService {
   }
 
   static async restorePurchases() {
-    if (isAndroidEmulatorStoreUnavailable()) {
+    if (isStorePurchaseUnavailableInCurrentEnvironment()) {
       return {
         success: false,
         errorCode: 'E_BILLING_UNAVAILABLE',
-        userMessage: IAP_ERROR_MESSAGES.E_BILLING_UNAVAILABLE,
+        userMessage: getStoreUnavailableUserMessage(),
       } as const;
     }
 

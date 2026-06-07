@@ -610,11 +610,11 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
                     return;
                   } else if (!('cancelled' in res) || !res.cancelled) {
                     const msg = 'userMessage' in res && res.userMessage ? res.userMessage : 'Unable to start trial.';
-                    ErrorService.handleWithToast(new Error(msg), { feature: 'subscription' });
+                    ErrorService.showError(msg, 'subscription');
                   }
                 } catch (_e) {
                   void _e;
-                  ErrorService.handleWithToast(new Error('Failed to initiate purchase.'), { feature: 'subscription' });
+                  ErrorService.showError('Failed to initiate purchase.', 'subscription');
                 } finally {
                   setIapLoading(false);
                 }

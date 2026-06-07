@@ -11,6 +11,7 @@ jest.spyOn(Alert, 'alert');
 // Mock ErrorService
 const mockShowSuccess = jest.fn();
 const mockShowInfo = jest.fn();
+const mockShowError = jest.fn();
 const mockHandleWithToast = jest.fn();
 const mockOpenSubscriptionManagement = jest.fn();
 const mockNavigate = jest.fn();
@@ -26,6 +27,7 @@ jest.mock('@/services/errors/ErrorService', () => ({
   ErrorService: {
     showSuccess: (...args: unknown[]) => mockShowSuccess(...args),
     showInfo: (...args: unknown[]) => mockShowInfo(...args),
+    showError: (...args: unknown[]) => mockShowError(...args),
     handleWithToast: (...args: unknown[]) => mockHandleWithToast(...args),
   },
 }));
@@ -169,6 +171,7 @@ describe('ProfileContent', () => {
     mockDeleteAccount.mockReset();
     mockShowSuccess.mockClear();
     mockShowInfo.mockClear();
+    mockShowError.mockClear();
     mockHandleWithToast.mockClear();
     mockOpenSubscriptionManagement.mockClear();
     mockNavigate.mockClear();
@@ -269,6 +272,38 @@ describe('ProfileContent', () => {
       expect(mockPurchaseSubscription).toHaveBeenCalledWith('monthly', { includeTrialOffer: true });
     });
     expect(mockShowInfo).not.toHaveBeenCalled();
+  });
+
+  it('shows purchase service errors directly when trial start is unavailable', async () => {
+    mockPurchaseSubscription.mockResolvedValueOnce({
+      success: false,
+      errorCode: 'E_BILLING_UNAVAILABLE',
+      userMessage: 'In-app purchases are not available on this device. Please check your device settings.',
+    });
+    mockUseFeatureAccess.mockReturnValue({
+      isPremium: false,
+      isInTrial: false,
+      trialDaysRemaining: null,
+      isDemo: true,
+      hasUsedTrial: false,
+      canStartTrial: true,
+      refresh: jest.fn(),
+    });
+
+    const { getByTestId } = renderWithProviders(
+      <ProfileContent onClose={jest.fn()} />,
+      { preloadedState: authenticatedState as RootState }
+    );
+
+    fireEvent.press(getByTestId('Start 1 week Free Trial'));
+
+    await waitFor(() => {
+      expect(mockShowError).toHaveBeenCalledWith(
+        'In-app purchases are not available on this device. Please check your device settings.',
+        'subscription'
+      );
+    });
+    expect(mockHandleWithToast).not.toHaveBeenCalled();
   });
 
   it('updates display name from the profile page', async () => {
