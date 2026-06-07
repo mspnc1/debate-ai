@@ -237,9 +237,16 @@ describe('firebase auth service', () => {
     expect(userDoc).toEqual(expect.objectContaining({
       email: 'new@example.com',
       preferences: {},
+      membershipStatus: 'demo',
+      isPremium: false,
+      hasUsedTrial: false,
+      subscriptionSource: null,
+      subscriptionExpiryDate: null,
+      trialEndDate: null,
+      autoRenewing: false,
+      androidPurchaseToken: null,
+      appAccountToken: null,
     }));
-    expect(userDoc).not.toHaveProperty('membershipStatus');
-    expect(userDoc).not.toHaveProperty('isPremium');
 
     mockAuthModule.createUserWithEmailAndPassword.mockRejectedValue({ code: 'auth/email-already-in-use' });
     await expect(signUpWithEmail('new@example.com', 'secretpw')).rejects.toThrow('Email is already in use');
