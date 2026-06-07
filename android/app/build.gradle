@@ -92,7 +92,7 @@ android {
         applicationId 'com.braveheartinnovations.debateai'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 35
+        versionCode 36
         versionName "1.7"
         missingDimensionStrategy 'store', 'play'
 
