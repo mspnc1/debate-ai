@@ -9,7 +9,9 @@ import {
   GoogleAuthProvider,
   AppleAuthProvider,
   updateProfile as fbUpdateProfile,
-  getIdToken as firebaseGetIdToken
+  getIdToken as firebaseGetIdToken,
+  sendEmailVerification as firebaseSendEmailVerification,
+  reload
 } from '@react-native-firebase/auth';
 import {
   getFirestore,
@@ -49,7 +51,7 @@ export const toAuthUser = (user: FirebaseAuthTypes.User): AuthUser => ({
   displayName: user.displayName ?? null,
   photoURL: user.photoURL ?? null,
   emailVerified: !!user.emailVerified,
-  providerId: user.providerId ?? null,
+  providerId: user.providerData?.[0]?.providerId ?? user.providerId ?? null,
 });
 
 type RateLimitStatus = {
@@ -220,6 +222,36 @@ function buildNewUserDocument(
     authProviderUid: user.providerData?.[0]?.uid || null,
     createdOnPlatform: platform,
 
+    // Subscription/Membership
+    membershipStatus: 'demo',
+    isPremium: false,
+    hasUsedTrial: false,
+    trialStartedAt: null,
+    trialEndsAt: null,
+    subscriptionStartedAt: null,
+    subscriptionEndsAt: null,
+    subscriptionPlan: null,
+    subscriptionSource: null,
+
+    // Current mobile purchase fields. These coexist with the older unified
+    // fields above because the IAP functions and app listeners read them.
+    productId: null,
+    subscriptionId: null,
+    subscriptionExpiryDate: null,
+    trialStartDate: null,
+    trialEndDate: null,
+    autoRenewing: false,
+    isLifetime: false,
+    androidPurchaseToken: null,
+    appAccountToken: null,
+    lastReceiptData: null,
+    lastValidated: null,
+
+    // Free Tier Limits (web only, null for mobile)
+    freeDebatesRemaining: null,
+    freeComparesRemaining: null,
+    freeChatsRemaining: null,
+
     // Preferences
     preferences: {},
 
@@ -349,6 +381,52 @@ export const getCurrentUser = (): FirebaseAuthTypes.User | null => {
   const auth = getAuth();
   return auth.currentUser;
 };
+
+/**
+ * Send a Firebase verification email to the current email/password user.
+ */
+export const sendCurrentUserEmailVerification = async (): Promise<void> => {
+  const user = getCurrentUser();
+  if (!user) {
+    throw new Error('Please sign in before verifying your email.');
+  }
+
+  await reload(user);
+  if (user.emailVerified) {
+    await firebaseGetIdToken(user, true);
+    await syncEmailVerificationToUserDocument(user);
+    return;
+  }
+
+  await firebaseSendEmailVerification(user);
+};
+
+/**
+ * Reload the current Firebase user and mirror verified email state into Firestore.
+ */
+export const refreshCurrentUserEmailVerification = async (): Promise<AuthUser | null> => {
+  const user = getCurrentUser();
+  if (!user) return null;
+
+  await reload(user);
+  if (user.emailVerified) {
+    await firebaseGetIdToken(user, true);
+    await syncEmailVerificationToUserDocument(user);
+  }
+
+  return toAuthUser(user);
+};
+
+async function syncEmailVerificationToUserDocument(user: FirebaseAuthTypes.User): Promise<void> {
+  if (!user.emailVerified) return;
+
+  const db = getFirestore();
+  const userDocRef = doc(collection(db, 'users'), user.uid);
+  await setDoc(userDocRef, {
+    emailVerified: true,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
 
 /**
  * Get the current user's ID token for API calls

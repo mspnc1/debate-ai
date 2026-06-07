@@ -15,6 +15,7 @@ interface AuthState {
     membershipStatus: 'demo' | 'free' | 'trial' | 'premium' | 'canceled' | 'past_due';
     preferences?: Record<string, unknown>;
     authProvider?: 'email' | 'apple' | 'google';
+    emailVerified?: boolean;
     hasUsedTrial?: boolean;
     trialEndDate?: number | null; // milliseconds timestamp
   } | null;

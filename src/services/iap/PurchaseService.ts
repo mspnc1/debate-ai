@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { getAuth } from '@react-native-firebase/auth';
+import { getAuth, getIdToken, reload } from '@react-native-firebase/auth';
 import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
 import { getFirestore, collection, doc, getDoc, addDoc } from '@react-native-firebase/firestore';
 import type {
@@ -108,6 +108,18 @@ function getTimestampMillis(value: unknown): number | null {
     }
   }
   return null;
+}
+
+async function emailPasswordUserNeedsVerification(user: ReturnType<typeof getAuth>['currentUser']): Promise<boolean> {
+  if (!user) return true;
+  const isEmailPasswordUser = user.providerData?.some((provider) => provider.providerId === 'password') === true;
+  if (!isEmailPasswordUser) return false;
+
+  await reload(user);
+  if (!user.emailVerified) return true;
+
+  await getIdToken(user, true);
+  return false;
 }
 
 /**
@@ -679,6 +691,14 @@ export class PurchaseService {
       const user = getAuth().currentUser;
       if (!user) throw new Error('User must be authenticated');
       console.warn('[IAP] User authenticated');
+
+      if (includeTrialOffer && await emailPasswordUserNeedsVerification(user)) {
+        return {
+          success: false,
+          errorCode: 'EMAIL_NOT_VERIFIED',
+          userMessage: 'Verify your email before starting a free trial. Then return to the app and try again.',
+        } as const;
+      }
 
       const sku = SUBSCRIPTION_PRODUCTS[plan];
       console.warn('[IAP] SKU:', sku);

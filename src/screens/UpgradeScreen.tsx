@@ -21,7 +21,15 @@ export default function UpgradeScreen() {
   const dispatch = useDispatch();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [showTrialTerms, setShowTrialTerms] = useState(false);
-  const { hasUsedTrial, isInTrial, trialDaysRemaining, isPremium, canStartTrial, refresh } = useFeatureAccess();
+  const {
+    hasUsedTrial,
+    isInTrial,
+    trialDaysRemaining,
+    isPremium,
+    canStartTrial,
+    requiresEmailVerification,
+    refresh,
+  } = useFeatureAccess();
   const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
   const { monthly, annual, lifetime } = useStorePrices();
 
@@ -192,6 +200,17 @@ export default function UpgradeScreen() {
           contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.xl * 2 }}
           showsVerticalScrollIndicator={false}
         >
+          {requiresEmailVerification && !isPremium && !isInTrial && (
+            <View style={[styles.messageCard, { backgroundColor: 'rgba(245, 158, 11, 0.1)', borderColor: theme.colors.warning[300] }]}>
+              <Typography variant="body" weight="semibold" style={{ color: theme.colors.warning[600] }}>
+                Verify your email to start a free trial
+              </Typography>
+              <Typography variant="caption" color="secondary" style={{ marginTop: 4 }}>
+                You can still subscribe without a trial, or open Profile to resend the verification email.
+              </Typography>
+            </View>
+          )}
+
           {/* Trial ended message */}
           {hasUsedTrial && !isPremium && !isInTrial && (
             <View style={[styles.messageCard, { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: theme.colors.error[300] }]}>

@@ -55,6 +55,13 @@ type ErrorSummary = {
   googleMessage?: string;
 };
 
+type CallableAuthToken = {
+  email_verified?: boolean;
+  firebase?: {
+    sign_in_provider?: string;
+  };
+};
+
 // Lifetime product IDs
 const LIFETIME_PRODUCT_IDS = [
   'com.braveheartinnovations.debateai.premium.lifetime.v2', // iOS
@@ -142,6 +149,10 @@ const userHasUnexpiredTrialWindow = (userData: admin.firestore.DocumentData | un
 
 const userHasActiveTrial = (userData: admin.firestore.DocumentData | undefined): boolean => {
   return userData?.membershipStatus === 'trial' && userHasUnexpiredTrialWindow(userData);
+};
+
+const emailPasswordUserNeedsVerificationForTrial = (token: CallableAuthToken | undefined): boolean => {
+  return token?.firebase?.sign_in_provider === 'password' && token.email_verified !== true;
 };
 
 const toStatusCode = (value: unknown): number | undefined => {
@@ -399,6 +410,13 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
 
     const isActiveEntitlement = isLifetime || !expiresAt || expiresAt.getTime() > Date.now();
     const isActiveTrial = isActiveEntitlement && inTrial;
+
+    if (isActiveTrial && emailPasswordUserNeedsVerificationForTrial(request.auth.token as CallableAuthToken)) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Verify your email before starting a free trial.'
+      );
+    }
 
     // Persist authoritative state
     // If starting a trial, mark hasUsedTrial = true so they can't retry later

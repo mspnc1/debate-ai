@@ -12,6 +12,7 @@ import type { MembershipStatus } from '@/types/subscription';
  * Redux auth state is populated at app startup and stays in sync via App.tsx.
  */
 export const useFeatureAccess = () => {
+  const authUser = useSelector((state: RootState) => state.auth.user);
   const userProfile = useSelector((state: RootState) => state.auth.userProfile);
   const isPremiumFromRedux = useSelector((state: RootState) => state.auth.isPremium);
   const authLoading = useSelector((state: RootState) => state.auth.authLoading);
@@ -25,12 +26,20 @@ export const useFeatureAccess = () => {
     rawStatus === 'premium' ? 'premium' :
     rawStatus === 'trial' ? 'trial' : 'demo';
   const hasUsedTrial = userProfile?.hasUsedTrial === true;
+  const isEmailPasswordUser =
+    authUser?.providerId === 'password' || userProfile?.authProvider === 'email';
+  const isEmailVerified = !isEmailPasswordUser
+    || authUser?.emailVerified === true
+    || userProfile?.emailVerified === true;
+  const requiresEmailVerification = Boolean(
+    isAuthenticated && isEmailPasswordUser && !isEmailVerified
+  );
 
   const isInTrial = membershipStatus === 'trial';
   const isPremium = profileResolved && isPremiumFromRedux;
   const isDemo = profileResolved && !isPremium;
   const canAccessLiveAI = isPremium;
-  const canStartTrial = !hasUsedTrial && isDemo;
+  const canStartTrial = !requiresEmailVerification && !hasUsedTrial && isDemo;
 
   // Calculate trial days remaining from trialEndDate in Redux
   const trialDaysRemaining = useMemo(() => {
@@ -55,6 +64,8 @@ export const useFeatureAccess = () => {
     hasUsedTrial,
     canStartTrial,
     canAccessLiveAI,
+    isEmailVerified,
+    requiresEmailVerification,
     isInTrial,
     isPremium,
     isDemo,

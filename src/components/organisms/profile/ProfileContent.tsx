@@ -15,7 +15,9 @@ import {
   signOut,
   signInWithEmail,
   signUpWithEmail,
-  toAuthUser
+  toAuthUser,
+  sendCurrentUserEmailVerification,
+  refreshCurrentUserEmailVerification
 } from '../../../services/firebase/auth';
 import { getFirestore, doc, getDoc } from '@react-native-firebase/firestore';
 import { TrialBanner } from '@/components/molecules/subscription/TrialBanner';
@@ -63,30 +65,38 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
   const [loading, setLoading] = useState(false);
   const [iapLoading, setIapLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [verificationLoading, setVerificationLoading] = useState(false);
 
   const handleEmailAuth = async (email: string, password: string) => {
     setLoading(true);
     try {
-      let user;
+      let authUser;
       if (authMode === 'signup') {
         // signUpWithEmail already creates the user document in Firestore
-        user = await signUpWithEmail(email, password);
+        authUser = await signUpWithEmail(email, password);
+        try {
+          await sendCurrentUserEmailVerification();
+          ErrorService.showInfo('Verification email sent. Verify your email before starting a free trial.', 'auth');
+        } catch (verificationError) {
+          ErrorService.handleSilent(verificationError, { action: 'sendEmailVerificationAfterSignup' });
+          ErrorService.showInfo('Account created. Verify your email before starting a free trial.', 'auth');
+        }
       } else {
-        user = await signInWithEmail(email, password);
+        authUser = await signInWithEmail(email, password);
       }
 
       // Fetch user profile
       const db = getFirestore();
-      const userDocRef = doc(db, 'users', user.uid);
+      const userDocRef = doc(db, 'users', authUser.uid);
       const profileDoc = await getDoc(userDocRef);
 
       const profileData = profileDoc.data();
 
-      dispatch(setAuthUser(toAuthUser(user)));
+      dispatch(setAuthUser(toAuthUser(authUser)));
       dispatch(setUserProfile({
-        email: user.email,
-        displayName: profileData?.displayName || user.displayName || email.split('@')[0],
-        photoURL: user.photoURL,
+        email: authUser.email,
+        displayName: profileData?.displayName || authUser.displayName || email.split('@')[0],
+        photoURL: authUser.photoURL,
         createdAt: profileData?.createdAt?.toDate
           ? profileData.createdAt.toDate().getTime()
           : typeof profileData?.createdAt === 'number'
@@ -94,6 +104,8 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
           : Date.now(),
         membershipStatus: profileData?.membershipStatus || 'demo',
         preferences: profileData?.preferences || {},
+        authProvider: profileData?.authProvider || 'email',
+        emailVerified: authUser.emailVerified || profileData?.emailVerified === true,
       }));
 
       setShowAuthForm(false);
@@ -101,6 +113,36 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
       ErrorService.handleWithToast(error, { feature: 'auth' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setVerificationLoading(true);
+    try {
+      await sendCurrentUserEmailVerification();
+      ErrorService.showInfo('Verification email sent. Check your inbox, then return here.', 'auth');
+    } catch (error) {
+      ErrorService.handleWithToast(error, { feature: 'auth' });
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
+
+  const handleRefreshVerification = async () => {
+    setVerificationLoading(true);
+    try {
+      const refreshedUser = await refreshCurrentUserEmailVerification();
+      dispatch(setAuthUser(refreshedUser));
+      if (refreshedUser?.emailVerified) {
+        dispatch(setUserProfile(userProfile ? { ...userProfile, emailVerified: true } : null));
+        ErrorService.showSuccess('Email verified.', 'auth');
+      } else {
+        ErrorService.showInfo('Email is not verified yet. Check the verification link and try again.', 'auth');
+      }
+    } catch (error) {
+      ErrorService.handleWithToast(error, { feature: 'auth' });
+    } finally {
+      setVerificationLoading(false);
     }
   };
 
@@ -397,6 +439,32 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
           {/* Stats removed until tracked in app data */}
         </LinearGradient>
       </View>
+
+      {access.requiresEmailVerification && !access.isPremium && !access.isInTrial && (
+        <View style={[styles.ctaSection, { backgroundColor: theme.colors.surface }]}>
+          <SettingRow
+            title="Verify email"
+            subtitle="Verify your email address before starting a free trial."
+            icon="mail-outline"
+          />
+          <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingBottom: 12 }}>
+            <Button
+              title="Resend"
+              onPress={handleResendVerification}
+              variant="secondary"
+              disabled={verificationLoading}
+              style={{ flex: 1 }}
+            />
+            <Button
+              title="I've verified"
+              onPress={handleRefreshVerification}
+              variant="primary"
+              loading={verificationLoading}
+              style={{ flex: 1 }}
+            />
+          </View>
+        </View>
+      )}
 
       {/* Premium CTA for demo users who haven't used trial */}
       {access.canStartTrial && (

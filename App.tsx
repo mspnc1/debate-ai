@@ -129,6 +129,12 @@ function AppContent() {
                   // Normalize membershipStatus: convert legacy 'free' to 'demo'
                   let membershipStatus = profileData?.membershipStatus || 'demo';
                   if (membershipStatus === 'free') membershipStatus = 'demo';
+                  const authProvider =
+                    profileData?.authProvider === 'email' ||
+                    profileData?.authProvider === 'apple' ||
+                    profileData?.authProvider === 'google'
+                      ? profileData.authProvider
+                      : undefined;
 
                   // Extract trialEndDate as milliseconds
                   let trialEndDate: number | null = null;
@@ -161,6 +167,8 @@ function AppContent() {
                       : Date.now(),
                     membershipStatus,
                     preferences: profileData?.preferences || {},
+                    authProvider,
+                    emailVerified: user.emailVerified || profileData?.emailVerified === true,
                     hasUsedTrial,
                     trialEndDate,
                   }));
@@ -197,6 +205,7 @@ function AppContent() {
                   createdAt: Date.now(),
                   membershipStatus: 'demo',
                   preferences: {},
+                  emailVerified: user.emailVerified,
                 }));
                 dispatch(setAuthLoading(false));
                 CrashlyticsService.setAttributes({ membershipStatus: 'demo' });
