@@ -123,6 +123,7 @@ import {
   signInWithApple,
   signInWithGoogle,
   sendPasswordResetEmail,
+  updateCurrentUserDisplayName,
 } from '@/services/firebase/auth';
 
 import { Platform } from 'react-native';
@@ -272,6 +273,45 @@ describe('firebase auth service', () => {
     setUser('user');
     mockAuthModule.getIdToken.mockRejectedValue(new Error('boom'));
     await expect(getIdToken()).resolves.toBeNull();
+  });
+
+  it('updates the current user display name in Firebase Auth and Firestore', async () => {
+    const user = {
+      uid: 'profile-user',
+      email: 'profile@example.com',
+      displayName: 'Old Name',
+      photoURL: null,
+      emailVerified: false,
+      providerData: [{ providerId: 'password' }],
+      providerId: 'firebase',
+    };
+    mockAuthState.currentUser = user as never;
+    mockAuthModule.updateProfile.mockImplementation(async (target, updates) => {
+      Object.assign(target as object, updates);
+    });
+    mockFirestoreModule.serverTimestamp.mockReturnValue('server-time' as never);
+    mockFirestoreModule.setDoc.mockResolvedValue(undefined);
+
+    await expect(updateCurrentUserDisplayName('  Store Tester  ')).resolves.toEqual(
+      expect.objectContaining({
+        uid: 'profile-user',
+        email: 'profile@example.com',
+        displayName: 'Store Tester',
+        providerId: 'password',
+      })
+    );
+
+    expect(mockAuthModule.updateProfile).toHaveBeenCalledWith(user, {
+      displayName: 'Store Tester',
+    });
+    expect(mockFirestoreModule.setDoc).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'profile-user' }),
+      {
+        displayName: 'Store Tester',
+        updatedAt: 'server-time',
+      },
+      { merge: true }
+    );
   });
 
   it('proxies auth state change listener', () => {

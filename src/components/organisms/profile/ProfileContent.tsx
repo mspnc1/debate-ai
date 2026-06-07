@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView } from 'react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store';
@@ -17,7 +18,8 @@ import {
   signUpWithEmail,
   toAuthUser,
   sendCurrentUserEmailVerification,
-  refreshCurrentUserEmailVerification
+  refreshCurrentUserEmailVerification,
+  updateCurrentUserDisplayName
 } from '../../../services/firebase/auth';
 import { getFirestore, doc, getDoc } from '@react-native-firebase/firestore';
 import { TrialBanner } from '@/components/molecules/subscription/TrialBanner';
@@ -66,6 +68,15 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
   const [iapLoading, setIapLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [verificationLoading, setVerificationLoading] = useState(false);
+  const [displayNameDraft, setDisplayNameDraft] = useState(userProfile?.displayName || '');
+  const [displayNameLoading, setDisplayNameLoading] = useState(false);
+  const [displayNameEditing, setDisplayNameEditing] = useState(false);
+
+  useEffect(() => {
+    if (!displayNameEditing) {
+      setDisplayNameDraft(userProfile?.displayName || '');
+    }
+  }, [displayNameEditing, userProfile?.displayName]);
 
   const handleEmailAuth = async (email: string, password: string) => {
     setLoading(true);
@@ -143,6 +154,46 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
       ErrorService.handleWithToast(error, { feature: 'auth' });
     } finally {
       setVerificationLoading(false);
+    }
+  };
+
+  const handleStartDisplayNameEdit = () => {
+    setDisplayNameDraft(userProfile?.displayName || 'User');
+    setDisplayNameEditing(true);
+  };
+
+  const handleCancelDisplayNameEdit = () => {
+    setDisplayNameDraft(userProfile?.displayName || '');
+    setDisplayNameEditing(false);
+  };
+
+  const handleSaveDisplayName = async () => {
+    const trimmedDisplayName = displayNameDraft.trim();
+    if (!trimmedDisplayName) {
+      ErrorService.showInfo('Display name is required.', 'profile');
+      return;
+    }
+
+    if (trimmedDisplayName === displayName.trim()) {
+      setDisplayNameEditing(false);
+      return;
+    }
+
+    setDisplayNameLoading(true);
+    try {
+      const updatedAuthUser = await updateCurrentUserDisplayName(trimmedDisplayName);
+      dispatch(setAuthUser(updatedAuthUser));
+      dispatch(setUserProfile(userProfile ? {
+        ...userProfile,
+        displayName: trimmedDisplayName,
+      } : null));
+      setDisplayNameDraft(trimmedDisplayName);
+      setDisplayNameEditing(false);
+      ErrorService.showSuccess('Display name updated.', 'profile');
+    } catch (error) {
+      ErrorService.handleWithToast(error, { feature: 'profile' });
+    } finally {
+      setDisplayNameLoading(false);
     }
   };
 
@@ -365,6 +416,9 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
 
   const displayName = userProfile?.displayName || 'User';
   const email = userProfile?.email || '';
+  const trimmedDisplayNameDraft = displayNameDraft.trim();
+  const displayNameUnchanged = trimmedDisplayNameDraft === displayName.trim();
+  const canSaveDisplayName = Boolean(trimmedDisplayNameDraft) && !displayNameUnchanged && !displayNameLoading;
 
   return (
     <ScrollView 
@@ -400,14 +454,89 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
             </View>
             
             <View style={styles.profileInfo}>
-              <Typography 
-                variant="title" 
-                weight="bold" 
-                color="primary"
-                style={styles.displayName}
-              >
-                {displayName}
-              </Typography>
+              {displayNameEditing ? (
+                <View style={styles.displayNameEditRow}>
+                  <TextInput
+                    value={displayNameDraft}
+                    onChangeText={setDisplayNameDraft}
+                    accessibilityLabel="Display name"
+                    placeholder="User"
+                    placeholderTextColor={theme.colors.text.secondary}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    autoFocus
+                    returnKeyType="done"
+                    maxLength={80}
+                    editable={!displayNameLoading}
+                    onSubmitEditing={handleSaveDisplayName}
+                    style={[
+                      styles.displayNameInlineInput,
+                      {
+                        borderColor: theme.colors.border,
+                        color: theme.colors.text.primary,
+                        backgroundColor: theme.colors.background,
+                      },
+                    ]}
+                  />
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel="Save display name"
+                    onPress={handleSaveDisplayName}
+                    disabled={!canSaveDisplayName}
+                    style={[
+                      styles.displayNameIconButton,
+                      {
+                        backgroundColor: theme.colors.primary[500],
+                        opacity: canSaveDisplayName ? 1 : 0.45,
+                      },
+                    ]}
+                  >
+                    {displayNameLoading ? (
+                      <ActivityIndicator size="small" color={theme.colors.text.inverse} />
+                    ) : (
+                      <Ionicons name="checkmark" size={18} color={theme.colors.text.inverse} />
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel="Cancel display name edit"
+                    onPress={handleCancelDisplayNameEdit}
+                    disabled={displayNameLoading}
+                    style={[
+                      styles.displayNameIconButton,
+                      {
+                        backgroundColor: theme.colors.surface,
+                        borderColor: theme.colors.border,
+                        opacity: displayNameLoading ? 0.45 : 1,
+                      },
+                    ]}
+                  >
+                    <Ionicons name="close" size={18} color={theme.colors.text.secondary} />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.displayNameRow}>
+                  <Typography
+                    variant="title"
+                    weight="bold"
+                    color="primary"
+                    style={styles.displayName}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {displayName}
+                  </Typography>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel="Edit display name"
+                    onPress={handleStartDisplayNameEdit}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={styles.editDisplayNameButton}
+                  >
+                    <Ionicons name="pencil-outline" size={17} color={theme.colors.text.secondary} />
+                  </TouchableOpacity>
+                </View>
+              )}
               <Typography 
                 variant="body" 
                 color="secondary"
@@ -826,8 +955,48 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   displayName: {
+    flexShrink: 1,
     fontSize: 20,
+  },
+  displayNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    gap: 6,
     marginBottom: 4,
+  },
+  displayNameEditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  displayNameInlineInput: {
+    flex: 1,
+    minHeight: 36,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  editDisplayNameButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  displayNameIconButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'transparent',
   },
   email: {
     fontSize: 14,

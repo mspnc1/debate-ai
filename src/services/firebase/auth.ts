@@ -417,6 +417,29 @@ export const refreshCurrentUserEmailVerification = async (): Promise<AuthUser | 
   return toAuthUser(user);
 };
 
+export const updateCurrentUserDisplayName = async (displayName: string): Promise<AuthUser> => {
+  const user = getCurrentUser();
+  if (!user) {
+    throw new Error('Please sign in before updating your profile.');
+  }
+
+  const trimmedDisplayName = displayName.trim();
+  if (!trimmedDisplayName) {
+    throw new Error('Display name is required.');
+  }
+
+  await fbUpdateProfile(user, { displayName: trimmedDisplayName });
+
+  const db = getFirestore();
+  const userDocRef = doc(collection(db, 'users'), user.uid);
+  await setDoc(userDocRef, {
+    displayName: trimmedDisplayName,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+
+  return toAuthUser(user);
+};
+
 async function syncEmailVerificationToUserDocument(user: FirebaseAuthTypes.User): Promise<void> {
   if (!user.emailVerified) return;
 

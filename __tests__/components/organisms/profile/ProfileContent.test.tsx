@@ -16,6 +16,7 @@ const mockOpenSubscriptionManagement = jest.fn();
 const mockNavigate = jest.fn();
 const mockPurchaseSubscription = jest.fn().mockResolvedValue({ success: true });
 const mockRestorePurchases = jest.fn().mockResolvedValue({ success: true, restored: false });
+const mockUpdateCurrentUserDisplayName = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: mockNavigate }),
@@ -108,6 +109,9 @@ jest.mock('@/services/firebase/auth', () => ({
   signInWithEmail: jest.fn(),
   signUpWithEmail: jest.fn(),
   toAuthUser: jest.fn((user) => ({ uid: user.uid, email: user.email })),
+  sendCurrentUserEmailVerification: jest.fn(),
+  refreshCurrentUserEmailVerification: jest.fn(),
+  updateCurrentUserDisplayName: (...args: unknown[]) => mockUpdateCurrentUserDisplayName(...args),
 }));
 
 const mockDeleteAccount = jest.fn();
@@ -170,6 +174,7 @@ describe('ProfileContent', () => {
     mockNavigate.mockClear();
     mockPurchaseSubscription.mockClear();
     mockRestorePurchases.mockClear();
+    mockUpdateCurrentUserDisplayName.mockReset();
     mockUseFeatureAccess.mockReturnValue({
       isPremium: false,
       isInTrial: false,
@@ -264,6 +269,34 @@ describe('ProfileContent', () => {
       expect(mockPurchaseSubscription).toHaveBeenCalledWith('monthly', { includeTrialOffer: true });
     });
     expect(mockShowInfo).not.toHaveBeenCalled();
+  });
+
+  it('updates display name from the profile page', async () => {
+    mockUpdateCurrentUserDisplayName.mockResolvedValue({
+      uid: 'test-user-id',
+      email: 'test@example.com',
+      displayName: 'Store Tester',
+      photoURL: null,
+      emailVerified: true,
+      providerId: 'password',
+    });
+
+    const { getByLabelText, store } = renderWithProviders(
+      <ProfileContent onClose={jest.fn()} />,
+      { preloadedState: authenticatedState as RootState }
+    );
+
+    fireEvent.press(getByLabelText('Edit display name'));
+    fireEvent.changeText(getByLabelText('Display name'), '  Store Tester  ');
+    fireEvent.press(getByLabelText('Save display name'));
+
+    await waitFor(() => {
+      expect(mockUpdateCurrentUserDisplayName).toHaveBeenCalledWith('Store Tester');
+    });
+
+    expect(store.getState().auth.userProfile?.displayName).toBe('Store Tester');
+    expect(store.getState().auth.user?.displayName).toBe('Store Tester');
+    expect(mockShowSuccess).toHaveBeenCalledWith('Display name updated.', 'profile');
   });
 
   describe('Delete Account', () => {
