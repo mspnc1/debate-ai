@@ -121,3 +121,6 @@ coverage/
 
 # Local purchase debugging captures
 .purchase-test-runs/
+
+# Generated store screenshots; regenerate from current app builds when needed
+Marketing/**/Device Screenshots/
