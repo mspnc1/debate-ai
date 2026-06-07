@@ -558,6 +558,8 @@ export type {
   GeneratedImageEntry,
   GeneratedMediaEntry,
   ImageGenerationState,
+  ImageGenerationResultStatus,
+  ImageProviderGenerationStatus,
   ImageModelSettings,
   CreateImageSourceInput,
   GenerateCreateImagesPayload,

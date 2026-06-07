@@ -163,14 +163,14 @@ describe('ImageRefinementModal', () => {
       const { getByPlaceholderText, getByTestId } = renderWithProviders(<ImageRefinementModal {...defaultProps} />);
 
       fireEvent.press(getByTestId('provider-option-google'));
-      fireEvent.press(getByTestId('model-option-gemini-3-pro-image-preview'));
+      fireEvent.press(getByTestId('model-option-gemini-3-pro-image'));
       fireEvent.changeText(getByPlaceholderText('Describe the improvements you want...'), 'Push the image toward a premium edit');
       fireEvent.press(getByTestId('refine-submit'));
 
       expect(defaultProps.onRefine).toHaveBeenCalledWith({
         instructions: 'Push the image toward a premium edit',
         provider: 'google',
-        modelId: 'gemini-3-pro-image-preview',
+        modelId: 'gemini-3-pro-image',
       });
     });
   });

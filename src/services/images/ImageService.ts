@@ -149,6 +149,15 @@ function normalizeXaiResolution(resolution?: string): '1k' | '2k' | undefined {
   return undefined;
 }
 
+function parseProviderErrorBody(text: string): string | undefined {
+  try {
+    const parsed = JSON.parse(text) as { error?: { message?: unknown } };
+    return typeof parsed.error?.message === 'string' ? parsed.error.message : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export class ImageService {
   static async generateImage(opts: GenerateImageOptions): Promise<GeneratedImage[]> {
     const normalizedOpts = {
@@ -435,9 +444,7 @@ export class ImageService {
       parts.push({ text: opts.prompt });
     }
 
-    const imageConfig: Record<string, string> = {
-      aspectRatio,
-    };
+    const imageConfig: Record<string, string> = { aspectRatio };
 
     const preferredResolution = getPreferredResolution(model, opts.resolution);
     if (preferredResolution) {
@@ -447,7 +454,7 @@ export class ImageService {
     const body = {
       contents: [{ parts }],
       generationConfig: {
-        responseModalities: ['IMAGE', 'TEXT'],
+        responseModalities: ['TEXT', 'IMAGE'],
         imageConfig,
       },
     };
@@ -464,7 +471,8 @@ export class ImageService {
 
     const text = await res.text();
     if (!res.ok) {
-      throw new Error(`Google Images error ${res.status}: ${text}`);
+      const message = parseProviderErrorBody(text) || text;
+      throw new Error(`Google Images error ${res.status}: ${message}`);
     }
 
     const data = JSON.parse(text) as GoogleGeminiResponse;
@@ -505,7 +513,8 @@ export class ImageService {
 
     const text = await res.text();
     if (!res.ok) {
-      throw new Error(`Google Images error ${res.status}: ${text}`);
+      const message = parseProviderErrorBody(text) || text;
+      throw new Error(`Google Images error ${res.status}: ${message}`);
     }
 
     const data = JSON.parse(text) as GoogleImagenResponse;

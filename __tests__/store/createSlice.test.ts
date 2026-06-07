@@ -336,11 +336,25 @@ describe('createSlice', () => {
         status: 'running',
         phase: 'generating',
         message: 'Generating with openai...',
+        providerStatus: {
+          provider: 'openai',
+          modelId: 'gpt-image-2',
+          status: 'generating',
+          message: 'Generating image',
+        },
       }));
       expect(state.imageGeneration).toMatchObject({
         status: 'running',
         phase: 'generating',
         message: 'Generating with openai...',
+        providerStatuses: {
+          openai: {
+            provider: 'openai',
+            modelId: 'gpt-image-2',
+            status: 'generating',
+            message: 'Generating image',
+          },
+        },
       });
 
       state = reducer(state, completeImageGeneration({
@@ -350,6 +364,7 @@ describe('createSlice', () => {
       expect(state.imageGeneration).toBeNull();
       expect(state.lastImageGenerationResult).toMatchObject({
         ids: ['img_1'],
+        providers: ['openai'],
         status: 'succeeded',
       });
       expect(state.createActivity.hasUnseenActivity).toBe(true);
@@ -370,6 +385,7 @@ describe('createSlice', () => {
       expect(state.imageGeneration).toBeNull();
       expect(state.lastImageGenerationResult).toMatchObject({
         ids: [],
+        providers: ['openai'],
         status: 'failed',
         message: 'openai: unsupported source image',
       });
@@ -456,6 +472,82 @@ describe('createSlice', () => {
       ]);
       expect(mockedGenerateImage).toHaveBeenCalledTimes(2);
     });
+
+    it.each([
+      {
+        providers: ['openai', 'google'] as const,
+        selectedModels: { openai: 'gpt-image-2', google: 'gemini-3.1-flash-image' },
+        successProvider: 'openai' as const,
+        failedProvider: 'google' as const,
+        failureMessage: 'Google Images error 400: Request contains an invalid argument.',
+        expectedSummary: '1 of 2 providers generated images. Gemini failed.',
+        expectedErrorPrefix: 'Gemini: Google Images error 400',
+      },
+      {
+        providers: ['google', 'grok'] as const,
+        selectedModels: { google: 'gemini-2.5-flash-image', grok: 'grok-imagine-image' },
+        successProvider: 'google' as const,
+        failedProvider: 'grok' as const,
+        failureMessage: 'Grok Images error 429: rate limited',
+        expectedSummary: '1 of 2 providers generated images. Grok failed.',
+        expectedErrorPrefix: 'Grok: Grok Images error 429',
+      },
+      {
+        providers: ['grok', 'openai'] as const,
+        selectedModels: { grok: 'grok-imagine-image', openai: 'gpt-image-2' },
+        successProvider: 'grok' as const,
+        failedProvider: 'openai' as const,
+        failureMessage: 'OpenAI Images error 500: upstream failed',
+        expectedSummary: '1 of 2 providers generated images. ChatGPT failed.',
+        expectedErrorPrefix: 'ChatGPT: OpenAI Images error 500',
+      },
+    ])(
+      'keeps $successProvider images visible when $failedProvider fails',
+      async ({ providers, selectedModels, successProvider, failedProvider, failureMessage, expectedSummary, expectedErrorPrefix }) => {
+        mockedReadStoredApiKey.mockResolvedValue('image-key');
+        mockedGenerateImage.mockReset();
+        mockedGenerateImage.mockImplementation(async (opts: { provider: string }) => {
+          if (opts.provider === failedProvider) {
+            throw new Error(failureMessage);
+          }
+          return [{ url: `file:///generated/${opts.provider}-1.png`, mimeType: 'image/png' }];
+        });
+        const store = configureStore({ reducer: { create: reducer } });
+
+        const result = await store.dispatch(generateCreateImages({
+          prompt: 'A comparison render',
+          providers: [...providers],
+          selectedModels,
+        })).unwrap();
+
+        const state = store.getState().create;
+        expect(result.ids).toHaveLength(1);
+        expect(result.failedProviders).toEqual([failedProvider]);
+        expect(state.gallery).toHaveLength(1);
+        expect(state.gallery[0].provider).toBe(successProvider);
+        expect(state.generationProgress[successProvider]).toBe('complete');
+        expect(state.generationProgress[failedProvider]).toBe('error');
+        expect(state.lastImageGenerationResult).toMatchObject({
+          ids: result.ids,
+          providers: [...providers],
+          status: 'partial',
+          message: expectedSummary,
+          failedProviders: [failedProvider],
+        });
+        expect(state.lastImageGenerationResult?.providerStatuses?.[successProvider]).toMatchObject({
+          provider: successProvider,
+          status: 'complete',
+          resultIds: result.ids,
+        });
+        expect(state.lastImageGenerationResult?.providerStatuses?.[failedProvider]).toMatchObject({
+          provider: failedProvider,
+          modelId: selectedModels[failedProvider],
+          status: 'error',
+          error: failureMessage,
+        });
+        expect(state.generationError).toContain(expectedErrorPrefix);
+      }
+    );
 
     it('fails source-image runs with actionable provider errors', async () => {
       mockedReadStoredApiKey.mockResolvedValue('image-key');

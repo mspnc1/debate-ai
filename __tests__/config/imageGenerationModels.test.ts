@@ -24,6 +24,8 @@ describe('Image generation model config', () => {
     expect(resolveImageModelId('openai', 'gpt-5.5')).toBe('gpt-image-2');
     expect(resolveImageModelId('openai', 'gpt-image-latest')).toBe('gpt-image-2');
     expect(resolveImageModelId('google', 'imagen-4.0-generate-001')).toBe('imagen-4.0-generate-001');
+    expect(resolveImageModelId('google', 'gemini-3.1-flash-image-preview')).toBe('gemini-3.1-flash-image');
+    expect(resolveImageModelId('google', 'gemini-3-pro-image-preview')).toBe('gemini-3-pro-image');
   });
 
   it('exposes model-aware labels and capabilities', () => {
@@ -53,9 +55,10 @@ describe('Image generation model config', () => {
 
   it('groups models by transport family for scalable routing', () => {
     expect(getImageModelApiFamily('openai', 'gpt-image-1-mini')).toBe('openai-images');
-    expect(getImageModelApiFamily('google', 'gemini-3-pro-image-preview')).toBe('google-gemini-image');
+    expect(getImageModelApiFamily('google', 'gemini-3-pro-image')).toBe('google-gemini-image');
     expect(getImageModelApiFamily('google', 'imagen-4.0-fast-generate-001')).toBe('google-imagen');
     expect(getImageModelApiFamily('grok', 'grok-imagine-image')).toBe('xai-images');
+    expect(resolveImageModelId('grok', 'grok-imagine-image-pro')).toBe('grok-imagine-image-quality');
   });
 
   it('expands provider offerings beyond the original minimal registry', () => {
@@ -69,8 +72,8 @@ describe('Image generation model config', () => {
     ]));
     expect(getImageModels('google').map((model) => model.id)).toEqual(expect.arrayContaining([
       'gemini-2.5-flash-image',
-      'gemini-3.1-flash-image-preview',
-      'gemini-3-pro-image-preview',
+      'gemini-3.1-flash-image',
+      'gemini-3-pro-image',
       'imagen-4.0-fast-generate-001',
       'imagen-4.0-generate-001',
       'imagen-4.0-ultra-generate-001',
@@ -87,12 +90,17 @@ describe('Image generation model config', () => {
     expect(openaiCapabilities.moderationOptions).toContain('low');
     expect(openaiCapabilities.supportsOutputCompression).toBe(true);
 
-    const googlePreview = getImageModels('google').find((model) => model.id === 'gemini-3-pro-image-preview');
-    expect(googlePreview).toMatchObject({
+    const googlePro = getImageModels('google').find((model) => model.id === 'gemini-3-pro-image');
+    expect(googlePro).toMatchObject({
       supportsMultipleReferenceImages: true,
       maxReferenceImages: 14,
     });
-    expect(googlePreview?.resolutions).toEqual(expect.arrayContaining(['1K', '2K', '4K']));
+    expect(googlePro?.resolutions).toEqual(expect.arrayContaining(['1K', '2K', '4K']));
+
+    const googleFlash31 = getImageModels('google').find((model) => model.id === 'gemini-3.1-flash-image');
+    expect(googleFlash31?.resolutions).toEqual(expect.arrayContaining(['1K', '2K', '4K', '512']));
+    expect(googleFlash31?.resolutions).not.toContain('0.5K');
+    expect(googleFlash31?.aspectRatios).toEqual(expect.arrayContaining(['1:4', '4:1', '1:8', '8:1']));
 
     const grokCapabilities = getImageGenerationCapabilities('grok');
     expect(grokCapabilities.maxImagesPerRequest).toBeGreaterThanOrEqual(10);

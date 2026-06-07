@@ -6,11 +6,25 @@ jest.mock('@/services/images/fileCache', () => ({
 global.fetch = jest.fn();
 
 import { ImageService } from '@/services/images/ImageService';
+import {
+  getImageModels,
+  getResolvedImageModel,
+  type ImageModelApiFamily,
+} from '@/config/imageGenerationModels';
 import { persistImageUri, saveBase64Image } from '@/services/images/fileCache';
+import type { AIProvider } from '@/types';
 
 const mockedFetch = fetch as jest.MockedFunction<typeof fetch>;
 const mockedSaveBase64Image = saveBase64Image as jest.MockedFunction<typeof saveBase64Image>;
 const mockedPersistImageUri = persistImageUri as jest.MockedFunction<typeof persistImageUri>;
+const imageProviders: AIProvider[] = ['openai', 'google', 'grok'];
+const exposedImageModelCases = imageProviders.flatMap((provider) =>
+  getImageModels(provider).map((model) => [
+    provider,
+    model.id,
+    model.apiFamily,
+  ] as const)
+);
 
 function jsonResponse(body: unknown, init?: { ok?: boolean; status?: number }): Response {
   return {
@@ -135,6 +149,77 @@ describe('ImageService', () => {
     expect(mockedFetch.mock.calls[0][1]?.signal).toBe(controller.signal);
   });
 
+  it.each(exposedImageModelCases)(
+    'builds a supported transport request for %s/%s',
+    async (provider: AIProvider, modelId: string, apiFamily: ImageModelApiFamily) => {
+      mockedFetch.mockImplementation(async (input) => {
+        const url = String(input);
+        if (url.includes(':predict')) {
+          return jsonResponse({
+            generatedImages: [
+              { image: { imageBytes: 'bW9kZWw=', mimeType: 'image/png' } },
+            ],
+          });
+        }
+        if (url.includes('generativelanguage.googleapis.com')) {
+          return jsonResponse({
+            candidates: [{
+              content: {
+                parts: [{ inlineData: { data: 'bW9kZWw=', mimeType: 'image/png' } }],
+              },
+            }],
+          });
+        }
+        return jsonResponse({ data: [{ b64_json: 'bW9kZWw=' }] });
+      });
+      mockedSaveBase64Image.mockResolvedValue('/cache/images/model.png');
+
+      const result = await ImageService.generateImage({
+        provider,
+        model: modelId,
+        apiKey: 'key',
+        prompt: 'transport test',
+        size: '1024x1024',
+      });
+
+      const resolvedModel = getResolvedImageModel(provider, modelId);
+      const [url, init] = mockedFetch.mock.calls[0];
+      const requestBody = JSON.parse((init as RequestInit).body as string);
+
+      expect(result).toHaveLength(1);
+      expect(resolvedModel).toBeDefined();
+      if (apiFamily === 'openai-images') {
+        expect(String(url)).toBe('https://api.openai.com/v1/images/generations');
+        expect(requestBody).toMatchObject({
+          model: resolvedModel?.id,
+          prompt: 'transport test',
+        });
+      } else if (apiFamily === 'google-gemini-image') {
+        expect(String(url)).toContain(`/v1beta/models/${resolvedModel?.id}:generateContent`);
+        expect(requestBody.generationConfig.responseModalities).toEqual(['TEXT', 'IMAGE']);
+        expect(requestBody.generationConfig.imageConfig).toEqual(expect.objectContaining({
+          aspectRatio: '1:1',
+        }));
+        expect(requestBody.generationConfig.responseFormat).toBeUndefined();
+      } else if (apiFamily === 'google-imagen') {
+        expect(String(url)).toContain(`/v1beta/models/${resolvedModel?.id}:predict`);
+        expect(requestBody).toMatchObject({
+          instances: [{ prompt: 'transport test' }],
+          parameters: expect.objectContaining({
+            aspectRatio: '1:1',
+          }),
+        });
+      } else if (apiFamily === 'xai-images') {
+        expect(String(url)).toBe('https://api.x.ai/v1/images/generations');
+        expect(requestBody).toMatchObject({
+          model: resolvedModel?.id,
+          prompt: 'transport test',
+          aspect_ratio: '1:1',
+        });
+      }
+    }
+  );
+
   describe('OpenAI img2img (sourceImage)', () => {
     it('calls /v1/images/edits endpoint when sourceImage is provided', async () => {
       mockedFetch.mockResolvedValue(jsonResponse({ data: [{ b64_json: 'ZWRpdGVk' }] }));
@@ -212,7 +297,7 @@ describe('ImageService', () => {
 
       await ImageService.generateImage({
         provider: 'google',
-        model: 'gemini-3-pro-image-preview',
+        model: 'gemini-3-pro-image',
         apiKey: 'key',
         prompt: 'Blend these references',
         sourceImages: [
@@ -343,7 +428,7 @@ describe('ImageService', () => {
 
       // Verify correct model (gemini-2.5-flash-image) in URL
       expect(mockedFetch).toHaveBeenCalledWith(
-        expect.stringContaining('gemini-2.5-flash-image'),
+        expect.stringContaining('/v1beta/models/gemini-2.5-flash-image:generateContent'),
         expect.objectContaining({ method: 'POST' })
       );
       expect(mockedFetch).toHaveBeenCalledWith(
@@ -354,7 +439,9 @@ describe('ImageService', () => {
       );
       const body = JSON.parse((mockedFetch.mock.calls[0][1] as RequestInit).body as string);
       expect(body.contents[0].parts[0].text).toBe('a sunset');
-      expect(body.generationConfig.imageConfig.aspectRatio).toBe('1:1'); // Default
+      expect(body.generationConfig.responseModalities).toEqual(['TEXT', 'IMAGE']);
+      expect(body.generationConfig.imageConfig.aspectRatio).toBe('1:1');
+      expect(body.generationConfig.responseFormat).toBeUndefined();
       expect(result).toEqual([{ url: '/cache/images/google_image.png', mimeType: 'image/png', b64: 'Z29vZ2xlX2ltYWdl' }]);
     });
 
@@ -384,7 +471,7 @@ describe('ImageService', () => {
       expect(body.generationConfig.imageConfig.aspectRatio).toBe('1:1');
     });
 
-    it('includes a default image size for Gemini preview models that support it', async () => {
+    it('includes a default image size for Gemini 3 models that support it', async () => {
       mockedFetch.mockResolvedValue(jsonResponse({
         candidates: [{
           content: {
@@ -396,7 +483,7 @@ describe('ImageService', () => {
 
       await ImageService.generateImage({
         provider: 'google',
-        model: 'gemini-3-pro-image-preview',
+        model: 'gemini-3-pro-image',
         apiKey: 'key',
         prompt: 'high fidelity test',
       });
@@ -501,6 +588,19 @@ describe('ImageService', () => {
 
       await expect(ImageService.generateImage({ provider: 'google', apiKey: 'key', prompt: 'test' }))
         .rejects.toThrow('Google Images error 400: invalid request');
+    });
+
+    it('surfaces Google JSON error messages without dumping the raw payload', async () => {
+      mockedFetch.mockResolvedValue(jsonResponse({
+        error: {
+          code: 400,
+          message: 'Invalid JSON payload received. Unknown name "responseFormat" at generation_config: Cannot find field.',
+          status: 'INVALID_ARGUMENT',
+        },
+      }, { ok: false, status: 400 }));
+
+      await expect(ImageService.generateImage({ provider: 'google', apiKey: 'key', prompt: 'test' }))
+        .rejects.toThrow('Google Images error 400: Invalid JSON payload received. Unknown name "responseFormat" at generation_config: Cannot find field.');
     });
 
     it('throws when no image parts are returned', async () => {

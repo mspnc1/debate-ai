@@ -50,8 +50,8 @@ describe('Provider capability matrix', () => {
       supportsImageInput: true,
       models: [
         'gemini-2.5-flash-image',
-        'gemini-3.1-flash-image-preview',
-        'gemini-3-pro-image-preview',
+        'gemini-3.1-flash-image',
+        'gemini-3-pro-image',
         'imagen-4.0-fast-generate-001',
         'imagen-4.0-generate-001',
         'imagen-4.0-ultra-generate-001',
@@ -67,6 +67,10 @@ describe('Provider capability matrix', () => {
         '4:5',
         '5:4',
         '21:9',
+        '1:4',
+        '4:1',
+        '1:8',
+        '8:1',
       ],
       maxPromptLength: 4000,
     }));
@@ -77,7 +81,7 @@ describe('Provider capability matrix', () => {
     expect(capabilities.imageGeneration).toEqual(expect.objectContaining({
       supported: true,
       supportsImageInput: true,
-      models: ['grok-imagine-image', 'grok-imagine-image-pro'],
+      models: ['grok-imagine-image', 'grok-imagine-image-quality'],
       sizes: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '2:1', '1:2', '19.5:9', '9:19.5', '20:9', '9:20'],
       maxPromptLength: 4000,
     }));

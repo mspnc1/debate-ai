@@ -161,7 +161,7 @@ jest.mock('@/config/imageGenerationModels', () => ({
   getImageInputModels: (provider: string) => {
     const modelsByProvider: Record<string, Array<{ id: string }>> = {
       openai: [{ id: 'gpt-image-2' }, { id: 'gpt-image-1-mini' }],
-      google: [{ id: 'gemini-2.5-flash-image' }, { id: 'gemini-3-pro-image-preview' }],
+      google: [{ id: 'gemini-2.5-flash-image' }, { id: 'gemini-3-pro-image' }],
       grok: [{ id: 'grok-imagine-image' }],
     };
     return modelsByProvider[provider] || [];

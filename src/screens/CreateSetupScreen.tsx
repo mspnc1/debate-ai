@@ -78,6 +78,7 @@ import {
 } from '../config/mediaProviders';
 import {
   getResolvedImageModel,
+  getImageProviderDisplayName,
   type ImageBackgroundOption,
   type ImageModelConfig,
   type ImageModerationOption,
@@ -86,7 +87,7 @@ import {
   resolveImageModelId,
   supportsImageGeneration,
 } from '../config/imageGenerationModels';
-import type { ImageModelSettings, SizeOption } from '../store/createSlice';
+import type { ImageModelSettings, ImageProviderGenerationStatus, SizeOption } from '../store/createSlice';
 import { HelpTopicId } from '../config/help/types';
 import { AI_PROVIDERS } from '../config/aiProviders';
 import { getAIProviderIcon } from '../utils/aiProviderAssets';
@@ -1312,9 +1313,42 @@ export default function CreateSetupScreen() {
     const current = imageGeneration;
     const result = lastImageGenerationResult;
     const isRunning = Boolean(current);
-    const isSuccess = !isRunning && result?.status === 'succeeded';
+    const isPartial = !isRunning && result?.status === 'partial';
+    const isSuccess = !isRunning && (result?.status === 'succeeded' || result?.status === 'partial');
     const isFailed = !isRunning && result?.status === 'failed';
     const message = current?.message || result?.message;
+    const providerStatuses = current?.providerStatuses || result?.providerStatuses || {};
+    const statusProviders = current?.providers?.length
+      ? current.providers
+      : result?.providers?.length
+        ? result.providers
+        : selectedProviders;
+    const getProviderStatus = (provider: AIProvider): ImageProviderGenerationStatus | undefined =>
+      providerStatuses[provider];
+    const getProviderLabel = (provider: AIProvider, status?: ImageProviderGenerationStatus) =>
+      getImageProviderDisplayName(provider, {
+        includeModel: true,
+        modelId: status?.modelId || selectedModels[provider],
+      });
+    const getStatusIcon = (status?: ImageProviderGenerationStatus) => {
+      if (status?.status === 'complete') {
+        return { name: 'checkmark-circle-outline' as const, color: theme.colors.success[500] };
+      }
+      if (status?.status === 'error') {
+        return { name: 'alert-circle-outline' as const, color: theme.colors.error[500] };
+      }
+      if (status?.status === 'generating') {
+        return undefined;
+      }
+      return { name: 'time-outline' as const, color: theme.colors.text.secondary };
+    };
+    const getStatusText = (status?: ImageProviderGenerationStatus) => {
+      if (!status) return 'Waiting';
+      if (status.status === 'complete') return status.message || 'Complete';
+      if (status.status === 'error') return status.error || status.message || 'Failed';
+      if (status.status === 'generating') return status.message || 'Generating';
+      return status.message || 'Waiting';
+    };
     const title = isRunning
       ? 'Generating Images...'
       : selectedProviders.length === 0
@@ -1350,7 +1384,13 @@ export default function CreateSetupScreen() {
               styles.railStatus,
               {
                 backgroundColor: theme.colors.surface,
-                borderColor: isFailed ? theme.colors.error[500] : isSuccess ? theme.colors.success[500] : theme.colors.border,
+                borderColor: isFailed
+                  ? theme.colors.error[500]
+                  : isPartial
+                    ? theme.colors.warning[500]
+                    : isSuccess
+                      ? theme.colors.success[500]
+                      : theme.colors.border,
               },
             ]}
             testID="create-image-status"
@@ -1359,14 +1399,58 @@ export default function CreateSetupScreen() {
               <ActivityIndicator size="small" color={theme.colors.primary[500]} />
             ) : (
               <Ionicons
-                name={isFailed ? 'alert-circle-outline' : 'checkmark-circle-outline'}
+                name={isFailed || isPartial ? 'alert-circle-outline' : 'checkmark-circle-outline'}
                 size={20}
-                color={isFailed ? theme.colors.error[500] : theme.colors.success[500]}
+                color={isFailed ? theme.colors.error[500] : isPartial ? theme.colors.warning[500] : theme.colors.success[500]}
               />
             )}
             <Typography variant="caption" color="secondary" style={styles.railStatusText}>
               {message || (isRunning ? 'Generating images...' : 'Images ready.')}
             </Typography>
+          </View>
+        )}
+
+        {(current || result) && statusProviders.length > 0 && (
+          <View style={styles.imageProviderStatusList} testID="create-image-provider-status-list">
+            {statusProviders.map((provider) => {
+              const status = getProviderStatus(provider);
+              const icon = getStatusIcon(status);
+              return (
+                <View
+                  key={provider}
+                  style={[
+                    styles.imageProviderStatusRow,
+                    {
+                      backgroundColor: theme.colors.surface,
+                      borderColor: status?.status === 'error' ? theme.colors.error[300] : theme.colors.border,
+                    },
+                  ]}
+                  testID={`create-image-provider-status-${provider}`}
+                >
+                  {status?.status === 'generating' ? (
+                    <ActivityIndicator size="small" color={theme.colors.primary[500]} />
+                  ) : icon ? (
+                    <Ionicons name={icon.name} size={18} color={icon.color} />
+                  ) : null}
+                  <View style={styles.imageProviderStatusCopy}>
+                    <Typography variant="caption" weight="semibold" numberOfLines={1}>
+                      {getProviderLabel(provider, status)}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      color="secondary"
+                      style={[
+                        styles.imageProviderStatusMessage,
+                        status?.status === 'error' && { color: theme.colors.error[600] },
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {getStatusText(status)}
+                    </Typography>
+                  </View>
+                </View>
+              );
+            })}
           </View>
         )}
 
@@ -2473,6 +2557,26 @@ const styles = StyleSheet.create({
   },
   railStatusText: {
     flex: 1,
+  },
+  imageProviderStatusList: {
+    gap: 8,
+  },
+  imageProviderStatusRow: {
+    minHeight: 46,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  imageProviderStatusCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  imageProviderStatusMessage: {
+    marginTop: 2,
   },
   galleryCta: {
     minHeight: 44,

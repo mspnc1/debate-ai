@@ -310,6 +310,16 @@ const mockImageModels: Record<string, Array<Record<string, unknown>>> = {
 
 jest.mock('@/config/imageGenerationModels', () => ({
   getImageInputModels: (provider: string) => (mockImageModels[provider] || []).filter((model) => model.supportsImageInput),
+  getImageProviderDisplayName: (provider: string, options?: { includeModel?: boolean; modelId?: string }) => {
+    const names: Record<string, string> = {
+      openai: 'ChatGPT',
+      google: 'Gemini',
+      grok: 'Grok',
+    };
+    if (!options?.includeModel) return names[provider] || provider;
+    const model = (mockImageModels[provider] || []).find((item) => item.id === options.modelId);
+    return model ? `${names[provider] || provider} (${model.displayName})` : names[provider] || provider;
+  },
   getResolvedImageModel: (provider: string, modelId?: string) => {
     const resolvedId = modelId || ({
       openai: 'gpt-image-2',
@@ -738,6 +748,14 @@ describe('CreateSetupScreen', () => {
               phase: 'generating',
               startedAt: Date.now(),
               message: 'Generating with openai...',
+              providerStatuses: {
+                openai: {
+                  provider: 'openai',
+                  modelId: 'gpt-image-2',
+                  status: 'generating',
+                  message: 'Generating image',
+                },
+              },
             },
           },
         })
@@ -747,7 +765,9 @@ describe('CreateSetupScreen', () => {
 
       expect(getByTestId('create-image-rail')).toBeTruthy();
       expect(getByTestId('create-image-status')).toBeTruthy();
+      expect(getByTestId('create-image-provider-status-openai')).toBeTruthy();
       expect(getByText('Generating with openai...')).toBeTruthy();
+      expect(getByText('Generating image')).toBeTruthy();
       expect(getByText('Generating Images...')).toBeTruthy();
     });
 
@@ -760,9 +780,18 @@ describe('CreateSetupScreen', () => {
             selectedProviders: ['openai'],
             lastImageGenerationResult: {
               ids: [],
+              providers: ['openai'],
               status: 'failed',
               message: 'openai: bad request',
               completedAt: Date.now(),
+              providerStatuses: {
+                openai: {
+                  provider: 'openai',
+                  modelId: 'gpt-image-2',
+                  status: 'error',
+                  error: 'bad request',
+                },
+              },
             },
           },
         })
@@ -771,9 +800,79 @@ describe('CreateSetupScreen', () => {
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
       expect(getByTestId('create-image-status')).toBeTruthy();
+      expect(getByTestId('create-image-provider-status-openai')).toBeTruthy();
       expect(getByText('openai: bad request')).toBeTruthy();
+      expect(getByText('bad request')).toBeTruthy();
       expect(getByText('Retry Images')).toBeTruthy();
     });
+
+    it.each([
+      {
+        providers: ['openai', 'google'] as const,
+        successProvider: 'openai' as const,
+        failedProvider: 'google' as const,
+        successModelId: 'gpt-image-2',
+        failedModelId: 'gemini-2.5-flash-image',
+        message: '1 of 2 providers generated images. Gemini failed.',
+        error: 'Google Images error 400: Request contains an invalid argument.',
+      },
+      {
+        providers: ['google', 'grok'] as const,
+        successProvider: 'google' as const,
+        failedProvider: 'grok' as const,
+        successModelId: 'gemini-2.5-flash-image',
+        failedModelId: 'grok-imagine-image',
+        message: '1 of 2 providers generated images. Grok failed.',
+        error: 'Grok Images error 429: rate limited.',
+      },
+    ])(
+      'shows partial image generation rows when $failedProvider fails',
+      ({ providers, successProvider, failedProvider, successModelId, failedModelId, message, error }) => {
+        mockUseSelector.mockImplementation((selector) =>
+          selector({
+            ...baseState,
+            create: {
+              ...baseState.create,
+              selectedProviders: [...providers],
+              lastImageGenerationResult: {
+                ids: ['img_done'],
+                providers: [...providers],
+                status: 'partial',
+                message,
+                completedAt: Date.now(),
+                failedProviders: [failedProvider],
+                providerStatuses: {
+                  [successProvider]: {
+                    provider: successProvider,
+                    modelId: successModelId,
+                    status: 'complete',
+                    message: 'Generated 1 image',
+                    resultIds: ['img_done'],
+                  },
+                  [failedProvider]: {
+                    provider: failedProvider,
+                    modelId: failedModelId,
+                    status: 'error',
+                    error,
+                  },
+                },
+              },
+            },
+          })
+        );
+
+        const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+
+        expect(getByText(message)).toBeTruthy();
+        expect(getByTestId(`create-image-provider-status-${successProvider}`)).toBeTruthy();
+        expect(getByTestId(`create-image-provider-status-${failedProvider}`)).toBeTruthy();
+        expect(getByText('Generated 1 image')).toBeTruthy();
+        expect(getByText(error)).toBeTruthy();
+        fireEvent.press(getByTestId('create-image-gallery-cta'));
+
+        expect(mockNavigate).toHaveBeenCalledWith('CreateSession', { focusAssetId: 'img_done', galleryTab: 'image' });
+      }
+    );
 
     it('opens Gallery from the completed image CTA focused on a single result', () => {
       mockUseSelector.mockImplementation((selector) =>
@@ -784,6 +883,7 @@ describe('CreateSetupScreen', () => {
             selectedProviders: ['openai'],
             lastImageGenerationResult: {
               ids: ['img_done'],
+              providers: ['openai'],
               status: 'succeeded',
               message: 'Image generation complete.',
               completedAt: Date.now(),

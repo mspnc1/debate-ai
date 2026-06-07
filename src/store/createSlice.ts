@@ -164,6 +164,19 @@ export interface ImageModelSettings {
   moderation?: ImageModerationOption;
 }
 
+export interface ImageProviderGenerationStatus {
+  provider: AIProvider;
+  modelId?: string;
+  status: GenerationProgress;
+  message?: string;
+  error?: string;
+  resultIds?: string[];
+  startedAt?: number;
+  completedAt?: number;
+}
+
+export type ImageGenerationResultStatus = 'succeeded' | 'partial' | 'failed';
+
 export interface ImageGenerationState {
   id: string;
   providers: AIProvider[];
@@ -174,6 +187,7 @@ export interface ImageGenerationState {
   startedAt: number;
   resultIds?: string[];
   failedProviders?: AIProvider[];
+  providerStatuses: Partial<Record<AIProvider, ImageProviderGenerationStatus>>;
 }
 
 export function normalizeGalleryAssets(
@@ -393,9 +407,12 @@ export interface CreateState {
   mediaGeneration: Record<CreateMediaType, MediaGenerationState | null>;
   lastImageGenerationResult?: {
     ids: string[];
-    status: 'succeeded' | 'failed';
+    providers: AIProvider[];
+    status: ImageGenerationResultStatus;
     message: string;
     completedAt: number;
+    failedProviders?: AIProvider[];
+    providerStatuses?: Partial<Record<AIProvider, ImageProviderGenerationStatus>>;
   };
   lastMediaGenerationResult?: {
     id: string;
@@ -791,6 +808,35 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function getImageProviderLabel(provider: AIProvider, modelId?: string): string {
+  return getResolvedImageModel(provider, modelId)?.shortProviderName || provider;
+}
+
+function formatImageProviderError(provider: AIProvider, modelId: string | undefined, error: Error): string {
+  return `${getImageProviderLabel(provider, modelId)}: ${error.message}`;
+}
+
+function buildImageBatchMessage(options: {
+  providerCount: number;
+  imageCount: number;
+  failedProviders: Array<{ provider: AIProvider; modelId?: string }>;
+}): string {
+  const { providerCount, imageCount, failedProviders } = options;
+  if (failedProviders.length > 0 && imageCount > 0) {
+    const failedNames = failedProviders
+      .map(({ provider, modelId }) => getImageProviderLabel(provider, modelId))
+      .join(', ');
+    const succeededProviderCount = Math.max(0, providerCount - failedProviders.length);
+    return `${succeededProviderCount} of ${providerCount} providers generated images. ${failedNames} failed.`;
+  }
+
+  if (imageCount === 1) {
+    return 'Image generation complete.';
+  }
+
+  return `${imageCount} images generated.`;
+}
+
 export interface GenerateCreateVideoPayload {
   prompt: string;
   modelId?: string;
@@ -839,11 +885,21 @@ export const generateCreateImages = createAsyncThunk(
     }
 
     const id = buildImageGenerationId();
+    const providerModelIds = providers.reduce<Partial<Record<AIProvider, string>>>((acc, provider) => {
+      const modelId = payload.selectedModels?.[provider] || resolveImageModelId(provider);
+      if (modelId) {
+        acc[provider] = modelId;
+      }
+      return acc;
+    }, {});
     dispatch(startImageGeneration({
       id,
       providers,
       prompt,
-      message: 'Preparing image generation...',
+      providerModelIds,
+      message: providers.length === 1
+        ? `Preparing ${getImageProviderLabel(providers[0], providerModelIds[providers[0]])}...`
+        : `Preparing ${providers.length} image providers...`,
     }));
     dispatch(startGeneration(providers));
 
@@ -855,7 +911,7 @@ export const generateCreateImages = createAsyncThunk(
     )).filter((source): source is { data: string; mimeType?: string } => Boolean(source));
 
     const entries: GeneratedImageEntry[] = [];
-    const failed: Array<{ provider: AIProvider; error: Error }> = [];
+    const failed: Array<{ provider: AIProvider; modelId?: string; error: Error }> = [];
 
     // Resolve a setting against the model's supported options, falling back to
     // the model's first option (its default) when unset or unsupported.
@@ -863,7 +919,7 @@ export const generateCreateImages = createAsyncThunk(
       value !== undefined && options?.includes(value) ? value : options?.[0];
 
     await Promise.all(providers.map(async (provider) => {
-      const modelId = payload.selectedModels?.[provider] || resolveImageModelId(provider);
+      const modelId = providerModelIds[provider] || resolveImageModelId(provider);
       const model = getResolvedImageModel(provider, modelId);
       const settings = payload.modelSettings?.[provider];
       const quality = pickSupported(settings?.quality, model?.qualityOptions);
@@ -875,16 +931,25 @@ export const generateCreateImages = createAsyncThunk(
       dispatch(updateGenerationProgress({ provider, progress: 'generating' }));
       dispatch(updateImageGeneration({
         status: 'running',
-        phase: resolvedSources.length > 0 ? 'preparing' : 'generating',
-        message: resolvedSources.length > 0
-          ? `Preparing ${resolvedSources.length} reference image${resolvedSources.length === 1 ? '' : 's'} for ${provider}...`
-          : `Generating with ${provider}...`,
+        phase: 'generating',
+        message: providers.length === 1
+          ? `Generating with ${getImageProviderLabel(provider, modelId)}...`
+          : `Generating with ${providers.length} providers...`,
+        providerStatus: {
+          provider,
+          modelId,
+          status: 'generating',
+          message: resolvedSources.length > 0
+            ? `Using ${resolvedSources.length} reference image${resolvedSources.length === 1 ? '' : 's'}`
+            : 'Generating image',
+          startedAt: Date.now(),
+        },
       }));
 
       try {
         const apiKey = await getStoredImageProviderKey(provider);
         if (!apiKey) {
-          throw new Error(`Add a ${provider} API key before generating images.`);
+          throw new Error(`Add a ${getImageProviderLabel(provider, modelId)} API key before generating images.`);
         }
 
         const size = mapSizeToProvider(sizeOption, provider, modelId);
@@ -906,6 +971,7 @@ export const generateCreateImages = createAsyncThunk(
 
         dispatch(updateGenerationProgress({ provider, progress: 'complete' }));
 
+        const providerResultIds: string[] = [];
         for (const image of images) {
           const entry: GeneratedImageEntry = {
             id: `${provider}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
@@ -924,37 +990,57 @@ export const generateCreateImages = createAsyncThunk(
             refinementInstructions: payload.refinementInstructions,
           };
           entries.push(entry);
+          providerResultIds.push(entry.id);
           dispatch(addToGalleryWithCleanup(entry));
         }
+        dispatch(updateImageGeneration({
+          providerStatus: {
+            provider,
+            modelId,
+            status: 'complete',
+            message: providerResultIds.length === 1 ? 'Generated 1 image' : `Generated ${providerResultIds.length} images`,
+            resultIds: providerResultIds,
+            completedAt: Date.now(),
+          },
+        }));
       } catch (error) {
         const resolvedError = error instanceof Error ? error : new Error('Image generation failed.');
-        failed.push({ provider, error: resolvedError });
+        failed.push({ provider, modelId, error: resolvedError });
         dispatch(updateGenerationProgress({ provider, progress: 'error' }));
+        dispatch(updateImageGeneration({
+          providerStatus: {
+            provider,
+            modelId,
+            status: 'error',
+            error: resolvedError.message,
+            message: resolvedError.message,
+            completedAt: Date.now(),
+          },
+        }));
       }
     }));
 
     const resultIds = entries.map((entry) => entry.id);
-
-    if (failed.length > 0) {
-      const failureDetails = failed
-        .map(({ provider, error }) => `${provider}: ${error.message.slice(0, 260)}`)
-        .join('\n');
-      dispatch(generationError(failureDetails));
-    } else {
-      dispatch(completeGeneration());
-    }
+    const providerStatuses = (getState() as { create: CreateState }).create.imageGeneration?.providerStatuses;
 
     if (entries.length > 0) {
+      dispatch(completeGeneration());
       dispatch(completeImageGeneration({
         resultIds,
-        message: entries.length === 1
-          ? 'Image generation complete.'
-          : `${entries.length} images generated.`,
+        status: failed.length > 0 ? 'partial' : 'succeeded',
+        failedProviders: failed.map((item) => item.provider),
+        providerStatuses,
+        message: buildImageBatchMessage({
+          providerCount: providers.length,
+          imageCount: entries.length,
+          failedProviders: failed,
+        }),
       }));
     } else {
       const message = failed.length > 0
-        ? failed.map(({ provider, error }) => `${provider}: ${error.message}`).join('\n')
+        ? failed.map(({ provider, modelId, error }) => formatImageProviderError(provider, modelId, error)).join('\n')
         : 'Image generation failed.';
+      dispatch(generationError(message));
       dispatch(failImageGeneration({ message, failedProviders: failed.map((item) => item.provider) }));
       throw new Error(message);
     }
@@ -1371,8 +1457,23 @@ const createSlice_ = createSlice({
       id: string;
       providers: AIProvider[];
       prompt: string;
+      providerModelIds?: Partial<Record<AIProvider, string>>;
       message?: string;
     }>) => {
+      const startedAt = Date.now();
+      const providerStatuses = action.payload.providers.reduce<Partial<Record<AIProvider, ImageProviderGenerationStatus>>>(
+        (acc, provider) => {
+          acc[provider] = {
+            provider,
+            modelId: action.payload.providerModelIds?.[provider],
+            status: 'pending',
+            message: 'Waiting to start',
+            startedAt,
+          };
+          return acc;
+        },
+        {}
+      );
       state.imageGeneration = {
         id: action.payload.id,
         providers: action.payload.providers,
@@ -1380,7 +1481,8 @@ const createSlice_ = createSlice({
         status: 'queued',
         phase: 'queued',
         message: action.payload.message,
-        startedAt: Date.now(),
+        startedAt,
+        providerStatuses,
       };
       state.lastImageGenerationResult = undefined;
       state.createActivity.status = 'running';
@@ -1390,6 +1492,7 @@ const createSlice_ = createSlice({
       status?: ImageGenerationState['status'];
       phase?: ImageGenerationPhase;
       message?: string;
+      providerStatus?: ImageProviderGenerationStatus;
     }>) => {
       if (!state.imageGeneration) return;
       if (action.payload.status) state.imageGeneration.status = action.payload.status;
@@ -1398,25 +1501,48 @@ const createSlice_ = createSlice({
         state.imageGeneration.message = action.payload.message;
         state.createActivity.lastMessage = action.payload.message;
       }
+      if (action.payload.providerStatus) {
+        const previous = state.imageGeneration.providerStatuses[action.payload.providerStatus.provider];
+        state.imageGeneration.providerStatuses[action.payload.providerStatus.provider] = {
+          ...previous,
+          ...action.payload.providerStatus,
+        };
+      }
     },
     completeImageGeneration: (state, action: PayloadAction<{
       resultIds: string[];
       message: string;
+      status?: Extract<ImageGenerationResultStatus, 'succeeded' | 'partial'>;
+      failedProviders?: AIProvider[];
+      providerStatuses?: Partial<Record<AIProvider, ImageProviderGenerationStatus>>;
     }>) => {
       const completedAt = Date.now();
+      const providerStatuses = action.payload.providerStatuses || state.imageGeneration?.providerStatuses;
+      const status = action.payload.status || 'succeeded';
       if (state.imageGeneration) {
         state.imageGeneration.status = 'succeeded';
         state.imageGeneration.phase = 'complete';
         state.imageGeneration.message = action.payload.message;
         state.imageGeneration.resultIds = action.payload.resultIds;
+        state.imageGeneration.failedProviders = action.payload.failedProviders;
       }
       state.lastImageGenerationResult = {
         ids: action.payload.resultIds,
-        status: 'succeeded',
+        providers: state.imageGeneration?.providers || [],
+        status,
         message: action.payload.message,
         completedAt,
+        failedProviders: action.payload.failedProviders,
+        providerStatuses,
       };
       state.imageGeneration = null;
+      const partialErrorMessage = status === 'partial'
+        ? Object.values(providerStatuses || {})
+          .filter((item): item is ImageProviderGenerationStatus => Boolean(item?.error))
+          .map((item) => `${getImageProviderLabel(item.provider, item.modelId)}: ${item.error}`)
+          .join('\n')
+        : undefined;
+      state.generationError = partialErrorMessage || undefined;
       state.createActivity.status = 'completed';
       state.createActivity.hasUnseenActivity = true;
       state.createActivity.lastCompletedAt = completedAt;
@@ -1428,6 +1554,7 @@ const createSlice_ = createSlice({
       failedProviders?: AIProvider[];
     }>) => {
       const completedAt = Date.now();
+      const providerStatuses = state.imageGeneration?.providerStatuses;
       if (state.imageGeneration) {
         state.imageGeneration.status = 'failed';
         state.imageGeneration.phase = 'error';
@@ -1436,11 +1563,15 @@ const createSlice_ = createSlice({
       }
       state.lastImageGenerationResult = {
         ids: [],
+        providers: state.imageGeneration?.providers || action.payload.failedProviders || [],
         status: 'failed',
         message: action.payload.message,
         completedAt,
+        failedProviders: action.payload.failedProviders,
+        providerStatuses,
       };
       state.imageGeneration = null;
+      state.generationError = action.payload.message;
       state.createActivity.status = 'failed';
       state.createActivity.hasUnseenActivity = true;
       state.createActivity.lastCompletedAt = completedAt;
