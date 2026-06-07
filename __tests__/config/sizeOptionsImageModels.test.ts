@@ -4,8 +4,8 @@ describe('Create image size mapping', () => {
   it('maps OpenAI portrait and landscape sizes by selected image model', () => {
     expect(mapSizeToProvider('portrait', 'openai', 'gpt-image-1.5')).toBe('1024x1536');
     expect(mapSizeToProvider('landscape', 'openai', 'gpt-image-1.5')).toBe('1536x1024');
-    expect(mapSizeToProvider('portrait', 'openai', 'dall-e-3')).toBe('1024x1792');
-    expect(mapSizeToProvider('landscape', 'openai', 'dall-e-3')).toBe('1792x1024');
+    expect(mapSizeToProvider('portrait', 'openai', 'unknown-openai-image-model')).toBe('1024x1536');
+    expect(mapSizeToProvider('landscape', 'openai', 'unknown-openai-image-model')).toBe('1536x1024');
   });
 
   it('preserves provider-native aspect ratios for Gemini, Imagen, and Grok', () => {

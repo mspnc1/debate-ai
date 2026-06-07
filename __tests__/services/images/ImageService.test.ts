@@ -101,33 +101,34 @@ describe('ImageService', () => {
     });
   });
 
-  it('omits unsupported OpenAI options for legacy models', async () => {
-    mockedFetch.mockResolvedValue(jsonResponse({ data: [{ url: 'https://example.com/dalle.png' }] }));
+  it('routes invalid OpenAI image selections through the supported provider default', async () => {
+    mockedFetch.mockResolvedValue(jsonResponse({ data: [{ b64_json: 'YWxpYXM=' }] }));
+    mockedSaveBase64Image.mockResolvedValue('/cache/images/alias.png');
 
     await ImageService.generateImage({
       provider: 'openai',
-      model: 'dall-e-3',
+      model: 'unknown-openai-image-model',
       apiKey: 'key',
       prompt: 'a legacy image',
       n: 4,
       quality: 'high',
       outputFormat: 'webp',
       outputCompression: 60,
-      background: 'transparent',
+      background: 'opaque',
       moderation: 'low',
     });
 
     const body = JSON.parse((mockedFetch.mock.calls[0][1] as RequestInit).body as string);
     expect(body).toMatchObject({
-      model: 'dall-e-3',
+      model: 'gpt-image-2',
       prompt: 'a legacy image',
+      n: 4,
+      quality: 'high',
+      output_format: 'webp',
+      output_compression: 60,
+      background: 'opaque',
+      moderation: 'low',
     });
-    expect(body.n).toBeUndefined();
-    expect(body.quality).toBeUndefined();
-    expect(body.output_format).toBeUndefined();
-    expect(body.output_compression).toBeUndefined();
-    expect(body.background).toBeUndefined();
-    expect(body.moderation).toBeUndefined();
   });
 
   it('downloads base64 responses to cache directory', async () => {

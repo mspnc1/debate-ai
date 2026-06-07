@@ -20,8 +20,7 @@ describe('Image generation model config', () => {
 
   it('resolves defaults and explicit model selections safely', () => {
     expect(resolveImageModelId('openai')).toBe('gpt-image-2');
-    expect(resolveImageModelId('openai', 'dall-e-3')).toBe('dall-e-3');
-    expect(resolveImageModelId('openai', 'gpt-5.5')).toBe('gpt-image-2');
+    expect(resolveImageModelId('openai', 'unknown-openai-image-model')).toBe('gpt-image-2');
     expect(resolveImageModelId('openai', 'gpt-image-latest')).toBe('gpt-image-2');
     expect(resolveImageModelId('google', 'imagen-4.0-generate-001')).toBe('imagen-4.0-generate-001');
     expect(resolveImageModelId('google', 'gemini-3.1-flash-image-preview')).toBe('gemini-3.1-flash-image');
@@ -32,11 +31,11 @@ describe('Image generation model config', () => {
     expect(getImageProviderDisplayName('openai')).toBe('ChatGPT');
     expect(getImageProviderDisplayName('openai', {
       includeModel: true,
-      modelId: 'dall-e-3',
-    })).toBe('ChatGPT (DALL-E 3)');
-    expect(getImageModelDisplayName('openai', 'dall-e-3')).toBe('DALL-E 3');
+      modelId: 'unknown-openai-image-model',
+    })).toBe('ChatGPT (GPT Image 2)');
+    expect(getImageModelDisplayName('openai', 'unknown-openai-image-model')).toBe('GPT Image 2');
     expect(supportsImageInput('openai', 'gpt-image-2')).toBe(true);
-    expect(supportsImageInput('openai', 'dall-e-3')).toBe(false);
+    expect(supportsImageInput('openai', 'unknown-openai-image-model')).toBe(true);
     expect(supportsImageInput('google', 'imagen-4.0-generate-001')).toBe(false);
     expect(supportsImageInput('grok', 'grok-imagine-image')).toBe(true);
   });
@@ -45,11 +44,9 @@ describe('Image generation model config', () => {
     expect(getImageInputModels('openai').map((model) => model.id)).toEqual(expect.arrayContaining([
       'gpt-image-2',
       'gpt-image-1.5',
-      'chatgpt-image-latest',
       'gpt-image-1',
       'gpt-image-1-mini',
     ]));
-    expect(getImageInputModels('openai').map((model) => model.id)).not.toContain('dall-e-3');
     expect(getDefaultImageInputModel('google')?.id).toBe('gemini-2.5-flash-image');
   });
 
@@ -65,11 +62,10 @@ describe('Image generation model config', () => {
     expect(getImageModels('openai').map((model) => model.id)).toEqual(expect.arrayContaining([
       'gpt-image-2',
       'gpt-image-1.5',
-      'chatgpt-image-latest',
       'gpt-image-1',
       'gpt-image-1-mini',
-      'dall-e-3',
     ]));
+    expect(getImageModels('openai').every((model) => model.isDeprecated !== true)).toBe(true);
     expect(getImageModels('google').map((model) => model.id)).toEqual(expect.arrayContaining([
       'gemini-2.5-flash-image',
       'gemini-3.1-flash-image',
@@ -84,7 +80,8 @@ describe('Image generation model config', () => {
     const openaiCapabilities = getImageGenerationCapabilities('openai');
     expect(openaiCapabilities.maxImagesPerRequest).toBeGreaterThanOrEqual(4);
     expect(openaiCapabilities.maxReferenceImages).toBeGreaterThanOrEqual(5);
-    expect(openaiCapabilities.qualityOptions).toEqual(expect.arrayContaining(['auto', 'low', 'medium', 'high', 'standard', 'hd']));
+    expect(openaiCapabilities.qualityOptions).toEqual(expect.arrayContaining(['auto', 'low', 'medium', 'high']));
+    expect(openaiCapabilities.qualityOptions).not.toEqual(expect.arrayContaining(['standard', 'hd']));
     expect(openaiCapabilities.outputFormats).toEqual(expect.arrayContaining(['png', 'jpeg', 'webp']));
     expect(openaiCapabilities.backgroundOptions).toContain('transparent');
     expect(openaiCapabilities.moderationOptions).toContain('low');

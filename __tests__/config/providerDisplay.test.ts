@@ -25,17 +25,13 @@ describe('Provider capability matrix', () => {
       models: [
         'gpt-image-2',
         'gpt-image-1.5',
-        'chatgpt-image-latest',
         'gpt-image-1',
         'gpt-image-1-mini',
-        'dall-e-3',
       ],
       sizes: [
         '1024x1024',
         '1024x1536',
         '1536x1024',
-        '1024x1792',
-        '1792x1024',
       ],
       maxPromptLength: 4000,
     }));

@@ -264,18 +264,6 @@ const mockImageModels: Record<string, Array<Record<string, unknown>>> = {
       moderationOptions: ['auto', 'low'],
       resolutions: ['1K', '2K'],
     },
-    {
-      id: 'dall-e-3',
-      displayName: 'DALL-E 3',
-      supportsImageInput: false,
-      maxImagesPerRequest: 1,
-      maxReferenceImages: 0,
-      qualityOptions: ['standard', 'hd'],
-      outputFormats: ['png'],
-      backgroundOptions: ['auto'],
-      moderationOptions: ['auto'],
-      resolutions: [],
-    },
   ],
   google: [
     {
@@ -289,6 +277,18 @@ const mockImageModels: Record<string, Array<Record<string, unknown>>> = {
       backgroundOptions: ['auto'],
       moderationOptions: ['auto'],
       resolutions: [],
+    },
+    {
+      id: 'imagen-4.0-generate-001',
+      displayName: 'Imagen 4',
+      supportsImageInput: false,
+      maxImagesPerRequest: 1,
+      maxReferenceImages: 0,
+      qualityOptions: ['auto'],
+      outputFormats: ['png'],
+      backgroundOptions: ['auto'],
+      moderationOptions: ['auto'],
+      resolutions: ['1K'],
     },
   ],
   grok: [
@@ -638,8 +638,8 @@ describe('CreateSetupScreen', () => {
           ...baseState,
           create: {
             ...baseState.create,
-            selectedProviders: ['openai'],
-            selectedModels: { openai: 'dall-e-3' },
+            selectedProviders: ['google'],
+            selectedModels: { google: 'imagen-4.0-generate-001' },
           },
         })
       );

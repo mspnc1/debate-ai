@@ -86,8 +86,8 @@ describe('Model selection contract', () => {
   });
 
   it('rejects image-generation models in text-mode resolution', () => {
+    expect(resolveProviderModelId('openai', 'gpt-image-2')).toBe('gpt-5.5');
     expect(resolveProviderModelId('openai', 'gpt-image-1')).toBe('gpt-5.5');
-    expect(resolveProviderModelId('openai', 'dall-e-3')).toBe('gpt-5.5');
     expect(resolveProviderModelId('grok', 'grok-imagine-image')).toBe('grok-4.3');
   });
 });

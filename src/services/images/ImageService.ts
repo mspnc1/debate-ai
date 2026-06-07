@@ -15,8 +15,6 @@ const PIXEL_SIZE_TO_ASPECT_RATIO: Record<string, string> = {
   '1024x1024': '1:1',
   '1024x1536': '9:16',
   '1536x1024': '16:9',
-  '1024x1792': '9:16',
-  '1792x1024': '16:9',
 };
 
 export interface GenerateImageOptions {

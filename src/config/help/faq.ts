@@ -271,7 +271,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-which-providers-generate-images',
     question: 'Which AI providers can generate images?',
     answer:
-      'Image generation is supported by OpenAI (using DALL-E), Google (using Imagen), and Grok. Each provider requires a valid API key. Providers that support image refinement (img2img) display a special badge in the selection screen.',
+      'Image generation is supported by OpenAI (using GPT Image), Google (using Gemini image models and Imagen), and Grok. Each provider requires a valid API key. Providers that support image refinement (img2img) display a special badge in the selection screen.',
     category: 'create',
     relatedTopic: 'create-providers',
   },

@@ -553,26 +553,26 @@ describe('createSlice', () => {
       mockedReadStoredApiKey.mockResolvedValue('image-key');
       mockedGenerateImage.mockReset();
       mockedGenerateImage.mockImplementationOnce(async () => {
-        throw new Error('DALL-E 3 does not support image refinement.');
+        throw new Error('Imagen 4 does not support image refinement.');
       });
       const store = configureStore({ reducer: { create: reducer } });
 
       const actionResult = await store.dispatch(generateCreateImages({
         prompt: 'Improve the lighting',
-        providers: ['openai'],
-        selectedModels: { openai: 'dall-e-3' },
+        providers: ['google'],
+        selectedModels: { google: 'imagen-4.0-generate-001' },
         sourceImages: [{ uri: 'base64-source-image-data-that-is-long-enough-to-detect', base64: 'source-base64' }],
         refinementInstructions: 'Improve the lighting',
       }));
       expect(actionResult.type).toBe('create/generateCreateImages/rejected');
-      expect(actionResult.error.message).toContain('DALL-E 3 does not support image refinement.');
+      expect(actionResult.error.message).toContain('Imagen 4 does not support image refinement.');
 
       expect(store.getState().create.lastImageGenerationResult).toMatchObject({
         ids: [],
         status: 'failed',
-        message: expect.stringContaining('DALL-E 3 does not support image refinement.'),
+        message: expect.stringContaining('Imagen 4 does not support image refinement.'),
       });
-      expect(store.getState().create.generationProgress.openai).toBe('error');
+      expect(store.getState().create.generationProgress.google).toBe('error');
     });
   });
 

@@ -42,7 +42,6 @@ export interface ImageModelConfig {
 }
 
 const OPENAI_IMAGE_SIZES = ['1024x1024', '1024x1536', '1536x1024'] as const;
-const OPENAI_DALLE_SIZES = ['1024x1024', '1024x1792', '1792x1024'] as const;
 const GOOGLE_STANDARD_ASPECT_RATIOS = ['1:1', '16:9', '9:16', '4:3', '3:4'] as const;
 const GOOGLE_EXTENDED_ASPECT_RATIOS = [
   '1:1',
@@ -83,7 +82,6 @@ const IMAGE_MODEL_ALIASES: Partial<Record<AIProvider, Record<string, string>>> =
   openai: {
     'gpt-image-latest': 'gpt-image-2',
     'gpt-image-2-2026-04-21': 'gpt-image-2',
-    'chatgpt-image-latest': 'gpt-image-2',
   },
   google: {
     'gemini-3.1-flash-image-preview': 'gemini-3.1-flash-image',
@@ -159,25 +157,6 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
       isDefault: false,
     }),
     createImageModel({
-      id: 'chatgpt-image-latest',
-      displayName: 'ChatGPT Image Latest',
-      providerDisplayName: 'ChatGPT (Image Latest)',
-      shortProviderName: 'ChatGPT',
-      description: 'Rolling alias for the newest ChatGPT image model when you want latest behavior without pinning a version.',
-      apiFamily: 'openai-images',
-      supportsImageInput: true,
-      sizes: [...OPENAI_IMAGE_SIZES],
-      maxImagesPerRequest: 4,
-      maxReferenceImages: 5,
-      qualityOptions: [...OPENAI_GPT_IMAGE_QUALITIES],
-      outputFormats: [...OPENAI_GPT_IMAGE_FORMATS],
-      supportsOutputCompression: true,
-      backgroundOptions: ['auto', 'opaque', 'transparent'],
-      moderationOptions: [...OPENAI_GPT_IMAGE_MODERATION],
-      isDefault: false,
-      isDeprecated: true,
-    }),
-    createImageModel({
       id: 'gpt-image-1',
       displayName: 'GPT Image 1',
       providerDisplayName: 'ChatGPT (GPT Image 1)',
@@ -212,21 +191,6 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
       backgroundOptions: ['auto', 'opaque', 'transparent'],
       moderationOptions: [...OPENAI_GPT_IMAGE_MODERATION],
       isDefault: false,
-    }),
-    createImageModel({
-      id: 'dall-e-3',
-      displayName: 'DALL-E 3',
-      providerDisplayName: 'ChatGPT (DALL-E 3)',
-      shortProviderName: 'ChatGPT',
-      description: 'Legacy OpenAI text-to-image model for single-pass generation without img2img edits.',
-      apiFamily: 'openai-images',
-      supportsImageInput: false,
-      sizes: [...OPENAI_DALLE_SIZES],
-      maxImagesPerRequest: 1,
-      qualityOptions: ['standard', 'hd'],
-      outputFormats: ['png'],
-      isDefault: false,
-      isDeprecated: true,
     }),
   ],
   google: [

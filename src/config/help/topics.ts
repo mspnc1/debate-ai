@@ -879,7 +879,7 @@ Take any generated image (or upload your own) and refine it with additional prom
     content: `Symposium AI supports Create mode across image, video, and audio providers, each with unique capabilities.
 
 Supported Providers:
-- OpenAI (DALL-E): High-quality image generation and editing
+- OpenAI (GPT Image): High-quality image generation and editing
 - Google (Imagen and Gemini image models): Photorealistic image results and refinement
 - Grok (xAI): Fast image generation with artistic flair
 - Runway: Text-to-video and image-to-video generation

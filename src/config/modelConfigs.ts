@@ -19,7 +19,7 @@ export interface ModelConfig {
   supportsChatCompletions?: boolean; // False when known to require a non-chat endpoint the app does not route yet
   // Extended capability flags:
   supportsImageInput?: boolean; // Alias of supportsVision (explicit)
-  supportsImageGeneration?: boolean; // Can generate images (e.g., gpt-image-1, dall-e-3)
+  supportsImageGeneration?: boolean; // Can generate images (e.g., gpt-image-1)
 }
 
 export interface ProviderModels {
@@ -427,13 +427,6 @@ export const AI_MODELS: ProviderModels = {
       description: "Previous OpenAI image generation model",
       contextLength: 0,
       supportsImageInput: true,
-      supportsImageGeneration: true,
-    },
-    {
-      id: "dall-e-3",
-      name: "DALL-E 3",
-      description: "Image generation model",
-      contextLength: 0,
       supportsImageGeneration: true,
     },
   ],

@@ -10,10 +10,8 @@ export const IMAGE_GENERATION_CONSTANTS = {
     HD: 'hd',
   },
   MODELS: {
-    OPENAI_IMAGE: 'gpt-image-1',
-    DALLE3: 'dall-e-3',
+    OPENAI_IMAGE: 'gpt-image-2',
   },
 } as const;
 
 export type ImageSizeOpenAI = typeof IMAGE_GENERATION_CONSTANTS.SIZES[keyof typeof IMAGE_GENERATION_CONSTANTS.SIZES];
-

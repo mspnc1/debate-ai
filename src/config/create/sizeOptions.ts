@@ -6,7 +6,6 @@ import { SizeOption } from '../../store/createSlice';
 import { AIProvider } from '../../types';
 import {
   getResolvedImageModel,
-  resolveImageModelId,
 } from '../imageGenerationModels';
 
 function mapToAspectRatio(size: SizeOption): string {
@@ -79,16 +78,15 @@ export function mapSizeToProvider(
 
   switch (provider) {
     case 'openai': {
-      const resolvedModelId = resolvedModel?.id || resolveImageModelId(provider, modelId);
       // OpenAI supports specific pixel dimensions
       switch (size) {
         case 'square':
         case 'auto':
           return '1024x1024';
         case 'portrait':
-          return resolvedModelId === 'dall-e-3' ? '1024x1792' : '1024x1536';
+          return '1024x1536';
         case 'landscape':
-          return resolvedModelId === 'dall-e-3' ? '1792x1024' : '1536x1024';
+          return '1536x1024';
         default:
           return '1024x1024';
       }
