@@ -1,6 +1,6 @@
 import React from 'react';
 import { FlatList } from 'react-native';
-import { render, screen, waitFor, act } from '@testing-library/react-native';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react-native';
 import { ChatMessageList } from '../../../../src/components/organisms/chat/ChatMessageList';
 import { useTheme } from '../../../../src/theme';
 import { Message } from '../../../../src/types';
@@ -9,6 +9,14 @@ import { Message } from '../../../../src/types';
 jest.mock('../../../../src/theme', () => ({
   useTheme: jest.fn(),
 }));
+
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
+  return {
+    Ionicons: ({ name }: { name: string }) => React.createElement(Text, null, `Ionicons:${name}`),
+  };
+});
 
 jest.mock('../../../../src/components/molecules', () => {
   const React = require('react');
@@ -76,6 +84,10 @@ describe('ChatMessageList', () => {
         background: '#FFFFFF',
         brand: '#007AFF',
         border: '#EEEEEE',
+        surface: '#FFFFFF',
+        primary: {
+          500: '#007AFF',
+        },
         overlays: {
           soft: 'rgba(0, 0, 0, 0.03)',
         },
@@ -124,6 +136,12 @@ describe('ChatMessageList', () => {
   const flushScheduledScroll = () => {
     act(() => {
       jest.runOnlyPendingTimers();
+    });
+  };
+
+  const advanceScrollIndicatorDelay = (ms = 650) => {
+    act(() => {
+      jest.advanceTimersByTime(ms);
     });
   };
 
@@ -373,6 +391,115 @@ describe('ChatMessageList', () => {
       flushScheduledScroll();
 
       expect(scrollToEndSpy).not.toHaveBeenCalled();
+      scrollToEndSpy.mockRestore();
+    });
+
+    it('delays the latest-responses arrow when a new chat response is appended below view', () => {
+      const flatListRef = createMockRef();
+      const scrollToEndSpy = jest.spyOn(FlatList.prototype, 'scrollToEnd').mockImplementation(() => {});
+      const { UNSAFE_getByType, getByLabelText, queryByLabelText, rerender } = render(
+        <ChatMessageList
+          messages={mockMessages}
+          flatListRef={flatListRef}
+        />
+      );
+      const flatList = UNSAFE_getByType(FlatList);
+
+      act(() => {
+        flatList.props.onLayout({
+          nativeEvent: { layout: { height: 500 } },
+        });
+        flatList.props.onContentSizeChange(0, 1000);
+      });
+
+      rerender(
+        <ChatMessageList
+          messages={[
+            ...mockMessages,
+            {
+              id: 'msg-3',
+              content: 'A new answer starts',
+              senderType: 'ai',
+              senderId: 'ai-2',
+              timestamp: Date.now(),
+            },
+          ]}
+          flatListRef={flatListRef}
+        />
+      );
+      act(() => {
+        flatList.props.onContentSizeChange(0, 1200);
+      });
+
+      expect(queryByLabelText('Scroll to latest chat responses')).toBeNull();
+      advanceScrollIndicatorDelay(649);
+      expect(queryByLabelText('Scroll to latest chat responses')).toBeNull();
+      advanceScrollIndicatorDelay(1);
+
+      expect(getByLabelText('Scroll to latest chat responses')).toBeTruthy();
+      expect(scrollToEndSpy).not.toHaveBeenCalled();
+      scrollToEndSpy.mockRestore();
+    });
+
+    it('delays the latest-responses arrow when streamed content grows below view', () => {
+      const flatListRef = createMockRef();
+      const scrollToEndSpy = jest.spyOn(FlatList.prototype, 'scrollToEnd').mockImplementation(() => {});
+      const { UNSAFE_getByType, getByLabelText, queryByLabelText } = render(
+        <ChatMessageList
+          messages={mockMessages}
+          flatListRef={flatListRef}
+        />
+      );
+      const flatList = UNSAFE_getByType(FlatList);
+
+      act(() => {
+        flatList.props.onLayout({
+          nativeEvent: { layout: { height: 500 } },
+        });
+        flatList.props.onContentSizeChange(0, 480);
+      });
+      act(() => {
+        flatList.props.onContentSizeChange(0, 1000);
+      });
+
+      expect(queryByLabelText('Scroll to latest chat responses')).toBeNull();
+      advanceScrollIndicatorDelay();
+
+      expect(getByLabelText('Scroll to latest chat responses')).toBeTruthy();
+      expect(scrollToEndSpy).not.toHaveBeenCalled();
+      scrollToEndSpy.mockRestore();
+    });
+
+    it('shows the latest-responses arrow after user drags away and scrolls only on button press', () => {
+      const flatListRef = createMockRef();
+      const scrollToEndSpy = jest.spyOn(FlatList.prototype, 'scrollToEnd').mockImplementation(() => {});
+      const { UNSAFE_getByType, getByLabelText, queryByLabelText } = render(
+        <ChatMessageList
+          messages={mockMessages}
+          flatListRef={flatListRef}
+        />
+      );
+      const flatList = UNSAFE_getByType(FlatList);
+
+      act(() => {
+        flatList.props.onScrollBeginDrag();
+      });
+      fireEvent.scroll(flatList, {
+        nativeEvent: {
+          contentOffset: { y: 0 },
+          contentSize: { height: 1000 },
+          layoutMeasurement: { height: 500 },
+        },
+      });
+      act(() => {
+        flatList.props.onScrollEndDrag();
+      });
+      advanceScrollIndicatorDelay();
+
+      fireEvent.press(getByLabelText('Scroll to latest chat responses'));
+
+      expect(queryByLabelText('Scroll to latest chat responses')).toBeNull();
+      expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: true });
       scrollToEndSpy.mockRestore();
     });
 
