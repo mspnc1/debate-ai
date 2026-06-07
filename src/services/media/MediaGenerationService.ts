@@ -1,3 +1,4 @@
+import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
 import {
   ELEVENLABS_DEFAULT_OUTPUT_FORMAT,
   ELEVENLABS_DEFAULT_SFX_MODEL,
@@ -559,9 +560,8 @@ async function recordMediaGeneration(input: {
   modelId: string;
 }): Promise<void> {
   try {
-    const functionsModule = await import('@react-native-firebase/functions');
-    const functions = functionsModule.getFunctions();
-    const callable = functionsModule.httpsCallable(functions, 'recordMediaGeneration');
+    const functions = getFunctions();
+    const callable = httpsCallable(functions, 'recordMediaGeneration');
     await callable(input);
   } catch {
     // Usage analytics must not block local BYOK generation.

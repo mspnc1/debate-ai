@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuth, signOut } from '@react-native-firebase/auth';
+import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
 import { StorageService } from '@/services/chat/StorageService';
 import secureStorage from '@/services/secureStorage';
 import verificationPersistence from '@/services/VerificationPersistenceService';
@@ -39,19 +40,6 @@ const safelyRun = async (label: string, task: () => Promise<unknown>) => {
   }
 };
 
-let functionsModulePromise: Promise<typeof import('@react-native-firebase/functions')> | null = null;
-
-const loadFunctionsModule = async (): Promise<typeof import('@react-native-firebase/functions')> => {
-  if (!functionsModulePromise) {
-    functionsModulePromise = import('@react-native-firebase/functions').catch(() => {
-      // Fallback for Node-based environments (e.g., Jest) without dynamic import support
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@react-native-firebase/functions');
-    });
-  }
-  return functionsModulePromise;
-};
-
 const clearLocalCaches = async () => {
   await Promise.all([
     safelyRun('clear saved conversations', () => StorageService.clearAllSessions()),
@@ -74,9 +62,8 @@ export const deleteAccount = async (): Promise<DeleteAccountResult> => {
   }
 
   try {
-    const functionsModule = await loadFunctionsModule();
-    const functions = functionsModule.getFunctions();
-    const callable = functionsModule.httpsCallable<unknown, DeleteAccountCallableResponse>(functions, 'deleteAccount');
+    const functions = getFunctions();
+    const callable = httpsCallable<unknown, DeleteAccountCallableResponse>(functions, 'deleteAccount');
 
     const response = await callable();
     const data = response?.data;

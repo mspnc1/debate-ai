@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
 import type { DebateVoicePackCompiledAudio, DebateVoicePackManifest } from '@/types/media';
 
 interface CompileSessionClipRequest {
@@ -57,8 +58,6 @@ interface CompileDependencies {
   downloadTimeoutMs?: number;
 }
 
-let functionsModulePromise: Promise<typeof import('@react-native-firebase/functions')> | null = null;
-
 export type DebateAudioCompileStage =
   | 'preparing'
   | 'creating_session'
@@ -73,25 +72,14 @@ export const DEBATE_AUDIO_DOWNLOAD_TIMEOUT_MS = 120_000;
 
 const FOREGROUND_FILE_SESSION_TYPE = FileSystem.FileSystemSessionType?.FOREGROUND ?? 1;
 
-async function loadFunctionsModule(): Promise<typeof import('@react-native-firebase/functions')> {
-  if (!functionsModulePromise) {
-    functionsModulePromise = import('@react-native-firebase/functions').catch((error) => {
-      functionsModulePromise = null;
-      throw error;
-    });
-  }
-  return functionsModulePromise;
-}
-
 async function callFunction<Request, Response>(
   name: string,
   payload: Request,
   timeoutMs?: number
 ): Promise<Response> {
-  const functionsModule = await loadFunctionsModule();
-  const functions = functionsModule.getFunctions();
+  const functions = getFunctions();
   const options = timeoutMs ? { timeout: timeoutMs } : undefined;
-  const callable = functionsModule.httpsCallable<Request, Response>(functions, name, options);
+  const callable = httpsCallable<Request, Response>(functions, name, options);
   const result = await callable(payload);
   return result.data;
 }
