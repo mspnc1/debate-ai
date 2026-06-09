@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, waitFor } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import useWindowDimensions from 'react-native/Libraries/Utilities/useWindowDimensions';
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
@@ -148,6 +149,33 @@ describe('DebateMessageBubble', () => {
       fireEvent.press(getByTestId('report-debate-message-debate-report-1'));
 
       expect(onReportContent).toHaveBeenCalledWith(message);
+    });
+
+    it('keeps report and copy actions on the bottom row of the debate bubble', () => {
+      const message = createMessage({ id: 'debate-actions-1' });
+      const { getByLabelText, getByTestId } = renderWithProviders(
+        <DebateMessageBubble message={message} index={0} onReportContent={jest.fn()} />
+      );
+
+      expect(StyleSheet.flatten(getByTestId('debate-message-bubble-debate-actions-1').props.style)).toEqual(
+        expect.objectContaining({
+          paddingBottom: 44,
+        })
+      );
+      expect(StyleSheet.flatten(getByLabelText('Copy message').props.style)).toEqual(
+        expect.objectContaining({
+          position: 'absolute',
+          right: 8,
+          bottom: 8,
+        })
+      );
+      expect(StyleSheet.flatten(getByTestId('report-debate-message-debate-actions-1').props.style)).toEqual(
+        expect.objectContaining({
+          position: 'absolute',
+          right: 42,
+          bottom: 8,
+        })
+      );
     });
 
     it('does not show the report action while a debate message is streaming', () => {

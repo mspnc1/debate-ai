@@ -260,7 +260,7 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
             borderColor: aiColor?.border || theme.colors.border,
             borderWidth: 1,
           }
-        ]}>
+        ]} testID={`debate-message-bubble-${message.id}`}>
         {isStreaming ? (
           <Typography variant="body" style={styles.streamingText}>
             {displayContent}
@@ -515,7 +515,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   aiBubble: {
-    padding: 16,
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 44,
     borderRadius: 18,
     borderWidth: 1,
     shadowOffset: { width: 0, height: 1 },
@@ -543,14 +545,14 @@ const styles = StyleSheet.create({
   copyButton: {
     position: 'absolute',
     right: 8,
-    top: 8,
+    bottom: 8,
     borderRadius: 12,
     padding: 6,
   },
   reportButton: {
     position: 'absolute',
     right: 42,
-    top: 8,
+    bottom: 8,
     borderRadius: 12,
     padding: 6,
   },
