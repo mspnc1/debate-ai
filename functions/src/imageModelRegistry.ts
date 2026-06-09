@@ -22,10 +22,12 @@ const IMAGE_MODEL_ALIASES: Partial<Record<ImageProviderId, Record<string, string
     'gpt-image-latest': 'gpt-image-2',
     'gpt-image-2-2026-04-21': 'gpt-image-2',
     'chatgpt-image-latest': 'gpt-image-2',
+    'dall-e-3': 'gpt-image-2',
   },
   google: {
-    'gemini-3-pro-image': 'gemini-3-pro-image-preview',
-    'nano-banana-pro-preview': 'gemini-3-pro-image-preview',
+    'gemini-3.1-flash-image-preview': 'gemini-3.1-flash-image',
+    'gemini-3-pro-image-preview': 'gemini-3-pro-image',
+    'nano-banana-pro-preview': 'gemini-3-pro-image',
   },
   grok: {
     'grok-2-image-1212': 'grok-imagine-image',
@@ -57,14 +59,6 @@ export const IMAGE_MODELS: Record<ImageProviderId, ImageModelConfig[]> = {
       isDefault: false,
     }),
     createImageModel({
-      id: 'chatgpt-image-latest',
-      displayName: 'ChatGPT Image Latest',
-      apiFamily: 'openai-images',
-      supportsImageInput: true,
-      isDefault: false,
-      isDeprecated: true,
-    }),
-    createImageModel({
       id: 'gpt-image-1',
       displayName: 'GPT Image 1',
       apiFamily: 'openai-images',
@@ -78,14 +72,6 @@ export const IMAGE_MODELS: Record<ImageProviderId, ImageModelConfig[]> = {
       supportsImageInput: true,
       isDefault: false,
     }),
-    createImageModel({
-      id: 'dall-e-3',
-      displayName: 'DALL-E 3',
-      apiFamily: 'openai-images',
-      supportsImageInput: false,
-      isDefault: false,
-      isDeprecated: true,
-    }),
   ],
   google: [
     createImageModel({
@@ -96,20 +82,18 @@ export const IMAGE_MODELS: Record<ImageProviderId, ImageModelConfig[]> = {
       isDefault: true,
     }),
     createImageModel({
-      id: 'gemini-3.1-flash-image-preview',
-      displayName: 'Gemini 3.1 Flash Image Preview',
+      id: 'gemini-3.1-flash-image',
+      displayName: 'Gemini 3.1 Flash Image',
       apiFamily: 'google-gemini-image',
       supportsImageInput: true,
       isDefault: false,
-      isPreview: true,
     }),
     createImageModel({
-      id: 'gemini-3-pro-image-preview',
-      displayName: 'Gemini 3 Pro Image Preview',
+      id: 'gemini-3-pro-image',
+      displayName: 'Gemini 3 Pro Image',
       apiFamily: 'google-gemini-image',
       supportsImageInput: true,
       isDefault: false,
-      isPreview: true,
     }),
     createImageModel({
       id: 'imagen-4.0-fast-generate-001',

@@ -8,9 +8,10 @@
 export const MODEL_ALIASES: Record<string, string> = {
   // Claude aliases
   'claude-latest': 'claude-sonnet-4-6',
-  'claude-opus-latest': 'claude-opus-4-7',
+  'claude-opus-latest': 'claude-opus-4-8',
   'claude-sonnet-latest': 'claude-sonnet-4-6',
   'claude-haiku-latest': 'claude-haiku-4-5-20251001',
+  'claude-opus-4-8-20260520': 'claude-opus-4-8',
   'claude-opus-4-7-20260301': 'claude-opus-4-7',
   'claude-sonnet-4-5': 'claude-sonnet-4-5-20250929',
   'claude-opus-4-5': 'claude-opus-4-5-20251101',
@@ -110,6 +111,7 @@ export const DEFAULT_PROVIDER_MODELS: Record<string, string> = {
 };
 
 const MODELS_REQUIRING_TEMPERATURE_1 = new Set([
+  'claude-opus-4-8',
   'claude-opus-4-7',
   'gpt-5.5',
   'gpt-5.5-pro',
