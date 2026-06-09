@@ -37,6 +37,7 @@ export interface DebateMessageBubbleProps {
   onRetryAudio?: (message: Message) => void;
   canRetryTurn?: boolean;
   onRetryTurn?: (message: Message) => void;
+  onReportContent?: (message: Message) => void;
 }
 
 const getCitationMetadataKey = (message: Message): string => {
@@ -66,6 +67,7 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
   onRetryAudio,
   canRetryTurn = false,
   onRetryTurn,
+  onReportContent,
 }) => {
   const { theme, isDark } = useTheme();
   const { responsive } = useResponsive();
@@ -150,6 +152,10 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
     : lifecycle?.status === 'cancelled'
       ? 'Turn stopped'
       : 'Turn interrupted';
+  const canReportContent = !isHost
+    && !isStreaming
+    && Boolean(onReportContent)
+    && displayContent.trim().length > 0;
   const { handleCitationLinkPress } = useCitationInteractions(aiColor?.border);
   const debateAudio = message.metadata?.debateAudio;
   const audioAttachment = useMemo(() => {
@@ -421,6 +427,25 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
             color={theme.colors.text.primary}
           />
         </TouchableOpacity>
+        {canReportContent && (
+          <TouchableOpacity
+            onPress={() => onReportContent?.(message)}
+            accessibilityLabel="Report AI content"
+            accessibilityRole="button"
+            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+            testID={`report-debate-message-${message.id}`}
+            style={[
+              styles.reportButton,
+              { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' },
+            ]}
+          >
+            <Ionicons
+              name="flag-outline"
+              size={16}
+              color={theme.colors.error[500]}
+            />
+          </TouchableOpacity>
+        )}
       </Box>
       {hasCitations && (
         <CitationSources
@@ -445,6 +470,7 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
     prevProps.onRetryAudio === nextProps.onRetryAudio &&
     prevProps.canRetryTurn === nextProps.canRetryTurn &&
     prevProps.onRetryTurn === nextProps.onRetryTurn &&
+    prevProps.onReportContent === nextProps.onReportContent &&
     getCitationMetadataKey(prevProps.message) === getCitationMetadataKey(nextProps.message)
   );
 });
@@ -517,6 +543,13 @@ const styles = StyleSheet.create({
   copyButton: {
     position: 'absolute',
     right: 8,
+    top: 8,
+    borderRadius: 12,
+    padding: 6,
+  },
+  reportButton: {
+    position: 'absolute',
+    right: 42,
     top: 8,
     borderRadius: 12,
     padding: 6,

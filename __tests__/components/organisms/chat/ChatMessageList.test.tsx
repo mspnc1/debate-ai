@@ -52,18 +52,32 @@ jest.mock('../../../../src/hooks/useResponsive', () => ({
 }));
 
 jest.mock('@/components/organisms/common/MessageBubble', () => ({
-  MessageBubble: ({ message }: { message: Message }) => {
+  MessageBubble: ({ message, onReportContent }: { message: Message; onReportContent?: (message: Message) => void }) => {
     const React = require('react');
-    const { Text } = require('react-native');
-    return React.createElement(Text, { testID: `message-${message.id}` }, message.content);
+    const { Text, TouchableOpacity, View } = require('react-native');
+    return React.createElement(
+      View,
+      { testID: `message-${message.id}` },
+      React.createElement(Text, null, message.content),
+      onReportContent
+        ? React.createElement(TouchableOpacity, { testID: `report-message-${message.id}`, onPress: () => onReportContent(message) }, React.createElement(Text, null, 'Report'))
+        : null
+    );
   },
 }));
 
 jest.mock('../../../../src/components/organisms/chat/ImageMessageRow', () => ({
-  ImageMessageRow: ({ message }: { message: Message }) => {
+  ImageMessageRow: ({ message, onReportContent }: { message: Message; onReportContent?: (message: Message) => void }) => {
     const React = require('react');
-    const { Text } = require('react-native');
-    return React.createElement(Text, { testID: `image-row-${message.id}` }, 'Image Message');
+    const { Text, TouchableOpacity, View } = require('react-native');
+    return React.createElement(
+      View,
+      { testID: `image-row-${message.id}` },
+      React.createElement(Text, null, 'Image Message'),
+      onReportContent
+        ? React.createElement(TouchableOpacity, { testID: `report-image-${message.id}`, onPress: () => onReportContent(message) }, React.createElement(Text, null, 'Report Image'))
+        : null
+    );
   },
 }));
 
@@ -256,6 +270,50 @@ describe('ChatMessageList', () => {
 
       // Should render as MessageBubble, not ImageMessageRow
       expect(screen.getByTestId('message-msg-user-image')).toBeTruthy();
+    });
+
+    it('passes report handler to AI message bubbles only', () => {
+      const flatListRef = createMockRef();
+      const onReportContent = jest.fn();
+
+      render(
+        <ChatMessageList
+          messages={mockMessages}
+          flatListRef={flatListRef}
+          onReportContent={onReportContent}
+        />
+      );
+
+      expect(screen.queryByTestId('report-message-msg-1')).toBeNull();
+
+      fireEvent.press(screen.getByTestId('report-message-msg-2'));
+
+      expect(onReportContent).toHaveBeenCalledWith(mockMessages[1]);
+    });
+
+    it('passes report handler to generated image rows', () => {
+      const flatListRef = createMockRef();
+      const onReportContent = jest.fn();
+      const imageMessage: Message = {
+        id: 'msg-image-report',
+        content: '',
+        sender: 'Claude',
+        senderType: 'ai',
+        timestamp: Date.now(),
+        attachments: [{ type: 'image', uri: 'https://example.com/image.jpg', mimeType: 'image/jpeg' }],
+      };
+
+      render(
+        <ChatMessageList
+          messages={[imageMessage]}
+          flatListRef={flatListRef}
+          onReportContent={onReportContent}
+        />
+      );
+
+      fireEvent.press(screen.getByTestId('report-image-msg-image-report'));
+
+      expect(onReportContent).toHaveBeenCalledWith(imageMessage);
     });
   });
 

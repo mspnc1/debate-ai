@@ -36,6 +36,8 @@ export interface ChatMessageListProps {
   canRefineImages?: boolean;
   /** Called when user taps Refine on an image */
   onRefineImage?: (imageUri: string, originalPrompt: string, originalProvider: AIProvider, messageId?: string) => void;
+  /** Called when user reports AI-generated chat content */
+  onReportContent?: (message: Message) => void;
 }
 
 export const ChatMessageList: React.FC<ChatMessageListProps> = ({
@@ -48,6 +50,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   onRetryImage,
   canRefineImages,
   onRefineImage,
+  onReportContent,
 }) => {
   const { theme } = useTheme();
   const { responsive, rs } = useResponsive();
@@ -235,13 +238,21 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     }
     const hasImageOnly = (item.attachments && item.attachments.length > 0 && item.attachments.some(a => a.type === 'image')) && (!item.content || item.content.trim() === '');
     if (!isUserMessage(item) && hasImageOnly) {
-      return <ImageMessageRow message={item} canRefine={canRefineImages} onRefine={onRefineImage} />;
+      return (
+        <ImageMessageRow
+          message={item}
+          canRefine={canRefineImages}
+          onRefine={onRefineImage}
+          onReportContent={onReportContent}
+        />
+      );
     }
     return (
       <MessageBubble 
         message={item} 
         isLast={index === messages.length - 1}
         searchTerm={searchTerm}
+        onReportContent={!isUserMessage(item) ? onReportContent : undefined}
       />
     );
   }, [
@@ -250,6 +261,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     messages.length,
     onCancelImage,
     onRefineImage,
+    onReportContent,
     onRetryImage,
     searchTerm,
   ]);

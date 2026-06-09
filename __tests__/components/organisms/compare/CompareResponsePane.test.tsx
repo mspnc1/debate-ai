@@ -275,4 +275,51 @@ describe('CompareResponsePane', () => {
       })
     );
   });
+
+  it('renders report and copy in the same pane action row', () => {
+    const onReportContent = jest.fn();
+
+    const { getByTestId } = renderWithProviders(
+      <CompareResponsePane
+        ai={ai}
+        messages={messages}
+        isTyping={false}
+        onContinueWithAI={jest.fn()}
+        side="left"
+        imageState={defaultImageState}
+        onCancelImage={jest.fn()}
+        onOpenLightbox={jest.fn()}
+        onReportContent={onReportContent}
+      />
+    );
+
+    expect(getByTestId('compare-pane-action-row')).toHaveStyle({
+      flexDirection: 'row',
+      alignItems: 'center',
+    });
+    expect(getByTestId('copy-compare-pane-content')).toBeTruthy();
+
+    fireEvent.press(getByTestId('report-compare-message-m2'));
+
+    expect(onReportContent).toHaveBeenCalledWith(messages[1]);
+  });
+
+  it('does not show report actions for streaming-only compare content', () => {
+    const { queryByTestId } = renderWithProviders(
+      <CompareResponsePane
+        ai={ai}
+        messages={[]}
+        isTyping={false}
+        streamingContent="Still streaming"
+        onContinueWithAI={jest.fn()}
+        side="left"
+        imageState={defaultImageState}
+        onCancelImage={jest.fn()}
+        onOpenLightbox={jest.fn()}
+        onReportContent={jest.fn()}
+      />
+    );
+
+    expect(queryByTestId('report-compare-message-m1')).toBeNull();
+  });
 });

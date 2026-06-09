@@ -137,6 +137,36 @@ describe('DebateMessageBubble', () => {
       expect(getByText('Claude (Analytical)')).toBeTruthy();
     });
 
+    it('reports generated debate message content from the bubble action', () => {
+      const onReportContent = jest.fn();
+      const message = createMessage({ id: 'debate-report-1' });
+
+      const { getByTestId } = renderWithProviders(
+        <DebateMessageBubble message={message} index={0} onReportContent={onReportContent} />
+      );
+
+      fireEvent.press(getByTestId('report-debate-message-debate-report-1'));
+
+      expect(onReportContent).toHaveBeenCalledWith(message);
+    });
+
+    it('does not show the report action while a debate message is streaming', () => {
+      mockStreamingState = {
+        content: '',
+        isStreaming: true,
+        cursorVisible: true,
+        error: null,
+        chunksReceived: 0,
+      };
+      const message = createMessage({ id: 'debate-report-streaming', content: '' });
+
+      const { queryByTestId } = renderWithProviders(
+        <DebateMessageBubble message={message} index={0} onReportContent={jest.fn()} />
+      );
+
+      expect(queryByTestId('report-debate-message-debate-report-streaming')).toBeNull();
+    });
+
     it('renders citation sources for cited AI messages', () => {
       const message = createMessage({
         content: 'See [1] for details.',

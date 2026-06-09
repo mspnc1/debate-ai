@@ -69,6 +69,9 @@ import { estimateElevenLabsTtsCreditCost } from '@/services/media/elevenLabsCred
 import { ActiveSessionPersistenceService, type ActiveDebateSessionSnapshot } from '@/services/lifecycle/ActiveSessionPersistenceService';
 import { AppLifecycleService } from '@/services/lifecycle/AppLifecycleService';
 import { useRecoverableExitGuard } from '@/hooks/lifecycle/useRecoverableExitGuard';
+import { GeneratedContentReportModal } from '@/components/organisms/report/GeneratedContentReportModal';
+import type { GeneratedContentReportTarget } from '@/services/reports/GeneratedContentReportService';
+import { buildMessageReportTarget } from '@/utils/generatedContentReportTargets';
 // Topic block is now rendered inside header
 // Controls modal removed – using Start Over action directly
 
@@ -139,6 +142,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
   const [voicePackSaveStage, setVoicePackSaveStage] = useState<DebateAudioCompileStage | null>(null);
   const [pendingGalleryFocusMediaId, setPendingGalleryFocusMediaId] = useState<string | null>(null);
   const [debateRecoveryChecked, setDebateRecoveryChecked] = useState(false);
+  const [reportTarget, setReportTarget] = useState<GeneratedContentReportTarget | null>(null);
   const selectedSampleRef = React.useRef<DemoDebate | null>(null);
   // No custom controls modal
   
@@ -652,6 +656,14 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
     }
     setShowTranscript(true);
   };
+
+  const handleReportDebateContent = useCallback((message: Message) => {
+    setReportTarget(buildMessageReportTarget(
+      message,
+      'debate',
+      session.session?.id
+    ));
+  }, [session.session?.id]);
   
   // Build display name with personality from setup
   const displayName = (ai: AI) => {
@@ -918,6 +930,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
             onRetryAudio={handleRetryDebateAudio}
             retryTurnMessageId={flow.continuation?.continueAction === 'retry_message' ? flow.continuation.retryMessageId : undefined}
             onRetryTurn={flow.continueDebate}
+            onReportContent={handleReportDebateContent}
           />
 
           {flow.continuation && !(flow.continuation.continueAction === 'retry_message' && flow.continuation.retryMessageId) && !voting.isVoting && (
@@ -1246,6 +1259,11 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
         affirmativeLabel={flow.audienceQuestionsPrompt?.affirmativeLabel}
         negativeLabel={flow.audienceQuestionsPrompt?.negativeLabel}
         onSubmit={handleSubmitAudienceQuestions}
+      />
+      <GeneratedContentReportModal
+        visible={reportTarget !== null}
+        target={reportTarget}
+        onClose={() => setReportTarget(null)}
       />
       
       {/* Transcript Modal */}

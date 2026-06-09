@@ -20,6 +20,7 @@ import {
 import { ImageService } from '../services/images/ImageService';
 import { useMergedModalityAvailability } from '../hooks/multimodal/useModalityAvailability';
 import { ImageRefinementModal, RefinementProvider } from '../components/organisms/chat/ImageRefinementModal';
+import { GeneratedContentReportModal } from '@/components/organisms/report/GeneratedContentReportModal';
 import { getImageInputModels, getImageProviderDisplayName } from '../config/imageGenerationModels';
 import { loadBase64FromFileUri } from '../services/images/fileCache';
 import APIKeyService from '../services/APIKeyService';
@@ -68,6 +69,8 @@ import { useTheme } from '@/theme';
 import { ActiveSessionPersistenceService, type ActiveChatSessionSnapshot } from '@/services/lifecycle/ActiveSessionPersistenceService';
 import { AppLifecycleService } from '@/services/lifecycle/AppLifecycleService';
 import { useRecoverableExitGuard } from '@/hooks/lifecycle/useRecoverableExitGuard';
+import type { GeneratedContentReportTarget } from '@/services/reports/GeneratedContentReportService';
+import { buildMessageReportTarget } from '@/utils/generatedContentReportTargets';
 
 
 interface ChatScreenProps {
@@ -182,6 +185,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   const recordModeEnabled = useSelector((state: RootState) => state.settings.recordModeEnabled ?? false);
   const [isRecording, setIsRecording] = React.useState(false);
   const [topicPickerVisible, setTopicPickerVisible] = React.useState(false);
+  const [reportTarget, setReportTarget] = React.useState<GeneratedContentReportTarget | null>(null);
   // Demo progress tracking state
   const [demoCurrentTurn, setDemoCurrentTurn] = React.useState(0);
   const [demoTotalTurns, setDemoTotalTurns] = React.useState(0);
@@ -508,6 +512,14 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     setRefinementMessageId(messageId);
     setRefinementModalVisible(true);
   }, []);
+
+  const handleReportChatContent = React.useCallback((message: Message) => {
+    setReportTarget(buildMessageReportTarget(
+      message,
+      'chat',
+      session.currentSession?.id
+    ));
+  }, [session.currentSession?.id]);
 
   // Handler for executing refinement
   const handleRefineImage = React.useCallback(async (opts: { instructions: string; provider: AIProvider; modelId: string }) => {
@@ -1025,6 +1037,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
             onScrollToSearchResult={handleScrollToSearchResult}
             canRefineImages={canRefineImages}
             onRefineImage={handleOpenRefinement}
+            onReportContent={handleReportChatContent}
           />
         )}
 
@@ -1074,6 +1087,11 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
             availableProviders={refinementProviders}
             onClose={() => setRefinementModalVisible(false)}
             onRefine={handleRefineImage}
+          />
+          <GeneratedContentReportModal
+            visible={reportTarget !== null}
+            target={reportTarget}
+            onClose={() => setReportTarget(null)}
           />
         </View>
       </KeyboardAvoidingView>

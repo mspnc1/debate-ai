@@ -7,6 +7,7 @@ import { resolveProviderModelId } from '@/config/modelConfigs';
 import { StorageService } from '@/services/chat/StorageService';
 import type { AppStore, RootState } from '@/store';
 import type { AIConfig, ChatSession, Message } from '@/types';
+import type { GeneratedContentReportTarget } from '@/services/reports/GeneratedContentReportService';
 
 const leftAI: AIConfig = {
   id: 'left-ai',
@@ -40,6 +41,11 @@ let mockCompareSplitViewProps: any;
 let mockDemoSamplesProps: any;
 let mockChatInputProps: any;
 let mockDemoBannerProps: any;
+let mockReportModalProps: {
+  visible: boolean;
+  target: GeneratedContentReportTarget | null;
+  onClose: () => void;
+} | undefined;
 
 jest.mock('expo-linear-gradient', () => ({
   LinearGradient: ({ children }: { children: React.ReactNode }) => children,
@@ -225,6 +231,17 @@ jest.mock('@/components/organisms/chat/ImageLightboxModal', () => ({
   ImageLightboxModal: () => null,
 }));
 
+jest.mock('@/components/organisms/report/GeneratedContentReportModal', () => ({
+  GeneratedContentReportModal: (props: {
+    visible: boolean;
+    target: GeneratedContentReportTarget | null;
+    onClose: () => void;
+  }) => {
+    mockReportModalProps = props;
+    return null;
+  },
+}));
+
 const CompareScreen = require('@/screens/CompareScreen').default;
 
 type CompareRouteParams = {
@@ -351,6 +368,7 @@ beforeEach(() => {
   mockDemoSamplesProps = undefined;
   mockChatInputProps = undefined;
   mockDemoBannerProps = undefined;
+  mockReportModalProps = undefined;
   mockListSamples.mockResolvedValue([]);
   mockFindCompareById.mockResolvedValue(null);
   mockLoadCompareScript.mockReset();
@@ -428,6 +446,34 @@ describe('CompareScreen', () => {
     expect(mockCompareSplitViewProps.leftMessages[0].content).toBe('Left answer');
     expect(mockCompareSplitViewProps.continuedSide).toBe('left');
     expect(mockChatInputProps.placeholder).toContain(leftAI.name);
+  });
+
+  it('opens the generated content report modal for compare AI messages', async () => {
+    const session = createResumedSession();
+    const preloadedState: Partial<RootState> = {
+      chat: {
+        ...createAppStore().getState().chat,
+        currentSession: session,
+      },
+    };
+
+    renderScreen({ params: { resuming: true }, preloadedState });
+
+    expect(mockCompareSplitViewProps.onReportContent).toEqual(expect.any(Function));
+
+    await act(async () => {
+      mockCompareSplitViewProps.onReportContent(session.messages[1]);
+    });
+
+    await waitFor(() => {
+      expect(mockReportModalProps?.visible).toBe(true);
+      expect(mockReportModalProps?.target).toMatchObject({
+        surface: 'compare',
+        contentId: 'm2',
+        sessionId: 'compare-session',
+        contentText: 'Left answer',
+      });
+    });
   });
 
   it('wires stop controls into the compare input bar', () => {

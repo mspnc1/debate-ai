@@ -35,6 +35,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import { Typography } from '../components/molecules';
 import { ImageRefinementModal, RefinementProvider } from '../components/organisms/chat/ImageRefinementModal';
+import { GeneratedContentReportModal } from '@/components/organisms/report/GeneratedContentReportModal';
 import { RootState, AppDispatch, isApiKeyConfigured } from '../store';
 import {
   selectCreateState,
@@ -90,6 +91,8 @@ import MediaSaveService from '../services/media/MediaSaveService';
 import { getMediaShareUti } from '../services/media/mediaFileCache';
 import useFeatureAccess from '../hooks/useFeatureAccess';
 import { useGreeting } from '../hooks/useGreeting';
+import type { GeneratedContentReportTarget } from '@/services/reports/GeneratedContentReportService';
+import { buildGalleryAssetReportTarget } from '@/utils/generatedContentReportTargets';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 type ScreenRouteProp = RouteProp<RootStackParamList, 'CreateSession'>;
@@ -945,6 +948,7 @@ export default function CreateScreen() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [bulkSaving, setBulkSaving] = useState(false);
+  const [reportTarget, setReportTarget] = useState<GeneratedContentReportTarget | null>(null);
   const focusedAssetRef = useRef<string | undefined>(undefined);
 
   const activeSelectedModels = useMemo(() => {
@@ -1332,6 +1336,10 @@ export default function CreateScreen() {
     }
     await handleShareMedia(asset.id);
   }, [handleShare, handleShareMedia]);
+
+  const handleReportAsset = useCallback((asset: GalleryAsset) => {
+    setReportTarget(buildGalleryAssetReportTarget(asset));
+  }, []);
 
   const handleDeleteAsset = useCallback((asset: GalleryAsset) => {
     const label = getGalleryAssetTypeLabel(asset.type).toLowerCase();
@@ -1969,6 +1977,19 @@ export default function CreateScreen() {
               </Typography>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={[styles.detailActionButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+              onPress={() => handleReportAsset(selectedAsset)}
+              accessibilityRole="button"
+              accessibilityLabel="Report AI content"
+              testID={`report-create-asset-${selectedAsset.id}`}
+            >
+              <Ionicons name="flag-outline" size={22} color={theme.colors.error[500]} />
+              <Typography variant="caption" weight="semibold" style={{ color: theme.colors.error[500] }}>
+                Report
+              </Typography>
+            </TouchableOpacity>
+
             {canRefineSelected && (
               <TouchableOpacity
                 style={[styles.detailActionButton, { backgroundColor: theme.colors.primary[500], borderColor: theme.colors.primary[500] }]}
@@ -2183,6 +2204,11 @@ export default function CreateScreen() {
         availableProviders={availableRefinementProviders}
         onClose={() => setRefiningImage(null)}
         onRefine={handleRefinementSubmit}
+      />
+      <GeneratedContentReportModal
+        visible={reportTarget !== null}
+        target={reportTarget}
+        onClose={() => setReportTarget(null)}
       />
     </View>
   );

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, ImageSourcePropType } from 'react-native';
+import { View, StyleSheet, ImageSourcePropType, TouchableOpacity } from 'react-native';
 import Animated, {
   FadeInDown,
   FadeOut,
@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '../../molecules';
 import { useTheme, type Theme } from '../../../theme';
 
@@ -21,6 +22,7 @@ export interface SystemAnnouncementProps {
   brandColor?: string;
   animation?: 'fade' | 'slide-up' | 'scale';
   onDismiss?: () => void;
+  onReportContent?: () => void;
 }
 
 interface AnnouncementPalette {
@@ -134,6 +136,7 @@ export const SystemAnnouncement: React.FC<SystemAnnouncementProps> = ({
   gradient,
   brandColor,
   animation = 'fade',
+  onReportContent,
 }) => {
   const { theme, isDark } = useTheme();
   const scale = useSharedValue(0.95);
@@ -210,6 +213,20 @@ export const SystemAnnouncement: React.FC<SystemAnnouncementProps> = ({
               isAudienceCue && styles.audienceGradient,
             ]}
           >
+            {onReportContent && (
+              <TouchableOpacity
+                onPress={onReportContent}
+                accessibilityRole="button"
+                accessibilityLabel="Report AI content"
+                testID="report-system-announcement"
+                style={[
+                  styles.reportButton,
+                  { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' },
+                ]}
+              >
+                <Ionicons name="flag-outline" size={15} color={theme.colors.error[500]} />
+              </TouchableOpacity>
+            )}
             {label && (
               <Typography
                 variant="caption"
@@ -372,6 +389,14 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     textAlign: 'center',
+  },
+  reportButton: {
+    position: 'absolute',
+    right: 8,
+    top: 8,
+    zIndex: 2,
+    borderRadius: 12,
+    padding: 6,
   },
   audienceContent: {
     fontSize: 14,

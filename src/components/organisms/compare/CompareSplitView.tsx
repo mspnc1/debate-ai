@@ -37,6 +37,7 @@ interface CompareSplitViewProps {
   onRetryLeftImage?: () => void;
   onRetryRightImage?: () => void;
   onOpenLightbox?: (uri: string) => void;
+  onReportContent?: (message: Message) => void;
 }
 
 export const CompareSplitView: React.FC<CompareSplitViewProps> = ({
@@ -61,6 +62,7 @@ export const CompareSplitView: React.FC<CompareSplitViewProps> = ({
   onRetryLeftImage,
   onRetryRightImage,
   onOpenLightbox,
+  onReportContent,
 }) => {
   const { theme } = useTheme();
   
@@ -92,6 +94,7 @@ export const CompareSplitView: React.FC<CompareSplitViewProps> = ({
             onCancelImage={onCancelLeftImage}
             onRetryImage={onRetryLeftImage}
             onOpenLightbox={onOpenLightbox}
+            onReportContent={onReportContent}
           />
         </View>
       )}
@@ -121,6 +124,7 @@ export const CompareSplitView: React.FC<CompareSplitViewProps> = ({
             onCancelImage={onCancelRightImage}
             onRetryImage={onRetryRightImage}
             onOpenLightbox={onOpenLightbox}
+            onReportContent={onReportContent}
           />
         </View>
       )}

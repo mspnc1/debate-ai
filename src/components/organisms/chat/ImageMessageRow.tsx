@@ -15,9 +15,11 @@ export interface ImageMessageRowProps {
   canRefine?: boolean;
   /** Called when user wants to refine an image */
   onRefine?: (imageUri: string, originalPrompt: string, originalProvider: AIProvider, messageId?: string) => void;
+  /** Called when user reports generated image content */
+  onReportContent?: (message: Message) => void;
 }
 
-export const ImageMessageRow: React.FC<ImageMessageRowProps> = ({ message, canRefine, onRefine }) => {
+export const ImageMessageRow: React.FC<ImageMessageRowProps> = ({ message, canRefine, onRefine, onReportContent }) => {
   const { theme } = useTheme();
   const [lightboxUri, setLightboxUri] = useState<string | null>(null);
   const uris = (message.attachments || []).filter(a => a.type === 'image').map(a => a.uri);
@@ -55,6 +57,17 @@ export const ImageMessageRow: React.FC<ImageMessageRowProps> = ({ message, canRe
         <TouchableOpacity onPress={async () => { try { if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uris[0]); } catch (e) { void e; } }} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: theme.colors.surface }}>
           <Typography variant="caption" style={{ color: theme.colors.text.primary }}>Share</Typography>
         </TouchableOpacity>
+        {onReportContent && (
+          <TouchableOpacity
+            onPress={() => onReportContent(message)}
+            accessibilityRole="button"
+            accessibilityLabel="Report AI content"
+            testID={`report-image-message-${message.id}`}
+            style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: theme.colors.surface }}
+          >
+            <Typography variant="caption" style={{ color: theme.colors.error[500] }}>Report</Typography>
+          </TouchableOpacity>
+        )}
       </Box>
       <Box style={styles.metaRow}>
         <Typography variant="caption" color="secondary">{new Date(message.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</Typography>

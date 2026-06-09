@@ -35,6 +35,7 @@ interface CompareResponsePaneProps {
   onCancelImage?: () => void;
   onRetryImage?: () => void;
   onOpenLightbox?: (uri: string) => void;
+  onReportContent?: (message: Message) => void;
 }
 
 export const CompareResponsePane: React.FC<CompareResponsePaneProps> = ({
@@ -51,6 +52,7 @@ export const CompareResponsePane: React.FC<CompareResponsePaneProps> = ({
   onCancelImage,
   onRetryImage,
   onOpenLightbox,
+  onReportContent,
 }) => {
   const { theme, isDark } = useTheme();
   const [copied, setCopied] = useState(false);
@@ -92,6 +94,16 @@ export const CompareResponsePane: React.FC<CompareResponsePaneProps> = ({
     const messageContent = messages.map(m => m.content).join('\n\n');
     return streamingContent ? `${messageContent}\n\n${streamingContent}` : messageContent;
   }, [messages, streamingContent]);
+
+  const latestReportableMessage = useMemo(() => {
+    return [...messages].reverse().find((message) => {
+      const imageAttachments = (message.attachments || []).filter(a => a.type === 'image');
+      return message.content.trim().length > 0 || imageAttachments.length > 0;
+    });
+  }, [messages]);
+
+  const showActionRow = messages.length > 0 || Boolean(streamingContent);
+  const canReportContent = Boolean(onReportContent && latestReportableMessage);
 
   // Handle copy
   const handleCopy = async () => {
@@ -256,23 +268,42 @@ export const CompareResponsePane: React.FC<CompareResponsePaneProps> = ({
           accentColor={accentColor}
         />
 
-        {/* Copy Button - inside scroll content */}
-        {(messages.length > 0 || streamingContent) && (
-          <TouchableOpacity
-            onPress={handleCopy}
-            accessibilityLabel="Copy all content"
-            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-            style={[
-              styles.copyButton,
-              { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' },
-            ]}
-          >
-            <Ionicons
-              name={copied ? 'checkmark-outline' : 'copy-outline'}
-              size={16}
-              color={theme.colors.text.primary}
-            />
-          </TouchableOpacity>
+        {/* Pane actions - aligned like Chat bubble actions */}
+        {showActionRow && (
+          <View style={styles.actionRow} testID="compare-pane-action-row">
+            {canReportContent && latestReportableMessage && (
+              <TouchableOpacity
+                onPress={() => onReportContent?.(latestReportableMessage)}
+                accessibilityRole="button"
+                accessibilityLabel="Report AI content"
+                testID={`report-compare-message-${latestReportableMessage.id}`}
+                hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                style={[
+                  styles.actionButton,
+                  { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' },
+                ]}
+              >
+                <Ionicons name="flag-outline" size={16} color={theme.colors.error[500]} />
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              onPress={handleCopy}
+              accessibilityLabel="Copy all content"
+              testID="copy-compare-pane-content"
+              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              style={[
+                styles.actionButton,
+                { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' },
+              ]}
+            >
+              <Ionicons
+                name={copied ? 'checkmark-outline' : 'copy-outline'}
+                size={16}
+                color={theme.colors.text.primary}
+              />
+            </TouchableOpacity>
+          </View>
         )}
       </ScrollView>
 
@@ -324,9 +355,14 @@ const styles = StyleSheet.create({
   imageAttachments: {
     marginTop: 8,
   },
-  copyButton: {
+  actionRow: {
     alignSelf: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginTop: 12,
+  },
+  actionButton: {
     borderRadius: 12,
     padding: 6,
   },

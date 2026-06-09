@@ -32,6 +32,7 @@ describe('CompareSplitView', () => {
   });
 
   it('renders both panes in split view', () => {
+    const onReportContent = jest.fn();
     const { getByTestId } = renderWithProviders(
       <CompareSplitView
         leftAI={leftAI}
@@ -47,13 +48,14 @@ describe('CompareSplitView', () => {
         onExpandLeft={jest.fn()}
         onExpandRight={jest.fn()}
         onOpenLightbox={jest.fn()}
+        onReportContent={onReportContent}
       />
     );
 
     expect(getByTestId('pane-left')).toBeTruthy();
     expect(getByTestId('pane-right')).toBeTruthy();
-    expect(mockResponsePane).toHaveBeenNthCalledWith(1, expect.objectContaining({ side: 'left', isExpanded: false }));
-    expect(mockResponsePane).toHaveBeenNthCalledWith(2, expect.objectContaining({ side: 'right', isExpanded: false, isDisabled: false }));
+    expect(mockResponsePane).toHaveBeenNthCalledWith(1, expect.objectContaining({ side: 'left', isExpanded: false, onReportContent }));
+    expect(mockResponsePane).toHaveBeenNthCalledWith(2, expect.objectContaining({ side: 'right', isExpanded: false, isDisabled: false, onReportContent }));
   });
 
   it('renders only left pane in left-only mode', () => {

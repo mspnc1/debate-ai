@@ -39,6 +39,9 @@ export { SupportSheet } from './support/SupportSheet';
 export { UnlockEverythingBanner } from './subscription/UnlockEverythingBanner';
 export { TrialTermsSheet } from './subscription/TrialTermsSheet';
 
+// Reporting Organisms
+export { GeneratedContentReportModal } from './report/GeneratedContentReportModal';
+
 // Help Organisms
 export { HelpSheet, HelpWebViewModal } from './help';
 

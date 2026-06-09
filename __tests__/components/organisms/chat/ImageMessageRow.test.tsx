@@ -84,6 +84,19 @@ describe('ImageMessageRow', () => {
     expect(getByText('Share')).toBeTruthy();
   });
 
+  it('renders Report and calls report handler when provided', () => {
+    const onReportContent = jest.fn();
+    const { getByTestId, getByText } = renderWithProviders(
+      <ImageMessageRow message={mockMessage} onReportContent={onReportContent} />
+    );
+
+    expect(getByText('Report')).toBeTruthy();
+
+    fireEvent.press(getByTestId('report-image-message-msg1'));
+
+    expect(onReportContent).toHaveBeenCalledWith(mockMessage);
+  });
+
   it('renders timestamp', () => {
     const { getByText } = renderWithProviders(<ImageMessageRow message={mockMessage} />);
     const timeText = new Date(mockMessage.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });

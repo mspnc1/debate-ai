@@ -34,6 +34,7 @@ export interface DebateMessageListProps {
   onRetryAudio?: (message: Message) => void;
   retryTurnMessageId?: string;
   onRetryTurn?: (message: Message) => void;
+  onReportContent?: (message: Message) => void;
 }
 
 type DetectedAnnouncementType =
@@ -139,7 +140,8 @@ const MessageItem = memo<{
   onRetryAudio?: (message: Message) => void;
   retryTurnMessageId?: string;
   onRetryTurn?: (message: Message) => void;
-}>(({ message, index, alignment, canRetryAudio, onRetryAudio, retryTurnMessageId, onRetryTurn }) => {
+  onReportContent?: (message: Message) => void;
+}>(({ message, index, alignment, canRetryAudio, onRetryAudio, retryTurnMessageId, onRetryTurn, onReportContent }) => {
   const systemType = detectType(message);
   
   if (systemType) {
@@ -150,6 +152,7 @@ const MessageItem = memo<{
         content={message.content}
         icon={getIcon(systemType)}
         animation="slide-up"
+        onReportContent={systemType === 'mc' && onReportContent ? () => onReportContent(message) : undefined}
       />
     );
   }
@@ -163,6 +166,7 @@ const MessageItem = memo<{
       onRetryAudio={onRetryAudio}
       canRetryTurn={retryTurnMessageId === message.id}
       onRetryTurn={onRetryTurn}
+      onReportContent={onReportContent}
     />
   );
 }, (prevProps, nextProps) => {
@@ -178,6 +182,7 @@ const MessageItem = memo<{
   if (prevProps.onRetryAudio !== nextProps.onRetryAudio) return false;
   if (prevProps.retryTurnMessageId !== nextProps.retryTurnMessageId) return false;
   if (prevProps.onRetryTurn !== nextProps.onRetryTurn) return false;
+  if (prevProps.onReportContent !== nextProps.onReportContent) return false;
   return true;
 });
 
@@ -194,6 +199,7 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
   onRetryAudio,
   retryTurnMessageId,
   onRetryTurn,
+  onReportContent,
 }) => {
   const flatListRef = useRef<FlatList>(null);
   const alignmentMapRef = useRef<Record<string, 'left' | 'right'>>({});
@@ -394,9 +400,10 @@ export const DebateMessageList: React.FC<DebateMessageListProps> = ({
         onRetryAudio={onRetryAudio}
         retryTurnMessageId={retryTurnMessageId}
         onRetryTurn={onRetryTurn}
+        onReportContent={onReportContent}
       />
     );
-  }, [canRetryAudio, getAlignment, onRetryAudio, onRetryTurn, retryTurnMessageId]);
+  }, [canRetryAudio, getAlignment, onReportContent, onRetryAudio, onRetryTurn, retryTurnMessageId]);
 
   // Memoized key extractor - optimized
   const keyExtractor = useCallback((item: Message, index: number) => {

@@ -28,13 +28,16 @@ jest.mock('@/components/atoms', () => {
 
 jest.mock('@/components/molecules', () => {
   const React = require('react');
-  const { Text, View } = require('react-native');
+  const { Text, TouchableOpacity, View } = require('react-native');
   return {
     Typography: ({ children, ...props }: any) =>
       React.createElement(Text, { testID: props.testID || 'typography' }, children),
-    DebateMessageBubble: ({ message }: any) =>
+    DebateMessageBubble: ({ message, onReportContent }: any) =>
       React.createElement(View, { testID: `message-${message.id}` },
-        React.createElement(Text, null, message.content)
+        React.createElement(Text, null, message.content),
+        onReportContent
+          ? React.createElement(TouchableOpacity, { testID: `report-message-${message.id}`, onPress: () => onReportContent(message) }, React.createElement(Text, null, 'Report'))
+          : null
       ),
     DebateTypingIndicator: ({ aiName }: any) =>
       React.createElement(View, { testID: `typing-${aiName}` },
@@ -44,12 +47,15 @@ jest.mock('@/components/molecules', () => {
 });
 
 jest.mock('@/components/organisms/debate/SystemAnnouncement', () => ({
-  SystemAnnouncement: ({ content, label, type }: { content: string; label?: string; type: string }) => {
+  SystemAnnouncement: ({ content, label, type, onReportContent }: { content: string; label?: string; type: string; onReportContent?: () => void }) => {
     const React = require('react');
-    const { View, Text } = require('react-native');
+    const { View, Text, TouchableOpacity } = require('react-native');
     return React.createElement(View, { testID: `system-${type}` },
       label ? React.createElement(Text, null, label) : null,
-      React.createElement(Text, null, content)
+      React.createElement(Text, null, content),
+      onReportContent
+        ? React.createElement(TouchableOpacity, { testID: `report-system-${type}`, onPress: onReportContent }, React.createElement(Text, null, 'Report System'))
+        : null
     );
   },
 }));
@@ -193,6 +199,49 @@ describe('DebateMessageList', () => {
       const { getByTestId } = renderWithProviders(<DebateMessageList {...defaultProps} />);
       expect(getByTestId('message-1')).toBeTruthy();
       expect(getByTestId('message-2')).toBeTruthy();
+    });
+
+    it('passes report handler to debate AI messages', () => {
+      const onReportContent = jest.fn();
+      const { getByTestId } = renderWithProviders(
+        <DebateMessageList {...defaultProps} onReportContent={onReportContent} />
+      );
+
+      fireEvent.press(getByTestId('report-message-1'));
+
+      expect(onReportContent).toHaveBeenCalledWith(mockMessages[0]);
+    });
+
+    it('passes report handler to generated MC announcements', () => {
+      const onReportContent = jest.fn();
+      const mcMessage: Message = {
+        id: 'mc-1',
+        sender: 'Debate Host',
+        senderType: 'ai',
+        content: 'Now we move to crossfire.',
+        timestamp: Date.now(),
+        metadata: {
+          debateInterstitial: {
+            kind: 'phase_segue',
+            flowStep: 'podcast_phase_segue',
+            label: 'MC',
+            generatedByProvider: 'openai',
+            generatedByModel: 'gpt-4.1-mini',
+          },
+        },
+      };
+
+      const { getByTestId } = renderWithProviders(
+        <DebateMessageList
+          {...defaultProps}
+          messages={[mcMessage]}
+          onReportContent={onReportContent}
+        />
+      );
+
+      fireEvent.press(getByTestId('report-system-mc'));
+
+      expect(onReportContent).toHaveBeenCalledWith(mcMessage);
     });
 
     it('detects submitted audience questions as a dedicated announcement', () => {

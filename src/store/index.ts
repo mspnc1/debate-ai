@@ -379,10 +379,21 @@ const rootReducer = combineReducers({
 
 export type RootState = ReturnType<typeof rootReducer>;
 
+const DEV_STATE_INVARIANT_WARN_AFTER_MS = 256;
+
 export const createAppStore = (preloadedState?: Partial<RootState>) =>
   configureStore({
     reducer: rootReducer,
     preloadedState: preloadedState as RootState | undefined,
+    middleware: getDefaultMiddleware =>
+      getDefaultMiddleware({
+        immutableCheck: {
+          warnAfter: DEV_STATE_INVARIANT_WARN_AFTER_MS,
+        },
+        serializableCheck: {
+          warnAfter: DEV_STATE_INVARIANT_WARN_AFTER_MS,
+        },
+      }),
   });
 
 export const store = createAppStore();

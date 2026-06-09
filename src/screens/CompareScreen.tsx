@@ -45,6 +45,9 @@ import { ensureAnswerContent } from '@/utils/citationUtils';
 import { ActiveSessionPersistenceService, type ActiveCompareSessionSnapshot } from '@/services/lifecycle/ActiveSessionPersistenceService';
 import { AppLifecycleService } from '@/services/lifecycle/AppLifecycleService';
 import { useRecoverableExitGuard } from '@/hooks/lifecycle/useRecoverableExitGuard';
+import { GeneratedContentReportModal } from '@/components/organisms/report/GeneratedContentReportModal';
+import type { GeneratedContentReportTarget } from '@/services/reports/GeneratedContentReportService';
+import { buildMessageReportTarget } from '@/utils/generatedContentReportTargets';
 
 interface CompareScreenProps {
   navigation: {
@@ -305,6 +308,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
 
   // Image lightbox state
   const [lightboxUri, setLightboxUri] = useState<string | null>(null);
+  const [reportTarget, setReportTarget] = useState<GeneratedContentReportTarget | null>(null);
   const synchronizerRef = useRef<CompareStreamSynchronizer | null>(null);
   const leftStreamingContentRef = useRef('');
   const rightStreamingContentRef = useRef('');
@@ -1365,6 +1369,10 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     setLightboxUri(uri);
   }, []);
 
+  const handleReportCompareContent = useCallback((message: Message) => {
+    setReportTarget(buildMessageReportTarget(message, 'compare', sessionId));
+  }, [sessionId]);
+
   // Navigate back if AIs are not provided (must be after all hooks)
   if (!leftAI || !rightAI) {
     navigation.goBack();
@@ -1528,6 +1536,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
                   onExpandLeft={handleExpandLeft}
                   onExpandRight={handleExpandRight}
                   onOpenLightbox={handleOpenLightbox}
+                  onReportContent={handleReportCompareContent}
                 />
               )}
             </React.Fragment>
@@ -1600,6 +1609,11 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
         visible={!!lightboxUri}
         uri={lightboxUri || ''}
         onClose={() => setLightboxUri(null)}
+      />
+      <GeneratedContentReportModal
+        visible={reportTarget !== null}
+        target={reportTarget}
+        onClose={() => setReportTarget(null)}
       />
     </SafeAreaView>
   );

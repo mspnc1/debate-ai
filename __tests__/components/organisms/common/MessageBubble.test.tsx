@@ -1,7 +1,15 @@
 import React from 'react';
+import { fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { MessageBubble } from '@/components/organisms/common/MessageBubble';
 import type { Message } from '@/types';
+
+let mockStreamingState = {
+  content: '',
+  isStreaming: false,
+  cursorVisible: false,
+  error: '',
+};
 
 jest.mock('expo-haptics', () => ({}));
 
@@ -25,7 +33,7 @@ jest.mock('@/components/molecules', () => {
 });
 
 jest.mock('@/hooks/streaming', () => ({
-  useStreamingMessage: () => ({ content: '', isStreaming: false, cursorVisible: false, error: '' }),
+  useStreamingMessage: () => mockStreamingState,
 }));
 
 jest.mock('@/hooks/useFeatureAccess', () => ({
@@ -83,6 +91,15 @@ describe('MessageBubble', () => {
     timestamp: Date.now(),
   };
 
+  beforeEach(() => {
+    mockStreamingState = {
+      content: '',
+      isStreaming: false,
+      cursorVisible: false,
+      error: '',
+    };
+  });
+
   it('renders user message text with mentions highlighted', () => {
     const { getByText } = renderWithProviders(
       <MessageBubble message={baseMessage} isLast={false} />
@@ -109,5 +126,52 @@ describe('MessageBubble', () => {
 
     expect(getByTestId('markdown').props.children).toContain('[[1]](https://example.com)');
     expect(getByTestId('citation-sources')).toBeTruthy();
+  });
+
+  it('reports AI-generated message content from the bubble action', () => {
+    const onReportContent = jest.fn();
+    const aiMessage: Message = {
+      ...baseMessage,
+      sender: 'Claude',
+      senderType: 'ai',
+      content: 'Generated answer',
+    };
+
+    const { getByTestId } = renderWithProviders(
+      <MessageBubble message={aiMessage} isLast={false} onReportContent={onReportContent} />
+    );
+
+    fireEvent.press(getByTestId('report-message-msg-1'));
+
+    expect(onReportContent).toHaveBeenCalledWith(aiMessage);
+  });
+
+  it('does not show the report action while an AI message is streaming', () => {
+    mockStreamingState = {
+      content: '',
+      isStreaming: true,
+      cursorVisible: true,
+      error: '',
+    };
+    const aiMessage: Message = {
+      ...baseMessage,
+      sender: 'Claude',
+      senderType: 'ai',
+      content: '',
+    };
+
+    const { queryByTestId } = renderWithProviders(
+      <MessageBubble message={aiMessage} isLast={false} onReportContent={jest.fn()} />
+    );
+
+    expect(queryByTestId('report-message-msg-1')).toBeNull();
+  });
+
+  it('does not show the report action for user messages', () => {
+    const { queryByTestId } = renderWithProviders(
+      <MessageBubble message={baseMessage} isLast={false} onReportContent={jest.fn()} />
+    );
+
+    expect(queryByTestId('report-message-msg-1')).toBeNull();
   });
 });

@@ -68,6 +68,9 @@ export { contactForm } from './contactForm';
 // Symposium AI Feedback
 export { symposiumFeedback } from './symposiumFeedback';
 
+// In-app AI content reports
+export { reportGeneratedContent } from './reportGeneratedContent';
+
 // Apple Sign In Callback (handles form_post from Apple)
 export { appleAuthCallback } from './appleAuthCallback';
 

@@ -29,6 +29,7 @@ interface MessageBubbleProps {
   message: Message;
   isLast: boolean;
   searchTerm?: string;
+  onReportContent?: (message: Message) => void;
 }
 
 // Helper component for highlighted text
@@ -87,7 +88,7 @@ const processMessageContent = (message: Message): string => {
   return message.content;
 };
 
-const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({ message, isLast, searchTerm }) => {
+const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({ message, isLast, searchTerm, onReportContent }) => {
   const isUser = message.senderType === 'user';
   const { theme, isDark } = useTheme();
   const [copied, setCopied] = useState(false);
@@ -146,6 +147,11 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({ message, isLast,
     // Use streaming content while streaming
     displayContent = streamingContent;
   }
+
+  const canReportContent = !isUser
+    && !isStreaming
+    && Boolean(onReportContent)
+    && displayContent.trim().length > 0;
 
   // Get AI-specific color from the message sender
   const getAIColor = () => {
@@ -372,6 +378,25 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({ message, isLast,
             color={isUser ? theme.colors.text.inverse : theme.colors.text.primary}
           />
         </TouchableOpacity>
+        {canReportContent && (
+          <TouchableOpacity
+            onPress={() => onReportContent?.(message)}
+            accessibilityLabel="Report AI content"
+            accessibilityRole="button"
+            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+            testID={`report-message-${message.id}`}
+            style={[
+              styles.reportButton,
+              { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' },
+            ]}
+          >
+            <Ionicons
+              name="flag-outline"
+              size={16}
+              color={theme.colors.error[500]}
+            />
+          </TouchableOpacity>
+        )}
         </Box>
 
         {/* Status pill for cancelled streams */}
@@ -439,6 +464,7 @@ export const MessageBubble = React.memo(MessageBubbleComponent, (prevProps, next
   prevProps.message === nextProps.message
   && prevProps.isLast === nextProps.isLast
   && prevProps.searchTerm === nextProps.searchTerm
+  && prevProps.onReportContent === nextProps.onReportContent
 ));
 
 const styles = StyleSheet.create({
@@ -507,6 +533,13 @@ const styles = StyleSheet.create({
   copyButton: {
     position: 'absolute',
     right: 8,
+    bottom: 8,
+    borderRadius: 12,
+    padding: 6,
+  },
+  reportButton: {
+    position: 'absolute',
+    right: 42,
     bottom: 8,
     borderRadius: 12,
     padding: 6,
