@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
+import { ToastNotification } from '@/components/molecules/feedback/ToastNotification';
 import { Typography } from '@/components/molecules';
 import { useTheme } from '@/theme';
 import { ErrorService } from '@/services/errors/ErrorService';
@@ -26,6 +27,7 @@ interface GeneratedContentReportModalProps {
   target: GeneratedContentReportTarget | null;
   onClose: () => void;
   onSubmitted?: () => void;
+  presentation?: 'modal' | 'overlay';
 }
 
 const REPORT_REASON_OPTIONS: Array<{
@@ -41,31 +43,56 @@ const REPORT_REASON_OPTIONS: Array<{
   { value: 'other', label: 'Other' },
 ];
 
+const REPORT_SUCCESS_MESSAGE = 'Report submitted for review.';
+const OVERLAY_SUCCESS_CLOSE_DELAY_MS = 1200;
+
 export const GeneratedContentReportModal: React.FC<GeneratedContentReportModalProps> = ({
   visible,
   target,
   onClose,
   onSubmitted,
+  presentation = 'modal',
 }) => {
   const { theme } = useTheme();
   const [reason, setReason] = useState<GeneratedContentReportReason>('offensive');
   const [details, setDetails] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearCloseTimer = useCallback(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
+    clearCloseTimer();
     if (visible) {
       setReason('offensive');
       setDetails('');
       setSubmitting(false);
+      setSubmitted(false);
     }
-  }, [visible, target?.contentId]);
+  }, [clearCloseTimer, visible, target?.contentId]);
+
+  useEffect(() => () => {
+    clearCloseTimer();
+  }, [clearCloseTimer]);
 
   const targetLabel = useMemo(() => (
     target?.title || 'AI-generated content'
   ), [target?.title]);
 
+  const handleClose = useCallback(() => {
+    clearCloseTimer();
+    setSubmitted(false);
+    onClose();
+  }, [clearCloseTimer, onClose]);
+
   const handleSubmit = async () => {
-    if (!target || submitting) return;
+    if (!target || submitting || submitted) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
     setSubmitting(true);
     try {
@@ -74,9 +101,18 @@ export const GeneratedContentReportModal: React.FC<GeneratedContentReportModalPr
         reason,
         details: details.trim() || undefined,
       });
-      ErrorService.showSuccess('Report submitted for review.', 'safety');
       onSubmitted?.();
-      onClose();
+      if (presentation === 'overlay') {
+        setSubmitted(true);
+        closeTimerRef.current = setTimeout(() => {
+          closeTimerRef.current = null;
+          setSubmitted(false);
+          onClose();
+        }, OVERLAY_SUCCESS_CLOSE_DELAY_MS);
+      } else {
+        ErrorService.showSuccess(REPORT_SUCCESS_MESSAGE, 'safety');
+        onClose();
+      }
     } catch (error) {
       ErrorService.handleWithToast(error, { feature: 'safety' });
     } finally {
@@ -84,26 +120,35 @@ export const GeneratedContentReportModal: React.FC<GeneratedContentReportModalPr
     }
   };
 
-  return (
-    <Modal
-      visible={visible && Boolean(target)}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}
+  const controlsDisabled = submitting || submitted;
+
+  const content = (
+    <KeyboardAvoidingView
+      style={[
+        styles.overlay,
+        presentation === 'overlay' && styles.hostedOverlay,
+      ]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      {presentation === 'overlay' && (
+        <ToastNotification
+          message={REPORT_SUCCESS_MESSAGE}
+          severity="success"
+          visible={submitted}
+          onDismiss={() => setSubmitted(false)}
+          duration={0}
+          position="top"
+        />
+      )}
+      <View
+        style={[
+          styles.sheet,
+          {
+            backgroundColor: theme.colors.background,
+            borderColor: theme.colors.border,
+          },
+        ]}
       >
-        <View
-          style={[
-            styles.sheet,
-            {
-              backgroundColor: theme.colors.background,
-              borderColor: theme.colors.border,
-            },
-          ]}
-        >
           <View style={styles.header}>
             <View style={styles.headerText}>
               <Typography variant="title" weight="semibold">
@@ -114,7 +159,7 @@ export const GeneratedContentReportModal: React.FC<GeneratedContentReportModalPr
               </Typography>
             </View>
             <TouchableOpacity
-              onPress={onClose}
+              onPress={handleClose}
               accessibilityRole="button"
               accessibilityLabel="Close report"
               style={[styles.closeButton, { backgroundColor: theme.colors.surface }]}
@@ -138,6 +183,7 @@ export const GeneratedContentReportModal: React.FC<GeneratedContentReportModalPr
                   <TouchableOpacity
                     key={option.value}
                     onPress={() => setReason(option.value)}
+                    disabled={controlsDisabled}
                     accessibilityRole="button"
                     accessibilityState={{ selected }}
                     testID={`generated-content-report-reason-${option.value}`}
@@ -175,6 +221,7 @@ export const GeneratedContentReportModal: React.FC<GeneratedContentReportModalPr
               placeholderTextColor={theme.colors.text.secondary}
               multiline
               maxLength={1200}
+              editable={!controlsDisabled}
               textAlignVertical="top"
               testID="generated-content-report-details"
               style={[
@@ -190,8 +237,8 @@ export const GeneratedContentReportModal: React.FC<GeneratedContentReportModalPr
 
           <View style={[styles.actions, { borderTopColor: theme.colors.border }]}>
             <TouchableOpacity
-              onPress={onClose}
-              disabled={submitting}
+              onPress={handleClose}
+              disabled={controlsDisabled}
               accessibilityRole="button"
               style={[
                 styles.actionButton,
@@ -207,7 +254,7 @@ export const GeneratedContentReportModal: React.FC<GeneratedContentReportModalPr
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleSubmit}
-              disabled={submitting}
+              disabled={controlsDisabled}
               accessibilityRole="button"
               accessibilityLabel="Submit content report"
               testID="generated-content-report-submit"
@@ -217,11 +264,18 @@ export const GeneratedContentReportModal: React.FC<GeneratedContentReportModalPr
                   backgroundColor: theme.colors.error[500],
                   borderColor: theme.colors.error[500],
                 },
-                submitting && styles.disabled,
+                controlsDisabled && styles.disabled,
               ]}
             >
               {submitting ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : submitted ? (
+                <>
+                  <Ionicons name="checkmark-circle-outline" size={17} color="#FFFFFF" />
+                  <Typography variant="caption" weight="semibold" style={{ color: '#FFFFFF' }}>
+                    Submitted
+                  </Typography>
+                </>
               ) : (
                 <>
                   <Ionicons name="flag-outline" size={17} color="#FFFFFF" />
@@ -232,8 +286,22 @@ export const GeneratedContentReportModal: React.FC<GeneratedContentReportModalPr
               )}
             </TouchableOpacity>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+      </View>
+    </KeyboardAvoidingView>
+  );
+
+  if (presentation === 'overlay') {
+    return visible && target ? content : null;
+  }
+
+  return (
+    <Modal
+      visible={visible && Boolean(target)}
+      animationType="slide"
+      transparent
+      onRequestClose={handleClose}
+    >
+      {content}
     </Modal>
   );
 };
@@ -243,6 +311,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  hostedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+    elevation: 20,
   },
   sheet: {
     maxHeight: '88%',

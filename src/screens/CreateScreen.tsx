@@ -1337,6 +1337,11 @@ export default function CreateScreen() {
     await handleShareMedia(asset.id);
   }, [handleShare, handleShareMedia]);
 
+  const closeAssetDetail = useCallback(() => {
+    setReportTarget(null);
+    setSelectedAssetId(null);
+  }, []);
+
   const handleReportAsset = useCallback((asset: GalleryAsset) => {
     setReportTarget(buildGalleryAssetReportTarget(asset));
   }, []);
@@ -1869,11 +1874,11 @@ export default function CreateScreen() {
       <Modal
         visible={Boolean(selectedAsset)}
         animationType="slide"
-        onRequestClose={() => setSelectedAssetId(null)}
+        onRequestClose={reportTarget ? () => setReportTarget(null) : closeAssetDetail}
       >
         <View style={[styles.detailContainer, { backgroundColor: theme.colors.background, paddingTop: insets.top + 8 }]}>
           <View style={styles.detailHeader}>
-            <TouchableOpacity onPress={() => setSelectedAssetId(null)} accessibilityRole="button" accessibilityLabel="Close preview">
+            <TouchableOpacity onPress={closeAssetDetail} accessibilityRole="button" accessibilityLabel="Close preview">
               <Ionicons name="close-outline" size={28} color={theme.colors.text.primary} />
             </TouchableOpacity>
             <View style={styles.detailHeaderText}>
@@ -2003,6 +2008,12 @@ export default function CreateScreen() {
               </TouchableOpacity>
             )}
           </View>
+          <GeneratedContentReportModal
+            visible={reportTarget !== null}
+            target={reportTarget}
+            onClose={() => setReportTarget(null)}
+            presentation="overlay"
+          />
         </View>
       </Modal>
     );
@@ -2204,11 +2215,6 @@ export default function CreateScreen() {
         availableProviders={availableRefinementProviders}
         onClose={() => setRefiningImage(null)}
         onRefine={handleRefinementSubmit}
-      />
-      <GeneratedContentReportModal
-        visible={reportTarget !== null}
-        target={reportTarget}
-        onClose={() => setReportTarget(null)}
       />
     </View>
   );

@@ -16,6 +16,7 @@ import { useVideoPlayer } from 'expo-video';
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import CreateScreen from '@/screens/CreateScreen';
 import { resetBackgroundAudioPlaybackForTesting } from '@/services/audio/backgroundAudioPlayback';
+import type { GeneratedContentReportTarget } from '@/services/reports/GeneratedContentReportService';
 
 type MockRootState = {
   settings: {
@@ -49,6 +50,12 @@ const mockGenerateCreateImages = jest.fn((payload) => ({
   unwrap: jest.fn().mockResolvedValue({ ids: ['img_done'], entries: [], failedProviders: [] }),
 }));
 let mockRouteParams: Record<string, unknown>;
+let mockReportModalProps: {
+  visible: boolean;
+  target: GeneratedContentReportTarget | null;
+  onClose: () => void;
+  presentation?: 'modal' | 'overlay';
+} | undefined;
 
 jest.mock('react-redux', () => {
   const actual = jest.requireActual('react-redux');
@@ -132,6 +139,25 @@ jest.mock('@/components/organisms/chat/ImageRefinementModal', () => ({
         onPress: () => onRefine({ instructions: 'Add more detail', provider: 'openai', modelId: 'gpt-image-2' }),
       },
       ReactModule.createElement(ReactNative.Text, null, 'Submit Refinement')
+    );
+  },
+}));
+
+jest.mock('@/components/organisms/report/GeneratedContentReportModal', () => ({
+  GeneratedContentReportModal: (props: {
+    visible: boolean;
+    target: GeneratedContentReportTarget | null;
+    onClose: () => void;
+    presentation?: 'modal' | 'overlay';
+  }) => {
+    const ReactModule = jest.requireActual('react') as typeof import('react');
+    const ReactNative = jest.requireActual('react-native') as typeof import('react-native');
+    mockReportModalProps = props;
+    if (!props.visible) return null;
+    return ReactModule.createElement(
+      ReactNative.Text,
+      { testID: 'generated-content-report-modal' },
+      `Report ${props.target?.contentId}`
     );
   },
 }));
@@ -301,6 +327,7 @@ describe('CreateScreen', () => {
     mockGoBack.mockClear();
     mockReplace.mockClear();
     mockGenerateCreateImages.mockClear();
+    mockReportModalProps = undefined;
     mockRouteParams = {
       providers: ['openai'],
       initialPrompt: 'A beautiful sunset',
@@ -412,6 +439,42 @@ describe('CreateScreen', () => {
       await waitFor(() => {
         expect(getByText('Provider')).toBeTruthy();
         expect(getByText('OpenAI')).toBeTruthy();
+      });
+    });
+
+    it('opens the report modal over the active Gallery detail preview', async () => {
+      mockRouteParams = { focusAssetId: mockGalleryImage.id, galleryTab: 'image' };
+      mockUseSelector.mockImplementation((selector) =>
+        selector({
+          ...baseState,
+          create: {
+            ...baseState.create,
+            gallery: [mockGalleryImage],
+            mediaGallery: [],
+          },
+        })
+      );
+
+      const { getByText, getByTestId } = renderWithProviders(<CreateScreen />);
+
+      await waitFor(() => {
+        expect(getByText('Provider')).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId(`report-create-asset-${mockGalleryImage.id}`));
+
+      await waitFor(() => {
+        expect(getByTestId('generated-content-report-modal')).toBeTruthy();
+        expect(getByText('Provider')).toBeTruthy();
+        expect(mockReportModalProps).toEqual(expect.objectContaining({
+          visible: true,
+          presentation: 'overlay',
+          target: expect.objectContaining({
+            surface: 'create',
+            contentType: 'image',
+            contentId: mockGalleryImage.id,
+          }),
+        }));
       });
     });
 

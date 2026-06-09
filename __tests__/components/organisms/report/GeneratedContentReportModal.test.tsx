@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, waitFor } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { GeneratedContentReportModal } from '@/components/organisms/report/GeneratedContentReportModal';
 import GeneratedContentReportService from '@/services/reports/GeneratedContentReportService';
@@ -16,6 +16,13 @@ jest.mock('@expo/vector-icons', () => ({
   Ionicons: ({ name }: { name: string }) => {
     const { Text } = require('react-native');
     return <Text>{name}</Text>;
+  },
+}));
+
+jest.mock('@/components/molecules/feedback/ToastNotification', () => ({
+  ToastNotification: ({ message, visible }: { message: string; visible: boolean }) => {
+    const { Text } = require('react-native');
+    return visible ? <Text testID="local-success-toast">{message}</Text> : null;
   },
 }));
 
@@ -46,6 +53,10 @@ describe('GeneratedContentReportModal', () => {
     jest.clearAllMocks();
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('submits the selected reason and optional details in-app', async () => {
     const onClose = jest.fn();
     const { getByTestId } = renderWithProviders(
@@ -69,5 +80,41 @@ describe('GeneratedContentReportModal', () => {
       expect(ErrorService.showSuccess).toHaveBeenCalledWith('Report submitted for review.', 'safety');
       expect(onClose).toHaveBeenCalled();
     });
+  });
+
+  it('shows an in-context success toast before closing overlay reports', async () => {
+    jest.useFakeTimers();
+    const onClose = jest.fn();
+    const { getByTestId, queryByTestId } = renderWithProviders(
+      <GeneratedContentReportModal
+        visible
+        target={target}
+        onClose={onClose}
+        presentation="overlay"
+      />
+    );
+
+    fireEvent.press(getByTestId('generated-content-report-submit'));
+
+    await waitFor(() => {
+      expect(GeneratedContentReportService.submitReport).toHaveBeenCalledWith({
+        target,
+        reason: 'offensive',
+        details: undefined,
+      });
+    });
+
+    await waitFor(() => {
+      expect(getByTestId('local-success-toast')).toBeTruthy();
+    });
+    expect(ErrorService.showSuccess).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+
+    act(() => {
+      jest.advanceTimersByTime(1200);
+    });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(queryByTestId('local-success-toast')).toBeNull();
   });
 });
