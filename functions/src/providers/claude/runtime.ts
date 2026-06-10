@@ -24,6 +24,7 @@ import {
   mapClaudeStopReason,
   type ToolCallInProgress,
 } from '../base-runtime';
+import { normalizeProviderTemperature } from '../../modelRegistry';
 
 // ============================================================================
 // Claude Message Types
@@ -95,10 +96,17 @@ export class ClaudeRuntime implements ProviderRuntime {
     const body: Record<string, unknown> = {
       model: request.model || 'claude-sonnet-4-20250514',
       max_tokens: request.maxTokens ?? 8192,
-      temperature: request.temperature ?? 0.7,
       stream: true,
       messages: claudeMessages,
     };
+    const temperature = normalizeProviderTemperature(
+      'claude',
+      request.model,
+      request.temperature ?? 0.7
+    );
+    if (typeof temperature === 'number') {
+      body.temperature = temperature;
+    }
 
     // Add system prompt as top-level field
     if (systemPrompt) {

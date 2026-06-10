@@ -32,6 +32,7 @@ const IMAGE_MODEL_ALIASES: Partial<Record<ImageProviderId, Record<string, string
   grok: {
     'grok-2-image-1212': 'grok-imagine-image',
     'grok-image-latest': 'grok-imagine-image',
+    'grok-imagine-image-pro': 'grok-imagine-image-quality',
   },
 };
 
@@ -126,8 +127,8 @@ export const IMAGE_MODELS: Record<ImageProviderId, ImageModelConfig[]> = {
       isDefault: true,
     }),
     createImageModel({
-      id: 'grok-imagine-image-pro',
-      displayName: 'Grok Imagine Pro',
+      id: 'grok-imagine-image-quality',
+      displayName: 'Grok Imagine Quality',
       apiFamily: 'xai-images',
       supportsImageInput: true,
       isDefault: false,

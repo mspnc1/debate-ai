@@ -335,7 +335,8 @@ export const proxyAIRequest = onCall(
       providerId,
       resolvedModel,
       typeof temperature === 'number' ? temperature : 0.7
-    ) ?? 0.7;
+    );
+    const providerTemperature = resolvedTemperature ?? 0.7;
 
     // Validate messages
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -358,15 +359,15 @@ export const proxyAIRequest = onCall(
       if (providerId === 'claude') {
         result = await callClaude(apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, searchOptions, attachments);
       } else if (providerId === 'google') {
-        result = await callGemini(apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, searchOptions, attachments);
+        result = await callGemini(apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, providerTemperature, searchOptions, attachments);
       } else if (providerId === 'cohere') {
-        result = await callCohere(apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, attachments);
+        result = await callCohere(apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, providerTemperature, attachments);
       } else if (providerId === 'perplexity') {
         // Perplexity has built-in web search with citations
-        result = await callPerplexity(apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, searchOptions, attachments);
+        result = await callPerplexity(apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, providerTemperature, searchOptions, attachments);
       } else {
         // OpenAI-compatible providers (OpenAI, Mistral, DeepSeek, Grok)
-        result = await callOpenAICompatible(apiKey, config.baseUrl, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, providerId, searchOptions, attachments);
+        result = await callOpenAICompatible(apiKey, config.baseUrl, resolvedModel, messages, systemPrompt, resolvedMaxTokens, providerTemperature, providerId, searchOptions, attachments);
       }
 
       result = normalizeProviderResult(result, providerId);
@@ -442,7 +443,7 @@ async function callClaude(
   messages: Message[],
   systemPrompt: string | undefined,
   maxTokens: number | undefined,
-  temperature: number,
+  temperature: number | undefined,
   searchOptions?: SearchOptions,
   attachments?: MessageAttachment[]
 ): Promise<ProviderResult> {
@@ -562,10 +563,12 @@ async function callClaude(
   const requestBody: Record<string, unknown> = {
     model: model || 'claude-sonnet-4-20250514',
     max_tokens: resolvedMaxTokens,
-    temperature,
     system: systemPrompt || messages.find(m => m.role === 'system')?.content,
     messages: anthropicMessages,
   };
+  if (typeof temperature === 'number') {
+    requestBody.temperature = temperature;
+  }
 
   if (searchOptions?.enabled) {
     const webSearchTool: Record<string, unknown> = {

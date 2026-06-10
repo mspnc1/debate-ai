@@ -267,7 +267,7 @@ export const proxyAIRequestStreamV2 = onRequest(
         providerId,
         resolvedModel,
         typeof temperature === 'number' ? temperature : 0.7
-      ) ?? 0.7;
+      );
 
       // Validate messages
       if (!rawMessages || !Array.isArray(rawMessages) || rawMessages.length === 0) {

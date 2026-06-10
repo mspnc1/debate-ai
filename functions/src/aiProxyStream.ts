@@ -201,7 +201,7 @@ async function streamClaude(
   messages: Message[],
   systemPrompt: string | undefined,
   maxTokens: number | undefined,
-  temperature: number,
+  temperature: number | undefined,
   attachments?: MessageAttachment[],
   tools?: ToolDefinition[],
   toolChoice?: ToolChoice,
@@ -357,11 +357,13 @@ async function streamClaude(
   const requestBody: Record<string, unknown> = {
     model: model || 'claude-sonnet-4-20250514',
     max_tokens: resolvedMaxTokens,
-    temperature,
     stream: true,
     system: systemPrompt || messages.find(m => m.role === 'system')?.content,
     messages: anthropicMessages,
   };
+  if (typeof temperature === 'number') {
+    requestBody.temperature = temperature;
+  }
 
   // Add tools if provided
   if (tools && tools.length > 0) {
@@ -1374,7 +1376,8 @@ export const proxyAIRequestStream = onRequest(
 
       const config = PROVIDER_CONFIGS[providerId];
       const resolvedMaxTokens = typeof maxTokens === 'number' && maxTokens > 0 ? Math.floor(maxTokens) : undefined;
-      const resolvedTemperature = normalizeProviderTemperature(providerId, resolvedModel, temperature) ?? temperature;
+      const resolvedTemperature = normalizeProviderTemperature(providerId, resolvedModel, temperature);
+      const providerTemperature = resolvedTemperature ?? temperature;
 
       let result: {
         inputTokens: number;
@@ -1388,14 +1391,14 @@ export const proxyAIRequestStream = onRequest(
       if (providerId === 'claude') {
         result = await streamClaude(res, apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, attachments, tools, toolChoice, data.toolResults);
       } else if (providerId === 'google') {
-        result = await streamGemini(res, apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, searchOptions, attachments);
+        result = await streamGemini(res, apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, providerTemperature, searchOptions, attachments);
       } else if (providerId === 'cohere') {
-        result = await streamCohere(res, apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, attachments);
+        result = await streamCohere(res, apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, providerTemperature, attachments);
       } else if (providerId === 'perplexity') {
-        result = await streamPerplexity(res, apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, searchOptions, attachments);
+        result = await streamPerplexity(res, apiKey, resolvedModel, messages, systemPrompt, resolvedMaxTokens, providerTemperature, searchOptions, attachments);
       } else {
         // OpenAI-compatible providers (OpenAI, Mistral, DeepSeek, Grok)
-        result = await streamOpenAICompatible(res, apiKey, config.baseUrl, resolvedModel, messages, systemPrompt, resolvedMaxTokens, resolvedTemperature, providerId, attachments, tools, toolChoice);
+        result = await streamOpenAICompatible(res, apiKey, config.baseUrl, resolvedModel, messages, systemPrompt, resolvedMaxTokens, providerTemperature, providerId, attachments, tools, toolChoice);
       }
 
       // Determine if tool execution is required
