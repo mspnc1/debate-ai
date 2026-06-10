@@ -12,7 +12,7 @@ const QUOTA_WARNING_BYTES = 200 * 1024 * 1024;
 const RESERVATION_TTL_MS = 10 * 60 * 1000;
 
 const MAX_PAYLOAD_BYTES = {
-  messageMetadata: 5 * 1024 * 1024,
+  messageMetadata: 25 * 1024 * 1024,
   messageContent: 10 * 1024 * 1024,
   artifactData: 25 * 1024 * 1024,
 } as const;
