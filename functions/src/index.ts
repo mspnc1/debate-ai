@@ -59,6 +59,15 @@ export {
   recordMediaGeneration,
 } from './usageTracking';
 
+// Cloud payload storage quota/reservation management
+export {
+  reserveCloudPayloadUpload,
+  finalizeCloudPayloadUpload,
+  deleteCloudPayload,
+  deleteCloudPayloadsForPath,
+  deleteUserCloudData,
+} from './cloudPayloadStorage';
+
 // GDPR User Data Export
 export { exportUserData } from './userData';
 

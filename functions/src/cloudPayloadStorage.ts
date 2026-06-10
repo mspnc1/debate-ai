@@ -1,0 +1,657 @@
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import * as admin from 'firebase-admin';
+import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
+import * as crypto from 'crypto';
+
+try { admin.app(); } catch { admin.initializeApp(); }
+
+const STORAGE_BUCKET = 'symposium-ai.firebasestorage.app';
+const QUOTA_LIMIT_BYTES = 250 * 1024 * 1024;
+const QUOTA_WARNING_BYTES = 200 * 1024 * 1024;
+const RESERVATION_TTL_MS = 10 * 60 * 1000;
+
+const MAX_PAYLOAD_BYTES = {
+  messageMetadata: 5 * 1024 * 1024,
+  messageContent: 10 * 1024 * 1024,
+  artifactData: 25 * 1024 * 1024,
+} as const;
+
+type PayloadField = 'metadata' | 'content' | 'data';
+type PayloadRecordType = 'message' | 'artifact';
+
+type PayloadPathPolicy = {
+  userId: string;
+  sessionId: string;
+  recordType: PayloadRecordType;
+  collection: 'messages' | 'artifacts';
+  recordId: string;
+  reservationId?: string;
+  field: PayloadField;
+  fileName: string;
+  contentType: 'application/json' | 'text/plain';
+  maxBytes: number;
+};
+
+type CloudPayloadRef = {
+  version?: unknown;
+  provider?: unknown;
+  path?: unknown;
+  bytes?: unknown;
+  sha256?: unknown;
+  contentType?: unknown;
+  reservationId?: unknown;
+};
+
+type UsageDoc = {
+  currentBytes?: number;
+  reservedBytes?: number;
+  objectCount?: number;
+  limitBytes?: number;
+};
+
+function db() {
+  return getFirestore();
+}
+
+function bucket() {
+  return getStorage().bucket(STORAGE_BUCKET);
+}
+
+function requireUid(auth: { uid?: string } | undefined): string {
+  if (!auth?.uid) {
+    throw new HttpsError('unauthenticated', 'Must be authenticated');
+  }
+  return auth.uid;
+}
+
+function stringValue(value: unknown, label: string, maxLength = 512): string {
+  if (typeof value !== 'string' || value.trim().length === 0 || value.length > maxLength) {
+    throw new HttpsError('invalid-argument', `${label} is invalid`);
+  }
+  return value;
+}
+
+function numberValue(value: unknown, label: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new HttpsError('invalid-argument', `${label} is invalid`);
+  }
+  return value;
+}
+
+function parsePayloadPath(path: string): PayloadPathPolicy | null {
+  const parts = path.split('/');
+  if (
+    (parts.length !== 7 && parts.length !== 9)
+    || parts.some(part => part.length === 0)
+    || parts[0] !== 'users'
+    || parts[2] !== 'sessions'
+  ) {
+    return null;
+  }
+
+  const [, userId, , sessionId, collection, recordId] = parts;
+  const hasReservation = parts.length === 9;
+  if (hasReservation && parts[6] !== 'payloads') return null;
+
+  const reservationId = hasReservation ? parts[7] : undefined;
+  const fileName = hasReservation ? parts[8] : parts[6];
+
+  if (collection === 'messages') {
+    if (fileName === 'metadata.json') {
+      return {
+        userId,
+        sessionId,
+        recordType: 'message',
+        collection,
+        recordId,
+        reservationId,
+        field: 'metadata',
+        fileName,
+        contentType: 'application/json',
+        maxBytes: MAX_PAYLOAD_BYTES.messageMetadata,
+      };
+    }
+    if (fileName === 'content.txt') {
+      return {
+        userId,
+        sessionId,
+        recordType: 'message',
+        collection,
+        recordId,
+        reservationId,
+        field: 'content',
+        fileName,
+        contentType: 'text/plain',
+        maxBytes: MAX_PAYLOAD_BYTES.messageContent,
+      };
+    }
+  }
+
+  if (collection === 'artifacts' && fileName === 'data.txt') {
+    return {
+      userId,
+      sessionId,
+      recordType: 'artifact',
+      collection,
+      recordId,
+      reservationId,
+      field: 'data',
+      fileName,
+      contentType: 'text/plain',
+      maxBytes: MAX_PAYLOAD_BYTES.artifactData,
+    };
+  }
+
+  return null;
+}
+
+function requirePayloadPath(path: string): PayloadPathPolicy {
+  const parsed = parsePayloadPath(path);
+  if (!parsed) {
+    throw new HttpsError('invalid-argument', 'Invalid payload path');
+  }
+  return parsed;
+}
+
+function validatePayloadPolicy(
+  uid: string,
+  path: string,
+  bytes: number,
+  sha256: string,
+  contentType: string,
+): PayloadPathPolicy {
+  const policy = requirePayloadPath(path);
+  if (policy.userId !== uid) {
+    throw new HttpsError('permission-denied', 'Payload path does not belong to this user');
+  }
+  if (contentType !== policy.contentType) {
+    throw new HttpsError('invalid-argument', 'Invalid payload content type');
+  }
+  if (bytes <= 0 || bytes > policy.maxBytes) {
+    throw new HttpsError('invalid-argument', 'Payload size exceeds the allowed limit');
+  }
+  if (!/^[a-f0-9]{64}$/i.test(sha256)) {
+    throw new HttpsError('invalid-argument', 'Payload SHA-256 is invalid');
+  }
+  return policy;
+}
+
+function reservationPath(policy: PayloadPathPolicy, reservationId: string): string {
+  return `users/${policy.userId}/sessions/${policy.sessionId}/${policy.collection}/${policy.recordId}/payloads/${reservationId}/${policy.fileName}`;
+}
+
+function usageRef(uid: string) {
+  return db().collection('users').doc(uid).collection('usage').doc('storage-payloads');
+}
+
+function reservationsRef(uid: string) {
+  return db().collection('users').doc(uid).collection('storageReservations');
+}
+
+function normalizeUsage(data: UsageDoc | undefined): Required<UsageDoc> {
+  return {
+    currentBytes: typeof data?.currentBytes === 'number' ? data.currentBytes : 0,
+    reservedBytes: typeof data?.reservedBytes === 'number' ? data.reservedBytes : 0,
+    objectCount: typeof data?.objectCount === 'number' ? data.objectCount : 0,
+    limitBytes: typeof data?.limitBytes === 'number' ? data.limitBytes : QUOTA_LIMIT_BYTES,
+  };
+}
+
+async function assertPaidUser(uid: string): Promise<void> {
+  const userDoc = await db().collection('users').doc(uid).get();
+  const userData = userDoc.data() ?? {};
+  const billingDoc = await db()
+    .collection('users')
+    .doc(uid)
+    .collection('billing')
+    .doc('subscription')
+    .get();
+  const billingData = billingDoc.data() ?? {};
+
+  const billingStatus = String(billingData.status ?? '');
+  const membershipStatus = String(userData.membershipStatus ?? '');
+  const isPaidStatus = ['active', 'trialing'].includes(billingStatus)
+    || ['premium', 'trial', 'lifetime'].includes(membershipStatus);
+
+  if (userData.isPremium !== true || !isPaidStatus) {
+    throw new HttpsError(
+      'failed-precondition',
+      'An active subscription is required for cloud artifact storage',
+    );
+  }
+}
+
+async function releaseReservation(uid: string, reservationId: string, status: 'expired' | 'failed'): Promise<void> {
+  const reservationRef = reservationsRef(uid).doc(reservationId);
+  await db().runTransaction(async (transaction) => {
+    const reservationSnap = await transaction.get(reservationRef);
+    if (!reservationSnap.exists) return;
+    const reservation = reservationSnap.data() ?? {};
+    if (reservation.status !== 'reserved') return;
+    const bytes = typeof reservation.bytes === 'number' ? reservation.bytes : 0;
+    const usageSnap = await transaction.get(usageRef(uid));
+    const usage = normalizeUsage(usageSnap.data() as UsageDoc | undefined);
+
+    transaction.set(usageRef(uid), {
+      currentBytes: usage.currentBytes,
+      reservedBytes: Math.max(0, usage.reservedBytes - bytes),
+      objectCount: usage.objectCount,
+      limitBytes: QUOTA_LIMIT_BYTES,
+      warningBytes: QUOTA_WARNING_BYTES,
+      lastUpdatedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    transaction.set(reservationRef, {
+      status,
+      releasedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+}
+
+async function decrementUsageForDeletedObjects(uid: string, bytes: number, objectCount: number): Promise<void> {
+  if (bytes <= 0 && objectCount <= 0) return;
+  await db().runTransaction(async (transaction) => {
+    const usageSnapshot = await transaction.get(usageRef(uid));
+    const usage = normalizeUsage(usageSnapshot.data() as UsageDoc | undefined);
+    transaction.set(usageRef(uid), {
+      currentBytes: Math.max(0, usage.currentBytes - Math.max(0, bytes)),
+      reservedBytes: usage.reservedBytes,
+      objectCount: Math.max(0, usage.objectCount - Math.max(0, objectCount)),
+      limitBytes: QUOTA_LIMIT_BYTES,
+      warningBytes: QUOTA_WARNING_BYTES,
+      lastUpdatedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+}
+
+async function getObjectSize(path: string): Promise<number | null> {
+  try {
+    const [metadata] = await bucket().file(path).getMetadata();
+    const size = Number(metadata.size);
+    return Number.isFinite(size) ? size : null;
+  } catch (error) {
+    const code = (error as { code?: number }).code;
+    if (code === 404) return null;
+    throw error;
+  }
+}
+
+async function deleteStorageObject(path: string): Promise<{ bytes: number; deleted: boolean }> {
+  const bytes = await getObjectSize(path);
+  await bucket().file(path).delete({ ignoreNotFound: true });
+  return { bytes: bytes ?? 0, deleted: bytes !== null };
+}
+
+async function deleteStoragePrefix(uid: string, prefix: string): Promise<{ bytes: number; objects: number }> {
+  if (!prefix.startsWith(`users/${uid}/sessions/`)) {
+    throw new HttpsError('permission-denied', 'Storage prefix does not belong to this user');
+  }
+
+  const [files] = await bucket().getFiles({ prefix: `${prefix.replace(/\/$/, '')}/` });
+  let bytes = 0;
+  let objects = 0;
+
+  for (const file of files) {
+    const policy = parsePayloadPath(file.name);
+    if (!policy || policy.userId !== uid) continue;
+    const [metadata] = await file.getMetadata();
+    const size = Number(metadata.size);
+    if (Number.isFinite(size)) bytes += size;
+    objects += 1;
+    await file.delete({ ignoreNotFound: true });
+  }
+
+  await decrementUsageForDeletedObjects(uid, bytes, objects);
+  return { bytes, objects };
+}
+
+async function deleteCollection(collection: FirebaseFirestore.CollectionReference, batchSize = 400): Promise<number> {
+  let deleted = 0;
+  while (true) {
+    const snapshot = await collection.limit(batchSize).get();
+    if (snapshot.empty) break;
+    const batch = db().batch();
+    snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+    deleted += snapshot.size;
+    if (snapshot.size < batchSize) break;
+  }
+  return deleted;
+}
+
+async function deleteReservationsForSession(uid: string, sessionId: string): Promise<number> {
+  let deleted = 0;
+  while (true) {
+    const snapshot = await reservationsRef(uid)
+      .where('sessionId', '==', sessionId)
+      .limit(400)
+      .get();
+    if (snapshot.empty) break;
+    const batch = db().batch();
+    snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+    deleted += snapshot.size;
+    if (snapshot.size < 400) break;
+  }
+  return deleted;
+}
+
+export const reserveCloudPayloadUpload = onCall(async (request) => {
+  const uid = requireUid(request.auth);
+  const data = request.data as Record<string, unknown>;
+  const logicalPath = stringValue(data.path, 'path', 1024);
+  const bytes = numberValue(data.bytes, 'bytes');
+  const sha256 = stringValue(data.sha256, 'sha256', 64).toLowerCase();
+  const contentType = stringValue(data.contentType, 'contentType', 128);
+  const policy = validatePayloadPolicy(uid, logicalPath, bytes, sha256, contentType);
+
+  await assertPaidUser(uid);
+
+  const reservationRef = reservationsRef(uid).doc();
+  const reservationId = reservationRef.id;
+  const storagePath = reservationPath(policy, reservationId);
+  const expiresAt = Timestamp.fromMillis(Date.now() + RESERVATION_TTL_MS);
+
+  const result = await db().runTransaction(async (transaction) => {
+    const usageSnapshot = await transaction.get(usageRef(uid));
+    const usage = normalizeUsage(usageSnapshot.data() as UsageDoc | undefined);
+    const nextReserved = usage.reservedBytes + bytes;
+    if (usage.currentBytes + nextReserved > QUOTA_LIMIT_BYTES) {
+      throw new HttpsError(
+        'resource-exhausted',
+        'Cloud artifact storage quota exceeded',
+        {
+          currentBytes: usage.currentBytes,
+          reservedBytes: usage.reservedBytes,
+          limitBytes: QUOTA_LIMIT_BYTES,
+        },
+      );
+    }
+
+    transaction.set(reservationRef, {
+      uid,
+      sessionId: policy.sessionId,
+      recordType: policy.recordType,
+      recordId: policy.recordId,
+      field: policy.field,
+      fileName: policy.fileName,
+      logicalPath,
+      storagePath,
+      contentType,
+      bytes,
+      sha256,
+      status: 'reserved',
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      expiresAt,
+    });
+
+    transaction.set(usageRef(uid), {
+      currentBytes: usage.currentBytes,
+      reservedBytes: nextReserved,
+      objectCount: usage.objectCount,
+      limitBytes: QUOTA_LIMIT_BYTES,
+      warningBytes: QUOTA_WARNING_BYTES,
+      lastUpdatedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return {
+      reservationId,
+      storagePath,
+      expiresAt: expiresAt.toMillis(),
+      currentBytes: usage.currentBytes,
+      reservedBytes: nextReserved,
+      limitBytes: QUOTA_LIMIT_BYTES,
+    };
+  });
+
+  return result;
+});
+
+export const finalizeCloudPayloadUpload = onCall(async (request) => {
+  const uid = requireUid(request.auth);
+  const data = request.data as Record<string, unknown>;
+  const reservationId = stringValue(data.reservationId, 'reservationId', 128);
+  const storagePath = stringValue(data.path, 'path', 1024);
+  const logicalPath = stringValue(data.logicalPath, 'logicalPath', 1024);
+  const bytes = numberValue(data.bytes, 'bytes');
+  const sha256 = stringValue(data.sha256, 'sha256', 64).toLowerCase();
+  const contentType = stringValue(data.contentType, 'contentType', 128);
+
+  const logicalPolicy = validatePayloadPolicy(uid, logicalPath, bytes, sha256, contentType);
+  const storagePolicy = requirePayloadPath(storagePath);
+  if (
+    storagePolicy.userId !== uid
+    || storagePolicy.sessionId !== logicalPolicy.sessionId
+    || storagePolicy.recordType !== logicalPolicy.recordType
+    || storagePolicy.recordId !== logicalPolicy.recordId
+    || storagePolicy.field !== logicalPolicy.field
+    || storagePolicy.reservationId !== reservationId
+  ) {
+    throw new HttpsError('invalid-argument', 'Payload storage path does not match reservation');
+  }
+
+  const reservationRef = reservationsRef(uid).doc(reservationId);
+  const reservationSnap = await reservationRef.get();
+  if (!reservationSnap.exists) {
+    throw new HttpsError('not-found', 'Payload upload reservation not found');
+  }
+
+  const reservation = reservationSnap.data() ?? {};
+  if (reservation.status === 'finalized') {
+    const usageSnap = await usageRef(uid).get();
+    const usage = normalizeUsage(usageSnap.data() as UsageDoc | undefined);
+    return {
+      success: true,
+      currentBytes: usage.currentBytes,
+      reservedBytes: usage.reservedBytes,
+      limitBytes: QUOTA_LIMIT_BYTES,
+    };
+  }
+
+  const expiresAt = reservation.expiresAt as Timestamp | undefined;
+  if (reservation.status !== 'reserved' || !expiresAt || expiresAt.toMillis() <= Date.now()) {
+    await bucket().file(storagePath).delete({ ignoreNotFound: true });
+    await releaseReservation(uid, reservationId, 'expired');
+    throw new HttpsError('failed-precondition', 'Payload upload reservation expired');
+  }
+
+  if (
+    reservation.uid !== uid
+    || reservation.logicalPath !== logicalPath
+    || reservation.storagePath !== storagePath
+    || reservation.contentType !== contentType
+    || reservation.bytes !== bytes
+    || reservation.sha256 !== sha256
+  ) {
+    await bucket().file(storagePath).delete({ ignoreNotFound: true });
+    await releaseReservation(uid, reservationId, 'failed');
+    throw new HttpsError('invalid-argument', 'Payload upload does not match reservation');
+  }
+
+  try {
+    const file = bucket().file(storagePath);
+    const [metadata] = await file.getMetadata();
+    const actualBytes = Number(metadata.size);
+    if (actualBytes !== bytes || metadata.contentType !== contentType) {
+      await file.delete({ ignoreNotFound: true });
+      await releaseReservation(uid, reservationId, 'failed');
+      throw new HttpsError('invalid-argument', 'Uploaded payload metadata does not match reservation');
+    }
+
+    const [payload] = await file.download();
+    const actualSha = crypto.createHash('sha256').update(payload).digest('hex');
+    if (actualSha !== sha256) {
+      await file.delete({ ignoreNotFound: true });
+      await releaseReservation(uid, reservationId, 'failed');
+      throw new HttpsError('invalid-argument', 'Uploaded payload integrity check failed');
+    }
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    const code = (error as { code?: number }).code;
+    if (code === 404) {
+      await releaseReservation(uid, reservationId, 'failed');
+      throw new HttpsError('not-found', 'Reserved payload object was not uploaded');
+    }
+    throw error;
+  }
+
+  return db().runTransaction(async (transaction) => {
+    const latestReservation = await transaction.get(reservationRef);
+    if (!latestReservation.exists) {
+      throw new HttpsError('not-found', 'Payload upload reservation not found');
+    }
+    const latest = latestReservation.data() ?? {};
+    if (latest.status === 'finalized') {
+      const usageSnap = await transaction.get(usageRef(uid));
+      const usage = normalizeUsage(usageSnap.data() as UsageDoc | undefined);
+      return {
+        success: true,
+        currentBytes: usage.currentBytes,
+        reservedBytes: usage.reservedBytes,
+        limitBytes: QUOTA_LIMIT_BYTES,
+      };
+    }
+    if (latest.status !== 'reserved') {
+      throw new HttpsError('failed-precondition', 'Payload upload reservation is not active');
+    }
+
+    const usageSnap = await transaction.get(usageRef(uid));
+    const usage = normalizeUsage(usageSnap.data() as UsageDoc | undefined);
+    const nextCurrent = usage.currentBytes + bytes;
+    const nextReserved = Math.max(0, usage.reservedBytes - bytes);
+
+    transaction.set(usageRef(uid), {
+      currentBytes: nextCurrent,
+      reservedBytes: nextReserved,
+      objectCount: usage.objectCount + 1,
+      limitBytes: QUOTA_LIMIT_BYTES,
+      warningBytes: QUOTA_WARNING_BYTES,
+      lastUpdatedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    transaction.set(reservationRef, {
+      status: 'finalized',
+      finalizedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return {
+      success: true,
+      currentBytes: nextCurrent,
+      reservedBytes: nextReserved,
+      limitBytes: QUOTA_LIMIT_BYTES,
+    };
+  });
+});
+
+export const deleteCloudPayload = onCall(async (request) => {
+  const uid = requireUid(request.auth);
+  const payloadRef = (request.data as Record<string, unknown>).payloadRef as CloudPayloadRef | undefined;
+  if (!payloadRef || payloadRef.provider !== 'firebase_storage') {
+    throw new HttpsError('invalid-argument', 'Invalid payload reference');
+  }
+
+  const path = stringValue(payloadRef.path, 'payload path', 1024);
+  const bytes = numberValue(payloadRef.bytes, 'payload bytes');
+  const contentType = stringValue(payloadRef.contentType, 'payload contentType', 128);
+  const sha256 = stringValue(payloadRef.sha256, 'payload sha256', 64);
+  const policy = validatePayloadPolicy(uid, path, bytes, sha256, contentType);
+  void policy;
+
+  const deleted = await deleteStorageObject(path);
+  if (deleted.deleted) {
+    await decrementUsageForDeletedObjects(uid, deleted.bytes || bytes, 1);
+  }
+
+  if (typeof payloadRef.reservationId === 'string') {
+    await reservationsRef(uid).doc(payloadRef.reservationId).set({
+      status: 'deleted',
+      deletedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  }
+
+  return { success: true, bytesDeleted: deleted.bytes, objectCount: deleted.deleted ? 1 : 0 };
+});
+
+export const deleteCloudPayloadsForPath = onCall(async (request) => {
+  const uid = requireUid(request.auth);
+  const basePath = stringValue((request.data as Record<string, unknown>).basePath, 'basePath', 1024);
+  const parts = basePath.split('/');
+  if (
+    parts.length !== 4
+    || parts[0] !== 'users'
+    || parts[1] !== uid
+    || parts[2] !== 'sessions'
+    || !parts[3]
+  ) {
+    throw new HttpsError('invalid-argument', 'Invalid session payload prefix');
+  }
+
+  const result = await deleteStoragePrefix(uid, basePath);
+  await deleteReservationsForSession(uid, parts[3]);
+  return { success: true, bytesDeleted: result.bytes, objectCount: result.objects };
+});
+
+export const deleteUserCloudData = onCall(async (request) => {
+  const uid = requireUid(request.auth);
+  const mode = (request.data as Record<string, unknown> | undefined)?.mode;
+  const allowedModes = new Set(['chat', 'debate', 'comparison', 'analyze']);
+  if (mode !== undefined && (typeof mode !== 'string' || !allowedModes.has(mode))) {
+    throw new HttpsError('invalid-argument', 'Invalid cloud data mode');
+  }
+
+  const sessionCollection = db().collection('users').doc(uid).collection('conversations');
+  const sessionSnapshot = mode
+    ? await sessionCollection.where('sessionType', '==', mode).get()
+    : await sessionCollection.get();
+
+  let sessionsDeleted = 0;
+  let messagesDeleted = 0;
+  let artifactsDeleted = 0;
+  let reservationsDeleted = 0;
+  let bytesDeleted = 0;
+  let objectsDeleted = 0;
+
+  for (const sessionDoc of sessionSnapshot.docs) {
+    const sessionId = sessionDoc.id;
+    const storageResult = await deleteStoragePrefix(uid, `users/${uid}/sessions/${sessionId}`);
+    bytesDeleted += storageResult.bytes;
+    objectsDeleted += storageResult.objects;
+
+    messagesDeleted += await deleteCollection(sessionDoc.ref.collection('messages'));
+    artifactsDeleted += await deleteCollection(sessionDoc.ref.collection('artifacts'));
+    reservationsDeleted += await deleteReservationsForSession(uid, sessionId);
+    await sessionDoc.ref.delete();
+    sessionsDeleted += 1;
+  }
+
+  if (!mode) {
+    await usageRef(uid).set({
+      currentBytes: 0,
+      reservedBytes: 0,
+      objectCount: 0,
+      limitBytes: QUOTA_LIMIT_BYTES,
+      warningBytes: QUOTA_WARNING_BYTES,
+      lastUpdatedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  }
+
+  return {
+    success: true,
+    sessionsDeleted,
+    messagesDeleted,
+    artifactsDeleted,
+    reservationsDeleted,
+    bytesDeleted,
+    objectsDeleted,
+  };
+});
