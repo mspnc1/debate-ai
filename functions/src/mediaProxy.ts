@@ -22,17 +22,35 @@ interface ProxyMediaGenerationRequest {
 
 interface MediaProviderOptionsRequest {
   providerId: MediaProviderId;
+  voiceCatalog?: 'account' | 'shared';
   search?: string;
   pageSize?: number;
   nextPageToken?: string | null;
+  page?: number;
   includeTotalCount?: boolean;
   sort?: 'created_at_unix' | 'name';
   sortDirection?: 'asc' | 'desc';
   voiceType?: 'personal' | 'community' | 'default' | 'workspace' | 'non-default' | 'non-community' | 'saved';
   category?: 'premade' | 'cloned' | 'generated' | 'professional';
+  sharedCategory?: 'professional' | 'famous' | 'high_quality';
+  gender?: string;
+  age?: string;
+  accent?: string;
+  language?: string;
+  locale?: string;
+  useCases?: string[];
+  descriptives?: string[];
+  featured?: boolean;
+  sharedSort?: string;
   fineTuningState?: 'draft' | 'not_verified' | 'not_started' | 'queued' | 'fine_tuning' | 'fine_tuned' | 'failed' | 'delayed';
   collectionId?: string;
   voiceIds?: string[];
+}
+
+interface AddElevenLabsSharedVoiceRequest {
+  publicOwnerId?: string;
+  voiceId?: string;
+  name?: string;
 }
 
 interface RunwayTask {
@@ -253,6 +271,43 @@ export function buildElevenLabsVoiceSearchUrl(input: Partial<MediaProviderOption
   return `${ELEVENLABS_API_BASE}/v2/voices?${params.toString()}`;
 }
 
+export function buildElevenLabsSharedVoiceUrl(input: Partial<MediaProviderOptionsRequest> = {}): string {
+  const params = new URLSearchParams();
+  params.set('page_size', String(normalizePageSize(input.pageSize ?? 30)));
+  const page = typeof input.page === 'number'
+    ? input.page
+    : typeof input.nextPageToken === 'string' && input.nextPageToken.trim()
+      ? Number(input.nextPageToken)
+      : 0;
+  params.set('page', String(Number.isFinite(page) ? Math.max(0, Math.floor(page)) : 0));
+
+  appendStringParam(params, 'search', input.search);
+  appendStringParam(params, 'category', input.sharedCategory);
+  appendStringParam(params, 'gender', input.gender);
+  appendStringParam(params, 'age', input.age);
+  appendStringParam(params, 'accent', input.accent);
+  appendStringParam(params, 'language', input.language);
+  appendStringParam(params, 'locale', input.locale);
+  appendStringParam(params, 'sort', input.sharedSort);
+  if (typeof input.featured === 'boolean') {
+    params.set('featured', String(input.featured));
+  }
+
+  if (Array.isArray(input.useCases)) {
+    input.useCases
+      .filter((useCase) => typeof useCase === 'string' && useCase.trim().length > 0)
+      .forEach((useCase) => params.append('use_cases', useCase.trim()));
+  }
+
+  if (Array.isArray(input.descriptives)) {
+    input.descriptives
+      .filter((descriptive) => typeof descriptive === 'string' && descriptive.trim().length > 0)
+      .forEach((descriptive) => params.append('descriptives', descriptive.trim()));
+  }
+
+  return `${ELEVENLABS_API_BASE}/v1/shared-voices?${params.toString()}`;
+}
+
 function asStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
@@ -286,7 +341,10 @@ function readBoolean(record: Record<string, unknown>, key: string): boolean | un
   return typeof value === 'boolean' ? value : undefined;
 }
 
-export function mapElevenLabsVoiceOption(voice: unknown) {
+export function mapElevenLabsVoiceOption(
+  voice: unknown,
+  sourceVoiceType?: MediaProviderOptionsRequest['voiceType']
+) {
   if (!voice || typeof voice !== 'object' || Array.isArray(voice)) return null;
   const record = voice as Record<string, unknown>;
   const id = readString(record, 'voice_id');
@@ -311,20 +369,105 @@ export function mapElevenLabsVoiceOption(voice: unknown) {
   return {
     id,
     name,
+    voice_id: id,
     category: readString(record, 'category') || null,
     description: readString(record, 'description') || null,
     previewUrl: readString(record, 'preview_url') || null,
     labels: asRecord(record.labels),
+    sourceVoiceType,
     availableForTiers: asStringArray(record.available_for_tiers),
+    available_for_tiers: asStringArray(record.available_for_tiers),
     highQualityBaseModelIds: asStringArray(record.high_quality_base_model_ids),
+    high_quality_base_model_ids: asStringArray(record.high_quality_base_model_ids),
     verifiedLanguages,
+    verified_languages: verifiedLanguages,
     isOwner: readBoolean(record, 'is_owner') ?? null,
+    is_owner: readBoolean(record, 'is_owner') ?? null,
     isLegacy: readBoolean(record, 'is_legacy') ?? null,
+    is_legacy: readBoolean(record, 'is_legacy') ?? null,
     isMixed: readBoolean(record, 'is_mixed') ?? null,
+    is_mixed: readBoolean(record, 'is_mixed') ?? null,
     createdAtUnix: readNumber(record, 'created_at_unix') ?? null,
+    created_at_unix: readNumber(record, 'created_at_unix') ?? null,
     isBookmarked: readBoolean(record, 'is_bookmarked') ?? null,
+    is_bookmarked: readBoolean(record, 'is_bookmarked') ?? null,
+    favoritedAtUnix: readNumber(record, 'favorited_at_unix') ?? null,
+    favorited_at_unix: readNumber(record, 'favorited_at_unix') ?? null,
     recordingQuality: readString(record, 'recording_quality') || null,
+    recording_quality: readString(record, 'recording_quality') || null,
     labellingStatus: readString(record, 'labelling_status') || null,
+    labelling_status: readString(record, 'labelling_status') || null,
+    recordingQualityReason: readString(record, 'recording_quality_reason') || null,
+    recording_quality_reason: readString(record, 'recording_quality_reason') || null,
+    safetyControl: readString(record, 'safety_control') || null,
+    safety_control: readString(record, 'safety_control') || null,
+  };
+}
+
+export function mapElevenLabsSharedVoiceOption(voice: unknown) {
+  if (!voice || typeof voice !== 'object' || Array.isArray(voice)) return null;
+  const record = voice as Record<string, unknown>;
+  const id = readString(record, 'voice_id');
+  const name = readString(record, 'name');
+  if (!id || !name) return null;
+
+  const previewUrl = readString(record, 'preview_url') || null;
+  const gender = readString(record, 'gender');
+  const age = readString(record, 'age');
+  const accent = readString(record, 'accent');
+  const descriptive = readString(record, 'descriptive');
+  const useCase = readString(record, 'use_case');
+  const language = readString(record, 'language');
+  const locale = readString(record, 'locale');
+  const labels: Record<string, string> = {};
+
+  if (gender) labels.gender = gender;
+  if (age) labels.age = age;
+  if (accent) labels.accent = accent;
+  if (descriptive) labels.descriptive = descriptive;
+  if (useCase) labels.use_case = useCase;
+
+  const verifiedLanguages = language
+    ? [{
+        language,
+        accent: accent || null,
+        locale: locale || null,
+        previewUrl,
+        preview_url: previewUrl,
+      }]
+    : [];
+  const publicOwnerId = readString(record, 'public_owner_id') || null;
+  const freeUsersAllowed = readBoolean(record, 'free_users_allowed');
+  const isAddedByUser = readBoolean(record, 'is_added_by_user');
+  const isBookmarked = readBoolean(record, 'is_bookmarked');
+  const imageUrl = readString(record, 'image_url') || null;
+  const createdAtUnix = readNumber(record, 'date_unix') ?? null;
+
+  return {
+    id,
+    name,
+    voice_id: id,
+    category: readString(record, 'category') || null,
+    description: readString(record, 'description') || null,
+    previewUrl,
+    preview_url: previewUrl,
+    labels: Object.keys(labels).length > 0 ? labels : undefined,
+    verifiedLanguages,
+    verified_languages: verifiedLanguages,
+    sourceVoiceType: 'community',
+    isCommunity: true,
+    publicOwnerId,
+    public_owner_id: publicOwnerId,
+    freeUsersAllowed,
+    free_users_allowed: freeUsersAllowed,
+    isAddedByUser,
+    is_added_by_user: isAddedByUser,
+    isBookmarked,
+    is_bookmarked: isBookmarked,
+    imageUrl,
+    image_url: imageUrl,
+    createdAtUnix,
+    created_at_unix: createdAtUnix,
   };
 }
 
@@ -611,6 +754,43 @@ export const listMediaProviderOptions = onCall(
     const apiKey = await getUserApiKey(request.auth!.uid, 'elevenlabs', keyValue);
 
     try {
+      if (input.voiceCatalog === 'shared') {
+        const voiceResponse = await fetch(buildElevenLabsSharedVoiceUrl(input), {
+          method: 'GET',
+          headers: {
+            'xi-api-key': apiKey,
+          },
+        });
+
+        if (!voiceResponse.ok) {
+          const error = await voiceResponse.text();
+          throw { status: voiceResponse.status, message: error };
+        }
+
+        const voiceData = await voiceResponse.json() as {
+          voices?: unknown[];
+          has_more?: boolean;
+          total_count?: number;
+        };
+        const currentPage = typeof input.page === 'number'
+          ? input.page
+          : typeof input.nextPageToken === 'string' && input.nextPageToken.trim()
+            ? Number(input.nextPageToken)
+            : 0;
+        const normalizedPage = Number.isFinite(currentPage) ? Math.max(0, Math.floor(currentPage)) : 0;
+        const hasMore = Boolean(voiceData.has_more);
+
+        return {
+          success: true,
+          providerId: 'elevenlabs',
+          voices: (voiceData.voices || []).map(mapElevenLabsSharedVoiceOption).filter(isNonNull),
+          voiceHasMore: hasMore,
+          voiceTotalCount: typeof voiceData.total_count === 'number' ? voiceData.total_count : undefined,
+          voiceNextPageToken: hasMore ? String(normalizedPage + 1) : null,
+          models: [],
+        };
+      }
+
       const voiceResponse = await fetch(buildElevenLabsVoiceSearchUrl(input), {
         method: 'GET',
         headers: {
@@ -654,7 +834,9 @@ export const listMediaProviderOptions = onCall(
       return {
         success: true,
         providerId: 'elevenlabs',
-        voices: (voiceData.voices || []).map(mapElevenLabsVoiceOption).filter(isNonNull),
+        voices: (voiceData.voices || [])
+          .map((voice) => mapElevenLabsVoiceOption(voice, input.voiceType))
+          .filter(isNonNull),
         voiceHasMore: Boolean(voiceData.has_more),
         voiceTotalCount: typeof voiceData.total_count === 'number' ? voiceData.total_count : undefined,
         voiceNextPageToken: voiceData.next_page_token || null,
@@ -663,6 +845,69 @@ export const listMediaProviderOptions = onCall(
     } catch (error: any) {
       console.error('ElevenLabs voice list error:', error);
       throw mapProviderError('elevenlabs', error, 'Failed to list ElevenLabs voices');
+    }
+  }
+);
+
+export const addElevenLabsSharedVoice = onCall(
+  {
+    timeoutSeconds: 60,
+    memory: '256MiB',
+    secrets: [encryptionKey],
+  },
+  async (request) => {
+    assertAuthenticated(request);
+
+    const input = (request.data || {}) as AddElevenLabsSharedVoiceRequest;
+    const publicOwnerId = input.publicOwnerId?.trim();
+    const voiceId = input.voiceId?.trim();
+    const name = input.name?.trim() || 'Community voice';
+    if (!publicOwnerId || !voiceId) {
+      throw new HttpsError('invalid-argument', 'Shared voice owner and voice ID are required');
+    }
+
+    const keyValue = encryptionKey.value();
+    if (!keyValue) {
+      throw new HttpsError('internal', 'Encryption not configured');
+    }
+
+    const apiKey = await getUserApiKey(request.auth!.uid, 'elevenlabs', keyValue);
+
+    try {
+      const response = await fetch(
+        `${ELEVENLABS_API_BASE}/v1/voices/add/${encodeURIComponent(publicOwnerId)}/${encodeURIComponent(voiceId)}`,
+        {
+          method: 'POST',
+          headers: {
+            'xi-api-key': apiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ new_name: name, bookmarked: true }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw { status: response.status, message: error };
+      }
+
+      const data = await response.json() as { voice_id?: string };
+      const libraryVoiceId = data.voice_id || voiceId;
+
+      return {
+        success: true,
+        voice: {
+          id: libraryVoiceId,
+          name,
+          voice_id: libraryVoiceId,
+          sourceVoiceType: 'saved',
+          isBookmarked: true,
+          is_bookmarked: true,
+        },
+      };
+    } catch (error: any) {
+      console.error('ElevenLabs shared voice add error:', error);
+      throw mapProviderError('elevenlabs', error, 'Failed to add ElevenLabs shared voice');
     }
   }
 );

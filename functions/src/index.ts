@@ -29,6 +29,7 @@ export {
   proxyMediaGeneration,
   getMediaTaskStatus,
   listMediaProviderOptions,
+  addElevenLabsSharedVoice,
 } from './mediaProxy';
 export {
   createDebateAudioCompileSession,
