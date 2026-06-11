@@ -1,0 +1,80 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function reservationExists(uid, reservationId) {
+      return firestore.exists(/databases/(default)/documents/users/$(uid)/storageReservations/$(reservationId));
+    }
+
+    function reservation(uid, reservationId) {
+      return firestore.get(/databases/(default)/documents/users/$(uid)/storageReservations/$(reservationId)).data;
+    }
+
+    function validReservation(uid, sessionId, recordType, recordId, field, fileName, reservationId) {
+      let uploadReservation = reservation(uid, reservationId);
+      return isOwner(uid)
+        && reservationExists(uid, reservationId)
+        && uploadReservation.uid == uid
+        && uploadReservation.sessionId == sessionId
+        && uploadReservation.recordType == recordType
+        && uploadReservation.recordId == recordId
+        && uploadReservation.field == field
+        && uploadReservation.fileName == fileName
+        && uploadReservation.status == 'reserved'
+        && uploadReservation.expiresAt > request.time
+        && uploadReservation.bytes == request.resource.size
+        && uploadReservation.contentType == request.resource.contentType;
+    }
+
+    function isMessagePayloadFile(fileName) {
+      return fileName == 'metadata.json' || fileName == 'content.txt';
+    }
+
+    match /users/{uid}/sessions/{sessionId}/messages/{messageId}/{fileName} {
+      allow read: if isOwner(uid) && isMessagePayloadFile(fileName);
+      allow write: if false;
+    }
+
+    match /users/{uid}/sessions/{sessionId}/messages/{messageId}/payloads/{reservationId}/{fileName} {
+      allow read: if isOwner(uid) && isMessagePayloadFile(fileName);
+      allow create, update: if isMessagePayloadFile(fileName)
+        && validReservation(
+          uid,
+          sessionId,
+          'message',
+          messageId,
+          fileName == 'metadata.json' ? 'metadata' : 'content',
+          fileName,
+          reservationId
+        );
+      allow delete: if false;
+    }
+
+    match /users/{uid}/sessions/{sessionId}/artifacts/{artifactId}/{fileName} {
+      allow read: if isOwner(uid) && fileName == 'data.txt';
+      allow write: if false;
+    }
+
+    match /users/{uid}/sessions/{sessionId}/artifacts/{artifactId}/payloads/{reservationId}/{fileName} {
+      allow read: if isOwner(uid) && fileName == 'data.txt';
+      allow create, update: if fileName == 'data.txt'
+        && validReservation(
+          uid,
+          sessionId,
+          'artifact',
+          artifactId,
+          'data',
+          fileName,
+          reservationId
+        );
+      allow delete: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

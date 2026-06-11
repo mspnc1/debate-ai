@@ -1,4 +1,14 @@
 rules_version = '2';
+
+// =============================================================================
+// CONSOLIDATED FIRESTORE RULES — single source of truth for BOTH apps:
+//   - Mobile (this repo, debateai)
+//   - Web (symposium-ai-web)
+// Deploy ONLY from this repo. Rules/index deploys from two repos silently
+// clobber each other. Keep the web repo free of a firestore section in its
+// firebase.json.
+// =============================================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
@@ -9,6 +19,7 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == userId;
     }
 
+    // Profile/identity fields either client may freely write.
     function clientOwnedUserFields() {
       return [
         'email',
@@ -26,100 +37,191 @@ service cloud.firestore {
       ];
     }
 
-    function serverOwnedUserFields() {
+    // Entitlement/IAP fields mobile seeds at sign-up (buildNewUserDocument).
+    // Allowed on CREATE only with inert values (see below); never on update.
+    function seedableEntitlementFields() {
       return [
         'membershipStatus',
         'isPremium',
         'hasUsedTrial',
         'trialStartedAt',
         'trialEndsAt',
-        'trialStartDate',
-        'trialEndDate',
         'subscriptionStartedAt',
         'subscriptionEndsAt',
         'subscriptionPlan',
         'subscriptionSource',
-        'subscriptionId',
-        'subscriptionExpiryDate',
         'freeDebatesRemaining',
         'freeComparesRemaining',
         'freeChatsRemaining',
-        'usage',
-        'trialHistory',
-        'loginAttempts',
-        'autoRenewing',
-        'lastReceiptData',
-        'paymentPlatform',
+        'freeAnalyzesRemaining',
         'productId',
+        'subscriptionId',
+        'subscriptionExpiryDate',
+        'trialStartDate',
+        'trialEndDate',
+        'autoRenewing',
+        'isLifetime',
         'androidPurchaseToken',
         'appAccountToken',
-        'isLifetime',
+        'lastReceiptData',
         'lastValidated'
       ];
     }
 
-    function isClientOwnedUserCreate() {
-      return request.resource.data.keys().hasOnly(clientOwnedUserFields())
-        && !request.resource.data.keys().hasAny(serverOwnedUserFields());
-    }
-
-    function isClientOwnedUserUpdate() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(clientOwnedUserFields())
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(serverOwnedUserFields());
-    }
-
-    function isClientWritableUserSubcollection(subcollection) {
-      return !(subcollection in [
-        'apiKeys',
+    // Everything Cloud Functions (Admin SDK) own. Clients can never change
+    // these via update.
+    function serverOwnedEntitlementFields() {
+      return seedableEntitlementFields().concat([
+        'paymentPlatform',
         'usage',
-        'billing',
-        'subscription',
-        'subscriptions',
-        'receipts'
+        'trialHistory',
+        'loginAttempts'
       ]);
     }
 
-    // Users can read their own profile and only write client-owned profile fields.
+    // On CREATE, entitlement fields may be present but only with inert
+    // initial values. This lets mobile's full-schema sign-up document
+    // succeed while blocking self-granted premium/trial state.
+    function entitlementFieldsAreInertDefaults() {
+      let d = request.resource.data;
+      return d.get('membershipStatus', 'demo') == 'demo'
+        && d.get('isPremium', false) == false
+        && d.get('hasUsedTrial', false) == false
+        && d.get('trialStartedAt', null) == null
+        && d.get('trialEndsAt', null) == null
+        && d.get('subscriptionStartedAt', null) == null
+        && d.get('subscriptionEndsAt', null) == null
+        && d.get('subscriptionPlan', null) == null
+        && d.get('subscriptionSource', null) == null
+        && d.get('freeDebatesRemaining', null) == null
+        && d.get('freeComparesRemaining', null) == null
+        && d.get('freeChatsRemaining', null) == null
+        && d.get('freeAnalyzesRemaining', null) == null
+        && d.get('productId', null) == null
+        && d.get('subscriptionId', null) == null
+        && d.get('subscriptionExpiryDate', null) == null
+        && d.get('trialStartDate', null) == null
+        && d.get('trialEndDate', null) == null
+        && d.get('autoRenewing', false) == false
+        && d.get('isLifetime', false) == false
+        && d.get('androidPurchaseToken', null) == null
+        && d.get('appAccountToken', null) == null
+        && d.get('lastReceiptData', null) == null
+        && d.get('lastValidated', null) == null;
+    }
+
+    function isValidUserCreate() {
+      return request.resource.data.keys().hasOnly(
+          clientOwnedUserFields().concat(seedableEntitlementFields())
+        )
+        && entitlementFieldsAreInertDefaults();
+    }
+
+    function isValidUserUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(clientOwnedUserFields())
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(serverOwnedEntitlementFields());
+    }
+
+    // Whole-document validation for settings CREATES.
+    function validSettingsDocument(settingId) {
+      return (
+        settingId == 'preferences'
+        && request.resource.data.keys().hasOnly(['theme', 'userDefaults'])
+        && (!request.resource.data.keys().hasAny(['theme']) || request.resource.data.theme in ['light', 'dark', 'auto'])
+        && (!request.resource.data.keys().hasAny(['userDefaults']) || request.resource.data.userDefaults is map)
+      ) || (
+        settingId == 'sync'
+        && request.resource.data.keys().hasOnly(['global', 'modes', 'hasCompletedOnboarding'])
+        && (!request.resource.data.keys().hasAny(['global']) || request.resource.data.global in ['all', 'none', 'selective'])
+        && (!request.resource.data.keys().hasAny(['modes']) || request.resource.data.modes is map)
+        && (!request.resource.data.keys().hasAny(['hasCompletedOnboarding']) || request.resource.data.hasCompletedOnboarding is bool)
+      ) || (
+        settingId == 'tools'
+        && request.resource.data.keys().hasOnly(['enabled', 'tools', 'defaultToolChoice'])
+        && (!request.resource.data.keys().hasAny(['enabled']) || request.resource.data.enabled is bool)
+        && (!request.resource.data.keys().hasAny(['tools']) || request.resource.data.tools is map)
+        && (!request.resource.data.keys().hasAny(['defaultToolChoice']) || request.resource.data.defaultToolChoice is string)
+      ) || (
+        settingId == 'personalities'
+        && request.resource.data.keys().hasOnly(['customizations', 'customPersonalities', 'updatedAt'])
+        && (!request.resource.data.keys().hasAny(['customizations']) || request.resource.data.customizations is map)
+        && (!request.resource.data.keys().hasAny(['customPersonalities']) || request.resource.data.customPersonalities is list)
+        && (!request.resource.data.keys().hasAny(['updatedAt']) || request.resource.data.updatedAt is number)
+      );
+    }
+
+    // Update variant: validates only the keys being CHANGED, not the whole
+    // merged document. Pre-hardening rules allowed arbitrary keys in settings
+    // docs, so existing docs may carry legacy fields; whole-document hasOnly
+    // checks would reject every merge-write to such docs (e.g. theme sync).
+    // Clients still can't add or modify keys outside the allowlist.
+    function validSettingsUpdate(settingId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return (
+        settingId == 'preferences'
+        && changed.hasOnly(['theme', 'userDefaults'])
+        && (!changed.hasAny(['theme']) || request.resource.data.theme in ['light', 'dark', 'auto'])
+        && (!changed.hasAny(['userDefaults']) || request.resource.data.userDefaults is map)
+      ) || (
+        settingId == 'sync'
+        && changed.hasOnly(['global', 'modes', 'hasCompletedOnboarding'])
+        && (!changed.hasAny(['global']) || request.resource.data.global in ['all', 'none', 'selective'])
+        && (!changed.hasAny(['modes']) || request.resource.data.modes is map)
+        && (!changed.hasAny(['hasCompletedOnboarding']) || request.resource.data.hasCompletedOnboarding is bool)
+      ) || (
+        settingId == 'tools'
+        && changed.hasOnly(['enabled', 'tools', 'defaultToolChoice'])
+        && (!changed.hasAny(['enabled']) || request.resource.data.enabled is bool)
+        && (!changed.hasAny(['tools']) || request.resource.data.tools is map)
+        && (!changed.hasAny(['defaultToolChoice']) || request.resource.data.defaultToolChoice is string)
+      ) || (
+        settingId == 'personalities'
+        && changed.hasOnly(['customizations', 'customPersonalities', 'updatedAt'])
+        && (!changed.hasAny(['customizations']) || request.resource.data.customizations is map)
+        && (!changed.hasAny(['customPersonalities']) || request.resource.data.customPersonalities is list)
+        && (!changed.hasAny(['updatedAt']) || request.resource.data.updatedAt is number)
+      );
+    }
+
+    // Users can only access their own data
     match /users/{userId} {
       allow read: if isOwner(userId);
-      allow create: if isOwner(userId) && isClientOwnedUserCreate();
-      allow update: if isOwner(userId) && isClientOwnedUserUpdate();
+      allow create: if isOwner(userId) && isValidUserCreate();
+      allow update: if isOwner(userId) && isValidUserUpdate();
       allow delete: if false;
 
-      // API Keys - ONLY accessible via Cloud Functions (admin SDK)
+      // API keys are ONLY accessible via Cloud Functions (Admin SDK).
       match /apiKeys/{providerId} {
         allow read, write: if false;
       }
 
-      // Usage collection is function-owned. Clients may read their own counters.
-      match /usage/{docId} {
+      // Settings subcollection (includes sync settings)
+      match /settings/{settingId} {
         allow read: if isOwner(userId);
-        allow write: if false;
-
-        // Daily usage: usage/daily/days/{date}
-        match /days/{date} {
-          allow read: if isOwner(userId);
-          allow write: if false;
-        }
+        allow create: if isOwner(userId) && validSettingsDocument(settingId);
+        allow update: if isOwner(userId) && validSettingsUpdate(settingId);
+        allow delete: if isOwner(userId);
       }
 
-      // Billing/subscription state is function-owned.
-      match /billing/{docId} {
-        allow read: if isOwner(userId);
-        allow write: if false;
-
-        match /{nestedDoc=**} {
-          allow read: if isOwner(userId);
-          allow write: if false;
-        }
-      }
-
-      match /subscription/{docId} {
+      // Billing, entitlement, trial, and usage data are server-owned.
+      // Admin SDK writes bypass these rules; clients can only read their own.
+      // Recursive matches cover nested docs (e.g. usage/daily/days/{date}).
+      match /billing/{docId=**} {
         allow read: if isOwner(userId);
         allow write: if false;
       }
 
-      match /subscriptions/{docId} {
+      match /usage/{docId=**} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
+      match /subscription/{docId=**} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
+      match /subscriptions/{docId=**} {
         allow read: if isOwner(userId);
         allow write: if false;
       }
@@ -128,68 +230,103 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
-      // Allow other client-owned subcollections (sessions, preferences, etc.).
-      match /{subcollection}/{docId} {
-        allow read, write: if isOwner(userId)
-          && isClientWritableUserSubcollection(subcollection);
+      match /storageReservations/{reservationId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
 
-        // Nested subcollections (e.g., sessions/messages)
-        match /{nestedDoc=**} {
-          allow read, write: if isOwner(userId)
-            && isClientWritableUserSubcollection(subcollection);
+      // Conversations subcollection (path-based auth)
+      match /conversations/{sessionId} {
+        allow read, write: if isOwner(userId);
+
+        // Messages subcollection
+        match /messages/{messageId} {
+          allow read, write: if isOwner(userId);
+        }
+
+        // Analyze artifacts subcollection
+        match /artifacts/{artifactId} {
+          allow read, write: if isOwner(userId);
         }
       }
     }
-    
-    // Conversations belong to authenticated users
-    match /conversations/{conversationId} {
-      allow create: if request.auth != null
-        && request.resource.data.userId == request.auth.uid;
 
-      allow read, update: if request.auth != null
-        && resource.data.userId == request.auth.uid;
-
-      // Allow delete if: user owns it OR session has no userId (legacy cleanup)
-      allow delete: if request.auth != null
-        && (resource.data.userId == request.auth.uid || resource.data.userId == null);
-
-      match /messages/{messageId} {
-        allow create: if request.auth != null
-          && get(/databases/$(database)/documents/conversations/$(conversationId)).data.userId == request.auth.uid;
-
-        allow read, update: if request.auth != null
-          && get(/databases/$(database)/documents/conversations/$(conversationId)).data.userId == request.auth.uid;
-
-        // Allow delete if: user owns parent OR parent has no userId (legacy cleanup)
-        allow delete: if request.auth != null
-          && (get(/databases/$(database)/documents/conversations/$(conversationId)).data.userId == request.auth.uid
-              || get(/databases/$(database)/documents/conversations/$(conversationId)).data.userId == null);
-      }
-    }
-
-    // Trial history - prevents trial abuse after account deletion
-    // Users can read their own trial history, but only cloud functions can write
+    // Trial history prevents trial abuse after account deletion.
+    // Clients may read their own entry; only Cloud Functions write.
     match /trialHistory/{docId} {
-      allow read: if request.auth != null && request.auth.uid == docId;
-      allow write: if false; // Only cloud functions (admin SDK) can write
-    }
-
-    // Auth rate-limit state - only cloud functions (admin SDK) can access
-    match /loginAttempts/{docId} {
-      allow read, write: if false;
-    }
-
-    // Export Jobs - creator can read status, only cloud functions write
-    match /exportJobs/{jobId} {
-      allow read: if request.auth != null && resource.data.createdBy == request.auth.uid;
+      allow read: if signedIn() && request.auth.uid == docId;
       allow write: if false;
     }
 
-    // Purchase errors - for debugging Play Store review failures
-    // Allow any authenticated user to write (create only), no reads from client
+    // Export jobs: creator can read status, only Cloud Functions write.
+    match /exportJobs/{jobId} {
+      allow read: if signedIn() && resource.data.createdBy == request.auth.uid;
+      allow write: if false;
+    }
+
+    // Purchase error diagnostics (mobile IAP). Create-only, even when
+    // unauthenticated (logs pre-auth store failures); shape-constrained to
+    // the known payload so the open write can't be abused for arbitrary data.
     match /purchase_errors/{docId} {
-      allow create: if true; // Allow even unauthenticated to log errors
-      allow read, update, delete: if false; // Only viewable in Firebase Console
+      allow create: if request.resource.data.keys().hasOnly([
+          'timestamp', 'timestampISO', 'action', 'errorCode', 'errorMessage',
+          'userIdHash', 'userAuthenticated', 'platform', 'appVersion', 'details'
+        ])
+        && request.resource.data.get('details', '') is string
+        && request.resource.data.get('details', '').size() < 10000;
+      allow read, update, delete: if false;
+    }
+
+    // Login attempts for rate limiting. Server-owned; Admin SDK only.
+    match /loginAttempts/{emailId} {
+      allow read, write: if false;
+    }
+
+    // Legacy: Conversations collection (flat structure with userId field)
+    // Keep for backwards compatibility during migration
+    match /conversations/{sessionId} {
+      // Users can read/write their own conversations; userId is immutable
+      // on update so documents can't be reassigned to another user.
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+
+      // Messages subcollection
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null &&
+          get(/databases/$(database)/documents/conversations/$(sessionId)).data.userId == request.auth.uid;
+      }
+
+      // Legacy Analyze artifacts subcollection
+      match /artifacts/{artifactId} {
+        allow read: if request.auth != null &&
+          get(/databases/$(database)/documents/conversations/$(sessionId)).data.userId == request.auth.uid;
+        allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+        allow update: if request.auth != null
+          && resource.data.userId == request.auth.uid
+          && request.resource.data.userId == request.auth.uid;
+        allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      }
+    }
+
+    // Collection group rule for artifact library queries across sessions.
+    // Artifacts written by ChatHistoryService include userId specifically so
+    // collection-group reads can be authorized without inspecting ancestors.
+    match /{path=**}/artifacts/{artifactId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // Deny all other access by default
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
