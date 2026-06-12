@@ -17,6 +17,10 @@ interface ProviderBalance {
   errorMessage?: string;
 }
 
+type SessionType = 'chat' | 'debate' | 'comparison' | 'analyze';
+
+const SESSION_TYPES: SessionType[] = ['chat', 'debate', 'comparison', 'analyze'];
+
 interface UsageRecord {
   messageId: string;
   sessionId: string;
@@ -25,8 +29,13 @@ interface UsageRecord {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
-  sessionType: 'chat' | 'debate' | 'comparison' | 'analyze';
+  sessionType: SessionType;
   timestamp: number;
+}
+
+interface ModeUsageStats {
+  tokens: number;
+  requests: number;
 }
 
 interface ImageGenerationRecord {
@@ -95,6 +104,7 @@ interface UsageSummary {
     media?: MediaGenerationStats;
   }>;
   byModel: Record<string, ModelUsageStats>;
+  byMode?: Record<string, ModeUsageStats>;
 }
 
 type FreeTierInteractionType = 'debate' | 'compare' | 'chat' | 'analyze';
@@ -289,49 +299,114 @@ async function fetchOpenAIBalance(apiKey: string): Promise<ProviderBalance> {
 // Record Usage (internal function)
 // ============================================================================
 
+interface UsageDocsMutation {
+  daily: Record<string, unknown>;
+  summary: Record<string, unknown>;
+}
+
 /**
- * Record usage for a message - called by proxyAIRequest after successful response
+ * Clamp a client-supplied session type to the known set. Unknown values fall
+ * back to 'chat' so byMode keys stay bounded.
  */
-export async function recordUsageInternal(
+export function normalizeSessionType(value: unknown): SessionType {
+  return SESSION_TYPES.includes(value as SessionType) ? (value as SessionType) : 'chat';
+}
+
+/**
+ * Monthly counters carried into a new summary write, reset together when the
+ * month rolls over. Every recorder must use this so a rollover triggered by
+ * one usage type also resets the others.
+ */
+export function monthlyCountersAfterRollover(
+  summaryData: UsageSummary | null,
+  monthStr: string
+): {
+  isNewMonth: boolean;
+  currentMonthTokens: number;
+  currentMonthRequests: number;
+  currentMonthImages: number;
+  currentMonthMedia: number;
+} {
+  const isNewMonth = !summaryData?.currentMonth || summaryData.currentMonth !== monthStr;
+  return {
+    isNewMonth,
+    currentMonthTokens: isNewMonth ? 0 : summaryData?.currentMonthTokens || 0,
+    currentMonthRequests: isNewMonth ? 0 : summaryData?.currentMonthRequests || 0,
+    currentMonthImages: isNewMonth ? 0 : summaryData?.currentMonthImages || 0,
+    currentMonthMedia: isNewMonth ? 0 : summaryData?.currentMonthMedia || 0,
+  };
+}
+
+/**
+ * Read both usage docs, apply a pure mutation, and write the results — all
+ * inside a transaction. The previous read-then-batch.set pattern lost updates
+ * when concurrent requests (multi-AI chat, debate, compare) interleaved.
+ *
+ * Mutators receive unflattened data (legacy docs were written with
+ * dot-notation keys) and must spread the current doc into their result so one
+ * usage type never erases another's fields.
+ */
+async function runUsageMutation(
   uid: string,
-  record: UsageRecord
+  dateStr: string,
+  mutate: (
+    dailyData: Record<string, unknown>,
+    summaryData: UsageSummary | null
+  ) => UsageDocsMutation
 ): Promise<void> {
-  console.log('recordUsageInternal called:', { uid, providerId: record.providerId, modelId: record.modelId, totalTokens: record.totalTokens });
-
   const db = getFirestore();
-  const now = new Date();
-  const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-  const monthStr = dateStr.slice(0, 7); // YYYY-MM
-
-  console.log('Writing usage for date:', dateStr, 'month:', monthStr);
-
-  const batch = db.batch();
-
-  // 1. Update daily usage (provider-level)
   const dailyRef = db.collection('users').doc(uid)
     .collection('usage').doc('daily')
     .collection('days').doc(dateStr);
+  const summaryRef = db.collection('users').doc(uid).collection('usage').doc('summary');
 
-  // Get current daily doc to merge properly (unflatten to handle legacy flat-key data)
-  const dailyDoc = await dailyRef.get();
-  const dailyData = dailyDoc.exists ? unflattenObject(dailyDoc.data() || {}) : {};
+  await db.runTransaction(async (txn) => {
+    const [dailySnap, summarySnap] = await txn.getAll(dailyRef, summaryRef);
+    const dailyData = dailySnap.exists ? unflattenObject(dailySnap.data() || {}) : {};
+    const summaryData = summarySnap.exists
+      ? (unflattenObject(summarySnap.data() || {}) as unknown as UsageSummary)
+      : null;
 
-  // Build nested structure properly
-  const currentProviders = (dailyData.providers || {}) as Record<string, { totalInputTokens?: number; totalOutputTokens?: number; totalTokens?: number; requestCount?: number }>;
+    const { daily, summary } = mutate(dailyData, summaryData);
+    txn.set(dailyRef, daily);
+    txn.set(summaryRef, summary);
+  });
+}
+
+/**
+ * Pure mutation for a token usage record. Exported for tests.
+ */
+export function buildTokenUsageMutation(
+  dailyData: Record<string, unknown>,
+  summaryData: UsageSummary | null,
+  record: UsageRecord,
+  dateStr: string,
+  monthStr: string
+): UsageDocsMutation {
+  const sessionType = normalizeSessionType(record.sessionType);
+
+  // Daily doc
+  const currentProviders = (dailyData.providers || {}) as Record<string, Record<string, unknown>>;
   const currentProvider = currentProviders[record.providerId] || {};
 
   const currentByModel = (dailyData.byModel || {}) as Record<string, { inputTokens?: number; outputTokens?: number; requests?: number }>;
   const currentModel = currentByModel[record.modelId] || {};
 
-  batch.set(dailyRef, {
+  const currentByMode = (dailyData.byMode || {}) as Record<string, ModeUsageStats>;
+  const currentMode = currentByMode[sessionType] || { tokens: 0, requests: 0 };
+
+  const daily: Record<string, unknown> = {
+    ...dailyData,
     date: dateStr,
     providers: {
       ...currentProviders,
       [record.providerId]: {
-        totalInputTokens: (currentProvider.totalInputTokens || 0) + record.inputTokens,
-        totalOutputTokens: (currentProvider.totalOutputTokens || 0) + record.outputTokens,
-        totalTokens: (currentProvider.totalTokens || 0) + record.totalTokens,
-        requestCount: (currentProvider.requestCount || 0) + 1,
+        // Preserve images/media stats recorded for this provider today
+        ...currentProvider,
+        totalInputTokens: ((currentProvider.totalInputTokens as number) || 0) + record.inputTokens,
+        totalOutputTokens: ((currentProvider.totalOutputTokens as number) || 0) + record.outputTokens,
+        totalTokens: ((currentProvider.totalTokens as number) || 0) + record.totalTokens,
+        requestCount: ((currentProvider.requestCount as number) || 0) + 1,
       },
     },
     byModel: {
@@ -342,20 +417,21 @@ export async function recordUsageInternal(
         requests: (currentModel.requests || 0) + 1,
       },
     },
+    byMode: {
+      ...currentByMode,
+      [sessionType]: {
+        tokens: (currentMode.tokens || 0) + record.totalTokens,
+        requests: (currentMode.requests || 0) + 1,
+      },
+    },
     totalTokens: ((dailyData.totalTokens as number) || 0) + record.totalTokens,
     totalRequests: ((dailyData.totalRequests as number) || 0) + 1,
     updatedAt: FieldValue.serverTimestamp(),
-  });
+  };
 
-  // 2. Update summary
-  const summaryRef = db.collection('users').doc(uid).collection('usage').doc('summary');
+  // Summary doc
+  const counters = monthlyCountersAfterRollover(summaryData, monthStr);
 
-  // Get current summary to merge properly (unflatten to handle legacy flat-key data)
-  const summaryDoc = await summaryRef.get();
-  const summaryData = summaryDoc.exists ? unflattenObject(summaryDoc.data() || {}) as unknown as UsageSummary : null;
-  const isNewMonth = !summaryData?.currentMonth || summaryData.currentMonth !== monthStr;
-
-  // Build nested structures properly
   const summaryByProvider = summaryData?.byProvider || {};
   const summaryProviderStats = summaryByProvider[record.providerId] || {
     tokens: 0,
@@ -373,14 +449,20 @@ export async function recordUsageInternal(
     lastUsed: 0,
   };
 
-  const updatedSummary = {
+  const summaryByMode = summaryData?.byMode || {};
+  const summaryModeStats = summaryByMode[sessionType] || { tokens: 0, requests: 0 };
+
+  const summary: Record<string, unknown> = {
+    ...(summaryData ?? {}),
     updatedAt: Date.now(),
     totalTokensAllTime: (summaryData?.totalTokensAllTime || 0) + record.totalTokens,
     totalRequestsAllTime: (summaryData?.totalRequestsAllTime || 0) + 1,
     totalImagesAllTime: summaryData?.totalImagesAllTime || 0,
-    currentMonthTokens: isNewMonth ? record.totalTokens : (summaryData?.currentMonthTokens || 0) + record.totalTokens,
-    currentMonthRequests: isNewMonth ? 1 : (summaryData?.currentMonthRequests || 0) + 1,
-    currentMonthImages: isNewMonth ? 0 : (summaryData?.currentMonthImages || 0),
+    totalMediaAllTime: summaryData?.totalMediaAllTime || 0,
+    currentMonthTokens: counters.currentMonthTokens + record.totalTokens,
+    currentMonthRequests: counters.currentMonthRequests + 1,
+    currentMonthImages: counters.currentMonthImages,
+    currentMonthMedia: counters.currentMonthMedia,
     currentMonth: monthStr,
     byProvider: {
       ...summaryByProvider,
@@ -402,12 +484,36 @@ export async function recordUsageInternal(
         lastUsed: Date.now(),
       },
     },
+    byMode: {
+      ...summaryByMode,
+      [sessionType]: {
+        tokens: (summaryModeStats.tokens || 0) + record.totalTokens,
+        requests: (summaryModeStats.requests || 0) + 1,
+      },
+    },
   };
 
-  batch.set(summaryRef, updatedSummary);
+  return { daily, summary };
+}
 
-  await batch.commit();
-  console.log('Usage batch committed successfully for:', { uid, dateStr, providerId: record.providerId });
+/**
+ * Record usage for a message - called by proxyAIRequest after successful response
+ */
+export async function recordUsageInternal(
+  uid: string,
+  record: UsageRecord
+): Promise<void> {
+  console.log('recordUsageInternal called:', { uid, providerId: record.providerId, modelId: record.modelId, totalTokens: record.totalTokens, sessionType: record.sessionType });
+
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+  const monthStr = dateStr.slice(0, 7); // YYYY-MM
+
+  await runUsageMutation(uid, dateStr, (dailyData, summaryData) =>
+    buildTokenUsageMutation(dailyData, summaryData, record, dateStr, monthStr)
+  );
+
+  console.log('Usage transaction committed for:', { uid, dateStr, providerId: record.providerId });
 }
 
 function normalizeFreeTierUsage(data: FirebaseFirestore.DocumentData | undefined): FreeTierUsageState {
@@ -516,29 +622,16 @@ export const recordFreeTierInteraction = onCall(
 // ============================================================================
 
 /**
- * Record image generation usage - called after successful image generation
+ * Pure mutation for an image generation record. Exported for tests.
  */
-export async function recordImageGenerationInternal(
-  uid: string,
-  record: ImageGenerationRecord
-): Promise<void> {
-  const db = getFirestore();
-  const now = new Date();
-  const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-  const monthStr = dateStr.slice(0, 7); // YYYY-MM
-
-  const batch = db.batch();
-
-  // 1. Update daily usage
-  const dailyRef = db.collection('users').doc(uid)
-    .collection('usage').doc('daily')
-    .collection('days').doc(dateStr);
-
-  // Get current daily doc to merge properly (unflatten to handle legacy flat-key data)
-  const dailyDoc = await dailyRef.get();
-  const dailyData = dailyDoc.exists ? unflattenObject(dailyDoc.data() || {}) : {};
-
-  // Build nested structure properly
+export function buildImageGenerationMutation(
+  dailyData: Record<string, unknown>,
+  summaryData: UsageSummary | null,
+  record: ImageGenerationRecord,
+  dateStr: string,
+  monthStr: string
+): UsageDocsMutation {
+  // Daily doc
   const currentProviders = (dailyData.providers || {}) as Record<string, Record<string, unknown>>;
   const currentProvider = currentProviders[record.providerId] || {};
   const currentImages = (currentProvider.images as ImageGenerationStats) || {
@@ -561,7 +654,9 @@ export async function recordImageGenerationInternal(
     },
   };
 
-  batch.set(dailyRef, {
+  const daily: Record<string, unknown> = {
+    // Preserve token fields (byModel, byMode, totalTokens, totalRequests, …)
+    ...dailyData,
     date: dateStr,
     totalImages: ((dailyData.totalImages as number) || 0) + record.imageCount,
     providers: {
@@ -572,17 +667,11 @@ export async function recordImageGenerationInternal(
       },
     },
     updatedAt: FieldValue.serverTimestamp(),
-  });
+  };
 
-  // 2. Update summary
-  const summaryRef = db.collection('users').doc(uid).collection('usage').doc('summary');
+  // Summary doc
+  const counters = monthlyCountersAfterRollover(summaryData, monthStr);
 
-  // Get current summary to merge properly (unflatten to handle legacy flat-key data)
-  const summaryDoc = await summaryRef.get();
-  const summaryData = summaryDoc.exists ? unflattenObject(summaryDoc.data() || {}) as unknown as UsageSummary : null;
-  const isNewMonth = !summaryData?.currentMonth || summaryData.currentMonth !== monthStr;
-
-  // Build nested structure properly
   const currentByProvider = summaryData?.byProvider || {};
   const currentProviderStats = currentByProvider[record.providerId] || {
     tokens: 0,
@@ -609,14 +698,17 @@ export async function recordImageGenerationInternal(
     },
   };
 
-  const updatedSummary = {
+  const summary: Record<string, unknown> = {
+    ...(summaryData ?? {}),
     updatedAt: Date.now(),
     totalTokensAllTime: summaryData?.totalTokensAllTime || 0,
     totalRequestsAllTime: summaryData?.totalRequestsAllTime || 0,
     totalImagesAllTime: (summaryData?.totalImagesAllTime || 0) + record.imageCount,
-    currentMonthTokens: isNewMonth ? 0 : (summaryData?.currentMonthTokens || 0),
-    currentMonthRequests: isNewMonth ? 0 : (summaryData?.currentMonthRequests || 0),
-    currentMonthImages: isNewMonth ? record.imageCount : (summaryData?.currentMonthImages || 0) + record.imageCount,
+    totalMediaAllTime: summaryData?.totalMediaAllTime || 0,
+    currentMonthTokens: counters.currentMonthTokens,
+    currentMonthRequests: counters.currentMonthRequests,
+    currentMonthImages: counters.currentMonthImages + record.imageCount,
+    currentMonthMedia: counters.currentMonthMedia,
     currentMonth: monthStr,
     byProvider: {
       ...currentByProvider,
@@ -629,9 +721,23 @@ export async function recordImageGenerationInternal(
     byModel: summaryData?.byModel || {},
   };
 
-  batch.set(summaryRef, updatedSummary);
+  return { daily, summary };
+}
 
-  await batch.commit();
+/**
+ * Record image generation usage - called after successful image generation
+ */
+export async function recordImageGenerationInternal(
+  uid: string,
+  record: ImageGenerationRecord
+): Promise<void> {
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+  const monthStr = dateStr.slice(0, 7); // YYYY-MM
+
+  await runUsageMutation(uid, dateStr, (dailyData, summaryData) =>
+    buildImageGenerationMutation(dailyData, summaryData, record, dateStr, monthStr)
+  );
 }
 
 /**
@@ -674,24 +780,17 @@ export const recordImageGeneration = onCall(
  * Record media generation usage by provider/media type only.
  * Cost estimates are intentionally excluded because usage is BYOK.
  */
-export async function recordMediaGenerationInternal(
-  uid: string,
-  record: MediaGenerationRecord
-): Promise<void> {
-  const db = getFirestore();
-  const now = new Date();
-  const dateStr = now.toISOString().split('T')[0];
-  const monthStr = dateStr.slice(0, 7);
-
-  const batch = db.batch();
-
-  const dailyRef = db.collection('users').doc(uid)
-    .collection('usage').doc('daily')
-    .collection('days').doc(dateStr);
-
-  const dailyDoc = await dailyRef.get();
-  const dailyData = dailyDoc.exists ? unflattenObject(dailyDoc.data() || {}) : {};
-
+/**
+ * Pure mutation for a media generation record. Exported for tests.
+ */
+export function buildMediaGenerationMutation(
+  dailyData: Record<string, unknown>,
+  summaryData: UsageSummary | null,
+  record: MediaGenerationRecord,
+  dateStr: string,
+  monthStr: string
+): UsageDocsMutation {
+  // Daily doc
   const currentProviders = (dailyData.providers || {}) as Record<string, Record<string, unknown>>;
   const currentProvider = currentProviders[record.providerId] || {};
   const currentMedia = (currentProvider.media as MediaGenerationStats) || {
@@ -712,7 +811,9 @@ export async function recordMediaGenerationInternal(
     },
   };
 
-  batch.set(dailyRef, {
+  const daily: Record<string, unknown> = {
+    // Preserve token fields (byModel, byMode, totalTokens, totalRequests, …)
+    ...dailyData,
     date: dateStr,
     totalMedia: ((dailyData.totalMedia as number) || 0) + 1,
     providers: {
@@ -723,12 +824,10 @@ export async function recordMediaGenerationInternal(
       },
     },
     updatedAt: FieldValue.serverTimestamp(),
-  });
+  };
 
-  const summaryRef = db.collection('users').doc(uid).collection('usage').doc('summary');
-  const summaryDoc = await summaryRef.get();
-  const summaryData = summaryDoc.exists ? unflattenObject(summaryDoc.data() || {}) as unknown as UsageSummary : null;
-  const isNewMonth = !summaryData?.currentMonth || summaryData.currentMonth !== monthStr;
+  // Summary doc
+  const counters = monthlyCountersAfterRollover(summaryData, monthStr);
 
   const currentByProvider = summaryData?.byProvider || {};
   const currentProviderStats = currentByProvider[record.providerId] || {
@@ -754,16 +853,17 @@ export async function recordMediaGenerationInternal(
     },
   };
 
-  batch.set(summaryRef, {
+  const summary: Record<string, unknown> = {
+    ...(summaryData ?? {}),
     updatedAt: Date.now(),
     totalTokensAllTime: summaryData?.totalTokensAllTime || 0,
     totalRequestsAllTime: summaryData?.totalRequestsAllTime || 0,
     totalImagesAllTime: summaryData?.totalImagesAllTime || 0,
     totalMediaAllTime: (summaryData?.totalMediaAllTime || 0) + 1,
-    currentMonthTokens: isNewMonth ? 0 : (summaryData?.currentMonthTokens || 0),
-    currentMonthRequests: isNewMonth ? 0 : (summaryData?.currentMonthRequests || 0),
-    currentMonthImages: isNewMonth ? 0 : (summaryData?.currentMonthImages || 0),
-    currentMonthMedia: isNewMonth ? 1 : (summaryData?.currentMonthMedia || 0) + 1,
+    currentMonthTokens: counters.currentMonthTokens,
+    currentMonthRequests: counters.currentMonthRequests,
+    currentMonthImages: counters.currentMonthImages,
+    currentMonthMedia: counters.currentMonthMedia + 1,
     currentMonth: monthStr,
     byProvider: {
       ...currentByProvider,
@@ -774,9 +874,22 @@ export async function recordMediaGenerationInternal(
       },
     },
     byModel: summaryData?.byModel || {},
-  });
+  };
 
-  await batch.commit();
+  return { daily, summary };
+}
+
+export async function recordMediaGenerationInternal(
+  uid: string,
+  record: MediaGenerationRecord
+): Promise<void> {
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  const monthStr = dateStr.slice(0, 7);
+
+  await runUsageMutation(uid, dateStr, (dailyData, summaryData) =>
+    buildMediaGenerationMutation(dailyData, summaryData, record, dateStr, monthStr)
+  );
 }
 
 export const recordMediaGeneration = onCall(
