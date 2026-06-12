@@ -73,8 +73,6 @@ jest.mock('axios', () => ({
   },
 }));
 
-const { readFileSync } = require('fs') as typeof import('fs');
-const path = require('path') as typeof import('path');
 const {
   checkLoginRateLimit,
   verifyEmailPasswordSignIn,
@@ -377,25 +375,7 @@ describe('auth rate limiting callables', () => {
     expect(mockAxiosPost).not.toHaveBeenCalled();
   });
 
-  it('keeps loginAttempts closed in Firestore rules', () => {
-    const rules = readFileSync(path.join(process.cwd(), 'firestore.rules'), 'utf8');
-    const loginAttemptsBlock = rules.match(/match \/loginAttempts\/\{docId\} \{([\s\S]*?)\n {4}\}/);
-
-    expect(loginAttemptsBlock?.[1]).toContain('allow read, write: if false;');
-  });
-
-  it('keeps entitlement and purchase fields server-owned in Firestore rules', () => {
-    const rules = readFileSync(path.join(process.cwd(), 'firestore.rules'), 'utf8');
-
-    expect(rules).toContain('function serverOwnedUserFields()');
-    expect(rules).toContain("'membershipStatus'");
-    expect(rules).toContain("'isPremium'");
-    expect(rules).toContain("'androidPurchaseToken'");
-    expect(rules).toContain("'appAccountToken'");
-    expect(rules).toContain("'lastReceiptData'");
-    expect(rules).toContain('allow create: if isOwner(userId) && isClientOwnedUserCreate();');
-    expect(rules).toContain('allow update: if isOwner(userId) && isClientOwnedUserUpdate();');
-    expect(rules).toContain("match /usage/{docId}");
-    expect(rules).toContain("match /billing/{docId}");
-  });
+  // Firestore rules assertions (loginAttempts lockdown, server-owned
+  // entitlements) live in __tests__/security/firestoreRules.test.ts,
+  // which is kept in sync with the consolidated ruleset.
 });
