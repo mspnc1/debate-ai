@@ -135,31 +135,53 @@ describe('mapElevenLabsVoiceOption', () => {
       labelling_status: 'complete',
     });
 
+    const verifiedLanguages = [
+      {
+        language: 'English',
+        modelId: 'eleven_multilingual_v2',
+        accent: 'American',
+        locale: 'en-US',
+        previewUrl: 'https://example.com/bella-en.mp3',
+      },
+    ];
+
+    // The mapper emits every API field in BOTH camelCase and snake_case so
+    // older clients keep working; absent optional fields map to null.
     assert.deepEqual(voice, {
       id: 'bella',
       name: 'Bella',
+      voice_id: 'bella',
       category: 'premade',
       description: 'Professional, bright, warm narration.',
       previewUrl: 'https://example.com/bella.mp3',
       labels: { accent: 'American', age: 'young adult' },
+      sourceVoiceType: undefined,
       availableForTiers: ['creator', 'pro'],
+      available_for_tiers: ['creator', 'pro'],
       highQualityBaseModelIds: ['eleven_multilingual_v2'],
-      verifiedLanguages: [
-        {
-          language: 'English',
-          modelId: 'eleven_multilingual_v2',
-          accent: 'American',
-          locale: 'en-US',
-          previewUrl: 'https://example.com/bella-en.mp3',
-        },
-      ],
+      high_quality_base_model_ids: ['eleven_multilingual_v2'],
+      verifiedLanguages,
+      verified_languages: verifiedLanguages,
       isOwner: true,
+      is_owner: true,
       isLegacy: false,
+      is_legacy: false,
       isMixed: true,
+      is_mixed: true,
       createdAtUnix: 1710000000,
+      created_at_unix: 1710000000,
       isBookmarked: true,
+      is_bookmarked: true,
+      favoritedAtUnix: null,
+      favorited_at_unix: null,
       recordingQuality: 'professional',
+      recording_quality: 'professional',
       labellingStatus: 'complete',
+      labelling_status: 'complete',
+      recordingQualityReason: null,
+      recording_quality_reason: null,
+      safetyControl: null,
+      safety_control: null,
     });
   });
 
