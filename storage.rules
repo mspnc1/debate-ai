@@ -1,3 +1,5 @@
+// validReservation() reads Firestore from Storage rules (cross-service);
+// deploys must ensure the Storage service agent holds roles/firebaserules.firestoreServiceAgent.
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
