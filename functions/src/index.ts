@@ -16,6 +16,7 @@ export { testApiKey } from './testApiKey';
 
 // Two-Factor Backup Codes
 export { generateBackupCodes, getBackupCodesStatus } from './backupCodes';
+export { redeemBackupCode } from './redeemBackupCode';
 
 // Data Connector Key Management
 export { saveDataServiceKey, deleteDataServiceKey, getConfiguredDataServices } from './dataConnectors';
