@@ -15,7 +15,6 @@ import {
   fbiCrimeApiKey,
   stackExchangeApiKey,
   librariesIoApiKey,
-  semanticScholarApiKey,
 } from './dataConnectors';
 
 // ============================================================================
@@ -1909,7 +1908,6 @@ export const executeTool = onCall(
       fbiCrimeApiKey,
       stackExchangeApiKey,
       librariesIoApiKey,
-      semanticScholarApiKey,
     ],
   },
   async (request): Promise<ToolResult> => {
