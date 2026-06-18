@@ -338,11 +338,20 @@ export const runExportJob = onRequest(
         await updateJobPhase(jobId, 'completed', {
           progress: 100,
           downloadUrl,
+          outputArtifactId: pdfArtifactId,
+          outputArtifactType: 'document_pdf',
           pdfHash,
         });
 
         console.log(`[runExportJob] html_direct job ${jobId} completed. PDF: ${pdfHash}`);
-        res.status(200).json({ status: 'completed', jobId, pdfHash, downloadUrl });
+        res.status(200).json({
+          status: 'completed',
+          jobId,
+          pdfHash,
+          downloadUrl,
+          outputArtifactId: pdfArtifactId,
+          outputArtifactType: 'document_pdf',
+        });
         return;
       }
 
@@ -771,6 +780,8 @@ export const runExportJob = onRequest(
       await updateJobPhase(jobId, 'completed', {
         progress: 100,
         downloadUrl,
+        outputArtifactId: pdfArtifactId,
+        outputArtifactType: 'document_pdf',
         pdfHash,
         provenanceHash,
       });
@@ -779,7 +790,14 @@ export const runExportJob = onRequest(
         `[runExportJob] Job ${jobId} completed. PDF: ${pdfHash} | ` +
         `Cache: ${cacheStats.hits}h/${cacheStats.misses}m`,
       );
-      res.status(200).json({ status: 'completed', jobId, pdfHash, downloadUrl });
+      res.status(200).json({
+        status: 'completed',
+        jobId,
+        pdfHash,
+        downloadUrl,
+        outputArtifactId: pdfArtifactId,
+        outputArtifactType: 'document_pdf',
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[runExportJob] Job ${jobId} failed:`, msg);

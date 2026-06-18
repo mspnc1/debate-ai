@@ -237,6 +237,8 @@ export interface ExportJobDoc {
   phase: ExportJobPhase;
   progress?: number;
   downloadUrl?: string;
+  outputArtifactId?: string;
+  outputArtifactType?: 'document_pdf';
   error?: string;
   updatedAt: string;
   pdfHash?: string;
