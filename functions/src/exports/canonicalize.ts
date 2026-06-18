@@ -47,6 +47,8 @@ export const LIMITS = {
   MAX_PAGES: 100,
   MAX_BLOCKS_PER_PAGE: 100,
   MAX_TOTAL_BLOCKS: 1000,
+  MAX_SOURCES: 500,
+  MAX_BLOCK_CITATIONS: 50,
   MAX_MARKDOWN_LENGTH: 50_000,
   MAX_HEADING_LENGTH: 500,
   MAX_CAPTION_LENGTH: 1000,
@@ -57,15 +59,21 @@ export const LIMITS = {
 // Zod Schemas (must match web repo)
 // ============================================================================
 
+const citableBlockFields = {
+  citations: z.array(z.string().min(1).max(240)).max(LIMITS.MAX_BLOCK_CITATIONS).optional(),
+};
+
 const headingBlockSchema = z.object({
   kind: z.literal('heading'),
   level: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   text: z.string().min(1).max(LIMITS.MAX_HEADING_LENGTH),
+  ...citableBlockFields,
 });
 
 const paragraphBlockSchema = z.object({
   kind: z.literal('paragraph'),
   markdown: z.string().max(LIMITS.MAX_MARKDOWN_LENGTH),
+  ...citableBlockFields,
 });
 
 const renderIntentSchema = z.enum([
@@ -74,6 +82,7 @@ const renderIntentSchema = z.enum([
   'image',
   'dataset_preview',
   'json_document',
+  'text_document',
   'html_snapshot',
 ]);
 
@@ -87,6 +96,7 @@ const artifactBlockSchema = z.object({
     maxHeight: z.number().positive().optional(),
     maxRows: z.number().int().positive().optional(),
   }).optional(),
+  ...citableBlockFields,
 });
 
 const tableBlockSchema = z.object({
@@ -94,15 +104,18 @@ const tableBlockSchema = z.object({
   headers: z.array(z.string()).min(1),
   rows: z.array(z.array(z.string())),
   caption: z.string().max(LIMITS.MAX_CAPTION_LENGTH).optional(),
+  ...citableBlockFields,
 });
 
 const pageBreakBlockSchema = z.object({
   kind: z.literal('page_break'),
+  ...citableBlockFields,
 });
 
 const spacerBlockSchema = z.object({
   kind: z.literal('spacer'),
   height: z.number().positive(),
+  ...citableBlockFields,
 });
 
 const explanationSizeSchema = z.enum(['s', 'm', 'l']);
@@ -112,6 +125,7 @@ const artifactExplanationBlockSchema = z.object({
   artifactId: z.string().min(1),
   size: explanationSizeSchema,
   text: z.string(),
+  ...citableBlockFields,
 }).refine(
   (data: { size: 's' | 'm' | 'l'; text: string }) =>
     data.text.length <= EXPLANATION_CHAR_LIMITS[data.size],
@@ -158,6 +172,16 @@ const reportPageSchema = z.object({
   blocks: z.array(reportBlockSchema).max(LIMITS.MAX_BLOCKS_PER_PAGE),
 });
 
+const reportSourceSchema = z.object({
+  id: z.string().min(1).max(240),
+  label: z.string().min(1).max(500),
+  title: z.string().max(500).optional(),
+  url: z.string().url().optional(),
+  retrievedAt: z.string().max(120).optional(),
+  sourceArtifactId: z.string().max(240).optional(),
+  note: z.string().max(1_000).optional(),
+});
+
 const artifactBrandingOptionsSchema = z.object({
   visibility: z.enum(['visible', 'metadata', 'off']).optional(),
   includeLogo: z.boolean().optional(),
@@ -195,6 +219,7 @@ export const reportSpecV1Schema = z.object({
   sessionId: z.string().min(1),
   theme: reportThemeSchema,
   pages: z.array(reportPageSchema).min(1).max(LIMITS.MAX_PAGES),
+  sources: z.array(reportSourceSchema).max(LIMITS.MAX_SOURCES).optional(),
   options: reportSpecOptionsSchema.optional(),
 }).refine(
   (data) => {

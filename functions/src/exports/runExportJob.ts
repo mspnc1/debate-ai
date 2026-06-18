@@ -41,7 +41,7 @@ import {
 } from './browserService';
 import { renderVegaToSvg } from './vegaRenderer';
 import { renderHtmlToPng } from './htmlRenderer';
-import { assembleReportHtml, renderDatasetPreview, renderJsonDocument } from './reportAssembler';
+import { assembleReportHtml, renderDatasetPreview, renderJsonDocument, renderTextDocument } from './reportAssembler';
 import { generateManifest, signManifest, storeProvenance } from './provenance';
 import { getOrRenderVisual, resetCacheStats, getCacheStats } from './renderCache';
 import { runHtmlDirectPipeline } from './htmlDirectPipeline';
@@ -572,6 +572,11 @@ export const runExportJob = onRequest(
 
             case 'json_document': {
               rendered = renderJsonDocument(artifact.data);
+              break;
+            }
+
+            case 'text_document': {
+              rendered = renderTextDocument(artifact.data);
               break;
             }
 

@@ -20,8 +20,14 @@ export type ArtifactType =
   | 'vega_lite_spec'
   | 'map_spec'
   | 'artifact_bundle'
+  | 'analysis_artifact_spec'
   | 'report_spec'
-  | 'document_pdf';
+  | 'document_pdf'
+  | 'document_pptx'
+  | 'salesforce_audit_report'
+  | 'salesforce_component_index'
+  | 'salesforce_dependency_map'
+  | 'salesforce_vscode_handoff';
 
 // ============================================================================
 // Report Theme
@@ -54,13 +60,28 @@ export interface ReportTheme {
 // Block Types (discriminated union on `kind`)
 // ============================================================================
 
-export interface HeadingBlock {
+export interface ReportSource {
+  id: string;
+  label: string;
+  title?: string;
+  url?: string;
+  retrievedAt?: string;
+  sourceArtifactId?: string;
+  note?: string;
+}
+
+export interface CitableReportBlock {
+  /** Normalized report source IDs cited by this block. */
+  citations?: string[];
+}
+
+export interface HeadingBlock extends CitableReportBlock {
   kind: 'heading';
   level: 1 | 2 | 3;
   text: string;
 }
 
-export interface ParagraphBlock {
+export interface ParagraphBlock extends CitableReportBlock {
   kind: 'paragraph';
   markdown: string;
 }
@@ -71,9 +92,10 @@ export type RenderIntent =
   | 'image'
   | 'dataset_preview'
   | 'json_document'
+  | 'text_document'
   | 'html_snapshot';
 
-export interface ArtifactBlock {
+export interface ArtifactBlock extends CitableReportBlock {
   kind: 'artifact';
   artifactId: string;
   renderIntent: RenderIntent;
@@ -85,18 +107,18 @@ export interface ArtifactBlock {
   };
 }
 
-export interface TableBlock {
+export interface TableBlock extends CitableReportBlock {
   kind: 'table';
   headers: string[];
   rows: string[][];
   caption?: string;
 }
 
-export interface PageBreakBlock {
+export interface PageBreakBlock extends CitableReportBlock {
   kind: 'page_break';
 }
 
-export interface SpacerBlock {
+export interface SpacerBlock extends CitableReportBlock {
   kind: 'spacer';
   height: number; // in pt
 }
@@ -109,7 +131,7 @@ export const EXPLANATION_CHAR_LIMITS: Record<ExplanationSize, number> = {
   l: 900,
 };
 
-export interface ArtifactExplanationBlock {
+export interface ArtifactExplanationBlock extends CitableReportBlock {
   kind: 'artifact_explanation';
   artifactId: string;
   size: ExplanationSize;
@@ -181,6 +203,7 @@ export interface ReportSpecV1 {
   sessionId: string;
   theme: ReportTheme;
   pages: ReportPage[];
+  sources?: ReportSource[];
   options?: ReportSpecOptions;
 }
 
@@ -193,7 +216,16 @@ export const RENDER_INTENT_VALID_TYPES: Record<RenderIntent, readonly ArtifactTy
   map: ['map_spec'],
   image: ['image'],
   dataset_preview: ['dataset', 'data', 'table'],
-  json_document: ['data', 'dataset', 'table'],
+  json_document: [
+    'data',
+    'dataset',
+    'table',
+    'salesforce_audit_report',
+    'salesforce_component_index',
+    'salesforce_dependency_map',
+    'salesforce_vscode_handoff',
+  ],
+  text_document: ['data', 'salesforce_vscode_handoff'],
   html_snapshot: ['html', 'artifact_bundle'],
 } as const;
 
