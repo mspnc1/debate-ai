@@ -24,6 +24,8 @@ export type ArtifactType =
   | 'report_spec'
   | 'document_pdf'
   | 'document_pptx'
+  | 'document_docx'
+  | 'document_html'
   | 'salesforce_audit_report'
   | 'salesforce_component_index'
   | 'salesforce_dependency_map'

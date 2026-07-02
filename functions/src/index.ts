@@ -93,3 +93,4 @@ export { appleAuthCallback } from './appleAuthCallback';
 export { runExportJob } from './exports/runExportJob';
 export { createExportJob } from './exports/createExportJob';
 export { createHtmlPdfExport } from './exports/createHtmlPdfExport';
+export { renderHtmlSnapshots } from './exports/renderHtmlSnapshots';
