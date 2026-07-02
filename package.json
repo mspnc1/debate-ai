@@ -131,7 +131,7 @@
     "sharp": "^0.34.5"
   },
   "overrides": {
-    "markdown-it": "^14.1.0",
+    "markdown-it": "^14.3.0",
     "prismjs": "^1.30.0",
     "tar": "^7.5.7",
     "lodash": "^4.17.23",
