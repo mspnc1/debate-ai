@@ -92,3 +92,8 @@ export * from './personality';
 
 // Create Mode Molecules
 export * from './create';
+
+// Composer Molecules
+export { AIPill } from './composer/AIPill';
+export { AddAIPill } from './composer/AddAIPill';
+export { ComposerValidationHint } from './composer/ComposerValidationHint';

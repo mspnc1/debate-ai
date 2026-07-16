@@ -63,11 +63,19 @@ export const fromAIConfig = (ai: AIConfig): AISelectionConfig => ({
 });
 
 /**
+ * Re-resolve a config's model (aliases and retired models fall back to the
+ * provider default) and personality (unknown ids fall back to 'default').
+ */
+export const normalizeAISelectionConfig = (config: AISelectionConfig): AISelectionConfig => ({
+  ...config,
+  modelId: resolveProviderModelId(config.providerId, config.modelId) || config.modelId,
+  personalityId: getPersonality(config.personalityId) ? config.personalityId : 'default',
+});
+
+/**
  * Read-time validation of persisted configs. Non-destructive: callers keep the
  * raw slice state and render only what survives, so a pill hidden by a removed
- * API key reappears when the key returns. Model ids re-resolve through
- * resolveProviderModelId (aliases and retired models fall back to the provider
- * default); unknown personalities fall back to 'default'.
+ * API key reappears when the key returns.
  */
 export const validateAISelectionConfigs = (
   configs: AISelectionConfig[],
@@ -79,11 +87,7 @@ export const validateAISelectionConfigs = (
   );
   return configs
     .filter(config => configuredIds.has(config.providerId))
-    .map(config => ({
-      ...config,
-      modelId: resolveProviderModelId(config.providerId, config.modelId) || config.modelId,
-      personalityId: getPersonality(config.personalityId) ? config.personalityId : 'default',
-    }));
+    .map(normalizeAISelectionConfig);
 };
 
 /**

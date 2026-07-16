@@ -97,3 +97,10 @@ export { TrendLineSection } from './stats/TrendLineSection';
 
 // Personality Organisms
 export * from './personality';
+
+// Composer Organisms
+export { AIComposer } from './composer/AIComposer';
+export type { AIComposerProps } from './composer/AIComposer';
+export { ProviderPickerSheet } from './composer/ProviderPickerSheet';
+export { AIConfigSheet } from './composer/AIConfigSheet';
+export { HomeEmptyState } from './composer/HomeEmptyState';
