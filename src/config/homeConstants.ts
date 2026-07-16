@@ -6,6 +6,8 @@ export const HOME_CONSTANTS = {
   // AI Selection Limits
   MAX_AIS_FOR_CHAT: 3,
   MIN_AIS_FOR_CHAT: 1,
+  MAX_AIS_FOR_COMPARE: 2,
+  MIN_AIS_FOR_COMPARE: 2,
 
   // Session Management
   SESSION_ID_PREFIX: 'session_',

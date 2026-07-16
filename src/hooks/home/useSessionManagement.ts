@@ -15,22 +15,34 @@ export const useSessionManagement = () => {
 
   /**
    * Creates a new session with the provided AIs.
-   * 
+   *
    * @param selectedAIs - Array of AI configurations for the session
+   * @param overrides - Optional personality/model maps that take precedence
+   *   over the global chat-slice maps (used by the composer, whose draft
+   *   selection lives in the aiSelection slice instead)
    * @returns Generated session ID
    */
-  const createSession = (selectedAIs: AIConfig[]): string => {
+  const createSession = (
+    selectedAIs: AIConfig[],
+    overrides?: {
+      personalities?: { [aiId: string]: string };
+      models?: { [aiId: string]: string };
+    }
+  ): string => {
+    const personalities = overrides?.personalities ?? aiPersonalities;
+    const models = overrides?.models ?? selectedModels;
+
     // Validate session before creation
     SessionService.validateSessionAIs(selectedAIs);
-    
+
     // Update AIs with selected models
     const aisWithModels = selectedAIs.map(ai => ({
       ...ai,
-      model: resolveProviderModelId(ai.provider, selectedModels[ai.id] || ai.model) || ai.model,
+      model: resolveProviderModelId(ai.provider, models[ai.id] || ai.model) || ai.model,
     }));
-    
+
     // Prepare session data for Redux
-    const sessionData = SessionService.prepareSessionData(aisWithModels, aiPersonalities, selectedModels);
+    const sessionData = SessionService.prepareSessionData(aisWithModels, personalities, models);
     
     // Dispatch session creation to Redux
     dispatch(startSession(sessionData));

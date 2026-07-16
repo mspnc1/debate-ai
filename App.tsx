@@ -9,7 +9,8 @@ import { Provider, useDispatch, useSelector } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { store, RootState } from './src/store';
-import { updateApiKeys, restoreVerificationData, restoreStats, restoreOnboarding, setPrices } from './src/store';
+import { updateApiKeys, restoreVerificationData, restoreStats, restoreOnboarding, setPrices, hydrateAISelection } from './src/store';
+import AISelectionPersistenceService from './src/services/home/AISelectionPersistenceService';
 import { loadPersistedPrices, fetchAndPersistPrices, FALLBACK_PRICES } from './src/services/prices/PricesPersistenceService';
 import { settingsService } from './src/services/settings/SettingsService';
 import AppNavigator from './src/navigation/AppNavigator';
@@ -246,6 +247,11 @@ function AppContent() {
         } else {
           console.log('No verification data found');
         }
+
+        // Load persisted composer AI selection (chat/compare pills).
+        // Always dispatch so `hydrated` flips even on first run.
+        const persistedSelection = await AISelectionPersistenceService.load();
+        dispatch(hydrateAISelection(persistedSelection ?? { chat: [], compare: [] }));
 
         // Load debate stats from storage
         const statsData = await StatsPersistenceService.loadStats();

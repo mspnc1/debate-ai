@@ -9,6 +9,7 @@ import compareReducer from './compareSlice';
 import errorReducer from './errorSlice';
 import createReducer from './createSlice';
 import pricesReducer from './pricesSlice';
+import aiSelectionReducer from './aiSelectionSlice';
 import { isValidProviderId } from '../utils/typeGuards';
 
 // User slice
@@ -375,6 +376,7 @@ const rootReducer = combineReducers({
   errors: errorReducer,
   create: createReducer,
   prices: pricesReducer,
+  aiSelection: aiSelectionReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;
@@ -582,3 +584,13 @@ export type {
 
 // Prices exports
 export { setPrices } from './pricesSlice';
+
+// Composer AI selection exports
+export {
+  hydrateAISelection,
+  setModeSelection,
+  addModeSelection,
+  updateModeSelection,
+  removeModeSelection,
+} from './aiSelectionSlice';
+export type { AISelectionState } from './aiSelectionSlice';
