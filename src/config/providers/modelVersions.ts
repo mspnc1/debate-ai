@@ -4,7 +4,7 @@
  * This file contains mappings for model versioning and easy updates.
  * Update this file when new model versions are released.
  * 
- * Last updated: May 2026
+ * Last updated: July 2026
  */
 
 export interface ModelVersionInfo {
@@ -70,12 +70,26 @@ export const MODEL_VERSIONS: ProviderVersions = {
         replacedBy: 'claude-opus-4-8',
       },
     ],
+    fable: [
+      {
+        id: 'claude-fable-5',
+        version: '5-fable',
+        releaseDate: '2026-06-10',
+        isLatest: true,
+      },
+    ],
     balanced: [
+      {
+        id: 'claude-sonnet-5',
+        version: '5-sonnet',
+        releaseDate: '2026-07-16',
+        isLatest: true,
+      },
       {
         id: 'claude-sonnet-4-6',
         version: '4.6-sonnet',
         releaseDate: '2026-03-01',
-        isLatest: true,
+        isLatest: false,
       },
       {
         id: 'claude-sonnet-4-5-20250929',
@@ -88,6 +102,8 @@ export const MODEL_VERSIONS: ProviderVersions = {
         version: '4.0-sonnet',
         releaseDate: '2025-05-14',
         isLatest: false,
+        isDeprecated: true,
+        replacedBy: 'claude-sonnet-5',
       },
       {
         id: 'claude-3-7-sonnet-20250219',
@@ -116,10 +132,22 @@ export const MODEL_VERSIONS: ProviderVersions = {
   openai: {
     flagship: [
       {
+        id: 'gpt-5.6-sol',
+        version: '5.6-sol',
+        releaseDate: '2026-07-16',
+        isLatest: true,
+      },
+      {
+        id: 'gpt-5.6-terra',
+        version: '5.6-terra',
+        releaseDate: '2026-07-16',
+        isLatest: false,
+      },
+      {
         id: 'gpt-5.5',
         version: '5.5',
         releaseDate: '2026-04-23',
-        isLatest: true,
+        isLatest: false,
       },
       {
         id: 'gpt-5.5-pro',
@@ -154,10 +182,16 @@ export const MODEL_VERSIONS: ProviderVersions = {
     ],
     efficient: [
       {
+        id: 'gpt-5.6-luna',
+        version: '5.6-luna',
+        releaseDate: '2026-07-16',
+        isLatest: true,
+      },
+      {
         id: 'gpt-5.4-mini',
         version: '5.4-mini',
         releaseDate: '2026-03-17',
-        isLatest: true,
+        isLatest: false,
       },
       {
         id: 'gpt-5.4-nano',
@@ -170,12 +204,16 @@ export const MODEL_VERSIONS: ProviderVersions = {
         version: '5-mini',
         releaseDate: '2025-08-01',
         isLatest: false,
+        isDeprecated: true,
+        replacedBy: 'gpt-5.4-mini',
       },
       {
         id: 'gpt-5-nano',
         version: '5-nano',
         releaseDate: '2025-08-01',
         isLatest: false,
+        isDeprecated: true,
+        replacedBy: 'gpt-5.4-nano',
       },
     ],
     reasoning: [
@@ -289,6 +327,18 @@ export const MODEL_VERSIONS: ProviderVersions = {
         isLatest: true,
       },
       {
+        id: 'grok-4.5',
+        version: '4.5',
+        releaseDate: '2026-07-16',
+        isLatest: false,
+      },
+      {
+        id: 'grok-build-0.1',
+        version: 'build-0.1',
+        releaseDate: '2026-06-01',
+        isLatest: false,
+      },
+      {
         id: 'grok-4.20-0309-non-reasoning',
         version: '4.20-non-reasoning',
         releaseDate: '2026-03-09',
@@ -305,24 +355,32 @@ export const MODEL_VERSIONS: ProviderVersions = {
         version: '4.1-fast-non-reasoning',
         releaseDate: '2026-04-01',
         isLatest: false,
+        isDeprecated: true,
+        replacedBy: 'grok-4.3',
       },
       {
         id: 'grok-4-1-fast-reasoning',
         version: '4.1-fast-reasoning',
         releaseDate: '2026-04-01',
         isLatest: false,
+        isDeprecated: true,
+        replacedBy: 'grok-4.3',
       },
       {
         id: 'grok-4-0709',
         version: '4',
         releaseDate: '2025-07-09',
         isLatest: false,
+        isDeprecated: true,
+        replacedBy: 'grok-4.3',
       },
       {
         id: 'grok-3',
         version: '3',
         releaseDate: '2025-02-01',
         isLatest: false,
+        isDeprecated: true,
+        replacedBy: 'grok-4.3',
       },
     ],
     vision: [
@@ -348,11 +406,29 @@ export const MODEL_VERSIONS: ProviderVersions = {
         releaseDate: '2025-01-01',
         isLatest: false,
       },
+    ],
+    reasoning: [
+      {
+        id: 'sonar-reasoning',
+        version: 'reasoning',
+        releaseDate: '2025-01-01',
+        isLatest: true,
+      },
       {
         id: 'sonar-reasoning-pro',
         version: 'reasoning-pro',
         releaseDate: '2025-01-01',
         isLatest: false,
+        isDeprecated: true,
+        replacedBy: 'sonar-reasoning',
+      },
+    ],
+    research: [
+      {
+        id: 'sonar-deep-research',
+        version: 'deep-research',
+        releaseDate: '2025-03-01',
+        isLatest: true,
       },
     ],
   },
@@ -367,10 +443,16 @@ export const MODEL_VERSIONS: ProviderVersions = {
     ],
     medium: [
       {
-        id: 'mistral-medium-3-5',
-        version: '3.5',
-        releaseDate: '2026-05-30',
+        id: 'mistral-medium-2604',
+        version: '2604',
+        releaseDate: '2026-04-01',
         isLatest: true,
+      },
+      {
+        id: 'mistral-medium-2508',
+        version: '2508',
+        releaseDate: '2025-08-01',
+        isLatest: false,
       },
     ],
     small: [
@@ -379,6 +461,33 @@ export const MODEL_VERSIONS: ProviderVersions = {
         version: '2603',
         releaseDate: '2026-03-01',
         isLatest: true,
+        isDeprecated: true,
+      },
+      {
+        id: 'mistral-small-2506',
+        version: '2506',
+        releaseDate: '2025-06-01',
+        isLatest: false,
+      },
+    ],
+    ministral: [
+      {
+        id: 'ministral-14b-2512',
+        version: '14b-2512',
+        releaseDate: '2025-12-01',
+        isLatest: true,
+      },
+      {
+        id: 'ministral-8b-2512',
+        version: '8b-2512',
+        releaseDate: '2025-12-01',
+        isLatest: false,
+      },
+      {
+        id: 'ministral-3b-2512',
+        version: '3b-2512',
+        releaseDate: '2025-12-01',
+        isLatest: false,
       },
     ],
     reasoning: [
@@ -386,6 +495,21 @@ export const MODEL_VERSIONS: ProviderVersions = {
         id: 'magistral-medium-2509',
         version: '2509',
         releaseDate: '2025-09-01',
+        isLatest: true,
+      },
+      {
+        id: 'magistral-small-2509',
+        version: 'small-2509',
+        releaseDate: '2025-09-01',
+        isLatest: false,
+        isDeprecated: true,
+      },
+    ],
+    agentic: [
+      {
+        id: 'devstral-2512',
+        version: '2512',
+        releaseDate: '2025-12-01',
         isLatest: true,
       },
     ],
@@ -416,6 +540,18 @@ export const MODEL_VERSIONS: ProviderVersions = {
         id: 'command-a-vision-07-2025',
         version: 'a-vision-07-2025',
         releaseDate: '2025-07-01',
+        isLatest: false,
+      },
+      {
+        id: 'command-a-03-2025',
+        version: 'a-03-2025',
+        releaseDate: '2025-03-01',
+        isLatest: false,
+      },
+      {
+        id: 'command-a-translate-08-2025',
+        version: 'a-translate-08-2025',
+        releaseDate: '2025-08-01',
         isLatest: false,
       },
       {

@@ -25,6 +25,8 @@ describe('Image generation model config', () => {
     expect(resolveImageModelId('google', 'imagen-4.0-generate-001')).toBe('imagen-4.0-generate-001');
     expect(resolveImageModelId('google', 'gemini-3.1-flash-image-preview')).toBe('gemini-3.1-flash-image');
     expect(resolveImageModelId('google', 'gemini-3-pro-image-preview')).toBe('gemini-3-pro-image');
+    expect(resolveImageModelId('google', 'nano-banana-2-lite')).toBe('gemini-3.1-flash-lite-image');
+    expect(resolveImageModelId('openai', 'dall-e-3')).toBe('gpt-image-2');
   });
 
   it('exposes model-aware labels and capabilities', () => {

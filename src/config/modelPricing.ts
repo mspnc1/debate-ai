@@ -13,6 +13,19 @@ export interface ProviderPricing {
 // provider exposes token-based rates compatible with this structure.
 export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
   claude: {
+    // Standard price; intro pricing of $2/$10 runs through 2026-08-31.
+    'claude-sonnet-5': {
+      inputPer1M: 3.0,
+      outputPer1M: 15.0,
+    },
+    'claude-fable-5': {
+      inputPer1M: 10.0,
+      outputPer1M: 50.0,
+    },
+    'claude-opus-4-20250514': {
+      inputPer1M: 15.0,
+      outputPer1M: 75.0,
+    },
     'claude-opus-4-8': {
       inputPer1M: 5.0,
       outputPer1M: 25.0,
@@ -54,14 +67,30 @@ export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
       outputPer1M: 15.0,
     },
     'claude-3-5-haiku-20241022': {
-      inputPer1M: 0.8,
-      outputPer1M: 4.0,
+      inputPer1M: 0.25,
+      outputPer1M: 1.25,
     },
   },
   openai: {
+    'gpt-5.6-sol': {
+      inputPer1M: 5.0,
+      outputPer1M: 30.0,
+    },
+    'gpt-5.6-terra': {
+      inputPer1M: 2.5,
+      outputPer1M: 15.0,
+    },
+    'gpt-5.6-luna': {
+      inputPer1M: 1.0,
+      outputPer1M: 6.0,
+    },
     'gpt-5.5': {
       inputPer1M: 5.0,
       outputPer1M: 30.0,
+    },
+    'gpt-5.2': {
+      inputPer1M: 1.75,
+      outputPer1M: 14.0,
     },
     'gpt-5.5-pro': {
       inputPer1M: 30.0,
@@ -137,7 +166,15 @@ export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
       inputPer1M: 2.0,
       outputPer1M: 12.0,
     },
+    'gemini-3-flash-preview': {
+      inputPer1M: 0.5,
+      outputPer1M: 3.0,
+    },
     'gemini-3.1-flash-lite': {
+      inputPer1M: 0.25,
+      outputPer1M: 1.5,
+    },
+    'gemini-3.1-flash-lite-preview': {
       inputPer1M: 0.25,
       outputPer1M: 1.5,
     },
@@ -158,12 +195,39 @@ export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
       outputPer1M: 0.4,
     },
   },
+  perplexity: {
+    'sonar-pro': {
+      inputPer1M: 3.0,
+      outputPer1M: 15.0,
+    },
+    'sonar': {
+      inputPer1M: 1.0,
+      outputPer1M: 1.0,
+    },
+    'sonar-reasoning-pro': {
+      inputPer1M: 3.0,
+      outputPer1M: 15.0,
+    },
+    'sonar-deep-research': {
+      inputPer1M: 5.0,
+      outputPer1M: 25.0,
+    },
+  },
   mistral: {
     'mistral-large-2512': {
-      inputPer1M: 2.0,
-      outputPer1M: 6.0,
+      inputPer1M: 0.5,
+      outputPer1M: 1.5,
     },
+    'mistral-medium-2604': {
+      inputPer1M: 1.5,
+      outputPer1M: 7.5,
+    },
+    // Legacy mobile-only ID for Mistral Medium 3.5; kept for persisted sessions
     'mistral-medium-3-5': {
+      inputPer1M: 1.5,
+      outputPer1M: 7.5,
+    },
+    'mistral-medium-2508': {
       inputPer1M: 0.4,
       outputPer1M: 2.0,
     },
@@ -175,17 +239,25 @@ export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
       inputPer1M: 0.1,
       outputPer1M: 0.3,
     },
+    'devstral-2512': {
+      inputPer1M: 0.0,
+      outputPer1M: 0.0,
+    },
     'codestral-2508': {
       inputPer1M: 0.3,
       outputPer1M: 0.9,
     },
     'mistral-medium-latest': {
-      inputPer1M: 0.4,
-      outputPer1M: 2.0,
+      inputPer1M: 1.5,
+      outputPer1M: 7.5,
     },
     'mistral-small-latest': {
       inputPer1M: 0.1,
       outputPer1M: 0.3,
+    },
+    'pixtral-large-2411': {
+      inputPer1M: 2.0,
+      outputPer1M: 6.0,
     },
     'pixtral-large-latest': {
       inputPer1M: 2.0,
@@ -197,6 +269,18 @@ export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
     },
   },
   cohere: {
+    'command-a-03-2025': {
+      inputPer1M: 2.5,
+      outputPer1M: 10.0,
+    },
+    'command-a-vision-07-2025': {
+      inputPer1M: 2.5,
+      outputPer1M: 10.0,
+    },
+    'command-a-reasoning-08-2025': {
+      inputPer1M: 2.5,
+      outputPer1M: 10.0,
+    },
     'command-r-08-2024': {
       inputPer1M: 0.15,
       outputPer1M: 0.6,
@@ -206,14 +290,69 @@ export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
       outputPer1M: 0.15,
     },
   },
+  deepseek: {
+    'deepseek-v4-flash': {
+      inputPer1M: 0.14,
+      outputPer1M: 0.28,
+    },
+    'deepseek-v4-pro': {
+      inputPer1M: 1.74,
+      outputPer1M: 3.48,
+    },
+    'deepseek-chat': {
+      inputPer1M: 0.14,
+      outputPer1M: 0.28,
+    },
+    'deepseek-reasoner': {
+      inputPer1M: 0.14,
+      outputPer1M: 0.28,
+    },
+  },
   grok: {
     'grok-4.3': {
-      inputPer1M: 12.5,
-      outputPer1M: 25.0,
+      inputPer1M: 1.25,
+      outputPer1M: 2.5,
+    },
+    // $4/$12 beyond the 200K long-context threshold.
+    'grok-4.5': {
+      inputPer1M: 2.0,
+      outputPer1M: 6.0,
+    },
+    'grok-build-0.1': {
+      inputPer1M: 1.0,
+      outputPer1M: 2.0,
+    },
+    'grok-4.20-0309-non-reasoning': {
+      inputPer1M: 3.0,
+      outputPer1M: 15.0,
+    },
+    'grok-4.20-0309-reasoning': {
+      inputPer1M: 3.0,
+      outputPer1M: 15.0,
+    },
+    'grok-4.20': {
+      inputPer1M: 3.0,
+      outputPer1M: 15.0,
+    },
+    'grok-4-0709': {
+      inputPer1M: 3.0,
+      outputPer1M: 15.0,
+    },
+    'grok-4-1-fast-reasoning': {
+      inputPer1M: 0.2,
+      outputPer1M: 0.5,
+    },
+    'grok-4-1-fast-non-reasoning': {
+      inputPer1M: 0.2,
+      outputPer1M: 0.5,
     },
     'grok-3': {
       inputPer1M: 3.0,
       outputPer1M: 15.0,
+    },
+    'grok-3-mini': {
+      inputPer1M: 0.3,
+      outputPer1M: 0.5,
     },
   },
 };
