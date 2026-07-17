@@ -5,6 +5,36 @@ import type { OpenAICompatibleAdapter } from '../../base/OpenAICompatibleAdapter
 import type { AIAdapterConfig, AdapterCapabilities } from '../../types/adapter.types';
 import type { AIProvider, MessageAttachment } from '../../../../types';
 
+type EventListener = (event: { data: string | null }) => void;
+
+class TestEventSource {
+  listeners: Record<string, EventListener[]> = {};
+  close = jest.fn();
+
+  constructor(public url: string, public options: unknown) {
+    mockEventSourceInstances.push(this);
+  }
+
+  addEventListener(type: string, listener: EventListener): void {
+    if (!this.listeners[type]) this.listeners[type] = [];
+    this.listeners[type].push(listener);
+  }
+
+  emit(type: string, data: string | null): void {
+    for (const listener of this.listeners[type] || []) {
+      listener({ data });
+    }
+  }
+}
+
+const mockEventSourceInstances: TestEventSource[] = [];
+function mockEventSourceFactory(url: string, options: unknown): TestEventSource {
+  return new TestEventSource(url, options);
+}
+jest.mock('react-native-sse', () => mockEventSourceFactory);
+
+const flushMicrotasks = () => new Promise((resolve) => setImmediate(resolve));
+
 const createFetchResponse = () => ({
   ok: true,
   json: async () => ({
@@ -306,10 +336,11 @@ describe('GrokAdapter web search (xAI Responses API)', () => {
 
     const result = await adapter.sendMessage('What is happening today?');
 
-    // Raw (url) pulled out, brackets normalized, and numbers reassigned 1..n so
-    // the inline chips and the source table line up.
+    // The adapter returns Grok's raw inline text plus the extracted citations
+    // (renumbered, deduped by URL); the shared renderer rewrites the inline
+    // links to numbered chips so every provider looks the same.
     expect(result).toEqual(expect.objectContaining({
-      response: 'Over 850 wildfires burning in Canada.[1][2]',
+      response: 'Over 850 wildfires burning in Canada.[[1]](https://www.democracynow.org/2026/7/17/headlines)[[4]](https://www.cnn.com/2026/07/14/weather/canada)',
       metadata: {
         citations: [
           { index: 1, url: 'https://www.democracynow.org/2026/7/17/headlines' },
@@ -319,22 +350,40 @@ describe('GrokAdapter web search (xAI Responses API)', () => {
     }));
   });
 
-  it('simulates streaming with a citations event and never opens chat/completions', async () => {
+  it('streams web search results live over the Responses SSE and emits citations', async () => {
+    mockEventSourceInstances.splice(0, mockEventSourceInstances.length);
     const adapter = new GrokAdapter(makeSearchConfig());
     const onEvent = jest.fn();
 
-    const chunks: string[] = [];
-    for await (const chunk of adapter.streamMessage('Latest news', [], undefined, undefined, undefined, undefined, onEvent)) {
-      chunks.push(chunk);
-    }
+    const iterator = adapter.streamMessage('Latest news', [], undefined, undefined, undefined, undefined, onEvent);
+    const firstChunk = iterator.next();
+    await flushMicrotasks();
+    const es = mockEventSourceInstances[0];
+    if (!es) throw new Error('EventSource not created');
 
-    expect(chunks.join('')).toBe('Fresh answer');
+    // Real SSE against /responses with the web_search tool, not chat/completions.
+    expect(String(es.url)).toBe('https://api.x.ai/v1/responses');
+    const body = JSON.parse((es.options as { body: string }).body);
+    expect(body.tools).toEqual([{ type: 'web_search' }]);
+    expect(body.stream).toBe(true);
+
+    es.emit('response.output_text.delta', JSON.stringify({ delta: 'Wildfires ' }));
+    await expect(firstChunk).resolves.toEqual({ value: 'Wildfires ', done: false });
+
+    const secondChunk = iterator.next();
+    es.emit('response.output_text.delta', JSON.stringify({ delta: 'burn.[[1]](https://example.com/x)' }));
+    await expect(secondChunk).resolves.toEqual({ value: 'burn.[[1]](https://example.com/x)', done: false });
+
+    const finalChunk = iterator.next();
+    es.emit('response.completed', JSON.stringify({ response: { status: 'completed' } }));
+    await expect(finalChunk).resolves.toEqual({ value: undefined, done: true });
+
+    // Citations extracted from the accumulated inline links.
     expect(onEvent).toHaveBeenCalledWith({
       type: 'citations',
-      citations: [{ index: 1, url: 'https://example.com/x', title: 'Source X' }],
+      citations: [{ index: 1, url: 'https://example.com/x' }],
     });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(String(fetchMock.mock.calls[0][0])).toBe('https://api.x.ai/v1/responses');
+    expect(es.close).toHaveBeenCalled();
   });
 
   it('keeps the plain chat path on chat/completions when web search is disabled', async () => {

@@ -14,6 +14,10 @@ import {
   type ChatStyleMessage,
 } from '../../utils/responsesApi';
 import { normalizeFinishReason } from '../../utils/normalizeFinishReason';
+import { extractSSEErrorMessage } from '../../utils/extractSSEErrorMessage';
+import EventSource from 'react-native-sse';
+
+type ResponsesCitation = { index: number; url: string; title?: string; snippet?: string };
 
 export class GrokAdapter extends OpenAICompatibleAdapter {
   protected getProviderConfig(): ProviderConfig {
@@ -39,7 +43,47 @@ export class GrokAdapter extends OpenAICompatibleAdapter {
 
   // xAI retired the Live Search API (search_parameters on chat/completions,
   // HTTP 410 since Jan 2026). Web search now runs through the xAI Responses
-  // API with the web_search agent tool.
+  // API (which mirrors OpenAI's) with the web_search agent tool.
+  private buildWebSearchBody(
+    resolvedModel: string,
+    input: unknown,
+    stream: boolean
+  ): Record<string, unknown> {
+    const body: Record<string, unknown> = {
+      model: resolvedModel,
+      input,
+      tools: [{ type: 'web_search' }],
+      stream,
+    };
+    const instructions = this.getSystemPrompt();
+    if (instructions) {
+      body.instructions = instructions;
+    }
+    const sampling = this.resolveSamplingParameters(resolvedModel);
+    if (sampling.temperature !== undefined) {
+      body.temperature = sampling.temperature;
+    }
+    if (this.config.parameters?.maxTokens) {
+      body.max_output_tokens = this.config.parameters.maxTokens;
+    }
+    return body;
+  }
+
+  private async buildWebSearchInput(
+    message: string,
+    conversationHistory: Message[],
+    resumptionContext: ResumptionContext | undefined,
+    attachments: MessageAttachment[] | undefined
+  ): Promise<unknown> {
+    const userContent = await Promise.resolve(this.formatUserMessage(message, attachments));
+    const history = this.formatHistory(conversationHistory, resumptionContext)
+      .filter((entry): entry is ChatStyleMessage => entry.role === 'user' || entry.role === 'assistant');
+    return buildResponsesInput([
+      ...history,
+      { role: 'user', content: userContent as ChatStyleMessage['content'] },
+    ]);
+  }
+
   private async sendWebSearchMessage(
     message: string,
     conversationHistory: Message[] = [],
@@ -50,34 +94,8 @@ export class GrokAdapter extends OpenAICompatibleAdapter {
     const config = this.getProviderConfig();
     const resolvedModel = modelOverride ||
                          resolveModelAlias(this.config.model || getDefaultModel(this.config.provider));
-
-    const userContent = await Promise.resolve(this.formatUserMessage(message, attachments));
-    const history = this.formatHistory(conversationHistory, resumptionContext)
-      .filter((entry): entry is ChatStyleMessage => entry.role === 'user' || entry.role === 'assistant');
-    const input = buildResponsesInput([
-      ...history,
-      { role: 'user', content: userContent as ChatStyleMessage['content'] },
-    ]);
-
-    const requestBody: Record<string, unknown> = {
-      model: resolvedModel,
-      input,
-      tools: [{ type: 'web_search' }],
-      stream: false,
-    };
-
-    const instructions = this.getSystemPrompt();
-    if (instructions) {
-      requestBody.instructions = instructions;
-    }
-
-    const sampling = this.resolveSamplingParameters(resolvedModel);
-    if (sampling.temperature !== undefined) {
-      requestBody.temperature = sampling.temperature;
-    }
-    if (this.config.parameters?.maxTokens) {
-      requestBody.max_output_tokens = this.config.parameters.maxTokens;
-    }
+    const input = await this.buildWebSearchInput(message, conversationHistory, resumptionContext, attachments);
+    const requestBody = this.buildWebSearchBody(resolvedModel, input, false);
 
     const response = await fetch(`${config.baseUrl}/responses`, {
       method: 'POST',
@@ -90,12 +108,12 @@ export class GrokAdapter extends OpenAICompatibleAdapter {
     }
 
     const data = await response.json();
-    // Grok inlines citations as [[n]](url); rewrite them to bare [n] refs so the
-    // renderer shows inline chips (not raw URLs) plus the matching source table.
-    const normalized = normalizeInlineCitations(extractTextFromResponsesOutput(data));
-    const responseText = normalized.text;
-    const citations = normalized.citations.length > 0
-      ? normalized.citations
+    const responseText = extractTextFromResponsesOutput(data);
+    // Grok inlines citations as [[n]](url); the shared renderer rewrites those
+    // to numbered chips, so keep the text as-is and just surface the citations.
+    const { citations: inlineCitations } = normalizeInlineCitations(responseText);
+    const citations = inlineCitations.length > 0
+      ? inlineCitations
       : extractResponsesCitations(data, responseText);
     const usage = (data as { usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number } }).usage;
     const status = (data as { status?: string }).status;
@@ -129,6 +147,142 @@ export class GrokAdapter extends OpenAICompatibleAdapter {
     return super.sendMessage(message, conversationHistory, resumptionContext, attachments, modelOverride);
   }
 
+  // Real SSE streaming for web search over the xAI Responses API, so output
+  // appears progressively (consistent with Claude/OpenAI) instead of blocking
+  // until the whole response is ready.
+  private async *streamWebSearchMessage(
+    message: string,
+    conversationHistory: Message[],
+    attachments: MessageAttachment[] | undefined,
+    resumptionContext: ResumptionContext | undefined,
+    modelOverride: string | undefined,
+    abortSignal: AbortSignal | undefined,
+    onEvent: ((event: unknown) => void) | undefined
+  ): AsyncGenerator<string, void, unknown> {
+    const config = this.getProviderConfig();
+    const resolvedModel = modelOverride ||
+                         resolveModelAlias(this.config.model || getDefaultModel(this.config.provider));
+    const input = await this.buildWebSearchInput(message, conversationHistory, resumptionContext, attachments);
+    const body = this.buildWebSearchBody(resolvedModel, input, true);
+
+    const es = new EventSource(`${config.baseUrl}/responses`, {
+      method: 'POST',
+      headers: {
+        ...config.headers(this.config.apiKey),
+        Accept: 'text/event-stream',
+      },
+      body: JSON.stringify(body),
+      pollingInterval: 0,
+      timeoutBeforeConnection: 0,
+      withCredentials: false,
+    });
+
+    const onAbort = () => { try { es.close(); } catch { /* noop */ } };
+    if (abortSignal) abortSignal.addEventListener('abort', onAbort);
+
+    const eventQueue: string[] = [];
+    let resolver: ((value: IteratorResult<string, void>) => void) | null = null;
+    let isComplete = false;
+    let errorMsg: string | null = null;
+    let accumulated = '';
+    let sawText = false;
+
+    const emitCitations = (completedData: unknown) => {
+      const { citations: inline } = normalizeInlineCitations(accumulated);
+      const citations = inline.length > 0
+        ? inline
+        : extractResponsesCitations(completedData, accumulated);
+      if (citations.length > 0 && onEvent) {
+        try { onEvent({ type: 'citations', citations }); } catch { /* noop */ }
+      }
+    };
+
+    const push = (text: string) => {
+      if (!text) return;
+      accumulated += text;
+      sawText = true;
+      if (resolver) { const r = resolver; resolver = null; r({ value: text, done: false }); }
+      else eventQueue.push(text);
+    };
+
+    const handle = (dataStr: string | null | undefined, type: string) => {
+      if (!dataStr || dataStr === '[DONE]') return;
+      try {
+        const obj = JSON.parse(dataStr);
+        if (type === 'response.output_text.delta' && typeof obj.delta === 'string') {
+          push(obj.delta);
+        } else if (type === 'response.delta' && obj?.delta?.type === 'output_text.delta' && typeof obj.delta.text === 'string') {
+          push(obj.delta.text);
+        } else if (type === 'response.output_text.done') {
+          const text = (obj as { text?: string })?.text || '';
+          if (!sawText && text) push(text);
+        } else if (type === 'response.error') {
+          errorMsg = obj?.error?.message || 'Upstream error';
+          isComplete = true;
+          try { es.close(); } catch { /* noop */ }
+          if (resolver) { const r = resolver; resolver = null; r({ value: undefined, done: true }); }
+        } else if (type === 'response.completed' || type === 'response.incomplete') {
+          const finalText = extractTextFromResponsesOutput(obj?.response ?? obj);
+          if (!sawText && finalText) push(finalText);
+          emitCitations(obj);
+          if (onEvent) {
+            const resp = (obj?.response ?? obj) as { status?: string; incomplete_details?: { reason?: string } } | undefined;
+            const isIncomplete = type === 'response.incomplete' || resp?.status === 'incomplete';
+            const reason = isIncomplete
+              ? (normalizeFinishReason(resp?.incomplete_details?.reason) ?? 'length')
+              : 'stop';
+            try { onEvent({ type: 'finish', reason }); } catch { /* noop */ }
+          }
+          isComplete = true;
+          try { es.close(); } catch { /* noop */ }
+          if (resolver) { const r = resolver; resolver = null; r({ value: undefined, done: true }); }
+        }
+      } catch { /* ignore parse issues */ }
+    };
+
+    const esAny = es as unknown as { addEventListener: (type: string, cb: (evt: unknown) => void) => void };
+    for (const eventName of [
+      'response.output_text.delta',
+      'response.output_text.done',
+      'response.completed',
+      'response.incomplete',
+      'response.delta',
+      'response.error',
+    ]) {
+      esAny.addEventListener(eventName, (evt) => {
+        handle((evt as { data?: string | null })?.data, eventName);
+      });
+    }
+    es.addEventListener('message', (evt) => {
+      handle((evt as unknown as { data: string | null })?.data, 'message');
+    });
+    es.addEventListener('error', (e: unknown) => {
+      errorMsg = extractSSEErrorMessage(e, 'Connection failed');
+      isComplete = true;
+      try { es.close(); } catch { /* noop */ }
+      if (resolver) { const r = resolver; resolver = null; r({ value: undefined, done: true }); }
+    });
+
+    try {
+      while (!isComplete || eventQueue.length > 0) {
+        if (abortSignal?.aborted) break;
+        if (errorMsg) throw new Error(errorMsg);
+        if (eventQueue.length > 0) {
+          yield eventQueue.shift()!;
+          continue;
+        }
+        const result = await new Promise<IteratorResult<string, void>>((resolve) => { resolver = resolve; });
+        if (errorMsg) throw new Error(errorMsg);
+        if (result.done) break;
+        if (result.value) yield result.value;
+      }
+      if (errorMsg) throw new Error(errorMsg);
+    } finally {
+      if (abortSignal) abortSignal.removeEventListener('abort', onAbort);
+      try { es.close(); } catch { /* noop */ }
+    }
+  }
+
   async *streamMessage(
     message: string,
     conversationHistory: Message[] = [],
@@ -139,31 +293,15 @@ export class GrokAdapter extends OpenAICompatibleAdapter {
     onEvent?: (event: unknown) => void
   ): AsyncGenerator<string, void, unknown> {
     if (this.config.webSearchEnabled) {
-      // Simulated streaming: xAI Responses SSE is not implemented; fetch the
-      // full answer and chunk-slice it, the same pattern the ChatGPT and
-      // Gemini web-search paths use.
-      if (abortSignal?.aborted) return;
-
-      const response = await this.sendWebSearchMessage(
+      yield* this.streamWebSearchMessage(
         message,
         conversationHistory,
-        resumptionContext,
         attachments,
-        modelOverride
+        resumptionContext,
+        modelOverride,
+        abortSignal,
+        onEvent
       );
-      const content = typeof response === 'string' ? response : response.response;
-      const citations = typeof response === 'object' ? response.metadata?.citations : undefined;
-      const chunkSize = 64;
-
-      for (let i = 0; i < content.length; i += chunkSize) {
-        if (abortSignal?.aborted) return;
-        yield content.slice(i, i + chunkSize);
-      }
-
-      if (citations && citations.length > 0 && onEvent) {
-        onEvent({ type: 'citations', citations });
-      }
-
       return;
     }
 
@@ -178,3 +316,5 @@ export class GrokAdapter extends OpenAICompatibleAdapter {
     );
   }
 }
+
+export type { ResponsesCitation };

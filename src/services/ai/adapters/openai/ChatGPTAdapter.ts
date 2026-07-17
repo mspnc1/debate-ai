@@ -525,7 +525,11 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
     const resolvedModel = modelOverride || resolveModelAlias(this.config.model || getDefaultModel(this.config.provider));
     const resolvedModelConfig = getModelById('openai', resolvedModel);
 
-    if (this.config.webSearchEnabled || resolvedModelConfig?.supportsStreaming === false) {
+    // Only models that cannot stream at all (e.g. gpt-5.5-pro) fall back to the
+    // non-streaming Responses call + simulated chunking. Web search streams for
+    // real through the SSE path below (which adds the web_search tool), so its
+    // output appears progressively — consistent with the other providers.
+    if (resolvedModelConfig?.supportsStreaming === false) {
       if (abortSignal?.aborted) return;
 
       const response = await this.sendResponsesMessage(

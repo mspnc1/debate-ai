@@ -93,6 +93,25 @@ describe('citationUtils', () => {
       const content = 'No brackets here.';
       expect(processMessageContentWithCitations(content, mockCitations)).toBe(content);
     });
+
+    it('normalizes titled markdown links (OpenAI) to numbered chips', () => {
+      const content = 'Fires spread ([Example](https://www.example.com/article1)).';
+      const result = processMessageContentWithCitations(content, mockCitations);
+      expect(result).toBe('Fires spread ([[1]](https://www.example.com/article1)).');
+    });
+
+    it('normalizes double-bracket numbered links (Grok) to numbered chips', () => {
+      const content = 'Quakes today.[[7]](https://docs.test.org/guide)';
+      const result = processMessageContentWithCitations(content, mockCitations);
+      // The URL maps to citation index 2 regardless of the inline number.
+      expect(result).toBe('Quakes today.[[2]](https://docs.test.org/guide)');
+    });
+
+    it('leaves non-citation markdown links untouched', () => {
+      const content = 'See [the docs](https://unrelated.example/page) for more.';
+      const result = processMessageContentWithCitations(content, mockCitations);
+      expect(result).toBe(content);
+    });
   });
 
   describe('normalizeCitations', () => {

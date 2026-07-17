@@ -280,22 +280,39 @@ describe('ChatGPTAdapter', () => {
     }));
   });
 
-  it('simulates streaming for OpenAI web search and emits citations', async () => {
-    fetchMock.mockResolvedValueOnce(createResponsesFetchResponse('Short'));
+  it('streams OpenAI web search results live over SSE and emits citations', async () => {
     const adapter = new ChatGPTAdapter({ ...baseConfig, webSearchEnabled: true });
     const onEvent = jest.fn();
 
-    const chunks: string[] = [];
-    for await (const chunk of adapter.streamMessage('Latest update', [], undefined, undefined, undefined, undefined, onEvent)) {
-      chunks.push(chunk);
-    }
+    const iterator = adapter.streamMessage('Latest update', [], undefined, undefined, undefined, undefined, onEvent);
+    const firstChunk = iterator.next();
+    await flushMicrotasks();
+    const eventSource = mockEventSourceInstances[0];
+    if (!eventSource) throw new Error('EventSource not created');
 
-    expect(chunks).toEqual(['Short']);
+    // Real SSE against /responses with the web_search tool.
+    expect(String(eventSource.url)).toContain('/responses');
+    const body = JSON.parse((eventSource.options as { body: string }).body);
+    expect(body.tools).toEqual([{ type: 'web_search' }]);
+    expect(body.stream).toBe(true);
+
+    eventSource.emit('response.output_text.delta', JSON.stringify({ delta: 'Fires ' }));
+    await expect(firstChunk).resolves.toEqual({ value: 'Fires ', done: false });
+
+    const secondChunk = iterator.next();
+    eventSource.emit('response.output_text.delta', JSON.stringify({ delta: 'spread ([CNN](https://cnn.com/x)).' }));
+    await expect(secondChunk).resolves.toEqual({ value: 'spread ([CNN](https://cnn.com/x)).', done: false });
+
+    const finalChunk = iterator.next();
+    eventSource.emit('response.output_text.done', JSON.stringify({ text: 'Fires spread ([CNN](https://cnn.com/x)).' }));
+    eventSource.emit('response.completed', JSON.stringify({ response: { status: 'completed' } }));
+    await expect(finalChunk).resolves.toEqual({ value: undefined, done: true });
+
     expect(onEvent).toHaveBeenCalledWith({
       type: 'citations',
-      citations: [{ index: 1, url: 'https://example.com/source', title: 'Example Source' }],
+      citations: [{ index: 1, url: 'https://cnn.com/x', title: 'CNN' }],
     });
-    expect(mockEventSourceInstances).toHaveLength(0);
+    expect(eventSource.close).toHaveBeenCalled();
   });
 
   it('routes non-streaming-only models through the Responses API without web search tools', async () => {
