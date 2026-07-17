@@ -71,7 +71,9 @@ const initialChatState: ChatState = {
   isLoading: false,
   aiPersonalities: {},
   selectedModels: {},
-  webSearchPreferred: false,
+  // Defaults on: sessions gate it by capability (webSearchPreferred &&
+  // webSearchAvailable), so non-supporting lineups simply ignore it.
+  webSearchPreferred: true,
 };
 
 const filterSupportedSelectedAIs = (selectedAIs: AIConfig[] = []): AIConfig[] =>

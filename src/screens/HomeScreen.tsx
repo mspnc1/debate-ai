@@ -12,15 +12,13 @@ import { HOME_CONSTANTS } from '../config/homeConstants';
 import { TrialBanner } from '@/components/molecules/subscription/TrialBanner';
 import { DemoBanner } from '@/components/molecules/subscription/DemoBanner';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState, setWebSearchPreferred, showSheet } from '@/store';
+import { useDispatch } from 'react-redux';
+import { showSheet } from '@/store';
 
 // Custom hooks
-import { usePremiumFeatures } from '../hooks/home/usePremiumFeatures';
 import { useComposerSelection } from '../hooks/home/useComposerSelection';
 import { useSessionManagement } from '../hooks/home/useSessionManagement';
 import { useQuickStart } from '../hooks/home/useQuickStart';
-import { useMergedModalityAvailability } from '@/hooks/multimodal/useModalityAvailability';
 import type { QuickStartPromptPayload } from '@/services/home/QuickStartService';
 
 interface HomeScreenProps {
@@ -33,11 +31,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();
   const { rs } = useResponsive();
 
-  // Compose hooks for clean separation of concerns
-  const premium = usePremiumFeatures();
+  // Compose hooks for clean separation of concerns.
+  // Cap is the product constant, not min(3, keyed providers): the picker
+  // offers "Add key" rows for un-keyed providers, so [+] must stay reachable.
   const selection = useComposerSelection('chat', {
     minAIs: HOME_CONSTANTS.MIN_AIS_FOR_CHAT,
-    maxAIs: premium.maxAIs,
+    maxAIs: HOME_CONSTANTS.MAX_AIS_FOR_CHAT,
   });
   const session = useSessionManagement();
   const quickStart = useQuickStart();
@@ -45,11 +44,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const dispatch = useDispatch();
   const [inputText, setInputText] = useState('');
   const [topicPickerVisible, setTopicPickerVisible] = useState(false);
-
-  const webSearchPreferred = useSelector((state: RootState) => state.chat.webSearchPreferred);
-  const modality = useMergedModalityAvailability(
-    selection.configs.map(config => ({ provider: config.providerId, model: config.modelId }))
-  );
 
   const configuredProviderIds = selection.configuredAIs.map(ai => ai.id);
 
@@ -124,7 +118,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               mode="chat"
               configs={selection.configs}
               minAIs={HOME_CONSTANTS.MIN_AIS_FOR_CHAT}
-              maxAIs={premium.maxAIs}
+              maxAIs={HOME_CONSTANTS.MAX_AIS_FOR_CHAT}
               onAddProvider={selection.addProvider}
               onUpdateConfig={selection.updateConfig}
               onRemoveConfig={selection.removeConfig}
@@ -137,9 +131,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               onSend={handleSend}
               requireText={!isDemo}
               placeholder={isDemo ? 'Pick a sample topic to preview' : 'Ask anything…'}
-              webSearchAvailable={modality.webSearch.supported}
-              webSearchEnabled={webSearchPreferred}
-              onToggleWebSearch={() => dispatch(setWebSearchPreferred(!webSearchPreferred))}
               testID="home-composer"
             />
           </View>

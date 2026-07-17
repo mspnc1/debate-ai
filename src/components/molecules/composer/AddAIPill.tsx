@@ -9,6 +9,8 @@ interface AddAIPillProps {
   onPress: () => void;
   label?: string;
   emphasized?: boolean;
+  /** Icon-only chip for tight rows once at least one pill exists. */
+  compact?: boolean;
   testID?: string;
 }
 
@@ -20,6 +22,7 @@ export const AddAIPill: React.FC<AddAIPillProps> = ({
   onPress,
   label = 'Add AI',
   emphasized = false,
+  compact = false,
   testID,
 }) => {
   const { theme } = useTheme();
@@ -48,9 +51,11 @@ export const AddAIPill: React.FC<AddAIPillProps> = ({
       testID={testID}
     >
       <Ionicons name="add" size={16} color={accentColor} />
-      <Typography variant="caption" weight="medium" style={{ color: accentColor }}>
-        {label}
-      </Typography>
+      {!compact && (
+        <Typography variant="caption" weight="medium" style={{ color: accentColor }}>
+          {label}
+        </Typography>
+      )}
     </TouchableOpacity>
   );
 };

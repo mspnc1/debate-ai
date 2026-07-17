@@ -9,7 +9,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/theme';
-import { AIPill, AddAIPill, ComposerValidationHint, WebSearchToggle } from '@/components/molecules';
+import { useResponsive } from '@/hooks/useResponsive';
+import { AIPill, AddAIPill, ComposerValidationHint } from '@/components/molecules';
 import { ProviderPickerSheet } from './ProviderPickerSheet';
 import { AIConfigSheet } from './AIConfigSheet';
 import { AISelectionConfig, AISelectionMode } from '@/types/aiSelection';
@@ -36,9 +37,6 @@ export interface AIComposerProps {
   /** Demo sends open a sample picker regardless of typed text. */
   requireText?: boolean;
   placeholder?: string;
-  webSearchAvailable?: boolean;
-  webSearchEnabled?: boolean;
-  onToggleWebSearch?: () => void;
   /** Compare labels its pills by pane, e.g. ['1', '2']. */
   pillIndexLabels?: string[];
   disabled?: boolean;
@@ -67,14 +65,12 @@ export const AIComposer: React.FC<AIComposerProps> = ({
   onSend,
   requireText = true,
   placeholder = 'Ask anything…',
-  webSearchAvailable = false,
-  webSearchEnabled = false,
-  onToggleWebSearch,
   pillIndexLabels,
   disabled = false,
   testID,
 }) => {
   const { theme } = useTheme();
+  const { isTablet } = useResponsive();
   const [pickerVisible, setPickerVisible] = useState(false);
   const [configIndex, setConfigIndex] = useState<number | null>(null);
 
@@ -122,50 +118,43 @@ export const AIComposer: React.FC<AIComposerProps> = ({
         testID={testID ? `${testID}-input` : undefined}
       />
 
-      {/* Row 1 — WHO runs it: provider pills + Add AI */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.pillRow}
-        keyboardShouldPersistTaps="handled"
-      >
-        {configs.map((config, index) => {
-          const provider = getProviderById(config.providerId);
-          if (!provider) return null;
-          const model = getModelById(config.providerId, config.modelId);
-          return (
-            <AIPill
-              key={`${config.providerId}-${index}`}
-              name={provider.name}
-              color={provider.color}
-              modelLabel={model?.name}
-              indexLabel={pillIndexLabels?.[index]}
-              onPress={() => setConfigIndex(index)}
-              disabled={disabled}
-              testID={testID ? `${testID}-pill-${index}` : undefined}
-            />
-          );
-        })}
+      {/* Bottom row — WHO + GO: pills scroll, Add AI and send stay pinned.
+          Model names show on tablets only; phones keep pills compact. */}
+      <View style={styles.bottomRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.pillScroll}
+          contentContainerStyle={styles.pillRow}
+          keyboardShouldPersistTaps="handled"
+        >
+          {configs.map((config, index) => {
+            const provider = getProviderById(config.providerId);
+            if (!provider) return null;
+            const model = getModelById(config.providerId, config.modelId);
+            return (
+              <AIPill
+                key={`${config.providerId}-${index}`}
+                name={provider.name}
+                color={provider.color}
+                modelLabel={isTablet ? model?.name : undefined}
+                indexLabel={pillIndexLabels?.[index]}
+                onPress={() => setConfigIndex(index)}
+                disabled={disabled}
+                testID={testID ? `${testID}-pill-${index}` : undefined}
+              />
+            );
+          })}
+        </ScrollView>
         {configs.length < maxAIs && (
           <AddAIPill
             onPress={() => setPickerVisible(true)}
             emphasized={!hasEnoughAIs}
+            compact={configs.length > 0}
             testID={testID ? `${testID}-add-ai` : undefined}
           />
         )}
-      </ScrollView>
-
-      {/* Row 2 — OPTIONS & GO: web search left, send right */}
-      <View style={styles.actionRow}>
-        <View style={styles.actionLeft}>
-          {webSearchAvailable && onToggleWebSearch && (
-            <WebSearchToggle
-              enabled={webSearchEnabled}
-              onToggle={onToggleWebSearch}
-              disabled={disabled}
-            />
-          )}
-        </View>
+        <View style={styles.rowSpacer} />
         <TouchableOpacity
           onPress={handleSend}
           disabled={!canSend}
@@ -249,21 +238,22 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     textAlignVertical: 'top',
   },
+  bottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 8,
+  },
+  pillScroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+  },
   pillRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 8,
   },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 4,
-  },
-  actionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  rowSpacer: {
     flex: 1,
   },
   sendButton: {

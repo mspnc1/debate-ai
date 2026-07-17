@@ -4,11 +4,11 @@ import type { RootState } from '@/store';
 
 describe('Redux Store - webSearchPreferred', () => {
   describe('Initial State', () => {
-    it('should initialize webSearchPreferred as false', () => {
+    it('should initialize webSearchPreferred as true (search on by default where supported)', () => {
       const store = createAppStore();
       const state = store.getState();
 
-      expect(state.chat.webSearchPreferred).toBe(false);
+      expect(state.chat.webSearchPreferred).toBe(true);
     });
 
     it('should allow preloading webSearchPreferred state', () => {
@@ -65,9 +65,6 @@ describe('Redux Store - webSearchPreferred', () => {
     it('should toggle webSearchPreferred multiple times', () => {
       const store = createAppStore();
 
-      expect(store.getState().chat.webSearchPreferred).toBe(false);
-
-      store.dispatch(setWebSearchPreferred(true));
       expect(store.getState().chat.webSearchPreferred).toBe(true);
 
       store.dispatch(setWebSearchPreferred(false));
@@ -75,6 +72,9 @@ describe('Redux Store - webSearchPreferred', () => {
 
       store.dispatch(setWebSearchPreferred(true));
       expect(store.getState().chat.webSearchPreferred).toBe(true);
+
+      store.dispatch(setWebSearchPreferred(false));
+      expect(store.getState().chat.webSearchPreferred).toBe(false);
     });
   });
 
@@ -214,14 +214,15 @@ describe('Redux Store - webSearchPreferred', () => {
       const stateBefore = store.getState();
       const webSearchBefore = stateBefore.chat.webSearchPreferred;
 
-      store.dispatch(setWebSearchPreferred(true));
+      // Dispatch an actual change (default is true) so a new state object is produced
+      store.dispatch(setWebSearchPreferred(false));
 
       // Previous state reference should remain unchanged
       expect(stateBefore.chat.webSearchPreferred).toBe(webSearchBefore);
 
       // New state should have the updated value
       const stateAfter = store.getState();
-      expect(stateAfter.chat.webSearchPreferred).toBe(true);
+      expect(stateAfter.chat.webSearchPreferred).toBe(false);
 
       // Chat state should be different objects
       expect(stateBefore.chat).not.toBe(stateAfter.chat);
@@ -247,12 +248,12 @@ describe('Redux Store - webSearchPreferred', () => {
       // Create store without preloaded state
       const store = createAppStore();
 
-      // Should use default value (false)
-      expect(store.getState().chat.webSearchPreferred).toBe(false);
-
-      // Should be able to set to true
-      store.dispatch(setWebSearchPreferred(true));
+      // Should use default value (true — search on by default where supported)
       expect(store.getState().chat.webSearchPreferred).toBe(true);
+
+      // Should be able to set to false
+      store.dispatch(setWebSearchPreferred(false));
+      expect(store.getState().chat.webSearchPreferred).toBe(false);
     });
   });
 });

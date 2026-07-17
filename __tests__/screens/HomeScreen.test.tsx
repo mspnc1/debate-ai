@@ -260,11 +260,13 @@ describe('HomeScreen', () => {
   };
 
   it('renders the slim header and wires the composer for chat mode', () => {
-    const { premium } = renderHome();
+    renderHome();
 
+    // Cap is the product constant (3), not min(3, keyed providers) — the
+    // picker's "Add key" rows must stay reachable via [+].
     expect(mockUseComposerSelection).toHaveBeenCalledWith('chat', {
       minAIs: 1,
-      maxAIs: premium.maxAIs,
+      maxAIs: 3,
     });
     expect(mockHeaderProps).toBeDefined();
     expect(mockHeaderProps.slim).toBe(true);
@@ -272,7 +274,7 @@ describe('HomeScreen', () => {
     expect(mockHeaderActionsProps.variant).toBe('gradient');
     expect(mockHeaderActionsProps.helpCategoryId).toBe('chat');
     expect(mockComposerProps.mode).toBe('chat');
-    expect(mockComposerProps.maxAIs).toBe(premium.maxAIs);
+    expect(mockComposerProps.maxAIs).toBe(3);
     expect(mockComposerProps.minAIs).toBe(1);
     expect(mockComposerProps.requireText).toBe(true);
   });
