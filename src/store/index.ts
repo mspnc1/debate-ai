@@ -10,6 +10,7 @@ import errorReducer from './errorSlice';
 import createReducer from './createSlice';
 import pricesReducer from './pricesSlice';
 import aiSelectionReducer from './aiSelectionSlice';
+import createSelectionReducer from './createSelectionSlice';
 import { isValidProviderId } from '../utils/typeGuards';
 
 // User slice
@@ -372,6 +373,7 @@ const rootReducer = combineReducers({
   create: createReducer,
   prices: pricesReducer,
   aiSelection: aiSelectionReducer,
+  createSelection: createSelectionReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;
@@ -589,3 +591,21 @@ export {
   removeModeSelection,
 } from './aiSelectionSlice';
 export type { AISelectionState } from './aiSelectionSlice';
+
+// Create (Studio) composer selection exports
+export {
+  hydrateCreateSelection,
+  setImageSelection,
+  addImageSelection,
+  updateImageSelection,
+  removeImageSelection,
+  setImageOptions,
+  setVideoOptions,
+  setAudioOptions,
+  setAttachments,
+  addAttachment,
+  removeAttachment,
+  clearAttachments,
+  MAX_IMAGE_PROVIDERS,
+} from './createSelectionSlice';
+export type { CreateSelectionState, PersistedCreateSelection } from './createSelectionSlice';

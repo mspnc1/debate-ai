@@ -9,8 +9,9 @@ import { Provider, useDispatch, useSelector } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { store, RootState } from './src/store';
-import { updateApiKeys, restoreVerificationData, restoreStats, restoreOnboarding, setPrices, hydrateAISelection } from './src/store';
+import { updateApiKeys, restoreVerificationData, restoreStats, restoreOnboarding, setPrices, hydrateAISelection, hydrateCreateSelection } from './src/store';
 import AISelectionPersistenceService from './src/services/home/AISelectionPersistenceService';
+import CreateSelectionPersistenceService from './src/services/create/CreateSelectionPersistenceService';
 import { loadPersistedPrices, fetchAndPersistPrices, FALLBACK_PRICES } from './src/services/prices/PricesPersistenceService';
 import { settingsService } from './src/services/settings/SettingsService';
 import AppNavigator from './src/navigation/AppNavigator';
@@ -252,6 +253,10 @@ function AppContent() {
         // Always dispatch so `hydrated` flips even on first run.
         const persistedSelection = await AISelectionPersistenceService.load();
         dispatch(hydrateAISelection(persistedSelection ?? { chat: [], compare: [] }));
+
+        // Load persisted Studio composer selection (Create pills + options).
+        const persistedCreateSelection = await CreateSelectionPersistenceService.load();
+        dispatch(hydrateCreateSelection(persistedCreateSelection));
 
         // Load debate stats from storage
         const statsData = await StatsPersistenceService.loadStats();
