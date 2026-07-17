@@ -79,7 +79,7 @@ describe('ProviderExpertSettings', () => {
         providerId="claude"
         isEnabled
         onToggle={onToggle}
-        selectedModel="claude-3-7-sonnet-20250219"
+        selectedModel="claude-sonnet-4-6"
         onModelChange={onModelChange}
         parameters={parameters}
         onParameterChange={onParameterChange}
@@ -88,7 +88,7 @@ describe('ProviderExpertSettings', () => {
 
     expect(mockModelSelector).toHaveBeenCalledTimes(1);
     const modelSelectorProps = mockModelSelector.mock.calls[0][0];
-    expect(modelSelectorProps.selectedModel).toBe('claude-sonnet-5');
+    expect(modelSelectorProps.selectedModel).toBe('claude-sonnet-4-6');
     modelSelectorProps.onSelectModel('claude-opus-4-1-20250805');
     expect(onModelChange).toHaveBeenCalledWith('claude-opus-4-1-20250805');
 
@@ -97,6 +97,8 @@ describe('ProviderExpertSettings', () => {
     expect(paramsEncountered).toEqual(expect.arrayContaining(['temperature', 'maxTokens', 'topP']));
 
     const temperatureSliderProps = mockParameterSlider.mock.calls.find((call) => call[0].name === 'temperature')[0];
+    // Claude caps temperature at 1.
+    expect(temperatureSliderProps.max).toBe(1);
     temperatureSliderProps.onChange(0.8);
     expect(onParameterChange).toHaveBeenCalledWith('temperature', 0.8);
 
@@ -106,5 +108,25 @@ describe('ProviderExpertSettings', () => {
     expect(onParameterChange).toHaveBeenCalledWith('temperature', DEFAULT_PARAMETERS.temperature);
     expect(onParameterChange).toHaveBeenCalledWith('maxTokens', DEFAULT_PARAMETERS.maxTokens);
     expect(onParameterChange).toHaveBeenCalledWith('topP', DEFAULT_PARAMETERS.topP);
+  });
+
+  it('hides sliders for parameters the selected model does not support', () => {
+    // Claude Sonnet 5 lists temperature and topP in unsupportedParams.
+    renderWithProviders(
+      <ProviderExpertSettings
+        providerId="claude"
+        isEnabled
+        onToggle={jest.fn()}
+        selectedModel="claude-sonnet-5"
+        onModelChange={jest.fn()}
+        parameters={parameters}
+        onParameterChange={jest.fn()}
+      />
+    );
+
+    const paramsEncountered = mockParameterSlider.mock.calls.map((call) => call[0].name);
+    expect(paramsEncountered).toContain('maxTokens');
+    expect(paramsEncountered).not.toContain('temperature');
+    expect(paramsEncountered).not.toContain('topP');
   });
 });

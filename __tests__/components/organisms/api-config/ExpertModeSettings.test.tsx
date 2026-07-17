@@ -69,7 +69,7 @@ describe('ExpertModeSettings', () => {
         isEnabled={true}
         isPremium={true}
         onToggle={onToggle}
-        selectedModel="gpt-5.5"
+        selectedModel="gpt-4.1"
         onModelChange={onModelChange}
         parameters={baseParameters}
         onParameterChange={onParameterChange}
@@ -77,7 +77,7 @@ describe('ExpertModeSettings', () => {
     );
 
     expect(getByText('Fine-tune model behavior and parameters')).toBeTruthy();
-    expect(getByText('Previous flagship OpenAI model for complex reasoning, coding, and professional work')).toBeTruthy();
+    expect(getByText('High-capability GPT-4.1 model with 1M context')).toBeTruthy();
 
     const toggle = getByRole('switch');
     fireEvent(toggle, 'valueChange', false);
@@ -104,5 +104,29 @@ describe('ExpertModeSettings', () => {
     expect(onParameterChange).toHaveBeenCalledWith('topP', DEFAULT_PARAMETERS.topP);
     expect(onParameterChange).toHaveBeenCalledWith('frequencyPenalty', DEFAULT_PARAMETERS.frequencyPenalty);
     expect(onParameterChange).toHaveBeenCalledWith('presencePenalty', DEFAULT_PARAMETERS.presencePenalty);
+  });
+
+  it('locks temperature to 1 for models that require it', () => {
+    const onParameterChange = jest.fn();
+    const { getByText } = renderWithProviders(
+      <ExpertModeSettings
+        providerId="openai"
+        isEnabled={true}
+        isPremium={true}
+        onToggle={jest.fn()}
+        selectedModel="gpt-5.6-sol"
+        onModelChange={jest.fn()}
+        parameters={baseParameters}
+        onParameterChange={onParameterChange}
+      />
+    );
+
+    // gpt-5.6-sol has requiresTemperature1, so the stepper can't move it off 1.
+    fireEvent.press(getByText('Temperature'));
+    fireEvent.press(getByText('+'));
+    fireEvent.press(getByText('−'));
+    const temperatureCalls = onParameterChange.mock.calls.filter((call) => call[0] === 'temperature');
+    expect(temperatureCalls.length).toBeGreaterThan(0);
+    temperatureCalls.forEach((call) => expect(call[1]).toBe(1));
   });
 });

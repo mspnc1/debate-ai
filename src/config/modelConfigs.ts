@@ -1,4 +1,9 @@
 import { resolveModelAlias } from './providers/modelRegistry';
+import type { ModelParameters } from '../types';
+
+// Canonical ModelParameters lives in src/types/index.ts; re-exported here so
+// existing `from '@/config/modelConfigs'` imports keep working.
+export type { ModelParameters };
 
 export interface ModelConfig {
   id: string;
@@ -1118,17 +1123,6 @@ export const CURATED_MODEL_IDS: { [providerId: string]: string[] } = {
     "grok-4.20-0309-reasoning",
   ],
 };
-
-export interface ModelParameters {
-  temperature: number;
-  maxTokens: number;
-  topP?: number;
-  topK?: number;
-  frequencyPenalty?: number;
-  presencePenalty?: number;
-  stopSequences?: string[];
-  seed?: number;
-}
 
 export const DEFAULT_PARAMETERS: ModelParameters = {
   temperature: 0.7,

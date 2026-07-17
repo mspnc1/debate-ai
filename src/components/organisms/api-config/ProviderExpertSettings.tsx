@@ -10,7 +10,8 @@ import {
   ModelParameters,
   DEFAULT_PARAMETERS,
   PARAMETER_RANGES,
-  PROVIDER_SUPPORTED_PARAMS
+  getParameterRange,
+  getSupportedParams,
 } from '@/config/modelConfigs';
 import { HelpTopicId } from '@/config/help/types';
 
@@ -45,15 +46,18 @@ export const ProviderExpertSettings: React.FC<ProviderExpertSettingsProps> = ({
   const visibleSelectedModel = selectedModel && models.some((model) => model.id === selectedModel)
     ? selectedModel
     : undefined;
-  const supportedParams = PROVIDER_SUPPORTED_PARAMS[providerId] || [];
+  const effectiveModel = visibleSelectedModel || models.find((model) => model.isDefault)?.id;
+  // Model-aware: params in the model's unsupportedParams don't render, and
+  // ranges reflect provider/model constraints (e.g. locked temperature 1).
+  const supportedParams = getSupportedParams(providerId, effectiveModel);
   
   const handleReset = () => {
     Object.keys(DEFAULT_PARAMETERS).forEach(param => {
       if (supportedParams.includes(param as keyof ModelParameters)) {
         const defaultValue = DEFAULT_PARAMETERS[param as keyof ModelParameters];
-        if (defaultValue !== undefined) {
+        if (defaultValue !== undefined && typeof defaultValue !== 'boolean') {
           onParameterChange(
-            param as keyof ModelParameters, 
+            param as keyof ModelParameters,
             defaultValue
           );
         }
@@ -62,17 +66,20 @@ export const ProviderExpertSettings: React.FC<ProviderExpertSettingsProps> = ({
   };
   
   const renderParameter = (param: keyof ModelParameters) => {
-    const range = PARAMETER_RANGES[param as keyof typeof PARAMETER_RANGES];
-    if (!range || !supportedParams.includes(param)) return null;
+    if (!(param in PARAMETER_RANGES) || !supportedParams.includes(param)) return null;
+    const range = getParameterRange(providerId, param as keyof typeof PARAMETER_RANGES, effectiveModel);
 
-    const value = parameters[param] ?? DEFAULT_PARAMETERS[param];
+    // Display-clamp stored out-of-range values (e.g. a saved temperature of
+    // 1.8 before the Claude cap); the adapters clamp again at request time.
+    const rawValue = Number(parameters[param] ?? DEFAULT_PARAMETERS[param] ?? range.min);
+    const value = Math.max(range.min, Math.min(rawValue, range.max));
     const helpTopicId = PARAM_HELP_TOPICS[param];
 
     return (
       <View key={param}>
         <ParameterSlider
           name={param}
-          value={Number(value)}
+          value={value}
           min={range.min}
           max={range.max}
           step={range.step}

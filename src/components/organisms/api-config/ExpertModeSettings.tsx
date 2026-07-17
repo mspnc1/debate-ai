@@ -10,12 +10,13 @@ import {
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '@/theme';
 import { Button, Typography } from '@/components/molecules';
-import { 
+import {
   getProviderModels,
   ModelParameters,
   DEFAULT_PARAMETERS,
   PARAMETER_RANGES,
-  PROVIDER_SUPPORTED_PARAMS 
+  getParameterRange,
+  getSupportedParams,
 } from '@/config/modelConfigs';
 
 interface ExpertModeSettingsProps {
@@ -43,14 +44,18 @@ export const ExpertModeSettings: React.FC<ExpertModeSettingsProps> = ({
   const [expandedParam, setExpandedParam] = useState<string | null>(null);
   
   const models = getProviderModels(providerId) || [];
-  const supportedParams = PROVIDER_SUPPORTED_PARAMS[providerId] || [];
   const currentModel = models.find(m => m.id === selectedModel) || models.find(m => m.isDefault);
-  
+  // Model-aware: params in the model's unsupportedParams don't render, and
+  // ranges reflect provider/model constraints (e.g. locked temperature 1).
+  const supportedParams = getSupportedParams(providerId, currentModel?.id);
+
   const renderParameterControl = (param: keyof ModelParameters) => {
-    const range = PARAMETER_RANGES[param as keyof typeof PARAMETER_RANGES];
-    if (!range || !supportedParams.includes(param)) return null;
-    
-    const value = parameters[param] ?? DEFAULT_PARAMETERS[param];
+    if (!(param in PARAMETER_RANGES) || !supportedParams.includes(param)) return null;
+    const range = getParameterRange(providerId, param as keyof typeof PARAMETER_RANGES, currentModel?.id);
+
+    // Display-clamp stored out-of-range values; adapters clamp at request time.
+    const rawValue = Number(parameters[param] ?? DEFAULT_PARAMETERS[param] ?? range.min);
+    const value = Math.max(range.min, Math.min(rawValue, range.max));
     const isExpanded = expandedParam === param;
     
     return (
@@ -290,9 +295,9 @@ export const ExpertModeSettings: React.FC<ExpertModeSettingsProps> = ({
               Object.keys(DEFAULT_PARAMETERS).forEach(param => {
                 if (supportedParams.includes(param as keyof ModelParameters)) {
                   const defaultValue = DEFAULT_PARAMETERS[param as keyof ModelParameters];
-                  if (defaultValue !== undefined) {
+                  if (defaultValue !== undefined && typeof defaultValue !== 'boolean') {
                     onParameterChange(
-                      param as keyof ModelParameters, 
+                      param as keyof ModelParameters,
                       defaultValue
                     );
                   }
