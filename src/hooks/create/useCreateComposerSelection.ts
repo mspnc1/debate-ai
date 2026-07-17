@@ -6,6 +6,7 @@ import {
   addImageSelection,
   updateImageSelection,
   removeImageSelection,
+  setImageOptions,
   setVideoOptions,
   setAudioOptions,
 } from '../../store';
@@ -76,17 +77,24 @@ export const useCreateComposerSelection = (tab: CreateTab) => {
   const hasRunwayKey = isApiKeyConfigured(apiKeys.runway);
   const hasElevenLabsKey = isApiKeyConfigured(apiKeys.elevenlabs);
 
-  /** Visible pills for the active tab; indices align with update/remove. */
-  const configs = useMemo<CreateSelectionConfig[]>(() => {
-    if (tab === 'image') {
-      return image
+  /** Validated image pills, independent of the active tab (drives caps/maps). */
+  const imageConfigs = useMemo<CreateSelectionConfig[]>(
+    () =>
+      image
         .filter(config => isImageProviderConfigured(config.providerId))
         .map(config => ({
           ...config,
           modelId:
             resolveImageModelId(config.providerId as AIProvider, config.modelId) ||
             config.modelId,
-        }));
+        })),
+    [image, isImageProviderConfigured]
+  );
+
+  /** Visible pills for the active tab; indices align with update/remove. */
+  const configs = useMemo<CreateSelectionConfig[]>(() => {
+    if (tab === 'image') {
+      return imageConfigs;
     }
     if (tab === 'video') {
       return hasRunwayKey
@@ -106,8 +114,7 @@ export const useCreateComposerSelection = (tab: CreateTab) => {
       : [];
   }, [
     tab,
-    image,
-    isImageProviderConfigured,
+    imageConfigs,
     hasRunwayKey,
     videoOptions.modelId,
     hasElevenLabsKey,
@@ -188,13 +195,14 @@ export const useCreateComposerSelection = (tab: CreateTab) => {
     [tab, configs, image, dispatch]
   );
 
-  /** Image models behind the visible pills (drives caps + capability gating). */
-  const selectedImageModels = useMemo<ImageModelConfig[]>(() => {
-    if (tab !== 'image') return [];
-    return configs
-      .map(config => getResolvedImageModel(config.providerId as AIProvider, config.modelId))
-      .filter((model): model is ImageModelConfig => Boolean(model));
-  }, [tab, configs]);
+  /** Image models behind the validated pills (drives caps + capability gating). */
+  const selectedImageModels = useMemo<ImageModelConfig[]>(
+    () =>
+      imageConfigs
+        .map(config => getResolvedImageModel(config.providerId as AIProvider, config.modelId))
+        .filter((model): model is ImageModelConfig => Boolean(model)),
+    [imageConfigs]
+  );
 
   const imageSupportsSourceInput = selectedImageModels.some(model => model.supportsImageInput);
   const imageMaxReferenceImages = Math.max(
@@ -216,15 +224,22 @@ export const useCreateComposerSelection = (tab: CreateTab) => {
       selectedModels: {},
       modelSettings: {},
     };
-    if (tab !== 'image') return maps;
-    configs.forEach(config => {
+    imageConfigs.forEach(config => {
       const provider = config.providerId as AIProvider;
       maps.providers.push(provider);
       maps.selectedModels[provider] = config.modelId;
       if (config.settings) maps.modelSettings[provider] = config.settings;
     });
     return maps;
-  }, [tab, configs]);
+  }, [imageConfigs]);
+
+  // Selected models cap the per-request count; clamp the persisted choice
+  // down whenever the lineup's ceiling drops.
+  useEffect(() => {
+    if (hydrated && imageOptions.count > imageMaxCount) {
+      dispatch(setImageOptions({ count: imageMaxCount }));
+    }
+  }, [hydrated, imageOptions.count, imageMaxCount, dispatch]);
 
   // Persist durable fields once hydrated; demo lineups are simulated and must
   // never overwrite the user's real persisted selection.

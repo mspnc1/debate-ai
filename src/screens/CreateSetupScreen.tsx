@@ -34,23 +34,29 @@ import {
   GradientButton,
   HeaderIcon,
   SectionHeader,
-  PromptHeroInput,
-  ImageModelSelector,
   SegmentedControl,
   SheetHeader,
   InfoButton,
 } from '../components/molecules';
-import { DynamicAISelector, Header, HeaderActions } from '../components/organisms';
-import { RootState, AppDispatch, isApiKeyConfigured } from '../store';
+import {
+  Header,
+  HeaderActions,
+  CreateComposer,
+  CreateEmptyState,
+  CreateGenerationStatusCard,
+  CreateMediaTabs,
+  CreateOptionsSheet,
+} from '../components/organisms';
+import {
+  RootState,
+  AppDispatch,
+  isApiKeyConfigured,
+  setImageOptions,
+  setAttachments,
+  removeAttachment,
+} from '../store';
 import {
   generateCreateImages,
-  setPrompt,
-  setStyle,
-  setSize,
-  setImageCount,
-  setImageModelSetting,
-  setSelectedModel,
-  setSelectedProviders,
   setActiveCreateTab,
   markCreateActivitySeen,
   hydrateGallery,
@@ -59,10 +65,10 @@ import {
   generateCreateAudio,
   selectCreateState,
 } from '../store/createSlice';
-import { RootStackParamList, AIProvider, AIConfig } from '../types';
+import { useCreateComposerSelection } from '../hooks/create/useCreateComposerSelection';
+import { RootStackParamList } from '../types';
 import type { CreateMediaOperation, ElevenLabsSharedVoiceQuery, ElevenLabsVoiceListQuery, MediaProviderModelOption, MediaProviderOptionsResponse, MediaProviderVoiceOption } from '../types/media';
 import { DebateVoicePicker } from '../components/organisms/debate/DebateVoicePicker';
-import { STYLE_PRESETS } from '../config/create/stylePresets';
 import {
   ELEVENLABS_DEFAULT_OUTPUT_FORMAT,
   ELEVENLABS_DEFAULT_SFX_MODEL,
@@ -76,21 +82,7 @@ import {
   getRunwayAspectRatios,
   getRunwayVideoDurations,
 } from '../config/mediaProviders';
-import {
-  getResolvedImageModel,
-  getImageProviderDisplayName,
-  type ImageBackgroundOption,
-  type ImageModelConfig,
-  type ImageModerationOption,
-  type ImageOutputFormat,
-  type ImageOutputQuality,
-  resolveImageModelId,
-  supportsImageGeneration,
-} from '../config/imageGenerationModels';
-import type { ImageModelSettings, ImageProviderGenerationStatus, SizeOption } from '../store/createSlice';
 import { HelpTopicId } from '../config/help/types';
-import { AI_PROVIDERS } from '../config/aiProviders';
-import { getAIProviderIcon } from '../utils/aiProviderAssets';
 import { getImageMimeType } from '../services/images/fileCache';
 import APIKeyService from '../services/APIKeyService';
 import MediaGenerationService from '../services/media/MediaGenerationService';
@@ -103,53 +95,6 @@ import { ErrorService } from '../services/errors/ErrorService';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 type AudioPickerType = 'voice' | 'model' | 'format';
-
-const MAX_PROMPT_LENGTH = 4000;
-
-// Image generation capable providers
-const IMAGE_GEN_PROVIDERS = ['openai', 'google', 'grok'];
-
-const IMAGE_QUALITY_LABELS: Record<ImageOutputQuality, string> = {
-  auto: 'Match model',
-  low: 'Draft',
-  medium: 'Medium',
-  high: 'High',
-  standard: 'Standard',
-  hd: 'HD',
-};
-
-const IMAGE_FORMAT_LABELS: Record<ImageOutputFormat, string> = {
-  png: 'PNG',
-  jpeg: 'JPEG',
-  webp: 'WebP',
-};
-
-const IMAGE_BACKGROUND_LABELS: Record<ImageBackgroundOption, string> = {
-  auto: 'Default background',
-  opaque: 'Opaque',
-  transparent: 'Transparent',
-};
-
-const IMAGE_MODERATION_LABELS: Record<ImageModerationOption, string> = {
-  auto: 'Default safety',
-  low: 'Less restrictive',
-};
-
-const SIZE_LABELS: Record<SizeOption, string> = {
-  auto: 'Model default',
-  square: 'Square',
-  portrait: 'Portrait',
-  landscape: 'Landscape',
-};
-
-function getSelectedImageModels(
-  providers: AIProvider[],
-  selectedModels: Partial<Record<AIProvider, string>>
-): ImageModelConfig[] {
-  return providers
-    .map((provider) => getResolvedImageModel(provider, selectedModels[provider]))
-    .filter((model): model is ImageModelConfig => Boolean(model));
-}
 
 function mergeAudioVoices(
   existing: MediaProviderVoiceOption[],
@@ -181,17 +126,9 @@ export default function CreateSetupScreen() {
 
   const createState = useSelector(selectCreateState);
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
-  const verifiedProviders = useSelector((state: RootState) => state.settings.verifiedProviders || []);
 
   const {
     activeTab = 'image',
-    selectedProviders,
-    selectedModels = {},
-    currentPrompt,
-    selectedStyle,
-    selectedSize,
-    selectedImageCount = 1,
-    imageModelSettings = {},
     galleryHydrated,
     gallery,
     mediaGalleryHydrated = false,
@@ -202,12 +139,18 @@ export default function CreateSetupScreen() {
     lastMediaGenerationResult,
   } = createState;
 
+  // Composer draft selection (pills + persisted options + attachments).
+  const composer = useCreateComposerSelection(activeTab);
+  const imageAttachments = useSelector(
+    (state: RootState) => state.createSelection.attachments.image
+  );
+
   const galleryCount = gallery.length + mediaGallery.length;
-  const [imageMode, setImageMode] = useState<'create' | 'refine'>('create');
-  const [imageSourceUris, setImageSourceUris] = useState<string[]>([]);
-  // Output & per-model settings live in a bottom sheet; track open state and the active provider tab.
+  // Prompt drafts stay local like Home's inputText; sending clears them.
+  const [imagePrompt, setImagePrompt] = useState('');
+  const [imageOptionsSheetOpen, setImageOptionsSheetOpen] = useState(false);
+  // Video/audio settings live in a shared bottom sheet until their composer port.
   const [settingsSheetOpen, setSettingsSheetOpen] = useState(false);
-  const [activeSettingsProvider, setActiveSettingsProvider] = useState<AIProvider | null>(null);
   const [videoSourceUri, setVideoSourceUri] = useState<string | undefined>();
   const [videoPrompt, setVideoPrompt] = useState('');
   const [videoModelId, setVideoModelId] = useState(RUNWAY_DEFAULT_VIDEO_MODEL);
@@ -361,93 +304,28 @@ export default function CreateSetupScreen() {
     loadAudioOptions();
   }, [activeTab, audioVoices.length, hasElevenLabsKey, loadingAudioOptions]);
 
-  // Build AIConfig objects for image-capable providers
-  const configuredImageAIs = useMemo(() => {
-    return AI_PROVIDERS
-      .filter(provider => {
-        // Only image generation capable providers
-        if (!IMAGE_GEN_PROVIDERS.includes(provider.id)) return false;
-        // Must have API key and be verified (or in demo mode)
-        if (isDemo) return IMAGE_GEN_PROVIDERS.includes(provider.id);
-        const hasKey = isApiKeyConfigured(apiKeys[provider.id]);
-        const isVerified = verifiedProviders.includes(provider.id);
-        return hasKey && isVerified && supportsImageGeneration(provider.id as AIProvider);
-      })
-      .map(provider => {
-        const iconData = getAIProviderIcon(provider.id);
-        return {
-          id: provider.id,
-          provider: provider.id as AIProvider,
-          name: provider.name,
-          model: resolveImageModelId(provider.id as AIProvider, selectedModels[provider.id as AIProvider]) || 'default',
-          icon: iconData.icon,
-          iconType: iconData.iconType,
-          color: provider.color,
-        } as AIConfig;
-      });
-  }, [apiKeys, verifiedProviders, isDemo, selectedModels]);
+  // An attachment turns a plain generation into a refinement; send blocks
+  // only when an attachment exists and no selected model can edit images.
+  const attachmentBlocked =
+    imageAttachments.length > 0 && !composer.imageSupportsSourceInput;
+  const imageValidationMessage = !composer.hasEnoughAIs
+    ? 'Add an AI to create images'
+    : attachmentBlocked
+      ? 'Attached image needs a model that can edit images — tap a pill to switch models'
+      : null;
+  const canSendImage =
+    composer.hasEnoughAIs &&
+    imagePrompt.trim().length > 0 &&
+    !attachmentBlocked &&
+    !imageGeneration;
 
-  const selectedImageAIs = useMemo(
-    () => configuredImageAIs.filter((ai) => selectedProviders.includes(ai.provider)),
-    [configuredImageAIs, selectedProviders]
+  const recentImageAssets = useMemo(
+    () =>
+      gallery
+        .slice(0, 10)
+        .map((entry) => ({ id: entry.id, uri: entry.uri, type: 'image' as const })),
+    [gallery]
   );
-
-  const handleToggleAI = useCallback((ai: AIConfig) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    const isSelected = selectedProviders.includes(ai.provider);
-    let newProviders: AIProvider[];
-
-    if (isSelected) {
-      newProviders = selectedProviders.filter(p => p !== ai.provider);
-    } else if (selectedProviders.length < 3) {
-      newProviders = [...selectedProviders, ai.provider];
-    } else {
-      return; // Max 3 selected
-    }
-
-    dispatch(setSelectedProviders(newProviders));
-  }, [selectedProviders, dispatch]);
-
-  const handleStyleSelect = useCallback((styleId: typeof selectedStyle) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    dispatch(setStyle(styleId));
-  }, [dispatch]);
-
-  const handleSizeSelect = useCallback((sizeId: typeof selectedSize) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    dispatch(setSize(sizeId));
-  }, [dispatch]);
-
-  const handleModelSettingChange = useCallback(
-    (provider: AIProvider, settings: Partial<ImageModelSettings>) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      dispatch(setImageModelSetting({ provider, settings }));
-    },
-    [dispatch]
-  );
-
-  const selectedImageModels = useMemo(
-    () => getSelectedImageModels(selectedProviders, selectedModels),
-    [selectedModels, selectedProviders]
-  );
-  const imageSupportsSourceInput = selectedImageModels.some((model) => model.supportsImageInput);
-  const imageMaxReferenceImages = Math.max(1, ...selectedImageModels.map((model) => model.maxReferenceImages || 0));
-  const imageMaxCount = selectedImageModels.length > 0
-    ? Math.max(1, Math.min(...selectedImageModels.map((model) => model.maxImagesPerRequest || 1), 10))
-    : 1;
-  const canUseImageSources = imageMode === 'refine' || imageSourceUris.length > 0;
-  const canGenerateImageInput = currentPrompt.trim().length > 0 &&
-    selectedProviders.length > 0 &&
-    (imageMode === 'create' || imageSourceUris.length > 0) &&
-    (!canUseImageSources || imageSupportsSourceInput);
-  const canGenerateImage = canGenerateImageInput && !imageGeneration;
-
-  useEffect(() => {
-    if (selectedImageCount > imageMaxCount) {
-      dispatch(setImageCount(imageMaxCount));
-    }
-  }, [dispatch, imageMaxCount, selectedImageCount]);
 
   const handlePickImageSource = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -462,6 +340,7 @@ export default function CreateSetupScreen() {
       return;
     }
 
+    const imageMaxReferenceImages = composer.imageMaxReferenceImages;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: imageMaxReferenceImages > 1,
@@ -471,66 +350,49 @@ export default function CreateSetupScreen() {
     });
 
     if (!result.canceled && result.assets.length > 0) {
-      const nextUris = result.assets
+      const attachments = result.assets
         .map((asset) => asset.uri)
         .filter(Boolean)
-        .slice(0, imageMaxReferenceImages);
-      setImageSourceUris(nextUris);
+        .slice(0, imageMaxReferenceImages)
+        .map((uri) => ({ uri, mimeType: getImageMimeType(uri) }));
+      dispatch(setAttachments({ tab: 'image', attachments }));
     }
-  }, [imageMaxReferenceImages]);
+  }, [composer.imageMaxReferenceImages, dispatch]);
 
   const handleUseLatestImageAsImageSource = useCallback(() => {
     const latest = gallery[0];
     if (!latest?.uri) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setImageSourceUris([latest.uri]);
-    setImageMode('refine');
-  }, [gallery]);
+    dispatch(setAttachments({
+      tab: 'image',
+      attachments: [{ uri: latest.uri, galleryAssetId: latest.id }],
+    }));
+  }, [gallery, dispatch]);
 
-  const handleRemoveImageSource = useCallback((uri: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setImageSourceUris((current) => current.filter((item) => item !== uri));
-  }, []);
+  const handleSendImage = useCallback(async (text: string) => {
+    if (!canSendImage) return;
 
-  const handleGenerateImage = useCallback(async () => {
-    if (!canGenerateImageInput) return;
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    const sessionSelectedModels = selectedProviders.reduce((acc, provider) => {
-      const resolvedModelId = resolveImageModelId(provider, selectedModels[provider]);
-      if (resolvedModelId) {
-        acc[provider] = resolvedModelId;
-      }
-      return acc;
-    }, {} as Partial<Record<AIProvider, string>>);
-
-    const sessionModelSettings = selectedProviders.reduce((acc, provider) => {
-      const settings = imageModelSettings[provider];
-      if (settings) {
-        acc[provider] = settings;
-      }
-      return acc;
-    }, {} as Partial<Record<AIProvider, ImageModelSettings>>);
+    const { providers, selectedModels, modelSettings } = composer.imageSelectionMaps;
+    const { style, size, count } = composer.imageOptions;
 
     try {
       const result = await dispatch(generateCreateImages({
-        prompt: currentPrompt,
-        providers: selectedProviders,
-        selectedModels: sessionSelectedModels,
-        style: selectedStyle,
-        size: selectedSize,
-        imageCount: selectedImageCount,
-        modelSettings: sessionModelSettings,
-        sourceImages: imageSourceUris.map((uri) => ({
-          uri,
-          mimeType: getImageMimeType(uri),
+        prompt: text,
+        providers,
+        selectedModels,
+        style,
+        size,
+        imageCount: count,
+        modelSettings,
+        sourceImages: imageAttachments.map((attachment) => ({
+          uri: attachment.uri,
+          mimeType: attachment.mimeType || getImageMimeType(attachment.uri),
         })),
-        isUploaded: imageSourceUris.length > 0,
-        refinementInstructions: imageMode === 'refine' ? currentPrompt : undefined,
+        isUploaded: imageAttachments.length > 0,
+        refinementInstructions: imageAttachments.length > 0 ? text : undefined,
       })).unwrap();
 
-      dispatch(setPrompt(''));
+      setImagePrompt('');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (result.ids.length === 1) {
         navigation.navigate('CreateSession', { focusAssetId: result.ids[0], galleryTab: 'image' });
@@ -542,18 +404,12 @@ export default function CreateSetupScreen() {
       ErrorService.handleWithToast(error, { feature: 'create' });
     }
   }, [
-    canGenerateImageInput,
-    currentPrompt,
+    canSendImage,
+    composer.imageSelectionMaps,
+    composer.imageOptions,
     dispatch,
-    imageMode,
-    imageModelSettings,
-    imageSourceUris,
+    imageAttachments,
     navigation,
-    selectedImageCount,
-    selectedModels,
-    selectedProviders,
-    selectedSize,
-    selectedStyle,
   ]);
 
   const handleGalleryPress = useCallback(() => {
@@ -782,43 +638,6 @@ export default function CreateSetupScreen() {
         badge={galleryCount > 0 ? galleryCount : undefined}
       />
       <HeaderActions variant="gradient" helpCategoryId="create" />
-    </View>
-  );
-
-  const renderCreateTabs = () => (
-    <View style={[styles.tabRow, { backgroundColor: theme.colors.surface }]}>
-      {(['image', 'video', 'audio'] as const).map((tab) => {
-        const isSelected = activeTab === tab;
-        const label = tab === 'image' ? 'Image' : tab === 'video' ? 'Video' : 'Audio';
-        const icon = tab === 'image' ? 'image-outline' : tab === 'video' ? 'videocam-outline' : 'musical-notes-outline';
-        return (
-          <TouchableOpacity
-            key={tab}
-            style={[
-              styles.tabButton,
-              {
-                backgroundColor: isSelected ? theme.colors.primary[500] : 'transparent',
-              },
-            ]}
-            onPress={() => handleTabChange(tab)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: isSelected }}
-          >
-            <Ionicons
-              name={icon as keyof typeof Ionicons.glyphMap}
-              size={18}
-              color={isSelected ? '#FFFFFF' : theme.colors.text.secondary}
-            />
-            <Typography
-              variant="caption"
-              weight="semibold"
-              style={{ color: isSelected ? '#FFFFFF' : theme.colors.text.primary }}
-            >
-              {label}
-            </Typography>
-          </TouchableOpacity>
-        );
-      })}
     </View>
   );
 
@@ -1309,247 +1128,6 @@ export default function CreateSetupScreen() {
     );
   };
 
-  const renderImageActionRail = () => {
-    const current = imageGeneration;
-    const result = lastImageGenerationResult;
-    const isRunning = Boolean(current);
-    const isPartial = !isRunning && result?.status === 'partial';
-    const isSuccess = !isRunning && (result?.status === 'succeeded' || result?.status === 'partial');
-    const isFailed = !isRunning && result?.status === 'failed';
-    const message = current?.message || result?.message;
-    const providerStatuses = current?.providerStatuses || result?.providerStatuses || {};
-    const statusProviders = current?.providers?.length
-      ? current.providers
-      : result?.providers?.length
-        ? result.providers
-        : selectedProviders;
-    const getProviderStatus = (provider: AIProvider): ImageProviderGenerationStatus | undefined =>
-      providerStatuses[provider];
-    const getProviderLabel = (provider: AIProvider, status?: ImageProviderGenerationStatus) =>
-      getImageProviderDisplayName(provider, {
-        includeModel: true,
-        modelId: status?.modelId || selectedModels[provider],
-      });
-    const getStatusIcon = (status?: ImageProviderGenerationStatus) => {
-      if (status?.status === 'complete') {
-        return { name: 'checkmark-circle-outline' as const, color: theme.colors.success[500] };
-      }
-      if (status?.status === 'error') {
-        return { name: 'alert-circle-outline' as const, color: theme.colors.error[500] };
-      }
-      if (status?.status === 'generating') {
-        return undefined;
-      }
-      return { name: 'time-outline' as const, color: theme.colors.text.secondary };
-    };
-    const getStatusText = (status?: ImageProviderGenerationStatus) => {
-      if (!status) return 'Waiting';
-      if (status.status === 'complete') return status.message || 'Complete';
-      if (status.status === 'error') return status.error || status.message || 'Failed';
-      if (status.status === 'generating') return status.message || 'Generating';
-      return status.message || 'Waiting';
-    };
-    const title = isRunning
-      ? 'Generating Images...'
-      : selectedProviders.length === 0
-        ? 'Select an AI to generate'
-        : imageMode === 'refine' && imageSourceUris.length === 0
-          ? 'Add an image to refine'
-            : !imageSupportsSourceInput && imageSourceUris.length > 0
-              ? 'Select a model with image input'
-            : isSuccess
-              ? 'Generate More Images'
-              : isFailed
-                ? 'Retry Images'
-                : selectedProviders.length > 1
-                  ? `Generate with ${selectedProviders.length} AIs`
-                  : imageMode === 'refine'
-                    ? 'Refine Image'
-                    : 'Generate Image';
-
-    return (
-      <View
-        style={[
-          styles.mediaRail,
-          {
-            backgroundColor: theme.colors.background,
-            borderTopColor: theme.colors.border,
-          },
-        ]}
-        testID="create-image-rail"
-      >
-        {(current || result) && (
-          <View
-            style={[
-              styles.railStatus,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: isFailed
-                  ? theme.colors.error[500]
-                  : isPartial
-                    ? theme.colors.warning[500]
-                    : isSuccess
-                      ? theme.colors.success[500]
-                      : theme.colors.border,
-              },
-            ]}
-            testID="create-image-status"
-          >
-            {isRunning ? (
-              <ActivityIndicator size="small" color={theme.colors.primary[500]} />
-            ) : (
-              <Ionicons
-                name={isFailed || isPartial ? 'alert-circle-outline' : 'checkmark-circle-outline'}
-                size={20}
-                color={isFailed ? theme.colors.error[500] : isPartial ? theme.colors.warning[500] : theme.colors.success[500]}
-              />
-            )}
-            <Typography variant="caption" color="secondary" style={styles.railStatusText}>
-              {message || (isRunning ? 'Generating images...' : 'Images ready.')}
-            </Typography>
-          </View>
-        )}
-
-        {(current || result) && statusProviders.length > 0 && (
-          <View style={styles.imageProviderStatusList} testID="create-image-provider-status-list">
-            {statusProviders.map((provider) => {
-              const status = getProviderStatus(provider);
-              const icon = getStatusIcon(status);
-              return (
-                <View
-                  key={provider}
-                  style={[
-                    styles.imageProviderStatusRow,
-                    {
-                      backgroundColor: theme.colors.surface,
-                      borderColor: status?.status === 'error' ? theme.colors.error[300] : theme.colors.border,
-                    },
-                  ]}
-                  testID={`create-image-provider-status-${provider}`}
-                >
-                  {status?.status === 'generating' ? (
-                    <ActivityIndicator size="small" color={theme.colors.primary[500]} />
-                  ) : icon ? (
-                    <Ionicons name={icon.name} size={18} color={icon.color} />
-                  ) : null}
-                  <View style={styles.imageProviderStatusCopy}>
-                    <Typography variant="caption" weight="semibold" numberOfLines={1}>
-                      {getProviderLabel(provider, status)}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      color="secondary"
-                      style={[
-                        styles.imageProviderStatusMessage,
-                        status?.status === 'error' && { color: theme.colors.error[600] },
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {getStatusText(status)}
-                    </Typography>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        )}
-
-        {isSuccess && result?.ids.length > 0 && (
-          <TouchableOpacity
-            style={[styles.galleryCta, { borderColor: theme.colors.primary[500], backgroundColor: primaryTintBackground }]}
-            onPress={() => handleViewImagesInGallery(result.ids)}
-            accessibilityRole="button"
-            accessibilityLabel="View generated images in Gallery"
-            testID="create-image-gallery-cta"
-          >
-            <Ionicons name="images-outline" size={18} color={primaryAccentColor} />
-            <Typography variant="button" weight="semibold" style={{ color: primaryAccentColor }}>
-              View in Gallery
-            </Typography>
-          </TouchableOpacity>
-        )}
-
-        <GradientButton
-          title={title}
-          onPress={handleGenerateImage}
-          disabled={isRunning || !canGenerateImage}
-          fullWidth
-        />
-      </View>
-    );
-  };
-
-  const renderImageSourceSection = () => (
-    <View style={styles.section}>
-      <SectionHeader
-        title={imageMode === 'refine' ? 'Source Image' : 'References'}
-        subtitle={imageSupportsSourceInput ? 'Upload or reuse images to guide generation' : 'Select a model with image input to use references'}
-        icon="🖼️"
-      />
-      {imageSourceUris.length > 0 && (
-        <View style={styles.imageSourceTray} testID="create-image-source-tray">
-          {imageSourceUris.map((uri) => (
-            <View
-              key={uri}
-              style={[styles.imageSourceTile, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-            >
-              <Image source={{ uri }} style={styles.imageSourcePreview} />
-              <TouchableOpacity
-                onPress={() => handleRemoveImageSource(uri)}
-                style={styles.imageSourceRemove}
-                accessibilityRole="button"
-                accessibilityLabel="Remove image reference"
-              >
-                <Ionicons name="close-circle" size={22} color={theme.colors.error[500]} />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-      )}
-      <View style={styles.inlineActions}>
-        {gallery.length > 0 && renderChip('Use latest image', false, handleUseLatestImageAsImageSource)}
-        {renderChip(imageSourceUris.length > 0 ? 'Replace image' : 'Upload image', false, handlePickImageSource)}
-        {imageSourceUris.length > 0 && renderChip('Clear source', false, () => setImageSourceUris([]))}
-      </View>
-    </View>
-  );
-
-  // Reuse the same provider card grid as Chat so Create image selection stays visually consistent.
-  // Selection only; each model's own settings live in the settings sheet.
-  const renderImageProviderGrid = () => {
-    const anyRefineDimmed = imageMode === 'refine' && configuredImageAIs.some((ai) => {
-      const model = getResolvedImageModel(ai.provider, selectedModels[ai.provider] || ai.model);
-      return Boolean(model && !model.supportsImageInput);
-    });
-
-    return (
-      <View style={styles.section} testID="create-image-provider-selector">
-        <DynamicAISelector
-          configuredAIs={configuredImageAIs}
-          selectedAIs={selectedImageAIs}
-          maxAIs={3}
-          onToggleAI={handleToggleAI}
-          onAddAI={handleAddAI}
-          hideStartButton
-          hideHeaderTitle
-          hideAddAI={isDemo}
-          getIsDisabled={(ai) => {
-            const model = getResolvedImageModel(ai.provider, selectedModels[ai.provider] || ai.model);
-            return imageMode === 'refine' && Boolean(model && !model.supportsImageInput);
-          }}
-        />
-        {anyRefineDimmed && (
-          <View style={styles.capabilityRow}>
-            <Ionicons name="information-circle-outline" size={16} color={theme.colors.text.secondary} />
-            <Typography variant="caption" color="secondary" style={styles.capabilityText} numberOfLines={2}>
-              Dimmed models can&apos;t edit images. Switch their model in Settings or use Create mode.
-            </Typography>
-          </View>
-        )}
-      </View>
-    );
-  };
-
   const renderOutputControlGroup = (
     label: string,
     children: React.ReactNode,
@@ -1566,176 +1144,6 @@ export default function CreateSetupScreen() {
     </View>
   );
 
-  // One collapsible card per selected provider, exposing only the capability
-  // controls its resolved model supports. Values are stored per provider, so
-  // each model keeps its own choices when multiple AIs are selected together.
-  const renderStyleScroller = () => (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.styleScroll}>
-      {STYLE_PRESETS.map((style) => {
-        const isSelected = selectedStyle === style.id;
-        return (
-          <TouchableOpacity
-            key={style.id}
-            style={[
-              styles.styleChip,
-              {
-                backgroundColor: isSelected ? theme.colors.primary[500] : theme.colors.surface,
-                borderColor: isSelected ? theme.colors.primary[500] : theme.colors.border,
-              },
-            ]}
-            onPress={() => handleStyleSelect(style.id)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: isSelected }}
-          >
-            <Ionicons
-              name={style.icon as keyof typeof Ionicons.glyphMap}
-              size={20}
-              color={isSelected ? '#FFFFFF' : theme.colors.text.secondary}
-            />
-            <Typography
-              variant="caption"
-              numberOfLines={1}
-              style={{ color: isSelected ? '#FFFFFF' : theme.colors.text.primary, marginTop: 4, textAlign: 'center' }}
-            >
-              {style.label}
-            </Typography>
-          </TouchableOpacity>
-        );
-      })}
-    </ScrollView>
-  );
-
-  const providerTabLabel = (provider: AIProvider) => {
-    const model = getResolvedImageModel(provider, selectedModels[provider]);
-    return model?.shortProviderName
-      || configuredImageAIs.find((ai) => ai.provider === provider)?.name
-      || provider;
-  };
-
-  // The supported controls for one provider's resolved model (used inside the settings sheet).
-  const renderModelSettingsControls = (provider: AIProvider) => {
-    const model = getResolvedImageModel(provider, selectedModels[provider]);
-    if (!model) return null;
-
-    const settings = imageModelSettings[provider] || {};
-    const pick = <T,>(value: T | undefined, opts?: T[]): T | undefined =>
-      value !== undefined && opts?.includes(value) ? value : opts?.[0];
-
-    const qualityValues = model.qualityOptions || [];
-    const resolutionValues = model.resolutions || [];
-    const formatValues = model.outputFormats || [];
-    const backgroundValues = model.backgroundOptions || [];
-    const moderationValues = model.moderationOptions || [];
-
-    const qualityValue = (pick(settings.quality as ImageOutputQuality | undefined, qualityValues) || qualityValues[0]) as ImageOutputQuality;
-    const resolutionValue = pick(settings.resolution, resolutionValues) || resolutionValues[0];
-    const formatValue = (pick(settings.outputFormat, formatValues) || 'png') as ImageOutputFormat;
-    const backgroundValue = (pick(settings.background, backgroundValues) || 'auto') as ImageBackgroundOption;
-    const moderationValue = (pick(settings.moderation, moderationValues) || 'auto') as ImageModerationOption;
-    const compressionValue = settings.outputCompression ?? 80;
-
-    const showQuality = qualityValues.length > 1;
-    const showResolution = resolutionValues.length > 1;
-    const showFormat = formatValues.length > 1;
-    const showBackground = backgroundValues.length > 1;
-    const showSafety = moderationValues.length > 1;
-    const showCompression = formatValue !== 'png' && Boolean(model.supportsOutputCompression);
-    const hasControls = showQuality || showResolution || showFormat || showBackground || showSafety || showCompression;
-
-    return (
-      <View style={styles.modelSettingsBlock} testID={`create-model-settings-${provider}`}>
-        <View style={styles.modelSettingsHeaderRow}>
-          <Ionicons
-            name={model.supportsImageInput ? 'layers-outline' : 'text-outline'}
-            size={16}
-            color={model.supportsImageInput ? theme.colors.primary[500] : theme.colors.text.secondary}
-          />
-          <Typography variant="caption" color="secondary" style={styles.capabilityText}>
-            {model.supportsImageInput ? 'Can edit images and use references' : 'Creates from text prompts only'}
-          </Typography>
-        </View>
-        <ImageModelSelector
-          providerId={provider}
-          selectedModel={selectedModels[provider]}
-          onSelectModel={(modelId) => dispatch(setSelectedModel({ provider, modelId }))}
-          aiName={providerTabLabel(provider)}
-        />
-        {!hasControls && (
-          <Typography variant="caption" color="secondary">
-            {`${model.providerDisplayName} manages quality, format, and safety automatically — nothing to set here.`}
-          </Typography>
-        )}
-        {showQuality && renderOutputControlGroup(
-          'Quality',
-          renderOptionGrid(
-            qualityValues.map((q) => ({ id: q, label: IMAGE_QUALITY_LABELS[q] || q })),
-            qualityValue,
-            (quality) => handleModelSettingChange(provider, { quality }),
-            `create-image-quality-${provider}`
-          ),
-          { helpTopicId: 'create-quality' }
-        )}
-        {showResolution && renderOutputControlGroup(
-          'Resolution',
-          renderOptionGrid(
-            resolutionValues.map((r) => ({ id: r, label: r })),
-            resolutionValue,
-            (resolution) => handleModelSettingChange(provider, { resolution }),
-            `create-image-resolution-${provider}`
-          ),
-          { helpTopicId: 'create-resolution' }
-        )}
-        {showFormat && renderOutputControlGroup(
-          'Format',
-          renderOptionGrid(
-            formatValues.map((f) => ({ id: f, label: IMAGE_FORMAT_LABELS[f] || f })),
-            formatValue,
-            (outputFormat) => handleModelSettingChange(provider, { outputFormat }),
-            `create-image-format-${provider}`
-          ),
-          { helpTopicId: 'create-format' }
-        )}
-        {showBackground && renderOutputControlGroup(
-          'Background',
-          renderOptionGrid(
-            backgroundValues.map((b) => ({ id: b, label: IMAGE_BACKGROUND_LABELS[b] || b })),
-            backgroundValue,
-            (background) => handleModelSettingChange(provider, { background }),
-            `create-image-background-${provider}`
-          ),
-          { helpTopicId: 'create-background' }
-        )}
-        {showSafety && renderOutputControlGroup(
-          'Safety',
-          renderOptionGrid(
-            moderationValues.map((m) => ({ id: m, label: IMAGE_MODERATION_LABELS[m] || m })),
-            moderationValue,
-            (moderation) => handleModelSettingChange(provider, { moderation }),
-            `create-image-moderation-${provider}`
-          ),
-          { helpTopicId: 'create-safety' }
-        )}
-        {showCompression && renderOutputControlGroup(
-          'Compression',
-          renderDiscreteSlider({
-            options: [40, 60, 80, 100] as const,
-            value: compressionValue,
-            getLabel: (value) => `${value}`,
-            onChange: (value) => handleModelSettingChange(provider, { outputCompression: value || 80 }),
-            testID: `create-image-compression-${provider}`,
-          }),
-          { helpTopicId: 'create-compression' }
-        )}
-      </View>
-    );
-  };
-
-  const openSettingsSheet = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setActiveSettingsProvider(selectedProviders[0] || null);
-    setSettingsSheetOpen(true);
-  };
-
   // Shared bottom-sheet shell used by all three tabs (one tab active at a time).
   const renderSettingsSheetShell = (title: string, content: React.ReactNode) => {
     if (!settingsSheetOpen) return null;
@@ -1751,133 +1159,6 @@ export default function CreateSetupScreen() {
           </View>
         </View>
       </Modal>
-    );
-  };
-
-  // Image settings: shared (Style/Frame/Count) + per-model tabs.
-  const renderImageSettingsSheet = () => {
-    const activeProvider = (activeSettingsProvider && selectedProviders.includes(activeSettingsProvider))
-      ? activeSettingsProvider
-      : selectedProviders[0] || null;
-    const countOptions = Array.from({ length: imageMaxCount }, (_, index) => index + 1);
-
-    return renderSettingsSheetShell('Settings', (
-      <>
-        <Typography variant="caption" weight="semibold" color="secondary" style={styles.settingsGroupLabel}>
-          SHARED · ALL MODELS
-        </Typography>
-        {renderOutputControlGroup('Style', renderStyleScroller(), { helpTopicId: 'create-styles' })}
-        {renderOutputControlGroup(
-          'Frame',
-          renderOptionGrid(
-            [
-              { id: 'auto', label: 'Model default', description: 'Provider frame' },
-              { id: 'square', label: 'Square', description: '1:1' },
-              { id: 'portrait', label: 'Portrait', description: 'Vertical' },
-              { id: 'landscape', label: 'Landscape', description: 'Wide' },
-            ],
-            selectedSize,
-            handleSizeSelect,
-            'create-image-frame-grid'
-          ),
-          { helpTopicId: 'create-frame' }
-        )}
-        {imageMaxCount > 1 && renderOutputControlGroup(
-          'Count',
-          renderDiscreteSlider({
-            options: countOptions,
-            value: Math.min(selectedImageCount, imageMaxCount),
-            getLabel: (count) => `${count} image${count === 1 ? '' : 's'}`,
-            onChange: (count) => dispatch(setImageCount(count || 1)),
-            testID: 'create-image-count-slider',
-          })
-        )}
-
-        {activeProvider && (
-          <>
-            <Typography variant="caption" weight="semibold" color="secondary" style={styles.settingsGroupLabel}>
-              PER-MODEL SETTINGS
-            </Typography>
-            {selectedProviders.length > 1 && (
-              <SegmentedControl
-                fullWidth
-                options={selectedProviders.map((p) => ({ label: providerTabLabel(p), value: p }))}
-                value={activeProvider}
-                onChange={(p) => setActiveSettingsProvider(p as AIProvider)}
-              />
-            )}
-            {renderModelSettingsControls(activeProvider)}
-          </>
-        )}
-      </>
-    ));
-  };
-
-  const renderImageTab = () => {
-    const frameLabel = SIZE_LABELS[selectedSize] || 'Model default';
-    const modelCount = selectedProviders.length;
-    const settingsSummary = `${frameLabel} · ${selectedImageCount} image${selectedImageCount === 1 ? '' : 's'} · ${modelCount} model${modelCount === 1 ? '' : 's'}`;
-    const showSource = imageMode === 'refine' || imageSourceUris.length > 0;
-
-    return (
-      <>
-        {configuredImageAIs.length === 0 && renderProviderSetup('OpenAI, Google, or Grok')}
-
-        <View style={styles.section}>
-          <SectionHeader
-            title={imageMode === 'refine' ? 'Instructions' : 'Prompt'}
-            subtitle={imageMode === 'refine' ? 'Describe the exact changes to make' : 'Describe the image to create'}
-            icon="✍️"
-            helpTopicId="create-image-mode"
-          />
-          <PromptHeroInput
-            value={currentPrompt}
-            onChangeText={(text) => dispatch(setPrompt(text))}
-            maxLength={MAX_PROMPT_LENGTH}
-            placeholder={imageMode === 'refine' ? 'Change the lighting, preserve the subject, add...' : 'Describe what you want to create...'}
-            testID="create-prompt-input"
-          />
-          <View style={styles.modeToggleWrap}>
-            <SegmentedControl
-              fullWidth
-              options={[
-                { label: 'Create', value: 'create' },
-                { label: 'Refine', value: 'refine' },
-              ]}
-              value={imageMode}
-              onChange={(mode) => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setImageMode(mode);
-              }}
-            />
-          </View>
-        </View>
-
-        {showSource && renderImageSourceSection()}
-
-        {renderImageProviderGrid()}
-
-        {selectedProviders.length > 0 && (
-          <View style={styles.section}>
-            <TouchableOpacity
-              style={[styles.selectorRow, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-              onPress={openSettingsSheet}
-              accessibilityRole="button"
-              accessibilityLabel="Output and model settings"
-              testID="create-open-settings"
-            >
-              <Ionicons name="options-outline" size={22} color={theme.colors.text.secondary} />
-              <View style={styles.selectorText}>
-                <Typography variant="body" weight="semibold">Output & model settings</Typography>
-                <Typography variant="caption" color="secondary" numberOfLines={1}>{settingsSummary}</Typography>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={theme.colors.text.secondary} />
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {renderImageSettingsSheet()}
-      </>
     );
   };
 
@@ -2236,34 +1517,111 @@ export default function CreateSetupScreen() {
         title="The Studio"
         rightElement={renderHeaderRight()}
       />
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
-        <ScrollView
+      {activeTab === 'image' ? (
+        <KeyboardAvoidingView
           style={styles.flex}
-          contentContainerStyle={[
-            styles.content,
-            { paddingBottom: 16 },
-          ]}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-          showsVerticalScrollIndicator={false}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          {renderCreateTabs()}
+          <View style={styles.composerLayout}>
+            <CreateMediaTabs activeTab={activeTab} onChange={handleTabChange} testID="create-tabs" />
 
-          {activeTab === 'video' && renderVideoTab()}
-          {activeTab === 'audio' && renderAudioTab()}
+            {imageGeneration || lastImageGenerationResult ? (
+              <ScrollView
+                style={styles.flex}
+                contentContainerStyle={styles.statusScroll}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                <CreateGenerationStatusCard
+                  generation={imageGeneration}
+                  result={lastImageGenerationResult}
+                  selectedModels={composer.imageSelectionMaps.selectedModels}
+                  onViewInGallery={handleViewImagesInGallery}
+                />
+              </ScrollView>
+            ) : (
+              <CreateEmptyState
+                tab="image"
+                hasConfiguredProviders={composer.configuredProviderIds.length > 0}
+                recentAssets={recentImageAssets}
+                onPressRecent={(asset) =>
+                  navigation.navigate('CreateSession', { focusAssetId: asset.id, galleryTab: 'image' })
+                }
+                onConfigureProviders={handleAddAI}
+                testID="create-empty-state"
+              />
+            )}
 
-          {activeTab === 'image' && renderImageTab()}
-        </ScrollView>
+            <CreateComposer
+              tab="image"
+              configs={composer.configs}
+              maxAIs={3}
+              onAddProvider={composer.addProvider}
+              onUpdateConfig={composer.updateConfig}
+              onRemoveConfig={composer.removeConfig}
+              pickerProviders={composer.pickerProviders}
+              configuredProviderIds={composer.configuredProviderIds}
+              onRequestAddKey={handleAddAI}
+              attachments={imageAttachments}
+              onRemoveAttachment={(uri) => dispatch(removeAttachment({ tab: 'image', uri }))}
+              onOpenOptions={() => setImageOptionsSheetOpen(true)}
+              inputText={imagePrompt}
+              onChangeText={setImagePrompt}
+              onSend={handleSendImage}
+              canSend={canSendImage}
+              validationMessage={imageValidationMessage}
+              placeholder="Describe the image to create…"
+              testID="create-composer"
+            />
+          </View>
+        </KeyboardAvoidingView>
+      ) : (
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        >
+          <ScrollView
+            style={styles.flex}
+            contentContainerStyle={[
+              styles.content,
+              { paddingBottom: 16 },
+            ]}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            showsVerticalScrollIndicator={false}
+          >
+            <CreateMediaTabs activeTab={activeTab} onChange={handleTabChange} testID="create-tabs" />
 
-        {/* Generate Button - hidden when keyboard is visible */}
-        {!isKeyboardVisible && activeTab === 'image' && renderImageActionRail()}
-        {!isKeyboardVisible && activeTab === 'video' && renderMediaActionRail('video')}
-        {!isKeyboardVisible && activeTab === 'audio' && renderMediaActionRail('audio')}
-      </KeyboardAvoidingView>
+            {activeTab === 'video' && renderVideoTab()}
+            {activeTab === 'audio' && renderAudioTab()}
+          </ScrollView>
+
+          {/* Generate Button - hidden when keyboard is visible */}
+          {!isKeyboardVisible && activeTab === 'video' && renderMediaActionRail('video')}
+          {!isKeyboardVisible && activeTab === 'audio' && renderMediaActionRail('audio')}
+        </KeyboardAvoidingView>
+      )}
+
+      <CreateOptionsSheet
+        visible={imageOptionsSheetOpen}
+        onClose={() => setImageOptionsSheetOpen(false)}
+        style={composer.imageOptions.style}
+        onChangeStyle={(style) => dispatch(setImageOptions({ style }))}
+        size={composer.imageOptions.size}
+        onChangeSize={(size) => dispatch(setImageOptions({ size }))}
+        count={composer.imageOptions.count}
+        maxCount={composer.imageMaxCount}
+        onChangeCount={(count) => dispatch(setImageOptions({ count }))}
+        onAttachImage={handlePickImageSource}
+        onUseLatestImage={gallery.length > 0 ? handleUseLatestImageAsImageSource : undefined}
+        attachDisabledReason={
+          composer.imageSupportsSourceInput
+            ? undefined
+            : 'Select a model with image input to use references'
+        }
+        testID="create-options-sheet"
+      />
     </SafeAreaView>
   );
 }
@@ -2278,6 +1636,15 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     paddingTop: 16,
+  },
+  composerLayout: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+  statusScroll: {
+    paddingBottom: 16,
   },
   headerRight: {
     flexDirection: 'row',

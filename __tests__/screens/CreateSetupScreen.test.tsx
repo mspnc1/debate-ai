@@ -1,5 +1,6 @@
 /**
- * Tests for CreateSetupScreen - Setup screen for AI image generation
+ * Tests for CreateSetupScreen - composer-first Studio setup screen.
+ * Image tab: ComposerShell pills + options sheet. Video/audio: legacy forms.
  */
 import React from 'react';
 import { fireEvent, waitFor } from '@testing-library/react-native';
@@ -18,25 +19,6 @@ const mockGenerateCreateImages = jest.fn((payload) => ({
   payload,
   unwrap: jest.fn().mockResolvedValue({ ids: ['img_done'], entries: [], failedProviders: [] }),
 }));
-let mockGradientButtonProps: any;
-
-type MockSelectorAI = {
-  id: string;
-  provider: string;
-  name: string;
-};
-
-type MockDynamicAISelectorProps = {
-  configuredAIs: MockSelectorAI[];
-  hideAddAI?: boolean;
-  hideStartButton?: boolean;
-  hideHeaderTitle?: boolean;
-  onToggleAI: (ai: MockSelectorAI) => void;
-  onAddAI: () => void;
-  getIsDisabled?: (ai: MockSelectorAI) => boolean;
-};
-
-let mockDynamicAISelectorProps: MockDynamicAISelectorProps | undefined;
 
 jest.mock('react-redux', () => {
   const actual = jest.requireActual('react-redux');
@@ -78,9 +60,18 @@ jest.mock('@/hooks/useFeatureAccess', () => ({
   useFeatureAccess: (...args: unknown[]) => mockUseFeatureAccess(...args),
 }));
 
+jest.mock('@/services/create/CreateSelectionPersistenceService', () => {
+  const service = { load: jest.fn(), save: jest.fn() };
+  return {
+    __esModule: true,
+    CreateSelectionPersistenceService: service,
+    default: service,
+  };
+});
+
 jest.mock('expo-haptics', () => ({
-  impactAsync: jest.fn(),
-  notificationAsync: jest.fn(),
+  impactAsync: () => Promise.resolve(),
+  notificationAsync: () => Promise.resolve(),
   ImpactFeedbackStyle: { Light: 'light', Medium: 'medium' },
   NotificationFeedbackType: { Success: 'success', Error: 'error' },
 }));
@@ -105,9 +96,18 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
+// Header/HeaderActions stay stubbed; the Studio's own composer stack renders
+// for real so pills, sheets, and the status card are exercised end-to-end.
 jest.mock('@/components/organisms', () => {
   const React = require('react');
-  const { Text, TouchableOpacity, View } = require('react-native');
+  const { Text, View } = require('react-native');
+  const { CreateComposer } = jest.requireActual('@/components/organisms/create/CreateComposer');
+  const { CreateEmptyState } = jest.requireActual('@/components/organisms/create/CreateEmptyState');
+  const {
+    CreateGenerationStatusCard,
+  } = jest.requireActual('@/components/organisms/create/CreateGenerationStatusCard');
+  const { CreateMediaTabs } = jest.requireActual('@/components/organisms/create/CreateMediaTabs');
+  const { CreateOptionsSheet } = jest.requireActual('@/components/organisms/create/CreateOptionsSheet');
   return {
     Header: (props: any) =>
       React.createElement(
@@ -117,33 +117,11 @@ jest.mock('@/components/organisms', () => {
         props.rightElement
       ),
     HeaderActions: () => null,
-    DynamicAISelector: (props: MockDynamicAISelectorProps) => {
-      mockDynamicAISelectorProps = props;
-      return React.createElement(
-        View,
-        { testID: 'dynamic-ai-selector' },
-        props.configuredAIs.map((ai) =>
-          React.createElement(
-            TouchableOpacity,
-            {
-              key: ai.id,
-              testID: `create-model-card-${ai.provider}`,
-              disabled: props.getIsDisabled?.(ai),
-              onPress: () => props.onToggleAI(ai),
-            },
-            React.createElement(Text, null, ai.name)
-          )
-        ),
-        !props.hideAddAI
-          ? React.createElement(
-              TouchableOpacity,
-              { testID: 'create-add-ai', onPress: props.onAddAI },
-              React.createElement(Text, null, '+ Add AI')
-            )
-          : null
-      );
-    },
-    ImageRefinementModal: () => null,
+    CreateComposer,
+    CreateEmptyState,
+    CreateGenerationStatusCard,
+    CreateMediaTabs,
+    CreateOptionsSheet,
   };
 });
 
@@ -153,45 +131,32 @@ jest.mock('@/components/organisms/common/AIAvatar', () => {
   return { AIAvatar: (props: any) => React.createElement(View, { testID: `ai-avatar-${props.providerId || ''}` }) };
 });
 
-let mockPromptHeroInputProps: any;
-
 jest.mock('@/components/molecules', () => {
   const React = require('react');
-  const { Text, TextInput, TouchableOpacity, View } = require('react-native');
+  const { Text, TouchableOpacity, View } = require('react-native');
   return {
     Typography: ({ children, testID }: { children: React.ReactNode; testID?: string }) =>
       React.createElement(Text, { testID }, children),
     Badge: ({ label }: { label: string }) =>
       React.createElement(Text, { testID: `badge-${label}` }, label),
-    GradientButton: (props: any) => {
-      mockGradientButtonProps = props;
-      return React.createElement(
+    GradientButton: (props: any) =>
+      React.createElement(
         TouchableOpacity,
         { testID: 'gradient-button', onPress: props.onPress, disabled: props.disabled },
         React.createElement(Text, null, props.title)
-      );
-    },
+      ),
     HeaderIcon: (props: any) =>
       React.createElement(TouchableOpacity, { testID: props.testID, onPress: props.onPress }),
     SectionHeader: (props: any) =>
       React.createElement(Text, { testID: 'section-header' }, props.title),
     InfoButton: (props: any) =>
       React.createElement(TouchableOpacity, { testID: props.testID || `info-${props.topicId}` }),
-    CollapsibleCard: (props: any) =>
+    ImageModelSelector: (props: any) =>
       React.createElement(
-        View,
-        { testID: props.testID },
-        React.createElement(
-          TouchableOpacity,
-          { testID: props.testID ? `${props.testID}-toggle` : undefined, onPress: props.onToggle },
-          React.createElement(Text, null, props.title)
-        ),
-        props.expanded
-          ? React.createElement(View, { testID: props.testID ? `${props.testID}-content` : undefined }, props.children)
-          : null
+        TouchableOpacity,
+        { testID: 'image-model-selector', onPress: () => props.onSelectModel?.('picked-model') },
+        React.createElement(Text, null, props.selectedModel || 'model')
       ),
-    ImageModelSelector: () =>
-      React.createElement(View, { testID: 'image-model-selector' }),
     SheetHeader: (props: any) =>
       React.createElement(
         View,
@@ -199,16 +164,6 @@ jest.mock('@/components/molecules', () => {
         React.createElement(Text, null, props.title),
         React.createElement(TouchableOpacity, { testID: 'sheet-header-close', onPress: props.onClose })
       ),
-    PromptHeroInput: (props: any) => {
-      mockPromptHeroInputProps = props;
-      return React.createElement(TextInput, {
-        testID: props.testID || 'prompt-hero-input',
-        value: props.value,
-        onChangeText: props.onChangeText,
-        placeholder: props.placeholder,
-        maxLength: props.maxLength,
-      });
-    },
     SegmentedControl: (props: any) =>
       React.createElement(View, { testID: 'segmented-control' },
         props.options.map((option: any) =>
@@ -223,15 +178,44 @@ jest.mock('@/components/molecules', () => {
           )
         )
       ),
+    AIPill: (props: any) =>
+      React.createElement(
+        TouchableOpacity,
+        { testID: props.testID, onPress: props.onPress },
+        React.createElement(Text, null, props.name)
+      ),
+    AddAIPill: (props: any) =>
+      React.createElement(
+        TouchableOpacity,
+        { testID: props.testID, onPress: props.onPress },
+        React.createElement(Text, null, '+ Add AI')
+      ),
+    ComposerValidationHint: (props: any) =>
+      React.createElement(Text, { testID: props.testID }, props.message),
+    AttachmentChip: (props: any) =>
+      React.createElement(
+        View,
+        { testID: props.testID },
+        React.createElement(TouchableOpacity, {
+          testID: props.testID ? `${props.testID}-remove` : undefined,
+          onPress: props.onRemove,
+        })
+      ),
   };
 });
 
 jest.mock('@/config/aiProviders', () => ({
   AI_PROVIDERS: [
-    { id: 'openai', name: 'OpenAI', color: '#10A37F', enabled: true },
-    { id: 'google', name: 'Google', color: '#4285F4', enabled: true },
-    { id: 'grok', name: 'Grok', color: '#000000', enabled: true },
+    { id: 'openai', name: 'OpenAI', company: 'OpenAI', color: '#10A37F', enabled: true },
+    { id: 'google', name: 'Google', company: 'Google', color: '#4285F4', enabled: true },
+    { id: 'grok', name: 'Grok', company: 'xAI', color: '#000000', enabled: true },
   ],
+  getProviderById: (id: string) =>
+    [
+      { id: 'openai', name: 'OpenAI', company: 'OpenAI', color: '#10A37F', enabled: true },
+      { id: 'google', name: 'Google', company: 'Google', color: '#4285F4', enabled: true },
+      { id: 'grok', name: 'Grok', company: 'xAI', color: '#000000', enabled: true },
+    ].find((provider) => provider.id === id),
 }));
 
 jest.mock('@/config/create/stylePresets', () => ({
@@ -243,8 +227,8 @@ jest.mock('@/config/create/stylePresets', () => ({
 
 jest.mock('@/config/create/sizeOptions', () => ({
   SIZE_OPTIONS: [
-    { id: 'auto', label: 'Auto', icon: 'resize-outline', preview: 'Auto' },
-    { id: 'square', label: 'Square', icon: 'square-outline', preview: '1:1' },
+    { id: 'auto', label: 'Auto', description: 'Provider default', icon: 'resize-outline', preview: 'Auto' },
+    { id: 'square', label: 'Square', description: 'Perfect square', icon: 'square-outline', preview: '1:1' },
   ],
 }));
 
@@ -308,47 +292,41 @@ const mockImageModels: Record<string, Array<Record<string, unknown>>> = {
   ],
 };
 
+const mockDefaultModelIds: Record<string, string> = {
+  openai: 'gpt-image-2',
+  google: 'gemini-2.5-flash-image',
+  grok: 'grok-imagine-image',
+};
+
 jest.mock('@/config/imageGenerationModels', () => ({
-  getImageInputModels: (provider: string) => (mockImageModels[provider] || []).filter((model) => model.supportsImageInput),
+  IMAGE_MODELS: mockImageModels,
+  getImageModels: (provider: string) => mockImageModels[provider] || [],
+  getImageInputModels: (provider: string) =>
+    (mockImageModels[provider] || []).filter((model) => model.supportsImageInput),
+  getDefaultImageModel: (provider: string) =>
+    (mockImageModels[provider] || []).find((model) => model.id === mockDefaultModelIds[provider]),
   getImageProviderDisplayName: (provider: string, options?: { includeModel?: boolean; modelId?: string }) => {
-    const names: Record<string, string> = {
-      openai: 'ChatGPT',
-      google: 'Gemini',
-      grok: 'Grok',
-    };
+    const names: Record<string, string> = { openai: 'ChatGPT', google: 'Gemini', grok: 'Grok' };
     if (!options?.includeModel) return names[provider] || provider;
     const model = (mockImageModels[provider] || []).find((item) => item.id === options.modelId);
     return model ? `${names[provider] || provider} (${model.displayName})` : names[provider] || provider;
   },
   getResolvedImageModel: (provider: string, modelId?: string) => {
-    const resolvedId = modelId || ({
-      openai: 'gpt-image-2',
-      google: 'gemini-2.5-flash-image',
-      grok: 'grok-imagine-image',
-    } as Record<string, string>)[provider];
+    const resolvedId = modelId || mockDefaultModelIds[provider];
     return (mockImageModels[provider] || []).find((model) => model.id === resolvedId);
   },
   resolveImageModelId: (provider: string, modelId?: string) => {
-    if (modelId) return modelId;
-    const defaults: Record<string, string> = {
-      openai: 'gpt-image-2',
-      google: 'gemini-2.5-flash-image',
-      grok: 'grok-imagine-image',
-    };
-    return defaults[provider];
+    if (modelId && (mockImageModels[provider] || []).some((model) => model.id === modelId)) {
+      return modelId;
+    }
+    return mockDefaultModelIds[provider];
   },
   supportsImageGeneration: (provider: string) => ['openai', 'google', 'grok'].includes(provider),
   supportsImageInput: (provider: string, modelId?: string) => {
-    const resolvedId = modelId || ({
-      openai: 'gpt-image-2',
-      google: 'gemini-2.5-flash-image',
-      grok: 'grok-imagine-image',
-    } as Record<string, string>)[provider];
-    return Boolean((mockImageModels[provider] || []).find((model) => model.id === resolvedId)?.supportsImageInput);
-  },
-  getImageProviderDisplayName: (provider: string) => {
-    const names: Record<string, string> = { openai: 'OpenAI', google: 'Google', grok: 'Grok' };
-    return names[provider] || provider;
+    const resolvedId = modelId || mockDefaultModelIds[provider];
+    return Boolean(
+      (mockImageModels[provider] || []).find((model) => model.id === resolvedId)?.supportsImageInput
+    );
   },
 }));
 
@@ -358,13 +336,6 @@ jest.mock('@/utils/aiProviderAssets', () => ({
 
 jest.mock('@/store/createSlice', () => ({
   generateCreateImages: (payload: unknown) => mockGenerateCreateImages(payload),
-  setPrompt: jest.fn((prompt) => ({ type: 'create/setPrompt', payload: prompt })),
-  setStyle: jest.fn((style) => ({ type: 'create/setStyle', payload: style })),
-  setSize: jest.fn((size) => ({ type: 'create/setSize', payload: size })),
-  setImageCount: jest.fn((count) => ({ type: 'create/setImageCount', payload: count })),
-  setImageModelSetting: jest.fn((payload) => ({ type: 'create/setImageModelSetting', payload })),
-  setSelectedModel: jest.fn((payload) => ({ type: 'create/setSelectedModel', payload })),
-  setSelectedProviders: jest.fn((providers) => ({ type: 'create/setSelectedProviders', payload: providers })),
   setActiveCreateTab: jest.fn((tab) => ({ type: 'create/setActiveCreateTab', payload: tab })),
   markCreateActivitySeen: jest.fn(() => ({ type: 'create/markCreateActivitySeen' })),
   hydrateGallery: jest.fn(() => ({ type: 'create/hydrateGallery' })),
@@ -392,19 +363,29 @@ jest.mock('@/services/media/MediaGenerationService', () => ({
 const CreateSetupScreen = require('@/screens/CreateSetupScreen').default;
 
 describe('CreateSetupScreen', () => {
+  const baseCreateSelection = {
+    image: [],
+    imageOptions: { style: 'none', size: 'auto', count: 1 },
+    videoOptions: { modelId: 'gen4.5', durationSeconds: 5, aspectRatio: '1280:720' },
+    audioOptions: {
+      operation: 'text_to_speech',
+      ttsModelId: 'eleven_flash_v2_5',
+      sfxModelId: 'eleven_text_to_sound_v2',
+      voiceId: 'JBFqnCBsd6RMkjVDRZzb',
+      outputFormat: 'mp3_44100_128',
+      promptInfluence: 0.3,
+    },
+    attachments: { image: [], video: [], audio: [] },
+    hydrated: true,
+  };
+
   const baseState = {
     settings: {
       apiKeys: { openai: 'key-1', google: 'key-2', grok: 'key-3' },
       verifiedProviders: ['openai', 'google', 'grok'],
     },
+    createSelection: baseCreateSelection,
     create: {
-      selectedProviders: [],
-      selectedModels: {},
-      currentPrompt: '',
-      selectedStyle: 'none',
-      selectedSize: 'auto',
-      selectedImageCount: 1,
-      imageModelSettings: {},
       gallery: [],
       galleryHydrated: true,
       mediaGallery: [],
@@ -417,13 +398,32 @@ describe('CreateSetupScreen', () => {
     },
   };
 
+  const stateWith = (overrides: {
+    create?: Record<string, unknown>;
+    createSelection?: Record<string, unknown>;
+    settings?: Record<string, unknown>;
+  }) => ({
+    ...baseState,
+    settings: { ...baseState.settings, ...overrides.settings },
+    createSelection: { ...baseState.createSelection, ...overrides.createSelection },
+    create: { ...baseState.create, ...overrides.create },
+  });
+
+  const useStateWith = (overrides: Parameters<typeof stateWith>[0]) => {
+    const state = stateWith(overrides);
+    mockUseSelector.mockImplementation((selector) => selector(state));
+  };
+
+  const imageSelection = (providerId: string, modelId?: string, settings?: Record<string, unknown>) => ({
+    providerId,
+    modelId: modelId || mockDefaultModelIds[providerId],
+    ...(settings ? { settings } : {}),
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockDispatch.mockClear();
     mockNavigate.mockClear();
-    mockGradientButtonProps = undefined;
-    mockDynamicAISelectorProps = undefined;
-    mockPromptHeroInputProps = undefined;
     mockGenerateCreateImages.mockClear();
     mockDispatch.mockImplementation((action) => action);
     mockUseSelector.mockImplementation((selector) => selector(baseState));
@@ -476,35 +476,34 @@ describe('CreateSetupScreen', () => {
       expect(getByText('The Studio')).toBeTruthy();
     });
 
-    it('renders the shared provider selector grid', () => {
+    it('renders the docked composer with input, add pill, and send', () => {
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
-      expect(getByTestId('dynamic-ai-selector')).toBeTruthy();
-      expect(getByTestId('create-model-card-openai')).toBeTruthy();
-      expect(mockDynamicAISelectorProps).toEqual(expect.objectContaining({
-        hideStartButton: true,
-        hideHeaderTitle: true,
-      }));
+      expect(getByTestId('create-composer')).toBeTruthy();
+      expect(getByTestId('create-composer-input')).toBeTruthy();
+      expect(getByTestId('create-composer-add-ai')).toBeTruthy();
+      expect(getByTestId('create-composer-send')).toBeTruthy();
     });
 
-    it('renders generate button', () => {
-      const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
-      expect(getByTestId('gradient-button')).toBeTruthy();
+    it('renders a pill for each persisted image provider', () => {
+      useStateWith({
+        createSelection: { image: [imageSelection('openai'), imageSelection('google')] },
+      });
+      const { getByText } = renderWithProviders(<CreateSetupScreen />);
+      expect(getByText('OpenAI')).toBeTruthy();
+      expect(getByText('Google')).toBeTruthy();
     });
 
-    it('renders PromptHeroInput', () => {
-      const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
-      expect(getByTestId('create-prompt-input')).toBeTruthy();
-    });
-
-    it('renders a prompt-first layout (prompt, mode toggle, provider grid) without inline output sections', () => {
-      const { getByTestId, queryByTestId } = renderWithProviders(<CreateSetupScreen />);
-
-      expect(getByTestId('create-prompt-input')).toBeTruthy();
-      expect(getByTestId('segment-refine')).toBeTruthy();
-      expect(getByTestId('create-model-card-openai')).toBeTruthy();
-      // Output controls live in the settings sheet, not inline.
+    it('shows the empty-state greeting instead of inline setup sections', () => {
+      const { getByText, queryByTestId } = renderWithProviders(<CreateSetupScreen />);
+      expect(getByText('Create something')).toBeTruthy();
+      // Output controls live in sheets, not inline.
       expect(queryByTestId('create-image-count-slider')).toBeNull();
-      expect(queryByTestId('create-advanced-options')).toBeNull();
+      expect(queryByTestId('segmented-control')).toBeNull();
+    });
+
+    it('validates the empty lineup with composer copy', () => {
+      const { getByText } = renderWithProviders(<CreateSetupScreen />);
+      expect(getByText('Add an AI to create images')).toBeTruthy();
     });
   });
 
@@ -519,190 +518,145 @@ describe('CreateSetupScreen', () => {
     it('allows trial users to access (trial = premium access)', () => {
       mockUseFeatureAccess.mockReturnValue({ membershipStatus: 'trial', isDemo: false, isPremium: true });
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
-      expect(getByTestId('create-model-card-openai')).toBeTruthy();
+      expect(getByTestId('create-composer')).toBeTruthy();
     });
 
     it('allows premium users to access', () => {
       mockUseFeatureAccess.mockReturnValue({ membershipStatus: 'premium', isDemo: false, isPremium: true });
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
-      expect(getByTestId('create-model-card-openai')).toBeTruthy();
+      expect(getByTestId('create-composer')).toBeTruthy();
     });
   });
 
   describe('AI provider selection', () => {
-    it('renders a card for each configured provider', () => {
-      const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
-      expect(getByTestId('create-model-card-openai')).toBeTruthy();
-      expect(getByTestId('create-model-card-google')).toBeTruthy();
-      expect(getByTestId('create-model-card-grok')).toBeTruthy();
-    });
+    it('adds a provider with its default model through the picker sheet', () => {
+      const { getByTestId, getByText, getByLabelText } = renderWithProviders(<CreateSetupScreen />);
 
-    it('toggles provider selection when a card is pressed', () => {
-      const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
-      fireEvent.press(getByTestId('create-model-card-openai'));
-      expect(mockDispatch).toHaveBeenCalledWith({
-        type: 'create/setSelectedProviders',
-        payload: ['openai'],
-      });
-    });
+      fireEvent.press(getByTestId('create-composer-add-ai'));
+      expect(getByText('Add an AI')).toBeTruthy();
+      fireEvent.press(getByLabelText('OpenAI'));
 
-    it('shows the per-model capability summary inside the settings sheet', () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          create: {
-            ...baseState.create,
-            selectedProviders: ['openai'],
-          },
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'createSelection/addImageSelection',
+          payload: { providerId: 'openai', modelId: 'gpt-image-2' },
         })
       );
+    });
 
+    it('opens the per-pill config sheet with capability copy and model selector', () => {
+      useStateWith({ createSelection: { image: [imageSelection('openai')] } });
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
-      fireEvent.press(getByTestId('create-open-settings'));
-      expect(getByTestId('create-settings-sheet')).toBeTruthy();
-      expect(getByTestId('create-model-settings-openai')).toBeTruthy();
+
+      fireEvent.press(getByTestId('create-composer-pill-0'));
+      expect(getByTestId('image-model-selector')).toBeTruthy();
       expect(getByText(/Can edit images and use references/)).toBeTruthy();
     });
+
+    it('removes a pill from its config sheet', () => {
+      useStateWith({ createSelection: { image: [imageSelection('openai')] } });
+      const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
+
+      fireEvent.press(getByTestId('create-composer-pill-0'));
+      fireEvent.press(getByTestId('create-composer-config-remove'));
+
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'createSelection/removeImageSelection',
+          payload: { index: 0 },
+        })
+      );
+    });
+
+    it('routes model changes through updateImageSelection', () => {
+      useStateWith({ createSelection: { image: [imageSelection('google')] } });
+      const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
+
+      fireEvent.press(getByTestId('create-composer-pill-0'));
+      fireEvent.press(getByTestId('image-model-selector'));
+
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'createSelection/updateImageSelection',
+          payload: {
+            index: 0,
+            config: expect.objectContaining({ providerId: 'google', modelId: 'picked-model' }),
+          },
+        })
+      );
+    });
   });
 
-  describe('PromptHeroInput integration', () => {
-    it('passes correct props to PromptHeroInput', () => {
-      renderWithProviders(<CreateSetupScreen />);
-      expect(mockPromptHeroInputProps).toBeDefined();
-      expect(mockPromptHeroInputProps.maxLength).toBe(4000);
-      expect(mockPromptHeroInputProps.value).toBe('');
-    });
-
-    it('passes current prompt value to PromptHeroInput', () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          create: { ...baseState.create, currentPrompt: 'Test prompt' },
-        })
-      );
-
-      renderWithProviders(<CreateSetupScreen />);
-      expect(mockPromptHeroInputProps.value).toBe('Test prompt');
-    });
-
-    it('dispatches setPrompt when text changes', () => {
-      renderWithProviders(<CreateSetupScreen />);
-      mockPromptHeroInputProps.onChangeText('New prompt');
-      expect(mockDispatch).toHaveBeenCalledWith({ type: 'create/setPrompt', payload: 'New prompt' });
-    });
-  });
-
-  describe('Image Studio controls', () => {
-    it('switches Refine mode into explicit source and instruction controls', () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          create: {
-            ...baseState.create,
-            selectedProviders: ['openai'],
-          },
-        })
-      );
-
+  describe('output options sheet', () => {
+    it('dispatches style and frame changes from the options sheet', () => {
+      useStateWith({ createSelection: { image: [imageSelection('openai')] } });
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
-      fireEvent.press(getByTestId('segment-refine'));
+      fireEvent.press(getByTestId('create-composer-options'));
+      expect(getByTestId('create-options-sheet')).toBeTruthy();
 
-      expect(getByText('Source Image')).toBeTruthy();
-      expect(mockPromptHeroInputProps.placeholder).toContain('Change the lighting');
-      expect(getByText('Add an image to refine')).toBeTruthy();
-    });
-
-    it('shows adaptive OpenAI output controls inside the settings sheet', () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          create: {
-            ...baseState.create,
-            selectedProviders: ['openai'],
-          },
+      fireEvent.press(getByText('Photo'));
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'createSelection/setImageOptions',
+          payload: { style: 'photo' },
         })
       );
 
-      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
-
-      fireEvent.press(getByTestId('create-open-settings'));
-      expect(getByTestId('create-image-count-slider')).toBeTruthy();
-      expect(getByText('JPEG')).toBeTruthy();
-      expect(getByText('Less restrictive')).toBeTruthy();
-    });
-
-    it('hides count and shows the text-only note for single-image text-only models', () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          create: {
-            ...baseState.create,
-            selectedProviders: ['google'],
-            selectedModels: { google: 'imagen-4.0-generate-001' },
-          },
+      fireEvent.press(getByText('Square'));
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'createSelection/setImageOptions',
+          payload: { size: 'square' },
         })
       );
+    });
 
-      const { getByTestId, queryByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+    it('shows the count slider only when the lineup allows multiple images', () => {
+      useStateWith({ createSelection: { image: [imageSelection('openai')] } });
+      const multi = renderWithProviders(<CreateSetupScreen />);
+      fireEvent.press(multi.getByTestId('create-composer-options'));
+      expect(multi.getByTestId('create-image-count-slider')).toBeTruthy();
+      multi.unmount();
 
-      fireEvent.press(getByTestId('create-open-settings'));
-      expect(queryByTestId('create-image-count-slider')).toBeNull();
-      expect(getByText(/Creates from text prompts only/)).toBeTruthy();
+      useStateWith({
+        createSelection: { image: [imageSelection('google', 'imagen-4.0-generate-001')] },
+      });
+      const single = renderWithProviders(<CreateSetupScreen />);
+      fireEvent.press(single.getByTestId('create-composer-options'));
+      expect(single.queryByTestId('create-image-count-slider')).toBeNull();
     });
   });
 
   describe('generation', () => {
-    it('disables generate button when no prompt', () => {
-      renderWithProviders(<CreateSetupScreen />);
-      expect(mockGradientButtonProps.disabled).toBe(true);
+    it('does not send without a prompt', () => {
+      useStateWith({ createSelection: { image: [imageSelection('openai')] } });
+      const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
+      fireEvent.press(getByTestId('create-composer-send'));
+      expect(mockGenerateCreateImages).not.toHaveBeenCalled();
     });
 
-    it('enables generate button when prompt and providers are set', () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          create: {
-            ...baseState.create,
-            currentPrompt: 'A beautiful sunset',
-            selectedProviders: ['openai'],
-          },
-        })
-      );
-
-      renderWithProviders(<CreateSetupScreen />);
-      expect(mockGradientButtonProps.disabled).toBe(false);
-    });
-
-    it('dispatches image generation from the setup rail with model and output settings', async () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          create: {
-            ...baseState.create,
-            currentPrompt: 'A beautiful sunset',
-            selectedProviders: ['openai', 'google'],
-            selectedModels: {
-              openai: 'gpt-image-2',
-              google: 'gemini-2.5-flash-image',
-            },
-            selectedImageCount: 2,
-            imageModelSettings: {
-              openai: {
-                quality: 'auto',
-                resolution: '1K',
-                outputFormat: 'jpeg',
-                outputCompression: 80,
-                background: 'auto',
-                moderation: 'low',
-              },
-            },
-          },
-        })
-      );
+    it('dispatches image generation with model and output settings on send', async () => {
+      useStateWith({
+        createSelection: {
+          image: [
+            imageSelection('openai', 'gpt-image-2', {
+              quality: 'auto',
+              resolution: '1K',
+              outputFormat: 'jpeg',
+              outputCompression: 80,
+              background: 'auto',
+              moderation: 'low',
+            }),
+            imageSelection('google'),
+          ],
+          imageOptions: { style: 'none', size: 'auto', count: 2 },
+        },
+      });
 
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
-      fireEvent.press(getByTestId('gradient-button'));
+      fireEvent.changeText(getByTestId('create-composer-input'), 'A beautiful sunset');
+      fireEvent.press(getByTestId('create-composer-send'));
 
       expect(mockGenerateCreateImages).toHaveBeenCalledWith(expect.objectContaining({
         prompt: 'A beautiful sunset',
@@ -723,79 +677,139 @@ describe('CreateSetupScreen', () => {
           },
         },
         sourceImages: [],
+        refinementInstructions: undefined,
       }));
       await waitFor(() => {
-        expect(mockDispatch).toHaveBeenCalledWith({ type: 'create/setPrompt', payload: '' });
+        expect(getByTestId('create-composer-input').props.value).toBe('');
         expect(mockNavigate).toHaveBeenCalledWith('CreateSession', { focusAssetId: 'img_done', galleryTab: 'image' });
       });
     });
+
+    it('sends an attachment as a refinement with instructions', async () => {
+      useStateWith({
+        createSelection: {
+          image: [imageSelection('openai')],
+          attachments: {
+            image: [{ uri: 'file://source.png', mimeType: 'image/png', galleryAssetId: 'img_1' }],
+            video: [],
+            audio: [],
+          },
+        },
+      });
+
+      const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
+      expect(getByTestId('create-composer-attachments')).toBeTruthy();
+
+      fireEvent.changeText(getByTestId('create-composer-input'), 'Make the sky darker');
+      fireEvent.press(getByTestId('create-composer-send'));
+
+      expect(mockGenerateCreateImages).toHaveBeenCalledWith(expect.objectContaining({
+        sourceImages: [{ uri: 'file://source.png', mimeType: 'image/png' }],
+        isUploaded: true,
+        refinementInstructions: 'Make the sky darker',
+      }));
+    });
+
+    it('blocks send and explains when an attachment has no image-input model', () => {
+      useStateWith({
+        createSelection: {
+          image: [imageSelection('google', 'imagen-4.0-generate-001')],
+          attachments: {
+            image: [{ uri: 'file://source.png' }],
+            video: [],
+            audio: [],
+          },
+        },
+      });
+
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+      expect(
+        getByText('Attached image needs a model that can edit images — tap a pill to switch models')
+      ).toBeTruthy();
+
+      fireEvent.changeText(getByTestId('create-composer-input'), 'Refine this');
+      fireEvent.press(getByTestId('create-composer-send'));
+      expect(mockGenerateCreateImages).not.toHaveBeenCalled();
+    });
+
+    it('removes an attachment from its chip', () => {
+      useStateWith({
+        createSelection: {
+          image: [imageSelection('openai')],
+          attachments: {
+            image: [{ uri: 'file://source.png' }],
+            video: [],
+            audio: [],
+          },
+        },
+      });
+
+      const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
+      fireEvent.press(getByTestId('create-composer-attachment-remove'));
+
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'createSelection/removeAttachment',
+          payload: { tab: 'image', uri: 'file://source.png' },
+        })
+      );
+    });
   });
 
-  describe('image generation rail', () => {
+  describe('image generation status', () => {
     it('shows running state from shared image generation state', () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          create: {
-            ...baseState.create,
-            currentPrompt: 'A beautiful sunset',
-            selectedProviders: ['openai'],
-            imageGeneration: {
-              id: 'image_running',
-              providers: ['openai'],
-              prompt: 'A beautiful sunset',
-              status: 'running',
-              phase: 'generating',
-              startedAt: Date.now(),
-              message: 'Generating with openai...',
-              providerStatuses: {
-                openai: {
-                  provider: 'openai',
-                  modelId: 'gpt-image-2',
-                  status: 'generating',
-                  message: 'Generating image',
-                },
+      useStateWith({
+        createSelection: { image: [imageSelection('openai')] },
+        create: {
+          imageGeneration: {
+            id: 'image_running',
+            providers: ['openai'],
+            prompt: 'A beautiful sunset',
+            status: 'running',
+            phase: 'generating',
+            startedAt: Date.now(),
+            message: 'Generating with openai...',
+            providerStatuses: {
+              openai: {
+                provider: 'openai',
+                modelId: 'gpt-image-2',
+                status: 'generating',
+                message: 'Generating image',
               },
             },
           },
-        })
-      );
+        },
+      });
 
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
-      expect(getByTestId('create-image-rail')).toBeTruthy();
       expect(getByTestId('create-image-status')).toBeTruthy();
       expect(getByTestId('create-image-provider-status-openai')).toBeTruthy();
       expect(getByText('Generating with openai...')).toBeTruthy();
       expect(getByText('Generating image')).toBeTruthy();
-      expect(getByText('Generating Images...')).toBeTruthy();
     });
 
     it('shows failed state from the shared image generation result', () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          create: {
-            ...baseState.create,
-            selectedProviders: ['openai'],
-            lastImageGenerationResult: {
-              ids: [],
-              providers: ['openai'],
-              status: 'failed',
-              message: 'openai: bad request',
-              completedAt: Date.now(),
-              providerStatuses: {
-                openai: {
-                  provider: 'openai',
-                  modelId: 'gpt-image-2',
-                  status: 'error',
-                  error: 'bad request',
-                },
+      useStateWith({
+        createSelection: { image: [imageSelection('openai')] },
+        create: {
+          lastImageGenerationResult: {
+            ids: [],
+            providers: ['openai'],
+            status: 'failed',
+            message: 'openai: bad request',
+            completedAt: Date.now(),
+            providerStatuses: {
+              openai: {
+                provider: 'openai',
+                modelId: 'gpt-image-2',
+                status: 'error',
+                error: 'bad request',
               },
             },
           },
-        })
-      );
+        },
+      });
 
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
@@ -803,7 +817,6 @@ describe('CreateSetupScreen', () => {
       expect(getByTestId('create-image-provider-status-openai')).toBeTruthy();
       expect(getByText('openai: bad request')).toBeTruthy();
       expect(getByText('bad request')).toBeTruthy();
-      expect(getByText('Retry Images')).toBeTruthy();
     });
 
     it.each([
@@ -828,38 +841,33 @@ describe('CreateSetupScreen', () => {
     ])(
       'shows partial image generation rows when $failedProvider fails',
       ({ providers, successProvider, failedProvider, successModelId, failedModelId, message, error }) => {
-        mockUseSelector.mockImplementation((selector) =>
-          selector({
-            ...baseState,
-            create: {
-              ...baseState.create,
-              selectedProviders: [...providers],
-              lastImageGenerationResult: {
-                ids: ['img_done'],
-                providers: [...providers],
-                status: 'partial',
-                message,
-                completedAt: Date.now(),
-                failedProviders: [failedProvider],
-                providerStatuses: {
-                  [successProvider]: {
-                    provider: successProvider,
-                    modelId: successModelId,
-                    status: 'complete',
-                    message: 'Generated 1 image',
-                    resultIds: ['img_done'],
-                  },
-                  [failedProvider]: {
-                    provider: failedProvider,
-                    modelId: failedModelId,
-                    status: 'error',
-                    error,
-                  },
+        useStateWith({
+          create: {
+            lastImageGenerationResult: {
+              ids: ['img_done'],
+              providers: [...providers],
+              status: 'partial',
+              message,
+              completedAt: Date.now(),
+              failedProviders: [failedProvider],
+              providerStatuses: {
+                [successProvider]: {
+                  provider: successProvider,
+                  modelId: successModelId,
+                  status: 'complete',
+                  message: 'Generated 1 image',
+                  resultIds: ['img_done'],
+                },
+                [failedProvider]: {
+                  provider: failedProvider,
+                  modelId: failedModelId,
+                  status: 'error',
+                  error,
                 },
               },
             },
-          })
-        );
+          },
+        });
 
         const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
@@ -875,22 +883,17 @@ describe('CreateSetupScreen', () => {
     );
 
     it('opens Gallery from the completed image CTA focused on a single result', () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          create: {
-            ...baseState.create,
-            selectedProviders: ['openai'],
-            lastImageGenerationResult: {
-              ids: ['img_done'],
-              providers: ['openai'],
-              status: 'succeeded',
-              message: 'Image generation complete.',
-              completedAt: Date.now(),
-            },
+      useStateWith({
+        create: {
+          lastImageGenerationResult: {
+            ids: ['img_done'],
+            providers: ['openai'],
+            status: 'succeeded',
+            message: 'Image generation complete.',
+            completedAt: Date.now(),
           },
-        })
-      );
+        },
+      });
 
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
@@ -903,15 +906,7 @@ describe('CreateSetupScreen', () => {
 
   describe('media generation rail', () => {
     it('keeps audio settings in a closed sheet by default', () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          create: {
-            ...baseState.create,
-            activeTab: 'audio',
-          },
-        })
-      );
+      useStateWith({ create: { activeTab: 'audio' } });
 
       const { getByTestId, queryByTestId } = renderWithProviders(<CreateSetupScreen />);
 
@@ -922,15 +917,7 @@ describe('CreateSetupScreen', () => {
     });
 
     it('opens audio settings and updates model and format through picker rows', () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          create: {
-            ...baseState.create,
-            activeTab: 'audio',
-          },
-        })
-      );
+      useStateWith({ create: { activeTab: 'audio' } });
 
       const { getByTestId, getByText, queryByTestId } = renderWithProviders(<CreateSetupScreen />);
 
@@ -953,19 +940,12 @@ describe('CreateSetupScreen', () => {
     });
 
     it('selects a voice from the shared voice picker and updates the selector', async () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          settings: {
-            ...baseState.settings,
-            apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
-          },
-          create: {
-            ...baseState.create,
-            activeTab: 'audio',
-          },
-        })
-      );
+      useStateWith({
+        settings: {
+          apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
+        },
+        create: { activeTab: 'audio' },
+      });
 
       const { getByTestId, getByText, getAllByText } = renderWithProviders(<CreateSetupScreen />);
 
@@ -979,19 +959,12 @@ describe('CreateSetupScreen', () => {
     });
 
     it('generates audio with the voice chosen in the picker', async () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          settings: {
-            ...baseState.settings,
-            apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
-          },
-          create: {
-            ...baseState.create,
-            activeTab: 'audio',
-          },
-        })
-      );
+      useStateWith({
+        settings: {
+          apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
+        },
+        create: { activeTab: 'audio' },
+      });
 
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
@@ -1016,15 +989,7 @@ describe('CreateSetupScreen', () => {
     });
 
     it('keeps sound effect controls inside audio settings', () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          create: {
-            ...baseState.create,
-            activeTab: 'audio',
-          },
-        })
-      );
+      useStateWith({ create: { activeTab: 'audio' } });
 
       const { getByTestId, getByText, queryByTestId } = renderWithProviders(<CreateSetupScreen />);
 
@@ -1041,19 +1006,12 @@ describe('CreateSetupScreen', () => {
     });
 
     it('dispatches the existing audio generation payload after picker selections', async () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          settings: {
-            ...baseState.settings,
-            apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
-          },
-          create: {
-            ...baseState.create,
-            activeTab: 'audio',
-          },
-        })
-      );
+      useStateWith({
+        settings: {
+          apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
+        },
+        create: { activeTab: 'audio' },
+      });
 
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
@@ -1088,19 +1046,12 @@ describe('CreateSetupScreen', () => {
     });
 
     it('uses Flash v2.5 as the default Create voiceover model', async () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          settings: {
-            ...baseState.settings,
-            apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
-          },
-          create: {
-            ...baseState.create,
-            activeTab: 'audio',
-          },
-        })
-      );
+      useStateWith({
+        settings: {
+          apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
+        },
+        create: { activeTab: 'audio' },
+      });
 
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
@@ -1121,19 +1072,12 @@ describe('CreateSetupScreen', () => {
     });
 
     it('clears the audio prompt after successful generation', async () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          settings: {
-            ...baseState.settings,
-            apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
-          },
-          create: {
-            ...baseState.create,
-            activeTab: 'audio',
-          },
-        })
-      );
+      useStateWith({
+        settings: {
+          apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
+        },
+        create: { activeTab: 'audio' },
+      });
 
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
 
@@ -1149,20 +1093,13 @@ describe('CreateSetupScreen', () => {
     });
 
     it('clears the video prompt after successful generation', async () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          settings: {
-            ...baseState.settings,
-            apiKeys: { ...baseState.settings.apiKeys, runway: 'runway-key' },
-            verifiedProviders: [...baseState.settings.verifiedProviders, 'runway'],
-          },
-          create: {
-            ...baseState.create,
-            activeTab: 'video',
-          },
-        })
-      );
+      useStateWith({
+        settings: {
+          apiKeys: { ...baseState.settings.apiKeys, runway: 'runway-key' },
+          verifiedProviders: [...baseState.settings.verifiedProviders, 'runway'],
+        },
+        create: { activeTab: 'video' },
+      });
 
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
 
@@ -1178,35 +1115,30 @@ describe('CreateSetupScreen', () => {
     });
 
     it('shows the sticky video running rail from media generation state', () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          settings: {
-            ...baseState.settings,
-            apiKeys: { ...baseState.settings.apiKeys, runway: 'runway-key' },
-            verifiedProviders: [...baseState.settings.verifiedProviders, 'runway'],
-          },
-          create: {
-            ...baseState.create,
-            activeTab: 'video',
-            mediaGeneration: {
-              video: {
-                id: 'media_running',
-                mediaType: 'video',
-                providerId: 'runway',
-                operation: 'text_to_video',
-                modelId: 'gen4.5',
-                prompt: 'A city timelapse',
-                status: 'running',
-                phase: 'rendering',
-                startedAt: Date.now(),
-                message: 'Rendering video...',
-              },
-              audio: null,
+      useStateWith({
+        settings: {
+          apiKeys: { ...baseState.settings.apiKeys, runway: 'runway-key' },
+          verifiedProviders: [...baseState.settings.verifiedProviders, 'runway'],
+        },
+        create: {
+          activeTab: 'video',
+          mediaGeneration: {
+            video: {
+              id: 'media_running',
+              mediaType: 'video',
+              providerId: 'runway',
+              operation: 'text_to_video',
+              modelId: 'gen4.5',
+              prompt: 'A city timelapse',
+              status: 'running',
+              phase: 'rendering',
+              startedAt: Date.now(),
+              message: 'Rendering video...',
             },
+            audio: null,
           },
-        })
-      );
+        },
+      });
 
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
@@ -1217,28 +1149,23 @@ describe('CreateSetupScreen', () => {
     });
 
     it('shows a video completion CTA that opens Gallery focused on the result', () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          settings: {
-            ...baseState.settings,
-            apiKeys: { ...baseState.settings.apiKeys, runway: 'runway-key' },
-            verifiedProviders: [...baseState.settings.verifiedProviders, 'runway'],
+      useStateWith({
+        settings: {
+          apiKeys: { ...baseState.settings.apiKeys, runway: 'runway-key' },
+          verifiedProviders: [...baseState.settings.verifiedProviders, 'runway'],
+        },
+        create: {
+          activeTab: 'video',
+          mediaGeneration: { video: null, audio: null },
+          lastMediaGenerationResult: {
+            id: 'media_video_done',
+            mediaType: 'video',
+            status: 'succeeded',
+            message: 'Video generation complete.',
+            completedAt: Date.now(),
           },
-          create: {
-            ...baseState.create,
-            activeTab: 'video',
-            mediaGeneration: { video: null, audio: null },
-            lastMediaGenerationResult: {
-              id: 'media_video_done',
-              mediaType: 'video',
-              status: 'succeeded',
-              message: 'Video generation complete.',
-              completedAt: Date.now(),
-            },
-          },
-        })
-      );
+        },
+      });
 
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
@@ -1249,23 +1176,19 @@ describe('CreateSetupScreen', () => {
     });
 
     it('uses the same sticky rail pattern for audio completion', () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          create: {
-            ...baseState.create,
-            activeTab: 'audio',
-            mediaGeneration: { video: null, audio: null },
-            lastMediaGenerationResult: {
-              id: 'media_audio_done',
-              mediaType: 'audio',
-              status: 'succeeded',
-              message: 'Audio generation complete.',
-              completedAt: Date.now(),
-            },
+      useStateWith({
+        create: {
+          activeTab: 'audio',
+          mediaGeneration: { video: null, audio: null },
+          lastMediaGenerationResult: {
+            id: 'media_audio_done',
+            mediaType: 'audio',
+            status: 'succeeded',
+            message: 'Audio generation complete.',
+            completedAt: Date.now(),
           },
-        })
-      );
+        },
+      });
 
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
@@ -1277,20 +1200,13 @@ describe('CreateSetupScreen', () => {
     });
 
     it('maps the video duration slider index to allowed duration values', () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          settings: {
-            ...baseState.settings,
-            apiKeys: { ...baseState.settings.apiKeys, runway: 'runway-key' },
-            verifiedProviders: [...baseState.settings.verifiedProviders, 'runway'],
-          },
-          create: {
-            ...baseState.create,
-            activeTab: 'video',
-          },
-        })
-      );
+      useStateWith({
+        settings: {
+          apiKeys: { ...baseState.settings.apiKeys, runway: 'runway-key' },
+          verifiedProviders: [...baseState.settings.verifiedProviders, 'runway'],
+        },
+        create: { activeTab: 'video' },
+      });
 
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
@@ -1303,12 +1219,7 @@ describe('CreateSetupScreen', () => {
 
   describe('gallery hydration', () => {
     it('dispatches hydrateGallery on mount when not hydrated', () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          create: { ...baseState.create, galleryHydrated: false },
-        })
-      );
+      useStateWith({ create: { galleryHydrated: false } });
 
       renderWithProviders(<CreateSetupScreen />);
       expect(mockDispatch).toHaveBeenCalledWith({ type: 'create/hydrateGallery' });
@@ -1316,12 +1227,7 @@ describe('CreateSetupScreen', () => {
 
     it('does NOT dispatch hydrateGallery in demo mode', () => {
       mockUseFeatureAccess.mockReturnValue({ membershipStatus: 'demo', isDemo: true, isPremium: false });
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          create: { ...baseState.create, galleryHydrated: false },
-        })
-      );
+      useStateWith({ create: { galleryHydrated: false } });
 
       renderWithProviders(<CreateSetupScreen />);
       expect(mockDispatch).not.toHaveBeenCalledWith({ type: 'create/hydrateGallery' });
@@ -1330,12 +1236,7 @@ describe('CreateSetupScreen', () => {
 
   describe('gallery access', () => {
     it('navigates to CreateSession when gallery button is pressed (premium user)', () => {
-      mockUseSelector.mockImplementation((selector) =>
-        selector({
-          ...baseState,
-          create: { ...baseState.create, gallery: [{ id: '1' }] },
-        })
-      );
+      useStateWith({ create: { gallery: [{ id: '1', uri: 'file://a.png' }] } });
 
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
       fireEvent.press(getByTestId('header-gallery-button'));
@@ -1343,7 +1244,13 @@ describe('CreateSetupScreen', () => {
       expect(mockNavigate).toHaveBeenCalledWith('CreateSession', {});
     });
 
-    // Note: Demo users now see the upgrade gate before reaching the gallery button,
-    // so gallery-specific demo tests are no longer applicable
+    it('opens a recent creation from the empty-state strip', () => {
+      useStateWith({ create: { gallery: [{ id: 'img_1', uri: 'file://a.png' }] } });
+
+      const { getByLabelText } = renderWithProviders(<CreateSetupScreen />);
+      fireEvent.press(getByLabelText('Open recent creation'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('CreateSession', { focusAssetId: 'img_1', galleryTab: 'image' });
+    });
   });
 });
