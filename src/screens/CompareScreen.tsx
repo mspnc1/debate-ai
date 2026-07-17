@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef } from 'react';
 import { StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
-import { RootState, setWebSearchPreferred } from '../store';
+import { RootState } from '../store';
 import { ErrorService } from '@/services/errors/ErrorService';
 
 import {
@@ -20,7 +20,7 @@ import { useAIService } from '../providers/AIServiceProvider';
 import { AIConfig, Message, ChatSession, MessageAttachment, Citation } from '../types';
 import { StorageService } from '../services/chat/StorageService';
 import { getExpertOverrides } from '../utils/expertMode';
-import { getModelById, resolveProviderModelId } from '@/config/modelConfigs';
+import { getModelById, resolveProviderModelId, supportsWebSearch } from '@/config/modelConfigs';
 import { getProviderById } from '@/config/aiProviders';
 import { getPersonality } from '@/config/personalities';
 import { buildPersonalityRuntime, mergeRuntimeModelParameters } from '@/services/personality';
@@ -227,7 +227,6 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
   const expertModeConfigs = useSelector((state: RootState) => state.settings.expertMode || {});
   const currentUser = useSelector((state: RootState) => state.user.currentUser);
   const streamingState = useSelector((state: RootState) => state.streaming);
-  const webSearchPreferred = useSelector((state: RootState) => state.chat.webSearchPreferred);
   
   // Check if we're resuming a session
   const currentSession = useSelector((state: RootState) => 
@@ -492,9 +491,8 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
   })();
   const availability = useMergedModalityAvailabilityStrict(selectedList);
 
-  // Web search availability - both AIs must support it in Compare mode
-  const webSearchAvailable = availability.webSearch.supported;
-  const webSearchEnabled = webSearchPreferred && webSearchAvailable;
+  // Web search is capability-driven per side — each model that supports it
+  // searches; the other pane is unaffected.
 
   const buildCompareRuntime = useCallback((ai: AIConfig) => {
     const personalityId = ai.personality || 'default';
@@ -794,7 +792,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
               personality: leftRuntime.personalityConfig,
               parameters: leftRuntimeParameters,
               isDebateMode: false,
-              webSearchEnabled,
+              webSearchEnabled: supportsWebSearch(leftAI.provider, leftEffModel),
             },
             message: messageText,
             conversationHistory: leftHistoryRef.current,
@@ -968,7 +966,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
               personality: rightRuntime.personalityConfig,
               parameters: rightRuntimeParameters,
               isDebateMode: false,
-              webSearchEnabled,
+              webSearchEnabled: supportsWebSearch(rightAI.provider, rightEffModel),
             },
             message: messageText,
             conversationHistory: rightHistoryRef.current,
@@ -1141,7 +1139,6 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     logComparePrompt,
     leftEffectiveModel,
     rightEffectiveModel,
-    webSearchEnabled,
   ]);
 
   const handleRetryCompare = useCallback(async () => {
@@ -1582,9 +1579,6 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
             imageGeneration: 'Use Create mode to generate images',
             videoGeneration: availability.videoGeneration.supported ? undefined : 'Selected provider(s) do not support video generation',
           }}
-          webSearchAvailable={webSearchAvailable}
-          webSearchEnabled={webSearchEnabled}
-          onWebSearchToggle={() => dispatch(setWebSearchPreferred(!webSearchPreferred))}
         />
         </View>
       {recordModeEnabled && (

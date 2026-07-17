@@ -10,7 +10,7 @@ import { ChatService } from './ChatService';
 import { PromptBuilder } from './PromptBuilder';
 import { HOME_CONSTANTS } from '@/config/homeConstants';
 import { getPersonality, PersonalityOption } from '@/config/personalities';
-import { resolveProviderModelId } from '@/config/modelConfigs';
+import { resolveProviderModelId, supportsWebSearch } from '@/config/modelConfigs';
 import { getExpertOverrides } from '@/utils/expertMode';
 import { ensureAnswerContent } from '@/utils/citationUtils';
 import { getStreamingService, isStreamInterruptedError } from '@/services/streaming/StreamingService';
@@ -52,7 +52,6 @@ export interface ProcessUserMessageParams {
   globalStreamingEnabled?: boolean;
   allowStreaming: boolean;
   isDemo: boolean;
-  webSearchEnabled?: boolean;
 }
 
 export class ChatOrchestrator {
@@ -111,7 +110,6 @@ export class ChatOrchestrator {
       globalStreamingEnabled,
       allowStreaming,
       isDemo,
-      webSearchEnabled,
     } = params;
 
     let resumptionContext = initialResumption;
@@ -134,6 +132,9 @@ export class ChatOrchestrator {
         selectedModels[ai.id] || ai.model
       ) || ai.model;
       const aiForTurn: AI = { ...ai, model: effectiveModel };
+      // Per-AI, capability-driven: each model that supports web search uses
+      // it; the rest of the lineup is unaffected.
+      const webSearchEnabled = supportsWebSearch(ai.provider, effectiveModel);
       const adapter = typeof this.aiService.ensureAdapter === 'function'
         ? await this.aiService.ensureAdapter(ai.id, ai.provider, effectiveModel)
         : this.aiService.getAdapter(ai.id);

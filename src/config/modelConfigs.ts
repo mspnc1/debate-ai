@@ -1039,6 +1039,11 @@ export const resolveProviderModelId = (
   return getProviderDefaultModel(providerId)?.id;
 };
 
+// Web search is capability-driven, not user-toggled: models that support it
+// search by default; others simply don't.
+export const supportsWebSearch = (providerId: string, modelId: string): boolean =>
+  Boolean(getModelById(providerId, modelId)?.supportsWebSearch);
+
 // Helper function to get a specific model by ID
 export const getModelById = (
   providerId: string,

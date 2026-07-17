@@ -511,7 +511,6 @@ describe('ChatScreen', () => {
       }),
       undefined,
       undefined,
-      false,
     );
 
     act(() => {

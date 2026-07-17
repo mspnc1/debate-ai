@@ -61,7 +61,6 @@ interface ChatState {
   isLoading: boolean;
   aiPersonalities: { [aiId: string]: string };
   selectedModels: { [aiId: string]: string };
-  webSearchPreferred: boolean;
 }
 
 const initialChatState: ChatState = {
@@ -71,9 +70,6 @@ const initialChatState: ChatState = {
   isLoading: false,
   aiPersonalities: {},
   selectedModels: {},
-  // Defaults on: sessions gate it by capability (webSearchPreferred &&
-  // webSearchAvailable), so non-supporting lineups simply ignore it.
-  webSearchPreferred: true,
 };
 
 const filterSupportedSelectedAIs = (selectedAIs: AIConfig[] = []): AIConfig[] =>
@@ -172,9 +168,6 @@ const chatSlice = createSlice({
     },
     clearModels: (state) => {
       state.selectedModels = {};
-    },
-    setWebSearchPreferred: (state, action: PayloadAction<boolean>) => {
-      state.webSearchPreferred = action.payload;
     },
   },
 });
@@ -407,7 +400,7 @@ export type AppDispatch = AppStore['dispatch'];
 
 // Export actions
 export const { setUser, updateUIMode, updateSubscription, logout } = userSlice.actions;
-export const { startSession, addMessage, updateMessage, setTypingAI, endSession, loadSession, setLoading, setAIPersonality, setAIModel, clearPersonalities, clearModels, setWebSearchPreferred } = chatSlice.actions;
+export const { startSession, addMessage, updateMessage, setTypingAI, endSession, loadSession, setLoading, setAIPersonality, setAIModel, clearPersonalities, clearModels } = chatSlice.actions;
 export const {
   updateTheme,
   updateFontSize,

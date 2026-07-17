@@ -11,7 +11,6 @@ import {
   RootState,
   addMessage,
   updateMessage,
-  setWebSearchPreferred,
   isApiKeyConfigured,
   loadSession as loadSessionAction,
   setAIPersonality,
@@ -145,7 +144,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
   const aiPersonalities = useSelector((state: RootState) => state.chat.aiPersonalities);
   const selectedModels = useSelector((state: RootState) => state.chat.selectedModels);
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys);
-  const webSearchPreferred = useSelector((state: RootState) => state.chat.webSearchPreferred);
 
   // AI Service state
   const { aiService, isInitialized, isLoading, error } = useAIService();
@@ -168,9 +166,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     selectedAIsForChat.map(ai => ({ provider: ai.provider, model: ai.model }))
   );
 
-  // Web search availability - only show toggle when all selected AIs support it
-  const webSearchAvailable = availability.webSearch.supported;
-  const webSearchEnabled = webSearchPreferred && webSearchAvailable;
   const controllersRef = React.useRef<Record<string, AbortController>>({});
   // Refinement modal state
   const [refinementModalVisible, setRefinementModalVisible] = React.useState(false);
@@ -468,9 +463,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     ));
 
     setRecoveryNotice(null);
-    await aiResponses.retryAIResponses(userMessage, existingMessages, webSearchEnabled);
+    await aiResponses.retryAIResponses(userMessage, existingMessages);
     await saveActiveChatSnapshot('active');
-  }, [aiResponses, saveActiveChatSnapshot, session.currentSession?.messages, webSearchEnabled]);
+  }, [aiResponses, saveActiveChatSnapshot, session.currentSession?.messages]);
 
   const confirmChatLeave = useRecoverableExitGuard({
     navigation,
@@ -691,9 +686,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
 
     await checkpoint;
 
-    // Trigger AI responses with attachments and web search if enabled
-    await aiResponses.sendAIResponses(userMessage, undefined, attachments, webSearchEnabled);
-  }, [dispatch, input, session.currentSession, mentions, aiResponses, isDemo, webSearchEnabled, persistChatCheckpoint]);
+    // Trigger AI responses; web search is capability-driven per AI downstream
+    await aiResponses.sendAIResponses(userMessage, undefined, attachments);
+  }, [dispatch, input, session.currentSession, mentions, aiResponses, isDemo, persistChatCheckpoint]);
 
   const messagePersistenceSignature = React.useMemo(() => {
     const currentSession = session.currentSession;
@@ -1074,9 +1069,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
             imageGeneration: 'Use Create mode to generate images',
             videoGeneration: availability.videoGeneration.supported ? undefined : 'Selected provider(s) do not support video generation',
           }}
-          webSearchAvailable={webSearchAvailable}
-          webSearchEnabled={webSearchEnabled}
-          onWebSearchToggle={() => dispatch(setWebSearchPreferred(!webSearchPreferred))}
         />
         </View>
         <View>

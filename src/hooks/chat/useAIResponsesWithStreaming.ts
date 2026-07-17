@@ -14,18 +14,15 @@ export interface AIResponsesHook {
   sendAIResponses: (
     userMessage: Message,
     enrichedPrompt?: string,
-    attachments?: MessageAttachment[],
-    webSearchEnabled?: boolean
+    attachments?: MessageAttachment[]
   ) => Promise<void>;
   sendQuickStartResponses: (
     userPrompt: string,
-    enrichedPrompt: string,
-    webSearchEnabled?: boolean
+    enrichedPrompt: string
   ) => Promise<void>;
   retryAIResponses: (
     userMessage: Message,
-    existingMessagesOverride: Message[],
-    webSearchEnabled?: boolean
+    existingMessagesOverride: Message[]
   ) => Promise<void>;
   isProcessing: boolean;
 }
@@ -86,7 +83,6 @@ export const useAIResponsesWithStreaming = (_isResuming?: boolean): AIResponsesH
     userMessage: Message,
     enrichedPrompt?: string,
     attachments?: MessageAttachment[],
-    webSearchEnabled?: boolean,
     existingMessagesOverride?: Message[]
   ) => {
     if (!aiService || !isInitialized || !currentSession || !orchestratorRef.current) {
@@ -110,37 +106,32 @@ export const useAIResponsesWithStreaming = (_isResuming?: boolean): AIResponsesH
       globalStreamingEnabled,
       allowStreaming: true,
       isDemo,
-      webSearchEnabled,
     });
   }, [aiService, apiKeys, expertModeConfigs, globalStreamingEnabled, isDemo, isInitialized, messages, selectedModels, aiPersonalities, mergedPersonalities, streamingPreferences, currentSession]);
 
   const sendAIResponses = useCallback(async (
     userMessage: Message,
     enrichedPrompt?: string,
-    attachments?: MessageAttachment[],
-    webSearchEnabled?: boolean
+    attachments?: MessageAttachment[]
   ) => {
-    await processAIResponses(userMessage, enrichedPrompt, attachments, webSearchEnabled);
+    await processAIResponses(userMessage, enrichedPrompt, attachments);
   }, [processAIResponses]);
 
   const retryAIResponses = useCallback(async (
     userMessage: Message,
-    existingMessagesOverride: Message[],
-    webSearchEnabled?: boolean
+    existingMessagesOverride: Message[]
   ) => {
     await processAIResponses(
       userMessage,
       undefined,
       userMessage.attachments,
-      webSearchEnabled,
       existingMessagesOverride
     );
   }, [processAIResponses]);
 
   const sendQuickStartResponses = useCallback(async (
     userPrompt: string,
-    enrichedPrompt: string,
-    webSearchEnabled?: boolean
+    enrichedPrompt: string
   ) => {
     if (!aiService || !isInitialized || !currentSession || !orchestratorRef.current) {
       console.error('AI service not ready or no active session');
@@ -164,7 +155,6 @@ export const useAIResponsesWithStreaming = (_isResuming?: boolean): AIResponsesH
       globalStreamingEnabled,
       allowStreaming: true,
       isDemo,
-      webSearchEnabled,
     });
   }, [aiService, apiKeys, dispatch, expertModeConfigs, globalStreamingEnabled, isDemo, isInitialized, messages, selectedModels, aiPersonalities, mergedPersonalities, streamingPreferences, currentSession]);
 
