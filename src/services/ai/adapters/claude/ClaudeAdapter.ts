@@ -1,5 +1,6 @@
 import { Message, MessageAttachment } from '../../../../types';
 import { getDefaultModel, resolveModelAlias } from '../../../../config/providers/modelRegistry';
+import { getModelById } from '../../../../config/modelConfigs';
 import { BaseAdapter } from '../../base/BaseAdapter';
 import {
   ResumptionContext,
@@ -16,27 +17,21 @@ type ClaudeEventTypes = 'message_start' | 'content_block_start' | 'content_block
 export class ClaudeAdapter extends BaseAdapter {
   private lastModelUsed?: string;
 
-  private shouldOmitSamplingParameters(modelId: string): boolean {
-    return modelId === 'claude-opus-4-7' || modelId === 'claude-opus-4-8';
-  }
-  
   getCapabilities(): AdapterCapabilities {
-    // Check if the current model supports documents (PDFs)
-    const model = this.config.model || 'claude-sonnet-4-6';
-    const supportsDocuments = ![
-      'claude-3-opus-20240229',
-      'claude-3-haiku-20240307'
-    ].includes(model);
-    
+    const modelId = resolveModelAlias(this.config.model || getDefaultModel('claude'));
+    const model = getModelById('claude', modelId);
+    // Uncataloged legacy IDs without PDF support
+    const legacyNoDocuments = ['claude-3-opus-20240229', 'claude-3-haiku-20240307'].includes(modelId);
+
     return {
       streaming: true,
       attachments: true,  // All Claude models support at least images
-      supportsImages: true,  // All Claude models support images
-      supportsDocuments,  // Most models support PDFs, except older ones
+      supportsImages: model?.supportsVision ?? true,
+      supportsDocuments: model?.supportsDocuments ?? !legacyNoDocuments,
       functionCalling: true,
       systemPrompt: true,
-      maxTokens: 8192,
-      contextWindow: 200000,
+      maxTokens: model?.maxOutputTokens ?? 8192,
+      contextWindow: model?.contextLength ?? 200000,
     };
   }
   
@@ -118,14 +113,15 @@ export class ClaudeAdapter extends BaseAdapter {
           ],
         };
 
-        if (!this.shouldOmitSamplingParameters(modelId)) {
-          requestBody.temperature = this.config.parameters?.temperature ?? 0.7;
-          if (this.config.parameters?.topP !== undefined) {
-            requestBody.top_p = this.config.parameters.topP;
-          }
-          if (this.config.parameters?.topK !== undefined) {
-            requestBody.top_k = this.config.parameters.topK;
-          }
+        const sampling = this.resolveSamplingParameters(modelId);
+        if (sampling.temperature !== undefined) {
+          requestBody.temperature = sampling.temperature;
+        }
+        if (sampling.topP !== undefined) {
+          requestBody.top_p = sampling.topP;
+        }
+        if (sampling.topK !== undefined) {
+          requestBody.top_k = sampling.topK;
         }
 
         const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -204,8 +200,12 @@ export class ClaudeAdapter extends BaseAdapter {
       ],
     };
 
-    if (!this.shouldOmitSamplingParameters(modelId)) {
-      requestBodyObj.temperature = this.config.parameters?.temperature ?? 0.7;
+    const streamSampling = this.resolveSamplingParameters(modelId);
+    if (streamSampling.temperature !== undefined) {
+      requestBodyObj.temperature = streamSampling.temperature;
+    }
+    if (streamSampling.topP !== undefined) {
+      requestBodyObj.top_p = streamSampling.topP;
     }
 
     // Create the request body

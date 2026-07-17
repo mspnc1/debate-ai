@@ -100,19 +100,22 @@ export abstract class OpenAICompatibleAdapter extends BaseAdapter {
     }
     
     try {
+      const sampling = this.resolveSamplingParameters(resolvedModel);
       const requestBody: Record<string, unknown> = {
         model: resolvedModel,
         messages,
-        temperature: this.config.parameters?.temperature ?? 0.7,
         stream: false,
       };
-      
+
+      if (sampling.temperature !== undefined) {
+        requestBody.temperature = sampling.temperature;
+      }
       // Only set optional parameters if provided
       if (this.config.parameters?.maxTokens) {
         requestBody.max_tokens = this.config.parameters.maxTokens;
       }
-      if (this.config.parameters?.topP !== undefined) {
-        requestBody.top_p = this.config.parameters.topP;
+      if (sampling.topP !== undefined) {
+        requestBody.top_p = sampling.topP;
       }
       
       const response = await fetch(`${config.baseUrl}/chat/completions`, {
@@ -245,17 +248,20 @@ export abstract class OpenAICompatibleAdapter extends BaseAdapter {
       const { getModelById } = await import('../../../config/modelConfigs');
       const modelConfig = getModelById('openai', resolvedModel);
       
+      // startsWith checks are a fallback for uncataloged model IDs only; the
+      // catalog's requiresTemperature1 flag is authoritative via the helper.
       const isO1Model = resolvedModel.startsWith('o1');
       const isGPT5Model = resolvedModel.startsWith('gpt-5');
-      
+
       // Handle temperature requirements
       if (modelConfig?.requiresTemperature1 || isGPT5Model || isO1Model) {
         // GPT-5 and O1 models require temperature=1
         requestBodyObj.temperature = 1;
       } else {
-        requestBodyObj.temperature = this.config.parameters?.temperature ?? 0.7;
+        requestBodyObj.temperature =
+          this.resolveSamplingParameters(resolvedModel).temperature ?? 0.7;
       }
-      
+
       // Handle token parameter - GPT-5 and O1 use max_completion_tokens, others use max_tokens
       if (isGPT5Model || isO1Model) {
         // Don't set a default - let OpenAI use its own defaults
@@ -266,8 +272,14 @@ export abstract class OpenAICompatibleAdapter extends BaseAdapter {
         requestBodyObj.max_tokens = this.config.parameters.maxTokens;
       }
     } else {
-      // Non-OpenAI providers use standard parameters
-      requestBodyObj.temperature = this.config.parameters?.temperature ?? 0.7;
+      // Non-OpenAI providers use catalog-sanitized parameters
+      const sampling = this.resolveSamplingParameters(resolvedModel);
+      if (sampling.temperature !== undefined) {
+        requestBodyObj.temperature = sampling.temperature;
+      }
+      if (sampling.topP !== undefined) {
+        requestBodyObj.top_p = sampling.topP;
+      }
       // Only set max_tokens if explicitly configured
       if (this.config.parameters?.maxTokens) {
         requestBodyObj.max_tokens = this.config.parameters.maxTokens;

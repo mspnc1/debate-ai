@@ -133,7 +133,7 @@ describe('OpenAICompatibleAdapter', () => {
     const parsedBody = JSON.parse((request?.body as string) ?? '{}');
 
     expect(parsedBody.model).toBe('gpt-5.6-sol'); // alias resolved via resolveModelAlias
-    expect(parsedBody.temperature).toBe(0.4);
+    expect(parsedBody.temperature).toBe(1); // gpt-5.6-sol requires temperature 1
     expect(parsedBody.max_tokens).toBe(256);
     expect(parsedBody.top_p).toBe(0.9);
 

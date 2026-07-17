@@ -1,5 +1,6 @@
 import { Message, MessageAttachment } from '../../../../types';
 import { getDefaultModel, resolveModelAlias } from '../../../../config/providers/modelRegistry';
+import { getModelById } from '../../../../config/modelConfigs';
 import { BaseAdapter } from '../../base/BaseAdapter';
 import {
   ResumptionContext,
@@ -113,10 +114,11 @@ export class GeminiAdapter extends BaseAdapter {
         contents,
         generationConfig: buildGeminiGenerationConfig({
           model: resolvedModel,
-          temperature: this.config.parameters?.temperature ?? 0.7,
+          temperature: this.resolveSamplingParameters(resolvedModel).temperature ?? 0.7,
           topP: this.config.parameters?.topP ?? 0.95,
           topK: this.config.parameters?.topK ?? 40,
           maxTokens: this.config.parameters?.maxTokens,
+          supportsThinking: getModelById('google', resolvedModel)?.supportsThinking,
         }),
       };
 
@@ -247,10 +249,11 @@ export class GeminiAdapter extends BaseAdapter {
       contents,
       generationConfig: buildGeminiGenerationConfig({
         model: resolvedModel,
-        temperature: this.config.parameters?.temperature ?? 0.7,
+        temperature: this.resolveSamplingParameters(resolvedModel).temperature ?? 0.7,
         topP: this.config.parameters?.topP ?? 0.95,
         topK: this.config.parameters?.topK ?? 40,
         maxTokens: this.config.parameters?.maxTokens,
+        supportsThinking: getModelById('google', resolvedModel)?.supportsThinking,
       }),
     });
 

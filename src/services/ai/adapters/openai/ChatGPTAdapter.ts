@@ -57,9 +57,10 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
   }
   
   protected getProviderConfig(): ProviderConfig {
-    // Check if the model supports vision
-    const model = this.config.model || 'gpt-5';
-    const supportsImages = model.startsWith('gpt-4o') ||
+    const model = this.config.model || getDefaultModel('openai');
+    const modelConfig = getModelById('openai', model);
+    // startsWith heuristic is a fallback for uncataloged model IDs only
+    const heuristicVision = model.startsWith('gpt-4o') ||
                           model.startsWith('gpt-4-turbo') ||
                           model.startsWith('gpt-4-vision') ||
                           model.startsWith('gpt-4.1') ||
@@ -67,26 +68,25 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
                           model.startsWith('o1') ||
                           model.startsWith('o3') ||
                           model.startsWith('o4');
-
-    // OpenAI now supports documents natively (as of March 2025)
-    const supportsDocuments = supportsImages;
+    const supportsImages = modelConfig?.supportsVision ?? heuristicVision;
+    const supportsDocuments = modelConfig?.supportsDocuments ?? supportsImages;
 
     return {
       baseUrl: 'https://api.openai.com/v1',
-      defaultModel: 'gpt-5.5',
+      defaultModel: getDefaultModel('openai'),
       headers: (apiKey: string) => ({
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       }),
       capabilities: {
-        streaming: true,
+        streaming: modelConfig?.supportsStreaming !== false,
         attachments: supportsImages,  // Only if model supports vision
         supportsImages,  // Supported via multimodal models
         supportsDocuments,  // Native file support as of March 2025
         functionCalling: true,
         systemPrompt: true,
-        maxTokens: 128000,  // GPT-5 max output
-        contextWindow: 1050000,
+        maxTokens: modelConfig?.maxOutputTokens ?? 128000,
+        contextWindow: modelConfig?.contextLength ?? 1050000,
       },
     };
   }

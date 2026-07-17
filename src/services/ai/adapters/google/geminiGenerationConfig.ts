@@ -10,6 +10,7 @@ interface GeminiGenerationConfigOptions {
   topP?: number;
   topK?: number;
   maxTokens?: number;
+  supportsThinking?: boolean;
 }
 
 function normalizeMaxTokens(maxTokens: number | undefined): number | undefined {
@@ -18,7 +19,15 @@ function normalizeMaxTokens(maxTokens: number | undefined): number | undefined {
     : undefined;
 }
 
-function getGeminiThinkingConfig(model: string, maxOutputTokens?: number): GeminiThinkingConfig | undefined {
+function getGeminiThinkingConfig(
+  model: string,
+  maxOutputTokens?: number,
+  supportsThinking?: boolean
+): GeminiThinkingConfig | undefined {
+  // Catalog says this model has no thinking mode; nothing to configure.
+  if (supportsThinking === false) {
+    return undefined;
+  }
   if (!maxOutputTokens || maxOutputTokens > TIGHT_OUTPUT_TOKEN_CAP) {
     return undefined;
   }
@@ -52,6 +61,7 @@ export function buildGeminiGenerationConfig({
   topP,
   topK,
   maxTokens,
+  supportsThinking,
 }: GeminiGenerationConfigOptions): Record<string, unknown> {
   const resolvedMaxTokens = normalizeMaxTokens(maxTokens);
   const config: Record<string, unknown> = {
@@ -70,7 +80,7 @@ export function buildGeminiGenerationConfig({
     config.maxOutputTokens = resolvedMaxTokens;
   }
 
-  const thinkingConfig = getGeminiThinkingConfig(model, resolvedMaxTokens);
+  const thinkingConfig = getGeminiThinkingConfig(model, resolvedMaxTokens, supportsThinking);
   if (thinkingConfig) {
     config.thinkingConfig = thinkingConfig;
   }

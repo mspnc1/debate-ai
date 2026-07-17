@@ -154,7 +154,7 @@ export class CohereAdapter extends BaseAdapter {
         body: JSON.stringify({
           model,
           messages,
-          temperature: this.config.parameters?.temperature ?? 0.7,
+          temperature: this.resolveSamplingParameters(model).temperature ?? 0.7,
           max_tokens: this.config.parameters?.maxTokens || 2048,
         }),
       });
@@ -198,7 +198,7 @@ export class CohereAdapter extends BaseAdapter {
     const requestBody = JSON.stringify({
       model,
       messages,
-      temperature: this.config.parameters?.temperature ?? 0.7,
+      temperature: this.resolveSamplingParameters(model).temperature ?? 0.7,
       max_tokens: this.config.parameters?.maxTokens || 2048,
       stream: true,
     });

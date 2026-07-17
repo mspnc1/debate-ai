@@ -8,6 +8,7 @@ import {
   AdapterCapabilities
 } from '../types/adapter.types';
 import { APIError } from '../../../errors/types/APIError';
+import { getSupportedParams, normalizeTemperatureForModel } from '../../../config/modelConfigs';
 import { toneToModifiers, debateProfileToGuidance } from '@/lib/personality';
 
 export abstract class BaseAdapter {
@@ -26,7 +27,45 @@ export abstract class BaseAdapter {
   ): Promise<SendMessageResponse>;
   
   abstract getCapabilities(): AdapterCapabilities;
-  
+
+  /**
+   * Sampling parameters sanitized against the model catalog: params listed in
+   * the model's unsupportedParams are omitted, and temperature is clamped to
+   * the provider/model range (e.g. Claude/Cohere cap at 1, requiresTemperature1
+   * models lock to 1). Single choke point for chat, compare, and debate.
+   */
+  protected resolveSamplingParameters(modelId: string): {
+    temperature?: number;
+    topP?: number;
+    topK?: number;
+  } {
+    const provider = this.config.provider;
+    const providerParams = getSupportedParams(provider, modelId);
+    // Unknown providers (e.g. mock) have no declared params; keep legacy behavior.
+    const supported = new Set(
+      providerParams.length ? providerParams : ['temperature', 'maxTokens', 'topP', 'topK']
+    );
+
+    const params: { temperature?: number; topP?: number; topK?: number } = {};
+    if (supported.has('temperature')) {
+      const temperature = normalizeTemperatureForModel(
+        provider,
+        modelId,
+        this.config.parameters?.temperature ?? 0.7
+      );
+      if (temperature !== undefined) {
+        params.temperature = temperature;
+      }
+    }
+    if (supported.has('topP') && this.config.parameters?.topP !== undefined) {
+      params.topP = this.config.parameters.topP;
+    }
+    if (supported.has('topK') && this.config.parameters?.topK !== undefined) {
+      params.topK = this.config.parameters.topK;
+    }
+    return params;
+  }
+
   protected getSystemPrompt(): string {
     const debateBase = 'You are participating in a structured debate. Take a clear position, follow the phase-specific instructions provided in user messages (Opening/Rebuttal/Closing), avoid headings/lists, and use concrete reasoning.';
 
