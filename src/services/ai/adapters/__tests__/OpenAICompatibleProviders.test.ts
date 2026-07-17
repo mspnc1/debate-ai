@@ -196,3 +196,122 @@ describe.each(ADAPTER_MATRIX)('$name adapter', ({
     }
   });
 });
+
+describe('GrokAdapter web search (xAI Responses API)', () => {
+  let fetchMock: jest.MockedFunction<typeof fetch>;
+
+  const createResponsesPayload = (overrides: Record<string, unknown> = {}) => ({
+    ok: true,
+    json: async () => ({
+      model: 'grok-4.5',
+      status: 'completed',
+      output: [
+        {
+          type: 'message',
+          content: [
+            {
+              type: 'output_text',
+              text: 'Fresh answer',
+              annotations: [
+                { type: 'url_citation', url: 'https://example.com/x', title: 'Source X' },
+              ],
+            },
+          ],
+        },
+      ],
+      usage: { input_tokens: 9, output_tokens: 4, total_tokens: 13 },
+      ...overrides,
+    }),
+  }) as unknown as Response;
+
+  beforeEach(() => {
+    fetchMock = jest.fn().mockResolvedValue(createResponsesPayload());
+    global.fetch = fetchMock;
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  const makeSearchConfig = (): AIAdapterConfig => ({
+    provider: 'grok',
+    apiKey: 'test-key',
+    model: 'grok-4.5',
+    parameters: { temperature: 0.4, maxTokens: 2048 },
+    webSearchEnabled: true,
+  });
+
+  it('posts to /responses with the web_search tool and typed input', async () => {
+    const adapter = new GrokAdapter(makeSearchConfig());
+
+    const result = await adapter.sendMessage('What is happening today?');
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, requestInit] = fetchMock.mock.calls[0];
+    expect(String(url)).toBe('https://api.x.ai/v1/responses');
+    const body = JSON.parse((requestInit?.body as string) || '{}');
+    expect(body.tools).toEqual([{ type: 'web_search' }]);
+    expect(body.stream).toBe(false);
+    expect(typeof body.instructions).toBe('string');
+    expect(body.input[body.input.length - 1]).toEqual({
+      role: 'user',
+      content: [{ type: 'input_text', text: 'What is happening today?' }],
+    });
+    expect(result).toEqual(expect.objectContaining({
+      response: 'Fresh answer',
+      metadata: {
+        citations: [{ index: 1, url: 'https://example.com/x', title: 'Source X' }],
+      },
+    }));
+  });
+
+  it('falls back to top-level xAI citations when no url_citation annotations exist', async () => {
+    fetchMock.mockResolvedValueOnce(createResponsesPayload({
+      output: [
+        { type: 'message', content: [{ type: 'output_text', text: 'Plain answer' }] },
+      ],
+      citations: ['https://example.com/one', 'https://example.com/two'],
+    }));
+    const adapter = new GrokAdapter(makeSearchConfig());
+
+    const result = await adapter.sendMessage('Search this');
+
+    expect(result).toEqual(expect.objectContaining({
+      response: 'Plain answer',
+      metadata: {
+        citations: [
+          { index: 1, url: 'https://example.com/one' },
+          { index: 2, url: 'https://example.com/two' },
+        ],
+      },
+    }));
+  });
+
+  it('simulates streaming with a citations event and never opens chat/completions', async () => {
+    const adapter = new GrokAdapter(makeSearchConfig());
+    const onEvent = jest.fn();
+
+    const chunks: string[] = [];
+    for await (const chunk of adapter.streamMessage('Latest news', [], undefined, undefined, undefined, undefined, onEvent)) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks.join('')).toBe('Fresh answer');
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'citations',
+      citations: [{ index: 1, url: 'https://example.com/x', title: 'Source X' }],
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toBe('https://api.x.ai/v1/responses');
+  });
+
+  it('keeps the plain chat path on chat/completions when web search is disabled', async () => {
+    fetchMock.mockResolvedValueOnce(createFetchResponse());
+    const adapter = new GrokAdapter({ ...makeSearchConfig(), webSearchEnabled: false });
+
+    await adapter.sendMessage('Just chat');
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(String(url)).toBe('https://api.x.ai/v1/chat/completions');
+  });
+});
