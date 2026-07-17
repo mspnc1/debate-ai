@@ -304,7 +304,9 @@ export type AI = AIConfig;
 // Navigation types
 export type RootStackParamList = {
   Welcome: undefined;
-  MainTabs: undefined;
+  MainTabs:
+    | { screen?: 'Home' | 'DebateTab' | 'Compare' | 'CreateTab' | 'History' }
+    | undefined;
   Home: undefined;
   Chat: {
     sessionId: string;
@@ -341,11 +343,6 @@ export type RootStackParamList = {
   CompareSession: { leftAI: AIConfig; rightAI: AIConfig; sessionId?: string; resuming?: boolean; initialPrompt?: string };
   CreateTab: undefined;
   CreateSession: {
-    providers?: AIProvider[];
-    selectedModels?: Partial<Record<AIProvider, string>>;
-    initialPrompt?: string;
-    sourceImage?: string;
-    refinementInstructions?: string;
     focusAssetId?: string;
     focusMediaId?: string;
     galleryTab?: 'all' | 'image' | 'video' | 'audio';

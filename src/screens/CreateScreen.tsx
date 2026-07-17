@@ -34,14 +34,13 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../theme';
 import { Typography } from '../components/molecules';
-import { ImageRefinementModal, RefinementProvider } from '../components/organisms/chat/ImageRefinementModal';
+import type { RefinementProvider } from '../components/organisms/chat/ImageRefinementModal';
 import { GeneratedContentReportModal } from '@/components/organisms/report/GeneratedContentReportModal';
-import { RootState, AppDispatch, isApiKeyConfigured } from '../store';
+import { RootState, AppDispatch, isApiKeyConfigured, setAttachments } from '../store';
 import {
   selectCreateState,
   selectGallery,
   selectIsGenerating,
-  generateCreateImages,
   removeFromGalleryWithCleanup,
   persistGallery,
   updateGalleryEntryUri,
@@ -77,14 +76,12 @@ import {
   getImageInputModels,
   getImageModelDisplayName,
   getImageProviderDisplayName,
-  resolveImageModelId,
   supportsImageInput,
 } from '../config/imageGenerationModels';
 import {
   getImageShareUti,
   getImageMimeType,
   isDocumentImageUri,
-  loadBase64FromFileUri,
   persistImageUri,
 } from '../services/images/fileCache';
 import MediaSaveService from '../services/media/MediaSaveService';
@@ -894,38 +891,26 @@ export default function CreateScreen() {
   const route = useRoute<ScreenRouteProp>();
   const dispatch = useDispatch<AppDispatch>();
 
-  const {
-    providers = [],
-    selectedModels: routeSelectedModels = {},
-    initialPrompt,
-    sourceImage,
-    refinementInstructions,
-    focusAssetId,
-    focusMediaId,
-  } = route.params || {};
+  const { focusAssetId, focusMediaId } = route.params || {};
 
   const createState = useSelector(selectCreateState);
   const gallery = useSelector(selectGallery);
   const isGenerating = useSelector(selectIsGenerating);
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
-  const { isDemo, canStartTrial, loading: subscriptionLoading } = useFeatureAccess();
+  const { isDemo, canStartTrial } = useFeatureAccess();
   const subscriptionUnlockMessage = canStartTrial
     ? 'Start a free trial to unlock this feature.'
     : 'Upgrade to Premium to unlock this feature.';
 
   const {
-    selectedModels: storedSelectedModels = {},
-    selectedStyle,
-    selectedSize,
-    imageModelSettings = {},
     generationProgress,
     generationError: errorMessage,
     galleryHydrated,
     mediaGallery = [],
     mediaGalleryHydrated = false,
     mediaGeneration = { video: null, audio: null },
+    imageGeneration = null,
   } = createState;
-  const isGenerationSession = Boolean(initialPrompt || sourceImage || refinementInstructions || providers.length > 0);
   const requestedFocusAssetId = focusAssetId || focusMediaId;
   const primaryTintBackground = isDark ? theme.colors.overlays.medium : theme.colors.primary[50];
   const primaryAccentColor = isDark ? theme.colors.primary[300] : theme.colors.primary[600];
@@ -936,10 +921,7 @@ export default function CreateScreen() {
   const [savingMediaId, setSavingMediaId] = useState<string | null>(null);
   const [sharingImageId, setSharingImageId] = useState<string | null>(null);
   const [sharingMediaId, setSharingMediaId] = useState<string | null>(null);
-  const [refiningImage, setRefiningImage] = useState<GeneratedImageEntry | null>(null);
-  const [galleryTab, setGalleryTab] = useState<GalleryTab>(
-    route.params?.galleryTab || (isGenerationSession ? 'image' : 'all')
-  );
+  const [galleryTab, setGalleryTab] = useState<GalleryTab>(route.params?.galleryTab || 'all');
   const [gallerySearch, setGallerySearch] = useState('');
   const [galleryFilters, setGalleryFilters] = useState<GalleryFilterState>(EMPTY_GALLERY_FILTERS);
   const [gallerySortMode, setGallerySortMode] = useState<GallerySortMode>('newest');
@@ -950,19 +932,6 @@ export default function CreateScreen() {
   const [bulkSaving, setBulkSaving] = useState(false);
   const [reportTarget, setReportTarget] = useState<GeneratedContentReportTarget | null>(null);
   const focusedAssetRef = useRef<string | undefined>(undefined);
-
-  const activeSelectedModels = useMemo(() => {
-    return providers.reduce((acc, provider) => {
-      const resolvedModelId = resolveImageModelId(
-        provider,
-        routeSelectedModels[provider] || storedSelectedModels[provider]
-      );
-      if (resolvedModelId) {
-        acc[provider] = resolvedModelId;
-      }
-      return acc;
-    }, {} as Partial<Record<AIProvider, string>>);
-  }, [providers, routeSelectedModels, storedSelectedModels]);
 
   // Build available providers for refinement
   const availableRefinementProviders: RefinementProvider[] = useMemo(() => {
@@ -1049,76 +1018,6 @@ export default function CreateScreen() {
     }
   }, [galleryAssets, selectedAssetId]);
 
-  const runLegacyRouteGeneration = useCallback(async () => {
-    if (isDemo) {
-      ErrorService.showInfo(`Image generation requires a subscription. ${subscriptionUnlockMessage}`, 'create');
-      return;
-    }
-    if (providers.length === 0) return;
-
-    const prompt = refinementInstructions || initialPrompt;
-    if (!prompt) return;
-
-    try {
-      await dispatch(generateCreateImages({
-        prompt,
-        providers,
-        selectedModels: activeSelectedModels,
-        style: selectedStyle,
-        size: selectedSize,
-        modelSettings: imageModelSettings,
-        sourceImages: sourceImage ? [{ uri: sourceImage }] : undefined,
-        isUploaded: Boolean(sourceImage),
-        refinementInstructions,
-      })).unwrap();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      ErrorService.handleWithToast(error, { feature: 'create' });
-    }
-  }, [
-    activeSelectedModels,
-    dispatch,
-    imageModelSettings,
-    initialPrompt,
-    isDemo,
-    providers,
-    refinementInstructions,
-    selectedSize,
-    selectedStyle,
-    sourceImage,
-    subscriptionUnlockMessage,
-  ]);
-
-  // Start legacy route-based generation once subscription status is loaded.
-  useEffect(() => {
-    if (subscriptionLoading) return;
-    if ((initialPrompt || refinementInstructions || sourceImage) && providers.length > 0) {
-      runLegacyRouteGeneration();
-    }
-  }, [initialPrompt, providers.length, refinementInstructions, runLegacyRouteGeneration, sourceImage, subscriptionLoading]);
-
-  const handleRefine = useCallback((imageId: string) => {
-    if (isDemo) {
-      ErrorService.showInfo(`Image refinement requires a subscription. ${subscriptionUnlockMessage}`, 'create');
-      return;
-    }
-
-    const image = gallery.find(img => img.id === imageId);
-    if (!image) return;
-
-    // Check if any provider supports refinement
-    const hasRefinementProvider = availableRefinementProviders.some((providerInfo) => (
-      providerInfo.supportsImg2Img && providerInfo.hasApiKey
-    ));
-    if (!hasRefinementProvider) {
-      ErrorService.showInfo('No providers with image refinement capability are configured. Add an OpenAI, Google, or Grok API key to enable refinement.', 'create');
-      return;
-    }
-
-    setRefiningImage(image);
-  }, [isDemo, gallery, availableRefinementProviders, subscriptionUnlockMessage]);
-
   const getResolvedGalleryImage = useCallback(async (imageId: string): Promise<GeneratedImageEntry | null> => {
     const image = gallery.find((entry) => entry.id === imageId);
     if (!image) return null;
@@ -1140,33 +1039,48 @@ export default function CreateScreen() {
     return image;
   }, [dispatch, gallery]);
 
-  const handleRefinementSubmit = useCallback(async (opts: { instructions: string; provider: AIProvider; modelId: string }) => {
-    if (!refiningImage) return;
+  // Refine = attach the image to the Studio composer and land the user there;
+  // instructions are typed in the composer, provider/model chosen via pills.
+  const handleRefine = useCallback(async (imageId: string) => {
+    if (isDemo) {
+      ErrorService.showInfo(`Image refinement requires a subscription. ${subscriptionUnlockMessage}`, 'create');
+      return;
+    }
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setRefiningImage(null);
+    // Check if any provider supports refinement
+    const hasRefinementProvider = availableRefinementProviders.some((providerInfo) => (
+      providerInfo.supportsImg2Img && providerInfo.hasApiKey
+    ));
+    if (!hasRefinementProvider) {
+      ErrorService.showInfo('No providers with image refinement capability are configured. Add an OpenAI, Google, or Grok API key to enable refinement.', 'create');
+      return;
+    }
 
-    const resolvedImage = await getResolvedGalleryImage(refiningImage.id);
+    const resolvedImage = await getResolvedGalleryImage(imageId);
     if (!resolvedImage) {
       ErrorService.handleWithToast(new Error('Image file is unavailable.'), { feature: 'create' });
       return;
     }
 
-    // Load base64 from the image file
-    const base64 = await loadBase64FromFileUri(resolvedImage.uri);
-    if (!base64) {
-      ErrorService.handleWithToast(new Error('Could not load image for refinement.'), { feature: 'create' });
-      return;
-    }
-
-    // Navigate to a new session with this image as source
-    navigation.replace('CreateSession', {
-      providers: [opts.provider],
-      selectedModels: { [opts.provider]: opts.modelId },
-      sourceImage: base64,
-      refinementInstructions: opts.instructions,
-    });
-  }, [getResolvedGalleryImage, refiningImage, navigation]);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    dispatch(setAttachments({
+      tab: 'image',
+      attachments: [{
+        uri: resolvedImage.uri,
+        mimeType: getImageMimeType(resolvedImage.uri),
+        galleryAssetId: resolvedImage.id,
+      }],
+    }));
+    setSelectedAssetId(null);
+    navigation.navigate('MainTabs', { screen: 'CreateTab' });
+  }, [
+    isDemo,
+    availableRefinementProviders,
+    subscriptionUnlockMessage,
+    getResolvedGalleryImage,
+    dispatch,
+    navigation,
+  ]);
 
   const handleSaveToPhotos = useCallback(async (imageId: string) => {
     const image = await getResolvedGalleryImage(imageId);
@@ -2061,13 +1975,8 @@ export default function CreateScreen() {
 
   const hasActiveMediaGeneration = Boolean(mediaGeneration.video || mediaGeneration.audio);
   const libraryColumnCount = galleryTab === 'audio' ? 1 : 2;
-  const headerTitle = isGenerationSession ? 'Create' : 'Gallery';
-  const headerSubtitle = isGenerationSession && providers.length > 0
-    ? providers.map(p => getImageProviderDisplayName(p, {
-      includeModel: true,
-      modelId: activeSelectedModels[p],
-    })).join(', ')
-    : `${galleryCounts.all} asset${galleryCounts.all === 1 ? '' : 's'} • ${galleryCounts.image} images • ${galleryCounts.video} videos • ${galleryCounts.audio} audio`;
+  const headerTitle = 'Gallery';
+  const headerSubtitle = `${galleryCounts.all} asset${galleryCounts.all === 1 ? '' : 's'} • ${galleryCounts.image} images • ${galleryCounts.video} videos • ${galleryCounts.audio} audio`;
 
   useEffect(() => {
     if (!requestedFocusAssetId || focusedAssetRef.current === requestedFocusAssetId) {
@@ -2108,15 +2017,15 @@ export default function CreateScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Generation Progress */}
+      {/* Generation Progress (visible when the gallery is opened mid-run) */}
       {isGenerating && (
         <View style={[styles.progressContainer, { backgroundColor: theme.colors.surface }]}>
-          {providers.map(provider => {
+          {(imageGeneration?.providers ?? []).map(provider => {
             const progress = generationProgress[provider] || 'pending';
             return (
               <View key={provider} style={styles.progressItem}>
                 <Typography variant="body">
-                  {getImageModelDisplayName(provider, activeSelectedModels[provider])}
+                  {getImageModelDisplayName(provider, imageGeneration?.providerStatuses?.[provider]?.modelId)}
                 </Typography>
                 {progress === 'generating' && (
                   <ActivityIndicator size="small" color={theme.colors.primary[500]} />
@@ -2206,16 +2115,6 @@ export default function CreateScreen() {
       {renderBulkActionBar()}
       {renderFilterSheet()}
       {renderAssetDetail()}
-
-      <ImageRefinementModal
-        visible={refiningImage !== null}
-        imageUri={refiningImage?.uri || ''}
-        originalProvider={refiningImage?.provider || 'openai'}
-        originalModelId={refiningImage?.model}
-        availableProviders={availableRefinementProviders}
-        onClose={() => setRefiningImage(null)}
-        onRefine={handleRefinementSubmit}
-      />
     </View>
   );
 }
