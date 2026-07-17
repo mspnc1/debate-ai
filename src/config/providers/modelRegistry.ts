@@ -34,13 +34,15 @@ export interface ProviderDefinition {
   };
 }
 
-// Model aliases for version management - Updated May 2026
+// Model aliases for version management and persisted-session compatibility - Updated July 2026
 export const MODEL_ALIASES: Record<string, string> = {
   // Claude aliases
-  'claude-latest': 'claude-sonnet-4-6',
+  'claude-latest': 'claude-sonnet-5',
+  'claude-fable-latest': 'claude-fable-5',
   'claude-opus-latest': 'claude-opus-4-8',
-  'claude-sonnet-latest': 'claude-sonnet-4-6',
+  'claude-sonnet-latest': 'claude-sonnet-5',
   'claude-haiku-latest': 'claude-haiku-4-5-20251001',
+  'claude-opus-4-8-20260520': 'claude-opus-4-8',
   'claude-opus-4-8-20260528': 'claude-opus-4-8',
   'claude-opus-4-7-20260301': 'claude-opus-4-7',
   'claude-sonnet-4-5': 'claude-sonnet-4-5-20250929',
@@ -48,13 +50,17 @@ export const MODEL_ALIASES: Record<string, string> = {
   'claude-haiku-4-5': 'claude-haiku-4-5-20251001',
 
   // OpenAI aliases
-  'gpt-latest': 'gpt-5.5',
+  'gpt-latest': 'gpt-5.6-sol',
+  'gpt-5.6-latest': 'gpt-5.6-sol',
   'gpt-5-latest': 'gpt-5.5',
   'gpt-5.5-latest': 'gpt-5.5',
   'gpt-5.5-2026-04-23': 'gpt-5.5',
   'gpt-5.5-pro-latest': 'gpt-5.5-pro',
   'gpt-5.5-pro-2026-04-23': 'gpt-5.5-pro',
   'gpt-5.2-latest': 'gpt-5.2',
+  // gpt-5-mini/nano were removed from the catalog; keep persisted sessions working
+  'gpt-5-mini': 'gpt-5.4-mini',
+  'gpt-5-nano': 'gpt-5.4-nano',
   'gpt-5-mini-latest': 'gpt-5.4-mini',
   'gpt-5-nano-latest': 'gpt-5.4-nano',
   'gpt-5.4-mini-latest': 'gpt-5.4-mini',
@@ -67,7 +73,8 @@ export const MODEL_ALIASES: Record<string, string> = {
   'o4-mini-latest': 'o4-mini',
   'o3-mini-latest': 'o3-mini',
 
-  // Google aliases
+  // Google aliases (mobile resolves gemini-*-latest to concrete IDs; there is
+  // no unknown-ID passthrough here, unlike the web app)
   'gemini-latest': 'gemini-3.5-flash',
   'gemini-pro-latest': 'gemini-3.1-pro-preview',
   'gemini-flash-latest': 'gemini-3.5-flash',
@@ -83,16 +90,23 @@ export const MODEL_ALIASES: Record<string, string> = {
   'grok-latest': 'grok-4.3',
   'grok-4-latest': 'grok-4.3',
   'grok-4.3-latest': 'grok-4.3',
-  'grok-4.20': 'grok-4.20-0309-non-reasoning',
+  'grok-4.5-latest': 'grok-4.5',
+  // xAI resolves grok-4.20 to the reasoning variant and grok-build-latest to
+  // grok-4.5 (verified via /v1/models aliases) — keep these matching the API.
+  'grok-4.20': 'grok-4.20-0309-reasoning',
+  'grok-build-latest': 'grok-4.5',
+  'grok-coding-latest': 'grok-4.5',
   'grok-4.20-non-reasoning': 'grok-4.20-0309-non-reasoning',
   'grok-4.20-reasoning': 'grok-4.20-0309-reasoning',
+  // grok-4-1-fast models are retired; persisted sessions resolve to the
+  // deprecated entries and route to the provider default at request time
   'grok-fast-latest': 'grok-4-1-fast-non-reasoning',
   'grok-4.1-fast': 'grok-4-1-fast-non-reasoning',
   'grok-4-1-fast': 'grok-4-1-fast-non-reasoning',
   'grok-4-1-fast-reasoning-latest': 'grok-4-1-fast-reasoning',
   'grok-4-1-fast-non-reasoning-latest': 'grok-4-1-fast-non-reasoning',
   'grok-3-latest': 'grok-3',
-  'grok-vision-latest': 'grok-4.3',
+  'grok-vision-latest': 'grok-4.20-0309-non-reasoning',
   'grok-image-latest': 'grok-imagine-image',
 
   // Perplexity aliases
@@ -105,21 +119,24 @@ export const MODEL_ALIASES: Record<string, string> = {
   // Mistral aliases
   'mistral-latest': 'mistral-large-2512',
   'mistral-large-latest': 'mistral-large-2512',
-  'mistral-medium-latest': 'mistral-medium-3-5',
-  'mistral-medium-3.5': 'mistral-medium-3-5',
-  'mistral-medium-c21211-r0-75': 'mistral-medium-3-5',
+  'mistral-medium-latest': 'mistral-medium-2604',
+  // mistral-medium-3-5 was a mobile-only ID; the live API ID is mistral-medium-2604
+  'mistral-medium-3-5': 'mistral-medium-2604',
+  'mistral-medium-3.5': 'mistral-medium-2604',
+  'mistral-medium-c21211-r0-75': 'mistral-medium-2604',
   'mistral-small-latest': 'mistral-small-2603',
   'devstral-medium-2512': 'devstral-2512',
-  'magistral-latest': 'magistral-medium-2509',
+  'magistral-latest': 'mistral-small-2603',
   'magistral-medium-latest': 'magistral-medium-2509',
   'codestral-latest': 'codestral-2508',
+  'pixtral-large-latest': 'pixtral-large-2411',
 
   // Cohere aliases
   'command-a-plus-latest': 'command-a-plus-05-2026',
   'command-a-plus': 'command-a-plus-05-2026',
   'command-a-reasoning-latest': 'command-a-reasoning-08-2025',
   'command-a-vision-latest': 'command-a-vision-07-2025',
-  'command-a-latest': 'command-a-plus-05-2026',
+  'command-a-latest': 'command-a-03-2025',
   'command-a-translate-latest': 'command-a-translate-08-2025',
   'command-r-plus-latest': 'command-a-reasoning-08-2025',
   'command-r-latest': 'command-r-08-2024',
@@ -137,21 +154,23 @@ export const resolveModelAlias = (modelId: string): string => {
   return MODEL_ALIASES[modelId] || modelId;
 };
 
-// Helper function to get default model for a provider
-// Updated May 2026 - defaults point at verified live model IDs
-export const getDefaultModel = (providerId: string): string => {
-  const defaults: Record<string, string> = {
-    claude: 'claude-sonnet-4-6',
-    openai: 'gpt-5.5',
-    google: 'gemini-3.5-flash',
-    grok: 'grok-4.3',
-    perplexity: 'sonar-pro',
-    mistral: 'mistral-large-2512',
-    cohere: 'command-a-plus-05-2026',
-    deepseek: 'deepseek-v4-flash',
-  };
+// Default model per provider - Updated July 2026, verified live model IDs.
+// Exported as a plain map so tooling (scripts/discover-provider-models.mjs)
+// can statically parse it.
+export const DEFAULT_PROVIDER_MODELS: Record<string, string> = {
+  claude: 'claude-sonnet-5',
+  openai: 'gpt-5.6-sol',
+  google: 'gemini-3.5-flash',
+  grok: 'grok-4.3',
+  perplexity: 'sonar-pro',
+  mistral: 'mistral-large-2512',
+  cohere: 'command-a-reasoning-08-2025',
+  deepseek: 'deepseek-v4-flash',
+};
 
-  return defaults[providerId] || '';
+// Helper function to get default model for a provider
+export const getDefaultModel = (providerId: string): string => {
+  return DEFAULT_PROVIDER_MODELS[providerId] || '';
 };
 
 // Migration helper for existing sessions without model field

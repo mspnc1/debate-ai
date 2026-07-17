@@ -163,16 +163,16 @@ describe('DebateInterstitialService', () => {
     const session = createSession();
     if (session.voiceConfig?.podcast) {
       session.voiceConfig.podcast.mc = {
-        id: 'mc-claude',
-        provider: 'claude',
+        id: 'mc-mistral',
+        provider: 'mistral',
         name: 'Podcast MC',
-        model: 'opus-4.1',
+        model: 'mistral-large-2512',
       };
     }
     const aiService = {
       sendMessage: jest.fn().mockResolvedValue({
         response: 'Welcome to the debate. This motion has long asked communities to weigh access against cost.',
-        modelUsed: 'opus-4.1',
+        modelUsed: 'mistral-large-2512',
       }),
     };
 
@@ -296,10 +296,10 @@ describe('DebateInterstitialService', () => {
     const session = createSession();
     if (session.voiceConfig?.podcast) {
       session.voiceConfig.podcast.mc = {
-        id: 'mc-claude',
-        provider: 'claude',
+        id: 'mc-mistral',
+        provider: 'mistral',
         name: 'Podcast MC',
-        model: 'opus-4.1',
+        model: 'mistral-large-2512',
       };
     }
     const adapter = { config: { webSearchEnabled: true } };
@@ -309,7 +309,7 @@ describe('DebateInterstitialService', () => {
         expect(adapter.config.webSearchEnabled).toBe(false);
         return {
           response: 'Welcome to the debate. Transit funding has always forced choices about access and responsibility.',
-          modelUsed: 'opus-4.1',
+          modelUsed: 'mistral-large-2512',
         };
       }),
     };

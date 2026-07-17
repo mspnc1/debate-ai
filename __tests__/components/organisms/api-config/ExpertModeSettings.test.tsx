@@ -77,14 +77,14 @@ describe('ExpertModeSettings', () => {
     );
 
     expect(getByText('Fine-tune model behavior and parameters')).toBeTruthy();
-    expect(getByText('Latest GPT-5.5 frontier model for complex professional work, agents, coding, and long-context document generation')).toBeTruthy();
+    expect(getByText('Previous flagship OpenAI model for complex reasoning, coding, and professional work')).toBeTruthy();
 
     const toggle = getByRole('switch');
     fireEvent(toggle, 'valueChange', false);
     expect(onToggle).toHaveBeenCalledWith(false);
 
-    fireEvent.press(getByText('GPT-5.4 Mini'));
-    expect(onModelChange).toHaveBeenCalledWith('gpt-5.4-mini');
+    fireEvent.press(getByText('GPT-5.6 Terra'));
+    expect(onModelChange).toHaveBeenCalledWith('gpt-5.6-terra');
 
     fireEvent.press(getByText('Temperature'));
     fireEvent.press(getByText('+'));

@@ -406,7 +406,9 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
     // Get model configuration to check for special requirements
     const modelConfig = getModelById('openai', resolvedModel);
 
-    if (this.config.webSearchEnabled) {
+    // Non-streaming-only models (e.g. gpt-5.5-pro) are served exclusively by
+    // the Responses API, so they must never hit chat/completions.
+    if (this.config.webSearchEnabled || modelConfig?.supportsStreaming === false) {
       return this.sendResponsesMessage(
         message,
         conversationHistory,
@@ -509,8 +511,9 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
 
     // Prepare request
     const resolvedModel = modelOverride || resolveModelAlias(this.config.model || getDefaultModel(this.config.provider));
+    const resolvedModelConfig = getModelById('openai', resolvedModel);
 
-    if (this.config.webSearchEnabled) {
+    if (this.config.webSearchEnabled || resolvedModelConfig?.supportsStreaming === false) {
       if (abortSignal?.aborted) return;
 
       const response = await this.sendResponsesMessage(

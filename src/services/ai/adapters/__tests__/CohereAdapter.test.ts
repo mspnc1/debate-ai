@@ -48,7 +48,7 @@ describe('CohereAdapter', () => {
       expect(capabilities.supportsImages).toBe(true);
       expect(capabilities.supportsDocuments).toBe(false);
       expect(capabilities.maxTokens).toBe(64000);
-      expect(capabilities.contextWindow).toBe(128000);
+      expect(capabilities.contextWindow).toBe(436000);
     });
   });
 

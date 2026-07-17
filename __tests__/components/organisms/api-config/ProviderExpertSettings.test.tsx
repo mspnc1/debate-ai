@@ -88,7 +88,7 @@ describe('ProviderExpertSettings', () => {
 
     expect(mockModelSelector).toHaveBeenCalledTimes(1);
     const modelSelectorProps = mockModelSelector.mock.calls[0][0];
-    expect(modelSelectorProps.selectedModel).toBe('claude-sonnet-4-6');
+    expect(modelSelectorProps.selectedModel).toBe('claude-sonnet-5');
     modelSelectorProps.onSelectModel('claude-opus-4-1-20250805');
     expect(onModelChange).toHaveBeenCalledWith('claude-opus-4-1-20250805');
 

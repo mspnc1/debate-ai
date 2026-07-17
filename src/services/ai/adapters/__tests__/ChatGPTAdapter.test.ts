@@ -265,6 +265,33 @@ describe('ChatGPTAdapter', () => {
     expect(mockEventSourceInstances).toHaveLength(0);
   });
 
+  it('routes non-streaming-only models through the Responses API without web search tools', async () => {
+    fetchMock.mockResolvedValueOnce(createResponsesFetchResponse('Deep answer'));
+    const adapter = new ChatGPTAdapter({ ...baseConfig, model: 'gpt-5.5-pro' });
+
+    const result = await adapter.sendMessage('Hard question');
+
+    const [url, requestInit] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/responses');
+    const body = JSON.parse(requestInit?.body as string);
+    expect(body).not.toHaveProperty('tools');
+    expect(body.stream).toBe(false);
+    expect(result).toEqual(expect.objectContaining({ response: 'Deep answer' }));
+  });
+
+  it('simulates streaming for non-streaming-only models instead of opening SSE', async () => {
+    fetchMock.mockResolvedValueOnce(createResponsesFetchResponse('Slow burn'));
+    const adapter = new ChatGPTAdapter({ ...baseConfig, model: 'gpt-5.5-pro' });
+
+    const chunks: string[] = [];
+    for await (const chunk of adapter.streamMessage('Hard question')) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks.join('')).toBe('Slow burn');
+    expect(mockEventSourceInstances).toHaveLength(0);
+  });
+
   it('streams SSE deltas and completion events', async () => {
     process.env.NODE_ENV = 'development';
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ id: 'gpt-5' }] }) } as unknown as Response);

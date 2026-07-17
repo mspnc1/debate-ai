@@ -51,7 +51,7 @@ describe('DebateAISelector', () => {
   const mockAIs: AIConfig[] = [
     { id: 'openai', provider: 'openai', name: 'ChatGPT', model: 'gpt-5.5' },
     { id: 'google', provider: 'google', name: 'Gemini', model: 'gemini-3.5-flash' },
-    { id: 'claude', provider: 'claude', name: 'Claude', model: 'claude-sonnet-4-6' },
+    { id: 'mistral', provider: 'mistral', name: 'Mistral', model: 'mistral-large-2512' },
   ];
 
   const defaultProps = {
