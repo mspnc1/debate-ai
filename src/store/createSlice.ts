@@ -73,7 +73,6 @@ export type GalleryTab = 'all' | GalleryAssetType;
 export type GallerySortMode = 'newest' | 'oldest' | 'provider' | 'model';
 export type GalleryDateRangeFilter = 'all' | 'today' | 'week' | 'month';
 export type GalleryAvailabilityFilter = 'all' | 'available' | 'remote_expiring' | 'failed';
-export type ImageCreateMode = 'create' | 'refine';
 export type ImageGenerationPhase = 'queued' | 'preparing' | 'generating' | 'complete' | 'error';
 
 export interface GalleryFilterState {
@@ -379,24 +378,10 @@ export interface CreateActivityState {
 export interface CreateState {
   activeTab: CreateTab;
 
-  // Provider selection
-  selectedProviders: AIProvider[];
-  selectedModels: Partial<Record<AIProvider, string>>;
-  mode: 'single' | 'compare';
-
   // Current generation state
   isGenerating: boolean;
   generationProgress: Record<string, GenerationProgress>;
   generationError?: string;
-
-  // Prompt and options
-  currentPrompt: string;
-  selectedStyle: StylePreset;
-  selectedSize: SizeOption;
-  selectedImageCount: number;
-  // Per-provider, capability-specific output settings (quality, safety, etc.).
-  // Frame (selectedSize) and count remain shared across all selected models.
-  imageModelSettings: Partial<Record<AIProvider, ImageModelSettings>>;
 
   // Gallery (persisted)
   gallery: GeneratedImageEntry[];
@@ -423,32 +408,12 @@ export interface CreateState {
   };
   activeRunwayTask?: ActiveRunwayTask;
   createActivity: CreateActivityState;
-
-  // Refinement state
-  isRefining: boolean;
-  refiningImageId?: string;
-  refinementPrompt: string;
-
-  // Source image for img2img upload
-  sourceImageUri?: string;
-  sourceImageBase64?: string;
-
-  // UI state
-  focusedImageId?: string;
 }
 
 const initialState: CreateState = {
   activeTab: 'image',
-  selectedProviders: [],
-  selectedModels: {},
-  mode: 'single',
   isGenerating: false,
   generationProgress: {},
-  currentPrompt: '',
-  selectedStyle: 'none',
-  selectedSize: 'auto',
-  selectedImageCount: 1,
-  imageModelSettings: {},
   gallery: [],
   galleryHydrated: false,
   mediaGallery: [],
@@ -462,8 +427,6 @@ const initialState: CreateState = {
     status: 'idle',
     hasUnseenActivity: false,
   },
-  isRefining: false,
-  refinementPrompt: '',
 };
 
 async function deleteGalleryFile(uri?: string): Promise<void> {
@@ -903,8 +866,8 @@ export const generateCreateImages = createAsyncThunk(
     }));
     dispatch(startGeneration(providers));
 
-    const style = payload.style ?? initialState.selectedStyle;
-    const sizeOption = payload.size ?? initialState.selectedSize;
+    const style: StylePreset = payload.style ?? 'none';
+    const sizeOption: SizeOption = payload.size ?? 'auto';
     const enhancedPrompt = buildEnhancedPrompt(prompt, style);
     const resolvedSources = (await Promise.all(
       (payload.sourceImages || []).map(resolveImageSourceInput)
@@ -1391,67 +1354,6 @@ const createSlice_ = createSlice({
       state.createActivity.hasUnseenActivity = false;
     },
 
-    // Provider selection
-    setSelectedProviders: (state, action: PayloadAction<AIProvider[]>) => {
-      state.selectedProviders = action.payload.slice(0, 3); // Max 3 for compare
-      state.mode = action.payload.length > 1 ? 'compare' : 'single';
-    },
-    setSelectedModel: (state, action: PayloadAction<{ provider: AIProvider; modelId: string }>) => {
-      state.selectedModels[action.payload.provider] = resolveImageModelId(
-        action.payload.provider,
-        action.payload.modelId
-      ) || action.payload.modelId;
-    },
-    toggleProvider: (state, action: PayloadAction<AIProvider>) => {
-      const provider = action.payload;
-      const index = state.selectedProviders.indexOf(provider);
-      if (index >= 0) {
-        state.selectedProviders.splice(index, 1);
-      } else if (state.selectedProviders.length < 3) {
-        state.selectedProviders.push(provider);
-      }
-      state.mode = state.selectedProviders.length > 1 ? 'compare' : 'single';
-    },
-    setMode: (state, action: PayloadAction<'single' | 'compare'>) => {
-      state.mode = action.payload;
-      if (action.payload === 'single' && state.selectedProviders.length > 1) {
-        state.selectedProviders = [state.selectedProviders[0]];
-      }
-    },
-
-    // Prompt and options
-    setPrompt: (state, action: PayloadAction<string>) => {
-      state.currentPrompt = action.payload;
-    },
-    setStyle: (state, action: PayloadAction<StylePreset>) => {
-      state.selectedStyle = action.payload;
-    },
-    setSize: (state, action: PayloadAction<SizeOption>) => {
-      state.selectedSize = action.payload;
-    },
-    setImageCount: (state, action: PayloadAction<number>) => {
-      state.selectedImageCount = Math.max(1, Math.min(Math.round(action.payload), 10));
-    },
-    // Merge a partial set of output settings into a single provider's slice.
-    // Each control dispatches only the field it owns; the service layer drops
-    // any value the resolved model does not support.
-    setImageModelSetting: (
-      state,
-      action: PayloadAction<{ provider: AIProvider; settings: Partial<ImageModelSettings> }>
-    ) => {
-      const { provider, settings } = action.payload;
-      const existing = state.imageModelSettings[provider] || {};
-      const next: ImageModelSettings = { ...existing, ...settings };
-      if (next.outputCompression !== undefined) {
-        next.outputCompression = Math.max(0, Math.min(100, Math.round(next.outputCompression)));
-      }
-      // Transparent backgrounds require an alpha-capable format (PNG/WebP).
-      if (settings.outputFormat === 'png' && next.background === 'transparent') {
-        next.background = 'auto';
-      }
-      state.imageModelSettings[provider] = next;
-    },
-
     // Generation state
     startImageGeneration: (state, action: PayloadAction<{
       id: string;
@@ -1758,41 +1660,6 @@ const createSlice_ = createSlice({
       state.activeRunwayTask = action.payload;
     },
 
-    // Refinement state
-    startRefinement: (state, action: PayloadAction<string>) => {
-      state.isRefining = true;
-      state.refiningImageId = action.payload;
-      state.refinementPrompt = '';
-    },
-    setRefinementPrompt: (state, action: PayloadAction<string>) => {
-      state.refinementPrompt = action.payload;
-    },
-    cancelRefinement: (state) => {
-      state.isRefining = false;
-      state.refiningImageId = undefined;
-      state.refinementPrompt = '';
-    },
-    completeRefinement: (state) => {
-      state.isRefining = false;
-      state.refiningImageId = undefined;
-      state.refinementPrompt = '';
-    },
-
-    // Source image for upload
-    setSourceImage: (state, action: PayloadAction<{ uri: string; base64?: string }>) => {
-      state.sourceImageUri = action.payload.uri;
-      state.sourceImageBase64 = action.payload.base64;
-    },
-    clearSourceImage: (state) => {
-      state.sourceImageUri = undefined;
-      state.sourceImageBase64 = undefined;
-    },
-
-    // UI state
-    setFocusedImage: (state, action: PayloadAction<string | undefined>) => {
-      state.focusedImageId = action.payload;
-    },
-
     // Reset state (for cleanup)
     resetCreateState: () => initialState,
   },
@@ -1819,15 +1686,6 @@ const createSlice_ = createSlice({
 export const {
   setActiveCreateTab,
   markCreateActivitySeen,
-  setSelectedProviders,
-  setSelectedModel,
-  toggleProvider,
-  setMode,
-  setPrompt,
-  setStyle,
-  setSize,
-  setImageCount,
-  setImageModelSetting,
   startImageGeneration,
   updateImageGeneration,
   completeImageGeneration,
@@ -1850,13 +1708,6 @@ export const {
   clearMediaGallery,
   pruneGalleryAssets,
   setActiveRunwayTask,
-  startRefinement,
-  setRefinementPrompt,
-  cancelRefinement,
-  completeRefinement,
-  setSourceImage,
-  clearSourceImage,
-  setFocusedImage,
   resetCreateState,
 } = createSlice_.actions;
 
@@ -1873,9 +1724,7 @@ export const selectGalleryAssetCounts = (state: { create: CreateState }) => (
   getGalleryAssetCounts(selectGalleryAssets(state))
 );
 export const selectIsGenerating = (state: { create: CreateState }) => state.create.isGenerating;
-export const selectSelectedProviders = (state: { create: CreateState }) => state.create.selectedProviders;
 export const selectGenerationProgress = (state: { create: CreateState }) => state.create.generationProgress;
-export const selectCreateSelectedModels = (state: { create: CreateState }) => state.create.selectedModels;
 export const selectCreateActivity = (state: { create: CreateState }) => state.create.createActivity;
 export const selectImageGeneration = (state: { create: CreateState }) => state.create.imageGeneration;
 export const selectMediaGeneration = (state: { create: CreateState }) => state.create.mediaGeneration;

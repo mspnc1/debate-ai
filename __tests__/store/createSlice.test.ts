@@ -30,14 +30,6 @@ jest.mock('expo-file-system/legacy', () => ({
 }));
 
 import reducer, {
-  setSelectedProviders,
-  toggleProvider,
-  setMode,
-  setPrompt,
-  setStyle,
-  setSize,
-  setImageCount,
-  setImageModelSetting,
   startImageGeneration,
   updateImageGeneration,
   completeImageGeneration,
@@ -66,18 +58,10 @@ import reducer, {
   clearMediaGallery,
   clearMediaGalleryWithCleanup,
   setActiveRunwayTask,
-  startRefinement,
-  setRefinementPrompt,
-  cancelRefinement,
-  completeRefinement,
-  setSourceImage,
-  clearSourceImage,
-  setFocusedImage,
   resetCreateState,
   selectCreateState,
   selectGallery,
   selectIsGenerating,
-  selectSelectedProviders,
   selectGenerationProgress,
   hydrateGallery,
   persistGallery,
@@ -130,143 +114,6 @@ describe('createSlice', () => {
     jest.clearAllMocks();
     mockedReadStoredApiKey.mockResolvedValue(null);
     mockedGenerateImage.mockReset();
-  });
-
-  describe('provider selection', () => {
-    it('sets selected providers and updates mode', () => {
-      const state = reducer(initialState, setSelectedProviders(['openai', 'google']));
-      expect(state.selectedProviders).toEqual(['openai', 'google']);
-      expect(state.mode).toBe('compare');
-    });
-
-    it('limits providers to maximum of 3', () => {
-      const state = reducer(initialState, setSelectedProviders(['openai', 'google', 'grok', 'claude']));
-      expect(state.selectedProviders).toHaveLength(3);
-      expect(state.selectedProviders).toEqual(['openai', 'google', 'grok']);
-    });
-
-    it('sets mode to single when only one provider selected', () => {
-      const state = reducer(initialState, setSelectedProviders(['openai']));
-      expect(state.selectedProviders).toEqual(['openai']);
-      expect(state.mode).toBe('single');
-    });
-
-    it('toggles provider on when not selected', () => {
-      const state = reducer(initialState, toggleProvider('openai'));
-      expect(state.selectedProviders).toContain('openai');
-    });
-
-    it('toggles provider off when already selected', () => {
-      let state = reducer(initialState, toggleProvider('openai'));
-      state = reducer(state, toggleProvider('openai'));
-      expect(state.selectedProviders).not.toContain('openai');
-    });
-
-    it('does not add more than 3 providers via toggle', () => {
-      let state = reducer(initialState, toggleProvider('openai'));
-      state = reducer(state, toggleProvider('google'));
-      state = reducer(state, toggleProvider('grok'));
-      state = reducer(state, toggleProvider('claude'));
-      expect(state.selectedProviders).toHaveLength(3);
-      expect(state.selectedProviders).not.toContain('claude');
-    });
-
-    it('updates mode when toggling providers', () => {
-      let state = reducer(initialState, toggleProvider('openai'));
-      expect(state.mode).toBe('single');
-
-      state = reducer(state, toggleProvider('google'));
-      expect(state.mode).toBe('compare');
-    });
-  });
-
-  describe('mode management', () => {
-    it('sets mode to single', () => {
-      const state = reducer(initialState, setMode('single'));
-      expect(state.mode).toBe('single');
-    });
-
-    it('sets mode to compare', () => {
-      const state = reducer(initialState, setMode('compare'));
-      expect(state.mode).toBe('compare');
-    });
-
-    it('keeps only first provider when switching to single mode with multiple providers', () => {
-      let state = reducer(initialState, setSelectedProviders(['openai', 'google']));
-      state = reducer(state, setMode('single'));
-      expect(state.selectedProviders).toHaveLength(1);
-      expect(state.selectedProviders).toEqual(['openai']);
-    });
-  });
-
-  describe('prompt and options', () => {
-    it('sets prompt', () => {
-      const state = reducer(initialState, setPrompt('A beautiful sunset'));
-      expect(state.currentPrompt).toBe('A beautiful sunset');
-    });
-
-    it('sets style', () => {
-      const state = reducer(initialState, setStyle('cinematic'));
-      expect(state.selectedStyle).toBe('cinematic');
-    });
-
-    it('sets size', () => {
-      const state = reducer(initialState, setSize('portrait'));
-      expect(state.selectedSize).toBe('portrait');
-    });
-
-    it('sets a per-provider quality setting', () => {
-      const state = reducer(initialState, setImageModelSetting({ provider: 'openai', settings: { quality: 'high' } }));
-      expect(state.imageModelSettings.openai?.quality).toBe('high');
-    });
-
-    it('supports all style presets', () => {
-      const styles = ['none', 'photo', 'cinematic', 'anime', 'digital-art', 'oil-painting', 'watercolor', 'sketch', '3d-render'] as const;
-      styles.forEach(style => {
-        const state = reducer(initialState, setStyle(style));
-        expect(state.selectedStyle).toBe(style);
-      });
-    });
-
-    it('supports all size options', () => {
-      const sizes = ['auto', 'square', 'portrait', 'landscape'] as const;
-      sizes.forEach(size => {
-        const state = reducer(initialState, setSize(size));
-        expect(state.selectedSize).toBe(size);
-      });
-    });
-
-    it('supports all quality options per provider', () => {
-      const qualities = ['standard', 'hd', 'auto', 'low', 'medium', 'high'] as const;
-      qualities.forEach(quality => {
-        const state = reducer(initialState, setImageModelSetting({ provider: 'openai', settings: { quality } }));
-        expect(state.imageModelSettings.openai?.quality).toBe(quality);
-      });
-    });
-
-    it('merges per-provider output settings and keeps providers independent', () => {
-      let state = reducer(initialState, setImageCount(4));
-      state = reducer(state, setImageModelSetting({ provider: 'openai', settings: { resolution: '2K' } }));
-      state = reducer(state, setImageModelSetting({ provider: 'openai', settings: { outputFormat: 'webp' } }));
-      state = reducer(state, setImageModelSetting({ provider: 'openai', settings: { outputCompression: 72 } }));
-      state = reducer(state, setImageModelSetting({ provider: 'openai', settings: { background: 'opaque' } }));
-      state = reducer(state, setImageModelSetting({ provider: 'grok', settings: { moderation: 'low' } }));
-
-      expect(state.selectedImageCount).toBe(4);
-      expect(state.imageModelSettings.openai).toEqual({
-        resolution: '2K',
-        outputFormat: 'webp',
-        outputCompression: 72,
-        background: 'opaque',
-      });
-      expect(state.imageModelSettings.grok).toEqual({ moderation: 'low' });
-    });
-
-    it('resets transparent background when switching a provider to PNG', () => {
-      let state = reducer(initialState, setImageModelSetting({ provider: 'openai', settings: { background: 'transparent' } }));
-      state = reducer(state, setImageModelSetting({ provider: 'openai', settings: { outputFormat: 'png' } }));
-      expect(state.imageModelSettings.openai?.background).toBe('auto');
-    });
   });
 
   describe('generation state', () => {
@@ -581,7 +428,6 @@ describe('createSlice', () => {
       const state = reducer(initialState, setActiveCreateTab('video'));
 
       expect(state.activeTab).toBe('video');
-      expect(state.currentPrompt).toBe('');
       expect(state.mediaGeneration.video).toBeNull();
     });
 
@@ -1048,87 +894,9 @@ describe('createSlice', () => {
     });
   });
 
-  describe('refinement state', () => {
-    it('starts refinement with image id', () => {
-      const state = reducer(initialState, startRefinement('img_1'));
-      expect(state.isRefining).toBe(true);
-      expect(state.refiningImageId).toBe('img_1');
-      expect(state.refinementPrompt).toBe('');
-    });
-
-    it('sets refinement prompt', () => {
-      let state = reducer(initialState, startRefinement('img_1'));
-      state = reducer(state, setRefinementPrompt('Make it more vibrant'));
-      expect(state.refinementPrompt).toBe('Make it more vibrant');
-    });
-
-    it('cancels refinement', () => {
-      let state = reducer(initialState, startRefinement('img_1'));
-      state = reducer(state, setRefinementPrompt('Some instructions'));
-      state = reducer(state, cancelRefinement());
-
-      expect(state.isRefining).toBe(false);
-      expect(state.refiningImageId).toBeUndefined();
-      expect(state.refinementPrompt).toBe('');
-    });
-
-    it('completes refinement', () => {
-      let state = reducer(initialState, startRefinement('img_1'));
-      state = reducer(state, setRefinementPrompt('Add more contrast'));
-      state = reducer(state, completeRefinement());
-
-      expect(state.isRefining).toBe(false);
-      expect(state.refiningImageId).toBeUndefined();
-      expect(state.refinementPrompt).toBe('');
-    });
-  });
-
-  describe('source image management', () => {
-    it('sets source image with uri', () => {
-      const state = reducer(initialState, setSourceImage({ uri: 'file:///source.png' }));
-      expect(state.sourceImageUri).toBe('file:///source.png');
-      expect(state.sourceImageBase64).toBeUndefined();
-    });
-
-    it('sets source image with uri and base64', () => {
-      const state = reducer(initialState, setSourceImage({
-        uri: 'file:///source.png',
-        base64: 'base64encodeddata',
-      }));
-      expect(state.sourceImageUri).toBe('file:///source.png');
-      expect(state.sourceImageBase64).toBe('base64encodeddata');
-    });
-
-    it('clears source image', () => {
-      let state = reducer(initialState, setSourceImage({
-        uri: 'file:///source.png',
-        base64: 'base64data',
-      }));
-      state = reducer(state, clearSourceImage());
-
-      expect(state.sourceImageUri).toBeUndefined();
-      expect(state.sourceImageBase64).toBeUndefined();
-    });
-  });
-
-  describe('UI state', () => {
-    it('sets focused image id', () => {
-      const state = reducer(initialState, setFocusedImage('img_1'));
-      expect(state.focusedImageId).toBe('img_1');
-    });
-
-    it('clears focused image id', () => {
-      let state = reducer(initialState, setFocusedImage('img_1'));
-      state = reducer(state, setFocusedImage(undefined));
-      expect(state.focusedImageId).toBeUndefined();
-    });
-  });
-
   describe('reset state', () => {
     it('resets entire state to initial values', () => {
-      let state = reducer(initialState, setSelectedProviders(['openai', 'google']));
-      state = reducer(state, setPrompt('Test prompt'));
-      state = reducer(state, setStyle('cinematic'));
+      let state = reducer(initialState, setActiveCreateTab('video'));
       state = reducer(state, startGeneration(['openai']));
       state = reducer(state, resetCreateState());
 
@@ -1156,13 +924,6 @@ describe('createSlice', () => {
 
       const generatingState = reducer(initialState, startGeneration(['openai']));
       expect(selectIsGenerating({ create: generatingState })).toBe(true);
-    });
-
-    it('selectSelectedProviders returns selected providers', () => {
-      expect(selectSelectedProviders(mockRootState)).toEqual([]);
-
-      const stateWithProviders = reducer(initialState, setSelectedProviders(['openai', 'google']));
-      expect(selectSelectedProviders({ create: stateWithProviders })).toEqual(['openai', 'google']);
     });
 
     it('selectGenerationProgress returns progress object', () => {
@@ -1627,14 +1388,8 @@ describe('createSlice', () => {
 
   describe('initial state', () => {
     it('has correct default values', () => {
-      expect(initialState.selectedProviders).toEqual([]);
-      expect(initialState.mode).toBe('single');
       expect(initialState.isGenerating).toBe(false);
       expect(initialState.generationProgress).toEqual({});
-      expect(initialState.currentPrompt).toBe('');
-      expect(initialState.selectedStyle).toBe('none');
-      expect(initialState.selectedSize).toBe('auto');
-      expect(initialState.imageModelSettings).toEqual({});
       expect(initialState.gallery).toEqual([]);
       expect(initialState.galleryHydrated).toBe(false);
       expect(initialState.activeTab).toBe('image');
@@ -1647,8 +1402,6 @@ describe('createSlice', () => {
         status: 'idle',
         hasUnseenActivity: false,
       });
-      expect(initialState.isRefining).toBe(false);
-      expect(initialState.refinementPrompt).toBe('');
     });
   });
 });
