@@ -108,6 +108,9 @@ jest.mock('@/components/organisms', () => {
   } = jest.requireActual('@/components/organisms/create/CreateGenerationStatusCard');
   const { CreateMediaTabs } = jest.requireActual('@/components/organisms/create/CreateMediaTabs');
   const { CreateOptionsSheet } = jest.requireActual('@/components/organisms/create/CreateOptionsSheet');
+  const { CreateMediaStatusCard } = jest.requireActual('@/components/organisms/create/CreateMediaStatusCard');
+  const { VideoConfigSheet } = jest.requireActual('@/components/organisms/create/VideoConfigSheet');
+  const { AudioConfigSheet } = jest.requireActual('@/components/organisms/create/AudioConfigSheet');
   return {
     Header: (props: any) =>
       React.createElement(
@@ -122,6 +125,9 @@ jest.mock('@/components/organisms', () => {
     CreateGenerationStatusCard,
     CreateMediaTabs,
     CreateOptionsSheet,
+    CreateMediaStatusCard,
+    VideoConfigSheet,
+    AudioConfigSheet,
   };
 });
 
@@ -409,7 +415,7 @@ describe('CreateSetupScreen', () => {
     create: { ...baseState.create, ...overrides.create },
   });
 
-  const useStateWith = (overrides: Parameters<typeof stateWith>[0]) => {
+  const mockStateWith = (overrides: Parameters<typeof stateWith>[0]) => {
     const state = stateWith(overrides);
     mockUseSelector.mockImplementation((selector) => selector(state));
   };
@@ -485,7 +491,7 @@ describe('CreateSetupScreen', () => {
     });
 
     it('renders a pill for each persisted image provider', () => {
-      useStateWith({
+      mockStateWith({
         createSelection: { image: [imageSelection('openai'), imageSelection('google')] },
       });
       const { getByText } = renderWithProviders(<CreateSetupScreen />);
@@ -545,7 +551,7 @@ describe('CreateSetupScreen', () => {
     });
 
     it('opens the per-pill config sheet with capability copy and model selector', () => {
-      useStateWith({ createSelection: { image: [imageSelection('openai')] } });
+      mockStateWith({ createSelection: { image: [imageSelection('openai')] } });
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
       fireEvent.press(getByTestId('create-composer-pill-0'));
@@ -554,7 +560,7 @@ describe('CreateSetupScreen', () => {
     });
 
     it('removes a pill from its config sheet', () => {
-      useStateWith({ createSelection: { image: [imageSelection('openai')] } });
+      mockStateWith({ createSelection: { image: [imageSelection('openai')] } });
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
 
       fireEvent.press(getByTestId('create-composer-pill-0'));
@@ -569,7 +575,7 @@ describe('CreateSetupScreen', () => {
     });
 
     it('routes model changes through updateImageSelection', () => {
-      useStateWith({ createSelection: { image: [imageSelection('google')] } });
+      mockStateWith({ createSelection: { image: [imageSelection('google')] } });
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
 
       fireEvent.press(getByTestId('create-composer-pill-0'));
@@ -589,7 +595,7 @@ describe('CreateSetupScreen', () => {
 
   describe('output options sheet', () => {
     it('dispatches style and frame changes from the options sheet', () => {
-      useStateWith({ createSelection: { image: [imageSelection('openai')] } });
+      mockStateWith({ createSelection: { image: [imageSelection('openai')] } });
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
       fireEvent.press(getByTestId('create-composer-options'));
@@ -613,13 +619,13 @@ describe('CreateSetupScreen', () => {
     });
 
     it('shows the count slider only when the lineup allows multiple images', () => {
-      useStateWith({ createSelection: { image: [imageSelection('openai')] } });
+      mockStateWith({ createSelection: { image: [imageSelection('openai')] } });
       const multi = renderWithProviders(<CreateSetupScreen />);
       fireEvent.press(multi.getByTestId('create-composer-options'));
       expect(multi.getByTestId('create-image-count-slider')).toBeTruthy();
       multi.unmount();
 
-      useStateWith({
+      mockStateWith({
         createSelection: { image: [imageSelection('google', 'imagen-4.0-generate-001')] },
       });
       const single = renderWithProviders(<CreateSetupScreen />);
@@ -630,14 +636,14 @@ describe('CreateSetupScreen', () => {
 
   describe('generation', () => {
     it('does not send without a prompt', () => {
-      useStateWith({ createSelection: { image: [imageSelection('openai')] } });
+      mockStateWith({ createSelection: { image: [imageSelection('openai')] } });
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
       fireEvent.press(getByTestId('create-composer-send'));
       expect(mockGenerateCreateImages).not.toHaveBeenCalled();
     });
 
     it('dispatches image generation with model and output settings on send', async () => {
-      useStateWith({
+      mockStateWith({
         createSelection: {
           image: [
             imageSelection('openai', 'gpt-image-2', {
@@ -686,7 +692,7 @@ describe('CreateSetupScreen', () => {
     });
 
     it('sends an attachment as a refinement with instructions', async () => {
-      useStateWith({
+      mockStateWith({
         createSelection: {
           image: [imageSelection('openai')],
           attachments: {
@@ -711,7 +717,7 @@ describe('CreateSetupScreen', () => {
     });
 
     it('blocks send and explains when an attachment has no image-input model', () => {
-      useStateWith({
+      mockStateWith({
         createSelection: {
           image: [imageSelection('google', 'imagen-4.0-generate-001')],
           attachments: {
@@ -733,7 +739,7 @@ describe('CreateSetupScreen', () => {
     });
 
     it('removes an attachment from its chip', () => {
-      useStateWith({
+      mockStateWith({
         createSelection: {
           image: [imageSelection('openai')],
           attachments: {
@@ -758,7 +764,7 @@ describe('CreateSetupScreen', () => {
 
   describe('image generation status', () => {
     it('shows running state from shared image generation state', () => {
-      useStateWith({
+      mockStateWith({
         createSelection: { image: [imageSelection('openai')] },
         create: {
           imageGeneration: {
@@ -790,7 +796,7 @@ describe('CreateSetupScreen', () => {
     });
 
     it('shows failed state from the shared image generation result', () => {
-      useStateWith({
+      mockStateWith({
         createSelection: { image: [imageSelection('openai')] },
         create: {
           lastImageGenerationResult: {
@@ -841,7 +847,7 @@ describe('CreateSetupScreen', () => {
     ])(
       'shows partial image generation rows when $failedProvider fails',
       ({ providers, successProvider, failedProvider, successModelId, failedModelId, message, error }) => {
-        useStateWith({
+        mockStateWith({
           create: {
             lastImageGenerationResult: {
               ids: ['img_done'],
@@ -883,7 +889,7 @@ describe('CreateSetupScreen', () => {
     );
 
     it('opens Gallery from the completed image CTA focused on a single result', () => {
-      useStateWith({
+      mockStateWith({
         create: {
           lastImageGenerationResult: {
             ids: ['img_done'],
@@ -904,266 +910,121 @@ describe('CreateSetupScreen', () => {
     });
   });
 
-  describe('media generation rail', () => {
-    it('keeps audio settings in a closed sheet by default', () => {
-      useStateWith({ create: { activeTab: 'audio' } });
-
-      const { getByTestId, queryByTestId } = renderWithProviders(<CreateSetupScreen />);
-
-      expect(getByTestId('create-audio-voice-selector')).toBeTruthy();
-      expect(getByTestId('create-open-settings')).toBeTruthy();
-      expect(queryByTestId('create-audio-model-selector')).toBeNull();
-      expect(queryByTestId('create-audio-format-selector')).toBeNull();
-    });
-
-    it('opens audio settings and updates model and format through picker rows', () => {
-      useStateWith({ create: { activeTab: 'audio' } });
-
-      const { getByTestId, getByText, queryByTestId } = renderWithProviders(<CreateSetupScreen />);
-
-      fireEvent.press(getByTestId('create-open-settings'));
-      expect(getByTestId('create-settings-sheet')).toBeTruthy();
-      expect(getByTestId('create-audio-model-selector')).toBeTruthy();
-      expect(getByTestId('create-audio-format-selector')).toBeTruthy();
-
-      fireEvent.press(getByTestId('create-audio-model-selector'));
-      expect(getByText('Select Model')).toBeTruthy();
-      fireEvent.press(getByTestId('create-audio-picker-option-eleven_v3'));
-      expect(queryByTestId('create-audio-picker-modal')).toBeNull();
-      expect(getByText('Eleven v3')).toBeTruthy();
-
-      fireEvent.press(getByTestId('create-audio-format-selector'));
-      expect(getByText('Select Format')).toBeTruthy();
-      fireEvent.press(getByTestId('create-audio-picker-option-wav_44100'));
-      expect(queryByTestId('create-audio-picker-modal')).toBeNull();
-      expect(getByText('WAV 44.1 kHz')).toBeTruthy();
-    });
-
-    it('selects a voice from the shared voice picker and updates the selector', async () => {
-      useStateWith({
-        settings: {
-          apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
-        },
-        create: { activeTab: 'audio' },
-      });
-
-      const { getByTestId, getByText, getAllByText } = renderWithProviders(<CreateSetupScreen />);
-
-      // Default voice auto-selected and shown on the selector row.
-      await waitFor(() => expect(getByText('Narrator A')).toBeTruthy());
-      fireEvent.press(getByTestId('create-audio-voice-selector'));
-      await waitFor(() => expect(getByTestId('debate-voice-option-voice_b')).toBeTruthy());
-      fireEvent.press(getByTestId('debate-voice-option-voice_b'));
-
-      await waitFor(() => expect(getAllByText('Narrator B').length).toBeGreaterThan(0));
-    });
-
-    it('generates audio with the voice chosen in the picker', async () => {
-      useStateWith({
-        settings: {
-          apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
-        },
-        create: { activeTab: 'audio' },
-      });
-
-      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
-
-      await waitFor(() => expect(getByText('Narrator A')).toBeTruthy());
-      fireEvent.changeText(getByTestId('create-audio-prompt-input'), 'Read this line');
-      fireEvent.press(getByTestId('create-audio-voice-selector'));
-      await waitFor(() => expect(getByTestId('debate-voice-option-voice_b')).toBeTruthy());
-      fireEvent.press(getByTestId('debate-voice-option-voice_b'));
-
-      fireEvent.press(getByTestId('gradient-button'));
-
-      await waitFor(() => {
-        expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({
-          type: 'create/generateCreateAudio',
-          payload: expect.objectContaining({
-            prompt: 'Read this line',
-            operation: 'text_to_speech',
-            voiceId: 'voice_b',
-          }),
-        }));
-      });
-    });
-
-    it('keeps sound effect controls inside audio settings', () => {
-      useStateWith({ create: { activeTab: 'audio' } });
-
-      const { getByTestId, getByText, queryByTestId } = renderWithProviders(<CreateSetupScreen />);
-
-      fireEvent.press(getByTestId('segment-sound_effect'));
-      expect(queryByTestId('create-audio-voice-selector')).toBeNull();
-      expect(queryByTestId('create-audio-duration-slider')).toBeNull();
-
-      fireEvent.press(getByTestId('create-open-settings'));
-      fireEvent(getByTestId('create-audio-duration-slider'), 'valueChange', 5);
-      fireEvent(getByTestId('create-audio-influence-slider'), 'valueChange', 3);
-
-      expect(getByText('10s')).toBeTruthy();
-      expect(getByText('Influence 0.7')).toBeTruthy();
-    });
-
-    it('dispatches the existing audio generation payload after picker selections', async () => {
-      useStateWith({
-        settings: {
-          apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
-        },
-        create: { activeTab: 'audio' },
-      });
-
-      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
-
-      await waitFor(() => expect(getByText('Narrator A')).toBeTruthy());
-      fireEvent.changeText(getByTestId('create-audio-prompt-input'), 'Read this line');
-      await waitFor(() => {
-        expect(getByTestId('create-audio-prompt-input').props.value).toBe('Read this line');
-      });
-
-      fireEvent.press(getByTestId('create-open-settings'));
-      fireEvent.press(getByTestId('create-audio-model-selector'));
-      fireEvent.press(getByTestId('create-audio-picker-option-eleven_v3'));
-      fireEvent.press(getByTestId('create-audio-format-selector'));
-      fireEvent.press(getByTestId('create-audio-picker-option-wav_44100'));
-
-      fireEvent.press(getByTestId('gradient-button'));
-
-      await waitFor(() => {
-        expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({
-          type: 'create/generateCreateAudio',
-          payload: {
-            prompt: 'Read this line',
-            operation: 'text_to_speech',
-            modelId: 'eleven_v3',
-            voiceId: 'voice_a',
-            outputFormat: 'wav_44100',
-            durationSeconds: undefined,
-            promptInfluence: undefined,
-          },
-        }));
-      });
-    });
-
-    it('uses Flash v2.5 as the default Create voiceover model', async () => {
-      useStateWith({
-        settings: {
-          apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
-        },
-        create: { activeTab: 'audio' },
-      });
-
-      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
-
-      await waitFor(() => expect(getByText('Narrator A')).toBeTruthy());
-      fireEvent.changeText(getByTestId('create-audio-prompt-input'), 'Read this line');
-      fireEvent.press(getByTestId('gradient-button'));
-
-      await waitFor(() => {
-        expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({
-          type: 'create/generateCreateAudio',
-          payload: expect.objectContaining({
-            prompt: 'Read this line',
-            operation: 'text_to_speech',
-            modelId: 'eleven_flash_v2_5',
-          }),
-        }));
-      });
-    });
-
-    it('clears the audio prompt after successful generation', async () => {
-      useStateWith({
-        settings: {
-          apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
-        },
-        create: { activeTab: 'audio' },
-      });
-
-      const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
-
-      fireEvent.changeText(getByTestId('create-audio-prompt-input'), 'Read this line');
-      await waitFor(() => {
-        expect(getByTestId('create-audio-prompt-input').props.value).toBe('Read this line');
-      });
-      fireEvent.press(getByTestId('gradient-button'));
-
-      await waitFor(() => {
-        expect(getByTestId('create-audio-prompt-input').props.value).toBe('');
-      });
-    });
-
-    it('clears the video prompt after successful generation', async () => {
-      useStateWith({
+  describe('video tab', () => {
+    const withRunway = (create: Record<string, unknown> = {}) =>
+      mockStateWith({
         settings: {
           apiKeys: { ...baseState.settings.apiKeys, runway: 'runway-key' },
-          verifiedProviders: [...baseState.settings.verifiedProviders, 'runway'],
+        },
+        create: { activeTab: 'video', ...create },
+      });
+
+    it('derives a single Runway pill and sends the video payload', async () => {
+      withRunway();
+
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+      expect(getByText('Runway')).toBeTruthy();
+
+      fireEvent.changeText(getByTestId('create-composer-input'), 'A city timelapse');
+      fireEvent.press(getByTestId('create-composer-send'));
+
+      await waitFor(() => {
+        expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({
+          type: 'create/generateCreateVideo',
+          payload: {
+            prompt: 'A city timelapse',
+            modelId: 'gen4.5',
+            durationSeconds: 5,
+            aspectRatio: '1280:720',
+            sourceImageUri: undefined,
+          },
+        }));
+        expect(getByTestId('create-composer-input').props.value).toBe('');
+      });
+    });
+
+    it('sends the attachment as an image-to-video source', async () => {
+      mockStateWith({
+        settings: {
+          apiKeys: { ...baseState.settings.apiKeys, runway: 'runway-key' },
+        },
+        createSelection: {
+          attachments: { image: [], video: [{ uri: 'file://frame.png' }], audio: [] },
         },
         create: { activeTab: 'video' },
       });
 
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
+      expect(getByTestId('create-composer-attachments')).toBeTruthy();
 
-      fireEvent.changeText(getByTestId('create-video-prompt-input'), 'A city timelapse');
-      await waitFor(() => {
-        expect(getByTestId('create-video-prompt-input').props.value).toBe('A city timelapse');
-      });
-      fireEvent.press(getByTestId('gradient-button'));
+      fireEvent.changeText(getByTestId('create-composer-input'), 'Make it move');
+      fireEvent.press(getByTestId('create-composer-send'));
 
       await waitFor(() => {
-        expect(getByTestId('create-video-prompt-input').props.value).toBe('');
+        expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({
+          type: 'create/generateCreateVideo',
+          payload: expect.objectContaining({ sourceImageUri: 'file://frame.png' }),
+        }));
       });
     });
 
-    it('shows the sticky video running rail from media generation state', () => {
-      useStateWith({
-        settings: {
-          apiKeys: { ...baseState.settings.apiKeys, runway: 'runway-key' },
-          verifiedProviders: [...baseState.settings.verifiedProviders, 'runway'],
-        },
-        create: {
-          activeTab: 'video',
-          mediaGeneration: {
-            video: {
-              id: 'media_running',
-              mediaType: 'video',
-              providerId: 'runway',
-              operation: 'text_to_video',
-              modelId: 'gen4.5',
-              prompt: 'A city timelapse',
-              status: 'running',
-              phase: 'rendering',
-              startedAt: Date.now(),
-              message: 'Rendering video...',
-            },
-            audio: null,
+    it('shows the connect CTA without a Runway key', () => {
+      mockStateWith({ create: { activeTab: 'video' } });
+      const { getByText } = renderWithProviders(<CreateSetupScreen />);
+      expect(getByText('Connect Runway to generate videos')).toBeTruthy();
+      expect(getByText('Connect a provider')).toBeTruthy();
+    });
+
+    it('opens the Runway config sheet from the pill and updates duration', () => {
+      withRunway();
+
+      const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
+      fireEvent.press(getByTestId('create-composer-pill-0'));
+      expect(getByTestId('create-video-model-grid')).toBeTruthy();
+
+      fireEvent(getByTestId('create-video-duration-slider'), 'valueChange', 8);
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'createSelection/setVideoOptions',
+          payload: { durationSeconds: 10 },
+        })
+      );
+    });
+
+    it('shows running video status from media generation state', () => {
+      withRunway({
+        mediaGeneration: {
+          video: {
+            id: 'media_running',
+            mediaType: 'video',
+            providerId: 'runway',
+            operation: 'text_to_video',
+            modelId: 'gen4.5',
+            prompt: 'A city timelapse',
+            status: 'running',
+            phase: 'rendering',
+            startedAt: Date.now(),
+            message: 'Rendering video...',
           },
+          audio: null,
         },
       });
 
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
 
-      expect(getByTestId('create-video-rail')).toBeTruthy();
       expect(getByTestId('create-video-status')).toBeTruthy();
       expect(getByText('Rendering video...')).toBeTruthy();
-      expect(getByText('Generating Video...')).toBeTruthy();
     });
 
     it('shows a video completion CTA that opens Gallery focused on the result', () => {
-      useStateWith({
-        settings: {
-          apiKeys: { ...baseState.settings.apiKeys, runway: 'runway-key' },
-          verifiedProviders: [...baseState.settings.verifiedProviders, 'runway'],
-        },
-        create: {
-          activeTab: 'video',
-          mediaGeneration: { video: null, audio: null },
-          lastMediaGenerationResult: {
-            id: 'media_video_done',
-            mediaType: 'video',
-            status: 'succeeded',
-            message: 'Video generation complete.',
-            completedAt: Date.now(),
-          },
+      withRunway({
+        mediaGeneration: { video: null, audio: null },
+        lastMediaGenerationResult: {
+          id: 'media_video_done',
+          mediaType: 'video',
+          status: 'succeeded',
+          message: 'Video generation complete.',
+          completedAt: Date.now(),
         },
       });
 
@@ -1174,52 +1035,179 @@ describe('CreateSetupScreen', () => {
 
       expect(mockNavigate).toHaveBeenCalledWith('CreateSession', { focusMediaId: 'media_video_done' });
     });
+  });
 
-    it('uses the same sticky rail pattern for audio completion', () => {
-      useStateWith({
-        create: {
-          activeTab: 'audio',
-          mediaGeneration: { video: null, audio: null },
-          lastMediaGenerationResult: {
-            id: 'media_audio_done',
-            mediaType: 'audio',
-            status: 'succeeded',
-            message: 'Audio generation complete.',
-            completedAt: Date.now(),
+  describe('audio tab', () => {
+    const withElevenLabs = (
+      create: Record<string, unknown> = {},
+      createSelection: Record<string, unknown> = {}
+    ) =>
+      mockStateWith({
+        settings: {
+          apiKeys: { ...baseState.settings.apiKeys, elevenlabs: 'eleven-key' },
+        },
+        createSelection,
+        create: { activeTab: 'audio', ...create },
+      });
+
+    it('derives a single ElevenLabs pill and opens its config sheet', async () => {
+      withElevenLabs();
+
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+      expect(getByText('ElevenLabs')).toBeTruthy();
+
+      fireEvent.press(getByTestId('create-composer-pill-0'));
+      await waitFor(() => {
+        expect(getByTestId('create-audio-voice-selector')).toBeTruthy();
+        expect(getByTestId('create-audio-model-selector')).toBeTruthy();
+        expect(getByTestId('create-audio-format-selector')).toBeTruthy();
+      });
+    });
+
+    it('routes operation, model, and format changes into audio options', async () => {
+      withElevenLabs();
+
+      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+      fireEvent.press(getByTestId('create-composer-pill-0'));
+
+      fireEvent.press(getByTestId('segment-sound_effect'));
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'createSelection/setAudioOptions',
+          payload: { operation: 'sound_effect' },
+        })
+      );
+
+      fireEvent.press(getByTestId('create-audio-model-selector'));
+      await waitFor(() => expect(getByText('Select Model')).toBeTruthy());
+      fireEvent.press(getByTestId('create-audio-picker-option-eleven_v3'));
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'createSelection/setAudioOptions',
+          payload: { ttsModelId: 'eleven_v3' },
+        })
+      );
+
+      fireEvent.press(getByTestId('create-audio-format-selector'));
+      await waitFor(() => expect(getByText('Select Format')).toBeTruthy());
+      fireEvent.press(getByTestId('create-audio-picker-option-wav_44100'));
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'createSelection/setAudioOptions',
+          payload: { outputFormat: 'wav_44100' },
+        })
+      );
+    });
+
+    it('shows sound-effect sliders only for the sound_effect operation', async () => {
+      withElevenLabs({}, {
+        audioOptions: {
+          ...baseCreateSelection.audioOptions,
+          operation: 'sound_effect',
+        },
+      });
+
+      const { getByTestId, queryByTestId } = renderWithProviders(<CreateSetupScreen />);
+      await waitFor(() => expect(mockListElevenLabsOptions).toHaveBeenCalled());
+      fireEvent.press(getByTestId('create-composer-pill-0'));
+
+      expect(queryByTestId('create-audio-voice-selector')).toBeNull();
+      fireEvent(getByTestId('create-audio-duration-slider'), 'valueChange', 5);
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'createSelection/setAudioOptions',
+          payload: { durationSeconds: 10 },
+        })
+      );
+      fireEvent(getByTestId('create-audio-influence-slider'), 'valueChange', 3);
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'createSelection/setAudioOptions',
+          payload: { promptInfluence: 0.7 },
+        })
+      );
+    });
+
+    it('selects a voice from the shared voice picker', async () => {
+      withElevenLabs();
+
+      const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
+      fireEvent.press(getByTestId('create-composer-pill-0'));
+      fireEvent.press(getByTestId('create-audio-voice-selector'));
+
+      await waitFor(() => expect(getByTestId('debate-voice-option-voice_b')).toBeTruthy());
+      fireEvent.press(getByTestId('debate-voice-option-voice_b'));
+
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'createSelection/setAudioOptions',
+          payload: { voiceId: 'voice_b', voiceName: 'Narrator B' },
+        })
+      );
+    });
+
+    it('sends a voiceover with the persisted model, voice, and format', async () => {
+      withElevenLabs({}, {
+        audioOptions: {
+          ...baseCreateSelection.audioOptions,
+          voiceId: 'voice_b',
+          voiceName: 'Narrator B',
+        },
+      });
+
+      const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
+      fireEvent.changeText(getByTestId('create-composer-input'), 'Read this line');
+      fireEvent.press(getByTestId('create-composer-send'));
+
+      await waitFor(() => {
+        expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({
+          type: 'create/generateCreateAudio',
+          payload: {
+            prompt: 'Read this line',
+            operation: 'text_to_speech',
+            modelId: 'eleven_flash_v2_5',
+            voiceId: 'voice_b',
+            outputFormat: 'mp3_44100_128',
+            durationSeconds: undefined,
+            promptInfluence: undefined,
           },
+        }));
+        expect(getByTestId('create-composer-input').props.value).toBe('');
+      });
+    });
+
+    it('shows the connect CTA without an ElevenLabs key', () => {
+      mockStateWith({ create: { activeTab: 'audio' } });
+      const { getByText } = renderWithProviders(<CreateSetupScreen />);
+      expect(getByText('Connect ElevenLabs to generate audio')).toBeTruthy();
+    });
+
+    it('uses the same status card pattern for audio completion', async () => {
+      withElevenLabs({
+        mediaGeneration: { video: null, audio: null },
+        lastMediaGenerationResult: {
+          id: 'media_audio_done',
+          mediaType: 'audio',
+          status: 'succeeded',
+          message: 'Audio generation complete.',
+          completedAt: Date.now(),
         },
       });
 
       const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
+      await waitFor(() => expect(mockListElevenLabsOptions).toHaveBeenCalled());
 
-      expect(getByTestId('create-audio-rail')).toBeTruthy();
+      expect(getByTestId('create-audio-status')).toBeTruthy();
       expect(getByText('Audio generation complete.')).toBeTruthy();
       fireEvent.press(getByTestId('create-audio-gallery-cta'));
 
       expect(mockNavigate).toHaveBeenCalledWith('CreateSession', { focusMediaId: 'media_audio_done' });
     });
-
-    it('maps the video duration slider index to allowed duration values', () => {
-      useStateWith({
-        settings: {
-          apiKeys: { ...baseState.settings.apiKeys, runway: 'runway-key' },
-          verifiedProviders: [...baseState.settings.verifiedProviders, 'runway'],
-        },
-        create: { activeTab: 'video' },
-      });
-
-      const { getByTestId, getByText } = renderWithProviders(<CreateSetupScreen />);
-
-      fireEvent.press(getByTestId('create-open-settings'));
-      fireEvent(getByTestId('create-video-duration-slider'), 'valueChange', 8);
-
-      expect(getByText('10s')).toBeTruthy();
-    });
   });
 
   describe('gallery hydration', () => {
     it('dispatches hydrateGallery on mount when not hydrated', () => {
-      useStateWith({ create: { galleryHydrated: false } });
+      mockStateWith({ create: { galleryHydrated: false } });
 
       renderWithProviders(<CreateSetupScreen />);
       expect(mockDispatch).toHaveBeenCalledWith({ type: 'create/hydrateGallery' });
@@ -1227,7 +1215,7 @@ describe('CreateSetupScreen', () => {
 
     it('does NOT dispatch hydrateGallery in demo mode', () => {
       mockUseFeatureAccess.mockReturnValue({ membershipStatus: 'demo', isDemo: true, isPremium: false });
-      useStateWith({ create: { galleryHydrated: false } });
+      mockStateWith({ create: { galleryHydrated: false } });
 
       renderWithProviders(<CreateSetupScreen />);
       expect(mockDispatch).not.toHaveBeenCalledWith({ type: 'create/hydrateGallery' });
@@ -1236,7 +1224,7 @@ describe('CreateSetupScreen', () => {
 
   describe('gallery access', () => {
     it('navigates to CreateSession when gallery button is pressed (premium user)', () => {
-      useStateWith({ create: { gallery: [{ id: '1', uri: 'file://a.png' }] } });
+      mockStateWith({ create: { gallery: [{ id: '1', uri: 'file://a.png' }] } });
 
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
       fireEvent.press(getByTestId('header-gallery-button'));
@@ -1245,7 +1233,7 @@ describe('CreateSetupScreen', () => {
     });
 
     it('opens a recent creation from the empty-state strip', () => {
-      useStateWith({ create: { gallery: [{ id: 'img_1', uri: 'file://a.png' }] } });
+      mockStateWith({ create: { gallery: [{ id: 'img_1', uri: 'file://a.png' }] } });
 
       const { getByLabelText } = renderWithProviders(<CreateSetupScreen />);
       fireEvent.press(getByLabelText('Open recent creation'));

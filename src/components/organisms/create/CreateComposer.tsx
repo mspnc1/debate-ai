@@ -29,6 +29,8 @@ export interface CreateComposerProps {
   onRemoveAttachment: (uri: string) => void;
   /** Image tab: opens the composer-level output-options sheet. */
   onOpenOptions?: () => void;
+  /** Video tab: visible attach affordance for image-to-video sources. */
+  onAttachImage?: () => void;
   /** Video/audio: the screen owns those config sheets; image pills open theirs here. */
   onMediaPillPress?: (index: number) => void;
   inputText: string;
@@ -60,6 +62,7 @@ export const CreateComposer: React.FC<CreateComposerProps> = ({
   attachments,
   onRemoveAttachment,
   onOpenOptions,
+  onAttachImage,
   onMediaPillPress,
   inputText,
   onChangeText,
@@ -141,18 +144,34 @@ export const CreateComposer: React.FC<CreateComposerProps> = ({
         ) : undefined
       }
       leadingAccessory={
-        onOpenOptions ? (
-          <TouchableOpacity
-            onPress={handleOpenOptions}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Output options"
-            accessibilityHint="Style, frame, count, and source image"
-            style={[styles.optionsChip, { borderColor: theme.colors.border }]}
-            testID={testID ? `${testID}-options` : undefined}
-          >
-            <Ionicons name="options-outline" size={18} color={theme.colors.text.secondary} />
-          </TouchableOpacity>
+        onOpenOptions || onAttachImage ? (
+          <>
+            {onOpenOptions && (
+              <TouchableOpacity
+                onPress={handleOpenOptions}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Output options"
+                accessibilityHint="Style, frame, count, and source image"
+                style={[styles.optionsChip, { borderColor: theme.colors.border }]}
+                testID={testID ? `${testID}-options` : undefined}
+              >
+                <Ionicons name="options-outline" size={18} color={theme.colors.text.secondary} />
+              </TouchableOpacity>
+            )}
+            {onAttachImage && (
+              <TouchableOpacity
+                onPress={onAttachImage}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Attach source image"
+                style={[styles.optionsChip, { borderColor: theme.colors.border }]}
+                testID={testID ? `${testID}-attach` : undefined}
+              >
+                <Ionicons name="image-outline" size={18} color={theme.colors.text.secondary} />
+              </TouchableOpacity>
+            )}
+          </>
         ) : undefined
       }
       validationMessage={validationMessage}

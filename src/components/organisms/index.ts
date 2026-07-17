@@ -115,3 +115,6 @@ export { CreateMediaTabs } from './create/CreateMediaTabs';
 export { CreateOptionsSheet } from './create/CreateOptionsSheet';
 export { ImageModelConfigSheet } from './create/ImageModelConfigSheet';
 export { CreateSheetShell } from './create/CreateSheetShell';
+export { VideoConfigSheet } from './create/VideoConfigSheet';
+export { AudioConfigSheet } from './create/AudioConfigSheet';
+export { CreateMediaStatusCard } from './create/CreateMediaStatusCard';

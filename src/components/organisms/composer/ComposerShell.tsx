@@ -37,6 +37,7 @@ export interface ComposerShellProps {
   leadingAccessory?: React.ReactNode;
   validationMessage?: string | null;
   placeholder?: string;
+  maxLength?: number;
   disabled?: boolean;
   testID?: string;
   /** Bottom sheets owned by the wrapper (picker/config), kept inside the surface. */
@@ -62,6 +63,7 @@ export const ComposerShell: React.FC<ComposerShellProps> = ({
   leadingAccessory,
   validationMessage,
   placeholder = 'Ask anything…',
+  maxLength,
   disabled = false,
   testID,
   children,
@@ -93,6 +95,7 @@ export const ComposerShell: React.FC<ComposerShellProps> = ({
         placeholder={placeholder}
         placeholderTextColor={theme.colors.text.disabled}
         multiline
+        maxLength={maxLength}
         style={[styles.input, { color: theme.colors.text.primary }]}
         editable={!disabled}
         accessibilityLabel="Message input"
