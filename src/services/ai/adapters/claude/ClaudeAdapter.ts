@@ -38,6 +38,81 @@ export class ClaudeAdapter extends BaseAdapter {
   public getLastModelUsed(): string | undefined {
     return this.lastModelUsed;
   }
+
+  // Anthropic server-side web search tool. web_search_20250305 works on every
+  // catalog model; max_uses keeps pause_turn continuations rare.
+  private buildWebSearchTools(): Array<Record<string, unknown>> | undefined {
+    if (!this.config.webSearchEnabled) return undefined;
+    return [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }];
+  }
+
+  // With web search enabled, content interleaves text, server_tool_use, and
+  // web_search_tool_result blocks — join only the text blocks. Blocks without
+  // a type but with string text are treated as text for compatibility.
+  private extractTextFromContent(content: unknown): string {
+    if (!Array.isArray(content)) return '';
+    const texts: string[] = [];
+    for (const block of content) {
+      if (!block || typeof block !== 'object') continue;
+      const b = block as { type?: string; text?: unknown };
+      if ((b.type === undefined || b.type === 'text') && typeof b.text === 'string') {
+        texts.push(b.text);
+      }
+    }
+    return texts.join('');
+  }
+
+  private extractCitationsFromContent(
+    content: unknown
+  ): Array<{ index: number; url: string; title?: string; snippet?: string }> {
+    const citations: Array<{ index: number; url: string; title?: string; snippet?: string }> = [];
+    const seenUrls = new Set<string>();
+    const add = (url: unknown, title?: unknown, snippet?: unknown) => {
+      if (typeof url !== 'string' || !url || seenUrls.has(url)) return;
+      seenUrls.add(url);
+      citations.push({
+        index: citations.length + 1,
+        url,
+        ...(typeof title === 'string' && title ? { title } : {}),
+        ...(typeof snippet === 'string' && snippet ? { snippet } : {}),
+      });
+    };
+
+    if (!Array.isArray(content)) return citations;
+
+    for (const block of content) {
+      if (!block || typeof block !== 'object') continue;
+      const b = block as { type?: string; citations?: unknown };
+      if (b.type === 'text' && Array.isArray(b.citations)) {
+        for (const c of b.citations) {
+          const cit = c as { type?: string; url?: unknown; title?: unknown; cited_text?: unknown } | null;
+          if (cit && cit.type === 'web_search_result_location') {
+            add(cit.url, cit.title, cit.cited_text);
+          }
+        }
+      }
+    }
+
+    // Fallback: no per-text citations — surface the raw search result URLs.
+    // A web_search_tool_result_error payload has object (not array) content
+    // and is skipped here without throwing.
+    if (citations.length === 0) {
+      for (const block of content) {
+        if (!block || typeof block !== 'object') continue;
+        const b = block as { type?: string; content?: unknown };
+        if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) {
+          for (const r of b.content) {
+            const res = r as { type?: string; url?: unknown; title?: unknown } | null;
+            if (res && res.type === 'web_search_result') {
+              add(res.url, res.title);
+            }
+          }
+        }
+      }
+    }
+
+    return citations;
+  }
   
   private formatMessageContent(message: string, attachments?: MessageAttachment[]): string | Array<{ type: string; text?: string; source?: { type: string; media_type: string; data: string } }> {
     if (!attachments || attachments.length === 0) {
@@ -124,6 +199,11 @@ export class ClaudeAdapter extends BaseAdapter {
           requestBody.top_k = sampling.topK;
         }
 
+        const tools = this.buildWebSearchTools();
+        if (tools) {
+          requestBody.tools = tools;
+        }
+
         const response = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
@@ -152,9 +232,11 @@ export class ClaudeAdapter extends BaseAdapter {
         
         const data = await response.json();
         this.lastModelUsed = data.model;
-        
+
+        const citations = this.extractCitationsFromContent(data.content);
+
         return {
-          response: data.content[0].text,
+          response: this.extractTextFromContent(data.content),
           modelUsed: data.model,
           finishReason: normalizeFinishReason(data.stop_reason),
           usage: data.usage ? {
@@ -162,6 +244,7 @@ export class ClaudeAdapter extends BaseAdapter {
             completionTokens: data.usage.output_tokens,
             totalTokens: (data.usage.input_tokens || 0) + (data.usage.output_tokens || 0),
           } : undefined,
+          metadata: citations.length > 0 ? { citations } : undefined,
         };
       } catch (error) {
         lastError = error as Error;
@@ -208,6 +291,11 @@ export class ClaudeAdapter extends BaseAdapter {
       requestBodyObj.top_p = streamSampling.topP;
     }
 
+    const webSearchTools = this.buildWebSearchTools();
+    if (webSearchTools) {
+      requestBodyObj.tools = webSearchTools;
+    }
+
     // Create the request body
     const requestBody = JSON.stringify(requestBodyObj);
     
@@ -242,13 +330,42 @@ export class ClaudeAdapter extends BaseAdapter {
     let resolver: ((value: IteratorResult<string, void>) => void) | null = null;
     let isComplete = false;
     let errorOccurred: Error | null = null;
-    
+
+    // Web-search citations accumulated over the stream: citations_delta is the
+    // primary source; web_search_tool_result blocks are the URL fallback.
+    const streamCitations: Array<{ index: number; url: string; title?: string; snippet?: string }> = [];
+    const fallbackCitations: Array<{ index: number; url: string; title?: string }> = [];
+    const seenCitationUrls = new Set<string>();
+    const seenFallbackUrls = new Set<string>();
+    const emitCitations = () => {
+      const citations = streamCitations.length > 0 ? streamCitations : fallbackCitations;
+      if (citations.length > 0 && onEvent) {
+        try { onEvent({ type: 'citations', citations }); } catch { /* noop */ }
+      }
+    };
+
     // Claude sends typed events, not generic 'message' events
     // Handle content_block_delta events for streaming text
     es.addEventListener('content_block_delta', (event: CustomEvent<'content_block_delta'>) => {
       try {
         const data = JSON.parse(event.data || '{}');
-          
+
+        if (data.delta?.type === 'citations_delta') {
+          const citation = data.delta.citation as
+            | { type?: string; url?: unknown; title?: unknown; cited_text?: unknown }
+            | undefined;
+          const url = citation && typeof citation.url === 'string' ? citation.url : undefined;
+          if (url && !seenCitationUrls.has(url)) {
+            seenCitationUrls.add(url);
+            streamCitations.push({
+              index: streamCitations.length + 1,
+              url,
+              ...(typeof citation?.title === 'string' && citation.title ? { title: citation.title } : {}),
+              ...(typeof citation?.cited_text === 'string' && citation.cited_text ? { snippet: citation.cited_text } : {}),
+            });
+          }
+        }
+
         if (data.delta?.text) {
           const nextText = dedupeChunk(data.delta.text);
           if (nextText) {
@@ -278,6 +395,9 @@ export class ClaudeAdapter extends BaseAdapter {
     
     // Handle message_stop event for stream completion
     es.addEventListener('message_stop', () => {
+      // Citations must surface before the generator resolves done so the
+      // orchestrator captures them into message metadata.
+      emitCitations();
       isComplete = true;
       // Close the stream proactively
       try { es.close(); } catch { /* noop */ }
@@ -294,9 +414,27 @@ export class ClaudeAdapter extends BaseAdapter {
       }
     });
     es.addEventListener('content_block_start', (event: CustomEvent<'content_block_start'>) => {
-      if (onEvent) {
-        try { onEvent({ type: 'content_block_start', ...(event?.data ? JSON.parse(event.data) : {}) }); } catch { /* noop */ }
-      }
+      try {
+        const data = event?.data ? JSON.parse(event.data) : {};
+        // Search results arrive fully populated in the start event; stash the
+        // URLs as fallback citations for when no citations_delta follows.
+        const block = data?.content_block as { type?: string; content?: unknown } | undefined;
+        if (block?.type === 'web_search_tool_result' && Array.isArray(block.content)) {
+          for (const r of block.content) {
+            const res = r as { type?: string; url?: unknown; title?: unknown } | null;
+            const url = res && res.type === 'web_search_result' && typeof res.url === 'string' ? res.url : undefined;
+            if (url && !seenFallbackUrls.has(url)) {
+              seenFallbackUrls.add(url);
+              fallbackCitations.push({
+                index: fallbackCitations.length + 1,
+                url,
+                ...(typeof res?.title === 'string' && res.title ? { title: res.title } : {}),
+              });
+            }
+          }
+        }
+        if (onEvent) onEvent({ type: 'content_block_start', ...data });
+      } catch { /* noop */ }
     });
     // Non-typed events like message_delta aren't declared in ClaudeEventTypes, but react-native-sse can emit them
     // We attach via 'message' and forward if present in payload.

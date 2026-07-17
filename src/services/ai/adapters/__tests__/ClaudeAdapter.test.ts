@@ -196,7 +196,21 @@ describe('ClaudeAdapter', () => {
     expect(body.temperature).toBe(0);
   });
 
-  it.each(['claude-opus-4-7', 'claude-opus-4-8'])(
+  it('clamps temperature to the Claude provider maximum of 1', async () => {
+    const adapter = new ClaudeAdapter({
+      ...makeConfig('claude-3-7-sonnet-20250219'),
+      parameters: { temperature: 1.8, maxTokens: 4096 },
+    });
+
+    await adapter.sendMessage('Stay in range');
+
+    const [, requestInit] = fetchMock.mock.calls[0];
+    const body = JSON.parse(requestInit?.body as string);
+
+    expect(body.temperature).toBe(1);
+  });
+
+  it.each(['claude-opus-4-7', 'claude-opus-4-8', 'claude-sonnet-5', 'claude-fable-5'])(
     'omits unsupported sampling parameters for %s',
     async (modelId) => {
       const adapter = new ClaudeAdapter({
@@ -215,6 +229,93 @@ describe('ClaudeAdapter', () => {
       expect(body.top_k).toBeUndefined();
     }
   );
+
+  it('adds the web_search server tool only when web search is enabled', async () => {
+    const enabled = new ClaudeAdapter({ ...makeConfig('claude-sonnet-5'), webSearchEnabled: true });
+    await enabled.sendMessage('What happened today?');
+    let [, requestInit] = fetchMock.mock.calls[0];
+    let body = JSON.parse(requestInit?.body as string);
+    expect(body.tools).toEqual([{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }]);
+
+    fetchMock.mockClear();
+    const disabled = new ClaudeAdapter(makeConfig('claude-sonnet-5'));
+    await disabled.sendMessage('No search needed');
+    [, requestInit] = fetchMock.mock.calls[0];
+    body = JSON.parse(requestInit?.body as string);
+    expect(body.tools).toBeUndefined();
+  });
+
+  it('joins text blocks and extracts citations from web search responses', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        model: 'claude-sonnet-5',
+        stop_reason: 'end_turn',
+        content: [
+          { type: 'server_tool_use', id: 'tool_1', name: 'web_search', input: { query: 'news' } },
+          {
+            type: 'web_search_tool_result',
+            tool_use_id: 'tool_1',
+            content: [
+              { type: 'web_search_result', url: 'https://example.com/a', title: 'Source A', encrypted_content: 'x' },
+            ],
+          },
+          { type: 'text', text: 'Latest ' },
+          {
+            type: 'text',
+            text: 'news summary.',
+            citations: [
+              {
+                type: 'web_search_result_location',
+                url: 'https://example.com/a',
+                title: 'Source A',
+                cited_text: 'the news',
+              },
+            ],
+          },
+        ],
+        usage: { input_tokens: 10, output_tokens: 5 },
+      }),
+    } as unknown as Response);
+
+    const adapter = new ClaudeAdapter({ ...makeConfig('claude-sonnet-5'), webSearchEnabled: true });
+    const result = await adapter.sendMessage('What happened today?');
+
+    expect(result).toEqual(expect.objectContaining({
+      response: 'Latest news summary.',
+      metadata: {
+        citations: [
+          { index: 1, url: 'https://example.com/a', title: 'Source A', snippet: 'the news' },
+        ],
+      },
+    }));
+  });
+
+  it('tolerates web_search_tool_result_error payloads without throwing', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        model: 'claude-sonnet-5',
+        stop_reason: 'end_turn',
+        content: [
+          {
+            type: 'web_search_tool_result',
+            tool_use_id: 'tool_1',
+            content: { type: 'web_search_tool_result_error', error_code: 'unavailable' },
+          },
+          { type: 'text', text: 'I could not search just now.' },
+        ],
+      }),
+    } as unknown as Response);
+
+    const adapter = new ClaudeAdapter({ ...makeConfig('claude-sonnet-5'), webSearchEnabled: true });
+    const result = await adapter.sendMessage('Search please');
+
+    expect(result).toEqual(expect.objectContaining({
+      response: 'I could not search just now.',
+    }));
+    expect((result as { metadata?: unknown }).metadata).toBeUndefined();
+  });
 
   it('throws descriptive error when retries are exhausted', async () => {
     fetchMock.mockResolvedValue({
@@ -248,6 +349,53 @@ describe('ClaudeAdapter', () => {
     await expect(iterator.next()).resolves.toEqual({ value: undefined, done: true });
     expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'content_block_delta' }));
     expect(eventSource.close).toHaveBeenCalled();
+  });
+
+  it('emits accumulated citations before the stream completes', async () => {
+    const adapter = new ClaudeAdapter({ ...makeConfig('claude-sonnet-5'), webSearchEnabled: true });
+    const onEvent = jest.fn();
+    const iterator = adapter.streamMessage('Search the web', [], undefined, undefined, undefined, undefined, onEvent);
+
+    const firstChunk = iterator.next();
+    await flushMicrotasks();
+    const eventSource = mockEventSourceInstances[0];
+    if (!eventSource) throw new Error('EventSource not created');
+
+    const [, options] = [eventSource.url, eventSource.options as { body?: string }];
+    expect(JSON.parse(options.body || '{}').tools).toEqual([
+      { type: 'web_search_20250305', name: 'web_search', max_uses: 5 },
+    ]);
+
+    eventSource.emit('content_block_start', JSON.stringify({
+      content_block: {
+        type: 'web_search_tool_result',
+        content: [{ type: 'web_search_result', url: 'https://example.com/b', title: 'Source B' }],
+      },
+    }));
+    eventSource.emit('content_block_delta', JSON.stringify({ delta: { text: 'Answer' } }));
+    await expect(firstChunk).resolves.toEqual({ value: 'Answer', done: false });
+
+    const finalChunk = iterator.next();
+    eventSource.emit('content_block_delta', JSON.stringify({
+      delta: {
+        type: 'citations_delta',
+        citation: {
+          type: 'web_search_result_location',
+          url: 'https://example.com/b',
+          title: 'Source B',
+          cited_text: 'cited passage',
+        },
+      },
+    }));
+    eventSource.emit('message_stop', null);
+    await expect(finalChunk).resolves.toEqual({ value: undefined, done: true });
+
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'citations',
+      citations: [
+        { index: 1, url: 'https://example.com/b', title: 'Source B', snippet: 'cited passage' },
+      ],
+    });
   });
 
   it('translates SSE error payloads into user-friendly messages', async () => {
