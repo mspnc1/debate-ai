@@ -4,17 +4,19 @@ import HomeScreen from '@/screens/HomeScreen';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
 import { showSheet, createAppStore } from '@/store';
 import type { AIConfig } from '@/types';
+import type { AISelectionConfig } from '@/types/aiSelection';
 
 const mockUseGreeting = jest.fn();
 const mockUsePremiumFeatures = jest.fn();
-const mockUseAISelection = jest.fn();
+const mockUseComposerSelection = jest.fn();
 const mockUseSessionManagement = jest.fn();
 const mockUseQuickStart = jest.fn();
 const mockUseFeatureAccess = jest.fn();
 
 let mockHeaderProps: any;
 let mockHeaderActionsProps: any;
-let mockDynamicAISelectorProps: any;
+let mockComposerProps: any;
+let mockEmptyStateProps: any;
 let mockQuickStartSheetProps: any;
 let mockDemoBannerProps: any;
 let mockChatTopicPickerProps: any;
@@ -27,8 +29,8 @@ jest.mock('@/hooks/home/usePremiumFeatures', () => ({
   usePremiumFeatures: (...args: unknown[]) => mockUsePremiumFeatures(...args),
 }));
 
-jest.mock('@/hooks/home/useAISelection', () => ({
-  useAISelection: (...args: unknown[]) => mockUseAISelection(...args),
+jest.mock('@/hooks/home/useComposerSelection', () => ({
+  useComposerSelection: (...args: unknown[]) => mockUseComposerSelection(...args),
 }));
 
 jest.mock('@/hooks/home/useSessionManagement', () => ({
@@ -62,9 +64,13 @@ jest.mock('@/components/organisms', () => {
       mockHeaderActionsProps = props;
       return React.createElement(Text, { testID: 'header-actions' }, 'actions');
     },
-    DynamicAISelector: (props: any) => {
-      mockDynamicAISelectorProps = props;
-      return React.createElement(Text, { testID: 'dynamic-ai-selector' }, 'selector');
+    AIComposer: (props: any) => {
+      mockComposerProps = props;
+      return React.createElement(Text, { testID: 'ai-composer' }, 'composer');
+    },
+    HomeEmptyState: (props: any) => {
+      mockEmptyStateProps = props;
+      return React.createElement(Text, { testID: 'home-empty-state' }, 'empty-state');
     },
     QuickStartSheet: (props: any) => {
       mockQuickStartSheetProps = props;
@@ -116,26 +122,32 @@ jest.mock('@/components/organisms/demo/ChatTopicPickerModal', () => {
 });
 
 const createAIConfig = (overrides: Partial<AIConfig> = {}): AIConfig => ({
-  id: 'claude-3-opus',
-  provider: 'anthropic',
-  name: 'Claude 3 Opus',
-  model: 'claude-3-opus',
-  description: 'Powerful model',
-  capabilities: { multimodal: false, audio: false, video: false },
+  id: 'anthropic',
+  provider: 'anthropic' as AIConfig['provider'],
+  name: 'Claude',
+  model: 'claude-model',
   ...overrides,
 });
 
-const createAISelection = (overrides: Record<string, unknown> = {}) => ({
-  configuredAIs: [],
-  selectedAIs: [],
-  toggleAI: jest.fn(),
-  changePersonality: jest.fn(),
-  changeModel: jest.fn(),
-  aiPersonalities: {},
-  selectedModels: {},
-  hasSelection: false,
-  selectionCount: 0,
-  maxAIs: 3,
+const createSelectionConfig = (overrides: Partial<AISelectionConfig> = {}): AISelectionConfig => ({
+  providerId: 'anthropic',
+  modelId: 'claude-model',
+  personalityId: 'default',
+  ...overrides,
+});
+
+const createSelection = (overrides: Record<string, unknown> = {}) => ({
+  configs: [] as AISelectionConfig[],
+  configuredAIs: [] as AIConfig[],
+  addProvider: jest.fn(),
+  updateConfig: jest.fn(),
+  removeConfig: jest.fn(),
+  replaceConfigs: jest.fn(),
+  selectedAIConfigs: [] as AIConfig[],
+  sessionMaps: { personalities: {}, models: {} },
+  hasEnoughAIs: false,
+  hydrated: true,
+  isDemo: false,
   ...overrides,
 });
 
@@ -164,7 +176,12 @@ const createQuickStart = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-const collectTestIds = (node: any, ids: string[] = []): string[] => {
+type RenderedNode =
+  | { props?: { testID?: string }; children?: RenderedNode[] }
+  | RenderedNode[]
+  | null;
+
+const collectTestIds = (node: RenderedNode, ids: string[] = []): string[] => {
   if (!node) return ids;
   if (Array.isArray(node)) {
     node.forEach((child) => collectTestIds(child, ids));
@@ -173,7 +190,7 @@ const collectTestIds = (node: any, ids: string[] = []): string[] => {
   if (node.props?.testID) {
     ids.push(node.props.testID);
   }
-  node.children?.forEach((child: any) => collectTestIds(child, ids));
+  node.children?.forEach((child) => collectTestIds(child, ids));
   return ids;
 };
 
@@ -182,7 +199,8 @@ describe('HomeScreen', () => {
     jest.clearAllMocks();
     mockHeaderProps = undefined;
     mockHeaderActionsProps = undefined;
-    mockDynamicAISelectorProps = undefined;
+    mockComposerProps = undefined;
+    mockEmptyStateProps = undefined;
     mockQuickStartSheetProps = undefined;
     mockDemoBannerProps = undefined;
     mockChatTopicPickerProps = undefined;
@@ -197,9 +215,17 @@ describe('HomeScreen', () => {
     },
   };
 
-const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelection>; quickStart?: ReturnType<typeof createQuickStart>; featureAccess?: Record<string, unknown>; session?: Record<string, unknown>; premium?: Record<string, unknown>; navigation?: any; store?: ReturnType<typeof createAppStore>; }) => {
-    const aiSelection = options?.aiSelection ?? createAISelection();
-    mockUseAISelection.mockReturnValue(aiSelection);
+  const renderHome = (options?: {
+    selection?: ReturnType<typeof createSelection>;
+    quickStart?: ReturnType<typeof createQuickStart>;
+    featureAccess?: Record<string, unknown>;
+    session?: Record<string, unknown>;
+    premium?: Record<string, unknown>;
+    navigation?: { navigate: jest.Mock };
+    store?: ReturnType<typeof createAppStore>;
+  }) => {
+    const selection = options?.selection ?? createSelection();
+    mockUseComposerSelection.mockReturnValue(selection);
 
     const quickStart = options?.quickStart ?? createQuickStart();
     mockUseQuickStart.mockReturnValue(quickStart);
@@ -223,7 +249,7 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
 
     return {
       renderResult,
-      aiSelection,
+      selection,
       quickStart,
       featureAccess,
       session,
@@ -233,45 +259,47 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
     };
   };
 
-  it('renders header with greeting information and configures child components', () => {
-    const { premium, aiSelection } = renderHome();
+  it('renders the slim header and wires the composer for chat mode', () => {
+    const { premium } = renderHome();
 
-    expect(mockUseAISelection).toHaveBeenCalledWith(premium.maxAIs);
+    expect(mockUseComposerSelection).toHaveBeenCalledWith('chat', {
+      minAIs: 1,
+      maxAIs: premium.maxAIs,
+    });
     expect(mockHeaderProps).toBeDefined();
-    // The header is now a clean slim bar with a task-oriented title; no greeting/demo badge.
     expect(mockHeaderProps.slim).toBe(true);
     expect(mockHeaderProps.title).toBe('The Forum');
-    expect(mockHeaderActionsProps).toBeDefined();
     expect(mockHeaderActionsProps.variant).toBe('gradient');
     expect(mockHeaderActionsProps.helpCategoryId).toBe('chat');
-    expect(mockDynamicAISelectorProps.maxAIs).toBe(aiSelection.maxAIs);
-    expect(mockDynamicAISelectorProps.hideHeaderTitle).toBe(true);
-    // Quick Start is exposed through the trailing lightbulb on the primary button.
-    expect(mockDynamicAISelectorProps.onQuickStart).toBeDefined();
+    expect(mockComposerProps.mode).toBe('chat');
+    expect(mockComposerProps.maxAIs).toBe(premium.maxAIs);
+    expect(mockComposerProps.minAIs).toBe(1);
+    expect(mockComposerProps.requireText).toBe(true);
   });
 
-  it('places the trial banner below the header surface', () => {
+  it('places the trial banner between the header and the empty state', () => {
     const { renderResult } = renderHome({
       featureAccess: { isDemo: false, isInTrial: true, trialDaysRemaining: 1 },
     });
 
-    const testIds = collectTestIds(renderResult.toJSON());
+    const testIds = collectTestIds(renderResult.toJSON() as unknown as RenderedNode);
 
     expect(testIds.indexOf('header')).toBeGreaterThanOrEqual(0);
     expect(testIds.indexOf('trial-banner')).toBeGreaterThanOrEqual(0);
     expect(testIds.indexOf('header')).toBeLessThan(testIds.indexOf('trial-banner'));
-    expect(testIds.indexOf('trial-banner')).toBeLessThan(testIds.indexOf('dynamic-ai-selector'));
+    expect(testIds.indexOf('trial-banner')).toBeLessThan(testIds.indexOf('home-empty-state'));
+    expect(testIds.indexOf('home-empty-state')).toBeLessThan(testIds.indexOf('ai-composer'));
   });
 
-  it('does not start chat when no AI is selected', async () => {
+  it('does not start a session when sending without enough AIs', async () => {
     const navigation = { navigate: jest.fn() };
     const session = { createSession: jest.fn() };
-    const aiSelection = createAISelection({ hasSelection: false, selectedAIs: [], selectionCount: 0 });
+    const selection = createSelection({ hasEnoughAIs: false });
 
-    renderHome({ navigation, session, aiSelection });
+    renderHome({ navigation, session, selection });
 
     await act(async () => {
-      mockDynamicAISelectorProps.onStartChat();
+      mockComposerProps.onSend('hello');
     });
 
     expect(session.createSession).not.toHaveBeenCalled();
@@ -279,104 +307,125 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
     expect(mockChatTopicPickerProps).toBeUndefined();
   });
 
-  it('creates a session and navigates to chat when selection is valid', async () => {
+  it('creates a session and navigates to chat with the auto-send rail on send', async () => {
     const navigation = { navigate: jest.fn() };
-    const selectedAIs = [createAIConfig()];
+    const selectedAIConfigs = [createAIConfig()];
+    const sessionMaps = { personalities: { anthropic: 'default' }, models: { anthropic: 'claude-model' } };
     const session = { createSession: jest.fn().mockReturnValue('session-456') };
-    const aiSelection = createAISelection({
-      hasSelection: true,
-      selectionCount: selectedAIs.length,
-      selectedAIs,
+    const selection = createSelection({
+      hasEnoughAIs: true,
+      configs: [createSelectionConfig()],
+      selectedAIConfigs,
+      sessionMaps,
     });
 
-    renderHome({ navigation, session, aiSelection });
+    renderHome({ navigation, session, selection });
 
     await act(async () => {
-      mockDynamicAISelectorProps.onStartChat();
+      mockComposerProps.onSend('What is the meaning of life?');
     });
 
-    expect(session.createSession).toHaveBeenCalledWith(selectedAIs);
-    expect(navigation.navigate).toHaveBeenCalledWith('Chat', { sessionId: 'session-456' });
+    expect(session.createSession).toHaveBeenCalledWith(selectedAIConfigs, sessionMaps);
+    expect(navigation.navigate).toHaveBeenCalledWith('Chat', {
+      sessionId: 'session-456',
+      initialPrompt: 'What is the meaning of life?',
+      userPrompt: 'What is the meaning of life?',
+      autoSend: true,
+    });
   });
 
-  it('shows the topic picker when in demo mode and AI selection is valid', async () => {
-    const selectedAIs = [createAIConfig()];
-    const aiSelection = createAISelection({
-      hasSelection: true,
-      selectionCount: selectedAIs.length,
-      selectedAIs,
+  it('opens the topic picker instead of a live session in demo mode', async () => {
+    const session = { createSession: jest.fn() };
+    const selection = createSelection({
+      hasEnoughAIs: true,
+      configs: [createSelectionConfig()],
+      selectedAIConfigs: [createAIConfig()],
     });
 
-    renderHome({ aiSelection, featureAccess: { isDemo: true } });
+    renderHome({ session, selection, featureAccess: { isDemo: true } });
 
     expect(mockChatTopicPickerProps.visible).toBe(false);
+    expect(mockComposerProps.requireText).toBe(false);
 
     await act(async () => {
-      mockDynamicAISelectorProps.onStartChat();
+      mockComposerProps.onSend('');
     });
 
+    expect(session.createSession).not.toHaveBeenCalled();
     expect(mockChatTopicPickerProps.visible).toBe(true);
-    expect(mockChatTopicPickerProps.providers).toEqual(selectedAIs.map(ai => ai.provider));
+    expect(mockChatTopicPickerProps.providers).toEqual(['anthropic']);
   });
 
   it('passes single AI personality to topic picker when available', async () => {
-    const selectedAIs = [createAIConfig({ id: 'anthropic', provider: 'anthropic' })];
-    const aiSelection = createAISelection({
-      hasSelection: true,
-      selectionCount: selectedAIs.length,
-      selectedAIs,
-      aiPersonalities: { anthropic: 'friendly' },
+    const selection = createSelection({
+      hasEnoughAIs: true,
+      configs: [createSelectionConfig({ personalityId: 'friendly' })],
+      selectedAIConfigs: [createAIConfig()],
     });
 
-    renderHome({ aiSelection, featureAccess: { isDemo: true } });
+    renderHome({ selection, featureAccess: { isDemo: true } });
 
     await act(async () => {
-      mockDynamicAISelectorProps.onStartChat();
+      mockComposerProps.onSend('');
     });
 
     expect(mockChatTopicPickerProps.personaId).toBe('friendly');
   });
 
   it('does not forward persona when multiple AIs selected', async () => {
-    const selectedAIs = [createAIConfig({ id: 'anthropic', provider: 'anthropic' }), createAIConfig({ id: 'openai', provider: 'openai' })];
-    const aiSelection = createAISelection({
-      hasSelection: true,
-      selectionCount: selectedAIs.length,
-      selectedAIs,
-      aiPersonalities: { anthropic: 'friendly', openai: 'succinct' },
+    const selection = createSelection({
+      hasEnoughAIs: true,
+      configs: [
+        createSelectionConfig({ personalityId: 'friendly' }),
+        createSelectionConfig({ providerId: 'openai', personalityId: 'succinct' }),
+      ],
+      selectedAIConfigs: [
+        createAIConfig(),
+        createAIConfig({ id: 'openai', provider: 'openai' as AIConfig['provider'] }),
+      ],
     });
 
-    renderHome({ aiSelection, featureAccess: { isDemo: true } });
+    renderHome({ selection, featureAccess: { isDemo: true } });
 
     await act(async () => {
-      mockDynamicAISelectorProps.onStartChat();
+      mockComposerProps.onSend('');
     });
 
     expect(mockChatTopicPickerProps.personaId).toBeUndefined();
   });
 
-  it('opens quick start sheet when onQuickStart is called', async () => {
-    const selectedAIs = [createAIConfig()];
+  it('exposes Quick Start on the empty state when AIs are ready', async () => {
     const quickStart = createQuickStart();
-    const aiSelection = createAISelection({
-      hasSelection: true,
-      selectionCount: selectedAIs.length,
-      selectedAIs,
+    const selection = createSelection({
+      hasEnoughAIs: true,
+      configs: [createSelectionConfig()],
+      selectedAIConfigs: [createAIConfig()],
     });
 
-    renderHome({ aiSelection, quickStart });
+    renderHome({ selection, quickStart });
+
+    expect(mockEmptyStateProps.onQuickStart).toBeDefined();
 
     await act(async () => {
-      mockDynamicAISelectorProps.onQuickStart();
+      mockEmptyStateProps.onQuickStart();
     });
 
     expect(quickStart.openSheet).toHaveBeenCalled();
   });
 
-  it('passes quick start sheet props correctly', () => {
-    const quickStart = createQuickStart({
-      showSheet: true,
+  it('hides Quick Start in demo mode and when no AIs are selected', () => {
+    renderHome({
+      selection: createSelection({ hasEnoughAIs: true, selectedAIConfigs: [createAIConfig()] }),
+      featureAccess: { isDemo: true },
     });
+    expect(mockEmptyStateProps.onQuickStart).toBeUndefined();
+
+    renderHome({ selection: createSelection({ hasEnoughAIs: false }) });
+    expect(mockEmptyStateProps.onQuickStart).toBeUndefined();
+  });
+
+  it('passes quick start sheet props correctly', () => {
+    const quickStart = createQuickStart({ showSheet: true });
 
     renderHome({ quickStart });
 
@@ -386,47 +435,20 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
     expect(mockQuickStartSheetProps.onClose).toBeDefined();
   });
 
-  it('closes quick start sheet when onClose is called', async () => {
-    const quickStart = createQuickStart({
-      showSheet: true,
-      closeSheet: jest.fn(),
-    });
-
-    renderHome({ quickStart });
-
-    await act(async () => {
-      mockQuickStartSheetProps.onClose();
-    });
-
-    expect(quickStart.closeSheet).toHaveBeenCalled();
-  });
-
-  it('does not show onQuickStart in demo mode', () => {
-    const aiSelection = createAISelection({
-      hasSelection: true,
-      selectedAIs: [createAIConfig()],
-    });
-
-    renderHome({ aiSelection, featureAccess: { isDemo: true } });
-
-    expect(mockDynamicAISelectorProps.onQuickStart).toBeUndefined();
-  });
-
   it('handles quick start completion when selection exists', async () => {
-    const selectedAIs = [createAIConfig({ id: 'anthropic' })];
+    const selectedAIConfigs = [createAIConfig()];
+    const sessionMaps = { personalities: { anthropic: 'default' }, models: { anthropic: 'claude-model' } };
     const session = { createSession: jest.fn().mockReturnValue('session-789') };
-    const quickStart = createQuickStart({
-      showSheet: true,
-      closeSheet: jest.fn(),
-    });
-    const aiSelection = createAISelection({
-      hasSelection: true,
-      selectionCount: selectedAIs.length,
-      selectedAIs,
+    const quickStart = createQuickStart({ showSheet: true, closeSheet: jest.fn() });
+    const selection = createSelection({
+      hasEnoughAIs: true,
+      configs: [createSelectionConfig()],
+      selectedAIConfigs,
+      sessionMaps,
     });
     const navigation = { navigate: jest.fn() };
 
-    renderHome({ aiSelection, quickStart, session, navigation });
+    renderHome({ selection, quickStart, session, navigation });
 
     await act(async () => {
       mockQuickStartSheetProps.onStart({
@@ -436,7 +458,7 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
       });
     });
 
-    expect(session.createSession).toHaveBeenCalledWith(selectedAIs);
+    expect(session.createSession).toHaveBeenCalledWith(selectedAIConfigs, sessionMaps);
     expect(navigation.navigate).toHaveBeenCalledWith('Chat', {
       sessionId: 'session-789',
       initialPrompt: 'ai prompt',
@@ -447,10 +469,7 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
   });
 
   it('closes quick start sheet without navigation when no AI is selected', async () => {
-    const quickStart = createQuickStart({
-      showSheet: true,
-      closeSheet: jest.fn(),
-    });
+    const quickStart = createQuickStart({ showSheet: true, closeSheet: jest.fn() });
     const session = { createSession: jest.fn() };
     const navigation = { navigate: jest.fn() };
 
@@ -487,21 +506,34 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
     expect(mockDemoBannerProps.subtitle).toBe('Simulated chat preview. Upgrade to Premium to chat for real.');
   });
 
-  it('creates demo session from topic picker selection and closes modal', async () => {
-    const selectedAIs = [createAIConfig({ id: 'anthropic', provider: 'anthropic' })];
-    const session = { createSession: jest.fn().mockReturnValue('session-demo') };
-    const navigation = { navigate: jest.fn() };
-    const aiSelection = createAISelection({
-      hasSelection: true,
-      selectionCount: selectedAIs.length,
-      selectedAIs,
-      aiPersonalities: { anthropic: 'friendly' },
+  it('restricts the provider picker to configured demo providers', () => {
+    const configuredAIs = [createAIConfig(), createAIConfig({ id: 'openai', provider: 'openai' as AIConfig['provider'] })];
+    renderHome({
+      selection: createSelection({ configuredAIs }),
+      featureAccess: { isDemo: true },
     });
 
-    renderHome({ aiSelection, session, navigation, featureAccess: { isDemo: true } });
+    expect(mockComposerProps.allowedProviderIds).toEqual(['anthropic', 'openai']);
+    expect(mockComposerProps.onRequestAddKey).toBeUndefined();
+    expect(mockComposerProps.onOpenAdvanced).toBeUndefined();
+  });
+
+  it('creates demo session from topic picker selection and closes modal', async () => {
+    const selectedAIConfigs = [createAIConfig()];
+    const sessionMaps = { personalities: { anthropic: 'friendly' }, models: { anthropic: 'claude-model' } };
+    const session = { createSession: jest.fn().mockReturnValue('session-demo') };
+    const navigation = { navigate: jest.fn() };
+    const selection = createSelection({
+      hasEnoughAIs: true,
+      configs: [createSelectionConfig({ personalityId: 'friendly' })],
+      selectedAIConfigs,
+      sessionMaps,
+    });
+
+    renderHome({ selection, session, navigation, featureAccess: { isDemo: true } });
 
     await act(async () => {
-      mockDynamicAISelectorProps.onStartChat();
+      mockComposerProps.onSend('');
     });
 
     expect(mockChatTopicPickerProps.visible).toBe(true);
@@ -510,7 +542,7 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
       mockChatTopicPickerProps.onSelect('sample-123');
     });
 
-    expect(session.createSession).toHaveBeenCalledWith(selectedAIs);
+    expect(session.createSession).toHaveBeenCalledWith(selectedAIConfigs, sessionMaps);
     expect(navigation.navigate).toHaveBeenCalledWith('Chat', {
       sessionId: 'session-demo',
       demoSampleId: 'sample-123',
@@ -519,17 +551,16 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
   });
 
   it('hides topic picker when closed without selection', async () => {
-    const selectedAIs = [createAIConfig()];
-    const aiSelection = createAISelection({
-      hasSelection: true,
-      selectionCount: selectedAIs.length,
-      selectedAIs,
+    const selection = createSelection({
+      hasEnoughAIs: true,
+      configs: [createSelectionConfig()],
+      selectedAIConfigs: [createAIConfig()],
     });
 
-    renderHome({ aiSelection, featureAccess: { isDemo: true } });
+    renderHome({ selection, featureAccess: { isDemo: true } });
 
     await act(async () => {
-      mockDynamicAISelectorProps.onStartChat();
+      mockComposerProps.onSend('');
     });
 
     expect(mockChatTopicPickerProps.visible).toBe(true);
@@ -541,15 +572,20 @@ const renderHome = (options?: { aiSelection?: ReturnType<typeof createAISelectio
     expect(mockChatTopicPickerProps.visible).toBe(false);
   });
 
-  it('navigates to API config when add AI is requested', async () => {
+  it('routes to API config from the empty-state CTA and the composer add-key action', async () => {
     const navigation = { navigate: jest.fn() };
 
     renderHome({ navigation });
 
     await act(async () => {
-      mockDynamicAISelectorProps.onAddAI();
+      mockEmptyStateProps.onConfigureAIs();
     });
-
     expect(navigation.navigate).toHaveBeenCalledWith('APIConfig');
+
+    await act(async () => {
+      mockComposerProps.onRequestAddKey();
+    });
+    expect(navigation.navigate).toHaveBeenCalledTimes(2);
+    expect(navigation.navigate).toHaveBeenLastCalledWith('APIConfig');
   });
 });

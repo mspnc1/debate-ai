@@ -1,10 +1,9 @@
-import React from 'react';
-import { ScrollView, View } from 'react-native';
+import React, { useState } from 'react';
+import { Keyboard, KeyboardAvoidingView, Platform, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ResponsiveContainer } from '../components/atoms';
-import { Header, HeaderActions } from '../components/organisms';
-import { DynamicAISelector, QuickStartSheet } from '../components/organisms';
+import { Header, HeaderActions, AIComposer, HomeEmptyState, QuickStartSheet } from '../components/organisms';
 import { ChatTopicPickerModal } from '@/components/organisms/demo/ChatTopicPickerModal';
 
 import { useTheme } from '../theme';
@@ -13,14 +12,15 @@ import { HOME_CONSTANTS } from '../config/homeConstants';
 import { TrialBanner } from '@/components/molecules/subscription/TrialBanner';
 import { DemoBanner } from '@/components/molecules/subscription/DemoBanner';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
-import { useDispatch } from 'react-redux';
-import { showSheet } from '@/store';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState, setWebSearchPreferred, showSheet } from '@/store';
 
 // Custom hooks
 import { usePremiumFeatures } from '../hooks/home/usePremiumFeatures';
-import { useAISelection } from '../hooks/home/useAISelection';
+import { useComposerSelection } from '../hooks/home/useComposerSelection';
 import { useSessionManagement } from '../hooks/home/useSessionManagement';
 import { useQuickStart } from '../hooks/home/useQuickStart';
+import { useMergedModalityAvailability } from '@/hooks/multimodal/useModalityAvailability';
 import type { QuickStartPromptPayload } from '@/services/home/QuickStartService';
 
 interface HomeScreenProps {
@@ -29,39 +29,51 @@ interface HomeScreenProps {
   };
 }
 
-
-
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();
   const { rs } = useResponsive();
 
   // Compose hooks for clean separation of concerns
   const premium = usePremiumFeatures();
-  const aiSelection = useAISelection(premium.maxAIs);
+  const selection = useComposerSelection('chat', {
+    minAIs: HOME_CONSTANTS.MIN_AIS_FOR_CHAT,
+    maxAIs: premium.maxAIs,
+  });
   const session = useSessionManagement();
   const quickStart = useQuickStart();
   const { isDemo, canStartTrial } = useFeatureAccess();
   const dispatch = useDispatch();
-  const [topicPickerVisible, setTopicPickerVisible] = React.useState(false);
-  
-  // Event handlers using hook methods
-  const handleStartChat = () => {
-    if (!aiSelection.hasSelection) return;
+  const [inputText, setInputText] = useState('');
+  const [topicPickerVisible, setTopicPickerVisible] = useState(false);
+
+  const webSearchPreferred = useSelector((state: RootState) => state.chat.webSearchPreferred);
+  const modality = useMergedModalityAvailability(
+    selection.configs.map(config => ({ provider: config.providerId, model: config.modelId }))
+  );
+
+  const configuredProviderIds = selection.configuredAIs.map(ai => ai.id);
+
+  const startChatSession = (params: Record<string, unknown>) => {
+    const sessionId = session.createSession(selection.selectedAIConfigs, selection.sessionMaps);
+    Keyboard.dismiss();
+    navigation.navigate(HOME_CONSTANTS.SCREENS.CHAT, { sessionId, ...params });
+  };
+
+  const handleSend = (text: string) => {
+    if (!selection.hasEnoughAIs) return;
     if (isDemo) {
       setTopicPickerVisible(true);
       return;
     }
-    const sessionId = session.createSession(aiSelection.selectedAIs);
-    navigation.navigate(HOME_CONSTANTS.SCREENS.CHAT, { sessionId });
+    // Reuses the Quick Start auto-send rail in ChatScreen: identical
+    // initialPrompt/userPrompt render and send the typed message as-is.
+    startChatSession({ initialPrompt: text, userPrompt: text, autoSend: true });
+    setInputText('');
   };
-  
-  // Quick Start uses a single sheet and then the existing Chat auto-send route.
-  
+
   const handleCompleteQuickStart = (payload: QuickStartPromptPayload) => {
-    if (aiSelection.hasSelection) {
-      const sessionId = session.createSession(aiSelection.selectedAIs);
-      navigation.navigate(HOME_CONSTANTS.SCREENS.CHAT, {
-        sessionId,
+    if (selection.hasEnoughAIs) {
+      startChatSession({
         initialPrompt: payload.aiPrompt,
         userPrompt: payload.userPrompt,
         autoSend: true,
@@ -69,14 +81,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
     quickStart.closeSheet();
   };
-  
-  const handleAddAI = () => {
+
+  const handleAddKey = () => {
     navigation.navigate(HOME_CONSTANTS.SCREENS.API_CONFIG);
   };
-  
-  
+
   return (
-    <SafeAreaView 
+    <SafeAreaView
       style={{ flex: 1, backgroundColor: theme.colors.background }}
       edges={['left', 'right']}>
       <Header
@@ -97,35 +108,43 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         />
       )}
 
-      <ScrollView
+      <KeyboardAvoidingView
         style={{ flex: 1 }}
-        contentContainerStyle={{
-          padding: rs('lg'),
-          paddingBottom: rs('xl') * 2,
-        }}
-        showsVerticalScrollIndicator={false}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ResponsiveContainer maxWidth="xl" center>
-          {/* Primary: AI Selection & Chat */}
-          <View style={{ marginBottom: rs('xl') }}>
-            <DynamicAISelector
-              configuredAIs={aiSelection.configuredAIs}
-              selectedAIs={aiSelection.selectedAIs}
-              maxAIs={aiSelection.maxAIs}
-              onToggleAI={aiSelection.toggleAI}
-              onStartChat={handleStartChat}
-              onAddAI={handleAddAI}
-              hideAddAI={isDemo}
-              hideHeaderTitle
-              aiPersonalities={aiSelection.aiPersonalities}
-              selectedModels={aiSelection.selectedModels}
-              onPersonalityChange={aiSelection.changePersonality}
-              onModelChange={aiSelection.changeModel}
-              onQuickStart={isDemo ? undefined : quickStart.openSheet}
+        <ResponsiveContainer maxWidth="md" center style={{ flex: 1 }}>
+          <HomeEmptyState
+            hasConfiguredAIs={selection.configuredAIs.length > 0}
+            onQuickStart={!isDemo && selection.hasEnoughAIs ? quickStart.openSheet : undefined}
+            onConfigureAIs={handleAddKey}
+          />
+
+          <View style={{ paddingHorizontal: rs('md'), paddingBottom: rs('md') }}>
+            <AIComposer
+              mode="chat"
+              configs={selection.configs}
+              minAIs={HOME_CONSTANTS.MIN_AIS_FOR_CHAT}
+              maxAIs={premium.maxAIs}
+              onAddProvider={selection.addProvider}
+              onUpdateConfig={selection.updateConfig}
+              onRemoveConfig={selection.removeConfig}
+              configuredProviderIds={configuredProviderIds}
+              allowedProviderIds={isDemo ? configuredProviderIds : undefined}
+              onRequestAddKey={isDemo ? undefined : handleAddKey}
+              onOpenAdvanced={isDemo ? undefined : () => navigation.navigate('ExpertMode')}
+              inputText={inputText}
+              onChangeText={setInputText}
+              onSend={handleSend}
+              requireText={!isDemo}
+              placeholder={isDemo ? 'Pick a sample topic to preview' : 'Ask anything…'}
+              webSearchAvailable={modality.webSearch.supported}
+              webSearchEnabled={webSearchPreferred}
+              onToggleWebSearch={() => dispatch(setWebSearchPreferred(!webSearchPreferred))}
+              testID="home-composer"
             />
           </View>
         </ResponsiveContainer>
-      </ScrollView>
+      </KeyboardAvoidingView>
 
       <QuickStartSheet
         visible={quickStart.showSheet}
@@ -138,13 +157,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       {isDemo && (
         <ChatTopicPickerModal
           visible={topicPickerVisible}
-          providers={aiSelection.selectedAIs.map(a => a.provider)}
-          personaId={aiSelection.selectedAIs.length === 1 ? (aiSelection.aiPersonalities[aiSelection.selectedAIs[0].id] || 'default') : undefined}
+          providers={selection.selectedAIConfigs.map(a => a.provider)}
+          personaId={selection.configs.length === 1 ? selection.configs[0].personalityId : undefined}
           onClose={() => setTopicPickerVisible(false)}
           onSelect={(sampleId) => {
             setTopicPickerVisible(false);
-            const sessionId = session.createSession(aiSelection.selectedAIs);
-            navigation.navigate(HOME_CONSTANTS.SCREENS.CHAT, { sessionId, demoSampleId: sampleId });
+            startChatSession({ demoSampleId: sampleId });
           }}
         />
       )}
