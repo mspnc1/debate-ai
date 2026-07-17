@@ -30,6 +30,17 @@ jest.mock('@/hooks/home/useComposerSelection', () => ({
   useComposerSelection: (...args: unknown[]) => mockUseComposerSelection(...args),
 }));
 
+jest.mock('@/hooks/useGreeting', () => ({
+  useGreeting: () => ({
+    timeBasedGreeting: 'Compare mode',
+    welcomeMessage: 'Pick your AIs',
+    greeting: {
+      timeBasedGreeting: 'Compare mode',
+      welcomeMessage: 'Pick your AIs',
+    },
+  }),
+}));
+
 jest.mock('@/components/molecules/subscription/TrialBanner', () => ({
   TrialBanner: () => {
     const React = require('react');

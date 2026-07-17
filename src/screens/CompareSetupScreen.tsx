@@ -7,7 +7,7 @@ import { setAIPersonality, setAIModel, showSheet } from '../store';
 import { Box, ResponsiveContainer } from '../components/atoms';
 import { Typography, Button } from '../components/molecules';
 import { Header, HeaderActions, AIComposer } from '../components/organisms';
-import { Ionicons } from '@expo/vector-icons';
+import { useGreeting } from '../hooks/useGreeting';
 
 import { useTheme } from '../theme';
 import { useResponsive } from '../hooks/useResponsive';
@@ -46,6 +46,7 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
 
   const [inputText, setInputText] = useState('');
   const [samplePickerVisible, setSamplePickerVisible] = useState(false);
+  const { timeBasedGreeting, welcomeMessage } = useGreeting({ screenCategory: 'compare' });
 
   // History rematch: route params seed the pills (left = pill 1, right = pill 2).
   const rematchSeededRef = useRef(false);
@@ -118,23 +119,31 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ResponsiveContainer maxWidth="md" center style={{ flex: 1 }}>
-          {/* Empty state above the docked composer */}
+          {/* Empty state above the docked composer — greeting first, like Home */}
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: rs('lg') }}>
-            <Ionicons name="git-compare-outline" size={40} color={theme.colors.text.secondary} />
+            <Typography variant="title" align="center">
+              {timeBasedGreeting}
+            </Typography>
             <Typography
               variant="body"
               color="secondary"
               align="center"
-              style={{ marginTop: rs('md') }}
+              style={{ marginTop: 8, marginBottom: 20 }}
             >
-              Ask two AIs the same question and compare their answers side by side.
-              Each responds independently without seeing the other&apos;s reply.
+              {welcomeMessage}
             </Typography>
             <Typography
               variant="caption"
               color="secondary"
               align="center"
-              style={{ marginTop: rs('sm') }}
+            >
+              Ask two AIs the same question — each answers independently, side by side.
+            </Typography>
+            <Typography
+              variant="caption"
+              color="secondary"
+              align="center"
+              style={{ marginTop: rs('xs') }}
             >
               Pill 1 answers in the left pane, pill 2 in the right.
             </Typography>
