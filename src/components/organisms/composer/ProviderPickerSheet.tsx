@@ -9,6 +9,14 @@ import { AIAvatar } from '../common/AIAvatar';
 import { AI_PROVIDERS } from '@/config/aiProviders';
 import { getAIProviderIcon } from '@/utils/aiProviderAssets';
 
+/** Minimal provider row data; AI_PROVIDERS entries satisfy it structurally. */
+export interface ProviderPickerItem {
+  id: string;
+  name: string;
+  company: string;
+  color: string;
+}
+
 interface ProviderPickerSheetProps {
   visible: boolean;
   onClose: () => void;
@@ -20,6 +28,8 @@ interface ProviderPickerSheetProps {
   /** Compare allows the same provider on both sides (different models). */
   allowDuplicates?: boolean;
   onRequestAddKey?: () => void;
+  /** Catalog override (e.g. Create's media providers). Defaults to enabled AI_PROVIDERS. */
+  providers?: ProviderPickerItem[];
   testID?: string;
 }
 
@@ -37,19 +47,18 @@ export const ProviderPickerSheet: React.FC<ProviderPickerSheetProps> = ({
   allowedProviderIds,
   allowDuplicates = false,
   onRequestAddKey,
+  providers: providersProp,
   testID,
 }) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const providers = useMemo(
+  const providers = useMemo<ProviderPickerItem[]>(
     () =>
-      AI_PROVIDERS.filter(
-        provider =>
-          provider.enabled &&
-          (!allowedProviderIds || allowedProviderIds.includes(provider.id))
+      (providersProp ?? AI_PROVIDERS.filter(provider => provider.enabled)).filter(
+        provider => !allowedProviderIds || allowedProviderIds.includes(provider.id)
       ),
-    [allowedProviderIds]
+    [providersProp, allowedProviderIds]
   );
 
   const handleSelect = (providerId: string) => {
