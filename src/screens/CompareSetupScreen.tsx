@@ -1,23 +1,24 @@
-import React, { useState, useMemo } from 'react';
-import { ScrollView, View, Alert, Dimensions } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Keyboard, KeyboardAvoidingView, Platform, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState, setAIPersonality, setAIModel, isApiKeyConfigured } from '../store';
+import { useDispatch } from 'react-redux';
+import { setAIPersonality, setAIModel, showSheet } from '../store';
 
-import { Box } from '../components/atoms';
+import { Box, ResponsiveContainer } from '../components/atoms';
 import { Typography, Button } from '../components/molecules';
-import { Header, HeaderActions, DynamicAISelector } from '../components/organisms';
-import { getProviderDefaultModel, resolveProviderModelId } from '@/config/modelConfigs';
+import { Header, HeaderActions, AIComposer } from '../components/organisms';
+import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../theme';
+import { useResponsive } from '../hooks/useResponsive';
 import { AIConfig } from '../types';
-import { AI_PROVIDERS } from '../config/aiProviders';
-import { getAIProviderIcon } from '../utils/aiProviderAssets';
+import { HOME_CONSTANTS } from '../config/homeConstants';
 import { isValidProviderId } from '../utils/typeGuards';
+import { fromAIConfig } from '../utils/aiSelection';
+import { useComposerSelection } from '../hooks/home/useComposerSelection';
 import { TrialBanner } from '@/components/molecules/subscription/TrialBanner';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { DemoBanner } from '@/components/molecules/subscription/DemoBanner';
-import { showSheet } from '@/store';
 import { CompareSamplePickerModal } from '@/components/organisms/demo/CompareSamplePickerModal';
 
 interface CompareSetupScreenProps {
@@ -34,120 +35,65 @@ interface CompareSetupScreenProps {
 
 const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, route }) => {
   const { theme } = useTheme();
+  const { rs } = useResponsive();
   const dispatch = useDispatch();
-  const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
   const access = useFeatureAccess();
-  const expertMode = useSelector((state: RootState) => state.settings.expertMode || {});
-  
-  // Calculate half screen width for each selector
-  const screenWidth = Dimensions.get('window').width;
-  const selectorWidth = (screenWidth - theme.spacing.lg * 2 - theme.spacing.sm * 2) / 2;
-  
-  // Get configured AIs based on which ones have API keys
-  const configuredAIs = useMemo(() => {
-    const DEMO_ALLOWED = new Set(['claude', 'openai', 'google']);
-    const isDemo = access.isDemo;
-    const providers = isDemo
-      ? AI_PROVIDERS.filter(p => p.enabled && DEMO_ALLOWED.has(p.id))
-      : AI_PROVIDERS.filter(provider => provider.enabled && isApiKeyConfigured(apiKeys[provider.id]));
 
-    return providers.map(provider => {
-      const iconData = getAIProviderIcon(provider.id);
-      const providerDefault = isDemo
-        ? ({ google: 'gemini-3.5-flash', openai: 'gpt-5', claude: 'opus-4.1' } as Record<string, string>)[provider.id] || ''
-        : (getProviderDefaultModel(provider.id)?.id || '');
-      const expertCfg = (expertMode as Record<string, { enabled?: boolean; selectedModel?: string }>)[provider.id];
-      const defaultModel = (!isDemo && expertCfg?.enabled && expertCfg.selectedModel)
-        ? (resolveProviderModelId(provider.id, expertCfg.selectedModel) || providerDefault)
-        : providerDefault;
-      return {
-        id: provider.id,
-        provider: provider.id,
-        name: provider.name,
-        model: defaultModel,
-        personality: 'default',
-        icon: iconData.icon,
-        iconType: iconData.iconType,
-        color: provider.color,
-      } as AIConfig;
-    });
-  }, [apiKeys, expertMode, access.isDemo]);
-  
-  // Separate states for left and right AI selection - initialize from route params if available
-  const [leftAI, setLeftAI] = useState<AIConfig[]>(
-    route?.params?.preselectedLeftAI && isValidProviderId(route.params.preselectedLeftAI.provider)
-      ? [{ ...route.params.preselectedLeftAI, personality: route.params.preselectedLeftAI.personality || 'default' }]
-      : []
-  );
-  const [rightAI, setRightAI] = useState<AIConfig[]>(
-    route?.params?.preselectedRightAI && isValidProviderId(route.params.preselectedRightAI.provider)
-      ? [{ ...route.params.preselectedRightAI, personality: route.params.preselectedRightAI.personality || 'default' }]
-      : []
-  );
-  
-  // Separate personality and model states
-  const [leftPersonalities, setLeftPersonalities] = useState<{ [aiId: string]: string }>({});
-  const [rightPersonalities, setRightPersonalities] = useState<{ [aiId: string]: string }>({});
-  const [leftModels, setLeftModels] = useState<{ [aiId: string]: string }>({});
-  const [rightModels, setRightModels] = useState<{ [aiId: string]: string }>({});
+  const selection = useComposerSelection('compare', {
+    minAIs: HOME_CONSTANTS.MIN_AIS_FOR_COMPARE,
+    maxAIs: HOME_CONSTANTS.MAX_AIS_FOR_COMPARE,
+  });
+
+  const [inputText, setInputText] = useState('');
   const [samplePickerVisible, setSamplePickerVisible] = useState(false);
-  const [pendingConfigs, setPendingConfigs] = useState<{ left: AIConfig; right: AIConfig } | null>(null);
-  
-  const handleToggleLeftAI = (ai: AIConfig) => {
-    setLeftAI(leftAI.length > 0 && leftAI[0].id === ai.id ? [] : [{ ...ai, personality: ai.personality || 'default' }]);
+
+  // History rematch: route params seed the pills (left = pill 1, right = pill 2).
+  const rematchSeededRef = useRef(false);
+  const { preselectedLeftAI, preselectedRightAI } = route?.params ?? {};
+  const { replaceConfigs } = selection;
+  useEffect(() => {
+    if (rematchSeededRef.current) return;
+    if (!preselectedLeftAI || !preselectedRightAI) return;
+    if (!isValidProviderId(preselectedLeftAI.provider) || !isValidProviderId(preselectedRightAI.provider)) return;
+    rematchSeededRef.current = true;
+    replaceConfigs([fromAIConfig(preselectedLeftAI), fromAIConfig(preselectedRightAI)]);
+  }, [preselectedLeftAI, preselectedRightAI, replaceConfigs]);
+
+  const configuredProviderIds = selection.configuredAIs.map(ai => ai.id);
+  const leftAI = selection.selectedAIConfigs[0];
+  const rightAI = selection.selectedAIConfigs[1];
+
+  const seedSessionMaps = () => {
+    // CompareScreen and session persistence read the chat-slice maps,
+    // matching the previous setup screen's behavior.
+    selection.selectedAIConfigs.forEach(ai => {
+      dispatch(setAIPersonality({ aiId: ai.id, personalityId: ai.personality || 'default' }));
+      dispatch(setAIModel({ aiId: ai.id, modelId: ai.model }));
+    });
   };
-  
-  const handleToggleRightAI = (ai: AIConfig) => {
-    setRightAI(rightAI.length > 0 && rightAI[0].id === ai.id ? [] : [{ ...ai, personality: ai.personality || 'default' }]);
-  };
-  
-  const handleStartComparison = () => {
-    if (leftAI.length === 0 || rightAI.length === 0) {
-      Alert.alert('Select Both AIs', 'You need to select one AI for each side to start comparing!');
-      return;
-    }
-    
-    // Update AIs with selected models
-    const leftAIConfig = {
-      ...leftAI[0],
-      model: resolveProviderModelId(
-        leftAI[0].provider,
-        leftModels[leftAI[0].id] || leftAI[0].model
-      ) || leftAI[0].model,
-      personality: leftPersonalities[leftAI[0].id] || leftAI[0].personality || 'default',
-    };
-    
-    const rightAIConfig = {
-      ...rightAI[0],
-      model: resolveProviderModelId(
-        rightAI[0].provider,
-        rightModels[rightAI[0].id] || rightAI[0].model
-      ) || rightAI[0].model,
-      personality: rightPersonalities[rightAI[0].id] || rightAI[0].personality || 'default',
-    };
-    
-    // Save personalities and models to Redux for the session
-    dispatch(setAIPersonality({ aiId: leftAI[0].id, personalityId: leftAIConfig.personality }));
-    dispatch(setAIModel({ aiId: leftAI[0].id, modelId: leftAIConfig.model }));
-    dispatch(setAIPersonality({ aiId: rightAI[0].id, personalityId: rightAIConfig.personality }));
-    dispatch(setAIModel({ aiId: rightAI[0].id, modelId: rightAIConfig.model }));
-    
+
+  const handleSend = (text: string) => {
+    if (!selection.hasEnoughAIs || !leftAI || !rightAI) return;
+    seedSessionMaps();
+    Keyboard.dismiss();
+
     if (access.isDemo) {
-      setPendingConfigs({ left: leftAIConfig, right: rightAIConfig });
       setSamplePickerVisible(true);
       return;
     }
 
-    navigation.navigate('CompareSession', { 
-      leftAI: leftAIConfig,
-      rightAI: rightAIConfig,
+    navigation.navigate('CompareSession', {
+      leftAI,
+      rightAI,
+      initialPrompt: text,
     });
+    setInputText('');
   };
-  
-  const bothSelected = leftAI.length > 0 && rightAI.length > 0;
-  
+
+  const needsMoreKeys = !access.isDemo && selection.configuredAIs.length < 2;
+
   return (
-    <SafeAreaView 
+    <SafeAreaView
       style={{ flex: 1, backgroundColor: theme.colors.background }}
       edges={['left', 'right']}
     >
@@ -166,147 +112,93 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
           onPress={() => dispatch(showSheet({ sheet: 'subscription' }))}
         />
       )}
-      
-      <ScrollView 
+
+      <KeyboardAvoidingView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: theme.spacing.lg }}
-        showsVerticalScrollIndicator={false}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Instructions */}
-        <Box style={{ marginBottom: theme.spacing.xl }}>
-          <Typography variant="body" color="secondary" style={{ textAlign: 'center' }}>
-            Select two different AIs to compare their responses to the same prompts. 
-            Each AI will respond independently without seeing the other's response.
-          </Typography>
-        </Box>
-        
-        {/* Side by Side AI Selectors */}
-        <View style={{ flexDirection: 'row', marginBottom: theme.spacing.xl }}>
-          {/* Left AI Selector */}
-          <View style={{ flex: 1, paddingRight: theme.spacing.sm }}>
-            <Typography 
-              variant="subtitle" 
-              weight="bold" 
-              color="primary" 
-              style={{ textAlign: 'center', marginBottom: theme.spacing.md }}
+        <ResponsiveContainer maxWidth="md" center style={{ flex: 1 }}>
+          {/* Empty state above the docked composer */}
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: rs('lg') }}>
+            <Ionicons name="git-compare-outline" size={40} color={theme.colors.text.secondary} />
+            <Typography
+              variant="body"
+              color="secondary"
+              align="center"
+              style={{ marginTop: rs('md') }}
             >
-              Left AI
+              Ask two AIs the same question and compare their answers side by side.
+              Each responds independently without seeing the other&apos;s reply.
             </Typography>
-            <DynamicAISelector
-              configuredAIs={configuredAIs}
-              selectedAIs={leftAI}
-              maxAIs={1}
-              onToggleAI={handleToggleLeftAI}
-              hideStartButton={true}
-              hideHeader={true}
-              columnCount={1}
-              containerWidth={selectorWidth}
-              onAddAI={() => navigation.navigate('APIConfig')}
-              aiPersonalities={leftPersonalities}
-              selectedModels={leftModels}
-              onPersonalityChange={(aiId, personalityId) => 
-                setLeftPersonalities(prev => ({ ...prev, [aiId]: personalityId }))
-              }
-              onModelChange={(aiId, modelId) => 
-                setLeftModels(prev => ({
-                  ...prev,
-                  [aiId]: resolveProviderModelId(aiId, modelId) || modelId,
-                }))
-              }
+            <Typography
+              variant="caption"
+              color="secondary"
+              align="center"
+              style={{ marginTop: rs('sm') }}
+            >
+              Pill 1 answers in the left pane, pill 2 in the right.
+            </Typography>
+
+            {needsMoreKeys && (
+              <Box style={{
+                marginTop: rs('xl'),
+                padding: rs('lg'),
+                backgroundColor: theme.colors.warning[100],
+                borderRadius: theme.borderRadius.lg,
+                alignSelf: 'stretch',
+              }}>
+                <Typography variant="body" style={{ textAlign: 'center', color: theme.colors.warning[900] }}>
+                  You need at least 2 configured AIs to use the Compare feature.
+                </Typography>
+                <Button
+                  title="Add AI Keys"
+                  onPress={() => navigation.navigate('APIConfig')}
+                  variant="secondary"
+                  size="medium"
+                  style={{ marginTop: rs('md') }}
+                />
+              </Box>
+            )}
+          </View>
+
+          <View style={{ paddingHorizontal: rs('md'), paddingBottom: rs('md') }}>
+            <AIComposer
+              mode="compare"
+              configs={selection.configs}
+              minAIs={HOME_CONSTANTS.MIN_AIS_FOR_COMPARE}
+              maxAIs={HOME_CONSTANTS.MAX_AIS_FOR_COMPARE}
+              onAddProvider={selection.addProvider}
+              onUpdateConfig={selection.updateConfig}
+              onRemoveConfig={selection.removeConfig}
+              configuredProviderIds={configuredProviderIds}
+              allowedProviderIds={access.isDemo ? configuredProviderIds : undefined}
+              onRequestAddKey={access.isDemo ? undefined : () => navigation.navigate('APIConfig')}
+              onOpenAdvanced={access.isDemo ? undefined : () => navigation.navigate('ExpertMode')}
+              inputText={inputText}
+              onChangeText={setInputText}
+              onSend={handleSend}
+              requireText={!access.isDemo}
+              placeholder={access.isDemo ? 'Pick a sample comparison to preview' : 'Ask both AIs anything…'}
+              pillIndexLabels={['L', 'R']}
+              testID="compare-composer"
             />
           </View>
-          
-          {/* Divider */}
-          <View style={{ 
-            width: 1, 
-            backgroundColor: theme.colors.border,
-            marginHorizontal: theme.spacing.sm,
-          }} />
-          
-          {/* Right AI Selector */}
-          <View style={{ flex: 1, paddingLeft: theme.spacing.sm }}>
-            <Typography 
-              variant="subtitle" 
-              weight="bold" 
-              color="primary" 
-              style={{ textAlign: 'center', marginBottom: theme.spacing.md }}
-            >
-              Right AI
-            </Typography>
-            <DynamicAISelector
-              configuredAIs={configuredAIs}
-              selectedAIs={rightAI}
-              maxAIs={1}
-              onToggleAI={handleToggleRightAI}
-              hideStartButton={true}
-              hideHeader={true}
-              columnCount={1}
-              containerWidth={selectorWidth}
-              onAddAI={() => navigation.navigate('APIConfig')}
-              aiPersonalities={rightPersonalities}
-              selectedModels={rightModels}
-              onPersonalityChange={(aiId, personalityId) => 
-                setRightPersonalities(prev => ({ ...prev, [aiId]: personalityId }))
-              }
-              onModelChange={(aiId, modelId) => 
-                setRightModels(prev => ({
-                  ...prev,
-                  [aiId]: resolveProviderModelId(aiId, modelId) || modelId,
-                }))
-              }
-            />
-          </View>
-        </View>
-        
-        {/* Start Comparison Button */}
-        {bothSelected && (
-          <Button
-            title="Start Comparison"
-            onPress={handleStartComparison}
-            variant="primary"
-            size="large"
-            style={{ marginTop: theme.spacing.lg }}
-          />
-        )}
-        
-        {/* Need More AIs Message */}
-        {configuredAIs.length < 2 && (
-          <Box style={{
-            marginTop: theme.spacing.xl,
-            padding: theme.spacing.lg,
-            backgroundColor: theme.colors.warning[100],
-            borderRadius: theme.borderRadius.lg,
-          }}>
-            <Typography variant="body" style={{ textAlign: 'center', color: theme.colors.warning[900] }}>
-              You need at least 2 configured AIs to use the Compare feature.
-            </Typography>
-            <Button
-              title="Add AI Keys"
-              onPress={() => navigation.navigate('APIConfig')}
-              variant="secondary"
-              size="medium"
-              style={{ marginTop: theme.spacing.md }}
-            />
-          </Box>
-        )}
-      </ScrollView>
+        </ResponsiveContainer>
+      </KeyboardAvoidingView>
+
       <CompareSamplePickerModal
         visible={samplePickerVisible}
-        providers={pendingConfigs ? [pendingConfigs.left.provider, pendingConfigs.right.provider] : []}
+        providers={leftAI && rightAI ? [leftAI.provider, rightAI.provider] : []}
         onSelect={(sampleId) => {
           setSamplePickerVisible(false);
-          if (!pendingConfigs) return;
+          if (!leftAI || !rightAI) return;
           navigation.navigate('CompareSession', {
-            leftAI: pendingConfigs.left,
-            rightAI: pendingConfigs.right,
+            leftAI,
+            rightAI,
             demoSampleId: sampleId,
           });
-          setPendingConfigs(null);
         }}
-        onClose={() => {
-          setSamplePickerVisible(false);
-          setPendingConfigs(null);
-        }}
+        onClose={() => setSamplePickerVisible(false)}
       />
     </SafeAreaView>
   );

@@ -63,6 +63,7 @@ interface CompareScreenProps {
       sessionId?: string;
       resuming?: boolean;
       demoSampleId?: string;
+      initialPrompt?: string;
     };
   };
 }
@@ -1258,6 +1259,18 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
       // ignore individual rejection handling above
     });
   }, [aiService, buildCompareRuntime, isDemo, leftAI, leftEffectiveModel, rightAI, rightEffectiveModel]);
+
+  // Live mode: auto-send the prompt typed in the Compare composer (fresh sessions only)
+  const initialPromptSentRef = React.useRef(false);
+  React.useEffect(() => {
+    const initialPrompt = route.params?.initialPrompt?.trim();
+    if (!initialPrompt || initialPromptSentRef.current) return;
+    if (isDemo) return;
+    if (!isInitialized || !aiService || !leftAI || !rightAI) return;
+    if (userMessages.length > 0) return;
+    initialPromptSentRef.current = true;
+    handleSend(initialPrompt);
+  }, [route.params?.initialPrompt, isDemo, isInitialized, aiService, leftAI, rightAI, userMessages.length, handleSend]);
 
   // Demo Mode: auto-start playback when both AIs are selected and no messages yet
   React.useEffect(() => {

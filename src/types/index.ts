@@ -338,7 +338,7 @@ export type RootStackParamList = {
   };
   DebateTranscript: { session: ChatSession };
   Compare?: undefined;
-  CompareSession: { leftAI: AIConfig; rightAI: AIConfig; sessionId?: string; resuming?: boolean };
+  CompareSession: { leftAI: AIConfig; rightAI: AIConfig; sessionId?: string; resuming?: boolean; initialPrompt?: string };
   CreateTab: undefined;
   CreateSession: {
     providers?: AIProvider[];
