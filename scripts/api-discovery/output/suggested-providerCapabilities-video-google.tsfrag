@@ -1,2 +1,0 @@
-// Insert into getProviderCapabilities('google') videoGeneration block (if/when added)
-videoGeneration: { supported: true, models: ["veo-2.0-generate-001","veo-3.0-generate-001","veo-3.0-fast-generate-001","veo-3.1-generate-preview","veo-3.1-fast-generate-preview","veo-3.1-lite-generate-preview"], resolutions: ["480p","720p","1080p"], maxPromptLength: 4000 },

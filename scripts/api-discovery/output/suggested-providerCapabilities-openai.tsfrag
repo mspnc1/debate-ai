@@ -1,2 +1,0 @@
-// Insert into getProviderCapabilities('openai') imageGeneration models/sizes
-imageGeneration: { supported: true, models: ["gpt-image-1","gpt-image-1-mini","gpt-image-1.5","chatgpt-image-latest","gpt-image-2","gpt-image-2-2026-04-21"], sizes: ["auto","1024x1024","1024x1536","1536x1024"], maxPromptLength: 4000 },

@@ -16,9 +16,7 @@ Goal: keep runtime UX static and predictable; use discovery tools only during de
 - Frequency: run before releases or when a provider announces updates.
 
 Artifacts and locations
-- `scripts/api-discovery/*.js`: per‑provider discovery scripts (existing Claude scripts) and a unified `discover-all-models.js` entry.
-- `scripts/api-discovery/output/{provider}-models.json`: raw model lists.
-- `scripts/api-discovery/output/{provider}-capabilities.json`: summarized capabilities per model.
+- `scripts/discover-provider-models.mjs`: live provider audit (`npm run models:discover`, `npm run models:discover:check`) that diffs each provider's model API against the committed registry (capability drift, alias conflicts, missing/deprecated models).
 - `docs/api-integration/providers/{provider}/models.md`: human‑readable model catalog (generated).
 
 Process
