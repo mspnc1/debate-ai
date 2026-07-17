@@ -345,11 +345,27 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({ message, isLast,
           )}
           {isStreaming && (
             <Box style={styles.streamingContainer}>
-              <StreamingIndicator 
-                visible={cursorVisible} 
-                variant="cursor"
-                color={aiColor?.text || theme.colors.text.primary}
-              />
+              {!streamingContent ? (
+                // Nothing has arrived yet — say what the AI is doing instead
+                // of showing a bare cursor (search retrieval can take a while).
+                <Box style={styles.streamingStatusRow}>
+                  <StreamingIndicator
+                    visible
+                    variant="dots"
+                    color={aiColor?.text || theme.colors.text.secondary}
+                    size={12}
+                  />
+                  <Typography variant="caption" color="secondary">
+                    {message.metadata?.webSearchEnabled ? 'Searching the web…' : 'Thinking…'}
+                  </Typography>
+                </Box>
+              ) : (
+                <StreamingIndicator
+                  visible={cursorVisible}
+                  variant="cursor"
+                  color={aiColor?.text || theme.colors.text.primary}
+                />
+              )}
             </Box>
           )}
           </>
@@ -525,6 +541,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 4,
+  },
+  streamingStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 2,
   },
   streamingText: {
     fontSize: 16,

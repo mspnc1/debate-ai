@@ -6,6 +6,8 @@ import { Typography } from '../../molecules';
 import { LazyMarkdownRenderer, createMarkdownStyles } from '../../molecules/common/LazyMarkdownRenderer';
 import { CompareImageDisplay } from './CompareImageDisplay';
 import { CitationSources } from '../common/CitationSources';
+import { StreamingIndicator } from '../common/StreamingIndicator';
+import { supportsWebSearch } from '@/config/modelConfigs';
 import { Message, AIConfig } from '../../../types';
 import { useTheme } from '../../../theme';
 import { sanitizeMarkdown, shouldLazyRender } from '@/utils/markdown';
@@ -151,14 +153,26 @@ export const CompareMessageBubble: React.FC<CompareMessageBubbleProps> = ({
           </View>
         )}
         <View style={styles.header}>
-          <Typography 
-            variant="caption" 
-            weight="semibold" 
+          <Typography
+            variant="caption"
+            weight="semibold"
             style={{ color: headerColor }}
           >
             {message.sender}
           </Typography>
         </View>
+        {isStreaming && !streamingContent && (
+          // Nothing has arrived yet — say what the AI is doing instead of an
+          // empty bubble (search retrieval can take a while).
+          <View style={styles.streamingStatusRow}>
+            <StreamingIndicator visible variant="dots" color={headerColor} size={12} />
+            <Typography variant="caption" color="secondary">
+              {supportsWebSearch(message.metadata?.providerId || '', message.metadata?.modelUsed || '')
+                ? 'Searching the web…'
+                : 'Thinking…'}
+            </Typography>
+          </View>
+        )}
         {isLongContent ? (
           <LazyMarkdownRenderer
             content={markdownContent}
@@ -289,6 +303,12 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 4,
+  },
+  streamingStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
   },
   content: {
     lineHeight: 20,
