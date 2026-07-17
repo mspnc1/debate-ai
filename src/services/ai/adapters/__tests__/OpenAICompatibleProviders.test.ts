@@ -287,6 +287,36 @@ describe('GrokAdapter web search (xAI Responses API)', () => {
     }));
   });
 
+  it('collapses inline [n](url) markdown citations to bare [n] refs with metadata', async () => {
+    fetchMock.mockResolvedValueOnce(createResponsesPayload({
+      output: [
+        {
+          type: 'message',
+          content: [
+            {
+              type: 'output_text',
+              text: 'Over 850 wildfires burning in Canada.[1](https://www.democracynow.org/2026/7/17/headlines)[4](https://www.cnn.com/2026/07/14/weather/canada)',
+            },
+          ],
+        },
+      ],
+    }));
+    const adapter = new GrokAdapter(makeSearchConfig());
+
+    const result = await adapter.sendMessage('What is happening today?');
+
+    // The raw (url) is pulled out; the text keeps a bare [n] the renderer links.
+    expect(result).toEqual(expect.objectContaining({
+      response: 'Over 850 wildfires burning in Canada.[1][4]',
+      metadata: {
+        citations: [
+          { index: 1, url: 'https://www.democracynow.org/2026/7/17/headlines' },
+          { index: 4, url: 'https://www.cnn.com/2026/07/14/weather/canada' },
+        ],
+      },
+    }));
+  });
+
   it('simulates streaming with a citations event and never opens chat/completions', async () => {
     const adapter = new GrokAdapter(makeSearchConfig());
     const onEvent = jest.fn();

@@ -113,6 +113,32 @@ export function extractTextFromResponsesOutput(root: unknown): string {
   return texts.join('');
 }
 
+/**
+ * Grok inlines web-search citations directly in the answer text as numbered
+ * markdown links — `[1](https://…)`. The app renders citations from bare `[n]`
+ * references plus metadata, so left as-is the renderer keeps the raw `(https://…)`
+ * as visible text. Pull each `(url)` into a citation keyed by its own number and
+ * collapse the text back to a bare `[n]` reference.
+ */
+export function extractInlineNumberedCitations(text: string): {
+  text: string;
+  citations: ResponsesCitation[];
+} {
+  const byIndex = new Map<number, ResponsesCitation>();
+  const cleaned = text.replace(
+    /\[(\d+)\]\((https?:\/\/[^)\s]+)\)/g,
+    (_match, num: string, url: string) => {
+      const index = parseInt(num, 10);
+      if (!byIndex.has(index)) {
+        byIndex.set(index, { index, url });
+      }
+      return `[${num}]`;
+    }
+  );
+  const citations = Array.from(byIndex.values()).sort((a, b) => a.index - b.index);
+  return { text: cleaned, citations };
+}
+
 function extractCitationsFromMarkdown(text: string): ResponsesCitation[] {
   const citations: ResponsesCitation[] = [];
   const seenUrls = new Set<string>();

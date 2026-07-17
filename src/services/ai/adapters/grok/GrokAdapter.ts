@@ -8,6 +8,7 @@ import {
 } from '../../types/adapter.types';
 import {
   buildResponsesInput,
+  extractInlineNumberedCitations,
   extractResponsesCitations,
   extractTextFromResponsesOutput,
   type ChatStyleMessage,
@@ -89,8 +90,13 @@ export class GrokAdapter extends OpenAICompatibleAdapter {
     }
 
     const data = await response.json();
-    const responseText = extractTextFromResponsesOutput(data);
-    const citations = extractResponsesCitations(data, responseText);
+    // Grok inlines citations as [n](url); collapse those to bare [n] refs so
+    // the renderer links them as chips instead of leaving raw URLs in the text.
+    const inline = extractInlineNumberedCitations(extractTextFromResponsesOutput(data));
+    const responseText = inline.text;
+    const citations = inline.citations.length > 0
+      ? inline.citations
+      : extractResponsesCitations(data, responseText);
     const usage = (data as { usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number } }).usage;
     const status = (data as { status?: string }).status;
     const incompleteReason = (data as { incomplete_details?: { reason?: string } }).incomplete_details?.reason;
