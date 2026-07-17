@@ -287,7 +287,7 @@ describe('GrokAdapter web search (xAI Responses API)', () => {
     }));
   });
 
-  it('collapses inline [n](url) markdown citations to bare [n] refs with metadata', async () => {
+  it('rewrites Grok inline [[n]](url) markdown to sequential bare [n] refs with metadata', async () => {
     fetchMock.mockResolvedValueOnce(createResponsesPayload({
       output: [
         {
@@ -295,7 +295,8 @@ describe('GrokAdapter web search (xAI Responses API)', () => {
           content: [
             {
               type: 'output_text',
-              text: 'Over 850 wildfires burning in Canada.[1](https://www.democracynow.org/2026/7/17/headlines)[4](https://www.cnn.com/2026/07/14/weather/canada)',
+              // Grok inlines double-bracketed links with its own (gapped) numbering.
+              text: 'Over 850 wildfires burning in Canada.[[1]](https://www.democracynow.org/2026/7/17/headlines)[[4]](https://www.cnn.com/2026/07/14/weather/canada)',
             },
           ],
         },
@@ -305,13 +306,14 @@ describe('GrokAdapter web search (xAI Responses API)', () => {
 
     const result = await adapter.sendMessage('What is happening today?');
 
-    // The raw (url) is pulled out; the text keeps a bare [n] the renderer links.
+    // Raw (url) pulled out, brackets normalized, and numbers reassigned 1..n so
+    // the inline chips and the source table line up.
     expect(result).toEqual(expect.objectContaining({
-      response: 'Over 850 wildfires burning in Canada.[1][4]',
+      response: 'Over 850 wildfires burning in Canada.[1][2]',
       metadata: {
         citations: [
           { index: 1, url: 'https://www.democracynow.org/2026/7/17/headlines' },
-          { index: 4, url: 'https://www.cnn.com/2026/07/14/weather/canada' },
+          { index: 2, url: 'https://www.cnn.com/2026/07/14/weather/canada' },
         ],
       },
     }));

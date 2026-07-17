@@ -47,55 +47,54 @@ export class ClaudeAdapter extends BaseAdapter {
   }
 
   // With web search enabled, content interleaves text, server_tool_use, and
-  // web_search_tool_result blocks — join only the text blocks. Blocks without
-  // a type but with string text are treated as text for compatibility.
-  private extractTextFromContent(content: unknown): string {
-    if (!Array.isArray(content)) return '';
-    const texts: string[] = [];
-    for (const block of content) {
-      if (!block || typeof block !== 'object') continue;
-      const b = block as { type?: string; text?: unknown };
-      if ((b.type === undefined || b.type === 'text') && typeof b.text === 'string') {
-        texts.push(b.text);
-      }
-    }
-    return texts.join('');
-  }
-
-  private extractCitationsFromContent(
+  // web_search_tool_result blocks. Join the text blocks and inject a bare [n]
+  // marker after each cited span so the app renders inline citation chips (in
+  // addition to the source table) — both keyed off the returned citations.
+  private buildAnswerFromContent(
     content: unknown
-  ): Array<{ index: number; url: string; title?: string; snippet?: string }> {
+  ): { text: string; citations: Array<{ index: number; url: string; title?: string; snippet?: string }> } {
     const citations: Array<{ index: number; url: string; title?: string; snippet?: string }> = [];
-    const seenUrls = new Set<string>();
-    const add = (url: unknown, title?: unknown, snippet?: unknown) => {
-      if (typeof url !== 'string' || !url || seenUrls.has(url)) return;
-      seenUrls.add(url);
-      citations.push({
-        index: citations.length + 1,
-        url,
-        ...(typeof title === 'string' && title ? { title } : {}),
-        ...(typeof snippet === 'string' && snippet ? { snippet } : {}),
-      });
+    const urlToIndex = new Map<string, number>();
+    const add = (url: unknown, title?: unknown, snippet?: unknown): number | undefined => {
+      if (typeof url !== 'string' || !url) return undefined;
+      let index = urlToIndex.get(url);
+      if (index === undefined) {
+        index = citations.length + 1;
+        urlToIndex.set(url, index);
+        citations.push({
+          index,
+          url,
+          ...(typeof title === 'string' && title ? { title } : {}),
+          ...(typeof snippet === 'string' && snippet ? { snippet } : {}),
+        });
+      }
+      return index;
     };
 
-    if (!Array.isArray(content)) return citations;
+    if (!Array.isArray(content)) return { text: '', citations };
 
+    let text = '';
     for (const block of content) {
       if (!block || typeof block !== 'object') continue;
-      const b = block as { type?: string; citations?: unknown };
-      if (b.type === 'text' && Array.isArray(b.citations)) {
-        for (const c of b.citations) {
-          const cit = c as { type?: string; url?: unknown; title?: unknown; cited_text?: unknown } | null;
-          if (cit && cit.type === 'web_search_result_location') {
-            add(cit.url, cit.title, cit.cited_text);
+      const b = block as { type?: string; text?: unknown; citations?: unknown };
+      if ((b.type === undefined || b.type === 'text') && typeof b.text === 'string') {
+        text += b.text;
+        if (Array.isArray(b.citations)) {
+          for (const c of b.citations) {
+            const cit = c as { type?: string; url?: unknown; title?: unknown; cited_text?: unknown } | null;
+            if (cit && cit.type === 'web_search_result_location') {
+              const index = add(cit.url, cit.title, cit.cited_text);
+              if (index !== undefined) text += `[${index}]`;
+            }
           }
         }
       }
     }
 
-    // Fallback: no per-text citations — surface the raw search result URLs.
-    // A web_search_tool_result_error payload has object (not array) content
-    // and is skipped here without throwing.
+    // Fallback: no per-text citations — surface the raw search result URLs so
+    // the source table still renders (no inline markers possible here). A
+    // web_search_tool_result_error payload has object (not array) content and
+    // is skipped without throwing.
     if (citations.length === 0) {
       for (const block of content) {
         if (!block || typeof block !== 'object') continue;
@@ -111,7 +110,7 @@ export class ClaudeAdapter extends BaseAdapter {
       }
     }
 
-    return citations;
+    return { text, citations };
   }
   
   private formatMessageContent(message: string, attachments?: MessageAttachment[]): string | Array<{ type: string; text?: string; source?: { type: string; media_type: string; data: string } }> {
@@ -233,10 +232,10 @@ export class ClaudeAdapter extends BaseAdapter {
         const data = await response.json();
         this.lastModelUsed = data.model;
 
-        const citations = this.extractCitationsFromContent(data.content);
+        const { text, citations } = this.buildAnswerFromContent(data.content);
 
         return {
-          response: this.extractTextFromContent(data.content),
+          response: text,
           modelUsed: data.model,
           finishReason: normalizeFinishReason(data.stop_reason),
           usage: data.usage ? {
@@ -331,11 +330,25 @@ export class ClaudeAdapter extends BaseAdapter {
     let isComplete = false;
     let errorOccurred: Error | null = null;
 
+    // Push a chunk into the stream (or queue it until the consumer is ready).
+    const emitText = (nextText: string) => {
+      if (!nextText) return;
+      outputTail = (outputTail + nextText).slice(-MAX_TAIL);
+      if (resolver) {
+        const r = resolver; resolver = null;
+        r({ value: nextText, done: false });
+      } else {
+        eventQueue.push(nextText);
+      }
+    };
+
     // Web-search citations accumulated over the stream: citations_delta is the
-    // primary source; web_search_tool_result blocks are the URL fallback.
+    // primary source; web_search_tool_result blocks are the URL fallback. A
+    // bare [n] marker is injected into the text when each citation lands so the
+    // app renders inline chips as well as the source table.
     const streamCitations: Array<{ index: number; url: string; title?: string; snippet?: string }> = [];
     const fallbackCitations: Array<{ index: number; url: string; title?: string }> = [];
-    const seenCitationUrls = new Set<string>();
+    const citationIndexByUrl = new Map<string, number>();
     const seenFallbackUrls = new Set<string>();
     const emitCitations = () => {
       const citations = streamCitations.length > 0 ? streamCitations : fallbackCitations;
@@ -355,32 +368,25 @@ export class ClaudeAdapter extends BaseAdapter {
             | { type?: string; url?: unknown; title?: unknown; cited_text?: unknown }
             | undefined;
           const url = citation && typeof citation.url === 'string' ? citation.url : undefined;
-          if (url && !seenCitationUrls.has(url)) {
-            seenCitationUrls.add(url);
-            streamCitations.push({
-              index: streamCitations.length + 1,
-              url,
-              ...(typeof citation?.title === 'string' && citation.title ? { title: citation.title } : {}),
-              ...(typeof citation?.cited_text === 'string' && citation.cited_text ? { snippet: citation.cited_text } : {}),
-            });
+          if (url) {
+            let index = citationIndexByUrl.get(url);
+            if (index === undefined) {
+              index = streamCitations.length + 1;
+              citationIndexByUrl.set(url, index);
+              streamCitations.push({
+                index,
+                url,
+                ...(typeof citation?.title === 'string' && citation.title ? { title: citation.title } : {}),
+                ...(typeof citation?.cited_text === 'string' && citation.cited_text ? { snippet: citation.cited_text } : {}),
+              });
+            }
+            // Inject the inline marker after the text it annotates.
+            emitText(`[${index}]`);
           }
         }
 
         if (data.delta?.text) {
-          const nextText = dedupeChunk(data.delta.text);
-          if (nextText) {
-            // Update rolling tail
-            outputTail = (outputTail + nextText).slice(-MAX_TAIL);
-            if (resolver) {
-              const r = resolver; resolver = null;
-              r({ value: nextText, done: false });
-            } else {
-              eventQueue.push(nextText);
-            }
-          } else {
-            // Pure duplicate; ignore
-            // no-op
-          }
+          emitText(dedupeChunk(data.delta.text));
         }
         if (onEvent) onEvent({ type: 'content_block_delta', ...data });
       } catch (error) {

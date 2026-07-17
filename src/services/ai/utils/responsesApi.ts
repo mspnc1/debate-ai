@@ -114,28 +114,34 @@ export function extractTextFromResponsesOutput(root: unknown): string {
 }
 
 /**
- * Grok inlines web-search citations directly in the answer text as numbered
- * markdown links — `[1](https://…)`. The app renders citations from bare `[n]`
- * references plus metadata, so left as-is the renderer keeps the raw `(https://…)`
- * as visible text. Pull each `(url)` into a citation keyed by its own number and
- * collapse the text back to a bare `[n]` reference.
+ * Some providers inline web-search citations as markdown links in the answer
+ * text — Grok as double-bracketed numbers `[[1]](https://…)`, OpenAI as titled
+ * links `[Source Title](https://…)`. The app renders inline citations from bare
+ * `[n]` references plus matching metadata, so left as-is the link's `(url)` (or
+ * a raw URL) leaks into the rendered text. Rewrite each inline link to a bare
+ * `[n]` reference (renumbered sequentially, deduped by URL) and return the
+ * citations so the inline chips and the source table line up. A non-numeric
+ * link label is preserved as the citation title.
  */
-export function extractInlineNumberedCitations(text: string): {
+export function normalizeInlineCitations(text: string): {
   text: string;
   citations: ResponsesCitation[];
 } {
-  const byIndex = new Map<number, ResponsesCitation>();
+  const urlToIndex = new Map<string, number>();
+  const citations: ResponsesCitation[] = [];
   const cleaned = text.replace(
-    /\[(\d+)\]\((https?:\/\/[^)\s]+)\)/g,
-    (_match, num: string, url: string) => {
-      const index = parseInt(num, 10);
-      if (!byIndex.has(index)) {
-        byIndex.set(index, { index, url });
+    /\[+([^\]]+?)\]+\s*\((https?:\/\/[^)\s]+)\)/g,
+    (_match, label: string, url: string) => {
+      let index = urlToIndex.get(url);
+      if (index === undefined) {
+        index = citations.length + 1;
+        urlToIndex.set(url, index);
+        const title = /^\d+$/.test(label.trim()) ? undefined : label.trim();
+        citations.push({ index, url, ...(title ? { title } : {}) });
       }
-      return `[${num}]`;
+      return `[${index}]`;
     }
   );
-  const citations = Array.from(byIndex.values()).sort((a, b) => a.index - b.index);
   return { text: cleaned, citations };
 }
 

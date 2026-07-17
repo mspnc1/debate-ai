@@ -145,13 +145,16 @@ export class GeminiAdapter extends BaseAdapter {
 
       const data = await response.json();
 
-      const responseText = extractGeminiText(data.candidates?.[0]?.content?.parts);
-      if (!responseText) {
+      const rawText = extractGeminiText(data.candidates?.[0]?.content?.parts);
+      if (!rawText) {
         throw new Error('No response from Gemini');
       }
 
-      // Extract citations from grounding metadata if present
+      // Extract citations from grounding metadata and inject inline [n] markers
+      // so the answer shows numbered chips (like Claude/Grok/Perplexity) plus
+      // the source table.
       const citations = this.extractCitationsFromGrounding(data);
+      const responseText = this.injectGroundingMarkers(rawText, data, citations);
 
       return {
         response: responseText,
@@ -193,7 +196,61 @@ export class GeminiAdapter extends BaseAdapter {
 
     return citations;
   }
-  
+
+  /**
+   * Insert bare [n] citation markers into the answer text using Gemini's
+   * groundingSupports (which map answer segments to grounding chunks). Gemini's
+   * segment offsets are UTF-8 byte offsets, so they are converted to string
+   * indices before splicing. Markers are inserted from the end so earlier
+   * offsets stay valid.
+   */
+  private injectGroundingMarkers(
+    text: string,
+    data: Record<string, unknown>,
+    citations: Array<{ index: number; url: string }>
+  ): string {
+    if (citations.length === 0) return text;
+    const groundingMetadata = (data.candidates as Array<{
+      groundingMetadata?: {
+        groundingSupports?: Array<{
+          segment?: { endIndex?: number };
+          groundingChunkIndices?: number[];
+        }>;
+      };
+    }>)?.[0]?.groundingMetadata;
+    const supports = groundingMetadata?.groundingSupports;
+    if (!Array.isArray(supports) || supports.length === 0) return text;
+
+    const byteToCharOffset = (value: string, byteOffset: number): number => {
+      let bytes = 0;
+      for (let i = 0; i < value.length; i++) {
+        const code = value.codePointAt(i) ?? 0;
+        bytes += code <= 0x7f ? 1 : code <= 0x7ff ? 2 : code <= 0xffff ? 3 : 4;
+        if (code > 0xffff) i++; // surrogate pair consumes two code units
+        if (bytes >= byteOffset) return i + 1;
+      }
+      return value.length;
+    };
+
+    const insertions: Array<{ offset: number; marker: string }> = [];
+    for (const support of supports) {
+      const endByte = support.segment?.endIndex;
+      const chunkIndices = support.groundingChunkIndices;
+      if (typeof endByte !== 'number' || !Array.isArray(chunkIndices) || chunkIndices.length === 0) {
+        continue;
+      }
+      const marker = chunkIndices.map((ci) => `[${ci + 1}]`).join('');
+      insertions.push({ offset: byteToCharOffset(text, endByte), marker });
+    }
+
+    insertions.sort((a, b) => b.offset - a.offset);
+    let result = text;
+    for (const { offset, marker } of insertions) {
+      result = result.slice(0, offset) + marker + result.slice(offset);
+    }
+    return result;
+  }
+
   async *streamMessage(
     message: string,
     conversationHistory: Message[] = [],

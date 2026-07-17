@@ -281,8 +281,9 @@ describe('ClaudeAdapter', () => {
     const adapter = new ClaudeAdapter({ ...makeConfig('claude-sonnet-5'), webSearchEnabled: true });
     const result = await adapter.sendMessage('What happened today?');
 
+    // A [1] marker is injected after the cited span for inline chip rendering.
     expect(result).toEqual(expect.objectContaining({
-      response: 'Latest news summary.',
+      response: 'Latest news summary.[1]',
       metadata: {
         citations: [
           { index: 1, url: 'https://example.com/a', title: 'Source A', snippet: 'the news' },
@@ -375,7 +376,8 @@ describe('ClaudeAdapter', () => {
     eventSource.emit('content_block_delta', JSON.stringify({ delta: { text: 'Answer' } }));
     await expect(firstChunk).resolves.toEqual({ value: 'Answer', done: false });
 
-    const finalChunk = iterator.next();
+    // The citations_delta injects a bare [1] marker into the text stream.
+    const markerChunk = iterator.next();
     eventSource.emit('content_block_delta', JSON.stringify({
       delta: {
         type: 'citations_delta',
@@ -387,6 +389,9 @@ describe('ClaudeAdapter', () => {
         },
       },
     }));
+    await expect(markerChunk).resolves.toEqual({ value: '[1]', done: false });
+
+    const finalChunk = iterator.next();
     eventSource.emit('message_stop', null);
     await expect(finalChunk).resolves.toEqual({ value: undefined, done: true });
 

@@ -3,6 +3,7 @@ import { OpenAICompatibleAdapter } from '../../base/OpenAICompatibleAdapter';
 import { ProviderConfig, ResumptionContext, SendMessageResponse } from '../../types/adapter.types';
 import { getModelById } from '../../../../config/modelConfigs';
 import { getDefaultModel, resolveModelAlias } from '../../../../config/providers/modelRegistry';
+import { normalizeInlineCitations } from '../../utils/responsesApi';
 import EventSource from 'react-native-sse';
 import { extractSSEErrorMessage } from '../../utils/extractSSEErrorMessage';
 import { normalizeFinishReason } from '../../utils/normalizeFinishReason';
@@ -365,8 +366,19 @@ export class ChatGPTAdapter extends OpenAICompatibleAdapter {
     }
 
     const data = await response.json();
-    const responseText = this.extractTextFromResponsesOutput(data);
-    const citations = this.extractCitationsFromResponses(data, responseText);
+    const rawText = this.extractTextFromResponsesOutput(data);
+    // OpenAI web search inlines citations as [Title](url) markdown links.
+    // Normalize them to bare [n] refs so they render as numbered chips (matching
+    // Claude/Grok/Perplexity) instead of leaving link markup in the text.
+    let responseText = rawText;
+    let citations = this.extractCitationsFromResponses(data, rawText);
+    if (this.config.webSearchEnabled) {
+      const normalized = normalizeInlineCitations(rawText);
+      if (normalized.citations.length > 0) {
+        responseText = normalized.text;
+        citations = normalized.citations;
+      }
+    }
     const usage = data.usage as {
       input_tokens?: number;
       output_tokens?: number;

@@ -247,6 +247,39 @@ describe('ChatGPTAdapter', () => {
     }));
   });
 
+  it('normalizes inline [Title](url) web-search links to numbered [n] chips', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        output: [
+          {
+            type: 'message',
+            content: [
+              {
+                type: 'output_text',
+                text: 'Wildfires spread ([Al Jazeera](https://aljazeera.com/a)) and floods hit ([CNN](https://cnn.com/b)).',
+              },
+            ],
+          },
+        ],
+        model: 'gpt-5',
+      }),
+    } as unknown as Response);
+    const adapter = new ChatGPTAdapter({ ...baseConfig, webSearchEnabled: true });
+
+    const result = await adapter.sendMessage('What happened?');
+
+    expect(result).toEqual(expect.objectContaining({
+      response: 'Wildfires spread ([1]) and floods hit ([2]).',
+      metadata: {
+        citations: [
+          { index: 1, url: 'https://aljazeera.com/a', title: 'Al Jazeera' },
+          { index: 2, url: 'https://cnn.com/b', title: 'CNN' },
+        ],
+      },
+    }));
+  });
+
   it('simulates streaming for OpenAI web search and emits citations', async () => {
     fetchMock.mockResolvedValueOnce(createResponsesFetchResponse('Short'));
     const adapter = new ChatGPTAdapter({ ...baseConfig, webSearchEnabled: true });

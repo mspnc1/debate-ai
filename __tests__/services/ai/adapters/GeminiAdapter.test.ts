@@ -86,6 +86,43 @@ describe('GeminiAdapter - Web Search & Citations', () => {
       ]);
     });
 
+    it('injects inline [n] markers from grounding supports', async () => {
+      const config = { ...baseConfig, webSearchEnabled: true };
+      adapter = new GeminiAdapter(config);
+
+      const mockResponse = {
+        candidates: [
+          {
+            content: {
+              parts: [{ text: 'Fact one. Fact two.' }],
+            },
+            groundingMetadata: {
+              groundingChunks: [
+                { web: { uri: 'https://example.com/one', title: 'One' } },
+                { web: { uri: 'https://example.com/two', title: 'Two' } },
+              ],
+              groundingSupports: [
+                { segment: { endIndex: 9 }, groundingChunkIndices: [0] },
+                { segment: { endIndex: 19 }, groundingChunkIndices: [1] },
+              ],
+            },
+          },
+        ],
+        usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 20, totalTokenCount: 30 },
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await adapter.sendMessage('Test message');
+
+      const response = typeof result === 'string' ? result : result.response;
+      expect(response).toBe('Fact one.[1] Fact two.[2]');
+      expect(result.metadata?.citations).toHaveLength(2);
+    });
+
     it('should handle response with no grounding metadata', async () => {
       const config = { ...baseConfig, webSearchEnabled: true };
       adapter = new GeminiAdapter(config);
