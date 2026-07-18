@@ -135,6 +135,9 @@ jest.mock('@/hooks/usePersonality', () => ({
 }));
 
 const AppNavigator = require('@/navigation/AppNavigator').default;
+const {
+  sanitizeNavigationStateForPersistence,
+} = require('@/navigation/AppNavigator');
 
 const mainTabsStateFor = (activeTab: string) => ({
   name: 'MainTabs',
@@ -375,6 +378,175 @@ describe('AppNavigator', () => {
         currentState.routes[1],
       ],
     }));
+  });
+
+  it('strips commands and payloads from persisted params, keeping identifiers only', async () => {
+    const fatBase64 = 'A'.repeat(4096);
+    const currentState = {
+      index: 1,
+      routes: [
+        { name: 'MainTabs' },
+        {
+          name: 'Chat',
+          params: {
+            sessionId: 'session-current',
+            resuming: true,
+            initialPrompt: 'What is in this photo?',
+            userPrompt: 'What is in this photo?',
+            autoSend: true,
+            demoSampleId: 'sample-1',
+            initialMessages: [{ id: 'm1', content: fatBase64 }],
+            attachments: [{ base64: fatBase64 }],
+          },
+        },
+      ],
+    };
+
+    renderWithProviders(<AppNavigator />, {
+      preloadedState: {
+        auth: resolvedAuth,
+        settings: { ...baseSettings, hasCompletedOnboarding: true },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mockNavigationContainerProps?.onStateChange).toBeDefined();
+    });
+    (mockNavigationContainerProps?.onStateChange as (state: unknown) => void)(currentState);
+
+    const raw = await AsyncStorage.getItem('navigationState_v2');
+    expect(raw).toBe(JSON.stringify({
+      index: 1,
+      routes: [
+        mainTabsStateFor('Home'),
+        { name: 'Chat', params: { sessionId: 'session-current', resuming: true } },
+      ],
+    }));
+    // Nothing heavy and no replayable command ever reaches AsyncStorage.
+    expect(raw).not.toContain('autoSend');
+    expect(raw).not.toContain('initialPrompt');
+    expect(raw).not.toContain(fatBase64.slice(0, 64));
+  });
+
+  it('keeps the last good snapshot when a state has nothing restorable', async () => {
+    await AsyncStorage.setItem('navigationState_v2', JSON.stringify({
+      index: 0,
+      routes: [{ name: 'MainTabs' }],
+    }));
+
+    renderWithProviders(<AppNavigator />, {
+      preloadedState: {
+        auth: resolvedAuth,
+        settings: { ...baseSettings, hasCompletedOnboarding: true },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mockNavigationContainerProps?.onStateChange).toBeDefined();
+    });
+    (mockNavigationContainerProps?.onStateChange as (state: unknown) => void)({
+      index: 0,
+      routes: [{ name: 'NotARealRoute', params: { blob: 'x'.repeat(1024) } }],
+    });
+
+    await expect(AsyncStorage.getItem('navigationState_v2')).resolves.toBe(JSON.stringify({
+      index: 0,
+      routes: [{ name: 'MainTabs' }],
+    }));
+  });
+
+  describe('sanitizeNavigationStateForPersistence', () => {
+    it('drops CompareSession commands but keeps its identity params', () => {
+      const sanitized = sanitizeNavigationStateForPersistence({
+        index: 0,
+        routes: [{
+          name: 'CompareSession',
+          key: 'stale-key-1',
+          params: {
+            leftAI: { id: 'claude' },
+            rightAI: { id: 'openai' },
+            sessionId: 'cmp-1',
+            initialPrompt: 'Summarize this PDF',
+          },
+        }],
+      });
+
+      expect(sanitized).toEqual({
+        index: 0,
+        routes: [{
+          name: 'CompareSession',
+          params: {
+            leftAI: { id: 'claude' },
+            rightAI: { id: 'openai' },
+            sessionId: 'cmp-1',
+          },
+        }],
+      });
+    });
+
+    it('never persists DebateTranscript and refocuses the surviving route beneath it', () => {
+      const sanitized = sanitizeNavigationStateForPersistence({
+        index: 2,
+        routes: [
+          { name: 'MainTabs' },
+          { name: 'Debate', params: { selectedAIs: [{ id: 'claude' }], topic: 'AI', demoSample: { huge: true } } },
+          { name: 'DebateTranscript', params: { session: { messages: ['entire', 'session'] } } },
+        ],
+      });
+
+      expect(sanitized).toEqual({
+        index: 1,
+        routes: [
+          { name: 'MainTabs' },
+          { name: 'Debate', params: { selectedAIs: [{ id: 'claude' }], topic: 'AI' } },
+        ],
+      });
+    });
+
+    it('drops routes that cannot render from surviving params', () => {
+      expect(sanitizeNavigationStateForPersistence({
+        index: 0,
+        routes: [{ name: 'Chat', params: { initialPrompt: 'no session id' } }],
+      })).toBeUndefined();
+    });
+
+    it('sanitizes nested navigator state recursively', () => {
+      const sanitized = sanitizeNavigationStateForPersistence({
+        index: 0,
+        routes: [{
+          name: 'MainTabs',
+          params: { screen: 'CreateTab', junk: 'drop-me' },
+          state: {
+            index: 3,
+            routes: [
+              { name: 'Home', params: { stray: 'payload' } },
+              { name: 'DebateTab' },
+              { name: 'Compare' },
+              { name: 'CreateTab' },
+              { name: 'History' },
+            ],
+          },
+        }],
+      });
+
+      expect(sanitized).toEqual({
+        index: 0,
+        routes: [{
+          name: 'MainTabs',
+          params: { screen: 'CreateTab' },
+          state: {
+            index: 3,
+            routes: [
+              { name: 'Home' },
+              { name: 'DebateTab' },
+              { name: 'Compare' },
+              { name: 'CreateTab' },
+              { name: 'History' },
+            ],
+          },
+        }],
+      });
+    });
   });
 
   it('does not interrupt provider streams from the global lifecycle bridge', async () => {

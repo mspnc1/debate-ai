@@ -116,6 +116,115 @@ const isValidNavigationState = (value: unknown, depth = 0): value is InitialStat
   return value.routes.every(route => isValidNavigationRoute(route, depth));
 };
 
+// Persisted navigation state carries locations, never payloads or commands.
+// Only these params survive the write to AsyncStorage; everything else —
+// auto-send flags, prompts, base64 attachments, message arrays — is stripped
+// so nothing heavy is serialized on every navigation and nothing replays a
+// send after a cold restore. Routes absent from this map persist paramless.
+const PERSISTED_PARAM_ALLOWLIST: Record<string, readonly string[]> = {
+  MainTabs: ['screen'],
+  Chat: ['sessionId', 'resuming', 'searchTerm', 'selectedAIs', 'aiPersonalities', 'selectedModels'],
+  Debate: [
+    'selectedAIs',
+    'topic',
+    'personalities',
+    'formatId',
+    'rounds',
+    'exchanges',
+    'civility',
+    'rematchKey',
+    'voiceConfig',
+    'demoDebateId',
+  ],
+  CompareSession: ['leftAI', 'rightAI', 'sessionId', 'resuming'],
+  CreateSession: ['focusAssetId', 'focusMediaId', 'galleryTab'],
+};
+
+// Routes whose identity IS a payload (e.g. a full session object) are never
+// persisted; a restore lands on the screen beneath them instead.
+const NEVER_PERSISTED_ROUTES = new Set(['DebateTranscript']);
+
+interface PersistableRoute {
+  name: string;
+  params?: Record<string, unknown>;
+  state?: PersistableState;
+}
+
+interface PersistableState {
+  index: number;
+  routes: PersistableRoute[];
+}
+
+const sanitizeRouteForPersistence = (route: unknown, depth: number): PersistableRoute | undefined => {
+  if (!isRecord(route) || typeof route.name !== 'string' || !ROUTE_NAMES.has(route.name)) {
+    return undefined;
+  }
+  if (NEVER_PERSISTED_ROUTES.has(route.name)) return undefined;
+
+  let params: Record<string, unknown> | undefined;
+  const allowedKeys = PERSISTED_PARAM_ALLOWLIST[route.name];
+  if (allowedKeys && isRecord(route.params)) {
+    const picked: Record<string, unknown> = {};
+    for (const key of allowedKeys) {
+      if (route.params[key] !== undefined) picked[key] = route.params[key];
+    }
+    if (Object.keys(picked).length > 0) params = picked;
+  }
+
+  // Requirements mirror isValidNavigationRoute: a route that cannot render
+  // from its surviving params is dropped rather than persisted broken.
+  if (route.name === 'Chat' && !(typeof params?.sessionId === 'string' && params.sessionId.length > 0)) {
+    return undefined;
+  }
+  if (route.name === 'Debate' && !Array.isArray(params?.selectedAIs)) {
+    return undefined;
+  }
+  if (route.name === 'CompareSession' && !(isRecord(params?.leftAI) && isRecord(params?.rightAI))) {
+    return undefined;
+  }
+
+  let state: PersistableState | undefined;
+  if ('state' in route && route.state !== undefined && depth < 4) {
+    // A nested state that fails to sanitize just isn't persisted; the
+    // navigator falls back to its own initial route on restore.
+    state = sanitizeNavigationStateForPersistence(route.state, depth + 1);
+  }
+
+  return {
+    name: route.name,
+    ...(params ? { params } : {}),
+    ...(state ? { state } : {}),
+  };
+};
+
+export const sanitizeNavigationStateForPersistence = (
+  value: unknown,
+  depth = 0
+): PersistableState | undefined => {
+  if (!isRecord(value) || !Array.isArray(value.routes) || value.routes.length === 0) {
+    return undefined;
+  }
+
+  const originalIndex = typeof value.index === 'number' &&
+    value.index >= 0 && value.index < value.routes.length
+    ? value.index
+    : value.routes.length - 1;
+
+  const routes: PersistableRoute[] = [];
+  let index = -1;
+  value.routes.forEach((route, position) => {
+    const sanitized = sanitizeRouteForPersistence(route, depth);
+    if (!sanitized) return;
+    routes.push(sanitized);
+    // The active route follows the original focus; if that route was dropped
+    // (e.g. a never-persisted leaf), focus lands on the survivor beneath it.
+    if (position <= originalIndex) index = routes.length - 1;
+  });
+
+  if (routes.length === 0) return undefined;
+  return { index: Math.max(index, 0), routes };
+};
+
 const parseNavigationState = (raw: string | null): InitialState | undefined => {
   if (!raw) return undefined;
   try {
@@ -457,9 +566,12 @@ export default function AppNavigator() {
           initialState={shouldShowMainApp ? initialNavigationState : undefined}
           onStateChange={(state) => {
             if (!shouldShowMainApp || !state) return;
-            const persistedState = isValidNavigationState(state)
-              ? normalizeRestoredNavigationState(state)
-              : state;
+            // Persist locations, never payloads or commands: project the
+            // state down to route identity + allowlisted identifier params
+            // before it touches AsyncStorage.
+            const sanitized = sanitizeNavigationStateForPersistence(state);
+            if (!sanitized) return; // nothing restorable — keep the last good snapshot
+            const persistedState = normalizeRestoredNavigationState(sanitized as InitialState);
             AsyncStorage.setItem(NAVIGATION_STATE_KEY, JSON.stringify(persistedState)).catch(() => {});
           }}
         >
