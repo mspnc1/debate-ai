@@ -140,7 +140,8 @@
     "postcss": "^8.5.10",
     "uuid": "^14.0.0",
     "protobufjs": "^7.5.8",
-    "@protobufjs/utf8": "^1.1.1"
+    "@protobufjs/utf8": "^1.1.1",
+    "websocket-driver": "^0.7.5"
   },
   "private": true
 }
