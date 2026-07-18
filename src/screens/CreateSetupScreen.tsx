@@ -727,7 +727,13 @@ export default function CreateSetupScreen() {
             attachments={composer.attachments}
             onRemoveAttachment={(uri) => dispatch(removeAttachment({ tab: activeTab, uri }))}
             onOpenOptions={activeTab === 'image' ? () => setImageOptionsSheetOpen(true) : undefined}
-            onAttachImage={activeTab === 'video' ? handlePickVideoSource : undefined}
+            onAttachImage={
+              activeTab === 'video'
+                ? handlePickVideoSource
+                : activeTab === 'image'
+                  ? handlePickImageSource
+                  : undefined
+            }
             onMediaPillPress={handleMediaPillPress}
             inputText={prompts[activeTab]}
             onChangeText={(text) => setPromptFor(activeTab, text)}

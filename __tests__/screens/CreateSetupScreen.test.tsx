@@ -482,12 +482,14 @@ describe('CreateSetupScreen', () => {
       expect(getByText('The Studio')).toBeTruthy();
     });
 
-    it('renders the docked composer with input, add pill, and send', () => {
+    it('renders the docked composer with input, add pill, attach, and send', () => {
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
       expect(getByTestId('create-composer')).toBeTruthy();
       expect(getByTestId('create-composer-input')).toBeTruthy();
       expect(getByTestId('create-composer-add-ai')).toBeTruthy();
       expect(getByTestId('create-composer-send')).toBeTruthy();
+      // Image tab exposes the direct attach affordance (parity with video).
+      expect(getByTestId('create-composer-attach')).toBeTruthy();
     });
 
     it('renders a pill for each persisted image provider', () => {
