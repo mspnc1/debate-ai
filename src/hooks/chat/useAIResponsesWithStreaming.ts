@@ -18,7 +18,8 @@ export interface AIResponsesHook {
   ) => Promise<void>;
   sendQuickStartResponses: (
     userPrompt: string,
-    enrichedPrompt: string
+    enrichedPrompt: string,
+    attachments?: MessageAttachment[]
   ) => Promise<void>;
   retryAIResponses: (
     userMessage: Message,
@@ -131,14 +132,18 @@ export const useAIResponsesWithStreaming = (_isResuming?: boolean): AIResponsesH
 
   const sendQuickStartResponses = useCallback(async (
     userPrompt: string,
-    enrichedPrompt: string
+    enrichedPrompt: string,
+    attachments?: MessageAttachment[]
   ) => {
     if (!aiService || !isInitialized || !currentSession || !orchestratorRef.current) {
       console.error('AI service not ready or no active session');
       return;
     }
 
-    const userMessage = ChatService.createUserMessage(userPrompt, []);
+    const userMessage: Message = {
+      ...ChatService.createUserMessage(userPrompt, []),
+      ...(attachments?.length ? { attachments } : {}),
+    };
     dispatch(addMessage(userMessage));
 
     await orchestratorRef.current.processUserMessage({
@@ -146,6 +151,7 @@ export const useAIResponsesWithStreaming = (_isResuming?: boolean): AIResponsesH
       existingMessages: messages,
       mentions: [],
       enrichedPrompt,
+      attachments,
       aiPersonalities,
       mergedPersonalities,
       selectedModels,

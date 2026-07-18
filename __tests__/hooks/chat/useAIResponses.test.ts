@@ -155,4 +155,32 @@ describe('useAIResponses', () => {
     const messages = store.getState().chat.currentSession?.messages ?? [];
     expect(messages.some(msg => msg.content === 'Hi')).toBe(true);
   });
+
+  it('threads quick start attachments onto the message and orchestrator call', async () => {
+    const attachment = {
+      type: 'document' as const,
+      uri: 'file://notes.pdf',
+      mimeType: 'application/pdf',
+      base64: 'def',
+      fileName: 'notes.pdf',
+    };
+    const { result, store } = renderHookWithProviders(() => useAIResponses(), {
+      preloadedState: baseState,
+    });
+
+    await act(async () => {
+      await result.current.sendQuickStartResponses('Summarize this', 'Summarize this', [attachment]);
+    });
+
+    const orchestrator = getOrchestratorInstance();
+    expect(orchestrator.processUserMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userMessage: expect.objectContaining({ attachments: [attachment] }),
+        attachments: [attachment],
+      })
+    );
+
+    const messages = store.getState().chat.currentSession?.messages ?? [];
+    expect(messages.find(msg => msg.content === 'Summarize this')?.attachments).toEqual([attachment]);
+  });
 });

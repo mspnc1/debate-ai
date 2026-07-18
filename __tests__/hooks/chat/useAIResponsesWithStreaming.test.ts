@@ -154,6 +154,39 @@ describe('useAIResponsesWithStreaming', () => {
     expect(messages.some(msg => msg.content === 'Hi')).toBe(true);
   });
 
+  it('carries staged attachments on the quick start message and orchestrator call', async () => {
+    const attachment = {
+      type: 'image' as const,
+      uri: 'file://a.png',
+      mimeType: 'image/png',
+      base64: 'abc',
+      fileName: 'a.png',
+    };
+    const { result, store } = renderHookWithProviders(() => useAIResponsesWithStreaming(), {
+      preloadedState: baseState,
+    });
+
+    await waitFor(() => expect(ChatOrchestrator).toHaveBeenCalled());
+    const orchestrator = getOrchestratorInstance();
+
+    await act(async () => {
+      await result.current.sendQuickStartResponses('Read this', 'Read this', [attachment]);
+    });
+
+    expect(orchestrator.processUserMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userMessage: expect.objectContaining({
+          content: 'Read this',
+          attachments: [attachment],
+        }),
+        attachments: [attachment],
+      })
+    );
+
+    const messages = store.getState().chat.currentSession?.messages ?? [];
+    expect(messages.find(msg => msg.content === 'Read this')?.attachments).toEqual([attachment]);
+  });
+
   it('logs an error when AI service is not ready', async () => {
     (useAIService as jest.Mock).mockReturnValueOnce({ aiService: null, isInitialized: false });
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});

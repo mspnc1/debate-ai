@@ -16,7 +16,8 @@ export interface AIResponsesHook {
   ) => Promise<void>;
   sendQuickStartResponses: (
     userPrompt: string,
-    enrichedPrompt: string
+    enrichedPrompt: string,
+    attachments?: MessageAttachment[]
   ) => Promise<void>;
   isProcessing: boolean;
 }
@@ -84,14 +85,18 @@ export const useAIResponses = (_isResuming?: boolean): AIResponsesHook => {
 
   const sendQuickStartResponses = useCallback(async (
     userPrompt: string,
-    enrichedPrompt: string
+    enrichedPrompt: string,
+    attachments?: MessageAttachment[]
   ) => {
     if (!aiService || !isInitialized || !currentSession || !orchestratorRef.current) {
       console.error('AI service not ready or no active session');
       return;
     }
 
-    const userMessage = ChatService.createUserMessage(userPrompt, []);
+    const userMessage: Message = {
+      ...ChatService.createUserMessage(userPrompt, []),
+      ...(attachments?.length ? { attachments } : {}),
+    };
     dispatch(addMessage(userMessage));
 
     await orchestratorRef.current.processUserMessage({
@@ -99,6 +104,7 @@ export const useAIResponses = (_isResuming?: boolean): AIResponsesHook => {
       existingMessages: messages,
       mentions: [],
       enrichedPrompt,
+      attachments,
       aiPersonalities,
       selectedModels,
       apiKeys,
