@@ -336,6 +336,46 @@ describe('HomeScreen', () => {
     });
   });
 
+  it('stages composer attachments in Redux and keeps them out of nav params', async () => {
+    const navigation = { navigate: jest.fn() };
+    const session = { createSession: jest.fn().mockReturnValue('session-789') };
+    const selection = createSelection({
+      hasEnoughAIs: true,
+      configs: [createSelectionConfig()],
+      selectedAIConfigs: [createAIConfig()],
+    });
+    const attachment = {
+      type: 'image' as const,
+      uri: 'file://photo.png',
+      mimeType: 'image/png',
+      base64: 'abc',
+      fileName: 'photo.png',
+    };
+
+    const { store } = renderHome({ navigation, session, selection });
+
+    expect(mockComposerProps.allowAttachments).toBe(true);
+
+    await act(async () => {
+      mockComposerProps.onSend('What is in this photo?', [attachment]);
+    });
+
+    expect(store.getState().composerAttachments.chat).toEqual([attachment]);
+    // Nav state is persisted to AsyncStorage — base64 must never ride params.
+    expect(navigation.navigate).toHaveBeenCalledWith('Chat', {
+      sessionId: 'session-789',
+      initialPrompt: 'What is in this photo?',
+      userPrompt: 'What is in this photo?',
+      autoSend: true,
+    });
+
+    // A later attachment-less send overwrites the staged list.
+    await act(async () => {
+      mockComposerProps.onSend('Plain follow-up');
+    });
+    expect(store.getState().composerAttachments.chat).toEqual([]);
+  });
+
   it('opens the topic picker instead of a live session in demo mode', async () => {
     const session = { createSession: jest.fn() };
     const selection = createSelection({
@@ -348,6 +388,7 @@ describe('HomeScreen', () => {
 
     expect(mockChatTopicPickerProps.visible).toBe(false);
     expect(mockComposerProps.requireText).toBe(false);
+    expect(mockComposerProps.allowAttachments).toBe(false);
 
     await act(async () => {
       mockComposerProps.onSend('');

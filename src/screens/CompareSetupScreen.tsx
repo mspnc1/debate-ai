@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Platform, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
-import { setAIPersonality, setAIModel, showSheet } from '../store';
+import { setAIPersonality, setAIModel, showSheet, stageComposerAttachments } from '../store';
+import { MessageAttachment } from '../types';
 
 import { Box, ResponsiveContainer } from '../components/atoms';
 import { Typography, Button } from '../components/molecules';
@@ -73,7 +74,7 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
     });
   };
 
-  const handleSend = (text: string) => {
+  const handleSend = (text: string, attachments?: MessageAttachment[]) => {
     if (!selection.hasEnoughAIs || !leftAI || !rightAI) return;
     seedSessionMaps();
     Keyboard.dismiss();
@@ -83,6 +84,10 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
       return;
     }
 
+    // Stage (never navigate with) attachment payloads: nav params are
+    // persisted to AsyncStorage. Overwrite semantics — an empty list wipes
+    // anything a previously abandoned composer left behind.
+    dispatch(stageComposerAttachments({ mode: 'compare', attachments: attachments ?? [] }));
     navigation.navigate('CompareSession', {
       leftAI,
       rightAI,
@@ -187,6 +192,7 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
               onChangeText={setInputText}
               onSend={handleSend}
               requireText={!access.isDemo}
+              allowAttachments={!access.isDemo}
               placeholder={access.isDemo ? 'Pick a sample comparison to preview' : 'Ask both AIs anything…'}
               pillIndexLabels={['L', 'R']}
               testID="compare-composer"

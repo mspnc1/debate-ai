@@ -13,7 +13,8 @@ import { TrialBanner } from '@/components/molecules/subscription/TrialBanner';
 import { DemoBanner } from '@/components/molecules/subscription/DemoBanner';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
 import { useDispatch } from 'react-redux';
-import { showSheet } from '@/store';
+import { showSheet, stageComposerAttachments } from '@/store';
+import type { MessageAttachment } from '../types';
 
 // Custom hooks
 import { useComposerSelection } from '../hooks/home/useComposerSelection';
@@ -53,12 +54,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     navigation.navigate(HOME_CONSTANTS.SCREENS.CHAT, { sessionId, ...params });
   };
 
-  const handleSend = (text: string) => {
+  const handleSend = (text: string, attachments?: MessageAttachment[]) => {
     if (!selection.hasEnoughAIs) return;
     if (isDemo) {
       setTopicPickerVisible(true);
       return;
     }
+    // Stage (never navigate with) attachment payloads: nav params are
+    // persisted to AsyncStorage. Overwrite semantics — an empty list wipes
+    // anything a previously abandoned composer left behind.
+    dispatch(stageComposerAttachments({ mode: 'chat', attachments: attachments ?? [] }));
     // Reuses the Quick Start auto-send rail in ChatScreen: identical
     // initialPrompt/userPrompt render and send the typed message as-is.
     startChatSession({ initialPrompt: text, userPrompt: text, autoSend: true });
@@ -67,6 +72,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   const handleCompleteQuickStart = (payload: QuickStartPromptPayload) => {
     if (selection.hasEnoughAIs) {
+      dispatch(stageComposerAttachments({ mode: 'chat', attachments: [] }));
       startChatSession({
         initialPrompt: payload.aiPrompt,
         userPrompt: payload.userPrompt,
@@ -130,6 +136,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               onChangeText={setInputText}
               onSend={handleSend}
               requireText={!isDemo}
+              allowAttachments={!isDemo}
               placeholder={isDemo ? 'Pick a sample topic to preview' : 'Ask anything…'}
               testID="home-composer"
             />

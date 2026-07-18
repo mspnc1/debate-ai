@@ -1,7 +1,7 @@
 import React from 'react';
 import { act } from '@testing-library/react-native';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
-import { setAIPersonality, setAIModel, showSheet } from '@/store';
+import { setAIPersonality, setAIModel, showSheet, stageComposerAttachments } from '@/store';
 import type { AIConfig } from '@/types';
 import type { AISelectionConfig } from '@/types/aiSelection';
 
@@ -218,6 +218,36 @@ describe('CompareSetupScreen', () => {
     });
   });
 
+  it('stages composer attachments in Redux and keeps them out of nav params', async () => {
+    const { selection, leftAI, rightAI } = createReadySelection();
+    mockUseComposerSelection.mockReturnValue(selection);
+    const attachment = {
+      type: 'document' as const,
+      uri: 'file://notes.pdf',
+      mimeType: 'application/pdf',
+      base64: 'def',
+      fileName: 'notes.pdf',
+    };
+
+    renderWithProviders(<CompareSetupScreen navigation={navigation as any} />);
+
+    expect(mockComposerProps.allowAttachments).toBe(true);
+
+    await act(async () => {
+      mockComposerProps.onSend('Summarize this document', [attachment]);
+    });
+
+    expect(mockDispatch).toHaveBeenCalledWith(
+      stageComposerAttachments({ mode: 'compare', attachments: [attachment] })
+    );
+    // Nav state is persisted to AsyncStorage — base64 must never ride params.
+    expect(navigation.navigate).toHaveBeenCalledWith('CompareSession', {
+      leftAI,
+      rightAI,
+      initialPrompt: 'Summarize this document',
+    });
+  });
+
   it('does not navigate when fewer than two AIs are selected', async () => {
     mockUseComposerSelection.mockReturnValue(
       createSelection({ hasEnoughAIs: false, selectedAIConfigs: [createAIConfig()] })
@@ -244,6 +274,7 @@ describe('CompareSetupScreen', () => {
       subtitle: expect.stringContaining('Demo'),
     });
     expect(mockComposerProps.requireText).toBe(false);
+    expect(mockComposerProps.allowAttachments).toBe(false);
     expect(mockComposerProps.allowedProviderIds).toEqual(['claude', 'openai']);
 
     await act(async () => {
