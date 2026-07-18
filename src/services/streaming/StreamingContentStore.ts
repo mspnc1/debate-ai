@@ -21,8 +21,59 @@ const EMPTY_SNAPSHOT: StreamingContentSnapshot = Object.freeze({
 const streams = new Map<string, StreamingContentSnapshot>();
 const listeners = new Map<string, Set<Listener>>();
 
+// Streaming chunks can arrive far faster than the display can render. Notifying
+// subscribers on every chunk forces the (growing) streaming cell to re-render
+// and FlatList to re-measure it each time — the source of RN's "VirtualizedList
+// is slow to update" warning. Coalesce notifications to ~30fps: the snapshot is
+// always updated synchronously (so getSnapshot stays fresh for any render that
+// happens for another reason), but listeners fire at most once per interval.
+// Terminal transitions flush immediately so final content never waits on a timer.
+const NOTIFY_INTERVAL_MS = 33;
+
+const pendingNotify = new Map<string, ReturnType<typeof setTimeout>>();
+const lastNotifyAt = new Map<string, number>();
+
 const notify = (messageId: string): void => {
   listeners.get(messageId)?.forEach(listener => listener());
+};
+
+const cancelPendingNotify = (messageId: string): void => {
+  const timer = pendingNotify.get(messageId);
+  if (timer) {
+    clearTimeout(timer);
+    pendingNotify.delete(messageId);
+  }
+};
+
+// Fire listeners now and reset the throttle window. Used for stream start and
+// every terminal transition.
+const flushNotify = (messageId: string): void => {
+  cancelPendingNotify(messageId);
+  lastNotifyAt.set(messageId, Date.now());
+  notify(messageId);
+};
+
+// Coalescing notify for the hot append path: fire immediately when the window
+// has elapsed (leading edge), otherwise schedule a single trailing notify at the
+// window boundary. Repeated calls inside the window collapse into that one timer.
+const scheduleNotify = (messageId: string): void => {
+  if (pendingNotify.has(messageId)) return;
+  const elapsed = Date.now() - (lastNotifyAt.get(messageId) ?? 0);
+  if (elapsed >= NOTIFY_INTERVAL_MS) {
+    flushNotify(messageId);
+    return;
+  }
+  const timer = setTimeout(() => {
+    pendingNotify.delete(messageId);
+    lastNotifyAt.set(messageId, Date.now());
+    notify(messageId);
+  }, NOTIFY_INTERVAL_MS - elapsed);
+  pendingNotify.set(messageId, timer);
+};
+
+const forgetNotifyBookkeeping = (messageId: string): void => {
+  cancelPendingNotify(messageId);
+  lastNotifyAt.delete(messageId);
 };
 
 export const subscribeStreamingContent = (messageId: string, listener: Listener): (() => void) => {
@@ -58,7 +109,7 @@ export const startStreamingContent = (input: {
     chunksReceived: 0,
     bytesReceived: 0,
   });
-  notify(input.messageId);
+  flushNotify(input.messageId);
 };
 
 export const appendStreamingContent = (messageId: string, chunk: string): void => {
@@ -75,7 +126,7 @@ export const appendStreamingContent = (messageId: string, chunk: string): void =
     bytesReceived: current.bytesReceived + chunk.length,
     cursorVisible: chunksReceived % 3 !== 0,
   });
-  notify(messageId);
+  scheduleNotify(messageId);
 };
 
 export const completeStreamingContent = (messageId: string, finalContent?: string): void => {
@@ -91,7 +142,7 @@ export const completeStreamingContent = (messageId: string, finalContent?: strin
     cursorVisible: false,
     error: undefined,
   });
-  notify(messageId);
+  flushNotify(messageId);
 };
 
 export const failStreamingContent = (
@@ -110,7 +161,7 @@ export const failStreamingContent = (
     endTime: Date.now(),
     cursorVisible: false,
   });
-  notify(messageId);
+  flushNotify(messageId);
 };
 
 export const cancelActiveStreamingContent = (
@@ -126,6 +177,7 @@ export const cancelActiveStreamingContent = (
 
 export const clearStreamingContent = (messageId: string): void => {
   streams.delete(messageId);
+  forgetNotifyBookkeeping(messageId);
   notify(messageId);
 };
 
@@ -145,6 +197,9 @@ export const getActiveStreamingContentIds = (): string[] => (
 
 export const resetStreamingContentStore = (): void => {
   const messageIds = Array.from(streams.keys());
+  pendingNotify.forEach(timer => clearTimeout(timer));
+  pendingNotify.clear();
+  lastNotifyAt.clear();
   streams.clear();
   messageIds.forEach(notify);
 };
