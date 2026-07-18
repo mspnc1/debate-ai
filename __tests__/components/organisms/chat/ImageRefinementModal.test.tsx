@@ -13,6 +13,7 @@ jest.mock('expo-blur', () => ({
 jest.mock('@/components/molecules', () => {
   const { Text, TouchableOpacity, View } = require('react-native');
   return {
+    KeyboardAvoider: ({ children }: { children?: import('react').ReactNode }) => require('react').createElement(require('react').Fragment, null, children),
     Typography: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text>,
     GradientButton: ({
       title,

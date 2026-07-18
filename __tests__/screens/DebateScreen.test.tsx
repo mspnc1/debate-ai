@@ -105,6 +105,7 @@ jest.mock('@/components/molecules', () => {
   const React = require('react');
   const { Text } = require('react-native');
   return {
+    KeyboardAvoider: ({ children }: { children?: import('react').ReactNode }) => require('react').createElement(require('react').Fragment, null, children),
     ContextBar: (props: { title?: string; subtitle?: string }) => {
       mockContextBarProps = props;
       return React.createElement(Text, { testID: 'context-bar' }, `${props.title ?? ''}${props.subtitle ? `:${props.subtitle}` : ''}`);

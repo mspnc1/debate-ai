@@ -55,6 +55,7 @@ jest.mock('@/components/molecules', () => {
   const React = require('react');
   const { Text, TouchableOpacity } = require('react-native');
   return {
+    KeyboardAvoider: ({ children }: { children?: import('react').ReactNode }) => require('react').createElement(require('react').Fragment, null, children),
     Typography: ({ children, ...props }: any) =>
       React.createElement(Text, { testID: props.testID || 'typography' }, children),
     SheetHeader: ({ title, onClose }: any) =>
