@@ -1,10 +1,12 @@
 import React from 'react';
 import { Text } from 'react-native';
-import { fireEvent } from '@testing-library/react-native';
+import { act, fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { ComposerShell } from '@/components/organisms/composer/ComposerShell';
 import { AIComposer } from '@/components/organisms/composer/AIComposer';
+import { getProviderDefaultModel } from '@/config/modelConfigs';
 import type { AISelectionConfig } from '@/types/aiSelection';
+import type { MessageAttachment } from '@/types';
 
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn().mockResolvedValue(undefined),
@@ -13,6 +15,8 @@ jest.mock('expo-haptics', () => ({
 
 const mockPickerSheet = jest.fn(() => null);
 const mockConfigSheet = jest.fn(() => null);
+const mockImageUploadModal = jest.fn(() => null);
+const mockDocUploadModal = jest.fn(() => null);
 
 jest.mock('@/components/organisms/composer/ProviderPickerSheet', () => ({
   ProviderPickerSheet: (props: unknown) => mockPickerSheet(props),
@@ -20,6 +24,14 @@ jest.mock('@/components/organisms/composer/ProviderPickerSheet', () => ({
 
 jest.mock('@/components/organisms/composer/AIConfigSheet', () => ({
   AIConfigSheet: (props: unknown) => mockConfigSheet(props),
+}));
+
+jest.mock('@/components/organisms/chat/ImageUploadModal', () => ({
+  ImageUploadModal: (props: unknown) => mockImageUploadModal(props),
+}));
+
+jest.mock('@/components/organisms/chat/DocumentUploadModal', () => ({
+  DocumentUploadModal: (props: unknown) => mockDocUploadModal(props),
 }));
 
 const shellProps = {
@@ -155,5 +167,126 @@ describe('AIComposer (wrapper parity)', () => {
     expect(mockPickerSheet).toHaveBeenLastCalledWith(
       expect.objectContaining({ allowDuplicates: true })
     );
+  });
+});
+
+describe('AIComposer attachments', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  const visionModel = getProviderDefaultModel('claude')?.id as string;
+  const capableConfigs: AISelectionConfig[] = [
+    { providerId: 'claude', modelId: visionModel, personalityId: 'default' },
+  ];
+  const unsupportedConfigs: AISelectionConfig[] = [
+    { providerId: 'openai', modelId: 'nonexistent-model', personalityId: 'default' },
+  ];
+
+  const imageAttachment: MessageAttachment = {
+    type: 'image',
+    uri: 'file://photo.png',
+    mimeType: 'image/png',
+    base64: 'abc',
+    fileName: 'photo.png',
+  };
+  const documentAttachment: MessageAttachment = {
+    type: 'document',
+    uri: 'file://notes.pdf',
+    mimeType: 'application/pdf',
+    base64: 'def',
+    fileName: 'notes.pdf',
+  };
+
+  const attachProps = {
+    mode: 'chat' as const,
+    configs: capableConfigs,
+    minAIs: 1,
+    maxAIs: 3,
+    onAddProvider: jest.fn(),
+    onUpdateConfig: jest.fn(),
+    onRemoveConfig: jest.fn(),
+    configuredProviderIds: ['claude'],
+    inputText: '',
+    onChangeText: jest.fn(),
+    onSend: jest.fn(),
+    allowAttachments: true,
+    testID: 'composer',
+  };
+
+  const lastUploadHandler = (mock: jest.Mock): ((atts: MessageAttachment[]) => void) => {
+    const call = mock.mock.calls[mock.mock.calls.length - 1];
+    return (call[0] as { onUpload: (atts: MessageAttachment[]) => void }).onUpload;
+  };
+
+  it('hides the attach button unless allowAttachments is set', () => {
+    const { queryByTestId } = renderWithProviders(
+      <AIComposer {...attachProps} allowAttachments={false} />
+    );
+    expect(queryByTestId('composer-attach')).toBeNull();
+  });
+
+  it('hides the attach button when the selected models support no uploads', () => {
+    const { queryByTestId } = renderWithProviders(
+      <AIComposer {...attachProps} configs={unsupportedConfigs} />
+    );
+    expect(queryByTestId('composer-attach')).toBeNull();
+  });
+
+  it('picks an image through the options row and sends it with the text', () => {
+    const onSend = jest.fn();
+    const { getByTestId, getByLabelText, queryByTestId } = renderWithProviders(
+      <AIComposer {...attachProps} onSend={onSend} inputText="What is this?" />
+    );
+
+    fireEvent.press(getByTestId('composer-attach'));
+    fireEvent.press(getByLabelText('Image'));
+    expect(mockImageUploadModal).toHaveBeenLastCalledWith(
+      expect.objectContaining({ visible: true })
+    );
+
+    act(() => lastUploadHandler(mockImageUploadModal)([imageAttachment]));
+    expect(getByTestId('composer-attachments')).toBeTruthy();
+
+    fireEvent.press(getByTestId('composer-send'));
+    expect(onSend).toHaveBeenCalledWith('What is this?', [imageAttachment]);
+    // Chips clear after the send hands the files off.
+    expect(queryByTestId('composer-attachments')).toBeNull();
+  });
+
+  it('keeps the attachment but blocks send when a selected model loses support', () => {
+    const onSend = jest.fn();
+    const { getByTestId, getByText, rerender } = renderWithProviders(
+      <AIComposer {...attachProps} onSend={onSend} inputText="Summarize" />
+    );
+
+    act(() => lastUploadHandler(mockDocUploadModal)([documentAttachment]));
+    expect(getByTestId('composer-attachments')).toBeTruthy();
+
+    rerender(
+      <AIComposer
+        {...attachProps}
+        onSend={onSend}
+        inputText="Summarize"
+        configs={unsupportedConfigs}
+        configuredProviderIds={['openai']}
+      />
+    );
+
+    expect(
+      getByText("Attached file isn't supported by every selected AI — remove it or switch models")
+    ).toBeTruthy();
+    expect(getByTestId('composer-attachments')).toBeTruthy();
+
+    fireEvent.press(getByTestId('composer-send'));
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
+  it('sends without an attachments argument when nothing is attached', () => {
+    const onSend = jest.fn();
+    const { getByTestId } = renderWithProviders(
+      <AIComposer {...attachProps} onSend={onSend} inputText="Plain text" />
+    );
+
+    fireEvent.press(getByTestId('composer-send'));
+    expect(onSend).toHaveBeenCalledWith('Plain text');
   });
 });
