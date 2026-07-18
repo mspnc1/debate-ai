@@ -4,14 +4,13 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { BackHandler, View, TouchableOpacity, FlatList, StyleSheet, Platform } from 'react-native';
+import { BackHandler, Modal, View, TouchableOpacity, FlatList, StyleSheet, Platform } from 'react-native';
 import { useTheme } from '../../../theme';
 import { Typography } from '../../molecules';
 import { SheetHeader } from '@/components/molecules';
 import { GradientButton } from '../../molecules';
 import { PersonalityOption } from '../../../config/personalities';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppPortal } from '@/components/organisms/common/AppPortal';
 
 const MODAL_TOP_MIN_CLEARANCE = 88;
 const MODAL_TOP_SAFE_AREA_GAP = 40;
@@ -185,7 +184,13 @@ export const PersonalityModal: React.FC<PersonalityModalProps> = ({
   };
 
   return (
-    <AppPortal visible={visible}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="overFullScreen"
+      transparent
+      onRequestClose={onClose}
+    >
       <View
         accessibilityViewIsModal
         style={StyleSheet.absoluteFill}
@@ -235,7 +240,7 @@ export const PersonalityModal: React.FC<PersonalityModalProps> = ({
           </View>
         </View>
       </View>
-    </AppPortal>
+    </Modal>
   );
 };
 
