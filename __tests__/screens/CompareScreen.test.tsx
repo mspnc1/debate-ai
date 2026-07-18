@@ -634,6 +634,33 @@ describe('CompareScreen', () => {
     });
   });
 
+  it('auto-sends the composer prompt with staged attachments to both AIs, then clears them', async () => {
+    const attachment = {
+      type: 'image' as const,
+      uri: 'file://staged.png',
+      mimeType: 'image/png',
+      base64: 'abc',
+      fileName: 'staged.png',
+    };
+
+    const { store } = renderScreen({
+      params: { initialPrompt: 'What is in this image?' },
+      preloadedState: {
+        composerAttachments: { chat: [], compare: [attachment] },
+      } as Partial<RootState>,
+    });
+
+    await waitFor(() => {
+      expect(mockStreamResponse).toHaveBeenCalledTimes(2);
+    });
+    const [leftConfig] = mockStreamResponse.mock.calls[0];
+    const [rightConfig] = mockStreamResponse.mock.calls[1];
+    expect(leftConfig).toEqual(expect.objectContaining({ attachments: [attachment] }));
+    expect(rightConfig).toEqual(expect.objectContaining({ attachments: [attachment] }));
+    // One-shot take: the staged list is cleared so it cannot leak.
+    expect(store.getState().composerAttachments.compare).toEqual([]);
+  });
+
   it('saves comparison history after AI responses complete', async () => {
     renderScreen();
 

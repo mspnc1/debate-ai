@@ -918,11 +918,49 @@ describe('ChatScreen', () => {
 
     await waitFor(() => {
       expect(mockQuickStartData.handleQuickStart).toHaveBeenCalledWith(
-        mockAIResponsesData.sendQuickStartResponses,
+        expect.any(Function),
         mockInput.setInputText,
         expect.any(Function),
       );
     });
+  });
+
+  it('takes staged composer attachments once for the quick start send', async () => {
+    mockQuickStartData.hasInitialPrompt = true;
+    mockQuickStartData.handleQuickStart = jest.fn();
+    const attachment = {
+      type: 'image' as const,
+      uri: 'file://staged.png',
+      mimeType: 'image/png',
+      base64: 'abc',
+      fileName: 'staged.png',
+    };
+
+    const { store } = renderWithProviders(
+      <ChatScreen navigation={navigation} route={route} />,
+      {
+        preloadedState: {
+          composerAttachments: { chat: [attachment], compare: [] },
+        },
+      }
+    );
+
+    await waitFor(() => {
+      expect(mockQuickStartData.handleQuickStart).toHaveBeenCalled();
+    });
+
+    const sendWithStaged = mockQuickStartData.handleQuickStart.mock.calls[0][0];
+    await act(async () => {
+      await sendWithStaged('Read this file', 'Read this file');
+    });
+
+    expect(mockAIResponsesData.sendQuickStartResponses).toHaveBeenCalledWith(
+      'Read this file',
+      'Read this file',
+      [attachment],
+    );
+    // One-shot take: the staged list is cleared so it cannot leak.
+    expect(store.getState().composerAttachments.chat).toEqual([]);
   });
 
   it('derives header subtitle from selected AI count', () => {

@@ -6,7 +6,7 @@ import { ErrorService } from '@/services/errors/ErrorService';
 import { useAIService } from '../providers/AIServiceProvider';
 import { MessageAttachment, type ChatSession } from '../types';
 import { getAttachmentSupport } from '../utils/attachmentUtils';
-import { shallowEqual, useSelector, useDispatch } from 'react-redux';
+import { shallowEqual, useSelector, useDispatch, useStore } from 'react-redux';
 import {
   RootState,
   addMessage,
@@ -15,6 +15,7 @@ import {
   loadSession as loadSessionAction,
   setAIPersonality,
   setAIModel,
+  clearComposerAttachments,
 } from '../store';
 import { ImageService } from '../services/images/ImageService';
 import { useMergedModalityAvailability } from '../hooks/multimodal/useModalityAvailability';
@@ -135,6 +136,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
 
   // Redux and streaming state
   const dispatch = useDispatch();
+  const reduxStore = useStore<RootState>();
   const activeStreams = useSelector((state: RootState) => selectActiveStreamCount(state));
   const activeStreamIds = useSelector((state: RootState) => (
     Object.values(state.streaming.streamingMessages)
@@ -725,19 +727,36 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     session.currentSession?.id,
   ]);
 
-  // Handle Quick Start auto-send logic
+  // Handle Quick Start auto-send logic. Attachments staged by the entry
+  // composer live in Redux (never in nav params — those are persisted); take
+  // them once at fire time via getState so multi-MB base64 stays out of deps.
+  const sendQuickStartWithStagedAttachments = useCallback(async (
+    quickStartUserPrompt: string,
+    enrichedPrompt: string
+  ) => {
+    const staged = reduxStore.getState().composerAttachments.chat;
+    if (staged.length > 0) {
+      dispatch(clearComposerAttachments({ mode: 'chat' }));
+    }
+    await aiResponses.sendQuickStartResponses(
+      quickStartUserPrompt,
+      enrichedPrompt,
+      staged.length > 0 ? staged : undefined
+    );
+  }, [aiResponses, dispatch, reduxStore]);
+
   useEffect(() => {
     if (quickStart.hasInitialPrompt || quickStart.shouldAutoSend) {
 
       quickStart.handleQuickStart(
-        aiResponses.sendQuickStartResponses,
+        sendQuickStartWithStagedAttachments,
         input.setInputText,
         handleSendMessage
       );
     }
   }, [
     quickStart,
-    aiResponses.sendQuickStartResponses,
+    sendQuickStartWithStagedAttachments,
     input.setInputText,
     handleSendMessage,
     initialPrompt,

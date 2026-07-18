@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef } from 'react';
 import { StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
-import { RootState } from '../store';
+import { RootState, clearComposerAttachments } from '../store';
 import { ErrorService } from '@/services/errors/ErrorService';
 
 import {
@@ -28,7 +28,7 @@ import { PromptDebugLogger } from '@/services/debug/PromptDebugLogger';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
 import { usePersonality } from '@/hooks/usePersonality';
 import { DemoBanner } from '@/components/molecules/subscription/DemoBanner';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useStore } from 'react-redux';
 import { showSheet } from '@/store';
 import { DemoContentService } from '@/services/demo/DemoContentService';
 import { loadCompareScript, primeNextCompareTurn, hasNextCompareTurn } from '@/services/demo/DemoPlaybackRouter';
@@ -219,6 +219,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
   const { theme, isDark } = useTheme();
   const { aiService, isInitialized } = useAIService();
   const dispatch = useDispatch();
+  const reduxStore = useStore<RootState>();
   const { isDemo, canStartTrial } = useFeatureAccess();
   const { getPersonality: getMergedPersonality } = usePersonality();
   
@@ -1257,7 +1258,9 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     });
   }, [aiService, buildCompareRuntime, isDemo, leftAI, leftEffectiveModel, rightAI, rightEffectiveModel]);
 
-  // Live mode: auto-send the prompt typed in the Compare composer (fresh sessions only)
+  // Live mode: auto-send the prompt typed in the Compare composer (fresh
+  // sessions only). Attachments staged by the entry composer live in Redux
+  // (never in nav params — those are persisted); take them once at fire time.
   const initialPromptSentRef = React.useRef(false);
   React.useEffect(() => {
     const initialPrompt = route.params?.initialPrompt?.trim();
@@ -1266,8 +1269,12 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     if (!isInitialized || !aiService || !leftAI || !rightAI) return;
     if (userMessages.length > 0) return;
     initialPromptSentRef.current = true;
-    handleSend(initialPrompt);
-  }, [route.params?.initialPrompt, isDemo, isInitialized, aiService, leftAI, rightAI, userMessages.length, handleSend]);
+    const staged = reduxStore.getState().composerAttachments.compare;
+    if (staged.length > 0) {
+      dispatch(clearComposerAttachments({ mode: 'compare' }));
+    }
+    handleSend(initialPrompt, staged.length > 0 ? staged : undefined);
+  }, [route.params?.initialPrompt, isDemo, isInitialized, aiService, leftAI, rightAI, userMessages.length, handleSend, reduxStore, dispatch]);
 
   // Demo Mode: auto-start playback when both AIs are selected and no messages yet
   React.useEffect(() => {
