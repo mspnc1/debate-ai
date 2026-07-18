@@ -12,14 +12,22 @@ export const CreateSheetShell: React.FC<{
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  /**
+   * Modals shown above this sheet. They must mount inside this sheet's Modal —
+   * a sibling Modal silently fails to present while this one is open on iOS.
+   */
+  stackedModals?: React.ReactNode;
   testID?: string;
-}> = ({ visible, title, onClose, children, testID }) => {
+}> = ({ visible, title, onClose, children, stackedModals, testID }) => {
   const { theme } = useTheme();
 
   if (!visible) return null;
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+    // onDismiss resyncs state if iOS dismisses the modal natively (e.g. a
+    // stacked picker's dismissal cascading); otherwise the sheet can never
+    // reopen because `visible` is stuck true.
+    <Modal visible transparent animationType="slide" onRequestClose={onClose} onDismiss={onClose}>
       <View style={styles.overlay} testID={testID}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
         <View style={[styles.sheet, { backgroundColor: theme.colors.background }]}>
@@ -32,6 +40,7 @@ export const CreateSheetShell: React.FC<{
           </ScrollView>
         </View>
       </View>
+      {stackedModals}
     </Modal>
   );
 };

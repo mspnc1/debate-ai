@@ -258,78 +258,8 @@ export const AudioConfigSheet: React.FC<AudioConfigSheetProps> = ({
     );
   };
 
-  return (
+  const stackedModals = (
     <>
-      <CreateSheetShell visible={visible} title="ElevenLabs" onClose={onClose} testID={testID}>
-        {creditSummary && (
-          <Typography variant="caption" color="secondary">
-            {creditSummary}
-          </Typography>
-        )}
-
-        <OutputControlGroup label="Audio mode" helpTopicId="create-audio-mode">
-          <SegmentedControl
-            fullWidth
-            options={[
-              { label: 'Voiceover', value: 'text_to_speech' },
-              { label: 'Sound effect', value: 'sound_effect' },
-            ]}
-            value={operation}
-            onChange={next => handleOperationChange(next as CreateAudioOperation)}
-          />
-        </OutputControlGroup>
-
-        {operation === 'text_to_speech' &&
-          renderSelectorRow({
-            label: loadingVoices ? 'Voice · loading…' : `Voice · ${voiceCountLabel}`,
-            value: options.voiceName || selectedVoice?.label || 'Default voice',
-            description: selectedVoice?.description,
-            onPress: () => openPicker('voice'),
-            rowTestID: 'create-audio-voice-selector',
-            helpTopicId: 'create-audio-voice',
-          })}
-
-        {renderSelectorRow({
-          label: 'Model',
-          value: selectedModel?.label || 'Default model',
-          description: selectedModel?.description,
-          onPress: () => openPicker('model'),
-          rowTestID: 'create-audio-model-selector',
-          helpTopicId: 'create-audio-model',
-        })}
-
-        {renderSelectorRow({
-          label: 'Format',
-          value: selectedFormat.label,
-          onPress: () => openPicker('format'),
-          rowTestID: 'create-audio-format-selector',
-          helpTopicId: 'create-audio-format',
-        })}
-
-        {operation === 'sound_effect' && (
-          <>
-            <OutputControlGroup label="Duration" helpTopicId="create-audio-duration">
-              <DiscreteSlider
-                options={AUDIO_DURATION_OPTIONS}
-                value={options.durationSeconds}
-                getLabel={duration => (duration === undefined ? 'Auto duration' : `${duration}s`)}
-                onChange={durationSeconds => onChange({ durationSeconds })}
-                testID="create-audio-duration-slider"
-              />
-            </OutputControlGroup>
-            <OutputControlGroup label="Prompt influence" helpTopicId="create-audio-influence">
-              <DiscreteSlider
-                options={PROMPT_INFLUENCE_OPTIONS}
-                value={options.promptInfluence}
-                getLabel={value => `Influence ${value}`}
-                onChange={promptInfluence => onChange({ promptInfluence })}
-                testID="create-audio-influence-slider"
-              />
-            </OutputControlGroup>
-          </>
-        )}
-      </CreateSheetShell>
-
       <DebateVoicePicker
         visible={picker === 'voice'}
         target={{ kind: 'single', label: 'Voiceover' }}
@@ -369,6 +299,84 @@ export const AudioConfigSheet: React.FC<AudioConfigSheetProps> = ({
         onSelect: outputFormat => onChange({ outputFormat }),
       })}
     </>
+  );
+
+  return (
+    <CreateSheetShell
+      visible={visible}
+      title="ElevenLabs"
+      onClose={onClose}
+      stackedModals={stackedModals}
+      testID={testID}
+    >
+      {creditSummary && (
+        <Typography variant="caption" color="secondary">
+          {creditSummary}
+        </Typography>
+      )}
+
+      <OutputControlGroup label="Audio mode" helpTopicId="create-audio-mode">
+        <SegmentedControl
+          fullWidth
+          options={[
+            { label: 'Voiceover', value: 'text_to_speech' },
+            { label: 'Sound effect', value: 'sound_effect' },
+          ]}
+          value={operation}
+          onChange={next => handleOperationChange(next as CreateAudioOperation)}
+        />
+      </OutputControlGroup>
+
+      {operation === 'text_to_speech' &&
+        renderSelectorRow({
+          label: loadingVoices ? 'Voice · loading…' : `Voice · ${voiceCountLabel}`,
+          value: options.voiceName || selectedVoice?.label || 'Default voice',
+          description: selectedVoice?.description,
+          onPress: () => openPicker('voice'),
+          rowTestID: 'create-audio-voice-selector',
+          helpTopicId: 'create-audio-voice',
+        })}
+
+      {renderSelectorRow({
+        label: 'Model',
+        value: selectedModel?.label || 'Default model',
+        description: selectedModel?.description,
+        onPress: () => openPicker('model'),
+        rowTestID: 'create-audio-model-selector',
+        helpTopicId: 'create-audio-model',
+      })}
+
+      {renderSelectorRow({
+        label: 'Format',
+        value: selectedFormat.label,
+        onPress: () => openPicker('format'),
+        rowTestID: 'create-audio-format-selector',
+        helpTopicId: 'create-audio-format',
+      })}
+
+      {operation === 'sound_effect' && (
+        <>
+          <OutputControlGroup label="Duration" helpTopicId="create-audio-duration">
+            <DiscreteSlider
+              options={AUDIO_DURATION_OPTIONS}
+              value={options.durationSeconds}
+              getLabel={duration => (duration === undefined ? 'Auto duration' : `${duration}s`)}
+              onChange={durationSeconds => onChange({ durationSeconds })}
+              testID="create-audio-duration-slider"
+            />
+          </OutputControlGroup>
+          <OutputControlGroup label="Prompt influence" helpTopicId="create-audio-influence">
+            <DiscreteSlider
+              options={PROMPT_INFLUENCE_OPTIONS}
+              value={options.promptInfluence}
+              getLabel={value => `Influence ${value}`}
+              onChange={promptInfluence => onChange({ promptInfluence })}
+              testID="create-audio-influence-slider"
+            />
+          </OutputControlGroup>
+        </>
+      )}
+    </CreateSheetShell>
   );
 };
 
