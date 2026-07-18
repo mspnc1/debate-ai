@@ -16,6 +16,7 @@ import { CitationSources } from './CitationSources';
 import { useTheme } from '@/theme';
 import { Message } from '@/types';
 import { AI_BRAND_COLORS } from '@/constants/aiColors';
+import { getReadableBrandAccent } from '@/utils/aiBrandColors';
 import { useStreamingMessage } from '@/hooks/streaming';
 import { useMessageBubbleAnimation } from '@/hooks/useMessageBubbleAnimation';
 import { useCitationInteractions } from '@/hooks/useCitationInteractions';
@@ -173,11 +174,14 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({ message, isLast,
     if (!aiBrandKey || !(aiBrandKey in AI_BRAND_COLORS)) return null;
     
     const brandColors = AI_BRAND_COLORS[aiBrandKey as keyof typeof AI_BRAND_COLORS];
+    // Use a theme-aware accent so near-monochrome palettes (e.g. Grok) stay
+    // visible against a dark surface instead of collapsing into the background.
+    const accent = getReadableBrandAccent(brandColors, isDark);
     return {
       light: brandColors[50],
       dark: theme.colors.surface,
-      border: brandColors[500],
-      text: brandColors[600],
+      border: accent,
+      text: accent,
     };
   };
   
@@ -282,9 +286,13 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({ message, isLast,
           // AI messages - render markdown with streaming support
           <>
             {isStreaming ? (
-              <Typography style={styles.streamingText} selectable>
-                {displayContent}
-              </Typography>
+              // Only reserve a text line once content actually arrives; while
+              // waiting, the status row below sits at the top of the bubble.
+              streamingContent ? (
+                <Typography style={styles.streamingText} selectable>
+                  {displayContent}
+                </Typography>
+              ) : null
             ) : isLongContent ? (
               <LazyMarkdownRenderer
                 content={markdownContent}

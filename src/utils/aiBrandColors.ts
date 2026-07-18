@@ -54,3 +54,33 @@ export function getBrandAccent(provider?: string, fallbackName?: string): string
   const palette = getBrandPalette(provider, fallbackName);
   return palette ? palette[500] : null;
 }
+
+// Perceived luminance (0–255) via the sRGB weighted formula.
+const hexLuminance = (hex: string): number => {
+  const normalized = hex.replace('#', '');
+  if (normalized.length < 6) return 128;
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+  if ([r, g, b].some(Number.isNaN)) return 128;
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+};
+
+/**
+ * Resolve a brand accent that stays legible against the active surface.
+ * Near-monochrome palettes (e.g. Grok) have a [500] shade that vanishes on a
+ * dark surface; step to a lighter shade in dark mode so the border, header
+ * label and streaming indicator remain visible and on-brand. Saturated
+ * palettes are returned unchanged.
+ */
+export function getReadableBrandAccent(palette: BrandColor, isDark: boolean): string {
+  const accent = palette[500];
+  const luminance = hexLuminance(accent);
+  if (isDark && luminance < 80) {
+    return palette[300];
+  }
+  if (!isDark && luminance > 200) {
+    return palette[700];
+  }
+  return accent;
+}

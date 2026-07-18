@@ -20,7 +20,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
 import type { BrandColor } from '@/constants/aiColors';
-import { getBrandPalette } from '@/utils/aiBrandColors';
+import { getBrandPalette, getReadableBrandAccent } from '@/utils/aiBrandColors';
 
 interface CompareMessageBubbleProps {
   message: Message;
@@ -94,19 +94,23 @@ export const CompareMessageBubble: React.FC<CompareMessageBubbleProps> = ({
     return getBrandPalette(message.metadata?.providerId, providerName || message.sender);
   }, [brandPalette, message.metadata?.providerId, providerName, message.sender]);
 
+  // Theme-aware accent so near-monochrome palettes (e.g. Grok) stay visible
+  // against a dark surface instead of collapsing into the background.
+  const brandAccent = resolvedPalette
+    ? getReadableBrandAccent(resolvedPalette, isDark)
+    : null;
+
   const bubbleStyle = isDark
     ? {
         backgroundColor: theme.colors.surface,
-        borderColor: resolvedPalette ? resolvedPalette[500] : theme.colors.border,
+        borderColor: brandAccent || theme.colors.border,
       }
     : {
         backgroundColor: resolvedPalette ? resolvedPalette[50] : theme.colors.card,
-        borderColor: resolvedPalette ? resolvedPalette[500] : theme.colors.border,
+        borderColor: brandAccent || theme.colors.border,
       };
 
-  const headerColor = resolvedPalette
-    ? resolvedPalette[500]
-    : theme.colors.text.secondary;
+  const headerColor = brandAccent || theme.colors.text.secondary;
 
   const copyButtonFill = isDark
     ? 'rgba(255,255,255,0.08)'
@@ -125,11 +129,11 @@ export const CompareMessageBubble: React.FC<CompareMessageBubbleProps> = ({
     name: providerName || message.sender,
     provider: (message.metadata?.providerId || 'unknown') as AIConfig['provider'],
     model: (message.metadata?.modelUsed || 'unknown') as string,
-    color: resolvedPalette ? resolvedPalette[500] : '#666',
-  }), [message, providerName, resolvedPalette]);
+    color: brandAccent || '#666',
+  }), [message, providerName, brandAccent]);
 
   // Get brand color for citation preview
-  const citationBrandColor = resolvedPalette ? resolvedPalette[500] : undefined;
+  const citationBrandColor = brandAccent || undefined;
   const { handleCitationLinkPress } = useCitationInteractions(citationBrandColor);
 
   // Handle link press - check if it's a citation first
