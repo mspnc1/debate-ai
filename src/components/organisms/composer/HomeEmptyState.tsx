@@ -16,7 +16,7 @@ interface HomeEmptyStateProps {
 
 const CAPABILITY_HINTS = [
   { icon: 'globe-outline' as const, label: 'Web search' },
-  { icon: 'at-outline' as const, label: '@mentions' },
+  { icon: 'at-outline' as const, label: 'Mentions' },
   { icon: 'image-outline' as const, label: 'Images & docs' },
 ];
 
