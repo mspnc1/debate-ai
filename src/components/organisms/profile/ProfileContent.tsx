@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Platform, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
@@ -7,7 +7,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store';
 import { logout, setAuthUser, setUserProfile } from '../../../store/authSlice';
 import type { RootStackParamList } from '@/types';
-import { ProfileAvatar, Typography, Button, SettingRow } from '@/components/molecules';
+import { ProfileAvatar, Typography, Button, SettingRow, KeyboardAvoider } from '@/components/molecules';
 import { EmailAuthForm } from '@/components/molecules/auth/EmailAuthForm';
 import { SocialAuthProviders } from '../auth/SocialAuthProviders';
 import { UnlockEverythingBanner } from '@/components/organisms/subscription/UnlockEverythingBanner';
@@ -252,9 +252,8 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
   if (!isAuthenticated) {
     if (showAuthForm) {
       return (
-        <KeyboardAvoidingView
+        <KeyboardAvoider
           style={[styles.container, { backgroundColor: theme.colors.background }]}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={styles.authHeader}>
             <Button
@@ -290,7 +289,7 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
               />
             </View>
           </ScrollView>
-        </KeyboardAvoidingView>
+        </KeyboardAvoider>
       );
     }
     

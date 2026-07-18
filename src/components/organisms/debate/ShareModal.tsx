@@ -11,15 +11,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { SheetHeader, SharePreviewCard, ShareActionButtons, Typography } from '@/components/molecules';
+import { SheetHeader, SharePreviewCard, ShareActionButtons, Typography, KeyboardAvoider } from '@/components/molecules';
 import { useTheme } from '../../../theme';
 import { Message, AI } from '../../../types';
 import { ErrorService } from '@/services/errors/ErrorService';
@@ -132,10 +130,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 showHandle
               />
 
-              {/* KeyboardAvoidingView for better mobile experience */}
-              <KeyboardAvoidingView 
+              {/* Keyboard avoidance for better mobile experience */}
+              <KeyboardAvoider
                 style={styles.keyboardAvoidingView}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={100}
               >
                 {/* Content with proper scrolling */}
@@ -184,7 +181,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                   participants={participants.map(p => p.name)}
                 />
                 </ScrollView>
-              </KeyboardAvoidingView>
+              </KeyboardAvoider>
             </SafeAreaView>
           </TouchableOpacity>
         </TouchableOpacity>

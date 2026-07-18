@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { StyleSheet, TouchableOpacity, Modal, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
+import { StyleSheet, TouchableOpacity, Modal, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
 import { Box } from '../../atoms';
 import { useTheme } from '../../../theme';
-import { Typography, SheetHeader } from '@/components/molecules';
+import { Typography, SheetHeader, KeyboardAvoider } from '@/components/molecules';
 import { MessageAttachment } from '../../../types';
 import { processImageForClaude, getReadableFileSize } from '../../../utils/imageProcessing';
 import { ErrorService } from '@/services/errors/ErrorService';
@@ -63,7 +63,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({ visible, onC
           <TouchableOpacity activeOpacity={1} style={[styles.sheet, { backgroundColor: theme.colors.background }]} onPress={() => {}}>
             <SafeAreaView style={{ flex: 1 }}>
               <SheetHeader title="Attach Image" onClose={onClose} showHandle />
-              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+              <KeyboardAvoider>
                 <ScrollView contentContainerStyle={styles.content}>
                   <Box style={styles.section}>
                     <Typography variant="body" weight="semibold" color="secondary" style={styles.label}>Choose Source</Typography>
@@ -96,7 +96,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({ visible, onC
                     <Typography variant="body" weight="semibold" style={{ color: '#FFFFFF' }}>Attach</Typography>
                   </TouchableOpacity>
                 </Box>
-              </KeyboardAvoidingView>
+              </KeyboardAvoider>
             </SafeAreaView>
           </TouchableOpacity>
         </TouchableOpacity>

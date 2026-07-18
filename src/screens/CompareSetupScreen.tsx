@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, View } from 'react-native';
+import { Keyboard, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
 import { setAIPersonality, setAIModel, showSheet, stageComposerAttachments } from '../store';
 import { MessageAttachment } from '../types';
 
 import { Box, ResponsiveContainer } from '../components/atoms';
-import { Typography, Button } from '../components/molecules';
+import { Typography, Button, KeyboardAvoider } from '../components/molecules';
 import { Header, HeaderActions, AIComposer } from '../components/organisms';
 import { useGreeting } from '../hooks/useGreeting';
 
@@ -119,10 +119,7 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
         />
       )}
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoider>
         <ResponsiveContainer maxWidth="md" center style={{ flex: 1 }}>
           {/* Empty state above the docked composer — greeting first, like Home */}
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: rs('lg') }}>
@@ -199,7 +196,7 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
             />
           </View>
         </ResponsiveContainer>
-      </KeyboardAvoidingView>
+      </KeyboardAvoider>
 
       <CompareSamplePickerModal
         visible={samplePickerVisible}

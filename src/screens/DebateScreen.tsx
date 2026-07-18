@@ -5,12 +5,12 @@
  */
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { Alert, ActivityIndicator, Pressable, View, KeyboardAvoidingView, Platform } from 'react-native';
+import { Alert, ActivityIndicator, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ErrorService } from '@/services/errors/ErrorService';
 import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
-import { ContextBar, Typography } from '../components/molecules';
+import { ContextBar, Typography, KeyboardAvoider } from '../components/molecules';
 import { useTheme } from '../theme';
 import type { AI, DebateVoiceConfig, Message } from '../types';
 import { usePersonality } from '@/hooks/usePersonality';
@@ -825,10 +825,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
           layout={Layout.springify()}
           style={{ flex: 1 }}
         >
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          >
+          <KeyboardAvoider>
             <DemoBanner
               subtitle={canStartTrial
                 ? 'Pre-recorded debates only in Demo. Start a free trial to create custom debates.'
@@ -854,7 +851,7 @@ const DebateScreen: React.FC<DebateScreenProps> = ({ navigation, route }) => {
               {...topicSelection}
               onStartDebate={handleStartDebate}
             />
-          </KeyboardAvoidingView>
+          </KeyboardAvoider>
         </Animated.View>
       );
     }

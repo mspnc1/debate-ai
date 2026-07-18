@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
-import { KeyboardAvoidingView, Platform, View, Alert, Text, StyleSheet } from 'react-native';
+import { View, Alert, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AIServiceLoading, Header, HeaderActions } from '../components/organisms';
 import { ErrorService } from '@/services/errors/ErrorService';
@@ -56,7 +56,7 @@ import { DemoEmptyState } from '@/components/organisms/demo';
 import { showSheet } from '@/store';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
 import { DemoBanner } from '@/components/molecules/subscription/DemoBanner';
-import { ContextBar, DemoProgressIndicator } from '@/components/molecules';
+import { ContextBar, DemoProgressIndicator, KeyboardAvoider } from '@/components/molecules';
 import { getTotalChatTurns, getCurrentChatTurnIndex } from '@/services/demo/DemoPlaybackRouter';
 import { ChatTopicPickerModal } from '@/components/organisms/demo/ChatTopicPickerModal';
 import { RecordController } from '@/services/demo/RecordController';
@@ -896,11 +896,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['left', 'right', 'bottom']}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-      >
+      <KeyboardAvoider keyboardVerticalOffset={0}>
         <View style={{ flex: 1 }}>
         {/* Header */}
         <Header
@@ -1105,7 +1101,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
             onClose={() => setReportTarget(null)}
           />
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoider>
       {/* Record Mode: Chat Topic Picker */}
       {recordModeEnabled && (
         <ChatTopicPickerModal

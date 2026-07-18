@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, View } from 'react-native';
+import { Keyboard, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ResponsiveContainer } from '../components/atoms';
@@ -11,6 +11,7 @@ import { useResponsive } from '../hooks/useResponsive';
 import { HOME_CONSTANTS } from '../config/homeConstants';
 import { TrialBanner } from '@/components/molecules/subscription/TrialBanner';
 import { DemoBanner } from '@/components/molecules/subscription/DemoBanner';
+import { KeyboardAvoider } from '@/components/molecules';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
 import { useDispatch } from 'react-redux';
 import { showSheet, stageComposerAttachments } from '@/store';
@@ -108,10 +109,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         />
       )}
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoider>
         <ResponsiveContainer maxWidth="md" center style={{ flex: 1 }}>
           <HomeEmptyState
             hasConfiguredAIs={selection.configuredAIs.length > 0}
@@ -142,7 +140,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             />
           </View>
         </ResponsiveContainer>
-      </KeyboardAvoidingView>
+      </KeyboardAvoider>
 
       <QuickStartSheet
         visible={quickStart.showSheet}

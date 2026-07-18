@@ -8,8 +8,6 @@ import {
   View,
   ScrollView,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -22,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../theme';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
-import { Typography, GradientButton, HeaderIcon } from '../components/molecules';
+import { Typography, GradientButton, HeaderIcon, KeyboardAvoider } from '../components/molecules';
 import {
   Header,
   HeaderActions,
@@ -704,10 +702,7 @@ export default function CreateSetupScreen() {
         title="The Studio"
         rightElement={renderHeaderRight()}
       />
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoider style={styles.flex}>
         <View style={styles.composerLayout}>
           <CreateMediaTabs activeTab={activeTab} onChange={handleTabChange} testID="create-tabs" />
 
@@ -741,7 +736,7 @@ export default function CreateSetupScreen() {
             {...composerPropsByTab}
           />
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoider>
 
       <CreateOptionsSheet
         visible={imageOptionsSheetOpen}

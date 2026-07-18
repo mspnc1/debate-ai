@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, Text, View } from 'react-native';
+import { StyleSheet, ScrollView, Alert, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { RootState, clearComposerAttachments } from '../store';
@@ -28,6 +28,7 @@ import { PromptDebugLogger } from '@/services/debug/PromptDebugLogger';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
 import { usePersonality } from '@/hooks/usePersonality';
 import { DemoBanner } from '@/components/molecules/subscription/DemoBanner';
+import { KeyboardAvoider } from '@/components/molecules';
 import { useDispatch, useStore } from 'react-redux';
 import { showSheet } from '@/store';
 import { DemoContentService } from '@/services/demo/DemoContentService';
@@ -1401,9 +1402,8 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
       style={[styles.container, { backgroundColor: theme.colors.background }]}
       edges={['left', 'right', 'bottom']}
     >
-      <KeyboardAvoidingView
+      <KeyboardAvoider
         style={styles.keyboardContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
         <View style={styles.screenContent}>
@@ -1618,7 +1618,7 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
           }}
         />
       )}
-      </KeyboardAvoidingView>
+      </KeyboardAvoider>
       <ImageLightboxModal
         visible={!!lightboxUri}
         uri={lightboxUri || ''}

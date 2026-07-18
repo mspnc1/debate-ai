@@ -6,6 +6,7 @@ export { AIProviderTile } from './debate/AIProviderTile';
 export { DebateMessageBubble } from './debate/DebateMessageBubble';
 export { DebateTypingIndicator } from './debate/DebateTypingIndicator';
 export { InputField } from './common/InputField';
+export { KeyboardAvoider, type KeyboardAvoiderProps } from './common/KeyboardAvoider';
 export { GlassCard } from './common/GlassCard';
 export { GradientButton } from './common/GradientButton';
 export { SectionHeader } from './common/SectionHeader';

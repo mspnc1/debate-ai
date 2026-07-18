@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { ScrollView, KeyboardAvoidingView, Platform, Linking } from 'react-native';
+import { ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
 import { showSheet } from '../store';
@@ -13,7 +13,7 @@ import {
   APIKeyGuidanceModal,
   APIKeyWebViewModal,
 } from '../components/organisms';
-import { ContextBar, Typography, GradientButton } from '../components/molecules';
+import { ContextBar, Typography, GradientButton, KeyboardAvoider } from '../components/molecules';
 import { useAPIKeys } from '../hooks/useAPIKeys';
 import { useProviderVerification } from '../hooks/useProviderVerification';
 import { useAPIConfigHandlers } from '../hooks/useAPIConfigHandlers';
@@ -152,10 +152,7 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
         />
         <ContextBar title="Provider keys" subtitle="Add or verify model access." />
         
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-        >
+        <KeyboardAvoider>
           <ScrollView
             contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
             showsVerticalScrollIndicator={false}
@@ -212,7 +209,7 @@ const APIConfigScreen: React.FC<APIConfigScreenProps> = ({ navigation }) => {
               </>
             )}
           </ScrollView>
-        </KeyboardAvoidingView>
+        </KeyboardAvoider>
       </SafeAreaView>
 
       {/* Guidance Modal - Pre-flight instructions */}

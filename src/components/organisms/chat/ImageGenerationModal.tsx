@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, Modal, KeyboardAvoidingView, Platform, ScrollView, Dimensions } from 'react-native';
+import { StyleSheet, TextInput, TouchableOpacity, Modal, ScrollView, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Box } from '../../atoms';
 import { useTheme } from '../../../theme';
-import { Typography, SheetHeader } from '@/components/molecules';
+import { Typography, SheetHeader, KeyboardAvoider } from '@/components/molecules';
 import { getImageProviderDisplayName, getDefaultImageModel } from '@/config/imageGenerationModels';
 import type { AIProvider, ImageGenerationMode } from '@/types';
 
@@ -178,7 +178,7 @@ export const ImageGenerationModal: React.FC<ImageGenerationModalProps> = ({
           <TouchableOpacity activeOpacity={1} style={[styles.sheet, { backgroundColor: theme.colors.background }]} onPress={() => {}}>
             <SafeAreaView style={{ flex: 1 }}>
               <SheetHeader title={modalTitle} onClose={onClose} showHandle />
-              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+              <KeyboardAvoider>
                 <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
                   {/* AI List Display for multi-provider modes */}
                   {aiListDisplay && (
@@ -241,7 +241,7 @@ export const ImageGenerationModal: React.FC<ImageGenerationModalProps> = ({
                     <Typography variant="body" weight="semibold" style={{ color: '#FFFFFF' }}>Generate</Typography>
                   </TouchableOpacity>
                 </Box>
-              </KeyboardAvoidingView>
+              </KeyboardAvoider>
             </SafeAreaView>
           </TouchableOpacity>
         </TouchableOpacity>

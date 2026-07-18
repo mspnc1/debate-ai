@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Image,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -17,7 +16,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { Box } from '../../atoms';
 import { useTheme } from '../../../theme';
-import { GradientButton, SheetHeader, Typography } from '@/components/molecules';
+import { GradientButton, SheetHeader, Typography, KeyboardAvoider } from '@/components/molecules';
 import { Badge } from '@/components/molecules/common/Badge';
 import {
   getDefaultImageInputModel,
@@ -190,7 +189,7 @@ export const ImageRefinementModal: React.FC<ImageRefinementModalProps> = ({
                 testID="refinement-header"
               />
 
-              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
+              <KeyboardAvoider style={styles.flex}>
                 <ScrollView
                   contentContainerStyle={styles.content}
                   keyboardShouldPersistTaps="handled"
@@ -437,7 +436,7 @@ export const ImageRefinementModal: React.FC<ImageRefinementModalProps> = ({
                     testID="refine-submit"
                   />
                 </Box>
-              </KeyboardAvoidingView>
+              </KeyboardAvoider>
             </SafeAreaView>
           </Pressable>
         </Pressable>
