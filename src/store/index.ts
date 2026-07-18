@@ -11,6 +11,7 @@ import createReducer from './createSlice';
 import pricesReducer from './pricesSlice';
 import aiSelectionReducer from './aiSelectionSlice';
 import createSelectionReducer from './createSelectionSlice';
+import composerAttachmentsReducer from './composerAttachmentsSlice';
 import { isValidProviderId } from '../utils/typeGuards';
 
 // User slice
@@ -374,6 +375,7 @@ const rootReducer = combineReducers({
   prices: pricesReducer,
   aiSelection: aiSelectionReducer,
   createSelection: createSelectionReducer,
+  composerAttachments: composerAttachmentsReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;
@@ -592,3 +594,10 @@ export {
   MAX_IMAGE_PROVIDERS,
 } from './createSelectionSlice';
 export type { CreateSelectionState, PersistedCreateSelection } from './createSelectionSlice';
+
+// Entry-composer staged attachments (chat/compare first-message payloads)
+export {
+  stageComposerAttachments,
+  clearComposerAttachments,
+} from './composerAttachmentsSlice';
+export type { ComposerAttachmentsState } from './composerAttachmentsSlice';
