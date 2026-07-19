@@ -7,7 +7,6 @@ import type { AIConfig } from '@/types';
 import type { AISelectionConfig } from '@/types/aiSelection';
 
 const mockUseGreeting = jest.fn();
-const mockUsePremiumFeatures = jest.fn();
 const mockUseComposerSelection = jest.fn();
 const mockUseSessionManagement = jest.fn();
 const mockUseQuickStart = jest.fn();
@@ -23,10 +22,6 @@ let mockChatTopicPickerProps: any;
 
 jest.mock('@/hooks/useGreeting', () => ({
   useGreeting: (...args: unknown[]) => mockUseGreeting(...args),
-}));
-
-jest.mock('@/hooks/home/usePremiumFeatures', () => ({
-  usePremiumFeatures: (...args: unknown[]) => mockUsePremiumFeatures(...args),
 }));
 
 jest.mock('@/hooks/home/useComposerSelection', () => ({
@@ -220,7 +215,6 @@ describe('HomeScreen', () => {
     quickStart?: ReturnType<typeof createQuickStart>;
     featureAccess?: Record<string, unknown>;
     session?: Record<string, unknown>;
-    premium?: Record<string, unknown>;
     navigation?: { navigate: jest.Mock };
     store?: ReturnType<typeof createAppStore>;
   }) => {
@@ -236,9 +230,6 @@ describe('HomeScreen', () => {
     const session = { createSession: jest.fn().mockReturnValue('session-123'), ...options?.session };
     mockUseSessionManagement.mockReturnValue(session);
 
-    const premium = { maxAIs: 3, ...options?.premium };
-    mockUsePremiumFeatures.mockReturnValue(premium);
-
     mockUseGreeting.mockReturnValue(baseGreeting);
 
     const navigation = options?.navigation ?? { navigate: jest.fn() };
@@ -253,7 +244,6 @@ describe('HomeScreen', () => {
       quickStart,
       featureAccess,
       session,
-      premium,
       navigation,
       store,
     };
