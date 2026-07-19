@@ -119,6 +119,12 @@ export const reportGeneratedContent = onCall(
     memory: '256MiB',
   },
   async (request) => {
+    // Require authentication so the reports collection can't be spammed by
+    // anonymous callers (Firestore storage/cost DoS + moderation-queue flooding).
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'You must be signed in to report content');
+    }
+
     if (!isRecord(request.data)) {
       throw new HttpsError('invalid-argument', 'Report payload is required');
     }
@@ -127,8 +133,8 @@ export const reportGeneratedContent = onCall(
     const details = sanitizeString(request.data.details, 1600);
     const target = readTarget(request.data.target);
     const appContext = sanitizeMetadata(request.data.appContext);
-    const uid = request.auth?.uid ?? null;
-    const reporterEmail = sanitizeString(request.auth?.token.email, 240) ?? null;
+    const uid = request.auth.uid;
+    const reporterEmail = sanitizeString(request.auth.token.email, 240) ?? null;
 
     const report = {
       reason,

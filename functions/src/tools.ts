@@ -1,5 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as crypto from 'crypto';
+import { promises as dns } from 'dns';
+import * as net from 'net';
 import { getDecryptedApiKey, encryptionKey } from './apiKeys';
 import { executeWebSearch } from './web_search';
 import { lookupSalesforceDocsIndex } from './salesforceDocsIndex';
@@ -501,7 +503,8 @@ function toSafeHeaderMap(headers: unknown): Record<string, string> {
   if (!headers || typeof headers !== 'object') return safeHeaders;
 
   for (const [key, value] of Object.entries(headers as Record<string, unknown>)) {
-    if (typeof value === 'string') {
+    // Never forward cloud-metadata probe headers (SSRF hardening).
+    if (typeof value === 'string' && !FORBIDDEN_OUTBOUND_HEADERS.has(key.toLowerCase())) {
       safeHeaders[key] = value;
     }
   }
@@ -655,6 +658,112 @@ function isBlockedUrl(urlString: string): boolean {
 }
 
 /**
+ * SSRF protection.
+ *
+ * isBlockedUrl() only string-matches the literal hostname, which is trivially
+ * bypassed by a DNS name that resolves to an internal IP (e.g. the GCP metadata
+ * server at 169.254.169.254) or by decimal/hex/IPv6 IP encodings. The helpers
+ * below actually resolve the host and reject any request that targets a
+ * private, loopback, link-local, or otherwise-reserved address. Combined with
+ * stripping cloud-metadata request headers (see FORBIDDEN_OUTBOUND_HEADERS in
+ * toSafeHeaderMap), this closes the metadata-token-theft path.
+ *
+ * Known residual: redirects use redirect:'follow' (Node's fetch returns an
+ * opaque response for redirect:'manual', so per-hop Location can't be read
+ * without pinning via undici's dispatcher). A public host that 302s to an
+ * internal service is therefore not re-validated here; the metadata server is
+ * still protected because its required Metadata-Flavor header is stripped. To
+ * fully close per-hop, add `undici` and pin connections with connect.lookup.
+ */
+class SsrfBlockedError extends Error {
+  constructor(message = 'URL is not allowed (internal or invalid)') {
+    super(message);
+    this.name = 'SsrfBlockedError';
+  }
+}
+
+// Outbound headers a caller must never be able to set — cloud metadata probes.
+const FORBIDDEN_OUTBOUND_HEADERS = new Set([
+  'metadata-flavor',
+  'metadata',
+  'x-goog-metadata',
+  'x-google-metadata',
+  'x-aws-ec2-metadata-token',
+  'x-aws-ec2-metadata-token-ttl-seconds',
+  'x-metadata-token',
+]);
+
+function ipv4IsReserved(ip: string): boolean {
+  const parts = ip.split('.').map((p) => Number(p));
+  if (parts.length !== 4 || parts.some((p) => !Number.isInteger(p) || p < 0 || p > 255)) {
+    return true; // malformed → treat as unsafe
+  }
+  const [a, b, c] = parts;
+  if (a === 0) return true;                          // 0.0.0.0/8
+  if (a === 10) return true;                         // 10.0.0.0/8 (private)
+  if (a === 127) return true;                        // loopback
+  if (a === 169 && b === 254) return true;           // link-local (GCP/AWS metadata)
+  if (a === 172 && b >= 16 && b <= 31) return true;  // 172.16.0.0/12 (private)
+  if (a === 192 && b === 168) return true;           // 192.168.0.0/16 (private)
+  if (a === 192 && b === 0 && c === 0) return true;  // 192.0.0.0/24
+  if (a === 100 && b >= 64 && b <= 127) return true; // 100.64.0.0/10 (CGNAT)
+  if (a >= 224) return true;                         // multicast / reserved
+  return false;
+}
+
+function ipIsPrivateOrReserved(ip: string): boolean {
+  const family = net.isIP(ip);
+  if (family === 4) return ipv4IsReserved(ip);
+  if (family === 6) {
+    const lower = ip.toLowerCase();
+    if (lower === '::1' || lower === '::') return true;            // loopback / unspecified
+    const mapped = lower.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+    if (mapped) return ipv4IsReserved(mapped[1]);                 // IPv4-mapped
+    if (lower.startsWith('fc') || lower.startsWith('fd')) return true; // fc00::/7 ULA
+    if (/^fe[89ab]/.test(lower)) return true;                     // fe80::/10 link-local
+    return false;
+  }
+  return true; // not a valid IP literal → unsafe
+}
+
+async function assertHostResolvesPublic(hostname: string): Promise<void> {
+  const host = hostname.replace(/^\[|\]$/g, ''); // strip IPv6 brackets
+  if (net.isIP(host)) {
+    if (ipIsPrivateOrReserved(host)) throw new SsrfBlockedError();
+    return;
+  }
+  let addresses: { address: string }[];
+  try {
+    addresses = await dns.lookup(host, { all: true });
+  } catch {
+    throw new SsrfBlockedError('URL host could not be resolved');
+  }
+  if (!addresses.length) throw new SsrfBlockedError('URL host could not be resolved');
+  for (const { address } of addresses) {
+    if (ipIsPrivateOrReserved(address)) throw new SsrfBlockedError();
+  }
+}
+
+/**
+ * fetch() wrapper that resolves and validates the target host before making the
+ * request, rejecting private/loopback/link-local/reserved addresses. Callers
+ * keep their own AbortController/timeout via init.signal.
+ */
+async function safeFetch(initialUrl: string, init: RequestInit): Promise<Response> {
+  let parsed: URL;
+  try {
+    parsed = new URL(initialUrl);
+  } catch {
+    throw new SsrfBlockedError(`Invalid URL: ${initialUrl}`);
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new SsrfBlockedError('Only http(s) URLs are allowed');
+  }
+  await assertHostResolvesPublic(parsed.hostname);
+  return fetch(initialUrl, { ...init, redirect: 'follow' });
+}
+
+/**
  * Fetch URL and extract readable content
  */
 /**
@@ -791,7 +900,7 @@ async function handleFetchUrl(args: FetchUrlArgs): Promise<ToolResult> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 25000);
 
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       headers: {
         'User-Agent': 'SymposiumAI/1.0 (Tool Fetch)',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -1680,11 +1789,12 @@ async function handleFetchApi(
     const inferred = inferConnectorIdFromUrl(parsedUrl);
     if (inferred && !hasExplicitConnectorAuth(inferred, queryParams, requestHeaders)) {
       connectorRef = inferred;
-      console.log('[handleFetchApi] Inferred api_key_ref from URL', { url: parsedUrl.toString(), connectorRef });
+      console.log('[handleFetchApi] Inferred api_key_ref from URL', { host: parsedUrl.host + parsedUrl.pathname, connectorRef });
     }
   }
 
-  console.log('[handleFetchApi] Request:', { url: parsedUrl.toString(), method, api_key_ref: connectorRef, uid });
+  // Log host+path only — query string may carry inline credentials.
+  console.log('[handleFetchApi] Request:', { host: parsedUrl.host + parsedUrl.pathname, method, api_key_ref: connectorRef, uid });
 
   // Resolve api_key_ref if provided
   if (connectorRef) {
@@ -1774,7 +1884,7 @@ async function handleFetchApi(
     const timeoutId = setTimeout(() => controller.abort(), clampedTimeout);
     fetchOptions.signal = controller.signal;
 
-    const response = await fetch(url, fetchOptions);
+    const response = await safeFetch(url, fetchOptions);
     clearTimeout(timeoutId);
 
     if (!response.ok) {

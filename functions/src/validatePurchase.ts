@@ -267,6 +267,34 @@ async function assertAndroidPurchaseBelongsToUser(
 }
 
 /**
+ * iOS replay/ownership binding — the App Store analogue of
+ * assertAndroidPurchaseBelongsToUser. Without this, one paid (or sandbox)
+ * Apple receipt could be replayed to grant premium on unlimited accounts.
+ * A subscription's original_transaction_id is stable across renewals, so we
+ * bind it to the first Firebase account that validates it and reject any other
+ * account that later presents the same transaction.
+ */
+async function assertAppleReceiptBelongsToUser(
+  userId: string,
+  originalTransactionId: string | null | undefined
+): Promise<void> {
+  if (!originalTransactionId) return;
+  const snapshot = await admin.firestore()
+    .collection('users')
+    .where('appleOriginalTransactionId', '==', originalTransactionId)
+    .limit(3)
+    .get();
+  for (const doc of snapshot.docs) {
+    if (doc.id !== userId) {
+      throw new HttpsError(
+        'failed-precondition',
+        'This App Store purchase has already been restored to a different app account.'
+      );
+    }
+  }
+}
+
+/**
  * Callable Function: validatePurchase
  * Validates App Store/Play Store receipts and returns authoritative subscription state.
  * Expected: { receipt (iOS), purchaseToken (Android), platform, productId }
@@ -311,6 +339,7 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
     let trialStart: Date | null = null;
     let trialEnd: Date | null = null;
     let autoRenewing = !isLifetime; // Lifetime never auto-renews
+    let appleOriginalTransactionId: string | null = null;
 
     if (isLifetime) {
       // Handle lifetime (one-time) purchase validation
@@ -328,6 +357,10 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
         if (!lifetimePurchase) {
           throw new HttpsError('not-found', 'No matching lifetime purchase found in receipt');
         }
+        // Bind this receipt to the current account to block replay/sharing.
+        appleOriginalTransactionId = lifetimePurchase.original_transaction_id
+          ?? ios.receipt?.original_transaction_id ?? null;
+        await assertAppleReceiptBelongsToUser(userId, appleOriginalTransactionId);
         // Lifetime purchases have no expiry
         expiresAt = null;
       } else {
@@ -359,6 +392,10 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
         if (!target) {
           throw new HttpsError('not-found', 'No matching subscription found in receipt');
         }
+        // Bind this receipt to the current account to block replay/sharing.
+        appleOriginalTransactionId = target.original_transaction_id
+          ?? ios.latest_receipt_info?.[0]?.original_transaction_id ?? null;
+        await assertAppleReceiptBelongsToUser(userId, appleOriginalTransactionId);
         expiresAt = new Date(parseInt(target.expires_date_ms, 10));
         inTrial = target.is_trial_period === 'true' || target.is_in_intro_offer_period === 'true';
         if (inTrial) {
@@ -437,6 +474,7 @@ export const validatePurchase = onCall({ secrets: [appleSharedSecret] }, async (
     if (platform === 'ios') {
       updateData.appAccountToken = sha256(userId);
       updateData.lastReceiptData = receipt ?? null;
+      updateData.appleOriginalTransactionId = appleOriginalTransactionId;
     }
 
     if (platform === 'android') {
@@ -545,6 +583,17 @@ async function validateAppleReceipt(receiptData: string, sharedSecret: string) {
   }
   if (data?.status !== 0) {
     throw new Error(`Apple receipt invalid: status ${data?.status}`);
+  }
+  // Sandbox receipts return status 0 from the sandbox endpoint. Accepting them
+  // in production lets anyone mint free "purchases" from a sandbox Apple ID.
+  // Gated OFF by default: Apple's App Review validates real submissions against
+  // the SANDBOX environment, so hard-rejecting would fail review. Set
+  // APPLE_REJECT_SANDBOX=1 in the deploy env once the app is live to close it.
+  if (data.environment === 'Sandbox' && process.env.APPLE_REJECT_SANDBOX === '1') {
+    throw new HttpsError(
+      'failed-precondition',
+      'Sandbox App Store purchases are not accepted in production.'
+    );
   }
   return data;
 }
