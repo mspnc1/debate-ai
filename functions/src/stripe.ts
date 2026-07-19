@@ -1,5 +1,5 @@
 import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
-import { defineSecret, defineString } from 'firebase-functions/params';
+import { defineSecret } from 'firebase-functions/params';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import Stripe from 'stripe';
 
@@ -7,22 +7,18 @@ import Stripe from 'stripe';
 const stripeSecretKey = defineSecret('STRIPE_SECRET_KEY');
 const stripeWebhookSecret = defineSecret('STRIPE_WEBHOOK_SECRET');
 
-// Stripe price IDs. Non-secret config, sourced per environment so LIVE ids can
-// be set at deploy time without a code change. Defaults below are TEST-mode
-// prices — set STRIPE_PRICE_MONTHLY / STRIPE_PRICE_ANNUAL to the live price ids
-// in the production deploy environment before taking real payments.
-const monthlyPriceId = defineString('STRIPE_PRICE_MONTHLY', {
-  default: 'price_1SijFzRNwNAQVjH8rIKnNVJZ',
-});
-const annualPriceId = defineString('STRIPE_PRICE_ANNUAL', {
-  default: 'price_1SijHHRNwNAQVjH8iJPNBAwl',
-});
+// Stripe price ids. Non-secret config sourced from the environment so LIVE ids
+// can be set at deploy time (functions/.env.<project> STRIPE_PRICE_MONTHLY /
+// STRIPE_PRICE_ANNUAL) without a code change. Defaults are TEST-mode prices —
+// set the live ids in production before taking real payments.
+const MONTHLY_PRICE_ID = process.env.STRIPE_PRICE_MONTHLY || 'price_1SijFzRNwNAQVjH8rIKnNVJZ';
+const ANNUAL_PRICE_ID = process.env.STRIPE_PRICE_ANNUAL || 'price_1SijHHRNwNAQVjH8iJPNBAwl';
 
 // Web app origin for Stripe redirect URLs. Set APP_BASE_URL to the production
-// web origin (e.g. https://app.symposiumai.app) in the prod deploy environment;
-// defaults to localhost for development. (Replaces a brittle hardcoded
-// GCLOUD_PROJECT check that never matched the real project id.)
-const appBaseUrl = defineString('APP_BASE_URL', { default: 'http://localhost:3000' });
+// web origin (e.g. https://app.symposiumai.app); defaults to localhost for dev.
+// (Replaces a brittle hardcoded GCLOUD_PROJECT check that never matched the
+// real project id, so prod redirects were falling back to localhost.)
+const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:3000';
 
 // Trial period in days
 const TRIAL_PERIOD_DAYS = 7;
@@ -77,7 +73,7 @@ export const createStripeCheckoutSession = onCall(
       }
 
       // Resolve the price id for the plan (live in prod via env, else test).
-      const priceId = plan === 'annual' ? annualPriceId.value() : monthlyPriceId.value();
+      const priceId = plan === 'annual' ? ANNUAL_PRICE_ID : MONTHLY_PRICE_ID;
 
       // Create checkout session
       const sessionParams: Stripe.Checkout.SessionCreateParams = {
@@ -85,8 +81,8 @@ export const createStripeCheckoutSession = onCall(
         payment_method_types: ['card'],
         line_items: [{ price: priceId, quantity: 1 }],
         mode: 'subscription',
-        success_url: `${appBaseUrl.value()}/profile?success=true`,
-        cancel_url: `${appBaseUrl.value()}/profile?canceled=true`,
+        success_url: `${APP_BASE_URL}/profile?success=true`,
+        cancel_url: `${APP_BASE_URL}/profile?canceled=true`,
         metadata: { firebaseUID: uid, plan },
         allow_promotion_codes: true,
       };
@@ -138,7 +134,7 @@ export const createStripeBillingPortal = onCall(
 
       const portalSession = await stripe.billingPortal.sessions.create({
         customer: customerId,
-        return_url: `${appBaseUrl.value()}/profile`,
+        return_url: `${APP_BASE_URL}/profile`,
       });
 
       return { url: portalSession.url };
