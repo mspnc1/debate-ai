@@ -618,6 +618,122 @@ export const recordFreeTierInteraction = onCall(
 );
 
 // ============================================================================
+// Server-authoritative free-tier enforcement for the AI proxies
+// ============================================================================
+
+// The client's sessionType uses 'comparison'; the free-tier counters use 'compare'.
+const FREE_TIER_TYPE_BY_SESSION_TYPE: Record<string, FreeTierInteractionType> = {
+  chat: 'chat',
+  debate: 'debate',
+  compare: 'compare',
+  comparison: 'compare',
+  analyze: 'analyze',
+};
+
+export interface FreeTierGateResult {
+  allowed: boolean;
+  reason: 'not-metered' | 'skipped' | 'premium' | 'counted' | 'decremented' | 'exhausted';
+  remaining?: number;
+}
+
+/**
+ * Idempotent, server-authoritative free-tier gate for the AI proxies.
+ *
+ * The web free tier grants a fixed number of interactions per type. Historically
+ * this was enforced only in the web client (which called recordFreeTierInteraction
+ * as an advisory decrement), so a caller hitting the proxy directly — or blocking
+ * that decrement — got unlimited free usage. This makes the proxy authoritative.
+ *
+ * Metering is keyed on a client-supplied `interactionId` so one interaction
+ * (a debate's many turns, a multi-AI compare's parallel calls) counts exactly
+ * once; the marker doc also makes the check idempotent across retries. Counted
+ * markers are bounded (<= the per-type free limits) per non-paying user.
+ *
+ * Backward-compatible & rollout-safe: current web clients do NOT send an
+ * interactionId (they still meter via recordFreeTierInteraction), so their calls
+ * return { allowed: true, reason: 'skipped' } and are unaffected. Enforcement
+ * activates only for clients that send interactionId AND stop calling
+ * recordFreeTierInteraction — so there is no double-count window.
+ */
+export function mapSessionTypeToFreeTier(sessionType: string | undefined): FreeTierInteractionType | undefined {
+  return sessionType ? FREE_TIER_TYPE_BY_SESSION_TYPE[sessionType] : undefined;
+}
+
+/**
+ * Pure decision table for the free-tier gate — no I/O, exported for tests.
+ * `decrementTo` (when present) is the new counter value the caller must persist,
+ * paired with writing the interaction marker.
+ */
+export function computeFreeTierGate(params: {
+  mappedType: FreeTierInteractionType | undefined;
+  interactionId: string | undefined;
+  isPremium: boolean;
+  markerExists: boolean;
+  usage: FreeTierUsageState;
+}): { result: FreeTierGateResult; decrementTo?: number } {
+  const { mappedType, interactionId, isPremium, markerExists, usage } = params;
+  if (!mappedType) return { result: { allowed: true, reason: 'not-metered' } };
+  if (!interactionId) return { result: { allowed: true, reason: 'skipped' } };
+  if (isPremium) return { result: { allowed: true, reason: 'premium' } };
+  if (markerExists) {
+    // Same interaction already counted (later debate turn / parallel AI call).
+    return { result: { allowed: true, reason: 'counted' } };
+  }
+  const currentRemaining = usage[FREE_TIER_FIELD_BY_TYPE[mappedType]];
+  if (currentRemaining <= 0) {
+    return { result: { allowed: false, reason: 'exhausted', remaining: 0 } };
+  }
+  const remaining = currentRemaining - 1;
+  return { result: { allowed: true, reason: 'decremented', remaining }, decrementTo: remaining };
+}
+
+export async function enforceFreeTierForInteraction(
+  uid: string,
+  sessionType: string | undefined,
+  interactionId: string | undefined
+): Promise<FreeTierGateResult> {
+  const mappedType = mapSessionTypeToFreeTier(sessionType);
+  // Fast paths that need no read: unknown type, or old clients without an id.
+  if (!mappedType) return { allowed: true, reason: 'not-metered' };
+  if (!interactionId) return { allowed: true, reason: 'skipped' };
+
+  const db = getFirestore();
+  const userRef = db.collection('users').doc(uid);
+  const billingRef = userRef.collection('billing').doc('subscription');
+  const markerRef = userRef.collection('freeTierInteractions').doc(interactionId);
+  const usageField = FREE_TIER_FIELD_BY_TYPE[mappedType];
+
+  return db.runTransaction<FreeTierGateResult>(async (transaction) => {
+    const [userDoc, billingDoc, markerDoc] = await Promise.all([
+      transaction.get(userRef),
+      transaction.get(billingRef),
+      transaction.get(markerRef),
+    ]);
+
+    const { result, decrementTo } = computeFreeTierGate({
+      mappedType,
+      interactionId,
+      isPremium: isActiveServerOwnedPremium(userDoc.data(), billingDoc.data()),
+      markerExists: markerDoc.exists,
+      usage: normalizeFreeTierUsage(userDoc.data()),
+    });
+
+    if (typeof decrementTo === 'number') {
+      transaction.set(userRef, {
+        [usageField]: decrementTo,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      transaction.set(markerRef, {
+        type: mappedType,
+        sessionType,
+        countedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    return result;
+  });
+}
+
+// ============================================================================
 // Record Image Generation (internal function)
 // ============================================================================
 

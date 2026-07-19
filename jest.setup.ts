@@ -319,6 +319,10 @@ jest.mock('@react-native-firebase/functions', () => {
   return { getFunctions, httpsCallable };
 });
 
+jest.mock('@react-native-firebase/app-check', () => ({
+  initializeAppCheck: jest.fn(() => Promise.resolve({})),
+}));
+
 jest.mock('@react-native-firebase/crashlytics', () => {
   const crashlyticsInstance = {
     setCrashlyticsCollectionEnabled: jest.fn().mockResolvedValue(undefined),

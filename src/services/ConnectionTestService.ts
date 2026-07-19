@@ -263,8 +263,8 @@ export class ConnectionTestService {
    */
   private async testGoogle(apiKey: string, signal: AbortSignal): Promise<{ model: string }> {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`,
-      { signal }
+      'https://generativelanguage.googleapis.com/v1/models',
+      { signal, headers: { 'x-goog-api-key': apiKey } }
     );
 
     if (!response.ok) {

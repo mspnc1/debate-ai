@@ -1226,11 +1226,11 @@ describe('CreateSetupScreen', () => {
   });
 
   describe('gallery access', () => {
-    it('navigates to CreateSession when gallery button is pressed (premium user)', () => {
+    it('navigates to CreateSession when the Gallery tab is pressed (premium user)', () => {
       mockStateWith({ create: { gallery: [{ id: '1', uri: 'file://a.png' }] } });
 
       const { getByTestId } = renderWithProviders(<CreateSetupScreen />);
-      fireEvent.press(getByTestId('header-gallery-button'));
+      fireEvent.press(getByTestId('create-tabs-gallery'));
 
       expect(mockNavigate).toHaveBeenCalledWith('CreateSession', {});
     });

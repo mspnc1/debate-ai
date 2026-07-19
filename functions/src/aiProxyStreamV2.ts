@@ -13,7 +13,7 @@
 import { onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { getAuth } from 'firebase-admin/auth';
 import { getDecryptedApiKey, encryptionKey } from './apiKeys';
-import { recordUsageInternal } from './usageTracking';
+import { recordUsageInternal, enforceFreeTierForInteraction } from './usageTracking';
 import { ProviderRegistry, isV2Supported } from './providers/registry';
 import { generateTraceId, createErrorEvent } from './providers/base-runtime';
 import { normalizeProviderTemperature, resolveProviderModelId } from './modelRegistry';
@@ -242,6 +242,7 @@ export const proxyAIRequestStreamV2 = onRequest(
         toolChoice,
         sessionId,
         sessionType,
+        interactionId,
         attachments,
       } = data;
 
@@ -292,6 +293,20 @@ export const proxyAIRequestStreamV2 = onRequest(
         hasToolResultsInHistory: messages.some(m => m.role === 'tool'),
         messageRoles: messages.map(m => ({ role: m.role, hasToolCallId: !!m.tool_call_id, hasToolCalls: !!(m.tool_calls && m.tool_calls.length > 0) })),
       }));
+
+      // Server-authoritative free-tier gate. No-op unless the client sends an
+      // interactionId (premium/trial users always pass); rejects non-premium
+      // callers who have exhausted the free tier, so the limit can't be bypassed
+      // by calling the proxy directly.
+      const freeTierGate = await enforceFreeTierForInteraction(uid, sessionType, interactionId);
+      if (!freeTierGate.allowed) {
+        writer.write(createErrorEvent(
+          'You have used all of your free interactions. Subscribe to keep going.',
+          'resource-exhausted'
+        ));
+        writer.end();
+        return;
+      }
 
       // Get API key
       const apiKey = await getDecryptedApiKey(uid, providerId, keyValue);

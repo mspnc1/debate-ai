@@ -314,13 +314,16 @@ export class GeminiAdapter extends BaseAdapter {
       }),
     });
 
-    // Create EventSource for SSE streaming (React Native)
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${resolvedModel}:streamGenerateContent?alt=sse&key=${this.config.apiKey}`;
+    // Create EventSource for SSE streaming (React Native).
+    // Pass the API key via header, not the URL query string, so it can't be
+    // captured by crash reporters / proxy logs that record full URLs.
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${resolvedModel}:streamGenerateContent?alt=sse`;
 
     const es = new EventSource(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-goog-api-key': this.config.apiKey,
       },
       body: requestBody,
       timeoutBeforeConnection: 0,

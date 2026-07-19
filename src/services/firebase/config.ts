@@ -3,12 +3,13 @@ import {
   getAuth, 
   connectAuthEmulator 
 } from '@react-native-firebase/auth';
-import { 
-  getFirestore, 
+import {
+  getFirestore,
   connectFirestoreEmulator,
   terminate,
   clearIndexedDbPersistence
 } from '@react-native-firebase/firestore';
+import { initializeFirebaseAppCheck } from './appCheck';
 
 // Declare global type for emulator flag
 declare global {
@@ -22,7 +23,12 @@ declare global {
 export const initializeFirebase = async () => {
   // Firebase is automatically initialized from GoogleService-Info.plist and google-services.json
   // The app is already available via getApp()
-  
+
+  // Initialize App Check first so subsequent Firebase requests carry an
+  // attestation token. Enforcement is off (Monitoring), so this can't break the
+  // app — it only makes requests verifiable. See ./appCheck.ts.
+  await initializeFirebaseAppCheck();
+
   const db = getFirestore();
   
   // Firestore persistence is enabled by default on React Native.
