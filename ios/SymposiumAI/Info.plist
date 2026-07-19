@@ -58,8 +58,6 @@
 	<string>Symposium AI uses your camera to capture images for AI analysis.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Allow $(PRODUCT_NAME) to access your microphone</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Symposium AI saves generated images and media to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
