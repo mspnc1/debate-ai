@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDecryptedApiKey, encryptionKey } from './apiKeys';
-import { recordUsageInternal } from './usageTracking';
+import { recordUsageInternal, enforceFreeTierForInteraction } from './usageTracking';
 import { normalizeProviderTemperature, resolveProviderModelId } from './modelRegistry';
 import { buildGeminiGenerationConfig } from './providers/google/thinking';
 
@@ -290,7 +290,9 @@ interface ProxyRequest {
   temperature?: number;
   // Usage tracking fields (optional for backwards compatibility)
   sessionId?: string;
-  sessionType?: 'chat' | 'debate' | 'comparison';
+  sessionType?: 'chat' | 'debate' | 'comparison' | 'analyze';
+  // Stable per-interaction id used for server-authoritative free-tier metering.
+  interactionId?: string;
   // Web search options for providers that support it
   searchOptions?: SearchOptions;
   // Image/document attachments
@@ -318,7 +320,7 @@ export const proxyAIRequest = onCall(
       throw new HttpsError('internal', 'Encryption not configured');
     }
 
-    const { providerId, model, messages, systemPrompt, maxTokens, temperature, sessionId, sessionType, searchOptions, attachments } = request.data as ProxyRequest;
+    const { providerId, model, messages, systemPrompt, maxTokens, temperature, sessionId, sessionType, interactionId, searchOptions, attachments } = request.data as ProxyRequest;
 
     // Only use maxTokens if explicitly provided - otherwise let providers use their defaults
     const resolvedMaxTokens = typeof maxTokens === 'number' && maxTokens > 0 ? Math.floor(maxTokens) : undefined;
@@ -344,6 +346,16 @@ export const proxyAIRequest = onCall(
     }
 
     const uid = request.auth.uid;
+
+    // Server-authoritative free-tier gate (no-op unless the client sends an
+    // interactionId; premium/trial users always pass).
+    const freeTierGate = await enforceFreeTierForInteraction(uid, sessionType, interactionId);
+    if (!freeTierGate.allowed) {
+      throw new HttpsError(
+        'resource-exhausted',
+        'You have used all of your free interactions. Subscribe to keep going.'
+      );
+    }
 
     // Get the user's API key for this provider
     const apiKey = await getDecryptedApiKey(uid, providerId, keyValue);

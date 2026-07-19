@@ -2,7 +2,7 @@ import { onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { getAuth } from 'firebase-admin/auth';
 import { getDecryptedApiKey, encryptionKey } from './apiKeys';
 import { normalizeProviderTemperature, resolveProviderModelId } from './modelRegistry';
-import { recordUsageInternal } from './usageTracking';
+import { recordUsageInternal, enforceFreeTierForInteraction } from './usageTracking';
 import { buildGeminiGenerationConfig } from './providers/google/thinking';
 import {
   type ToolDefinition,
@@ -110,6 +110,7 @@ interface StreamRequest {
   temperature?: number;
   sessionId?: string;
   sessionType?: 'chat' | 'debate' | 'comparison' | 'analyze';
+  interactionId?: string;
   searchOptions?: SearchOptions;
   attachments?: MessageAttachment[];
   // Tool calling fields
@@ -1340,6 +1341,7 @@ export const proxyAIRequestStream = onRequest(
         temperature = 0.7,
         sessionId,
         sessionType,
+        interactionId,
         searchOptions,
         attachments,
         tools,
@@ -1362,6 +1364,19 @@ export const proxyAIRequestStream = onRequest(
       // Validate messages
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
         writeSSE(res, { type: 'error', error: 'Messages are required', code: 'invalid-argument' });
+        res.end();
+        return;
+      }
+
+      // Server-authoritative free-tier gate (no-op unless the client sends an
+      // interactionId; premium/trial users always pass).
+      const freeTierGate = await enforceFreeTierForInteraction(uid, sessionType, interactionId);
+      if (!freeTierGate.allowed) {
+        writeSSE(res, {
+          type: 'error',
+          error: 'You have used all of your free interactions. Subscribe to keep going.',
+          code: 'resource-exhausted',
+        });
         res.end();
         return;
       }

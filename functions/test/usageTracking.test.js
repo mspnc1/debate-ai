@@ -7,6 +7,8 @@ const {
   buildMediaGenerationMutation,
   monthlyCountersAfterRollover,
   normalizeSessionType,
+  mapSessionTypeToFreeTier,
+  computeFreeTierGate,
 } = require('../lib/usageTracking');
 
 const DATE = '2026-06-12';
@@ -274,4 +276,76 @@ test('media generation preserves token and image fields', () => {
   assert.equal(summary.currentMonthImages, 5);
   assert.equal(summary.currentMonthMedia, 1);
   assert.equal(summary.totalMediaAllTime, 1);
+});
+
+// ---------------------------------------------------------------------------
+// Free-tier gate (server-authoritative proxy enforcement)
+// ---------------------------------------------------------------------------
+
+const FULL_USAGE = {
+  freeDebatesRemaining: 5,
+  freeComparesRemaining: 5,
+  freeChatsRemaining: 5,
+  freeAnalyzesRemaining: 5,
+};
+
+test('mapSessionTypeToFreeTier maps comparison->compare and passes others through', () => {
+  assert.equal(mapSessionTypeToFreeTier('comparison'), 'compare');
+  assert.equal(mapSessionTypeToFreeTier('compare'), 'compare');
+  assert.equal(mapSessionTypeToFreeTier('chat'), 'chat');
+  assert.equal(mapSessionTypeToFreeTier('debate'), 'debate');
+  assert.equal(mapSessionTypeToFreeTier('analyze'), 'analyze');
+  assert.equal(mapSessionTypeToFreeTier('bogus'), undefined);
+  assert.equal(mapSessionTypeToFreeTier(undefined), undefined);
+});
+
+test('gate: unknown session type is not metered (allowed, no decrement)', () => {
+  const { result, decrementTo } = computeFreeTierGate({
+    mappedType: undefined, interactionId: 'i1', isPremium: false, markerExists: false, usage: FULL_USAGE,
+  });
+  assert.deepEqual(result, { allowed: true, reason: 'not-metered' });
+  assert.equal(decrementTo, undefined);
+});
+
+test('gate: missing interactionId is skipped (backward-compatible, no decrement)', () => {
+  const { result, decrementTo } = computeFreeTierGate({
+    mappedType: 'chat', interactionId: undefined, isPremium: false, markerExists: false, usage: FULL_USAGE,
+  });
+  assert.deepEqual(result, { allowed: true, reason: 'skipped' });
+  assert.equal(decrementTo, undefined);
+});
+
+test('gate: premium users always pass without decrement', () => {
+  const { result, decrementTo } = computeFreeTierGate({
+    mappedType: 'chat', interactionId: 'i1', isPremium: true, markerExists: false,
+    usage: { ...FULL_USAGE, freeChatsRemaining: 0 },
+  });
+  assert.deepEqual(result, { allowed: true, reason: 'premium' });
+  assert.equal(decrementTo, undefined);
+});
+
+test('gate: an already-counted interaction passes idempotently (no second decrement)', () => {
+  const { result, decrementTo } = computeFreeTierGate({
+    mappedType: 'debate', interactionId: 'i1', isPremium: false, markerExists: true, usage: FULL_USAGE,
+  });
+  assert.deepEqual(result, { allowed: true, reason: 'counted' });
+  assert.equal(decrementTo, undefined);
+});
+
+test('gate: first use of an interaction decrements the right counter', () => {
+  const { result, decrementTo } = computeFreeTierGate({
+    mappedType: 'compare', interactionId: 'i1', isPremium: false, markerExists: false,
+    usage: { ...FULL_USAGE, freeComparesRemaining: 3 },
+  });
+  assert.deepEqual(result, { allowed: true, reason: 'decremented', remaining: 2 });
+  assert.equal(decrementTo, 2);
+});
+
+test('gate: exhausted free tier is rejected', () => {
+  const { result, decrementTo } = computeFreeTierGate({
+    mappedType: 'analyze', interactionId: 'i1', isPremium: false, markerExists: false,
+    usage: { ...FULL_USAGE, freeAnalyzesRemaining: 0 },
+  });
+  assert.deepEqual(result, { allowed: false, reason: 'exhausted', remaining: 0 });
+  assert.equal(decrementTo, undefined);
 });
