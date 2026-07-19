@@ -20,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../theme';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
-import { Typography, GradientButton, HeaderIcon, KeyboardAvoider } from '../components/molecules';
+import { Typography, GradientButton, KeyboardAvoider } from '../components/molecules';
 import {
   Header,
   HeaderActions,
@@ -129,7 +129,6 @@ export default function CreateSetupScreen() {
     enabled: activeTab === 'audio' && hasElevenLabsKey && !isDemo,
   });
 
-  const galleryCount = gallery.length + mediaGallery.length;
   // Prompt drafts stay local like Home's inputText; sending clears them.
   const [prompts, setPrompts] = useState<Record<CreateTab, string>>({
     image: '',
@@ -501,21 +500,6 @@ export default function CreateSetupScreen() {
     if (activeTab === 'audio') setAudioSheetOpen(true);
   }, [activeTab]);
 
-  // Custom right element with gallery icon and header actions
-  const renderHeaderRight = () => (
-    <View style={styles.headerRight}>
-      <HeaderIcon
-        name="images-outline"
-        onPress={handleGalleryPress}
-        color={theme.colors.text.inverse}
-        accessibilityLabel={`Gallery (${galleryCount} assets)`}
-        testID="header-gallery-button"
-        badge={galleryCount > 0 ? galleryCount : undefined}
-      />
-      <HeaderActions variant="gradient" helpCategoryId="create" />
-    </View>
-  );
-
   // Demo mode gate - only demo users should be blocked
   if (isDemo) {
     return (
@@ -700,11 +684,16 @@ export default function CreateSetupScreen() {
         variant="gradient"
         slim
         title="The Studio"
-        rightElement={renderHeaderRight()}
+        rightElement={<HeaderActions variant="gradient" helpCategoryId="create" />}
       />
       <KeyboardAvoider style={styles.flex}>
         <View style={styles.composerLayout}>
-          <CreateMediaTabs activeTab={activeTab} onChange={handleTabChange} testID="create-tabs" />
+          <CreateMediaTabs
+            activeTab={activeTab}
+            onChange={handleTabChange}
+            onGalleryPress={handleGalleryPress}
+            testID="create-tabs"
+          />
 
           {centerRegion}
 
@@ -806,10 +795,6 @@ const styles = StyleSheet.create({
   },
   statusScroll: {
     paddingBottom: 16,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   premiumGate: {
     flex: 1,

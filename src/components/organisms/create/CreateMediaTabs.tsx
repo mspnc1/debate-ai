@@ -11,12 +11,17 @@ const TABS: Array<{ id: CreateTab; label: string; icon: keyof typeof Ionicons.gl
   { id: 'audio', label: 'Audio', icon: 'musical-notes-outline' },
 ];
 
-/** The Studio's media-type switcher (Image / Video / Audio). */
+/**
+ * The Studio's media-type switcher (Image / Video / Audio), plus an optional
+ * Gallery tab that acts as a shortcut into the gallery screen rather than a
+ * selectable tab.
+ */
 export const CreateMediaTabs: React.FC<{
   activeTab: CreateTab;
   onChange: (tab: CreateTab) => void;
+  onGalleryPress?: () => void;
   testID?: string;
-}> = ({ activeTab, onChange, testID }) => {
+}> = ({ activeTab, onChange, onGalleryPress, testID }) => {
   const { theme } = useTheme();
 
   return (
@@ -50,6 +55,29 @@ export const CreateMediaTabs: React.FC<{
           </TouchableOpacity>
         );
       })}
+      {onGalleryPress && (
+        <TouchableOpacity
+          style={styles.tabButton}
+          onPress={onGalleryPress}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: false }}
+          accessibilityLabel="Gallery"
+          testID={testID ? `${testID}-gallery` : undefined}
+        >
+          <Ionicons
+            name="images-outline"
+            size={18}
+            color={theme.colors.text.secondary}
+          />
+          <Typography
+            variant="caption"
+            weight="semibold"
+            style={{ color: theme.colors.text.primary }}
+          >
+            Gallery
+          </Typography>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
