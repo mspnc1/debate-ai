@@ -51,7 +51,7 @@
       },
       "package": "com.braveheartinnovations.debateai",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 37
+      "versionCode": 38
     },
     "web": {
       "favicon": "./assets/favicon.png"
