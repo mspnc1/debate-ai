@@ -8,6 +8,7 @@ LogBox.ignoreLogs(['[Worklets] Tried to synchronously call a non-worklet functio
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { store, RootState } from './src/store';
 import { updateApiKeys, restoreVerificationData, restoreStats, restoreOnboarding, setPrices, hydrateAISelection, hydrateCreateSelection } from './src/store';
 import AISelectionPersistenceService from './src/services/home/AISelectionPersistenceService';
@@ -331,9 +332,11 @@ export default function App() {
   return (
     <ErrorBoundary level="fatal" showReportButton={true}>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <Provider store={store}>
-          <AppContent />
-        </Provider>
+        <KeyboardProvider>
+          <Provider store={store}>
+            <AppContent />
+          </Provider>
+        </KeyboardProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>
   );

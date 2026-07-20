@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Keyboard,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -9,9 +7,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, SheetHeader, Typography } from '@/components/molecules';
+import { Button, KeyboardAvoider, SheetHeader, Typography } from '@/components/molecules';
 import { useTheme } from '@/theme';
 import type { OxfordAudienceQuestions } from '@/config/debate/formats';
 
@@ -38,32 +37,12 @@ export const AudienceQuestionsModal: React.FC<AudienceQuestionsModalProps> = ({
   const insets = useSafeAreaInsets();
   const [affirmativeQuestion, setAffirmativeQuestion] = useState('');
   const [negativeQuestion, setNegativeQuestion] = useState('');
-  const [androidKeyboardHeight, setAndroidKeyboardHeight] = useState(0);
 
   useEffect(() => {
     if (!visible) {
       setAffirmativeQuestion('');
       setNegativeQuestion('');
-      setAndroidKeyboardHeight(0);
     }
-  }, [visible]);
-
-  useEffect(() => {
-    if (!visible || Platform.OS !== 'android') {
-      return undefined;
-    }
-
-    const showSubscription = Keyboard.addListener('keyboardDidShow', (event) => {
-      setAndroidKeyboardHeight(event.endCoordinates.height);
-    });
-    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
-      setAndroidKeyboardHeight(0);
-    });
-
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
   }, [visible]);
 
   const trimmedQuestions = useMemo<OxfordAudienceQuestions>(() => ({
@@ -74,8 +53,7 @@ export const AudienceQuestionsModal: React.FC<AudienceQuestionsModalProps> = ({
   const canSubmit = Boolean(trimmedQuestions.aff && trimmedQuestions.neg);
   // Android edge-to-edge modal windows may not reserve navigation-bar space.
   const bottomSystemInset = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 0);
-  const isAndroidKeyboardVisible = Platform.OS === 'android' && androidKeyboardHeight > 0;
-  const footerBottomPadding = FOOTER_PADDING + (isAndroidKeyboardVisible ? 0 : bottomSystemInset);
+  const footerBottomPadding = FOOTER_PADDING + bottomSystemInset;
 
   const inputStyle = [
     styles.input,
@@ -95,15 +73,12 @@ export const AudienceQuestionsModal: React.FC<AudienceQuestionsModalProps> = ({
       navigationBarTranslucent={false}
       onRequestClose={() => undefined}
     >
-      <BlurView intensity={20} style={styles.backdrop}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={[
-            styles.sheetPosition,
-            isAndroidKeyboardVisible && { paddingBottom: androidKeyboardHeight },
-          ]}
-          pointerEvents="box-none"
-        >
+      <KeyboardProvider>
+        <BlurView intensity={20} style={styles.backdrop}>
+          <KeyboardAvoider
+            style={styles.sheetPosition}
+            pointerEvents="box-none"
+          >
           <View
             style={[
               styles.sheet,
@@ -185,8 +160,9 @@ export const AudienceQuestionsModal: React.FC<AudienceQuestionsModalProps> = ({
               />
             </View>
           </View>
-        </KeyboardAvoidingView>
-      </BlurView>
+          </KeyboardAvoider>
+        </BlurView>
+      </KeyboardProvider>
     </Modal>
   );
 };

@@ -347,6 +347,7 @@ jest.mock('@/store/createSlice', () => ({
   markCreateActivitySeen: jest.fn(() => ({ type: 'create/markCreateActivitySeen' })),
   hydrateGallery: jest.fn(() => ({ type: 'create/hydrateGallery' })),
   hydrateMediaGallery: jest.fn(() => ({ type: 'create/hydrateMediaGallery' })),
+  backfillVideoThumbnails: jest.fn(() => ({ type: 'create/backfillVideoThumbnails' })),
   generateCreateVideo: jest.fn((payload) => ({ type: 'create/generateCreateVideo', payload, unwrap: jest.fn() })),
   generateCreateAudio: jest.fn((payload) => ({ type: 'create/generateCreateAudio', payload, unwrap: jest.fn() })),
   selectCreateState: (state: any) => state.create,
@@ -1239,7 +1240,7 @@ describe('CreateSetupScreen', () => {
       mockStateWith({ create: { gallery: [{ id: 'img_1', uri: 'file://a.png' }] } });
 
       const { getByLabelText } = renderWithProviders(<CreateSetupScreen />);
-      fireEvent.press(getByLabelText('Open recent creation'));
+      fireEvent.press(getByLabelText('Open recent image'));
 
       expect(mockNavigate).toHaveBeenCalledWith('CreateSession', { focusAssetId: 'img_1', galleryTab: 'image' });
     });
