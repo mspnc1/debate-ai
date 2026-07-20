@@ -5,12 +5,17 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/theme';
 import { Typography, GradientButton } from '@/components/molecules';
 import { useGreeting } from '@/hooks/useGreeting';
-import type { CreateTab } from '@/types/media';
+import type { CreateMediaOperation, CreateTab } from '@/types/media';
 
 export interface CreateRecentAsset {
   id: string;
-  uri?: string;
   type: CreateTab;
+  /** Rendered in an <Image>: the image itself, or a video poster frame. */
+  previewUri?: string;
+  /** Audio cards: prompt snippet shown as the card title. */
+  label?: string;
+  durationSeconds?: number;
+  operation?: CreateMediaOperation;
 }
 
 interface CreateEmptyStateProps {
@@ -47,6 +52,26 @@ const RECENT_TILE_ICONS: Record<CreateTab, keyof typeof Ionicons.glyphMap> = {
   audio: 'musical-notes-outline',
 };
 
+const AUDIO_OPERATION_META: Partial<
+  Record<CreateMediaOperation, { icon: keyof typeof Ionicons.glyphMap; label: string }>
+> = {
+  text_to_speech: { icon: 'mic-outline', label: 'Voiceover' },
+  sound_effect: { icon: 'volume-high-outline', label: 'Sound effect' },
+  debate_voice_pack: { icon: 'people-outline', label: 'Debate voices' },
+  debate_podcast_playlist: { icon: 'radio-outline', label: 'Podcast' },
+};
+
+const DEFAULT_AUDIO_META = { icon: 'musical-notes-outline' as const, label: 'Audio' };
+
+function formatClipDuration(seconds?: number): string | null {
+  if (!seconds || seconds <= 0) return null;
+  const rounded = Math.round(seconds);
+  if (rounded < 60) return `${rounded}s`;
+  const mins = Math.floor(rounded / 60);
+  const secs = rounded % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
 const CONNECT_COPY: Record<CreateTab, string> = {
   image: 'Bring your own API keys — connect OpenAI, Google, or Grok to create images.',
   video: 'Bring your own API key — connect Runway to create videos.',
@@ -66,12 +91,78 @@ export const CreateEmptyState: React.FC<CreateEmptyStateProps> = ({
   onConfigureProviders,
   testID,
 }) => {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const { timeBasedGreeting, welcomeMessage } = useGreeting({ screenCategory: 'create' });
 
   const handlePressRecent = (asset: CreateRecentAsset) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     onPressRecent(asset);
+  };
+
+  const renderRecentContent = (asset: CreateRecentAsset) => {
+    if (asset.type === 'audio') {
+      const meta = (asset.operation && AUDIO_OPERATION_META[asset.operation]) || DEFAULT_AUDIO_META;
+      const duration = formatClipDuration(asset.durationSeconds);
+      return (
+        <View style={styles.audioCard}>
+          <View
+            style={[
+              styles.audioIconBubble,
+              { backgroundColor: isDark ? theme.colors.overlays.medium : theme.colors.primary[100] },
+            ]}
+          >
+            <Ionicons name={meta.icon} size={16} color={theme.colors.primary[500]} />
+          </View>
+          <View style={styles.audioCardBody}>
+            <Typography variant="caption" weight="medium" numberOfLines={2} style={styles.audioCardTitle}>
+              {asset.label || meta.label}
+            </Typography>
+            <Typography variant="caption" color="secondary" numberOfLines={1} style={styles.audioCardMeta}>
+              {duration ? `${meta.label} · ${duration}` : meta.label}
+            </Typography>
+          </View>
+        </View>
+      );
+    }
+
+    const duration = asset.type === 'video' ? formatClipDuration(asset.durationSeconds) : null;
+    return (
+      <>
+        {asset.previewUri ? (
+          <Image
+            source={{ uri: asset.previewUri }}
+            style={styles.recentPreview}
+            accessibilityIgnoresInvertColors
+          />
+        ) : (
+          <Ionicons
+            name={RECENT_TILE_ICONS[asset.type]}
+            size={22}
+            color={theme.colors.text.secondary}
+          />
+        )}
+        {asset.type === 'video' && asset.previewUri && (
+          <View style={styles.playBadge}>
+            <Ionicons name="play" size={12} color="#FFFFFF" style={styles.playGlyph} />
+          </View>
+        )}
+        {duration && (
+          <View style={styles.durationBadge}>
+            <Typography variant="caption" style={styles.durationText}>
+              {duration}
+            </Typography>
+          </View>
+        )}
+      </>
+    );
+  };
+
+  const getRecentAccessibilityLabel = (asset: CreateRecentAsset): string => {
+    if (asset.type === 'audio') {
+      const meta = (asset.operation && AUDIO_OPERATION_META[asset.operation]) || DEFAULT_AUDIO_META;
+      return asset.label ? `Open recent ${meta.label.toLowerCase()}: ${asset.label}` : `Open recent ${meta.label.toLowerCase()}`;
+    }
+    return asset.type === 'video' ? 'Open recent video' : 'Open recent image';
   };
 
   return (
@@ -113,25 +204,15 @@ export const CreateEmptyState: React.FC<CreateEmptyStateProps> = ({
                     onPress={() => handlePressRecent(asset)}
                     activeOpacity={0.7}
                     accessibilityRole="button"
-                    accessibilityLabel="Open recent creation"
+                    accessibilityLabel={getRecentAccessibilityLabel(asset)}
                     style={[
                       styles.recentTile,
+                      asset.type === 'video' && styles.videoTile,
+                      asset.type === 'audio' && styles.audioTile,
                       { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
                     ]}
                   >
-                    {asset.uri ? (
-                      <Image
-                        source={{ uri: asset.uri }}
-                        style={styles.recentPreview}
-                        accessibilityIgnoresInvertColors
-                      />
-                    ) : (
-                      <Ionicons
-                        name={RECENT_TILE_ICONS[asset.type]}
-                        size={22}
-                        color={theme.colors.text.secondary}
-                      />
-                    )}
+                    {renderRecentContent(asset)}
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -198,9 +279,68 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  videoTile: {
+    width: 96,
+  },
+  audioTile: {
+    width: 200,
+  },
   recentPreview: {
     width: '100%',
     height: '100%',
+  },
+  playBadge: {
+    position: 'absolute',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playGlyph: {
+    marginLeft: 1,
+  },
+  durationBadge: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  durationText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    lineHeight: 13,
+  },
+  audioCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    width: '100%',
+    height: '100%',
+    paddingHorizontal: 10,
+  },
+  audioIconBubble: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  audioCardBody: {
+    flex: 1,
+    gap: 1,
+  },
+  audioCardTitle: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  audioCardMeta: {
+    fontSize: 11,
+    lineHeight: 14,
   },
   configureCta: {
     alignSelf: 'stretch',

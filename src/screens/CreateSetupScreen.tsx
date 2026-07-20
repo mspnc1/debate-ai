@@ -50,6 +50,7 @@ import {
   markCreateActivitySeen,
   hydrateGallery,
   hydrateMediaGallery,
+  backfillVideoThumbnails,
   generateCreateVideo,
   generateCreateAudio,
   selectCreateState,
@@ -192,6 +193,13 @@ export default function CreateSetupScreen() {
     dispatch(markCreateActivitySeen());
   }, [dispatch]);
 
+  // Older videos predate poster generation; give them thumbnails once hydrated.
+  useEffect(() => {
+    if (mediaGalleryHydrated && !isDemo) {
+      dispatch(backfillVideoThumbnails());
+    }
+  }, [dispatch, mediaGalleryHydrated, isDemo]);
+
   // ---------------------------------------------------------------- image tab
 
   // An attachment turns a plain generation into a refinement; send blocks
@@ -213,7 +221,7 @@ export default function CreateSetupScreen() {
     () =>
       gallery
         .slice(0, 10)
-        .map((entry) => ({ id: entry.id, uri: entry.uri, type: 'image' as const })),
+        .map((entry) => ({ id: entry.id, previewUri: entry.uri, type: 'image' as const })),
     [gallery]
   );
 
@@ -318,7 +326,12 @@ export default function CreateSetupScreen() {
       mediaGallery
         .filter((entry) => entry.mediaType === 'video')
         .slice(0, 10)
-        .map((entry) => ({ id: entry.id, uri: undefined, type: 'video' as const })),
+        .map((entry) => ({
+          id: entry.id,
+          type: 'video' as const,
+          previewUri: entry.thumbnailUri,
+          durationSeconds: entry.durationSeconds,
+        })),
     [mediaGallery]
   );
 
@@ -392,7 +405,13 @@ export default function CreateSetupScreen() {
       mediaGallery
         .filter((entry) => entry.mediaType === 'audio')
         .slice(0, 10)
-        .map((entry) => ({ id: entry.id, uri: undefined, type: 'audio' as const })),
+        .map((entry) => ({
+          id: entry.id,
+          type: 'audio' as const,
+          label: entry.voicePack?.topic || entry.prompt,
+          durationSeconds: entry.durationSeconds,
+          operation: entry.operation,
+        })),
     [mediaGallery]
   );
 

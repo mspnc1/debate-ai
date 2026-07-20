@@ -36,7 +36,7 @@ import {
 import { ImageService } from '../services/images/ImageService';
 import MediaGenerationService from '../services/media/MediaGenerationService';
 import { getElevenLabsCreditCheck } from '../services/media/elevenLabsCredits';
-import { persistMediaDataUri, persistRemoteMedia, deleteMediaFile } from '../services/media/mediaFileCache';
+import { persistMediaDataUri, persistRemoteMedia, deleteMediaFile, createVideoThumbnail } from '../services/media/mediaFileCache';
 import { prepareRunwaySourceImage } from '../services/media/sourceImage';
 import { buildEnhancedPrompt } from '../config/create/stylePresets';
 import { mapSizeToProvider } from '../config/create/sizeOptions';
@@ -131,6 +131,8 @@ export interface GeneratedMediaEntry {
   prompt: string;
   uri: string;
   remoteUrl?: string;
+  /** Poster frame for video entries, generated locally after download. */
+  thumbnailUri?: string;
   mimeType: string;
   durationSeconds?: number;
   providerTaskId?: string;
@@ -482,6 +484,7 @@ function dedupeMediaGalleryEntries(entries: GeneratedMediaEntry[]): GeneratedMed
 
 async function deleteGeneratedMediaFile(entry?: GeneratedMediaEntry): Promise<void> {
   if (!entry?.uri) return;
+  await deleteMediaFile(entry.thumbnailUri);
   if (entry.voicePack) {
     if (entry.voicePack.directoryUri) {
       try {
@@ -654,6 +657,41 @@ export const persistMediaGallery = createAsyncThunk(
   }
 );
 
+let thumbnailBackfillInFlight = false;
+
+// Videos generated before thumbnails existed (or whose generation failed) get a
+// poster frame lazily; failures are silent and simply retried on a later launch.
+export const backfillVideoThumbnails = createAsyncThunk(
+  'create/backfillVideoThumbnails',
+  async (_, { dispatch, getState }) => {
+    if (thumbnailBackfillInFlight) return;
+    thumbnailBackfillInFlight = true;
+    try {
+      const state = getState() as { create: CreateState };
+      const candidates = state.create.mediaGallery.filter(
+        (entry) => entry.mediaType === 'video' && entry.uri && !entry.thumbnailUri
+      );
+      if (candidates.length === 0) return;
+
+      let didUpdate = false;
+      for (const entry of candidates) {
+        const thumbnailUri = await createVideoThumbnail(entry.uri, entry.id);
+        if (thumbnailUri) {
+          dispatch(setMediaEntryThumbnail({ id: entry.id, thumbnailUri }));
+          didUpdate = true;
+        }
+      }
+
+      if (didUpdate) {
+        const nextState = getState() as { create: CreateState };
+        await persistMediaGalleryEntries(nextState.create.mediaGallery);
+      }
+    } finally {
+      thumbnailBackfillInFlight = false;
+    }
+  }
+);
+
 export const addToMediaGalleryWithCleanup = createAsyncThunk(
   'create/addToMediaGalleryWithCleanup',
   async (entry: GeneratedMediaEntry, { dispatch, getState }) => {
@@ -663,7 +701,9 @@ export const addToMediaGalleryWithCleanup = createAsyncThunk(
     dispatch(addToMediaGallery(entry));
 
     if (existing && existing.uri !== entry.uri) {
-      await deleteGeneratedMediaFile(existing);
+      // Same-id re-adds share the thumbnail path; don't delete the new entry's poster.
+      const keepThumbnail = existing.thumbnailUri === entry.thumbnailUri;
+      await deleteGeneratedMediaFile(keepThumbnail ? { ...existing, thumbnailUri: undefined } : existing);
     }
 
     await pruneGalleryOverflow(dispatch, getState);
@@ -1061,6 +1101,8 @@ async function pollRunwayTaskToCompletion(
         uri = remoteUrl;
       }
 
+      const thumbnailUri = await createVideoThumbnail(uri, id);
+
       return {
         id,
         mediaType: 'video',
@@ -1070,6 +1112,7 @@ async function pollRunwayTaskToCompletion(
         prompt: activeTask.prompt,
         uri,
         remoteUrl,
+        thumbnailUri,
         mimeType,
         durationSeconds: activeTask.durationSeconds,
         providerTaskId: activeTask.providerTaskId,
@@ -1643,6 +1686,12 @@ const createSlice_ = createSlice({
         state.mediaGallery.splice(index, 1);
       }
     },
+    setMediaEntryThumbnail: (state, action: PayloadAction<{ id: string; thumbnailUri: string }>) => {
+      const entry = state.mediaGallery.find((item) => item.id === action.payload.id);
+      if (entry) {
+        entry.thumbnailUri = action.payload.thumbnailUri;
+      }
+    },
     clearMediaGallery: (state) => {
       state.mediaGallery = [];
     },
@@ -1705,6 +1754,7 @@ export const {
   failMediaGeneration,
   addToMediaGallery,
   removeFromMediaGallery,
+  setMediaEntryThumbnail,
   clearMediaGallery,
   pruneGalleryAssets,
   setActiveRunwayTask,

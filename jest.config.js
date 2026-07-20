@@ -14,7 +14,7 @@ module.exports = {
     '^axios$': '<rootDir>/node_modules/axios',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|expo|@expo|@unimodules|expo-modules-core|expo-asset|expo-font|expo-constants|expo-linear-gradient|expo-blur|expo-apple-authentication|expo-device|expo-secure-store|expo-av|expo-video|expo-audio|expo-image-picker|expo-document-picker|react-native-gesture-handler|react-native-reanimated|@react-native-firebase|react-native-svg|react-native-sse|react-native-safe-area-context|react-native-markdown-display|react-native-webview|@react-native-google-signin|react-native-code-highlighter|react-syntax-highlighter|trim-newlines)/)',
+    'node_modules/(?!(react-native|@react-native|expo|@expo|@unimodules|expo-modules-core|expo-asset|expo-font|expo-constants|expo-linear-gradient|expo-blur|expo-apple-authentication|expo-device|expo-secure-store|expo-av|expo-video|expo-video-thumbnails|expo-audio|expo-image-picker|expo-document-picker|react-native-gesture-handler|react-native-keyboard-controller|react-native-reanimated|@react-native-firebase|react-native-svg|react-native-sse|react-native-safe-area-context|react-native-markdown-display|react-native-webview|@react-native-google-signin|react-native-code-highlighter|react-syntax-highlighter|trim-newlines)/)',
   ],
   testPathIgnorePatterns: ['/node_modules/', '/android/', '/ios/', '<rootDir>/functions/'],
   collectCoverageFrom: [

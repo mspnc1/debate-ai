@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import * as VideoThumbnails from 'expo-video-thumbnails';
 import type { CreateMediaType } from '@/types/media';
 
 const MEDIA_CACHE_DIR = `${FileSystem.cacheDirectory || ''}create-media/`;
@@ -83,6 +84,23 @@ export async function persistRemoteMedia(
   const target = `${MEDIA_CACHE_DIR}${opts.id}.${ext}`;
   const result = await FileSystem.downloadAsync(url, target);
   return result.uri;
+}
+
+export async function createVideoThumbnail(
+  videoUri: string,
+  id: string
+): Promise<string | undefined> {
+  try {
+    const { uri } = await VideoThumbnails.getThumbnailAsync(videoUri, { time: 0, quality: 0.6 });
+    await ensureMediaCacheDir();
+    const target = `${MEDIA_CACHE_DIR}${id}.thumb.jpg`;
+    await FileSystem.deleteAsync(target, { idempotent: true });
+    await FileSystem.moveAsync({ from: uri, to: target });
+    return target;
+  } catch {
+    // Thumbnails are best-effort; callers fall back to a placeholder tile.
+    return undefined;
+  }
 }
 
 export async function deleteMediaFile(uri?: string): Promise<void> {
