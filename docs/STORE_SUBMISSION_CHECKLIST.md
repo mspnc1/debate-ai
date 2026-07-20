@@ -1,7 +1,7 @@
 # Store Submission Checklist
 ## Symposium AI React Native App
 
-*Last Updated: December 2025*
+*Last Updated: July 2026 — v2.0.0 submission*
 
 ---
 
@@ -43,36 +43,39 @@
 
 ### 2. Version Information
 
-#### What's New (Version 1.2.3)
+#### What's New (Version 2.0.0)
 ```
-Welcome to Symposium AI - Where Ideas Converge!
+Symposium AI 2.0 — our biggest update yet.
 
-• AI Debate Arena: Watch different AIs debate any topic
-• Chat with multiple AI providers simultaneously
-• BYOK: Use your own API keys securely
-• Hallucination Shield: AIs fact-check each other
-• 12 unique personalities per AI
-• Expert Mode for advanced users
-• Beautiful light/dark themes
-• Premium features with subscription or lifetime purchase
+• Composer-first redesign: start any chat, comparison, or creation right from the prompt bar, with pill-based AI selection
+• Create Studio: generate images, video, and audio with multiple AI providers — now with a media gallery and instant previews
+• Real-time web search with cited sources (Claude and Grok)
+• Attach images and documents before your first message
+• Refreshed July 2026 model catalog: Claude Sonnet 5, GPT-5.6, Grok 4.5, and more
+• Expert Mode: model-aware parameter controls
+• ElevenLabs voice library for debates and audio
+• Smoother keyboard handling and many UI refinements
 
 Your API keys stay private and secure on your device.
 ```
 
 #### Version Details
-- [x] Version Number: `1.2.3`
-- [x] Build Number: `2`
-- [x] Copyright: `© 2025 Braveheart Innovations LLC`
+- [x] Version Number: `2.0.0`
+- [x] Build Number: `28` (iOS) · Android versionCode `37`
+- [x] Copyright: `© 2026 Braveheart Innovations LLC`
 
 ### 3. App Preview and Screenshots
 
-#### Screenshots Required (6.7", 6.5", 5.5")
-1. [x] Welcome screen showing key features
-2. [x] Chat interface with multiple AIs
-3. [x] AI Debate in action
-4. [x] Personality selection screen
-5. [x] Expert mode with model selection
-6. [x] Premium upgrade screen
+#### Screenshots — REFRESH for v2.0 UI (verify current required sizes; 6.9"/6.7" iPhone + 13" iPad)
+1. [ ] Composer-first Home / Chat entry (new prompt-bar flow)
+2. [ ] Multi-AI chat conversation
+3. [ ] AI Debate Arena in action
+4. [ ] Create Studio — image/video/audio with gallery previews
+5. [ ] Web search with cited sources
+6. [ ] Expert Mode / model selection
+7. [ ] Premium upgrade screen
+
+> v1.x screenshots are stale — the composer-first redesign and Create Studio changed these screens. Re-capture before submitting.
 
 #### App Preview Video (Optional but Recommended)
 - [ ] 15-30 seconds
@@ -217,7 +220,7 @@ ai,chat,gpt,claude,gemini,chatbot,debate,arena,conversation,api,keys,byok,premiu
 
 #### Promotional Text (170 characters)
 ```
-Watch AIs debate any topic! Chat with Claude, ChatGPT, and Gemini simultaneously. Use your own API keys for maximum savings. Premium unlocks custom debates and more.
+Debate AIs; chat Claude, ChatGPT & Gemini at once; create images, video & audio; web search with citations. Bring your own API keys and save. Premium unlocks more.
 ```
 
 ### 10. Final Submission
