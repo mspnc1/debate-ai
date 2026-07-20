@@ -1,6 +1,6 @@
 {
   "cli": {
-    "appVersionSource": "local",
+    "appVersionSource": "remote",
     "version": ">= 5.0.0"
   },
   "build": {
@@ -24,6 +24,7 @@
       "node": "22.17.0",
       "developmentClient": false,
       "distribution": "store",
+      "autoIncrement": true,
       "channel": "internal-testing",
       "env": {
         "EXPO_PUBLIC_RELEASE_CHANNEL": "internal",
@@ -39,6 +40,7 @@
       "node": "22.17.0",
       "developmentClient": false,
       "distribution": "store",
+      "autoIncrement": true,
       "channel": "beta",
       "env": {
         "EXPO_PUBLIC_RELEASE_CHANNEL": "beta",
@@ -73,6 +75,7 @@
       "node": "22.17.0",
       "developmentClient": false,
       "distribution": "store",
+      "autoIncrement": true,
       "channel": "production",
       "env": {
         "EXPO_PUBLIC_RELEASE_CHANNEL": "production",
