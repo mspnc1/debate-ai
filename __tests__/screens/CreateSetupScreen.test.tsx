@@ -348,6 +348,7 @@ jest.mock('@/store/createSlice', () => ({
   hydrateGallery: jest.fn(() => ({ type: 'create/hydrateGallery' })),
   hydrateMediaGallery: jest.fn(() => ({ type: 'create/hydrateMediaGallery' })),
   backfillVideoThumbnails: jest.fn(() => ({ type: 'create/backfillVideoThumbnails' })),
+  clearFinishedGenerations: jest.fn(() => ({ type: 'create/clearFinishedGenerations' })),
   generateCreateVideo: jest.fn((payload) => ({ type: 'create/generateCreateVideo', payload, unwrap: jest.fn() })),
   generateCreateAudio: jest.fn((payload) => ({ type: 'create/generateCreateAudio', payload, unwrap: jest.fn() })),
   selectCreateState: (state: any) => state.create,

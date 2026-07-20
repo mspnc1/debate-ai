@@ -39,6 +39,7 @@ import reducer, {
   completeGeneration,
   generationError,
   clearGenerationError,
+  clearFinishedGenerations,
   setActiveCreateTab,
   markCreateActivitySeen,
   startMediaGeneration,
@@ -237,6 +238,70 @@ describe('createSlice', () => {
         message: 'openai: unsupported source image',
       });
       expect(state.createActivity.status).toBe('failed');
+    });
+  });
+
+  describe('clearFinishedGenerations', () => {
+    it('clears a completed image result so Create returns to a fresh empty state', () => {
+      let state = reducer(initialState, startImageGeneration({
+        id: 'image_generation_1',
+        providers: ['openai'],
+        prompt: 'A clean product image',
+      }));
+      state = reducer(state, completeImageGeneration({
+        resultIds: ['img_1'],
+        message: 'Image generation complete.',
+      }));
+      expect(state.lastImageGenerationResult).toBeDefined();
+
+      state = reducer(state, clearFinishedGenerations());
+      expect(state.imageGeneration).toBeNull();
+      expect(state.lastImageGenerationResult).toBeUndefined();
+    });
+
+    it('clears a completed media result', () => {
+      let state = reducer(initialState, startMediaGeneration({
+        id: 'generation_1',
+        mediaType: 'video',
+        providerId: 'runway',
+        operation: 'text_to_video',
+        modelId: 'gen4.5',
+        prompt: 'A city at sunrise',
+      }));
+      state = reducer(state, completeMediaGeneration({
+        mediaType: 'video',
+        status: 'succeeded',
+        message: 'Video generation complete.',
+        resultId: 'vid_1',
+      }));
+      expect(state.lastMediaGenerationResult).toBeDefined();
+
+      state = reducer(state, clearFinishedGenerations());
+      expect(state.mediaGeneration.video).toBeNull();
+      expect(state.lastMediaGenerationResult).toBeUndefined();
+    });
+
+    it('preserves an in-flight image generation', () => {
+      let state = reducer(initialState, startImageGeneration({
+        id: 'image_generation_1',
+        providers: ['openai'],
+        prompt: 'Still generating',
+      }));
+      state = reducer(state, clearFinishedGenerations());
+      expect(state.imageGeneration).not.toBeNull();
+    });
+
+    it('preserves an in-flight media generation', () => {
+      let state = reducer(initialState, startMediaGeneration({
+        id: 'generation_1',
+        mediaType: 'video',
+        providerId: 'runway',
+        operation: 'text_to_video',
+        modelId: 'gen4.5',
+        prompt: 'Still rendering',
+      }));
+      state = reducer(state, clearFinishedGenerations());
+      expect(state.mediaGeneration.video).not.toBeNull();
     });
   });
 

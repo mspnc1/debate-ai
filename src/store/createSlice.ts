@@ -1561,6 +1561,26 @@ const createSlice_ = createSlice({
     clearGenerationError: (state) => {
       state.generationError = undefined;
     },
+    clearFinishedGenerations: (state) => {
+      // Reset the transient "session complete" result cards so returning to
+      // Create starts fresh (matching the post-reboot experience). The
+      // persisted gallery/mediaGallery (the RECENT strip) is left untouched,
+      // and an in-flight generation is never disturbed.
+      const imageInFlight =
+        state.isGenerating ||
+        (state.imageGeneration != null &&
+          state.imageGeneration.status !== 'succeeded' &&
+          state.imageGeneration.status !== 'failed');
+      const mediaInFlight =
+        state.mediaGeneration.video != null || state.mediaGeneration.audio != null;
+      if (imageInFlight || mediaInFlight) return;
+
+      state.imageGeneration = null;
+      state.mediaGeneration.video = null;
+      state.mediaGeneration.audio = null;
+      state.lastImageGenerationResult = undefined;
+      state.lastMediaGenerationResult = undefined;
+    },
 
     // Gallery management
     addToGallery: (state, action: PayloadAction<GeneratedImageEntry>) => {
@@ -1744,6 +1764,7 @@ export const {
   completeGeneration,
   generationError,
   clearGenerationError,
+  clearFinishedGenerations,
   addToGallery,
   updateGalleryEntryUri,
   removeFromGallery,
