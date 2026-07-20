@@ -10,7 +10,7 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
@@ -53,6 +53,7 @@ import {
   backfillVideoThumbnails,
   generateCreateVideo,
   generateCreateAudio,
+  clearFinishedGenerations,
   selectCreateState,
 } from '../store/createSlice';
 import { useCreateComposerSelection } from '../hooks/create/useCreateComposerSelection';
@@ -199,6 +200,15 @@ export default function CreateSetupScreen() {
       dispatch(backfillVideoThumbnails());
     }
   }, [dispatch, mediaGalleryHydrated, isDemo]);
+
+  // When leaving Create, clear the finished "session complete" result cards so
+  // returning starts fresh on the empty state (the RECENT strip persists). An
+  // in-flight generation is preserved by the reducer's guard.
+  useFocusEffect(
+    useCallback(() => () => {
+      dispatch(clearFinishedGenerations());
+    }, [dispatch])
+  );
 
   // ---------------------------------------------------------------- image tab
 
