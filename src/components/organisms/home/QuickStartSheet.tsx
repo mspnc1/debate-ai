@@ -1,13 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import {
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -17,7 +16,7 @@ import {
   QuickStartTemplateId,
 } from '@/config/quickStartTemplates';
 import { QuickStartPromptPayload, QuickStartService } from '@/services/home/QuickStartService';
-import { GradientButton, InputField, SheetHeader, Typography } from '@/components/molecules';
+import { GradientButton, InputField, KeyboardAvoider, SheetHeader, Typography } from '@/components/molecules';
 import { useTheme } from '@/theme';
 
 interface QuickStartSheetProps {
@@ -69,20 +68,20 @@ export const QuickStartSheet: React.FC<QuickStartSheetProps> = ({
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={handleClose}>
-      <View style={styles.backdrop}>
-        <TouchableOpacity
-          testID="quick-start-backdrop"
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={handleClose}
-          accessibilityRole="button"
-          accessibilityLabel="Close Quick Start"
-        />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.sheetPosition}
-          pointerEvents="box-none"
-        >
+      <KeyboardProvider>
+        <View style={styles.backdrop}>
+          <TouchableOpacity
+            testID="quick-start-backdrop"
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={handleClose}
+            accessibilityRole="button"
+            accessibilityLabel="Close Quick Start"
+          />
+          <KeyboardAvoider
+            style={styles.sheetPosition}
+            pointerEvents="box-none"
+          >
           <View
             style={[
               styles.sheet,
@@ -200,8 +199,9 @@ export const QuickStartSheet: React.FC<QuickStartSheetProps> = ({
               />
             </View>
           </View>
-        </KeyboardAvoidingView>
-      </View>
+          </KeyboardAvoider>
+        </View>
+      </KeyboardProvider>
     </Modal>
   );
 };

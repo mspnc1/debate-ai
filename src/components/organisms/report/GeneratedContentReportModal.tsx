@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -10,11 +9,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import { ToastNotification } from '@/components/molecules/feedback/ToastNotification';
-import { Typography } from '@/components/molecules';
+import { KeyboardAvoider, Typography } from '@/components/molecules';
 import { useTheme } from '@/theme';
 import { ErrorService } from '@/services/errors/ErrorService';
 import GeneratedContentReportService, {
@@ -123,12 +123,11 @@ export const GeneratedContentReportModal: React.FC<GeneratedContentReportModalPr
   const controlsDisabled = submitting || submitted;
 
   const content = (
-    <KeyboardAvoidingView
+    <KeyboardAvoider
       style={[
         styles.overlay,
         presentation === 'overlay' && styles.hostedOverlay,
       ]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {presentation === 'overlay' && (
         <ToastNotification
@@ -287,7 +286,7 @@ export const GeneratedContentReportModal: React.FC<GeneratedContentReportModalPr
             </TouchableOpacity>
           </View>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardAvoider>
   );
 
   if (presentation === 'overlay') {
@@ -301,7 +300,7 @@ export const GeneratedContentReportModal: React.FC<GeneratedContentReportModalPr
       transparent
       onRequestClose={handleClose}
     >
-      {content}
+      <KeyboardProvider>{content}</KeyboardProvider>
     </Modal>
   );
 };

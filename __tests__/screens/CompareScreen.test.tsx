@@ -1,5 +1,6 @@
 import React from 'react';
-import { Alert, KeyboardAvoidingView } from 'react-native';
+import { Alert } from 'react-native';
+import { KeyboardAvoider } from '@/components/molecules/common/KeyboardAvoider';
 import { act, waitFor } from '@testing-library/react-native';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
 import { createAppStore, showSheet } from '@/store';
@@ -421,9 +422,9 @@ describe('CompareScreen', () => {
   it('uses the same zero-offset keyboard avoidance as Chat', () => {
     const { renderResult } = renderScreen();
 
-    const keyboardAvoidingView = renderResult.UNSAFE_getByType(KeyboardAvoidingView);
+    const keyboardAvoider = renderResult.UNSAFE_getByType(KeyboardAvoider);
 
-    expect(keyboardAvoidingView.props.keyboardVerticalOffset).toBe(0);
+    expect(keyboardAvoider.props.keyboardVerticalOffset).toBe(0);
   });
 
   it('renders header and resumed comparison state with divergent session', async () => {

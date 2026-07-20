@@ -1,17 +1,15 @@
 import React from 'react';
-import { act, fireEvent } from '@testing-library/react-native';
+import { fireEvent } from '@testing-library/react-native';
 import {
-  Keyboard,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
   StyleSheet,
   View,
-  type EmitterSubscription,
-  type KeyboardEvent,
 } from 'react-native';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { AudienceQuestionsModal } from '@/components/organisms/debate/AudienceQuestionsModal';
+import { KeyboardAvoider } from '@/components/molecules/common/KeyboardAvoider';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 
 jest.mock('@expo/vector-icons', () => ({
@@ -117,10 +115,10 @@ describe('AudienceQuestionsModal', () => {
       />
     );
 
-    const keyboardAvoidingView = UNSAFE_getByType(KeyboardAvoidingView);
+    const keyboardAvoider = UNSAFE_getByType(KeyboardAvoider);
 
-    expect(keyboardAvoidingView.props.pointerEvents).toBe('box-none');
-    expect(StyleSheet.flatten(keyboardAvoidingView.props.style)).toEqual(
+    expect(keyboardAvoider.props.pointerEvents).toBe('box-none');
+    expect(StyleSheet.flatten(keyboardAvoider.props.style)).toEqual(
       expect.objectContaining({
         flex: 1,
         justifyContent: 'flex-end',
@@ -128,13 +126,8 @@ describe('AudienceQuestionsModal', () => {
     );
   });
 
-  it('uses the measured Android keyboard height when modal window resize is unavailable', () => {
+  it('mounts a nested KeyboardProvider and delegates avoidance to the shared wrapper', () => {
     Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
-    const keyboardListeners: Partial<Record<'keyboardDidShow' | 'keyboardDidHide', (event: KeyboardEvent) => void>> = {};
-    jest.spyOn(Keyboard, 'addListener').mockImplementation((eventName, listener) => {
-      keyboardListeners[eventName as keyof typeof keyboardListeners] = listener as (event: KeyboardEvent) => void;
-      return { remove: jest.fn() } as unknown as EmitterSubscription;
-    });
 
     const { UNSAFE_getAllByType, UNSAFE_getByType } = renderWithProviders(
       <AudienceQuestionsModal
@@ -143,33 +136,26 @@ describe('AudienceQuestionsModal', () => {
       />
     );
 
+    // A native Modal renders in its own window that the app-root KeyboardProvider
+    // cannot reach, so the sheet mounts its own. Keyboard avoidance is delegated
+    // entirely to the library-backed KeyboardAvoider — the modal no longer
+    // measures the keyboard height by hand (the removed Keyboard.addListener
+    // workaround).
+    expect(UNSAFE_getByType(KeyboardProvider)).toBeTruthy();
+
     const sheet = UNSAFE_getAllByType(View).find((view) => {
       const style = StyleSheet.flatten(view.props.style);
       return style?.borderTopLeftRadius === 24;
     });
-    const keyboardAvoidingView = UNSAFE_getByType(KeyboardAvoidingView);
-
-    expect(keyboardAvoidingView.props.behavior).toBeUndefined();
     expect(StyleSheet.flatten(sheet?.props.style)).toEqual(
       expect.objectContaining({
         maxHeight: '88%',
       })
     );
-    expect(StyleSheet.flatten(keyboardAvoidingView.props.style).paddingBottom).toBeUndefined();
 
-    act(() => {
-      keyboardListeners.keyboardDidShow?.({
-        endCoordinates: { height: 312 },
-      } as unknown as KeyboardEvent);
-    });
-
-    expect(StyleSheet.flatten(keyboardAvoidingView.props.style)).toEqual(
-      expect.objectContaining({
-        flex: 1,
-        justifyContent: 'flex-end',
-        paddingBottom: 312,
-      })
-    );
+    const keyboardAvoider = UNSAFE_getByType(KeyboardAvoider);
+    // No manual paddingBottom: the library applies the keyboard inset itself.
+    expect(StyleSheet.flatten(keyboardAvoider.props.style).paddingBottom).toBeUndefined();
   });
 
   it('keeps Android modal system bars non-translucent so bottom controls clear the navigation bar', () => {
@@ -203,35 +189,6 @@ describe('AudienceQuestionsModal', () => {
 
     expect(StyleSheet.flatten(footer.props.style)).toEqual(
       expect.objectContaining({ paddingBottom: 40 })
-    );
-  });
-
-  it('does not stack Android navigation padding above the visible keyboard', () => {
-    Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
-    mockSafeAreaInsets = { top: 0, bottom: 0, left: 0, right: 0 };
-    const keyboardListeners: Partial<Record<'keyboardDidShow' | 'keyboardDidHide', (event: KeyboardEvent) => void>> = {};
-    jest.spyOn(Keyboard, 'addListener').mockImplementation((eventName, listener) => {
-      keyboardListeners[eventName as keyof typeof keyboardListeners] = listener as (event: KeyboardEvent) => void;
-      return { remove: jest.fn() } as unknown as EmitterSubscription;
-    });
-
-    const { getByTestId } = renderWithProviders(
-      <AudienceQuestionsModal
-        visible
-        onSubmit={jest.fn()}
-      />
-    );
-
-    act(() => {
-      keyboardListeners.keyboardDidShow?.({
-        endCoordinates: { height: 312 },
-      } as unknown as KeyboardEvent);
-    });
-
-    const footer = getByTestId('audience-questions-footer');
-
-    expect(StyleSheet.flatten(footer.props.style)).toEqual(
-      expect.objectContaining({ paddingBottom: 16 })
     );
   });
 
