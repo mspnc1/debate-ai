@@ -1,15 +1,18 @@
 import React from 'react';
-import { Modal, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/theme';
-import { Typography, SheetHeader } from '@/components/molecules';
+import { Typography, InfoButton, ConfigRow } from '@/components/molecules';
 import { AIAvatar } from '../common/AIAvatar';
-import { ModelSelectorEnhanced } from '../home/ModelSelectorEnhanced';
-import { PersonalityPicker } from '../home/PersonalityPicker';
-import { HelpModalHost } from '../help/HelpModalHost';
+import { PagedSheet, usePagedSheetNav } from '../common/PagedSheet';
+import { ModelOptionList, getModelTokenPricing } from '../home/ModelOptionList';
+import { PersonalityOptionGrid } from '../personality/PersonalityOptionGrid';
 import { AISelectionConfig } from '@/types/aiSelection';
 import { getProviderById } from '@/config/aiProviders';
+import { getProviderModels } from '@/config/modelConfigs';
+import { UNIVERSAL_PERSONALITIES } from '@/config/personalities';
+import { usePersonality } from '@/hooks/usePersonality';
 import { getAIProviderIcon } from '@/utils/aiProviderAssets';
 
 interface AIConfigSheetProps {
@@ -24,9 +27,170 @@ interface AIConfigSheetProps {
   testID?: string;
 }
 
+interface PageProps {
+  config: AISelectionConfig;
+  providerName: string;
+}
+
+const ConfigRootPage: React.FC<
+  PageProps & {
+    company: string;
+    iconData: ReturnType<typeof getAIProviderIcon>;
+    color: string;
+    onRemove: () => void;
+    onOpenAdvanced?: () => void;
+  }
+> = ({ config, providerName, company, iconData, color, onRemove, onOpenAdvanced }) => {
+  const { theme } = useTheme();
+  const nav = usePagedSheetNav();
+  const { isCustomized } = usePersonality();
+
+  const models = (getProviderModels(config.providerId) || []).filter((m) => !m.isDeprecated);
+  const currentModel =
+    models.find((m) => m.id === config.modelId) || models.find((m) => m.isDefault);
+  const currentPersonality =
+    UNIVERSAL_PERSONALITIES.find((p) => p.id === config.personalityId) || UNIVERSAL_PERSONALITIES[0];
+
+  return (
+    <ScrollView
+      style={styles.body}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={styles.identityRow}>
+        <AIAvatar icon={iconData.icon} iconType={iconData.iconType} size="small" color={color} />
+        <Typography variant="caption" color="secondary">
+          {company}
+        </Typography>
+      </View>
+
+      <View style={styles.section}>
+        <Typography variant="caption" color="secondary" style={styles.label}>
+          Model
+        </Typography>
+        <ConfigRow
+          primary={currentModel?.name || 'Select Model'}
+          secondary={currentModel ? getModelTokenPricing(config.providerId, currentModel.id) ?? undefined : undefined}
+          onPress={() => nav.push('model')}
+          accessibilityLabel={`Model: ${currentModel?.name || 'none selected'}`}
+          accessibilityHint="Opens model picker"
+          testID="ai-config-model-row"
+        />
+      </View>
+
+      <View style={styles.section}>
+        <View style={styles.labelRow}>
+          <Typography variant="caption" color="secondary">
+            Personality
+          </Typography>
+          <InfoButton topicId="personalities" size="small" />
+        </View>
+        <ConfigRow
+          primary={`${currentPersonality.emoji} ${currentPersonality.name}`}
+          secondary={currentPersonality.tagline}
+          showIndicatorDot={isCustomized(currentPersonality.id)}
+          onPress={() => nav.push('personality')}
+          accessibilityLabel={`Personality: ${currentPersonality.name}`}
+          accessibilityHint="Opens personality picker"
+          testID="ai-config-personality-row"
+        />
+      </View>
+
+      {onOpenAdvanced && (
+        <TouchableOpacity
+          onPress={onOpenAdvanced}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Advanced parameters"
+          accessibilityHint="Opens Expert Mode"
+          style={[
+            styles.advancedRow,
+            { borderColor: theme.colors.border, backgroundColor: theme.colors.card },
+          ]}
+        >
+          <Ionicons name="options-outline" size={18} color={theme.colors.text.secondary} />
+          <Typography variant="body" weight="medium" style={styles.advancedLabel}>
+            Advanced parameters
+          </Typography>
+          <Ionicons name="chevron-forward" size={16} color={theme.colors.text.secondary} />
+        </TouchableOpacity>
+      )}
+
+      <TouchableOpacity
+        onPress={onRemove}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`Remove ${providerName} from conversation`}
+        style={styles.removeRow}
+      >
+        <Ionicons name="trash-outline" size={18} color={theme.colors.error[500]} />
+        <Typography variant="body" weight="medium" color="error">
+          Remove from conversation
+        </Typography>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+};
+
+const ModelPage: React.FC<PageProps & { onChangeModel: (modelId: string) => void }> = ({
+  config,
+  providerName,
+  onChangeModel,
+}) => {
+  const { theme } = useTheme();
+  const nav = usePagedSheetNav();
+
+  return (
+    <View style={styles.pickerPage}>
+      <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: 8 }}>
+        <Typography variant="caption" color="secondary">
+          for {providerName}
+        </Typography>
+      </View>
+      <ModelOptionList
+        providerId={config.providerId}
+        selectedModel={config.modelId}
+        onSelectModel={(modelId) => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          onChangeModel(modelId);
+          nav.pop();
+        }}
+        testID="ai-config-model-list"
+      />
+    </View>
+  );
+};
+
+const PersonalityPage: React.FC<
+  PageProps & { onChangePersonality: (personalityId: string) => void }
+> = ({ config, providerName, onChangePersonality }) => {
+  const nav = usePagedSheetNav();
+
+  return (
+    <View style={[styles.pickerPage, styles.personalityPage]}>
+      <View style={{ paddingTop: 8, paddingBottom: 4 }}>
+        <Typography variant="caption" color="secondary">
+          for {providerName}
+        </Typography>
+      </View>
+      <PersonalityOptionGrid
+        personalities={UNIVERSAL_PERSONALITIES}
+        selectedPersonalityId={config.personalityId}
+        onSelectPersonality={(personalityId) => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          onChangePersonality(personalityId);
+          nav.pop();
+        }}
+        testID="ai-config-personality-grid"
+      />
+    </View>
+  );
+};
+
 /**
- * Per-pill bottom sheet: model picker, personality picker, a link to
- * Expert Mode for advanced parameters, and a destructive remove action.
+ * Per-pill config sheet: one PagedSheet whose root page links to in-sheet
+ * model and personality picker pages (tap an option to select and return),
+ * plus a link to Expert Mode and a destructive remove action.
  */
 export const AIConfigSheet: React.FC<AIConfigSheetProps> = ({
   visible,
@@ -38,9 +202,6 @@ export const AIConfigSheet: React.FC<AIConfigSheetProps> = ({
   onOpenAdvanced,
   testID,
 }) => {
-  const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
-
   const provider = config ? getProviderById(config.providerId) : undefined;
   if (!config || !provider) return null;
   const iconData = getAIProviderIcon(provider.id);
@@ -56,114 +217,33 @@ export const AIConfigSheet: React.FC<AIConfigSheetProps> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <TouchableOpacity
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={onClose}
-          accessibilityLabel="Close AI settings"
-          testID={testID ? `${testID}-backdrop` : undefined}
+    <PagedSheet visible={visible} onClose={onClose} testID={testID}>
+      <PagedSheet.Page id="root" title={provider.name}>
+        <ConfigRootPage
+          config={config}
+          providerName={provider.name}
+          company={provider.company}
+          iconData={iconData}
+          color={provider.color}
+          onRemove={handleRemove}
+          onOpenAdvanced={onOpenAdvanced ? handleAdvanced : undefined}
         />
-        <View
-          style={[
-            styles.sheet,
-            {
-              backgroundColor: theme.colors.background,
-              paddingBottom: insets.bottom + 16,
-            },
-          ]}
-        >
-          <SheetHeader title={provider.name} onClose={onClose} showHandle testID={testID} />
-          <ScrollView
-            style={styles.body}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={styles.identityRow}>
-              <AIAvatar
-                icon={iconData.icon}
-                iconType={iconData.iconType}
-                size="small"
-                color={provider.color}
-              />
-              <Typography variant="caption" color="secondary">
-                {provider.company}
-              </Typography>
-            </View>
-
-            <View style={styles.section}>
-              <ModelSelectorEnhanced
-                providerId={config.providerId}
-                selectedModel={config.modelId}
-                onSelectModel={onChangeModel}
-                compactMode
-                showPricing
-                aiName={provider.name}
-              />
-            </View>
-
-            <View style={styles.section}>
-              <PersonalityPicker
-                currentPersonalityId={config.personalityId}
-                onSelectPersonality={onChangePersonality}
-                aiName={provider.name}
-              />
-            </View>
-
-            {onOpenAdvanced && (
-              <TouchableOpacity
-                onPress={handleAdvanced}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel="Advanced parameters"
-                accessibilityHint="Opens Expert Mode"
-                style={[
-                  styles.advancedRow,
-                  { borderColor: theme.colors.border, backgroundColor: theme.colors.card },
-                ]}
-              >
-                <Ionicons name="options-outline" size={18} color={theme.colors.text.secondary} />
-                <Typography variant="body" weight="medium" style={styles.advancedLabel}>
-                  Advanced parameters
-                </Typography>
-                <Ionicons name="chevron-forward" size={16} color={theme.colors.text.secondary} />
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              onPress={handleRemove}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={`Remove ${provider.name} from conversation`}
-              style={styles.removeRow}
-            >
-              <Ionicons name="trash-outline" size={18} color={theme.colors.error[500]} />
-              <Typography variant="body" weight="medium" color="error">
-                Remove from conversation
-              </Typography>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </View>
-      {/* Lets the InfoButtons' help sheet present above this Modal */}
-      <HelpModalHost />
-    </Modal>
+      </PagedSheet.Page>
+      <PagedSheet.Page id="model" title="Select Model">
+        <ModelPage config={config} providerName={provider.name} onChangeModel={onChangeModel} />
+      </PagedSheet.Page>
+      <PagedSheet.Page id="personality" title="Choose a Personality">
+        <PersonalityPage
+          config={config}
+          providerName={provider.name}
+          onChangePersonality={onChangePersonality}
+        />
+      </PagedSheet.Page>
+    </PagedSheet>
   );
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: 'hidden',
-    maxHeight: '80%',
-  },
   body: {
     paddingHorizontal: 16,
     paddingTop: 12,
@@ -176,6 +256,15 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 16,
+  },
+  label: {
+    marginBottom: 4,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
   },
   advancedRow: {
     flexDirection: 'row',
@@ -196,6 +285,12 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
     marginBottom: 8,
+  },
+  pickerPage: {
+    flex: 1,
+  },
+  personalityPage: {
+    paddingHorizontal: 16,
   },
 });
 
