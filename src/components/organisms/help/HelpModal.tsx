@@ -27,7 +27,14 @@ export const HelpModal: React.FC = () => {
   const handleClose = () => dispatch(clearSheet());
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={handleClose}>
+    <Modal
+      visible
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      navigationBarTranslucent
+      onRequestClose={handleClose}
+    >
       {/* Dimmed backdrop that closes the sheet when tapped */}
       <TouchableOpacity
         style={styles.backdrop}

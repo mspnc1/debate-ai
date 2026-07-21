@@ -203,7 +203,17 @@ const PagedSheetComponent: React.FC<PagedSheetProps> = ({
   if (!activePage) return null;
 
   return (
-    <Modal visible={visible} animationType="fade" transparent onRequestClose={handleRequestClose}>
+    <Modal
+      visible={visible}
+      animationType="fade"
+      transparent
+      // Draw behind the Android system bars: a Modal is its own Dialog
+      // window, and on Android 15 edge-to-edge its nav bar otherwise renders
+      // a system scrim that ignores the in-app theme.
+      statusBarTranslucent
+      navigationBarTranslucent
+      onRequestClose={handleRequestClose}
+    >
       <View style={styles.backdrop}>
         <TouchableOpacity
           style={StyleSheet.absoluteFill}

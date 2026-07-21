@@ -57,6 +57,8 @@ export const PersonalityModal: React.FC<PersonalityModalProps> = ({
       animationType="slide"
       presentationStyle="overFullScreen"
       transparent
+      statusBarTranslucent
+      navigationBarTranslucent
       onRequestClose={onClose}
     >
       <View
