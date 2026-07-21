@@ -16,6 +16,7 @@ export { PricingBadge } from './subscription/PricingBadge';
 export { Badge } from './common/Badge';
 export { IconButton } from './common/IconButton';
 export { InfoButton } from './common/InfoButton';
+export { ConfigRow } from './common/ConfigRow';
 export { SelectionIndicator } from './common/SelectionIndicator';
 export { SearchHighlight } from './common/SearchHighlight';
 export { CopyButton } from './common/CopyButton';

@@ -8,6 +8,8 @@ import { useTheme } from '@/theme';
 interface SheetHeaderProps {
   title: string;
   onClose?: () => void;
+  /** Renders a back chevron on the left (e.g. paged sheets at depth > 0). */
+  onBack?: () => void;
   showHandle?: boolean;
   testID?: string;
 }
@@ -15,6 +17,7 @@ interface SheetHeaderProps {
 export const SheetHeader: React.FC<SheetHeaderProps> = ({
   title,
   onClose,
+  onBack,
   showHandle = false,
   testID,
 }) => {
@@ -41,7 +44,19 @@ export const SheetHeader: React.FC<SheetHeaderProps> = ({
       )}
       
       <View style={styles.header}>
-        <Typography 
+        {onBack && (
+          <TouchableOpacity
+            onPress={onBack}
+            style={styles.backButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            testID={testID ? `${testID}-back` : undefined}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+          >
+            <Ionicons name="chevron-back" size={28} color="white" />
+          </TouchableOpacity>
+        )}
+        <Typography
           variant="heading" 
           weight="semibold" 
           color="inverse"
@@ -107,6 +122,13 @@ const styles = StyleSheet.create({
   closeButton: {
     position: 'absolute',
     right: 20,
+    top: 12,
+    padding: 4,
+    borderRadius: 20,
+  },
+  backButton: {
+    position: 'absolute',
+    left: 20,
     top: 12,
     padding: 4,
     borderRadius: 20,

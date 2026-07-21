@@ -18,6 +18,7 @@ export { AppLogo } from './common/AppLogo';
 export { ExpertModeSettings } from './api-config/ExpertModeSettings';
 export { ProviderCard } from './api-config/ProviderCard';
 export { ErrorBoundary } from './common/ErrorBoundary';
+export { PagedSheet, usePagedSheetNav } from './common/PagedSheet';
 export { StreamingIndicator } from './common/StreamingIndicator';
 export { MessageBubble } from './common/MessageBubble';
 export { ToastContainer } from './common/ToastContainer';
