@@ -43,7 +43,15 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       // Ignore errors, use default
     });
   }, []);
-  
+
+  // Keep the OS-level appearance in sync with the in-app theme so
+  // system-drawn surfaces match it: Android nav-bar scrims and Modal dialog
+  // bars (driven by night mode), iOS keyboards and alerts. 'auto' releases
+  // the override so the system scheme applies.
+  useEffect(() => {
+    Appearance.setColorScheme(themeMode === 'auto' ? 'unspecified' : themeMode);
+  }, [themeMode]);
+
   const setThemeMode = (mode: ThemeMode) => {
     setThemeModeState(mode);
     AsyncStorage.setItem(THEME_STORAGE_KEY, mode).catch(() => {
