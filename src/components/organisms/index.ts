@@ -10,7 +10,6 @@ export { AIAvatar } from './common/AIAvatar';
 export { AICard } from './home/AICard';
 export { ModelSelector } from './home/ModelSelector';
 export { ParameterSlider } from './api-config/ParameterSlider';
-export { PersonalityBadge } from './home/PersonalityBadge';
 export { PersonalityPicker } from './home/PersonalityPicker';
 export { SelectionSummary } from './home/SelectionSummary';
 export { DebateModeCard } from './home/DebateModeCard';

@@ -1,5 +1,4 @@
 import React from 'react';
-import { Text, TouchableOpacity } from 'react-native';
 import { fireEvent, act } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../../test-utils/renderWithProviders';
 import { PersonalityPicker } from '@/components/organisms/home/PersonalityPicker';
@@ -9,17 +8,7 @@ jest.mock('expo-haptics', () => ({
   ImpactFeedbackStyle: { Light: 'light' },
 }));
 
-const mockBadge = jest.fn(({ onPress, personalityName }: any) => (
-  <TouchableOpacity testID="personality-badge" onPress={onPress}>
-    <Text>{personalityName}</Text>
-  </TouchableOpacity>
- ));
-
 const mockModal = jest.fn(() => null);
-
-jest.mock('@/components/organisms/home/PersonalityBadge', () => ({
-  PersonalityBadge: (props: any) => mockBadge(props),
-}));
 
 jest.mock('@/components/organisms/debate/PersonalityModal', () => ({
   PersonalityModal: (props: any) => {
@@ -72,7 +61,7 @@ it('opens modal and returns selected personality', async () => {
     />,
   );
 
-    fireEvent.press(getByTestId('personality-badge'));
+    fireEvent.press(getByTestId('personality-picker-trigger'));
     expect(mockModal).toHaveBeenLastCalledWith(expect.objectContaining({ visible: true }));
 
   const modalProps = mockModal.mock.calls[mockModal.mock.calls.length - 1][0];

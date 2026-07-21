@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, TouchableOpacity, ScrollView, Modal, Dimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 // Upsell removed; no dispatch required
 import { Typography, Badge, SheetHeader } from '@/components/molecules';
 import { useTheme } from '@/theme';
@@ -103,9 +104,7 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
                 </Typography>
               )}
             </View>
-            <Typography variant="body" color="secondary">
-              ▶
-            </Typography>
+            <Ionicons name="chevron-forward" size={16} color={theme.colors.text.secondary} />
           </TouchableOpacity>
         </View>
 
