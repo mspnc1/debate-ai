@@ -389,6 +389,7 @@ describe('CreateSetupScreen', () => {
   };
 
   const baseState = {
+    navigation: { activeSheet: null, sheetVisible: false, helpModalHostCount: 0 },
     settings: {
       apiKeys: { openai: 'key-1', google: 'key-2', grok: 'key-3' },
       verifiedProviders: ['openai', 'google', 'grok'],

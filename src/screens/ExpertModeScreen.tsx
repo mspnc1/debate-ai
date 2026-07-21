@@ -17,7 +17,10 @@ import * as Haptics from 'expo-haptics';
 import { getAIProviderIcon } from '../utils/aiProviderAssets';
 import useFeatureAccess from '@/hooks/useFeatureAccess';
 
-const ExpertModeScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ navigation }) => {
+const ExpertModeScreen: React.FC<{
+  navigation: { goBack: () => void };
+  route?: { params?: { from?: 'settings' } };
+}> = ({ navigation, route }) => {
   const { theme, isDark } = useTheme();
   const dispatch = useDispatch();
   const apiKeys = useSelector((state: RootState) => state.settings.apiKeys || {});
@@ -41,7 +44,11 @@ const ExpertModeScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ na
           title="Model Defaults"
           onBack={() => {
             navigation.goBack();
-            dispatch(showSheet({ sheet: 'settings' }));
+            // Reopen Settings only when this screen was launched from the
+            // Settings sheet (which closes itself before navigating here).
+            if (route?.params?.from === 'settings') {
+              dispatch(showSheet({ sheet: 'settings' }));
+            }
           }}
           showBackButton={true}
           animated={true}

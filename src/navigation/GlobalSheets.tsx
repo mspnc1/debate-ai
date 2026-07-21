@@ -1,29 +1,26 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
-import { TouchableOpacity, View, ViewStyle } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, clearSheet, hideHelpWebView } from '../store';
 import { RootStackParamList } from '../types';
-import { useTheme } from '../theme';
-import { useResponsive } from '../hooks/useResponsive';
+import { useSheetContainerStyle } from '../hooks/useSheetContainerStyle';
 import {
   ProfileSheet,
   SettingsContent,
   SupportSheet
 } from '../components/organisms';
 import { DemoExplainerSheet } from '@/components/organisms/demo/DemoExplainerSheet';
-import { HelpSheet, HelpWebViewModal } from '@/components/organisms/help';
+import { HelpModal, HelpWebViewModal } from '@/components/organisms/help';
 import { DebugMenu } from '@/components/organisms/debug';
 
 export const GlobalSheets: React.FC = () => {
-  const { theme } = useTheme();
   const dispatch = useDispatch();
-  const { activeSheet, sheetVisible, helpWebViewUrl } = useSelector(
+  const { activeSheet, sheetVisible, helpWebViewUrl, helpModalHostCount } = useSelector(
     (state: RootState) => state.navigation
   );
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [debugMenuVisible, setDebugMenuVisible] = useState(false);
-  const { isTablet, responsive } = useResponsive();
 
   const handleSheetClose = () => {
     dispatch(clearSheet());
@@ -34,39 +31,7 @@ export const GlobalSheets: React.FC = () => {
   };
 
   // Responsive sheet styles: centered on iPad, slide-up on phone
-  const sheetContainerStyle = useMemo((): ViewStyle => {
-    if (isTablet) {
-      return {
-        position: 'absolute',
-        top: '10%',
-        bottom: '10%',
-        left: '15%',
-        right: '15%',
-        backgroundColor: theme.colors.background,
-        borderRadius: theme.borderRadius.xl,
-        zIndex: 1001,
-        overflow: 'hidden',
-        // Shadow for floating effect
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.25,
-        shadowRadius: 16,
-        elevation: 10,
-      };
-    }
-    // Phone: slide up from bottom
-    return {
-      position: 'absolute',
-      top: responsive(100, 80),
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: theme.colors.background,
-      borderTopLeftRadius: theme.borderRadius.xl,
-      borderTopRightRadius: theme.borderRadius.xl,
-      zIndex: 1001,
-    };
-  }, [isTablet, responsive, theme]);
+  const sheetContainerStyle = useSheetContainerStyle();
 
   // Redirect subscription sheet to Subscription screen
   useEffect(() => {
@@ -81,8 +46,10 @@ export const GlobalSheets: React.FC = () => {
 
   return (
     <>
-      {/* Help WebView Modal - only render when URL is set to avoid WebView overhead */}
-      {helpWebViewUrl && (
+      {/* Help WebView Modal - only render when URL is set to avoid WebView overhead.
+          Rendered inside the help Modal instead while the help sheet is open,
+          so it stacks above it. */}
+      {helpWebViewUrl && !(showSheets && activeSheet === 'help') && (
         <HelpWebViewModal
           visible={true}
           url={helpWebViewUrl}
@@ -140,7 +107,7 @@ export const GlobalSheets: React.FC = () => {
               }}
               onNavigateToExpertMode={() => {
                 handleSheetClose();
-                navigation.navigate('ExpertMode');
+                navigation.navigate('ExpertMode', { from: 'settings' });
               }}
               onNavigateToPersonalitySystem={() => {
                 handleSheetClose();
@@ -178,28 +145,11 @@ export const GlobalSheets: React.FC = () => {
         </>
       )}
 
-      {showSheets && activeSheet === 'help' && (
-        <>
-          {/* Dimmed backdrop that closes the sheet when tapped */}
-          <TouchableOpacity
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              zIndex: 1000,
-            }}
-            activeOpacity={1}
-            onPress={handleSheetClose}
-          />
-          {/* Foreground - responsive: centered on iPad, slide-up on phone */}
-          <View style={sheetContainerStyle}>
-            <HelpSheet onClose={handleSheetClose} />
-          </View>
-        </>
-      )}
+      {/* Help presents as a native Modal so it can layer above the other
+          sheets. While a native-Modal sheet with its own HelpModalHost is
+          mounted, it presents help instead - a sibling Modal mounted here
+          cannot present above an already-open native Modal on iOS. */}
+      {helpModalHostCount === 0 && <HelpModal />}
 
       {showSheets && activeSheet === 'demo' && (
         <>

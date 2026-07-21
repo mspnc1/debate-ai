@@ -454,6 +454,8 @@ export {
   clearSheet,
   showHelpWebView,
   hideHelpWebView,
+  registerHelpModalHost,
+  unregisterHelpModalHost,
   setHeaderTitle,
   setHeaderSubtitle,
   setShowHeaderActions,

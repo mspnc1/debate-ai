@@ -324,7 +324,7 @@ export type RootStackParamList = {
   Settings: undefined;
   APIConfig: undefined;
   Subscription: undefined;
-  ExpertMode: undefined;
+  ExpertMode: { from?: 'settings' } | undefined;
   Debate: {
     selectedAIs: AI[];
     topic?: string;

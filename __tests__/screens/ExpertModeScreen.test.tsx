@@ -112,6 +112,16 @@ describe('ExpertModeScreen', () => {
 
     fireEvent.press(getByTestId('header'));
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockDispatch).not.toHaveBeenCalledWith(showSheet({ sheet: 'settings' }));
+  });
+
+  it('reopens the Settings sheet on back only when launched from it', () => {
+    const { getByTestId } = renderWithProviders(
+      <ExpertModeScreen navigation={navigation} route={{ params: { from: 'settings' } }} />
+    );
+
+    fireEvent.press(getByTestId('header'));
+    expect(navigation.goBack).toHaveBeenCalledTimes(1);
     expect(mockDispatch).toHaveBeenCalledWith(showSheet({ sheet: 'settings' }));
   });
 });

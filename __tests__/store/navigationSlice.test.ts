@@ -2,6 +2,8 @@ import reducer, {
   showSheet,
   hideSheet,
   clearSheet,
+  registerHelpModalHost,
+  unregisterHelpModalHost,
   setHeaderTitle,
   setNavigationLoading,
   resetNavigationState,
@@ -22,6 +24,17 @@ describe('navigationSlice', () => {
 
     state = reducer(state, clearSheet());
     expect(state.activeSheet).toBeNull();
+  });
+
+  it('counts help modal hosts and never goes below zero', () => {
+    let state = reducer(initialState, registerHelpModalHost());
+    state = reducer(state, registerHelpModalHost());
+    expect(state.helpModalHostCount).toBe(2);
+
+    state = reducer(state, unregisterHelpModalHost());
+    state = reducer(state, unregisterHelpModalHost());
+    state = reducer(state, unregisterHelpModalHost());
+    expect(state.helpModalHostCount).toBe(0);
   });
 
   it('updates header metadata and loading state', () => {
