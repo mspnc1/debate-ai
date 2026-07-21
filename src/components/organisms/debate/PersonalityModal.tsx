@@ -3,12 +3,11 @@
  * Full-screen modal for selecting a personality with richer content
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect } from 'react';
 import { BackHandler, Modal, View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useTheme } from '../../../theme';
 import { Typography } from '../../molecules';
 import { SheetHeader } from '@/components/molecules';
-import { GradientButton } from '../../molecules';
 import { PersonalityOption } from '../../../config/personalities';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PersonalityOptionGrid } from '../personality/PersonalityOptionGrid';
@@ -19,6 +18,7 @@ const MODAL_TOP_SAFE_AREA_GAP = 40;
 export interface PersonalityModalProps {
   visible: boolean;
   onClose: () => void;
+  /** Fired when a personality card is tapped; the caller closes the modal. */
   onConfirm: (personalityId: string) => void;
   selectedPersonalityId: string;
   availablePersonalities: PersonalityOption[];
@@ -40,14 +40,6 @@ export const PersonalityModal: React.FC<PersonalityModalProps> = ({
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const modalTop = Math.max(MODAL_TOP_MIN_CLEARANCE, insets.top + MODAL_TOP_SAFE_AREA_GAP);
-  const [localSelection, setLocalSelection] = useState<string>(selectedPersonalityId);
-
-  useEffect(() => {
-    if (visible) {
-      setLocalSelection(selectedPersonalityId);
-    }
-  }, [selectedPersonalityId, visible]);
-
   useEffect(() => {
     if (!visible || Platform.OS !== 'android') return;
 
@@ -58,10 +50,6 @@ export const PersonalityModal: React.FC<PersonalityModalProps> = ({
 
     return () => subscription.remove();
   }, [onClose, visible]);
-
-  const canConfirm = useMemo(() => {
-    return Boolean(localSelection);
-  }, [localSelection]);
 
   return (
     <Modal
@@ -94,24 +82,18 @@ export const PersonalityModal: React.FC<PersonalityModalProps> = ({
             </View>
           ) : null}
 
-          <View style={{ flex: 1, paddingHorizontal: 16 }}>
+          <View
+            style={{
+              flex: 1,
+              paddingHorizontal: 16,
+              paddingBottom: Math.max(16, insets.bottom + 12),
+            }}
+          >
             <PersonalityOptionGrid
               personalities={availablePersonalities}
-              selectedPersonalityId={localSelection}
-              onSelectPersonality={setLocalSelection}
-            />
-          </View>
-
-          <View
-            testID="personality-modal-action-bar"
-            style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: Math.max(16, insets.bottom + 12) }}
-          >
-            <GradientButton
-              title="Use This Style"
-              onPress={() => canConfirm && onConfirm(localSelection)}
-              disabled={!canConfirm}
-              gradient={theme.colors.gradients.primary}
-              fullWidth
+              selectedPersonalityId={selectedPersonalityId}
+              onSelectPersonality={onConfirm}
+              testID="personality-modal-grid"
             />
           </View>
         </View>

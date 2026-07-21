@@ -12,8 +12,6 @@ jest.mock('@/components/molecules', () => {
     Typography: ({ children }: { children: React.ReactNode }) => React.createElement(Text, null, children),
     SheetHeader: ({ onClose }: { onClose: () => void }) =>
       React.createElement(TouchableOpacity, { onPress: onClose, testID: 'close-button' }),
-    GradientButton: ({ title, onPress, disabled }: { title: string; onPress: () => void; disabled?: boolean }) =>
-      React.createElement(TouchableOpacity, { onPress, testID: 'confirm-button', disabled }, React.createElement(Text, null, title)),
   };
 });
 
@@ -44,10 +42,10 @@ describe('PersonalityModal', () => {
     expect(getByText('🤖 Default')).toBeTruthy();
   });
 
-  it('calls onConfirm when confirmed', () => {
+  it('calls onConfirm when a personality card is tapped', () => {
     const onConfirm = jest.fn();
     const { getByTestId } = renderWithProviders(<PersonalityModal {...defaultProps} onConfirm={onConfirm} />);
-    fireEvent.press(getByTestId('confirm-button'));
+    fireEvent.press(getByTestId('personality-modal-grid-option-default'));
     expect(onConfirm).toHaveBeenCalledWith('default');
   });
 
@@ -56,13 +54,6 @@ describe('PersonalityModal', () => {
     const { getByTestId } = renderWithProviders(<PersonalityModal {...defaultProps} onClose={onClose} />);
     fireEvent.press(getByTestId('close-button'));
     expect(onClose).toHaveBeenCalled();
-  });
-
-  it('keeps the confirm action above the bottom safe area', () => {
-    const { getByTestId } = renderWithProviders(<PersonalityModal {...defaultProps} />);
-    expect(getByTestId('personality-modal-action-bar')).toHaveStyle({
-      paddingBottom: 44,
-    });
   });
 
   it('keeps the sheet below the camera and cutout area', () => {

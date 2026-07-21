@@ -152,6 +152,14 @@ const PagedSheetComponent: React.FC<PagedSheetProps> = ({
 
   const depth = stack.length - 1;
 
+  // Keep a pushed page's fixed height in sync when the window resizes
+  // (rotation, split view) - the depth effect below only fires on push/pop.
+  useEffect(() => {
+    if (depth > 0 && sheetHeight.value > 0) {
+      sheetHeight.value = withTiming(maxHeightPx, { duration: HEIGHT_ANIMATION_MS });
+    }
+  }, [depth, maxHeightPx, sheetHeight]);
+
   // Grow the sheet to max height while any page is pushed; shrink back to the
   // root's measured content height (then release to auto) when returning.
   useEffect(() => {
@@ -229,11 +237,14 @@ const PagedSheetComponent: React.FC<PagedSheetProps> = ({
                 const page = pages.find((p) => p.id === pageId);
                 if (!page) return null;
                 const isRoot = index === 0;
+                const isTop = index === stack.length - 1;
                 return (
                   <Animated.View
                     key={pageId}
                     entering={isRoot ? undefined : SlideInRight.duration(PAGE_ANIMATION_MS)}
                     exiting={isRoot ? undefined : SlideOutRight.duration(PAGE_ANIMATION_MS)}
+                    accessibilityElementsHidden={!isTop}
+                    importantForAccessibility={isTop ? 'auto' : 'no-hide-descendants'}
                     style={
                       isRoot
                         ? styles.rootPage
