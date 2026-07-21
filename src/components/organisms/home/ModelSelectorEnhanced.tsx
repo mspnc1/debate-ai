@@ -3,6 +3,7 @@ import { View, TouchableOpacity, ScrollView, Modal, Dimensions } from 'react-nat
 import { Ionicons } from '@expo/vector-icons';
 // Upsell removed; no dispatch required
 import { Typography, Badge, SheetHeader } from '@/components/molecules';
+import { ModelOptionList } from './ModelOptionList';
 import { useTheme } from '@/theme';
 import { getModelContextLabel, getProviderModels } from '@/config/modelConfigs';
 import { MODEL_PRICING } from '@/config/modelPricing';
@@ -139,109 +140,12 @@ export const ModelSelectorEnhanced: React.FC<ModelSelectorEnhancedProps> = ({
               </View>
               
               {/* Model List */}
-              <ScrollView 
-                contentContainerStyle={{ padding: theme.spacing.lg }}
-                showsVerticalScrollIndicator={false}
-              >
-                {models.map((model) => {
-                  const isSelected = effectiveSelectedModel === model.id;
-                  const isLocked = !canSelectModel(model);
-                  const contextLabel = getModelContextLabel(model);
-                  const pricing = MODEL_PRICING[providerId]?.[model.id];
-                  
-                  return (
-                    <TouchableOpacity
-                      key={model.id}
-                      onPress={() => !isLocked && handleModelSelect(model.id)}
-                      disabled={isLocked}
-                      style={{
-                        backgroundColor: isSelected 
-                          ? theme.colors.primary[100]
-                          : theme.colors.card,
-                        borderRadius: theme.borderRadius.md,
-                        padding: theme.spacing.md,
-                        marginBottom: theme.spacing.sm,
-                        borderWidth: isSelected ? 2 : 1,
-                        borderColor: isSelected 
-                          ? theme.colors.primary[500]
-                          : theme.colors.border,
-                        opacity: isLocked ? 0.5 : 1,
-                      }}
-                    >
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
-                            <Typography 
-                              variant="subtitle" 
-                              weight="semibold"
-                              style={{ 
-                                marginRight: theme.spacing.xs,
-                                color: isSelected ? '#000000' : theme.colors.text.primary
-                              }}
-                            >
-                              {model.name}
-                            </Typography>
-                            {model.isDefault && (
-                              <Badge label="Default" type="default" />
-                            )}
-                            {model.supportsWebSearch && (
-                              <Badge label="Live Search" type="new" />
-                            )}
-                          </View>
-                          
-                          <Typography 
-                            variant="caption" 
-                            style={{ 
-                              marginBottom: 4,
-                              color: isSelected ? 'rgba(0,0,0,0.7)' : theme.colors.text.secondary
-                            }}
-                          >
-                            {model.description}
-                          </Typography>
-                          
-                          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-                            {contextLabel && (
-                              <Typography 
-                                variant="caption" 
-                                style={{ 
-                                  marginRight: theme.spacing.md,
-                                  color: isSelected ? 'rgba(0,0,0,0.6)' : theme.colors.text.secondary
-                                }}
-                              >
-                                {contextLabel}
-                              </Typography>
-                            )}
-                            
-                            {showPricing && pricing && (
-                              <Typography 
-                                variant="caption"
-                                style={{
-                                  color: isSelected ? 'rgba(0,0,0,0.6)' : theme.colors.text.secondary
-                                }}
-                              >
-                                {getTokenPricing(model.id)}
-                              </Typography>
-                            )}
-                          </View>
-                        </View>
-                        
-                        {isSelected && (
-                          <View style={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: 12,
-                            backgroundColor: '#000000',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                          }}>
-                            <Typography style={{ color: '#FFFFFF', fontSize: 16 }}>✓</Typography>
-                          </View>
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+              <ModelOptionList
+                providerId={providerId}
+                selectedModel={effectiveSelectedModel}
+                onSelectModel={handleModelSelect}
+                showPricing={showPricing}
+              />
 
               {/* Upsell CTA for free users when premium models exist */}
               {/* No upsell — all models selectable; demo mode handled elsewhere */}

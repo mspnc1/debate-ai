@@ -6,6 +6,7 @@
     "start": "expo start --dev-client",
     "start:dev": "expo start --dev-client",
     "android": "expo run:android",
+    "android:attach": "adb reverse tcp:8081 tcp:8081 && adb shell am force-stop com.braveheartinnovations.debateai && adb shell am start -n com.braveheartinnovations.debateai/.MainActivity",
     "android:dev:reset": "bash scripts/dev/reset-android-dev-client.sh",
     "ios": "expo run:ios",
     "web": "expo start --web",

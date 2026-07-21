@@ -30,7 +30,8 @@ jest.mock('react-native-reanimated', () => {
       FlatList: require('react-native').FlatList,
       createAnimatedComponent: (component: unknown) => component,
     },
-    useSharedValue: jest.fn((init: unknown) => ({ value: init })),
+    // Stable across renders like the real hook, so it is safe in effect deps
+    useSharedValue: (init: unknown) => require('react').useRef({ value: init }).current,
     useAnimatedStyle: jest.fn((fn: () => unknown) => fn()),
     useDerivedValue: jest.fn((fn: () => unknown) => ({ value: fn() })),
     useAnimatedScrollHandler: jest.fn(() => jest.fn()),
@@ -51,7 +52,12 @@ jest.mock('react-native-reanimated', () => {
     FadeOutDown: createAnimMock(),
     SlideInDown: createAnimMock(),
     SlideInUp: createAnimMock(),
+    SlideInRight: createAnimMock(),
+    SlideInLeft: createAnimMock(),
     SlideOutDown: createAnimMock(),
+    SlideOutUp: createAnimMock(),
+    SlideOutRight: createAnimMock(),
+    SlideOutLeft: createAnimMock(),
     ZoomIn: createAnimMock(),
     ZoomOut: createAnimMock(),
     Layout: createAnimMock(),
@@ -278,6 +284,9 @@ jest.mock('expo-sharing', () => ({
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),
   notificationAsync: jest.fn(),
+  selectionAsync: jest.fn(),
+  ImpactFeedbackStyle: { Light: 'light', Medium: 'medium', Heavy: 'heavy' },
+  NotificationFeedbackType: { Success: 'success', Warning: 'warning', Error: 'error' },
 }));
 
 jest.mock('@react-native-async-storage/async-storage', () =>

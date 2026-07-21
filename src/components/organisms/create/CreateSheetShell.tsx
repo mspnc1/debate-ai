@@ -28,7 +28,15 @@ export const CreateSheetShell: React.FC<{
     // onDismiss resyncs state if iOS dismisses the modal natively (e.g. a
     // stacked picker's dismissal cascading); otherwise the sheet can never
     // reopen because `visible` is stuck true.
-    <Modal visible transparent animationType="slide" onRequestClose={onClose} onDismiss={onClose}>
+    <Modal
+      visible
+      transparent
+      animationType="slide"
+      statusBarTranslucent
+      navigationBarTranslucent
+      onRequestClose={onClose}
+      onDismiss={onClose}
+    >
       <View style={styles.overlay} testID={testID}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
         <View style={[styles.sheet, { backgroundColor: theme.colors.background }]}>

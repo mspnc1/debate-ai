@@ -1,8 +1,6 @@
 // Organisms - complex components with business logic
 export { Header } from './common/Header';
 // Standardize on Header; GradientHeader deprecated and no longer exported
-export { AISelector } from './home/AISelector';
-export { DynamicAISelector } from './home/DynamicAISelector';
 export { QuickStartSheet } from './home/QuickStartSheet';
 export { ProviderExpertSettings } from './api-config/ProviderExpertSettings';
 export { ActualPricing } from './subscription/ActualPricing';
@@ -18,6 +16,7 @@ export { AppLogo } from './common/AppLogo';
 export { ExpertModeSettings } from './api-config/ExpertModeSettings';
 export { ProviderCard } from './api-config/ProviderCard';
 export { ErrorBoundary } from './common/ErrorBoundary';
+export { PagedSheet, usePagedSheetNav } from './common/PagedSheet';
 export { StreamingIndicator } from './common/StreamingIndicator';
 export { MessageBubble } from './common/MessageBubble';
 export { ToastContainer } from './common/ToastContainer';
