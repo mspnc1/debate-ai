@@ -2,6 +2,7 @@ import React from 'react';
 import { Modal, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '@/theme';
 import { SheetHeader } from '@/components/molecules';
+import { HelpModalHost } from '@/components/organisms/help/HelpModalHost';
 
 /**
  * Shared slide-up bottom-sheet shell for the Studio's config sheets, keeping
@@ -41,6 +42,8 @@ export const CreateSheetShell: React.FC<{
         </View>
       </View>
       {stackedModals}
+      {/* Lets the InfoButtons' help sheet present above this Modal */}
+      <HelpModalHost />
     </Modal>
   );
 };

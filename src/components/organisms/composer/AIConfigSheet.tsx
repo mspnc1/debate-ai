@@ -7,6 +7,7 @@ import { Typography, SheetHeader } from '@/components/molecules';
 import { AIAvatar } from '../common/AIAvatar';
 import { ModelSelectorEnhanced } from '../home/ModelSelectorEnhanced';
 import { PersonalityPicker } from '../home/PersonalityPicker';
+import { HelpModalHost } from '../help/HelpModalHost';
 import { AISelectionConfig } from '@/types/aiSelection';
 import { getProviderById } from '@/config/aiProviders';
 import { getAIProviderIcon } from '@/utils/aiProviderAssets';
@@ -145,6 +146,8 @@ export const AIConfigSheet: React.FC<AIConfigSheetProps> = ({
           </ScrollView>
         </View>
       </View>
+      {/* Lets the InfoButtons' help sheet present above this Modal */}
+      <HelpModalHost />
     </Modal>
   );
 };

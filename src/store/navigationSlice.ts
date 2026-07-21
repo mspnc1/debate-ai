@@ -10,6 +10,10 @@ interface NavigationState {
 
   // Help system
   helpWebViewUrl?: string;
+  // Native-Modal sheets currently mounted that host the help Modal themselves
+  // (a sibling Modal can't present above them on iOS); GlobalSheets yields
+  // help presentation while this is non-zero.
+  helpModalHostCount: number;
 
   // Header state
   headerTitle?: string;
@@ -26,6 +30,7 @@ const initialState: NavigationState = {
   activeSheet: null,
   sheetVisible: false,
   sheetData: undefined,
+  helpModalHostCount: 0,
   showHeaderActions: true,
   showProfileIcon: true,
   isLoading: false,
@@ -57,6 +62,12 @@ const navigationSlice = createSlice({
     },
     hideHelpWebView: (state) => {
       state.helpWebViewUrl = undefined;
+    },
+    registerHelpModalHost: (state) => {
+      state.helpModalHostCount += 1;
+    },
+    unregisterHelpModalHost: (state) => {
+      state.helpModalHostCount = Math.max(0, state.helpModalHostCount - 1);
     },
 
     // Header actions
@@ -92,6 +103,8 @@ export const {
   clearSheet,
   showHelpWebView,
   hideHelpWebView,
+  registerHelpModalHost,
+  unregisterHelpModalHost,
   setHeaderTitle,
   setHeaderSubtitle,
   setShowHeaderActions,
