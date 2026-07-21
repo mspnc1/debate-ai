@@ -1426,6 +1426,7 @@ export default function CreateScreen() {
     const isVideo = item.type === 'video';
     const isAudio = item.type === 'audio';
     const mediaEntry = item.source === 'media' ? item.entry as GeneratedMediaEntry : undefined;
+    const videoThumbnailUri = isVideo ? mediaEntry?.thumbnailUri : undefined;
     const voicePackSummary = mediaEntry ? formatVoicePackSummary(mediaEntry) : undefined;
     const subtitle = voicePackSummary || `${providerLabel} • ${modelLabel}${formatGalleryDuration(item.durationSeconds) ? ` • ${formatGalleryDuration(item.durationSeconds)}` : ''}`;
 
@@ -1466,6 +1467,13 @@ export default function CreateScreen() {
             <View style={styles.libraryPreview}>
               {item.type === 'image' ? (
                 <Image source={{ uri: item.uri }} style={styles.libraryImage} resizeMode="cover" />
+              ) : videoThumbnailUri ? (
+                <>
+                  <Image source={{ uri: videoThumbnailUri }} style={styles.libraryImage} resizeMode="cover" />
+                  <View style={styles.libraryPlayOverlay} pointerEvents="none">
+                    <Ionicons name="play-circle" size={40} color="#FFFFFF" />
+                  </View>
+                </>
               ) : (
                 <View style={[styles.libraryMediaPlaceholder, { backgroundColor: isVideo ? '#111827' : primaryTintBackground }]}>
                   <Ionicons
@@ -2319,6 +2327,11 @@ const styles = StyleSheet.create({
   libraryMediaPlaceholder: {
     width: '100%',
     height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  libraryPlayOverlay: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
   },
