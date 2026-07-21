@@ -271,6 +271,12 @@ describe('ClaudeAdapter', () => {
                 title: 'Source A',
                 cited_text: 'the news',
               },
+              {
+                type: 'web_search_result_location',
+                url: 'https://example.com/a',
+                title: 'Source A',
+                cited_text: 'summary',
+              },
             ],
           },
         ],
@@ -281,7 +287,8 @@ describe('ClaudeAdapter', () => {
     const adapter = new ClaudeAdapter({ ...makeConfig('claude-sonnet-5'), webSearchEnabled: true });
     const result = await adapter.sendMessage('What happened today?');
 
-    // A [1] marker is injected after the cited span for inline chip rendering.
+    // One [1] marker after the cited span — repeat citations of a source
+    // within a block collapse to a single chip.
     expect(result).toEqual(expect.objectContaining({
       response: 'Latest news summary.[1]',
       metadata: {
@@ -373,12 +380,10 @@ describe('ClaudeAdapter', () => {
         content: [{ type: 'web_search_result', url: 'https://example.com/b', title: 'Source B' }],
       },
     }));
-    eventSource.emit('content_block_delta', JSON.stringify({ delta: { text: 'Answer' } }));
-    await expect(firstChunk).resolves.toEqual({ value: 'Answer', done: false });
-
-    // The citations_delta injects a bare [1] marker into the text stream.
-    const markerChunk = iterator.next();
-    eventSource.emit('content_block_delta', JSON.stringify({
+    // Live streams deliver citations_delta before the cited block's text, and
+    // a block can cite the same source twice; the [1] marker must still land
+    // once, after the block's text, when the block closes.
+    const citationsDelta = {
       delta: {
         type: 'citations_delta',
         citation: {
@@ -388,7 +393,14 @@ describe('ClaudeAdapter', () => {
           cited_text: 'cited passage',
         },
       },
-    }));
+    };
+    eventSource.emit('content_block_delta', JSON.stringify(citationsDelta));
+    eventSource.emit('content_block_delta', JSON.stringify(citationsDelta));
+    eventSource.emit('content_block_delta', JSON.stringify({ delta: { text: 'Answer' } }));
+    await expect(firstChunk).resolves.toEqual({ value: 'Answer', done: false });
+
+    const markerChunk = iterator.next();
+    eventSource.emit('content_block_stop', JSON.stringify({}));
     await expect(markerChunk).resolves.toEqual({ value: '[1]', done: false });
 
     const finalChunk = iterator.next();
