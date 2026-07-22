@@ -75,11 +75,12 @@ export const MODEL_ALIASES: Record<string, string> = {
 
   // Google aliases (mobile resolves gemini-*-latest to concrete IDs; there is
   // no unknown-ID passthrough here, unlike the web app)
-  'gemini-latest': 'gemini-3.5-flash',
+  'gemini-latest': 'gemini-3.6-flash',
   'gemini-pro-latest': 'gemini-3.1-pro-preview',
-  'gemini-flash-latest': 'gemini-3.5-flash',
-  'gemini-flash-lite-latest': 'gemini-3.1-flash-lite',
-  'gemini-3-latest': 'gemini-3.5-flash',
+  'gemini-flash-latest': 'gemini-3.6-flash',
+  'gemini-flash-lite-latest': 'gemini-3.5-flash-lite',
+  'gemini-3-latest': 'gemini-3.6-flash',
+  'gemini-3.6-latest': 'gemini-3.6-flash',
   'gemini-3.5-latest': 'gemini-3.5-flash',
   'gemini-3.1-latest': 'gemini-3.1-pro-preview',
   'gemini-3.1-flash-lite-latest': 'gemini-3.1-flash-lite',
@@ -160,7 +161,7 @@ export const resolveModelAlias = (modelId: string): string => {
 export const DEFAULT_PROVIDER_MODELS: Record<string, string> = {
   claude: 'claude-sonnet-5',
   openai: 'gpt-5.6-sol',
-  google: 'gemini-3.5-flash',
+  google: 'gemini-3.6-flash',
   grok: 'grok-4.3',
   perplexity: 'sonar-pro',
   mistral: 'mistral-large-2512',

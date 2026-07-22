@@ -638,6 +638,15 @@ function compareProvider(provider, discoveredModels, registry) {
     .filter(([from, to]) => discoveredIdSet.has(from) && from !== to)
     .filter(([from]) => !configuredById.get(from)?.isDeprecated)
     .filter(([from]) => !MOBILE_RESOLVING_ALIAS_EXCEPTIONS.has(from))
+    // Not masking: the provider's own alias metadata groups from and to
+    // together, so our alias resolves exactly as the provider would.
+    .filter(([from, to]) => !aliasGroups.get(from)?.has(to))
+    // Not masking: a dated/versioned snapshot aliased to its own base ID
+    // (registryCandidates already treats the snapshot as covered by the base).
+    .filter(([from, to]) => !registryCandidates(provider, from).includes(to))
+    // Not masking: superseded IDs the registry intentionally skips; the alias
+    // is the documented migration path for persisted sessions.
+    .filter(([from]) => !KNOWN_SUPERSEDED_IDS.has(from))
     .map(([from, to]) => ({ from, to }));
 
   const capabilityDrift = collectCapabilityDrift(configuredModels, discoveredById);
