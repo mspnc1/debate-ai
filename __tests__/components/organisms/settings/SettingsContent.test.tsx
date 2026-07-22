@@ -97,7 +97,7 @@ describe('SettingsContent', () => {
     expect(onNavigateToAPIConfig).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
 
-    fireEvent.press(getByTestId('setting-Expert Mode'));
+    fireEvent.press(getByTestId('setting-Model Defaults'));
     expect(onNavigateToExpertMode).toHaveBeenCalled();
 
     const toggleStreamingButtonCall = mockButton.mock.calls.find(([props]: any) => props.title === 'On');

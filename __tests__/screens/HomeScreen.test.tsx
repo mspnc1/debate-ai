@@ -548,7 +548,7 @@ describe('HomeScreen', () => {
 
     expect(mockComposerProps.allowedProviderIds).toEqual(['anthropic', 'openai']);
     expect(mockComposerProps.onRequestAddKey).toBeUndefined();
-    expect(mockComposerProps.onOpenAdvanced).toBeUndefined();
+    expect(mockComposerProps.showAdvancedParams).toBe(false);
   });
 
   it('creates demo session from topic picker selection and closes modal', async () => {

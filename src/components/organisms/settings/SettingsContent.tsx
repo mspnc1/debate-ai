@@ -67,8 +67,8 @@ export const SettingsContent: React.FC<SettingsContentProps> = ({
           }}
         />
         <SettingRow
-          title="Expert Mode"
-          subtitle={hasAnyApiKey ? 'Set defaults and advanced parameters' : 'Add an API key to enable'}
+          title="Model Defaults"
+          subtitle={hasAnyApiKey ? 'Default models and advanced parameters' : 'Add an API key to enable'}
           icon="options"
           onPress={hasAnyApiKey ? () => { onNavigateToExpertMode?.(); onClose?.(); } : undefined}
           disabled={!hasAnyApiKey}

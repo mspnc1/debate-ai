@@ -14,9 +14,10 @@ export interface AISelectionContext {
 }
 
 /**
- * Seed a config for a newly added provider pill: expert-mode default model
- * wins, then the provider default (demo-aware). Returns null for unknown
- * provider ids.
+ * Seed a config for a newly added provider pill: the saved default model
+ * wins (regardless of the Expert Mode toggle, which only gates parameters),
+ * then the provider default (demo-aware). Returns null for unknown provider
+ * ids.
  */
 export const createDefaultAISelectionConfig = (
   providerId: string,
@@ -26,7 +27,7 @@ export const createDefaultAISelectionConfig = (
   if (!provider) return null;
   const base = AIConfigurationService.transformProviderToConfig(provider, context.isDemo);
   const expert = context.expertMode?.[providerId];
-  const expertModelId = expert?.enabled && expert.selectedModel
+  const expertModelId = expert?.selectedModel
     ? resolveProviderModelId(providerId, expert.selectedModel)
     : undefined;
   return {
@@ -52,7 +53,12 @@ export const toAIConfig = (
     ? base.model
     : resolveProviderModelId(config.providerId, config.modelId) || base.model;
   const personalityId = getPersonality(config.personalityId) ? config.personalityId : 'default';
-  return { ...base, model, personality: personalityId };
+  return {
+    ...base,
+    model,
+    personality: personalityId,
+    ...(config.parameters ? { parameters: config.parameters } : {}),
+  };
 };
 
 /** Reverse mapping, e.g. Compare rematch route params carry AIConfig. */
@@ -60,6 +66,7 @@ export const fromAIConfig = (ai: AIConfig): AISelectionConfig => ({
   providerId: ai.provider,
   modelId: ai.model,
   personalityId: ai.personality || 'default',
+  ...(ai.parameters ? { parameters: ai.parameters } : {}),
 });
 
 /**

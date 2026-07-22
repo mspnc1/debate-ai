@@ -683,12 +683,14 @@ const CompareScreen: React.FC<CompareScreenProps> = ({ navigation, route }) => {
     const leftRuntimeParameters = mergeRuntimeModelParameters(
       leftExp?.enabled,
       leftExp?.parameters,
-      leftRuntime.modelParameters
+      leftRuntime.modelParameters,
+      leftAI.parameters
     );
     const rightRuntimeParameters = mergeRuntimeModelParameters(
       rightExp?.enabled,
       rightExp?.parameters,
-      rightRuntime.modelParameters
+      rightRuntime.modelParameters,
+      rightAI.parameters
     );
 
     // Determine streaming capability and preferences for each side

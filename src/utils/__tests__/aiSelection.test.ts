@@ -29,7 +29,7 @@ describe('aiSelection utils', () => {
       });
     });
 
-    it('prefers the expert-mode default model when enabled', () => {
+    it('prefers the saved default model when enabled', () => {
       const alternateModel = getProviderModels('claude').find(m => m.id !== claudeDefaultModel);
       expect(alternateModel).toBeDefined();
       const config = createDefaultAISelectionConfig('claude', {
@@ -38,12 +38,14 @@ describe('aiSelection utils', () => {
       expect(config?.modelId).toBe(alternateModel!.id);
     });
 
-    it('ignores expert-mode models when disabled', () => {
+    it('applies the saved default model even when expert mode is disabled', () => {
+      // The Expert Mode toggle only gates parameter overrides, not the
+      // saved default model.
       const alternateModel = getProviderModels('claude').find(m => m.id !== claudeDefaultModel);
       const config = createDefaultAISelectionConfig('claude', {
         expertMode: { claude: { enabled: false, selectedModel: alternateModel!.id } },
       });
-      expect(config?.modelId).toBe(claudeDefaultModel);
+      expect(config?.modelId).toBe(alternateModel!.id);
     });
 
     it('returns null for unknown providers', () => {

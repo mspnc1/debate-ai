@@ -290,7 +290,9 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
         ? ({ google: 'gemini-3.5-flash', openai: 'gpt-5', claude: 'opus-4.1' } as Record<string, string>)[provider.id] || ''
         : (getProviderDefaultModel(provider.id)?.id || '');
       const expertCfg = (expertMode as Record<string, { enabled?: boolean; selectedModel?: string }>)[provider.id];
-      const defaultModel = (!isDemo && expertCfg?.enabled && expertCfg.selectedModel)
+      // Saved default model applies regardless of the Expert Mode toggle,
+      // which only gates parameter overrides.
+      const defaultModel = (!isDemo && expertCfg?.selectedModel)
         ? (resolveProviderModelId(provider.id, expertCfg.selectedModel) || providerDefault)
         : providerDefault;
       return {

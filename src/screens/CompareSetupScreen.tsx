@@ -184,7 +184,7 @@ const CompareSetupScreen: React.FC<CompareSetupScreenProps> = ({ navigation, rou
               configuredProviderIds={configuredProviderIds}
               allowedProviderIds={access.isDemo ? configuredProviderIds : undefined}
               onRequestAddKey={access.isDemo ? undefined : () => navigation.navigate('APIConfig')}
-              onOpenAdvanced={access.isDemo ? undefined : () => navigation.navigate('ExpertMode')}
+              showAdvancedParams={!access.isDemo}
               inputText={inputText}
               onChangeText={setInputText}
               onSend={handleSend}

@@ -22,6 +22,7 @@ const baseProps = {
   config: { providerId: 'claude', modelId: claudeModels[0]?.id || '', personalityId: 'default' },
   onChangeModel: jest.fn(),
   onChangePersonality: jest.fn(),
+  onChangeParameters: jest.fn(),
   onRemove: jest.fn(),
   testID: 'ai-config',
 };
@@ -74,17 +75,65 @@ describe('AIConfigSheet', () => {
     expect(baseProps.onRemove).toHaveBeenCalled();
   });
 
-  it('shows Advanced parameters only when onOpenAdvanced is provided', () => {
-    const onOpenAdvanced = jest.fn();
-    const { getByText, queryByText, rerender } = renderWithProviders(
-      <AIConfigSheet {...baseProps} onOpenAdvanced={onOpenAdvanced} />
+  it('shows the Advanced parameters row only when showAdvanced is set', () => {
+    const { getByTestId, queryByTestId, rerender } = renderWithProviders(
+      <AIConfigSheet {...baseProps} showAdvanced />
     );
 
-    fireEvent.press(getByText('Advanced parameters'));
-    expect(baseProps.onClose).toHaveBeenCalled();
-    expect(onOpenAdvanced).toHaveBeenCalled();
+    expect(getByTestId('ai-config-advanced-row')).toBeTruthy();
 
     rerender(<AIConfigSheet {...baseProps} />);
-    expect(queryByText('Advanced parameters')).toBeNull();
+    expect(queryByTestId('ai-config-advanced-row')).toBeNull();
+  });
+
+  it('commits session parameter edits only on Save for This Session', () => {
+    const { store, getByTestId, getByText, getByDisplayValue } = renderWithProviders(
+      <AIConfigSheet {...baseProps} showAdvanced />
+    );
+
+    fireEvent.press(getByTestId('ai-config-advanced-row'));
+    expect(getByText('Advanced Parameters')).toBeTruthy();
+    // Stays in-sheet: no navigation, so the sheet was never closed.
+    expect(baseProps.onClose).not.toHaveBeenCalled();
+
+    // maxTokens is supported by every Claude model; default shows 2048.
+    // Edits stay local until saved.
+    fireEvent.changeText(getByDisplayValue('2048'), '4096');
+    expect(baseProps.onChangeParameters).not.toHaveBeenCalled();
+
+    fireEvent.press(getByText('Save for This Session'));
+    expect(baseProps.onChangeParameters).toHaveBeenCalledWith(
+      expect.objectContaining({ maxTokens: 4096 })
+    );
+    // Session-only saves never touch the global Model Defaults.
+    expect(store.getState().settings.expertMode.claude).toBeUndefined();
+  });
+
+  it('marks the advanced row when session parameter overrides exist', () => {
+    const config = {
+      ...baseProps.config,
+      parameters: { temperature: 0.7, maxTokens: 4096 },
+    };
+    const { getByTestId } = renderWithProviders(
+      <AIConfigSheet {...baseProps} config={config} showAdvanced />
+    );
+
+    expect(getByTestId('ai-config-advanced-row-dot')).toBeTruthy();
+  });
+
+  it('saves to Model Defaults via the separate Save as Default button', () => {
+    const { store, getByTestId, getByText, getByDisplayValue } = renderWithProviders(
+      <AIConfigSheet {...baseProps} showAdvanced />
+    );
+
+    fireEvent.press(getByTestId('ai-config-advanced-row'));
+    fireEvent.changeText(getByDisplayValue('2048'), '4096');
+
+    fireEvent.press(getByText('Save as Default'));
+    const saved = store.getState().settings.expertMode.claude;
+    expect(saved?.enabled).toBe(true);
+    expect(saved?.parameters).toMatchObject({ maxTokens: 4096 });
+    // The session override becomes redundant once saved as the default.
+    expect(baseProps.onChangeParameters).toHaveBeenCalledWith(undefined);
   });
 });
