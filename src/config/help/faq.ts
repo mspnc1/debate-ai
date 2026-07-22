@@ -33,6 +33,14 @@ export const FAQ_ITEMS: FAQItem[] = [
     category: 'getting-started',
     relatedTopic: 'byok-overview',
   },
+  {
+    id: 'faq-how-start-chat',
+    question: 'How do I start a chat?',
+    answer:
+      'On the Chat tab, tap the Add AI pill in the composer to pick up to 3 AIs, then type your message and tap send - the session starts automatically. Tap any AI pill to change its model, personality, or advanced parameters before you begin.',
+    category: 'getting-started',
+    relatedTopic: 'dynamic-ai-selector',
+  },
 
   // ============================================
   // BYOK
@@ -109,7 +117,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-debate-not-starting',
     question: 'Why won\'t my debate start?',
     answer:
-      'Ensure you have enough AIs configured with valid API keys for the selected format. Oxford 1v1 needs two debaters, while Oxford 2v2 and 2v2 + Q&A need four team slots. Check that you\'ve chosen a motion and format. If issues persist, verify your API keys are working in regular chat first.',
+      'Fill every debater slot for the chosen format - Oxford 1v1, Lincoln-Douglas, and Policy need two debaters, while Oxford 2v2 and 2v2 + Q&A need four. Make sure you\'ve picked a motion and have at least one provider with a valid API key. The caption under the Start Debate button tells you exactly what\'s still missing. If issues persist, verify your API keys are working in a regular chat first.',
     category: 'debate-arena',
     relatedTopic: 'debate-arena',
   },
@@ -149,7 +157,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-what-is-expert-mode',
     question: 'What is Expert Mode?',
     answer:
-      'Expert Mode lets you set a default model and tune parameters like temperature, max tokens, and top-p per provider. It is available once you add API keys, and parameter availability varies by provider.',
+      'Expert Mode lets you set default models and tune parameters like temperature, max tokens, and top-p. Set per-provider defaults in Settings > Model Defaults, or tap an AI pill in the composer and open Advanced Parameters to adjust just the current conversation. Available parameters vary by provider and model, and parameter tuning requires an active trial or subscription.',
     category: 'expert-mode',
     relatedTopic: 'expert-mode',
   },
@@ -177,7 +185,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-what-is-web-search',
     question: 'How do I use web search with AI?',
     answer:
-      'Look for the globe icon next to the message input. Tap it to enable web search (the icon will highlight). When enabled, the AI will search the web for current information and include source citations in its response. The toggle only appears when your selected AI supports web search.',
+      'You don\'t have to do anything - web search is automatic. Models that support it search the web whenever it helps answer your question and include source citations in their response. Models without web search simply answer from their training data. There\'s no toggle to manage.',
     category: 'chat',
     relatedTopic: 'web-search',
   },
@@ -185,7 +193,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-web-search-providers',
     question: 'Which AIs support web search?',
     answer:
-      'Web search is supported by ChatGPT (GPT-5.x, GPT-4.x models), Gemini (2.0+ models), and Perplexity (all Sonar models). Claude does not currently support web search. In multi-AI mode, all selected AIs must support web search for the toggle to appear.',
+      'Web search is supported by Claude, ChatGPT (GPT-5.x and GPT-4.1 models), Gemini, Grok, and Perplexity (all Sonar models). Mistral, Cohere, and DeepSeek don\'t currently offer it. In multi-AI chats each AI is independent: the models that support search use it, and the rest respond normally.',
     category: 'chat',
     relatedTopic: 'web-search',
   },
@@ -193,9 +201,17 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-web-search-citations',
     question: 'How do citations work with web search?',
     answer:
-      'When web search is enabled, responses include clickable source links. Tap any link to see a preview with the source title and URL, then choose "View Source" to open it in a browser. Citations appear both inline in the text and as a list below the response.',
+      'Responses that used web search include numbered [n] citation chips inline and a Sources list below the message. Tap a citation to see a preview with the source title and URL, then open it in your browser. The same citation style is used across providers in Chat, Compare, and Debate.',
     category: 'chat',
     relatedTopic: 'web-search',
+  },
+  {
+    id: 'faq-attachments',
+    question: 'Can I send images or documents to the AIs?',
+    answer:
+      'Yes. Tap the attach button in the composer (or the + button in an active chat) to add images or documents - PDF, TXT, MD, CSV, JSON, XML, HTML, DOCX, XLSX, and PPTX are supported, up to 20 files per message. Attachments go to every AI in the lineup, so all selected models must support the file type.',
+    category: 'chat',
+    relatedTopic: 'attachments',
   },
   {
     id: 'faq-multi-ai-benefits',
@@ -271,7 +287,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-which-providers-generate-images',
     question: 'Which AI providers can generate images?',
     answer:
-      'Image generation is supported by OpenAI (using GPT Image), Google (using Gemini image models and Imagen), and Grok. Each provider requires a valid API key. Providers that support image refinement (img2img) display a special badge in the selection screen.',
+      'Image generation is supported by OpenAI (GPT Image models), Google (Gemini image models and Imagen), and Grok. Each provider requires a valid API key. You can run up to 3 image models at once, and each model\'s settings sheet shows whether it can edit images and use references or creates from text prompts only.',
     category: 'create',
     relatedTopic: 'create-providers',
   },
@@ -287,7 +303,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-what-are-style-presets',
     question: 'What are style presets?',
     answer:
-      'Style presets are artistic directions you can apply to your images. Choose from 9 options: None, Photo, Cinematic, Anime, Digital Art, Oil Painting, Watercolor, Sketch, and 3D Render. Each style adds keywords to your prompt to guide the AI toward that aesthetic.',
+      'Style presets are artistic directions you can apply to your images from the Output Options sheet. Choose from 9 options: None, Photo, Cinematic, Anime, Digital Art, Oil Painting, Watercolor, Sketch, and 3D Render. Each style adds keywords to your prompt to guide the AI toward that aesthetic.',
     category: 'create',
     relatedTopic: 'create-styles',
   },
@@ -295,7 +311,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-what-is-image-refinement',
     question: 'What is image refinement (img2img)?',
     answer:
-      'Image refinement lets you use an existing image as a starting point and modify it with a new prompt. You can refine images from your gallery or upload your own photos. This is great for iterating on ideas or changing the style of an image.',
+      'Image refinement starts from an existing image instead of a blank canvas. Attach a source image to the Studio composer - via the attach button, Output Options > Source image, or the Refine action on a gallery image - then describe your changes and send. Every selected model that can edit images produces a refined version.',
     category: 'create',
     relatedTopic: 'create-refinement',
   },
@@ -303,7 +319,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-where-are-images-saved',
     question: 'Where is my generated media saved?',
     answer:
-      'Generated images, videos, and audio are saved to your in-app gallery and persist across app sessions. From the gallery, you can preview, share, manage, or delete assets. Images can also be used for refinement or image-to-video source input.',
+      'Generated images, videos, and audio are saved to the in-app Gallery - open it from the tab row in the Studio. From there you can preview, save, share, refine, or delete assets. Images can also be used as the source for refinements or image-to-video generation.',
     category: 'create',
     relatedTopic: 'create-gallery',
   },
