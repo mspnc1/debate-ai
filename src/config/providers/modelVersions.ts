@@ -260,10 +260,22 @@ export const MODEL_VERSIONS: ProviderVersions = {
     ],
     fast: [
       {
+        id: 'gemini-3.6-flash',
+        version: '3.6-flash',
+        releaseDate: '2026-07-01',
+        isLatest: true,
+      },
+      {
         id: 'gemini-3.5-flash',
         version: '3.5-flash',
         releaseDate: '2026-05-19',
-        isLatest: true,
+        isLatest: false,
+      },
+      {
+        id: 'gemini-3.5-flash-lite',
+        version: '3.5-flash-lite',
+        releaseDate: '2026-07-01',
+        isLatest: false,
       },
       {
         id: 'gemini-3-flash-preview',
