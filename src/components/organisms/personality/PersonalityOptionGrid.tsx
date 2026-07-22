@@ -2,8 +2,7 @@
  * PersonalityOptionGrid
  *
  * Two-column grid of personality cards with expandable details. Presentation
- * shared by PersonalityModal (tap = local selection + confirm button) and
- * PagedSheet personality pages (tap = commit immediately); selection
+ * for PagedSheet personality pages (tap = commit immediately); selection
  * semantics belong to the caller via onSelectPersonality.
  */
 

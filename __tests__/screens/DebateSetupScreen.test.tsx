@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, ScrollView } from 'react-native';
+import { Alert } from 'react-native';
 import { act, fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
 import {
@@ -141,9 +141,9 @@ jest.mock('@/components/molecules/subscription/DemoBanner', () => ({
 }));
 
 let topicSelectorProps: any;
-let aiSelectorProps: any;
-let personalitySelectorProps: any;
-let stepIndicatorProps: any;
+let teamsCardProps: any;
+let slotConfigSheetProps: any;
+let providerPickerProps: any;
 let formatModalProps: FormatModalProps | undefined;
 
 jest.mock('@/components/organisms/debate/DebateTopicSelector', () => ({
@@ -153,25 +153,29 @@ jest.mock('@/components/organisms/debate/DebateTopicSelector', () => ({
   },
 }));
 
-jest.mock('@/components/organisms/debate/DebateAISelector', () => ({
-  DebateAISelector: (props: any) => {
-    aiSelectorProps = props;
+jest.mock('@/components/organisms/debate/DebateTeamsCard', () => ({
+  DebateTeamsCard: (props: any) => {
+    teamsCardProps = props;
     return null;
   },
 }));
 
-jest.mock('@/components/organisms/debate/DebatePersonalitySelector', () => ({
-  DebatePersonalitySelector: (props: any) => {
-    personalitySelectorProps = props;
+jest.mock('@/components/organisms/debate/DebateSlotConfigSheet', () => ({
+  DebateSlotConfigSheet: (props: any) => {
+    slotConfigSheetProps = props;
     return null;
   },
 }));
 
-jest.mock('@/components/organisms/debate/DebateStepIndicator', () => ({
-  DebateStepIndicator: (props: any) => {
-    stepIndicatorProps = props;
+jest.mock('@/components/organisms/composer/ProviderPickerSheet', () => ({
+  ProviderPickerSheet: (props: any) => {
+    providerPickerProps = props;
     return null;
   },
+}));
+
+jest.mock('@/components/organisms/common/AIAvatar', () => ({
+  AIAvatar: () => null,
 }));
 
 let recordPickerProps: any;
@@ -199,9 +203,15 @@ jest.mock('@/components/organisms/debate/FormatModal', () => ({
 
 jest.mock('@/components/organisms', () => {
   const React = require('react');
-  const { Text } = require('react-native');
+  const { Text, View } = require('react-native');
   return {
-    Header: (props: any) => React.createElement(Text, { testID: 'header' }, props.title),
+    Header: (props: any) =>
+      React.createElement(
+        View,
+        { testID: 'header' },
+        React.createElement(Text, null, props.title),
+        props.rightElement ?? null
+      ),
     HeaderActions: () => React.createElement(Text, null, 'actions'),
   };
 });
@@ -211,13 +221,34 @@ jest.mock('@/components/molecules', () => {
   const { Text, View } = require('react-native');
   return {
     Button: (props: any) => React.createElement(Text, { onPress: props.onPress }, props.title),
-    GradientButton: (props: any) => React.createElement(Text, { onPress: props.onPress }, props.title),
+    GradientButton: (props: any) =>
+      React.createElement(
+        Text,
+        {
+          onPress: props.disabled ? undefined : props.onPress,
+          accessibilityState: { disabled: !!props.disabled },
+          testID: props.testID,
+        },
+        props.title
+      ),
     Typography: ({ children }: { children: React.ReactNode }) => React.createElement(Text, null, children),
     Card: ({ children }: { children?: React.ReactNode }) => React.createElement(View, null, children),
-    HeaderIcon: ({ onPress, children }: { onPress?: () => void; children?: React.ReactNode }) =>
-      React.createElement(Text, { onPress }, children ?? 'icon'),
+    HeaderIcon: ({ onPress, testID }: { onPress?: () => void; testID?: string }) =>
+      React.createElement(Text, { onPress, testID }, 'icon'),
     InfoButton: ({ topicId }: { topicId: string }) =>
       React.createElement(Text, { testID: `info-button-${topicId}` }, 'info'),
+    SegmentedControl: ({ options, onChange }: any) =>
+      React.createElement(
+        View,
+        null,
+        options.map((option: any) =>
+          React.createElement(
+            Text,
+            { key: String(option.value), onPress: () => onChange(option.value) },
+            option.label
+          )
+        )
+      ),
   };
 });
 
@@ -339,23 +370,42 @@ beforeEach(() => {
   });
   mockRecordController.startDebate.mockReset();
   topicSelectorProps = undefined;
-  aiSelectorProps = undefined;
-  personalitySelectorProps = undefined;
+  teamsCardProps = undefined;
+  slotConfigSheetProps = undefined;
+  providerPickerProps = undefined;
   formatModalProps = undefined;
   recordPickerProps = undefined;
   demoPickerProps = undefined;
-  demoBannerProps = undefined;
   Alert.alert = jest.fn();
 });
 
+const elevenLabsState = () => ({
+  settings: {
+    ...defaultState().settings,
+    apiKeys: {
+      ...defaultState().settings.apiKeys,
+      elevenlabs: { configured: true, maskedLabel: 'key', updatedAt: 1 },
+    },
+    verifiedProviders: ['elevenlabs'],
+  } as any,
+});
+
 describe('DebateSetupScreen', () => {
-  const selectDebaterSlot = async (index: number, ai: AIConfig) => {
+  const fillSlot = async (index: number, providerId: string) => {
     act(() => {
-      aiSelectorProps.onRequestDebaterSlot(index);
+      teamsCardProps.onSlotPress(teamsCardProps.slots[index]);
     });
     await flush();
+    expect(providerPickerProps.visible).toBe(true);
     act(() => {
-      aiSelectorProps.onSelectProvider(ai);
+      providerPickerProps.onSelectProvider(providerId);
+    });
+    await flush();
+  };
+
+  const setTopic = async (topic: string) => {
+    act(() => {
+      topicSelectorProps.onTopicSelect(topic);
     });
     await flush();
   };
@@ -371,233 +421,199 @@ describe('DebateSetupScreen', () => {
     expect(testIds.indexOf('header')).toBeLessThan(testIds.indexOf('trial-banner'));
   });
 
-  it('shows Oxford preset labels and audience role flow', () => {
+  it('shows Oxford presets with a one-line summary that tracks selection', async () => {
     const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
 
     expect(renderResult.getByText('1v1')).toBeTruthy();
     expect(renderResult.getByText('2v2')).toBeTruthy();
     expect(renderResult.getByText('2v2 + Q&A')).toBeTruthy();
-    expect(renderResult.getByText('Selected preset')).toBeTruthy();
-    expect(renderResult.getByText('1v1 Oxford')).toBeTruthy();
-    expect(renderResult.getByText('6 speeches')).toBeTruthy();
-    expect(renderResult.getByText('2 debaters')).toBeTruthy();
-    expect(renderResult.getByText('Audience votes')).toBeTruthy();
-    expect(renderResult.getByText('Your role')).toBeTruthy();
-    expect(renderResult.getByText('Opening stance')).toBeTruthy();
-    expect(renderResult.getByText('Speeches')).toBeTruthy();
-    expect(renderResult.getByText('Final vote')).toBeTruthy();
+    expect(renderResult.getByText(/1v1 Oxford/)).toBeTruthy();
+    expect(renderResult.getByText(/6 speeches · 2 debaters · audience votes/)).toBeTruthy();
 
     fireEvent.press(renderResult.getByText('2v2'));
+    await flush();
 
-    expect(renderResult.getByText('2v2 Oxford')).toBeTruthy();
-    expect(renderResult.getByText('4 debaters')).toBeTruthy();
-    expect(renderResult.queryByText('3 rebuttal rounds')).toBeNull();
-    expect(renderResult.queryByText('First Rebuttals')).toBeNull();
+    expect(renderResult.getByText(/2v2 Oxford/)).toBeTruthy();
+    expect(renderResult.getByText(/4 debaters/)).toBeTruthy();
+    expect(teamsCardProps.totalCount).toBe(4);
 
     fireEvent.press(renderResult.getByText('2v2 + Q&A'));
+    await flush();
 
-    expect(renderResult.getByText('2v2 + Q&A Oxford')).toBeTruthy();
-    expect(renderResult.getByText('8 turns')).toBeTruthy();
-    expect(renderResult.getByText('Vote before the debate, ask one question per side, then cast the final ballot.')).toBeTruthy();
-    expect(renderResult.getByText('Audience Q&A')).toBeTruthy();
-    expect(renderResult.queryByText('4 rebuttal rounds')).toBeNull();
-    expect(renderResult.queryByText('Final Rebuttals')).toBeNull();
-    expect(renderResult.queryByText('Choose format and preset')).toBeNull();
-    expect(renderResult.queryByText('Oxford-style motion debate with opening speeches, floor debate, and closing speeches')).toBeNull();
-    expect(renderResult.queryByText('Affirmative: Opening Statement → Negative: Opening Statement → Affirmative: Rebuttal → Negative: Rebuttal → Affirmative: Closing Statement → Negative: Closing Statement')).toBeNull();
+    expect(renderResult.getByText(/2v2 \+ Q&A Oxford/)).toBeTruthy();
+    expect(renderResult.getByText(/8 turns/)).toBeTruthy();
   });
 
-  it('uses format-specific preset flow copy for Lincoln-Douglas and Policy', async () => {
+  it('updates the summary for Lincoln-Douglas and Policy formats', async () => {
     const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
 
     act(() => {
-      formatModalProps.onSelect('lincoln_douglas');
+      formatModalProps!.onSelect('lincoln_douglas');
     });
     await flush();
 
     expect(renderResult.getByText('Lincoln-Douglas')).toBeTruthy();
-    expect(renderResult.getByText('Short LD')).toBeTruthy();
-    expect(renderResult.getByText('5 turns')).toBeTruthy();
-    expect(renderResult.getByText('4 judge moments')).toBeTruthy();
-    expect(renderResult.getByText('Judge focus')).toBeTruthy();
-    expect(renderResult.getByText('Judge the value clash as each side defines, tests, and weighs its criterion.')).toBeTruthy();
-    expect(renderResult.getByText('Constructives')).toBeTruthy();
-    expect(renderResult.getByText('Value rebuttals')).toBeTruthy();
-    expect(renderResult.getByText('Final ballot')).toBeTruthy();
-    expect(renderResult.queryByText('Cross-examination')).toBeNull();
+    expect(renderResult.getByText(/Short LD/)).toBeTruthy();
+    expect(renderResult.getByText(/5 turns · 2 debaters · 4 judge moments/)).toBeTruthy();
 
     fireEvent.press(renderResult.getByText('Standard'));
     await flush();
 
-    expect(renderResult.getByText('Standard LD')).toBeTruthy();
-    expect(renderResult.getByText('9 turns')).toBeTruthy();
-    expect(renderResult.getByText('5 judge moments')).toBeTruthy();
-    expect(renderResult.getByText('Cross-examination')).toBeTruthy();
+    expect(renderResult.getByText(/Standard LD/)).toBeTruthy();
+    expect(renderResult.getByText(/9 turns · 2 debaters · 5 judge moments/)).toBeTruthy();
 
     act(() => {
-      formatModalProps.onSelect('policy');
+      formatModalProps!.onSelect('policy');
     });
     await flush();
 
     expect(renderResult.getByText('Policy')).toBeTruthy();
-    expect(renderResult.getByText('Standard Policy')).toBeTruthy();
-    expect(renderResult.getByText('16 turns')).toBeTruthy();
-    expect(renderResult.getByText('Track the plan, burdens, solvency, impacts, and final ballot story.')).toBeTruthy();
-    expect(renderResult.getByText('Plan case')).toBeTruthy();
-    expect(renderResult.getByText('Rebuttal block')).toBeTruthy();
-    expect(renderResult.getByText('2AR ballot')).toBeTruthy();
+    expect(renderResult.getByText(/16 turns/)).toBeTruthy();
   });
 
-  it('progresses from topic to AI step with valid selection', async () => {
-    const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
+  it('fills empty slots through the provider picker', async () => {
+    renderScreen({ featureAccess: { isDemo: false } });
+    await setTopic('Climate Action');
 
-    expect(topicSelectorProps).toBeDefined();
-    act(() => {
-      topicSelectorProps.onTopicSelect('Climate Action');
-    });
+    expect(teamsCardProps.slots).toHaveLength(2);
+    expect(teamsCardProps.slots[0].ai).toBeNull();
 
-    await flush();
-    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
-    await flush();
+    await fillSlot(0, 'claude');
+    await fillSlot(1, 'openai');
 
-    expect(aiSelectorProps).toBeDefined();
-    expect(stepIndicatorProps.currentStep).toBe('ai');
+    expect(teamsCardProps.slots[0].ai.provider).toBe('claude');
+    expect(teamsCardProps.slots[1].ai.provider).toBe('openai');
+    expect(teamsCardProps.filledCount).toBe(2);
+    expect(providerPickerProps.visible).toBe(false);
   });
 
-  it('resets scroll position when moving from topic to debater setup', async () => {
-    jest.useFakeTimers();
-    const scrollToSpy = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {});
-    const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
+  it('adds same-provider debater slots with distinct slot ids and numbered names', async () => {
+    renderScreen({ featureAccess: { isDemo: false } });
+    await setTopic('Climate Action');
 
-    act(() => {
-      topicSelectorProps.onTopicSelect('Climate Action');
-    });
-    await flush();
-    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
-    await flush();
+    await fillSlot(0, 'claude');
+    await fillSlot(1, 'claude');
 
-    act(() => {
-      jest.runOnlyPendingTimers();
-    });
-
-    expect(stepIndicatorProps.currentStep).toBe('ai');
-    expect(scrollToSpy).toHaveBeenCalledWith({ y: 0, animated: false });
-
-    scrollToSpy.mockRestore();
-    jest.useRealTimers();
+    const [first, second] = teamsCardProps.slots.map((slot: any) => slot.ai);
+    expect(first.id).not.toEqual(second.id);
+    expect(first.name).toBe('Claude 1');
+    expect(second.name).toBe('Claude 2');
   });
 
-  it('returns to the Debate Teams anchor after filling a debater slot', async () => {
-    jest.useFakeTimers();
-    const scrollToSpy = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {});
-    const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
+  it('opens the slot config sheet for filled slots and applies model and personality changes', async () => {
+    renderScreen({ featureAccess: { isDemo: false } });
+    await setTopic('Climate Action');
+    await fillSlot(0, 'claude');
 
     act(() => {
-      topicSelectorProps.onTopicSelect('Climate Action');
+      teamsCardProps.onSlotPress(teamsCardProps.slots[0]);
     });
     await flush();
-    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
-    await flush();
+
+    expect(slotConfigSheetProps.visible).toBe(true);
+    expect(slotConfigSheetProps.ai.provider).toBe('claude');
+    expect(slotConfigSheetProps.slotLabel).toBe('Affirmative 1');
+
+    const slotId = slotConfigSheetProps.ai.id;
 
     act(() => {
-      jest.runOnlyPendingTimers();
-    });
-    scrollToSpy.mockClear();
-
-    fireEvent.scroll(renderResult.UNSAFE_getByType(ScrollView), {
-      nativeEvent: { contentOffset: { y: 820 } },
-    });
-
-    act(() => {
-      aiSelectorProps.onTeamGridLayout(640);
-      aiSelectorProps.onProviderSelectorLayout(1200);
-      aiSelectorProps.onRequestDebaterSlot(0);
-    });
-    await flush();
-    act(() => {
-      jest.runOnlyPendingTimers();
-    });
-
-    expect(scrollToSpy).toHaveBeenCalledWith({ y: 1184, animated: true });
-    scrollToSpy.mockClear();
-
-    const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
-    act(() => {
-      aiSelectorProps.onSelectProvider(claudeConfig);
-    });
-    await flush();
-    act(() => {
-      jest.runOnlyPendingTimers();
-    });
-
-    expect(scrollToSpy).toHaveBeenCalledWith({ y: 820, animated: true });
-
-    scrollToSpy.mockRestore();
-    jest.useRealTimers();
-  });
-
-  it('adds same-provider debater slots with distinct slot ids', async () => {
-    const { renderResult } = renderScreen({
-      featureAccess: { isDemo: false },
-    });
-
-    act(() => {
-      topicSelectorProps.onTopicSelect('Climate Action');
-    });
-    await flush();
-    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
-    await flush();
-
-    const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
-    await selectDebaterSlot(0, claudeConfig);
-    await selectDebaterSlot(1, claudeConfig);
-
-    expect(aiSelectorProps.selectedAIs).toHaveLength(2);
-    expect(aiSelectorProps.selectedAIs.map((ai: AIConfig) => ai.provider)).toEqual(['claude', 'claude']);
-    expect(aiSelectorProps.selectedAIs[0].id).not.toEqual(aiSelectorProps.selectedAIs[1].id);
-
-    const firstDebaterId = aiSelectorProps.selectedAIs[0].id;
-
-    act(() => {
-      aiSelectorProps.onPersonalityChange(firstDebaterId, 'friendly');
-    });
-    expect(mockDispatch).toHaveBeenCalledWith(setAIPersonality({ aiId: firstDebaterId, personalityId: 'friendly' }));
-
-    await act(async () => {
-      await aiSelectorProps.onModelChange(firstDebaterId, 'claude-custom');
+      slotConfigSheetProps.onChangeModel('claude-custom');
     });
     expect(mockDispatch).toHaveBeenCalledWith(setAIModel({
-      aiId: firstDebaterId,
+      aiId: slotId,
       modelId: resolveProviderModelId('claude', 'claude-custom') || 'claude-custom',
     }));
-  });
-
-  it('resets scroll position when moving from debaters to personality setup', async () => {
-    const scrollToSpy = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {});
-    const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
 
     act(() => {
-      topicSelectorProps.onTopicSelect('Climate Action');
+      slotConfigSheetProps.onChangePersonality('friendly');
+    });
+    expect(mockDispatch).toHaveBeenCalledWith(setAIPersonality({ aiId: slotId, personalityId: 'friendly' }));
+  });
+
+  it('removes a debater and reopens the provider picker on change provider', async () => {
+    renderScreen({ featureAccess: { isDemo: false } });
+    await setTopic('Climate Action');
+    await fillSlot(0, 'claude');
+
+    act(() => {
+      teamsCardProps.onSlotPress(teamsCardProps.slots[0]);
     });
     await flush();
-    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
+
+    act(() => {
+      slotConfigSheetProps.onChangeProvider();
+    });
     await flush();
+    expect(providerPickerProps.visible).toBe(true);
 
-    const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
-    const openaiConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'openai');
-    await selectDebaterSlot(0, claudeConfig);
-    await selectDebaterSlot(1, openaiConfig);
+    act(() => {
+      providerPickerProps.onSelectProvider('openai');
+    });
+    await flush();
+    expect(teamsCardProps.slots[0].ai.provider).toBe('openai');
 
-    await act(async () => {
-      await aiSelectorProps.onNext();
+    act(() => {
+      teamsCardProps.onSlotPress(teamsCardProps.slots[0]);
+    });
+    await flush();
+    act(() => {
+      slotConfigSheetProps.onRemove();
+    });
+    await flush();
+    expect(teamsCardProps.slots[0].ai).toBeNull();
+  });
+
+  it('hides the personality row in demo mode', async () => {
+    renderScreen({ featureAccess: { isDemo: true } });
+    await setTopic('AI Ethics');
+    await fillSlot(0, 'claude');
+
+    act(() => {
+      teamsCardProps.onSlotPress(teamsCardProps.slots[0]);
     });
     await flush();
 
-    expect(stepIndicatorProps.currentStep).toBe('personality');
-    expect(personalitySelectorProps).toBeDefined();
-    expect(scrollToSpy).toHaveBeenCalledWith({ y: 0, animated: false });
+    expect(slotConfigSheetProps.visible).toBe(true);
+    expect(slotConfigSheetProps.personalityId).toBeUndefined();
+  });
 
-    scrollToSpy.mockRestore();
+  it('blocks Start with a hint until motion and slots are complete', async () => {
+    const { renderResult, navigation } = renderScreen({ featureAccess: { isDemo: false } });
+
+    expect(renderResult.getByText('Choose a motion to debate.')).toBeTruthy();
+    fireEvent.press(renderResult.getByTestId('start-debate-button'));
+    expect(navigation.navigate).not.toHaveBeenCalled();
+
+    await setTopic('Climate Action');
+    expect(renderResult.getByText('Fill 2 more debater slots.')).toBeTruthy();
+
+    await fillSlot(0, 'claude');
+    expect(renderResult.getByText('Fill 1 more debater slot.')).toBeTruthy();
+
+    await fillSlot(1, 'openai');
+    expect(renderResult.queryByText(/debater slot/)).toBeNull();
+
+    fireEvent.press(renderResult.getByTestId('start-debate-button'));
+    expect(navigation.navigate).toHaveBeenCalledWith('Debate', expect.objectContaining({
+      topic: 'Climate Action',
+      formatId: 'oxford',
+      rounds: 3,
+      civility: 3,
+    }));
+    expect(mockDispatch).toHaveBeenCalledWith(clearPreservedTopic());
+  });
+
+  it('passes intensity changes through to the debate', async () => {
+    const { renderResult, navigation } = renderScreen({ featureAccess: { isDemo: false } });
+    await setTopic('Climate Action');
+    await fillSlot(0, 'claude');
+    await fillSlot(1, 'openai');
+
+    fireEvent.press(renderResult.getByText('Hostile'));
+    await flush();
+
+    fireEvent.press(renderResult.getByTestId('start-debate-button'));
+    expect(navigation.navigate).toHaveBeenCalledWith('Debate', expect.objectContaining({ civility: 5 }));
   });
 
   it('opens demo debate picker and navigates with selected sample', async () => {
@@ -606,20 +622,13 @@ describe('DebateSetupScreen', () => {
 
     const { renderResult, navigation } = renderScreen({ featureAccess: { isDemo: true } });
 
-    act(() => {
-      topicSelectorProps.onTopicSelect('AI Ethics');
-    });
-    await flush();
-    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
-    await flush();
+    await setTopic('AI Ethics');
+    await fillSlot(0, 'claude');
+    await fillSlot(1, 'openai');
 
-    const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
-    const openaiConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'openai');
-
-    await selectDebaterSlot(0, claudeConfig);
-    await selectDebaterSlot(1, openaiConfig);
     await act(async () => {
-      await aiSelectorProps.onNext();
+      fireEvent.press(renderResult.getByTestId('start-debate-button'));
+      await Promise.resolve();
     });
 
     expect(mockListDebateSamples).toHaveBeenCalledWith(expect.arrayContaining(['claude', 'openai']), 'default');
@@ -647,28 +656,12 @@ describe('DebateSetupScreen', () => {
       },
     });
 
-    act(() => {
-      topicSelectorProps.onTopicSelect('Climate Action');
-    });
+    await setTopic('Climate Action');
+    await fillSlot(0, 'claude');
+    await fillSlot(1, 'openai');
+
+    fireEvent.press(renderResult.getByTestId('start-debate-button'));
     await flush();
-    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
-    await flush();
-
-    const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
-    const openaiConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'openai');
-    await selectDebaterSlot(0, claudeConfig);
-    await selectDebaterSlot(1, openaiConfig);
-
-    act(() => {
-      aiSelectorProps.onNext();
-    });
-    await flush();
-
-    expect(personalitySelectorProps).toBeDefined();
-
-    await act(async () => {
-      await personalitySelectorProps.onStartDebate();
-    });
 
     expect(recordPickerProps.visible).toBe(true);
 
@@ -680,66 +673,37 @@ describe('DebateSetupScreen', () => {
     expect(navigation.navigate).toHaveBeenCalledWith('Debate', expect.objectContaining({ topic: 'Custom Topic' }));
   });
 
-  it('hides voiced debate controls without a verified ElevenLabs key', async () => {
+  it('hides voice controls without a verified ElevenLabs key', async () => {
     const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
 
-    act(() => {
-      topicSelectorProps.onTopicSelect('Climate Action');
-    });
-    await flush();
-    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
-    await flush();
+    await setTopic('Climate Action');
+    await fillSlot(0, 'claude');
+    await fillSlot(1, 'openai');
 
-    const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
-    const openaiConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'openai');
-    await selectDebaterSlot(0, claudeConfig);
-    await selectDebaterSlot(1, openaiConfig);
-    await act(async () => {
-      await aiSelectorProps.onNext();
-    });
-    await flush();
-
-    expect(personalitySelectorProps.voiceConfigAvailable).toBe(false);
+    expect(renderResult.queryByText('Debate Voices')).toBeNull();
     expect(mockListElevenLabsOptions).not.toHaveBeenCalled();
+    expect(slotConfigSheetProps.showVoice).toBe(false);
   });
 
   it('loads verified ElevenLabs voices and passes voice config to Debate', async () => {
     const { renderResult, navigation } = renderScreen({
       featureAccess: { isDemo: false },
-      state: {
-        settings: {
-          ...defaultState().settings,
-          apiKeys: {
-            ...defaultState().settings.apiKeys,
-            elevenlabs: { configured: true, maskedLabel: 'key', updatedAt: 1 },
-          },
-          verifiedProviders: ['elevenlabs'],
-        } as any,
-      },
+      state: elevenLabsState(),
     });
 
-    act(() => {
-      topicSelectorProps.onTopicSelect('Climate Action');
-    });
-    await flush();
-    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
-    await flush();
+    await setTopic('Climate Action');
+    await fillSlot(0, 'claude');
+    await fillSlot(1, 'openai');
 
-    const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
-    const openaiConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'openai');
-    await selectDebaterSlot(0, claudeConfig);
-    await selectDebaterSlot(1, openaiConfig);
+    expect(renderResult.getByText('Debate Voices')).toBeTruthy();
+    expect(mockListElevenLabsOptions).not.toHaveBeenCalled();
 
-    const [claudeDebater, openaiDebater] = aiSelectorProps.selectedAIs;
-
+    // The first Off toggle is Debate Voices; the second is Podcast Mode.
     await act(async () => {
-      await aiSelectorProps.onNext();
-    });
-    await flush();
-
-    await act(async () => {
+      fireEvent.press(renderResult.getAllByText('Off')[0]);
       await Promise.resolve();
     });
+    await flush();
 
     expect(mockGetAPIKey).toHaveBeenCalledWith('elevenlabs');
     expect(mockListElevenLabsOptions).toHaveBeenCalledWith('eleven-key', expect.objectContaining({
@@ -747,19 +711,13 @@ describe('DebateSetupScreen', () => {
       includeTotalCount: true,
       voiceType: 'non-community',
     }));
-    expect(personalitySelectorProps.voiceConfigAvailable).toBe(true);
-    expect(personalitySelectorProps.voiceOptions).toHaveLength(2);
-    expect(personalitySelectorProps.ttsModelId).toBe('eleven_flash_v2_5');
-    expect(personalitySelectorProps.elevenLabsCreditSummary).toContain('900 remaining');
+    expect(renderResult.getByText(/900 remaining/)).toBeTruthy();
 
-    act(() => {
-      personalitySelectorProps.onToggleVoiceEnabled(true);
-    });
-    await flush();
+    const [claudeDebater, openaiDebater] = teamsCardProps.slots.map((slot: any) => slot.ai);
+    expect(teamsCardProps.slots[0].voiceLabel).toContain('Voice One');
+    expect(teamsCardProps.slots[1].voiceLabel).toContain('Voice Two');
 
-    await act(async () => {
-      await personalitySelectorProps.onStartDebate();
-    });
+    fireEvent.press(renderResult.getByTestId('start-debate-button'));
 
     expect(navigation.navigate).toHaveBeenCalledWith('Debate', expect.objectContaining({
       voiceConfig: {
@@ -777,78 +735,46 @@ describe('DebateSetupScreen', () => {
   it('passes podcast MC provider, model, and voice config to Debate', async () => {
     const { renderResult, navigation } = renderScreen({
       featureAccess: { isDemo: false },
-      state: {
-        settings: {
-          ...defaultState().settings,
-          apiKeys: {
-            ...defaultState().settings.apiKeys,
-            elevenlabs: { configured: true, maskedLabel: 'key', updatedAt: 1 },
-          },
-          verifiedProviders: ['elevenlabs'],
-        } as any,
-      },
+      state: elevenLabsState(),
     });
 
-    act(() => {
-      topicSelectorProps.onTopicSelect('Climate Action');
-    });
-    await flush();
-    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
-    await flush();
+    await setTopic('Climate Action');
+    await fillSlot(0, 'claude');
+    await fillSlot(1, 'openai');
 
-    const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
-    const openaiConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'openai');
-    const googleConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'google');
-    await selectDebaterSlot(0, claudeConfig);
-    await selectDebaterSlot(1, openaiConfig);
-
-    act(() => {
-      aiSelectorProps.onTogglePodcastMode(true);
-    });
-    await flush();
-    act(() => {
-      aiSelectorProps.onRequestPodcastMC();
-    });
-    await flush();
-    act(() => {
-      aiSelectorProps.onSelectProvider(googleConfig);
-    });
-    await flush();
-    await flush();
-
+    // Second Off toggle is Podcast Mode (first is Debate Voices).
     await act(async () => {
-      await aiSelectorProps.onNext();
+      fireEvent.press(renderResult.getAllByText('Off')[1]);
+      await Promise.resolve();
     });
     await flush();
+
+    fireEvent.press(renderResult.getByText('Add MC'));
+    await flush();
+    expect(providerPickerProps.visible).toBe(true);
+    act(() => {
+      providerPickerProps.onSelectProvider('google');
+    });
     await flush();
 
-    expect(personalitySelectorProps.podcastModeEnabled).toBe(true);
-    expect(personalitySelectorProps.podcastMC.provider).toBe('google');
-    expect(personalitySelectorProps.podcastMCVoice).toBeUndefined();
-
-    await act(async () => {
-      await personalitySelectorProps.onStartDebate();
-    });
-    expect(Alert.alert).toHaveBeenCalledWith(
-      'Choose an MC Voice',
-      'Choose an ElevenLabs voice for the podcast MC before starting.',
-    );
+    // MC voice still missing: Start stays blocked.
+    expect(renderResult.getByText('Choose a voice for the podcast MC.')).toBeTruthy();
+    fireEvent.press(renderResult.getByTestId('start-debate-button'));
     expect(navigation.navigate).not.toHaveBeenCalledWith('Debate', expect.anything());
 
-    act(() => {
-      personalitySelectorProps.onPodcastMCVoiceSelect({ id: 'voice-host', name: 'Host Voice' });
-    });
+    fireEvent.press(renderResult.getByTestId('debate-podcast-mc-row'));
     await flush();
-    (Alert.alert as jest.Mock).mockClear();
-
+    expect(slotConfigSheetProps.slotLabel).toBe('Podcast MC');
+    expect(slotConfigSheetProps.personalityId).toBeUndefined();
     act(() => {
-      personalitySelectorProps.onTtsModelChange('eleven_multilingual_v2');
+      slotConfigSheetProps.onSelectVoice({ id: 'voice-host', name: 'Host Voice' });
     });
     await flush();
 
-    await act(async () => {
-      await personalitySelectorProps.onStartDebate();
-    });
+    fireEvent.press(renderResult.getByText('Multilingual'));
+    await flush();
+
+    fireEvent.press(renderResult.getByTestId('start-debate-button'));
 
     expect(navigation.navigate).toHaveBeenCalledWith('Debate', expect.objectContaining({
       voiceConfig: expect.objectContaining({
@@ -867,7 +793,7 @@ describe('DebateSetupScreen', () => {
     }));
   });
 
-  it('requires every debater to have a voice when podcast mode is enabled', async () => {
+  it('blocks Start when podcast mode has no voices available for debaters', async () => {
     mockListElevenLabsOptions.mockResolvedValue({
       success: true,
       providerId: 'elevenlabs',
@@ -876,84 +802,36 @@ describe('DebateSetupScreen', () => {
 
     const { renderResult, navigation } = renderScreen({
       featureAccess: { isDemo: false },
-      state: {
-        settings: {
-          ...defaultState().settings,
-          apiKeys: {
-            ...defaultState().settings.apiKeys,
-            elevenlabs: { configured: true, maskedLabel: 'key', updatedAt: 1 },
-          },
-          verifiedProviders: ['elevenlabs'],
-        } as any,
-      },
+      state: elevenLabsState(),
     });
 
-    act(() => {
-      topicSelectorProps.onTopicSelect('Climate Action');
-    });
-    await flush();
-    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
-    await flush();
-
-    const claudeConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'claude');
-    const openaiConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'openai');
-    const googleConfig = aiSelectorProps.configuredAIs.find((ai: AIConfig) => ai.id === 'google');
-    await selectDebaterSlot(0, claudeConfig);
-    await selectDebaterSlot(1, openaiConfig);
-
-    act(() => {
-      aiSelectorProps.onTogglePodcastMode(true);
-    });
-    await flush();
-    act(() => {
-      aiSelectorProps.onRequestPodcastMC();
-    });
-    await flush();
-    act(() => {
-      aiSelectorProps.onSelectProvider(googleConfig);
-    });
-    await flush();
+    await setTopic('Climate Action');
+    await fillSlot(0, 'claude');
+    await fillSlot(1, 'openai');
 
     await act(async () => {
-      await aiSelectorProps.onNext();
+      fireEvent.press(renderResult.getAllByText('Off')[1]);
+      await Promise.resolve();
     });
     await flush();
 
+    fireEvent.press(renderResult.getByText('Add MC'));
+    await flush();
     act(() => {
-      personalitySelectorProps.onPodcastMCVoiceSelect({ id: 'voice-host', name: 'Host Voice' });
+      providerPickerProps.onSelectProvider('google');
     });
     await flush();
 
-    await act(async () => {
-      await personalitySelectorProps.onStartDebate();
+    fireEvent.press(renderResult.getByTestId('debate-podcast-mc-row'));
+    await flush();
+    act(() => {
+      slotConfigSheetProps.onSelectVoice({ id: 'voice-host', name: 'Host Voice' });
     });
+    await flush();
 
-    expect(Alert.alert).toHaveBeenCalledWith(
-      'Choose Voices',
-      'Podcast Mode requires an ElevenLabs voice for each debater before starting.',
-    );
+    expect(renderResult.getByText('Choose a voice for every debater.')).toBeTruthy();
+    fireEvent.press(renderResult.getByTestId('start-debate-button'));
     expect(navigation.navigate).not.toHaveBeenCalledWith('Debate', expect.anything());
-  });
-
-  it('shows alerts when missing selections', async () => {
-    const { renderResult } = renderScreen({ featureAccess: { isDemo: false } });
-
-    await flush();
-    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
-    expect(Alert.alert).toHaveBeenCalledWith('Select a Motion', expect.any(String));
-
-    (Alert.alert as jest.Mock).mockClear();
-    act(() => {
-      topicSelectorProps.onTopicSelect('Prepared Topic');
-    });
-    await flush();
-    fireEvent.press(renderResult.getByText('Next: Choose Debaters →'));
-    await flush();
-
-    await act(async () => {
-      await aiSelectorProps.onNext();
-    });
-    expect(Alert.alert).toHaveBeenCalledWith('Fill 2 Slots', expect.any(String));
   });
 
   it('resets setup state when returning from a completed debate', async () => {
@@ -973,7 +851,6 @@ describe('DebateSetupScreen', () => {
 
     await flush();
 
-    expect(stepIndicatorProps.currentStep).toBe('topic');
     expect(topicSelectorProps.selectedTopic).toBe('');
     expect(topicSelectorProps.customTopic).toBe('');
     expect(topicSelectorProps.topicMode).toBe('preset');
@@ -994,15 +871,14 @@ describe('DebateSetupScreen', () => {
     fireEvent.press(renderResult.getByText('2v2'));
     await flush();
 
-    expect(renderResult.getByText('2v2 Oxford')).toBeTruthy();
-    expect(renderResult.getByText('4 debaters')).toBeTruthy();
+    expect(renderResult.getByText(/2v2 Oxford/)).toBeTruthy();
+    expect(renderResult.getByText(/4 debaters/)).toBeTruthy();
 
     fireEvent.press(renderResult.getByText('2v2 + Q&A'));
     await flush();
 
-    expect(renderResult.getByText('2v2 + Q&A Oxford')).toBeTruthy();
-    expect(renderResult.getByText('8 turns')).toBeTruthy();
-    expect(renderResult.getByText('Audience Q&A')).toBeTruthy();
+    expect(renderResult.getByText(/2v2 \+ Q&A Oxford/)).toBeTruthy();
+    expect(renderResult.getByText(/8 turns/)).toBeTruthy();
   });
 
   it('preserves topic on unmount and clears when starting debate', async () => {
@@ -1031,16 +907,16 @@ describe('DebateSetupScreen', () => {
       route: { preselectedAIs: baseAIs.slice(0, 2), prefilledTopic: 'Prefilled' },
     });
     await flush();
-    fireEvent.press(secondRender.renderResult.getByText('Next: Choose Debaters →'));
-    await flush();
-    await act(async () => {
-      await aiSelectorProps.onNext();
-    });
-    await flush();
-    await act(async () => {
-      await personalitySelectorProps.onStartDebate();
-    });
+
+    fireEvent.press(secondRender.renderResult.getByTestId('start-debate-button'));
     expect(mockDispatch).toHaveBeenCalledWith(clearPreservedTopic());
     expect(secondRender.navigation.navigate).toHaveBeenCalledWith('Debate', expect.objectContaining({ topic: 'Prefilled' }));
+  });
+
+  it('navigates to Stats from the header action', () => {
+    const { renderResult, navigation } = renderScreen({ featureAccess: { isDemo: false } });
+
+    fireEvent.press(renderResult.getByTestId('debate-stats-header-button'));
+    expect(navigation.navigate).toHaveBeenCalledWith('Stats');
   });
 });
