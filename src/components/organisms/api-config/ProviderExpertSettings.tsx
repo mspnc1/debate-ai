@@ -95,14 +95,25 @@ export const ProviderExpertSettings: React.FC<ProviderExpertSettingsProps> = ({
   
   return (
     <View>
-      {/* Expert Mode Toggle Card */}
+      {/* Default model selection is always available - it is not an expert
+          feature and must not require the Expert Mode toggle. */}
+      <View style={{ marginBottom: theme.spacing.md }}>
+        <ModelSelector
+          models={models}
+          selectedModel={visibleSelectedModel || models.find(m => m.isDefault)?.id}
+          onSelectModel={onModelChange}
+          providerId={providerId}
+        />
+      </View>
+
+      {/* Expert Mode Toggle Card - gates the parameter overrides below */}
       <View style={{
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: theme.colors.card,
         borderRadius: theme.borderRadius.lg,
-        padding: theme.spacing.lg,
-        marginBottom: theme.spacing.md,
+        padding: theme.spacing.md,
+        marginBottom: isEnabled ? theme.spacing.md : 0,
         borderWidth: 0,
         borderColor: theme.colors.border,
       }}>
@@ -114,32 +125,22 @@ export const ProviderExpertSettings: React.FC<ProviderExpertSettingsProps> = ({
             <InfoButton topicId="expert-mode" size="small" />
           </View>
           <Typography variant="caption" color="secondary" style={{ marginTop: 4 }}>
-            Fine-tune model behavior and parameters
+            Fine-tune generation parameters
           </Typography>
         </View>
         <Switch
           value={isEnabled}
           onValueChange={onToggle}
-          trackColor={{ 
-            false: theme.colors.gray[300], 
-            true: theme.colors.primary[500] 
+          trackColor={{
+            false: theme.colors.gray[300],
+            true: theme.colors.primary[500]
           }}
         />
       </View>
-      
+
       {/* Expert Settings Content */}
       {isEnabled && (
         <Animated.View entering={FadeInDown.springify()}>
-          {/* Model Selection */}
-          <View style={{ marginBottom: theme.spacing.xl }}>
-            <ModelSelector
-              models={models}
-              selectedModel={visibleSelectedModel || models.find(m => m.isDefault)?.id}
-              onSelectModel={onModelChange}
-              providerId={providerId}
-            />
-          </View>
-          
           {/* Parameters Section */}
           <View>
             <Typography 

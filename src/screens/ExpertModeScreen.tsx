@@ -181,7 +181,7 @@ const ExpertModeScreen: React.FC<{
                           providerId={provider.id}
                           isEnabled={cfg.enabled}
                           onToggle={(enabled) => dispatch(updateExpertMode({ provider: provider.id, config: { ...cfg, enabled } }))}
-                          selectedModel={cfg.enabled ? cfg.selectedModel : undefined}
+                          selectedModel={cfg.selectedModel}
                           onModelChange={(modelId) => dispatch(updateExpertMode({ provider: provider.id, config: { ...cfg, selectedModel: modelId || undefined } }))}
                           parameters={{ ...DEFAULT_PARAMETERS, ...cfg.parameters }}
                           onParameterChange={(param, value) => {

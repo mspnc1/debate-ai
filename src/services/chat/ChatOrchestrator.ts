@@ -192,7 +192,8 @@ export class ChatOrchestrator {
         const runtimeParameters = mergeRuntimeModelParameters(
           expert?.enabled,
           expert?.parameters,
-          runtime.modelParameters
+          runtime.modelParameters,
+          aiForTurn.parameters
         );
 
         await this.logPromptDebug('chat-turn', {

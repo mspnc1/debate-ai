@@ -65,7 +65,9 @@ describe('ProviderExpertSettings', () => {
     const toggle = getByRole('switch');
     fireEvent(toggle, 'valueChange', true);
     expect(onToggle).toHaveBeenCalledWith(true);
-    expect(mockModelSelector).not.toHaveBeenCalled();
+    // Default model selection is always available; only the parameter
+    // overrides are gated behind the Expert Mode toggle.
+    expect(mockModelSelector).toHaveBeenCalledTimes(1);
     expect(mockParameterSlider).not.toHaveBeenCalled();
   });
 

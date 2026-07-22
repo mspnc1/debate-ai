@@ -315,8 +315,12 @@ export const buildPersonalityRuntime = ({
 export const mergeRuntimeModelParameters = (
   expertEnabled: boolean | undefined,
   expertParameters: Partial<ModelParameters> | undefined,
-  runtimeParameters: Partial<ModelParameters> | undefined
+  runtimeParameters: Partial<ModelParameters> | undefined,
+  sessionParameters?: Partial<ModelParameters>
 ): Partial<ModelParameters> | undefined => {
+  if (sessionParameters) {
+    return sessionParameters;
+  }
   if (expertEnabled) {
     return expertParameters;
   }

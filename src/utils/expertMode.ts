@@ -3,8 +3,10 @@ import type { ModelParameters } from '../types';
 
 /**
  * Resolve expert mode overrides for a provider.
- * - If not enabled, returns { enabled: false }.
- * - If enabled, merges parameters with defaults and returns optional model override.
+ * - The saved default model is always returned when set - the Expert Mode
+ *   toggle only gates parameter overrides.
+ * - If not enabled, parameters are omitted.
+ * - If enabled, merges parameters with defaults.
  */
 export function getExpertOverrides(
   expertModeConfigs: Record<string, unknown>,
@@ -13,7 +15,10 @@ export function getExpertOverrides(
   const cfg = expertModeConfigs?.[providerId] as
     | { enabled?: boolean; selectedModel?: string; parameters?: Partial<ModelParameters> | Record<string, number> }
     | undefined;
-  if (!cfg || !cfg.enabled) return { enabled: false };
+  const model = cfg?.selectedModel
+    ? resolveProviderModelId(providerId, cfg.selectedModel)
+    : undefined;
+  if (!cfg || !cfg.enabled) return { enabled: false, model };
 
   const params: ModelParameters = {
     ...DEFAULT_PARAMETERS,
@@ -22,9 +27,7 @@ export function getExpertOverrides(
 
   return {
     enabled: true,
-    model: cfg.selectedModel
-      ? resolveProviderModelId(providerId, cfg.selectedModel)
-      : undefined,
+    model,
     parameters: params,
   };
 }

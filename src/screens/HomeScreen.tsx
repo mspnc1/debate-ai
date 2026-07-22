@@ -129,7 +129,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               configuredProviderIds={configuredProviderIds}
               allowedProviderIds={isDemo ? configuredProviderIds : undefined}
               onRequestAddKey={isDemo ? undefined : handleAddKey}
-              onOpenAdvanced={isDemo ? undefined : () => navigation.navigate('ExpertMode')}
+              showAdvancedParams={!isDemo}
               inputText={inputText}
               onChangeText={setInputText}
               onSend={handleSend}

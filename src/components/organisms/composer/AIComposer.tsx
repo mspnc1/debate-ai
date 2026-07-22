@@ -36,8 +36,8 @@ export interface AIComposerProps {
   /** Demo mode: restrict the picker to these providers and hide Add-key rows. */
   allowedProviderIds?: string[];
   onRequestAddKey?: () => void;
-  /** Hidden when undefined (demo): "Advanced parameters" link per pill. */
-  onOpenAdvanced?: (providerId: string) => void;
+  /** Shows the per-pill "Advanced parameters" page (hidden in demo, where it is gated). */
+  showAdvancedParams?: boolean;
   inputText: string;
   onChangeText: (text: string) => void;
   onSend: (text: string, attachments?: MessageAttachment[]) => void;
@@ -69,7 +69,7 @@ export const AIComposer: React.FC<AIComposerProps> = ({
   configuredProviderIds,
   allowedProviderIds,
   onRequestAddKey,
-  onOpenAdvanced,
+  showAdvancedParams,
   inputText,
   onChangeText,
   onSend,
@@ -269,14 +269,13 @@ export const AIComposer: React.FC<AIComposerProps> = ({
         onChangePersonality={personalityId => {
           if (configIndex !== null) onUpdateConfig(configIndex, { personalityId });
         }}
+        onChangeParameters={parameters => {
+          if (configIndex !== null) onUpdateConfig(configIndex, { parameters });
+        }}
         onRemove={() => {
           if (configIndex !== null) onRemoveConfig(configIndex);
         }}
-        onOpenAdvanced={
-          onOpenAdvanced && activeConfig
-            ? () => onOpenAdvanced(activeConfig.providerId)
-            : undefined
-        }
+        showAdvanced={showAdvancedParams}
         testID={testID ? `${testID}-config` : undefined}
       />
 
