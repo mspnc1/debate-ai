@@ -2,9 +2,8 @@
  * ModelOptionList
  *
  * Scrollable list of a provider's selectable models with pricing, context
- * and capability badges. Presentation shared by ModelSelectorEnhanced's
- * picker modal and PagedSheet model pages; selection semantics belong to
- * the caller.
+ * and capability badges. Presentation shared by PagedSheet model pages;
+ * selection semantics belong to the caller.
  */
 
 import React, { useMemo } from 'react';

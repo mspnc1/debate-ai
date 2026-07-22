@@ -38,11 +38,6 @@ export { SegmentedControl } from './common/SegmentedControl';
 
 // Debate Setup Molecules
 export { DebateTopicCard } from './debate/DebateTopicCard';
-export { TopicModeSelector } from './debate/TopicModeSelector';
-export { AIDebaterCard } from './debate/AIDebaterCard';
-export { SurpriseTopicDisplay } from './debate/SurpriseTopicDisplay';
-export { PersonalityChip } from './debate/PersonalityChip';
-export { DebatePreviewCard } from './debate/DebatePreviewCard';
 
 // API Configuration Molecules
 export { APIKeyInput } from './api-config/APIKeyInput';

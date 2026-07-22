@@ -19,16 +19,12 @@ export { DebateTopic } from './DebateTopic';
 export { default as ShareModal } from './ShareModal';
 export { FormatModal } from './FormatModal';
 export { PresetTopicsModal } from './PresetTopicsModal';
-export { RoundsModal } from './RoundsModal';
 
 // Debate Setup Components
 export { DebateTopicSelector } from './DebateTopicSelector';
-export { DebateAISelector } from './DebateAISelector';
-export { DebatePersonalitySelector } from './DebatePersonalitySelector';
 export { DebateVoicePicker } from './DebateVoicePicker';
-export { default as PersonalityModal } from './PersonalityModal';
-export { DebateSetupSummary } from './DebateSetupSummary';
-export { DebateStepIndicator } from './DebateStepIndicator';
+export { DebateTeamsCard } from './DebateTeamsCard';
+export { DebateSlotConfigSheet } from './DebateSlotConfigSheet';
 
 export type { DebateHeaderProps } from './DebateHeader';
 export type {
