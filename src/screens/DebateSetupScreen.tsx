@@ -3,11 +3,10 @@ import { ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState, setAIPersonality, setAIModel, preserveTopic, clearPreservedTopic, setGlobalStreaming, isApiKeyConfigured } from '../store';
-import { setProviderStreamingPreference } from '../store/streamingSlice';
+import { RootState, setAIPersonality, setAIModel, preserveTopic, clearPreservedTopic, isApiKeyConfigured } from '../store';
 
 import { Box, ResponsiveContainer } from '../components/atoms';
-import { Button, Typography, GradientButton, InfoButton } from '../components/molecules';
+import { Button, Typography, GradientButton, HeaderIcon, InfoButton } from '../components/molecules';
 import { useResponsive } from '../hooks/useResponsive';
 import { Header, HeaderActions } from '../components/organisms';
 // Legacy premium gating replaced by useFeatureAccess
@@ -269,7 +268,6 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   const preservedTopic = useSelector((state: RootState) => state.debateStats.preservedTopic);
   const preservedTopicMode = useSelector((state: RootState) => state.debateStats.preservedTopicMode);
   const access = useFeatureAccess();
-  const streamingState = useSelector((state: RootState) => state.streaming);
   const recordModeEnabled = useSelector((state: RootState) => state.settings.recordModeEnabled ?? false);
   
   // Pre-debate validation (no side effects - just state)
@@ -398,14 +396,6 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
   );
   const hasVerifiedElevenLabs = isApiKeyConfigured(apiKeys.elevenlabs) && verifiedProviders.includes('elevenlabs');
   const elevenLabsCreditSummary = formatElevenLabsCreditSummary(elevenLabsSubscription, elevenLabsSubscriptionLoading);
-  const selectedStreamingProviders = useMemo(() => {
-    const seen = new Set<string>();
-    return selectedAIs.filter((ai) => {
-      if (seen.has(ai.provider)) return false;
-      seen.add(ai.provider);
-      return true;
-    });
-  }, [selectedAIs]);
 
   useEffect(() => {
     debaterSlotsRef.current = debaterSlots;
@@ -1098,7 +1088,18 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
         variant="gradient"
         slim
         title="The Arena"
-        rightElement={<HeaderActions variant="gradient" helpTopicId="debate-formats" />}
+        rightElement={
+          <Box style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <HeaderIcon
+              name="stats-chart-outline"
+              onPress={() => navigation.navigate('Stats')}
+              color={theme.colors.text.inverse}
+              accessibilityLabel="Debate stats"
+              testID="debate-stats-header-button"
+            />
+            <HeaderActions variant="gradient" helpTopicId="debate-formats" />
+          </Box>
+        }
       />
       <TrialBanner />
 
@@ -1188,19 +1189,10 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
             {/* Debate Configuration card second */}
             <Card shadow style={{ marginBottom: theme.spacing.lg }}>
               {/* Header */}
-              <Box style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
-                <Box style={{ flex: 1 }}>
-                  <Typography variant="subtitle" weight="semibold" style={{ marginBottom: 4 }}>
-                    ⚙️ Debate
-                  </Typography>
-                </Box>
-                <Button
-                  title="Stats"
-                  onPress={() => navigation.navigate('Stats')}
-                  variant="ghost"
-                  size="small"
-                  style={{ minHeight: 36 }}
-                />
+              <Box style={{ marginBottom: theme.spacing.sm }}>
+                <Typography variant="subtitle" weight="semibold" style={{ marginBottom: 4 }}>
+                  ⚙️ Debate
+                </Typography>
               </Box>
 
               {/* Format row */}
@@ -1425,69 +1417,6 @@ const DebateSetupScreen: React.FC<DebateSetupScreenProps> = ({ navigation, route
 
         {/* Format modal */}
         <FormatModal visible={formatModalVisible} selected={formatId} onSelect={(id) => setFormatId(id)} onClose={() => setFormatModalVisible(false)} />
-        
-        {/* Streaming Settings (per-provider) */}
-        {currentStep === 'ai' && selectedAIs.length > 0 && (
-          <Box
-            style={{
-              marginTop: theme.spacing.lg,
-              padding: theme.spacing.md,
-              borderRadius: 12,
-              backgroundColor: theme.colors.card,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-            }}
-          >
-            {/* Global streaming toggle */}
-            <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <Button
-                title={streamingState?.globalStreamingEnabled ? 'Streaming: On' : 'Streaming: Off'}
-                onPress={() => dispatch(setGlobalStreaming(!(streamingState?.globalStreamingEnabled ?? true)))}
-                variant={streamingState?.globalStreamingEnabled ? 'primary' : 'secondary'}
-                size="small"
-                style={{ alignSelf: 'flex-start' }}
-              />
-            </Box>
-            {selectedStreamingProviders.map(ai => {
-              const providerId = ai.provider;
-              const providerPref = streamingState?.streamingPreferences?.[providerId]?.enabled ?? true;
-              const hasVerificationError = !!streamingState?.providerVerificationErrors?.[providerId];
-              const willStream = (streamingState?.globalStreamingEnabled ?? true) && providerPref && !hasVerificationError;
-              const statusText = hasVerificationError
-                ? 'Won’t stream (verification required)'
-                : willStream
-                  ? 'Will stream'
-                  : 'Won’t stream';
-              return (
-                <Box key={providerId} style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  paddingVertical: 8,
-                }}>
-                  <Box>
-                    <Button
-                      title={`${ai.name}: ${statusText}`}
-                      onPress={() => {}}
-                      variant="ghost"
-                      size="small"
-                      disabled
-                    />
-                  </Box>
-                  <Box>
-                    <Button
-                      title={providerPref ? 'Streaming On' : 'Streaming Off'}
-                      onPress={() => dispatch(setProviderStreamingPreference({ providerId, enabled: !providerPref }))}
-                      variant={providerPref ? 'secondary' : 'ghost'}
-                      size="small"
-                      disabled={!!hasVerificationError}
-                    />
-                  </Box>
-                </Box>
-              );
-            })}
-          </Box>
-        )}
         
         {/* Step 3: Personality Selection (Premium only) */}
         {!access.isDemo && currentStep === 'personality' && (

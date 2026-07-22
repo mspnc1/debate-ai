@@ -5,11 +5,9 @@ import { renderWithProviders } from '../../test-utils/renderWithProviders';
 import {
   setAIPersonality,
   setAIModel,
-  setGlobalStreaming,
   preserveTopic,
   clearPreservedTopic,
 } from '@/store';
-import { setProviderStreamingPreference } from '@/store/streamingSlice';
 import { resolveProviderModelId } from '@/config/modelConfigs';
 import type { AIConfig } from '@/types';
 import type { RootState } from '@/store';
@@ -538,19 +536,9 @@ describe('DebateSetupScreen', () => {
     jest.useRealTimers();
   });
 
-  it('adds same-provider debater slots and keeps streaming preferences provider-scoped', async () => {
+  it('adds same-provider debater slots with distinct slot ids', async () => {
     const { renderResult } = renderScreen({
       featureAccess: { isDemo: false },
-      state: {
-        streaming: {
-          ...defaultState().streaming,
-          globalStreamingEnabled: true,
-          streamingPreferences: {
-            claude: { enabled: true },
-            openai: { enabled: true },
-          },
-        } as any,
-      },
     });
 
     act(() => {
@@ -582,13 +570,6 @@ describe('DebateSetupScreen', () => {
       aiId: firstDebaterId,
       modelId: resolveProviderModelId('claude', 'claude-custom') || 'claude-custom',
     }));
-
-    fireEvent.press(renderResult.getByText('Streaming: On'));
-    expect(mockDispatch).toHaveBeenCalledWith(setGlobalStreaming(false));
-
-    const providerToggle = renderResult.getAllByText('Streaming On')[0];
-    fireEvent.press(providerToggle);
-    expect(mockDispatch).toHaveBeenCalledWith(setProviderStreamingPreference({ providerId: 'claude', enabled: false }));
   });
 
   it('resets scroll position when moving from debaters to personality setup', async () => {
