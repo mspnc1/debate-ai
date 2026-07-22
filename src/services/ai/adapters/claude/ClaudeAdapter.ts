@@ -80,13 +80,16 @@ export class ClaudeAdapter extends BaseAdapter {
       if ((b.type === undefined || b.type === 'text') && typeof b.text === 'string') {
         text += b.text;
         if (Array.isArray(b.citations)) {
+          // A block citing one source several times still gets a single chip.
+          const blockIndices = new Set<number>();
           for (const c of b.citations) {
             const cit = c as { type?: string; url?: unknown; title?: unknown; cited_text?: unknown } | null;
             if (cit && cit.type === 'web_search_result_location') {
               const index = add(cit.url, cit.title, cit.cited_text);
-              if (index !== undefined) text += `[${index}]`;
+              if (index !== undefined) blockIndices.add(index);
             }
           }
+          for (const index of blockIndices) text += `[${index}]`;
         }
       }
     }
@@ -343,13 +346,22 @@ export class ClaudeAdapter extends BaseAdapter {
     };
 
     // Web-search citations accumulated over the stream: citations_delta is the
-    // primary source; web_search_tool_result blocks are the URL fallback. A
-    // bare [n] marker is injected into the text when each citation lands so the
-    // app renders inline chips as well as the source table.
+    // primary source; web_search_tool_result blocks are the URL fallback.
     const streamCitations: Array<{ index: number; url: string; title?: string; snippet?: string }> = [];
     const fallbackCitations: Array<{ index: number; url: string; title?: string }> = [];
     const citationIndexByUrl = new Map<string, number>();
     const seenFallbackUrls = new Set<string>();
+    // Indices cited by the in-flight text block. citations_delta can arrive
+    // before the block's text deltas, so markers are buffered here and flushed
+    // as bare [n] chips at content_block_stop — after the cited span — with the
+    // Set collapsing repeat citations of one source within a block.
+    const pendingBlockCitations = new Set<number>();
+    const flushBlockCitations = () => {
+      if (pendingBlockCitations.size === 0) return;
+      const markers = Array.from(pendingBlockCitations, (i) => `[${i}]`).join('');
+      pendingBlockCitations.clear();
+      emitText(markers);
+    };
     const emitCitations = () => {
       const citations = streamCitations.length > 0 ? streamCitations : fallbackCitations;
       if (citations.length > 0 && onEvent) {
@@ -380,8 +392,7 @@ export class ClaudeAdapter extends BaseAdapter {
                 ...(typeof citation?.cited_text === 'string' && citation.cited_text ? { snippet: citation.cited_text } : {}),
               });
             }
-            // Inject the inline marker after the text it annotates.
-            emitText(`[${index}]`);
+            pendingBlockCitations.add(index);
           }
         }
 
@@ -396,11 +407,15 @@ export class ClaudeAdapter extends BaseAdapter {
     
     // Mark content block completion (sometimes message_stop can be delayed)
     es.addEventListener('content_block_stop', (event: CustomEvent<'content_block_stop'>) => {
+      flushBlockCitations();
       try { if (onEvent) onEvent({ type: 'content_block_stop', ...(event?.data ? JSON.parse(event.data) : {}) }); } catch { /* noop */ }
     });
-    
+
     // Handle message_stop event for stream completion
     es.addEventListener('message_stop', () => {
+      // Safety net in case the final content_block_stop never arrived; the
+      // generator drains queued text before honoring isComplete.
+      flushBlockCitations();
       // Citations must surface before the generator resolves done so the
       // orchestrator captures them into message metadata.
       emitCitations();
