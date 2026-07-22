@@ -21,6 +21,7 @@ export type HelpTopicId =
   | 'round-robin'
   | 'history'
   | 'ai-mentions'
+  | 'attachments'
   | 'web-search'
   // Debate Arena
   | 'debate-formats'
@@ -45,11 +46,9 @@ export type HelpTopicId =
   | 'expert-top-p'
   // Create Mode
   | 'create-styles'
-  | 'create-sizes'
   | 'create-refinement'
   | 'create-gallery'
   | 'create-providers'
-  | 'create-image-mode'
   | 'create-quality'
   | 'create-safety'
   | 'create-background'

@@ -70,13 +70,13 @@ export const HELP_TOPICS: Record<string, HelpTopic> = {
     icon: "chatbubbles",
     category: "getting-started",
     shortDescription: "Watch different AIs debate any topic in real-time",
-    content: `The AI Debate Arena is Symposium AI's signature feature where you can watch different AI models debate any topic you choose.
+    content: `The AI Debate Arena is Symposium AI's signature feature where you can watch different AI models debate any motion you choose. Setup happens on a single screen:
 
-How It Works:
-1. Choose a motion (preset, custom, or surprise)
-2. Select the required AI debaters from your configured providers
-3. Pick a debate format and preset
-4. Watch the debate unfold in real time
+1. Motion: pick a preset motion, write a custom one, or tap Surprise Me
+2. Format: choose Oxford, Lincoln-Douglas, or Policy, plus a length preset
+3. Debate Teams: tap a slot to add a debater, then tap it again to change its provider, model, or personality
+4. Debate Settings: set the intensity (Friendly, Neutral, or Hostile); with an ElevenLabs key you can also enable Debate Voices or Podcast Mode
+5. Tap Start Debate
 
 Demo vs Live:
 - Demo mode plays curated, pre-recorded debates
@@ -95,13 +95,16 @@ Each AI will present arguments, respond to their opponent, and try to make the m
     content: `Symposium AI offers three structured debate formats:
 
 Oxford Format:
-Audience-voted motion debate with proposition and opposition speeches. Choose 1v1, 2v2, or 2v2 + Q&A. In Q&A, you enter one audience question for each side after the first arguments. You vote before the first speech and again after the closing speeches. Best for: Public-facing debates on policy or ethics.
+Audience-voted motion debate with proposition and opposition speeches. Choose the 1v1, 2v2, or 2v2 + Q&A preset. In Q&A, you enter one audience question for each side after the first arguments. You vote before the first speech and again after the closing speeches. Best for: Public-facing debates on policy or ethics.
 
 Lincoln-Douglas:
 Philosophical debate focusing on values and ethics. Uses AC, CX, NC/1NR, 1AR, NR/2NR, and 2AR structure. Best for: Ethical dilemmas and value-based topics.
 
 Policy Debate:
-Data-driven debate with emphasis on evidence and practical solutions. Uses 1AC, 1NC, 2AC, 2NC, 1NR, 1AR, 2NR, and 2AR speech order. Best for: Current events and real-world issues.`,
+Data-driven debate with emphasis on evidence and practical solutions. Uses 1AC, 1NC, 2AC, 2NC, 1NR, 1AR, 2NR, and 2AR speech order. Best for: Current events and real-world issues.
+
+Choosing a Preset:
+The preset buttons below the format control debate length: 1v1, 2v2, and 2v2 + Q&A for Oxford; Short, Standard, and Extended for Lincoln-Douglas and Policy.`,
     relatedTopics: ["debate-arena", "debate-voting"],
   },
 
@@ -256,7 +259,7 @@ Pay-Per-Use Benefits:
 - Access supported providers from day one
 - No feature restrictions based on tier
 
-Tip: Start with the most affordable models (like GPT-4o-mini or Claude Haiku) and upgrade to higher-cost models only when needed.`,
+Tip: Start with the most affordable models (like Claude Haiku, GPT-5.6 Luna, or Gemini Flash-Lite) and upgrade to higher-cost models only when needed.`,
     relatedTopics: ["byok-overview", "expert-mode"],
   },
 
@@ -282,9 +285,9 @@ Available Personalities (8):
 - Scout: Narrative strategist who uses scenes and analogies
 
 How to Use:
-1. Select an AI card
-2. Tap the Personality badge
-3. Choose a personality for that AI
+1. Tap an AI's pill in the composer (or a filled debater slot in the Arena)
+2. Tap the Personality row
+3. Tap a personality to select it
 
 Mix and Match:
 In multi-AI chats, give each AI a different personality to see varied perspectives and communication styles on the same topic.`,
@@ -302,11 +305,18 @@ In multi-AI chats, give each AI a different personality to see varied perspectiv
     shortDescription: "Fine-tune AI behavior with advanced settings",
     content: `Expert Mode gives you control over AI model parameters, letting you customize response behavior for different use cases.
 
+Where to Find It:
+- Settings > Model Defaults: set each provider's default model and default parameters for all new sessions
+- In the composer, tap an AI pill and open Advanced Parameters to tune the current conversation, then Save for This Session or Save as Default
+
 What You Can Control:
 - Model selection (per provider)
 - Temperature: Creativity vs consistency
 - Max Tokens: Response length limits
-- Top-P: Response diversity (where supported)
+- Top-P: Response diversity
+- Top-K and frequency/presence penalties (provider-dependent)
+
+Controls are model-aware: a slider only appears when the selected model supports that parameter, and some of the newest models manage temperature automatically.
 
 When to Use Expert Mode:
 - Creative writing: Higher temperature for variety
@@ -315,8 +325,8 @@ When to Use Expert Mode:
 - Quick answers: Decrease max tokens
 
 Notes:
-- Expert Mode is available once you add provider API keys
-- Parameter availability varies by provider`,
+- Choosing default models is available to everyone with API keys
+- Parameter tuning requires an active trial or subscription`,
     relatedTopics: ["expert-temperature", "expert-tokens", "expert-top-p"],
   },
 
@@ -344,7 +354,9 @@ High Temperature (1.0-2.0):
 - Can be more surprising or unconventional
 - Best for: Creative writing, brainstorming, storytelling
 
-Tip: Start with the default and adjust based on results. Too high can produce nonsensical output.`,
+Tip: Start with the default and adjust based on results. Too high can produce nonsensical output.
+
+Note: Some models only support their default temperature - for those, the slider is locked or hidden.`,
     relatedTopics: ["expert-mode", "expert-tokens", "expert-top-p"],
   },
 
@@ -373,7 +385,7 @@ When to Adjust:
 - Essays/stories: 2048-4096 tokens
 - Code generation: 2048+ tokens
 
-Note: The AI may stop before reaching max tokens if it completes its thought.`,
+Note: The AI may stop before reaching max tokens if it completes its thought. Debate speeches are an exception - their length is set by the debate format, not this setting.`,
     relatedTopics: ["expert-mode", "expert-temperature", "byok-cost-savings"],
   },
 
@@ -401,7 +413,7 @@ When to Adjust:
 Temperature vs Top-P:
 Both control randomness but differently. Most users adjust temperature and leave Top-P at default. Adjusting both can produce unexpected results.
 
-Tip: If using Top-P, consider setting temperature to 1.0 and only adjusting Top-P.`,
+Tip: If using Top-P, consider setting temperature to 1.0 and only adjusting Top-P. Not every model exposes Top-P - the slider only appears when the selected model supports it.`,
     relatedTopics: ["expert-mode", "expert-temperature"],
   },
 
@@ -414,22 +426,26 @@ Tip: If using Top-P, consider setting temperature to 1.0 and only adjusting Top-
     icon: "git-compare",
     category: "getting-started",
     shortDescription: "See AI responses side-by-side",
-    content: `Compare Mode lets you see how different AIs respond to the same prompt, displayed side-by-side.
+    content: `Compare Mode lets you see how two AIs respond to the same prompt, displayed side-by-side.
 
 How It Works:
 1. Go to the Compare tab
-2. Select two AIs to compare
-3. Enter your prompt
-4. Both AIs respond simultaneously
-5. View responses in split-screen
+2. Use the Add AI pill to pick your two AIs - the first pill (L) answers in the left pane, the second (R) in the right
+3. Tap a pill to change its model, personality, or advanced parameters
+4. Type your prompt and tap send - the session starts automatically
+
+You can compare two different providers, or the same provider with different models or personalities.
 
 Synchronized Streaming:
 Responses stream in real-time, so you can watch both AIs "think" at the same time.
 
 View Options:
 - Split view: Both responses visible
-- Full-screen: Focus on one response
-- Toggle between AIs easily
+- Expand: Focus on one response full-width
+- Continue with this AI: Keep chatting with the side you prefer
+
+Attachments:
+Use the attach button to include images or documents with your first message (when both selected models support them).
 
 Use Cases:
 - Compare writing styles
@@ -448,10 +464,9 @@ Use Cases:
     content: `Multi-AI Chat lets you have conversations with up to 3 different AI providers at once.
 
 How to Set Up:
-1. On the home screen, select your AIs (tap to add/remove)
-2. Optionally assign personalities to each
-3. Tap "Start Chat"
-4. All selected AIs will respond to your messages
+1. On the Chat tab, tap the Add AI pill and choose a provider (repeat for up to 3 AIs)
+2. Tap any pill to set its model, personality, or advanced parameters
+3. Type your message and tap send - the chat starts automatically
 
 Why Use Multi-AI:
 - Get diverse perspectives on any topic
@@ -476,13 +491,13 @@ With multiple AIs, they can fact-check each other. If responses differ significa
     icon: "flash",
     category: "chat",
     shortDescription: "Smart conversation starters that help you begin",
-    content: `The Quick Start system helps you begin meaningful conversations without having to think of a prompt from scratch.
+    content: `Quick Start helps you begin meaningful conversations without having to think of a prompt from scratch.
 
 How It Works:
-1. Tap the lightbulb icon on the Start Chat button
+1. On the Chat tab, tap the Quick Start chip above the composer
 2. Enter what you want to talk through
 3. Choose how the first response should be shaped
-4. Review the exact first message that will be sent
+4. Review the preview of the exact first message that will be sent
 5. Tap Start Chat to create the chat and send that prompt
 
 Smart Prompts:
@@ -530,9 +545,9 @@ All history is stored locally on your device. Clearing the app data or uninstall
     content: `When you chat with multiple AIs at once, they respond in a round-robin format.
 
 How Round-Robin Works:
-When you send a message, each selected AI responds in turn. The order is based on how you selected them on the home screen.
+When you send a message, each selected AI responds in turn. The order matches your AI pills in the composer, from left to right.
 
-For example, if you selected Claude, then ChatGPT, then Gemini:
+For example, if your pills are Claude, then ChatGPT, then Gemini:
 1. You send your message
 2. Claude responds first
 3. ChatGPT responds second
@@ -586,31 +601,53 @@ Pro Tips:
     relatedTopics: ["multi-ai-chat", "round-robin"],
   },
 
+  attachments: {
+    id: "attachments",
+    title: "Attachments",
+    icon: "attach",
+    category: "chat",
+    shortDescription: "Send images and documents with your messages",
+    content: `Attach images and documents so the AIs can read and discuss them.
+
+Where to Attach:
+- Before the first message: tap the attach button in the Chat or Compare composer
+- In an active chat: tap the + button next to the input
+
+Supported Files:
+- Images
+- Documents: PDF, TXT, MD, CSV, JSON, XML, HTML, DOCX, XLSX, and PPTX
+- Up to 20 attachments per message
+
+How It Works:
+Attachments are sent to every AI in the lineup. The attach button only appears when your selected models support image or document input. If you switch to a model that can't read a staged file, sending is blocked until you remove the file or change models.`,
+    relatedTopics: ["multi-ai-chat", "compare-mode"],
+  },
+
   "web-search": {
     id: "web-search",
     title: "Web Search",
     icon: "globe",
     category: "chat",
     shortDescription: "Get real-time information from the web",
-    content: `Web Search enables AIs to access current information from the internet, providing up-to-date answers with source citations.
+    content: `Web Search lets AIs access current information from the internet, providing up-to-date answers with source citations.
 
-How to Enable:
-1. Look for the globe icon next to the message input
-2. Tap to toggle web search on (highlighted) or off
-3. Send your message - the AI will search the web as needed
-
-The toggle only appears when your selected AI(s) support web search.
+Always On - No Toggle:
+There's nothing to enable. Every model that supports web search uses it automatically whenever it helps answer your question. Models without web search simply answer from their training data.
 
 Supported Providers:
-- ChatGPT (OpenAI) - GPT-5.x, GPT-4.x models
-- Gemini (Google) - Gemini 2.0+ models
-- Perplexity - All Sonar models
+- Claude (native web search)
+- ChatGPT (GPT-5.x and GPT-4.1 models)
+- Gemini (current models)
+- Perplexity (all Sonar models)
+- Grok (current models)
+
+Mistral, Cohere, and DeepSeek models don't currently support web search.
 
 Multi-AI Mode:
-In multi-AI chats, web search is only available when ALL selected AIs support it. If one AI doesn't support web search, the toggle won't appear.
+Web search is independent per AI. In a mixed lineup, the models that support search use it and the rest respond normally.
 
 Citations:
-When web search is enabled, responses include clickable source links. Tap any link to preview the source or open it in your browser.
+Responses include numbered [n] citation chips inline plus a Sources list below the message. Tap a citation to preview the source or open it in your browser.
 
 Best Use Cases:
 - Current events and news
@@ -626,23 +663,24 @@ Best Use Cases:
   // ============================================
   "dynamic-ai-selector": {
     id: "dynamic-ai-selector",
-    title: "AI Selection",
+    title: "Choosing Your AIs",
     icon: "apps",
     category: "getting-started",
-    shortDescription: "Choose AIs, personalities, and models",
-    content: `The home screen lets you configure which AIs to chat with and how they'll respond.
+    shortDescription: "Pick AIs, personalities, and models in the composer",
+    content: `Your AI lineup lives right in the composer at the bottom of the Chat and Compare tabs.
 
-Selecting AIs:
-Tap on any configured AI card to select or deselect it. You can select up to 3 AIs for multi-AI conversations.
+Adding AIs:
+Tap the Add AI pill and choose a provider. Each AI appears as a pill above the input. Chat supports up to 3 AIs; Compare uses exactly 2.
 
-Personality Selection:
-When an AI is selected, tap the personality badge to choose how that AI communicates. Each personality brings a different tone and style.
+Configuring an AI:
+Tap a pill to open its settings:
+- Model: choose a specific model, with pricing shown
+- Personality: pick how that AI communicates
+- Advanced Parameters: fine-tune generation settings
+- Remove from conversation
 
-Model Selection:
-With Expert Mode enabled, you can choose specific AI models. This appears as a dropdown on selected AI cards.
-
-Start Chatting:
-Once you've selected at least one AI, tap "Start Chat" to begin. Use the lightbulb icon for Quick Start prompts.`,
+Starting:
+Type your message and tap send - the session is created automatically. There's no separate start button.`,
     relatedTopics: ["personalities", "expert-mode", "quick-start-wizard"],
   },
 
@@ -691,7 +729,7 @@ AI Performance:
 See which AIs win most often and how they perform against specific opponents.
 
 Accessing Stats:
-Tap the Stats button on the Debate Arena setup screen to view your debate statistics.
+Tap the stats icon at the top of the Debate setup screen to view your debate statistics.
 
 Note: Stats are calculated from your local debate history.`,
     relatedTopics: ["debate-arena", "debate-voting"],
@@ -706,13 +744,13 @@ Note: Stats are calculated from your local debate history.`,
     icon: "expand",
     category: "compare",
     shortDescription: "View full AI responses in Compare mode",
-    content: `In Compare mode, tap on any response bubble to expand it for easier reading.
+    content: `In Compare mode, expand a response pane when you want to read one answer full-width.
 
 Why Expand?
-Side-by-side view can make long responses hard to read. Expanding shows the full response without scrolling horizontally.
+Side-by-side view can make long responses hard to read. Expanding shows the full response without cramped columns.
 
 How to Use:
-Tap anywhere on a response bubble to expand it to full width. Tap again or tap outside to collapse.
+Tap the expand button on either pane to give that AI's response the full screen. Tap it again to return to the split view.
 
 Comparing Content:
 Use this to carefully read each AI's full response before deciding which answer you prefer.`,
@@ -728,10 +766,10 @@ Use this to carefully read each AI's full response before deciding which answer 
     content: `After comparing AI responses, you can continue the conversation with your preferred AI.
 
 How It Works:
-After viewing the comparison, tap "Continue with [AI Name]" to start a regular chat session with that AI.
+Tap "Continue with this AI" beneath a response. After you confirm, the session narrows to a single-pane conversation with that AI.
 
 Conversation Context:
-The new chat will include the comparison context, so the AI knows what was discussed.
+The conversation continues in place, so the AI keeps the full context of what was discussed.
 
 Use Case:
 Great for when one AI gives a better answer and you want to explore the topic further with them.`,
@@ -844,30 +882,26 @@ To delete specific sessions, swipe left on them in the list instead of using Cle
     icon: "image",
     category: "getting-started",
     shortDescription: "Generate images, video, and audio",
-    content: `Create Mode lets you generate images, videos, voiceovers, and sound effects using your own provider keys.
+    content: `Create Mode (the Studio) lets you generate images, videos, voiceovers, and sound effects using your own provider keys.
 
 How to Use:
-1. Go to the Create tab
-2. Choose Image, Video, or Audio
-3. Enter a prompt or script
-4. Choose provider-specific options such as model, style, size, duration, voice, or format
-5. Tap Generate
+1. Go to the Create tab and pick the Image, Video, or Audio tab
+2. Set up your models: tap the pills in the composer to configure each one
+3. Adjust options: the sliders chip opens Output Options (style, frame, count, source image); each pill has its own per-model settings
+4. Type a prompt or script and tap send
 
 Image Generation:
-Generate images with up to 3 providers at once to compare different AI interpretations of your prompt.
+Generate with up to 3 models at once to compare different AI interpretations of your prompt. Attach a source image to refine or edit it instead of starting from scratch.
 
 Video Generation:
-Use Runway for text-to-video or image-to-video workflows. You can start from a prompt, upload a source image, or use your latest generated image as the source.
+Use Runway for text-to-video, or attach an image for image-to-video.
 
 Audio Generation:
 Use ElevenLabs to create voiceovers from scripts or generate sound effects from prompts.
 
 Create Gallery:
-Generated images, videos, and audio are saved to your gallery. You can preview, share, manage, or delete assets, and use images as a starting point for refinements or videos.
-
-Refinement:
-Take any generated image (or upload your own) and refine it with additional prompts - perfect for iterating on ideas.`,
-    relatedTopics: ["create-providers", "create-styles", "create-sizes", "create-refinement", "create-gallery"],
+Tap Gallery in the tab row to browse everything you've generated. You can preview, save, share, refine, or delete assets.`,
+    relatedTopics: ["create-providers", "create-styles", "create-frame", "create-refinement", "create-gallery"],
   },
 
   "create-providers": {
@@ -879,14 +913,14 @@ Take any generated image (or upload your own) and refine it with additional prom
     content: `Symposium AI supports Create mode across image, video, and audio providers, each with unique capabilities.
 
 Supported Providers:
-- OpenAI (GPT Image): High-quality image generation and editing
-- Google (Imagen and Gemini image models): Photorealistic image results and refinement
-- Grok (xAI): Fast image generation with artistic flair
+- OpenAI (GPT Image models): High-quality image generation and editing
+- Google (Gemini image models and Imagen): Photorealistic results; Gemini models can edit, Imagen creates from text only
+- Grok (xAI): Fast image generation and editing
 - Runway: Text-to-video and image-to-video generation
 - ElevenLabs: Text-to-speech voiceovers and generated sound effects
 
 Provider Selection:
-The Image tab supports selecting up to 3 image providers at once. Providers that support image refinement display an "img2img" badge.
+The Image tab supports up to 3 image models at once. Tap a pill to pick the model - its sheet shows whether it can edit images and use references or creates from text prompts only.
 
 Video and Audio:
 The Video tab uses your Runway key. The Audio tab uses your ElevenLabs key and can load voices, models, and output formats from your account.
@@ -915,37 +949,15 @@ Available Styles:
 - Sketch: Hand-drawn pencil sketch style
 - 3D Render: CGI quality with ray tracing and studio lighting
 
+Where to Find Styles:
+On the Image tab, tap the sliders chip next to the input to open Output Options. The style you pick applies to every selected model.
+
 How Styles Work:
 When you select a style, descriptive keywords are automatically appended to your prompt to guide the AI toward that aesthetic.
 
 Combining with Prompts:
 Write your core idea in the prompt, then let the style preset handle the artistic direction. For example: "a cozy cabin in the mountains" + Watercolor style.`,
-    relatedTopics: ["create-mode", "create-sizes"],
-  },
-
-  "create-sizes": {
-    id: "create-sizes",
-    title: "Image Sizes",
-    icon: "resize",
-    category: "create",
-    shortDescription: "Aspect ratios and dimensions",
-    content: `Choose the size and aspect ratio that best fits your intended use for the generated image.
-
-Available Sizes:
-- Auto: Uses the provider's default (usually square)
-- Square (1:1): Perfect for social media profiles, icons
-- Portrait (2:3): Vertical orientation, great for phone wallpapers
-- Landscape (3:2): Horizontal orientation, ideal for desktop backgrounds
-
-Provider-Specific Dimensions:
-Each provider maps these options to their supported dimensions:
-- OpenAI: 1024x1024 (square), 1024x1536 (portrait), 1536x1024 (landscape)
-- Google: Uses aspect ratio strings (1:1, 9:16, 16:9)
-- Grok: Provider default only
-
-Choosing the Right Size:
-Consider your end use - square for social media, portrait for phone backgrounds, landscape for presentations or desktop wallpapers.`,
-    relatedTopics: ["create-mode", "create-styles"],
+    relatedTopics: ["create-mode", "create-frame"],
   },
 
   "create-refinement": {
@@ -954,13 +966,12 @@ Consider your end use - square for social media, portrait for phone backgrounds,
     icon: "brush",
     category: "create",
     shortDescription: "Refine and iterate on images",
-    content: `Image refinement (img2img) lets you use an existing image as a starting point and modify it with new prompts.
+    content: `Image refinement (img2img) starts from an existing image instead of a blank canvas - attaching a source image is what turns a generation into a refinement.
 
 How It Works:
-1. Select an image from your gallery OR upload your own
-2. Enter a refinement prompt describing desired changes
-3. Choose a provider that supports img2img
-4. Generate to create a refined version
+1. Attach a source image: tap the attach button in the composer, use Output Options > Source image (Upload image / Use latest image), or tap Refine on a gallery image
+2. Describe the changes you want in the prompt
+3. Tap send - every selected model that can edit images produces a refined version
 
 Use Cases:
 - Iterate on generated images to improve details
@@ -969,12 +980,12 @@ Use Cases:
 - Apply artistic effects to photos
 
 Refinement vs New Generation:
-- New generation starts from scratch with just your prompt
-- Refinement uses an existing image as a reference, maintaining composition
+- Without a source image, models start from scratch with just your prompt
+- With a source image, models use it as a reference, maintaining composition
 
-Supported Providers:
-OpenAI (GPT Image), Google Gemini, and Grok can edit images and use references. Imagen and DALL·E 3 create from text only. In Refine mode, models that can't edit images are dimmed - switch the model or stay in Create mode.`,
-    relatedTopics: ["create-mode", "create-gallery", "create-image-mode"],
+Which Models Can Edit:
+GPT Image (OpenAI), Gemini image models (Google), and Grok can edit images and use references. Imagen models create from text only - if you attach an image, you'll be prompted to switch any model that can't edit.`,
+    relatedTopics: ["create-mode", "create-gallery", "create-providers"],
   },
 
   "create-gallery": {
@@ -983,47 +994,27 @@ OpenAI (GPT Image), Google Gemini, and Grok can edit images and use references. 
     icon: "images",
     category: "create",
     shortDescription: "Manage generated media",
-    content: `Your generated images, videos, and audio are automatically saved to a persistent gallery that syncs across app sessions.
+    content: `Your generated images, videos, and audio are automatically saved to a persistent gallery - open it from the Gallery entry in the Studio's tab row.
 
 Gallery Features:
-- View generated assets by media type
+- Browse All, Images, Videos, or Audio
+- Search, filter (provider, model, type, date), and sort
+- Video tiles show poster thumbnails
 - Tap any asset to preview it
-- Save or share generated media directly to other apps
-- Use images as starting points for refinement or image-to-video generation
 
 Actions:
 From the detail view, you can:
 - Save: Download supported assets to your device
 - Share: Send via messages, email, or social media
-- Refine: Use images as a base for img2img refinement
+- Refine: Use an image as the source for a new refinement
 - Delete: Remove from your gallery
 
+Multi-Select:
+Long-press an asset (or tap Select) to choose several at once for bulk save or delete.
+
 Storage:
-Generated assets are stored locally on your device. The gallery persists across app sessions, so your creations are always available.
-
-Tip: Long-press an asset in the grid for quick actions without opening the detail view.`,
+Generated assets are stored locally on your device. The gallery persists across app sessions, so your creations are always available.`,
     relatedTopics: ["create-mode", "create-refinement"],
-  },
-
-  "create-image-mode": {
-    id: "create-image-mode",
-    title: "Create vs Refine",
-    icon: "sparkles",
-    category: "create",
-    shortDescription: "Generate new images or edit existing ones",
-    content: `The mode switch decides what each selected AI does.
-
-Create:
-Generates a brand-new image from your text prompt.
-
-Refine:
-Edits an existing image you upload or pick from your gallery, guided by your instructions. This is also called image-to-image (img2img).
-
-Which models support Refine:
-OpenAI (GPT Image), Google Gemini, and Grok can edit images. Imagen and DALL·E 3 are text-only - in Refine mode they're dimmed, so switch their model or use Create mode.
-
-Tip: You can select up to 3 AIs and compare how each one interprets the same prompt or edit.`,
-    relatedTopics: ["create-refinement", "create-providers"],
   },
 
   "create-quality": {
@@ -1099,7 +1090,7 @@ Pick PNG or WebP if you need a transparent background. This control appears only
     icon: "scan",
     category: "create",
     shortDescription: "Output detail size",
-    content: `Sets the output resolution for models that support multiple sizes (such as Gemini preview models and Grok).
+    content: `Sets the output resolution for models that support multiple sizes (such as Gemini image models and Grok).
 
 Higher resolutions capture more detail but cost more and take longer. Options vary by model - for example 1K, 2K, or 4K - so this control only appears for models that expose it.`,
     relatedTopics: ["create-quality", "create-frame"],
@@ -1111,13 +1102,13 @@ Higher resolutions capture more detail but cost more and take longer. Options va
     icon: "crop",
     category: "create",
     shortDescription: "Shared aspect ratio for all models",
-    content: `Frame sets the aspect ratio applied to every selected AI, so a side-by-side comparison stays consistent.
+    content: `Frame sets the aspect ratio applied to every selected AI, so a side-by-side comparison stays consistent. You'll find it in the Output Options sheet (the sliders chip next to the input).
 
 - Model default: each provider's own default frame
 - Square (1:1), Portrait, Landscape
 
 Each provider maps these to its supported dimensions automatically (OpenAI uses pixel sizes, Gemini and Grok use aspect ratios).`,
-    relatedTopics: ["create-sizes", "create-resolution"],
+    relatedTopics: ["create-styles", "create-resolution"],
   },
 
   "create-compression": {
