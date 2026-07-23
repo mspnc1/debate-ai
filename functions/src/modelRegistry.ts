@@ -112,6 +112,8 @@ export const DEFAULT_PROVIDER_MODELS: Record<string, string> = {
   cohere: 'command-a-reasoning-08-2025',
   deepseek: 'deepseek-v4-flash',
   grok: 'grok-4.3',
+  moonshot: 'kimi-k3',
+  zai: 'glm-5.2',
 };
 
 const MODELS_REQUIRING_TEMPERATURE_1 = new Set([

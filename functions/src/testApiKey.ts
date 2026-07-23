@@ -87,6 +87,29 @@ const PROBES: Record<string, ProviderProbe> = {
     }),
     treat400AsValid: true,
   },
+  moonshot: {
+    request: (key) => ({
+      url: 'https://api.moonshot.ai/v1/models',
+      init: { method: 'GET', headers: { Authorization: `Bearer ${key}` } },
+    }),
+  },
+  zai: {
+    // Z.ai's OpenAI-compatible surface has no reliable models-list endpoint;
+    // probe with a 1-token completion like Perplexity.
+    request: (key) => ({
+      url: 'https://api.z.ai/api/paas/v4/chat/completions',
+      init: {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'glm-5.2',
+          messages: [{ role: 'user', content: 'ping' }],
+          max_tokens: 1,
+        }),
+      },
+    }),
+    treat400AsValid: true,
+  },
   brave: {
     request: (key) => ({
       url: 'https://api.search.brave.com/res/v1/web/search?q=ping&count=1',

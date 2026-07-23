@@ -41,6 +41,14 @@ const PROVIDER_CONFIGS: Record<string, {
     baseUrl: 'https://api.x.ai/v1/chat/completions',
     authHeader: 'Authorization',
   },
+  moonshot: {
+    baseUrl: 'https://api.moonshot.ai/v1/chat/completions',
+    authHeader: 'Authorization',
+  },
+  zai: {
+    baseUrl: 'https://api.z.ai/api/paas/v4/chat/completions',
+    authHeader: 'Authorization',
+  },
 };
 
 interface Message {
@@ -183,6 +191,8 @@ const PROVIDER_NAMES: Record<string, string> = {
   cohere: 'Cohere',
   deepseek: 'DeepSeek',
   grok: 'Grok',
+  moonshot: 'Kimi',
+  zai: 'GLM',
 };
 
 /**
@@ -1291,6 +1301,12 @@ function modelSupportsVision(providerId: string, model: string): boolean {
       // Command A Vision model supports vision
       return modelLower.includes('vision') ||
              modelLower.includes('command-a');
+    case 'moonshot':
+      // Kimi K3 and K2.x are natively multimodal
+      return modelLower.includes('kimi-k');
+    case 'zai':
+      // Only the GLM vision line (glm-5v-*) accepts image input
+      return modelLower.includes('glm-5v');
     default:
       // DeepSeek doesn't support vision via their chat API
       return false;

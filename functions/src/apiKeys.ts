@@ -48,7 +48,7 @@ function decrypt(encrypted: string, iv: string, tag: string, keyValue: string): 
 // Valid provider IDs (AI providers + tool providers like Brave Search)
 const VALID_PROVIDERS = [
   'claude', 'openai', 'google', 'perplexity', 'mistral',
-  'cohere', 'deepseek', 'grok',
+  'cohere', 'deepseek', 'grok', 'moonshot', 'zai',
   // Tool providers (for Analyze mode features)
   'brave',
   // Media providers (for Create mode)
