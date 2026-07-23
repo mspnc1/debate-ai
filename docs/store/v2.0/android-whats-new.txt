@@ -1,0 +1,10 @@
+Symposium AI 2.0 — our biggest update yet.
+
+• Composer-first: start any Chat, Compare, Debate or Create from the prompt bar, tap to pick your AIs
+• Create Studio: generate images, video & audio, with a gallery and instant previews
+• Attach images & documents to your first message
+• Web search with citations — now on Claude & Grok too
+• Newest models: Sonnet 5, GPT-5.6, Grok 4.5, Gemini 3.6 Flash
+• Expert Mode controls + polish throughout
+
+Keys stay private on your device.

@@ -1,0 +1,112 @@
+What if you could access ChatGPT, Claude, Gemini, and 7 more AIs — all in one app?
+
+Symposium AI brings the world's most powerful AI models together. Start any chat, comparison, or creation right from the prompt bar — pick your AIs and attach images or documents before you hit send. Use multi-AI chat to guard against hallucinations. Compare responses to the same prompt, side-by-side. Get web-sourced answers with citations. Generate images, video, and audio clips. Even watch AIs debate each other about any topic you choose!
+
+One app. Ten providers. Unlimited possibilities.
+
+---
+COMPARE MODE
+
+Not sure which AI gives the best answer? Now you don't have to guess.
+
+Ask one question. Get two responses side-by-side. Instantly see how Claude and ChatGPT (or any pair) approach the same problem differently.
+
+Found your preferred response? Tap to continue the conversation with that AI. No more app-switching. No more copy-pasting between tabs.
+
+---
+WEB SEARCH
+
+AI with real-time information.
+
+When you need current facts — not training data — Claude, ChatGPT, Gemini, Grok, and Perplexity can search the live web and cite their sources right in the response. It happens automatically on models that support it — no toggles, no guesswork.
+
+Stock prices. Breaking news. Latest documentation. Finally, AI that knows what happened today.
+
+---
+CREATE STUDIO
+
+Generate and refine images with AI. Create video clips from prompts or images. Use ElevenLabs to create voiceover audio or sound effects.
+
+Describe what you want. Choose your style. Watch multiple AI providers generate your vision simultaneously.
+
+- ChatGPT, Gemini, and Grok create images side-by-side
+- 14+ art styles from photorealistic to abstract
+- Refinement mode: upload an image, describe changes, watch AI transform it
+- Video: create 5-10 second clips with Runway
+- Audio: create voiceovers and sound effects with ElevenLabs
+
+Your personal AI art studio.
+
+---
+MULTI-AI CHAT
+
+Why settle for one perspective?
+
+Ask a question and get answers from multiple AIs in the same conversation. See how Claude's analysis differs from ChatGPT's creativity or Gemini's precision. Have one AI check another's response in real time, guarding against hallucinations.
+
+Your complete history is saved. Pick up any conversation exactly where you left off.
+
+---
+AI DEBATE ARENA
+
+Here's where it gets interesting.
+
+Pick a topic or write your own Motion. Select two AIs. Watch them argue — live.
+
+Claude and ChatGPT will challenge each other's logic, defend their positions, and reveal how differently they think. Track wins with live scoring, leaderboards, and round-by-round analysis.
+
+It's entertaining. It's illuminating. And it exists nowhere else.
+
+---
+YOUR KEYS. YOUR SAVINGS.
+
+Already paying for AI APIs? Use them here.
+
+Symposium AI works with your existing API keys. Pay pennies per conversation instead of $20+/month per service. No middleman. No markup.
+
+Your keys never leave your device.
+
+---
+10 AI PROVIDERS, ONE APP
+
+ - Claude (Anthropic)
+ - ChatGPT (OpenAI)
+ - Gemini (Google)
+ - Grok (xAI)
+ - Perplexity
+ - Mistral
+ - Cohere
+ - DeepSeek
+ - Runway
+ - ElevenLabs
+
+---
+PREMIUM UNLOCKS
+
+ - Debate any topic you choose
+ - 8 unique AI personalities (Kai the Engineer, Prof. Sage, and more)
+ - Expert mode with full model and parameter control
+ - Image generation and refinement
+ - Video clip generation
+ - Voiceover and sound effect audio
+ - Priority support
+
+---
+WHO IS THIS FOR?
+
+  - Professionals who need the best answer, fast
+  - Developers already paying for API access
+  - Researchers comparing AI capabilities
+  - Creators exploring AI-generated art
+  - Anyone curious how different AI systems think
+
+---
+Where Ideas Converge. Where Understanding Emerges.
+
+Download now and experience AI the way it should be — together.
+
+Questions? support@braveheartinnovations.com
+
+Terms of Use: https://www.symposiumai.app/terms
+
+Privacy Policy: https://www.symposiumai.app/privacy
