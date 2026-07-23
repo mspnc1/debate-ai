@@ -107,6 +107,16 @@ const OPENAI_COMPATIBLE_CONFIGS: Record<string, ProviderConfig> = {
     authHeader: 'Authorization',
     authPrefix: 'Bearer ',
   },
+  moonshot: {
+    baseUrl: 'https://api.moonshot.ai/v1/chat/completions',
+    authHeader: 'Authorization',
+    authPrefix: 'Bearer ',
+  },
+  zai: {
+    baseUrl: 'https://api.z.ai/api/paas/v4/chat/completions',
+    authHeader: 'Authorization',
+    authPrefix: 'Bearer ',
+  },
 };
 
 // ============================================================================
@@ -122,8 +132,9 @@ export class OpenAIRuntime implements ProviderRuntime {
     this.providerId = providerId;
     this.config = OPENAI_COMPATIBLE_CONFIGS[providerId] || OPENAI_COMPATIBLE_CONFIGS.openai;
 
-    // OpenAI, Mistral, and Grok (x.ai) support tools via OpenAI-compatible format
-    this.supportsTools = ['openai', 'mistral', 'grok'].includes(providerId);
+    // OpenAI, Mistral, Grok (x.ai), Kimi (Moonshot), and GLM (Z.ai) support tools
+    // via OpenAI-compatible format
+    this.supportsTools = ['openai', 'mistral', 'grok', 'moonshot', 'zai'].includes(providerId);
   }
 
   /**

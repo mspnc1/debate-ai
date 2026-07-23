@@ -23,6 +23,16 @@ describe('ProviderRegistry', () => {
       /not supported/
     );
   });
+
+  it('supports moonshot and zai as OpenAI-compatible V2 runtimes with tools', () => {
+    for (const providerId of ['moonshot', 'zai']) {
+      assert.equal(isV2Supported(providerId), true);
+      assert.equal(ProviderRegistry.getSupportedProviders().includes(providerId), true);
+      const runtime = ProviderRegistry.get(providerId);
+      assert.equal(runtime.providerId, providerId);
+      assert.equal(runtime.supportsTools, true);
+    }
+  });
 });
 
 describe('modelRegistry', () => {
@@ -33,6 +43,10 @@ describe('modelRegistry', () => {
     assert.equal(getDefaultModel('grok'), 'grok-4.3');
     assert.equal(resolveProviderModelId('grok', 'grok-build-latest'), 'grok-build-0.1');
     assert.equal(getDefaultModel('cohere'), 'command-a-reasoning-08-2025');
+    assert.equal(getDefaultModel('moonshot'), 'kimi-k3');
+    assert.equal(getDefaultModel('zai'), 'glm-5.2');
+    assert.equal(resolveProviderModelId('moonshot', ''), 'kimi-k3');
+    assert.equal(resolveProviderModelId('zai', ''), 'glm-5.2');
   });
 
   it('omits temperature for Claude 5-family models while preserving other model normalization', () => {

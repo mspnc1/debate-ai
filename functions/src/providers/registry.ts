@@ -21,7 +21,9 @@ export type SupportedProvider =
   | 'mistral'
   | 'deepseek'
   | 'grok'
-  | 'cohere';
+  | 'cohere'
+  | 'moonshot'
+  | 'zai';
 
 /**
  * Check if a provider is supported by the V2 endpoint
@@ -35,6 +37,8 @@ export function isV2Supported(providerId: string): providerId is SupportedProvid
     'deepseek',
     'grok',
     'cohere',
+    'moonshot',
+    'zai',
   ].includes(providerId);
 }
 
@@ -74,6 +78,12 @@ export class ProviderRegistry {
       case 'grok':
         return getOpenAIRuntime('grok');
 
+      case 'moonshot':
+        return getOpenAIRuntime('moonshot');
+
+      case 'zai':
+        return getOpenAIRuntime('zai');
+
       default:
         throw new Error(`Provider '${providerId}' is not supported by V2 endpoint`);
     }
@@ -95,6 +105,6 @@ export class ProviderRegistry {
    * Get all supported provider IDs
    */
   static getSupportedProviders(): SupportedProvider[] {
-    return ['claude', 'openai', 'google', 'mistral', 'deepseek', 'grok', 'cohere'];
+    return ['claude', 'openai', 'google', 'mistral', 'deepseek', 'grok', 'cohere', 'moonshot', 'zai'];
   }
 }

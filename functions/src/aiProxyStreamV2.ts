@@ -177,6 +177,8 @@ const PROVIDER_NAMES: Record<string, string> = {
   deepseek: 'DeepSeek',
   grok: 'Grok',
   cohere: 'Cohere',
+  moonshot: 'Kimi',
+  zai: 'GLM',
 };
 
 // ============================================================================

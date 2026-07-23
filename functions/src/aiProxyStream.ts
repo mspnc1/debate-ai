@@ -64,6 +64,16 @@ const PROVIDER_CONFIGS: Record<string, {
     authHeader: 'Authorization',
     streamParam: 'stream',
   },
+  moonshot: {
+    baseUrl: 'https://api.moonshot.ai/v1/chat/completions',
+    authHeader: 'Authorization',
+    streamParam: 'stream',
+  },
+  zai: {
+    baseUrl: 'https://api.z.ai/api/paas/v4/chat/completions',
+    authHeader: 'Authorization',
+    streamParam: 'stream',
+  },
 };
 
 interface Message {
@@ -1273,6 +1283,10 @@ function modelSupportsVision(providerId: string, model: string): boolean {
     case 'cohere':
       return modelLower.includes('vision') ||
              modelLower.includes('command-a');
+    case 'moonshot':
+      return modelLower.includes('kimi-k');
+    case 'zai':
+      return modelLower.includes('glm-5v');
     default:
       return false;
   }
@@ -1290,6 +1304,8 @@ const PROVIDER_NAMES: Record<string, string> = {
   cohere: 'Cohere',
   deepseek: 'DeepSeek',
   grok: 'Grok',
+  moonshot: 'Kimi',
+  zai: 'GLM',
 };
 
 /**
