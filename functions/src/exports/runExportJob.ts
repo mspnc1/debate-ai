@@ -17,6 +17,7 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { getFirestore } from 'firebase-admin/firestore';
+import { OAuth2Client } from 'google-auth-library';
 import { getExportBucket } from './utils';
 import type { Browser } from 'puppeteer-core';
 
@@ -53,6 +54,40 @@ import {
 } from './artifactBranding';
 
 const provenanceHmacKey = defineSecret('PROVENANCE_HMAC_KEY');
+
+// Verifies that a request carries a valid Cloud Tasks OIDC token. This endpoint
+// is invoked ONLY by the exports queue (see enqueueExportJob), which attaches an
+// OIDC token whose audience is this function's URL and whose identity is the
+// App Engine default service account. Rejecting anything else prevents arbitrary
+// callers from triggering or replaying export jobs.
+const oidcClient = new OAuth2Client();
+
+async function verifyCloudTasksInvoker(
+  authorizationHeader: string | undefined,
+): Promise<{ status: number; error: string } | null> {
+  const token = typeof authorizationHeader === 'string'
+    ? (authorizationHeader.match(/^Bearer (.+)$/)?.[1] ?? null)
+    : null;
+  if (!token) {
+    return { status: 401, error: 'Unauthorized: missing bearer token' };
+  }
+
+  const project = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || '';
+  // Must mirror enqueueExportJob's oidcToken settings exactly.
+  const expectedAudience = `https://us-central1-${project}.cloudfunctions.net/runExportJob`;
+  const expectedEmail = `${project}@appspot.gserviceaccount.com`;
+
+  try {
+    const ticket = await oidcClient.verifyIdToken({ idToken: token, audience: expectedAudience });
+    const payload = ticket.getPayload();
+    if (!payload || payload.email !== expectedEmail || payload.email_verified !== true) {
+      return { status: 403, error: 'Forbidden: unexpected invoker identity' };
+    }
+    return null;
+  } catch {
+    return { status: 401, error: 'Unauthorized: invalid token' };
+  }
+}
 
 // Puppeteer version for provenance
 let puppeteerVersion = 'unknown';
@@ -174,6 +209,14 @@ export const runExportJob = onRequest(
   async (req, res) => {
     if (req.method !== 'POST') {
       res.status(405).send('Method not allowed');
+      return;
+    }
+
+    // Authenticate the caller as the Cloud Tasks exports queue before doing any work.
+    const authError = await verifyCloudTasksInvoker(req.headers.authorization);
+    if (authError) {
+      console.warn(`[runExportJob] Rejected unauthenticated invocation: ${authError.error}`);
+      res.status(authError.status).json({ error: authError.error });
       return;
     }
 

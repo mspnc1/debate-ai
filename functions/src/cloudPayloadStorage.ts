@@ -309,6 +309,24 @@ async function deleteStoragePrefix(uid: string, prefix: string): Promise<{ bytes
   return { bytes, objects };
 }
 
+/**
+ * Delete EVERY Cloud Storage object under a user's prefix (`users/{uid}/`).
+ * Used by account deletion — broader than deleteStoragePrefix, which is scoped
+ * to a single session for the interactive callable path. Prefix-scoped to the
+ * user, so it cannot reach other users' data or content-addressed shared exports
+ * (which live under `exports/`, not `users/`).
+ */
+export async function deleteAllUserStorage(uid: string): Promise<{ objects: number }> {
+  if (!uid) throw new Error('deleteAllUserStorage: uid is required');
+  const [files] = await bucket().getFiles({ prefix: `users/${uid}/` });
+  let objects = 0;
+  for (const file of files) {
+    await file.delete({ ignoreNotFound: true });
+    objects += 1;
+  }
+  return { objects };
+}
+
 async function deleteCollection(collection: FirebaseFirestore.CollectionReference, batchSize = 400): Promise<number> {
   let deleted = 0;
   while (true) {

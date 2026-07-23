@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
+import { deleteAllUserStorage } from './cloudPayloadStorage';
 
 // Initialize Admin if not already
 try { admin.app(); } catch { admin.initializeApp(); }
@@ -16,24 +17,25 @@ export const deleteAccount = onCall(async (request) => {
     // NOTE: The /trialHistory/{uid} collection is intentionally NOT deleted here.
     // This prevents trial abuse where users delete their account and re-register
     // to get unlimited free trials. The trialHistory collection tracks email hashes
-    // and UIDs that have used trials, surviving account deletion.
+    // and UIDs that have used trials, surviving account deletion. It is a top-level
+    // collection, so the recursiveDelete below (scoped to users/{uid}) never touches it.
 
-    // Delete Firestore user data
-    const userDocRef = firestore.collection('users').doc(uid);
-
-    // Get and delete subcollections manually
-    const subCollections = await userDocRef.listCollections();
-    for (const subCollection of subCollections) {
-      const snapshot = await subCollection.get();
-      const batch = firestore.batch();
-      snapshot.forEach((doc) => {
-        batch.delete(doc.ref);
-      });
-      await batch.commit();
+    // Delete all Cloud Storage objects owned by the user (session payloads, exports,
+    // audio) before removing the Firestore records that reference them. Best-effort:
+    // a storage failure must not block account deletion, so log and continue rather
+    // than leaving the account un-deletable.
+    try {
+      const { objects } = await deleteAllUserStorage(uid);
+      console.log(`Account deletion: removed ${objects} storage object(s) for user ${uid}`);
+    } catch (storageError) {
+      console.error(`Account deletion: storage cleanup failed for user ${uid}`, storageError);
     }
 
-    // Delete the user document
-    await userDocRef.delete();
+    // Recursively delete the user document AND all nested subcollections
+    // (conversations/{id}/messages, conversations/{id}/artifacts, apiKeys, billing,
+    // usage, etc.). The previous one-level batch loop orphaned nested subcollections.
+    const userDocRef = firestore.collection('users').doc(uid);
+    await firestore.recursiveDelete(userDocRef);
 
     // Delete the Auth user
     try {
