@@ -134,6 +134,7 @@ const MODELS_REQUIRING_TEMPERATURE_1 = new Set([
 
 const MODELS_DEPRECATING_TEMPERATURE = new Set([
   'claude-fable-5',
+  'claude-sonnet-5',
 ]);
 
 const MODELS_UNSUPPORTED_CHAT_COMPLETIONS = new Set([

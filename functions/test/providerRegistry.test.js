@@ -35,9 +35,10 @@ describe('modelRegistry', () => {
     assert.equal(getDefaultModel('cohere'), 'command-a-reasoning-08-2025');
   });
 
-  it('omits temperature for Claude Fable 5 while preserving other model normalization', () => {
+  it('omits temperature for Claude 5-family models while preserving other model normalization', () => {
     assert.equal(normalizeProviderTemperature('claude', 'claude-fable-5', 0.7), undefined);
     assert.equal(normalizeProviderTemperature('claude', 'claude-fable-latest', 0.7), undefined);
+    assert.equal(normalizeProviderTemperature('claude', 'claude-sonnet-5', 0.7), undefined);
     assert.equal(normalizeProviderTemperature('claude', 'claude-sonnet-4-6', 0.7), 0.7);
     assert.equal(normalizeProviderTemperature('openai', 'gpt-5.5', 0.7), 1);
   });
