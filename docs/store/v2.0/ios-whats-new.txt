@@ -1,0 +1,24 @@
+Symposium AI 2.0 is our biggest release yet — a top-to-bottom redesign built around one simple idea: just start typing.
+
+COMPOSER-FIRST, EVERYWHERE
+Chat, Compare, Debate, and Create now all begin at a single prompt bar. Tap to pick your AIs with the new pill selector, attach what you need, and go — no setup screens between you and the conversation.
+
+CREATE STUDIO
+Generate images, video, and audio from one place, across multiple AI providers. A redesigned media gallery with instant previews keeps every creation a tap away, and you can refine any result straight from the composer.
+
+ATTACH BEFORE YOU ASK
+Add images and documents to your very first message in Chat, Compare, and Create — so the AIs have context from the start.
+
+WEB SEARCH, NOW WITH CLAUDE & GROK
+Claude and Grok join ChatGPT, Gemini, and Perplexity in searching the live web with cited sources — automatically, no toggle to flip.
+
+THE NEWEST MODELS
+A fully refreshed July 2026 catalog: Claude Sonnet 5, GPT-5.6, Grok 4.5, and Gemini 3.6 Flash (the new default), with live pricing so you always know the cost.
+
+EXPERT MODE, LEVELED UP
+Model-aware parameter controls tune each AI to the exact model you're running — per session, no clutter.
+
+POLISHED THROUGHOUT
+A new paged-sheet interface, smoother keyboard handling everywhere, a live status line while responses stream in, 2FA backup-code sign-in, in-app API-key testing, and countless refinements.
+
+And as always — bring your own API keys. They stay private and secure on your device, saving you money versus juggling multiple AI subscriptions.

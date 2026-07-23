@@ -11,6 +11,7 @@ const svgBuffer = fs.readFileSync(svgPath);
 // Convert to PNG at 1024x500
 sharp(svgBuffer)
   .resize(1024, 500)
+  .flatten({ background: '#061F1E' }) // drop alpha -> 24-bit PNG (Play requires no transparency)
   .png()
   .toFile(outputPath)
   .then(() => {
