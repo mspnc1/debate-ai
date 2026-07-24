@@ -119,6 +119,13 @@ export const DEFAULT_PROVIDER_MODELS: Record<string, string> = {
 const MODELS_REQUIRING_TEMPERATURE_1 = new Set([
   'claude-opus-4-8',
   'claude-opus-4-7',
+  // GPT-5.6 GA rejects any temperature except the default 1 (live-verified
+  // 2026-07-23: "'temperature' does not support 0.7 with this model"). A model
+  // missing from this set 400s on EVERY proxied request, because buildRequest
+  // always injects a 0.7 default — same trap as claude-sonnet-5 (2026-07-22).
+  'gpt-5.6-sol',
+  'gpt-5.6-terra',
+  'gpt-5.6-luna',
   'gpt-5.5',
   'gpt-5.5-pro',
   'gpt-5.4',
