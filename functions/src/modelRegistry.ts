@@ -150,6 +150,23 @@ const MODELS_UNSUPPORTED_CHAT_COMPLETIONS = new Set([
   'gpt-5.5-pro',
 ]);
 
+// GPT-5.6 GA on /v1/chat/completions cannot combine function tools with its
+// default reasoning: "Function tools with reasoning_effort are not supported
+// for gpt-5.6-sol in /v1/chat/completions. To use function tools, use
+// /v1/responses or set reasoning_effort to 'none'." (live-verified
+// 2026-07-24; with effort 'none' all three models emit correct tool calls).
+// Proper long-term fix is a Responses API migration.
+const MODELS_REQUIRING_REASONING_EFFORT_NONE_FOR_TOOLS = new Set([
+  'gpt-5.6-sol',
+  'gpt-5.6-terra',
+  'gpt-5.6-luna',
+]);
+
+export function requiresReasoningEffortNoneForTools(modelId: string | undefined): boolean {
+  if (!modelId) return false;
+  return MODELS_REQUIRING_REASONING_EFFORT_NONE_FOR_TOOLS.has(resolveModelAlias(modelId));
+}
+
 export function resolveModelAlias(modelId: string): string {
   return MODEL_ALIASES[modelId] || modelId;
 }

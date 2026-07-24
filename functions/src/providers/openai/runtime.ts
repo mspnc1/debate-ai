@@ -18,7 +18,7 @@ import type {
   CanonicalToolDefinition,
   CanonicalToolChoice,
 } from '../../types/canonical';
-import { normalizeProviderTemperature } from '../../modelRegistry';
+import { normalizeProviderTemperature, requiresReasoningEffortNoneForTools } from '../../modelRegistry';
 import type { ProviderRuntime, ProviderRequest, BuiltRequest, ProviderConfig } from '../types';
 import {
   parseSSEStream,
@@ -170,6 +170,11 @@ export class OpenAIRuntime implements ProviderRuntime {
       body.tools = transformToolsForOpenAI(request.tools);
       if (request.toolChoice) {
         body.tool_choice = transformToolChoiceForOpenAI(request.toolChoice);
+      }
+      // GPT-5.6 rejects function tools + reasoning on chat completions;
+      // OpenAI's own error text prescribes reasoning_effort 'none'.
+      if (this.providerId === 'openai' && requiresReasoningEffortNoneForTools(request.model)) {
+        body.reasoning_effort = 'none';
       }
     }
 
