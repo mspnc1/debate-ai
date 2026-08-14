@@ -64,7 +64,7 @@ interface SalesforceDocsSitemapEntry {
   sourceLabel: string;
 }
 
-interface OfficialDocContent {
+export interface OfficialDocContent {
   text: string;
   contentQuality: SalesforceDocsContentQuality;
   title?: string;
@@ -1143,24 +1143,60 @@ export async function writeSalesforceDocsIndex(index: SalesforceDocsIndex): Prom
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
     },
-    body: JSON.stringify(index, null, 2),
+    // Minified on purpose: the index is multi-MB and read on lookup paths.
+    body: JSON.stringify(index),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`Failed to write Salesforce docs index to Cloud Storage (${response.status}): ${errorText}`);
   }
+  cachedIndexState = null;
 }
 
-async function readSalesforceDocsIndexText(): Promise<string | null> {
-  const downloadUrl = `https://storage.googleapis.com/storage/v1/b/${storageBucketPath()}/o/${storageObjectPath()}?alt=media`;
-  const response = await authorizedStorageFetch(downloadUrl, { method: 'GET' });
+const SALESFORCE_DOC_INDEX_CACHE_TTL_MS = 5 * 60 * 1000;
+
+interface DownloadedSalesforceDocsIndex {
+  index: SalesforceDocsIndex | null;
+  generation?: string;
+}
+
+let cachedIndexState: {
+  promise: Promise<DownloadedSalesforceDocsIndex>;
+  validatedAtMs: number;
+} | null = null;
+
+async function fetchSalesforceDocsIndexGeneration(): Promise<string | null> {
+  const metadataUrl = `https://storage.googleapis.com/storage/v1/b/${storageBucketPath()}/o/${storageObjectPath()}?fields=generation`;
+  const response = await authorizedStorageFetch(metadataUrl, { method: 'GET' });
   if (response.status === 404) return null;
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Failed to read Salesforce docs index from Cloud Storage (${response.status}): ${errorText}`);
+    throw new Error(`Failed to read Salesforce docs index metadata (${response.status}): ${errorText}`);
   }
-  return response.text();
+  const metadata = await response.json() as { generation?: string };
+  return metadata.generation || null;
+}
+
+async function downloadSalesforceDocsIndex(): Promise<DownloadedSalesforceDocsIndex> {
+  try {
+    const downloadUrl = `https://storage.googleapis.com/storage/v1/b/${storageBucketPath()}/o/${storageObjectPath()}?alt=media`;
+    const response = await authorizedStorageFetch(downloadUrl, { method: 'GET' });
+    if (response.status === 404) return { index: null };
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to read Salesforce docs index from Cloud Storage (${response.status}): ${errorText}`);
+    }
+    const generation = response.headers.get('x-goog-generation') || undefined;
+    const parsed = JSON.parse(await response.text()) as SalesforceDocsIndex;
+    return {
+      index: parsed && parsed.version === SALESFORCE_DOC_INDEX_VERSION ? parsed : null,
+      generation,
+    };
+  } catch (error) {
+    console.warn('[salesforceDocsIndex] Failed to read Salesforce docs index:', error);
+    return { index: null };
+  }
 }
 
 function isOfficialSalesforceUrl(urlValue: string): boolean {
@@ -1172,13 +1208,15 @@ function isOfficialSalesforceUrl(urlValue: string): boolean {
   }
 }
 
-function canonicalizeUrl(urlValue: string): string | null {
+export function canonicalizeUrl(urlValue: string): string | null {
   try {
     const url = new URL(urlValue);
     if (!isOfficialSalesforceUrl(url.toString())) return null;
     url.hash = '';
     for (const key of Array.from(url.searchParams.keys())) {
-      if (/^(utm_|cmpid|d|nc|trk|mc_)/i.test(key)) {
+      // Prefix-match only true tracking-param families; `d`, `nc`, `cmpid` must be
+      // exact — a prefix match would strip real params like `docId`/`deliverable`.
+      if (/^(?:utm_|trk|mc_)/i.test(key) || /^(?:d|nc|cmpid)$/i.test(key)) {
         url.searchParams.delete(key);
       }
     }
@@ -1619,8 +1657,20 @@ function inferSourceType(urlValue: string): SalesforceDocsIndexRecord['sourceTyp
   return 'official_doc';
 }
 
-function inferStatus(text: string): SalesforceDocsIndexRecord['status'] {
-  const normalized = text.replace(/\s+/g, ' ');
+/**
+ * Standard forward-looking-statements / safe-harbor boilerplate appears on GA
+ * release-notes and docs pages; it must not flag the whole document as preview.
+ * Sentences carrying that boilerplate are dropped before status matching.
+ */
+function stripSalesforceSafeHarborText(text: string): string {
+  return text
+    .split(/(?<=[.!?])\s+/)
+    .filter((sentence) => !/forward-looking statements?|unreleased services or features|purchase decisions?.{0,120}(?:currently|generally) available/i.test(sentence))
+    .join(' ');
+}
+
+export function inferSalesforceDocumentationStatus(text: string): SalesforceDocsIndexRecord['status'] {
+  const normalized = stripSalesforceSafeHarborText(text.replace(/\s+/g, ' '));
   if (
     /\b(?:developer|public|private)\s+preview\b/i.test(normalized)
     || /\b(?:this|the)\s+(?:release|feature|document|content|functionality|release note)\s+is\s+(?:currently\s+)?(?:in\s+)?(?:preview|beta|pilot)\b/i.test(normalized)
@@ -1697,12 +1747,12 @@ async function fetchTextWithCurl(url: string, timeoutMs: number): Promise<string
   return result.stdout;
 }
 
-async function fetchText(url: string, timeoutMs = 20000): Promise<string> {
+async function fetchText(url: string, timeoutMs = 20000, maxAttempts = 3): Promise<string> {
   if (!isOfficialSalesforceUrl(url)) {
     throw new Error(`URL is not an allowed official Salesforce URL: ${url}`);
   }
   let lastError: Error | null = null;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -1718,13 +1768,13 @@ async function fetchText(url: string, timeoutMs = 20000): Promise<string> {
       }
       lastError = new Error(`HTTP ${response.status}`);
       if (ALLOW_CURL_TEXT_FETCH && response.status === 403) break;
-      if (![403, 429, 500, 502, 503, 504].includes(response.status) || attempt === 2) {
+      if (![403, 429, 500, 502, 503, 504].includes(response.status) || attempt === maxAttempts - 1) {
         break;
       }
     } catch (error: any) {
       lastError = error instanceof Error ? new Error(fetchErrorMessage(error)) : new Error(fetchErrorMessage(error, 'Unknown fetch failure'));
       if (ALLOW_CURL_TEXT_FETCH && /UNABLE_TO_VERIFY|fetch failed/i.test(lastError.message)) break;
-      if (attempt === 2) break;
+      if (attempt === maxAttempts - 1) break;
     } finally {
       clearTimeout(timeout);
     }
@@ -1838,8 +1888,8 @@ async function fetchPdfDocument(url: string, timeoutMs = 60000): Promise<Fetched
   throw lastError || new Error('Unknown PDF fetch failure');
 }
 
-async function fetchOfficialJson<T>(url: string): Promise<T> {
-  const text = await fetchText(url);
+async function fetchOfficialJson<T>(url: string, options: { timeoutMs?: number; maxAttempts?: number } = {}): Promise<T> {
+  const text = await fetchText(url, options.timeoutMs ?? 20000, options.maxAttempts ?? 3);
   return JSON.parse(text) as T;
 }
 
@@ -1949,7 +1999,10 @@ function parseDeveloperDocsReference(urlValue: string): { docId: string; deliver
   }
 }
 
-async function fetchDeveloperDocsContent(urlValue: string): Promise<OfficialDocContent | null> {
+async function fetchDeveloperDocsContent(
+  urlValue: string,
+  options: { timeoutMs?: number; maxAttempts?: number } = {},
+): Promise<OfficialDocContent | null> {
   const reference = parseDeveloperDocsReference(urlValue);
   if (!reference) return null;
 
@@ -1972,7 +2025,7 @@ async function fetchDeveloperDocsContent(urlValue: string): Promise<OfficialDocC
   };
 
   const documentUrl = `https://developer.salesforce.com/docs/get_document/${encodeURIComponent(reference.docId)}`;
-  const document = await fetchOfficialJson<DeveloperDocumentResponse>(documentUrl);
+  const document = await fetchOfficialJson<DeveloperDocumentResponse>(documentUrl, options);
   const documentVersion = document.version?.doc_version;
   const releaseLabel = document.version?.version_text;
   const apiVersion = document.version?.release_version;
@@ -1994,7 +2047,7 @@ async function fetchDeveloperDocsContent(urlValue: string): Promise<OfficialDocC
       'en-us',
       encodeURIComponent(documentVersion),
     ].join('/');
-    const content = await fetchOfficialJson<DeveloperContentResponse>(contentUrl);
+    const content = await fetchOfficialJson<DeveloperContentResponse>(contentUrl, options);
     html = content.content;
     title = content.title || title;
   }
@@ -2017,22 +2070,66 @@ async function fetchDeveloperDocsContent(urlValue: string): Promise<OfficialDocC
   };
 }
 
-async function fetchOfficialDoc(url: string): Promise<OfficialDocContent> {
-  let developerDocsApiError: string | undefined;
+function isHelpArticleViewMetadataUrl(urlValue: string): boolean {
   try {
-    const developerContent = await fetchDeveloperDocsContent(url);
-    if (developerContent) return developerContent;
-  } catch (error: any) {
-    developerDocsApiError = error?.message || 'Unknown developer docs API failure';
+    const url = new URL(urlValue);
+    return url.hostname === 'help.salesforce.com'
+      && url.pathname.includes('/articleView')
+      && Boolean(url.searchParams.get('id'));
+  } catch {
+    return false;
+  }
+}
+
+export type OfficialDocRetrievalPlan = 'developer_api' | 'rendered_help' | 'help_metadata' | 'raw_html';
+
+export interface FetchOfficialDocOptions {
+  /** Headless-Chrome rendering of help.salesforce.com release-notes articles. Index build only — never enable inside executeTool. */
+  allowRendering?: boolean;
+  fetchTimeoutMs?: number;
+  maxAttempts?: number;
+}
+
+export function officialDocRetrievalPlan(
+  urlValue: string,
+  options: { allowRendering?: boolean } = {},
+): OfficialDocRetrievalPlan {
+  const allowRendering = options.allowRendering !== false;
+  if (parseDeveloperDocsReference(urlValue)) return 'developer_api';
+  if (allowRendering && isRenderableSalesforceHelpArticleUrl(urlValue)) return 'rendered_help';
+  if (isHelpArticleViewMetadataUrl(urlValue)) return 'help_metadata';
+  return 'raw_html';
+}
+
+export async function fetchOfficialDocContent(
+  url: string,
+  options: FetchOfficialDocOptions = {},
+): Promise<OfficialDocContent> {
+  const plan = officialDocRetrievalPlan(url, options);
+  const timeoutMs = options.fetchTimeoutMs ?? 20000;
+  const maxAttempts = options.maxAttempts ?? 3;
+  let developerDocsApiError: string | undefined;
+
+  if (plan === 'developer_api') {
+    try {
+      const developerContent = await fetchDeveloperDocsContent(url, { timeoutMs, maxAttempts });
+      if (developerContent) return developerContent;
+    } catch (error: any) {
+      developerDocsApiError = error?.message || 'Unknown developer docs API failure';
+    }
   }
 
-  const renderedHelpArticle = await fetchRenderedHelpArticleContent(url);
-  if (renderedHelpArticle) return renderedHelpArticle;
+  if (plan === 'rendered_help') {
+    const renderedHelpArticle = await fetchRenderedHelpArticleContent(url);
+    if (renderedHelpArticle) return renderedHelpArticle;
+  }
 
-  const helpArticleMetadata = buildHelpArticleMetadata(url);
-  if (helpArticleMetadata) return helpArticleMetadata;
+  if (plan === 'rendered_help' || plan === 'help_metadata') {
+    const helpArticleMetadata = buildHelpArticleMetadata(url);
+    if (helpArticleMetadata) return helpArticleMetadata;
+  }
 
-  const html = await fetchText(url);
+  const html = await fetchText(url, timeoutMs, maxAttempts);
   const normalized = stripHtmlTags(html);
   if (normalized.length < 80) {
     throw new Error(`Fetched content was too short (${normalized.length} chars)`);
@@ -2210,13 +2307,13 @@ async function buildRecord(
   if (!url) {
     throw new Error(`URL is not an allowed official Salesforce URL: ${rawUrl}`);
   }
-  const content = await fetchOfficialDoc(url);
+  const content = await fetchOfficialDocContent(url);
   const text = content.text;
   const recordId = `sf-doc-index-${index}`;
   const textChunks = content.contentQuality === 'full_text'
     ? buildTextChunks(text, recordId)
     : [];
-  const status = inferStatus(`${text} ${content.releaseLabel || ''}`);
+  const status = inferSalesforceDocumentationStatus(`${text} ${content.releaseLabel || ''}`);
   const warnings = [...sourceWarnings(`${text} ${content.releaseLabel || ''}`, status), ...(content.warnings || [])];
   return {
     id: recordId,
@@ -2275,7 +2372,7 @@ async function buildPdfRecord(
     ...topics.flatMap((topic) => topic.keywords),
   ]));
   const version = inferPdfVersion(extracted.text);
-  const status = inferStatus(version.releaseLabel || source.title);
+  const status = inferSalesforceDocumentationStatus(version.releaseLabel || source.title);
   const refreshCadenceDays = source.refreshCadenceDays || PDF_REFRESH_CADENCE_DAYS;
   const recordSeed = {
     etag: pdf.etag,
@@ -2583,7 +2680,7 @@ function countFailuresByDomain(index: SalesforceDocsIndex): Record<string, numbe
   }, {} as Record<string, number>);
 }
 
-function refreshCoverageError(index: SalesforceDocsIndex): string | null {
+export function refreshCoverageError(index: SalesforceDocsIndex): string | null {
   const developerRecords = developerDocRecordCount(index);
   if (developerRecords < MIN_REFRESH_DEVELOPER_DOC_RECORDS) {
     return [
@@ -2629,16 +2726,41 @@ export async function refreshSalesforceDocsIndexNow(): Promise<SalesforceDocsInd
   return index;
 }
 
+/**
+ * Cached index reader. The parsed index is multi-MB, so instances hold one
+ * shared copy: the in-flight promise is cached (thundering-herd guard at cold
+ * start), a fresh copy is served inside the TTL, and after the TTL the stored
+ * object generation is revalidated so a re-download only happens on change.
+ */
 export async function readSalesforceDocsIndex(): Promise<SalesforceDocsIndex | null> {
-  try {
-    const indexText = await readSalesforceDocsIndexText();
-    if (!indexText) return null;
-    const parsed = JSON.parse(indexText) as SalesforceDocsIndex;
-    return parsed && parsed.version === SALESFORCE_DOC_INDEX_VERSION ? parsed : null;
-  } catch (error) {
-    console.warn('[salesforceDocsIndex] Failed to read Salesforce docs index:', error);
-    return null;
+  const now = Date.now();
+  if (cachedIndexState) {
+    if (now - cachedIndexState.validatedAtMs < SALESFORCE_DOC_INDEX_CACHE_TTL_MS) {
+      return (await cachedIndexState.promise).index;
+    }
+    const settled = await cachedIndexState.promise;
+    if (settled.index && settled.generation) {
+      try {
+        const generation = await fetchSalesforceDocsIndexGeneration();
+        if (generation && generation === settled.generation) {
+          cachedIndexState.validatedAtMs = now;
+          return settled.index;
+        }
+      } catch (error) {
+        console.warn('[salesforceDocsIndex] Salesforce docs index revalidation failed; serving cached copy:', error);
+        cachedIndexState.validatedAtMs = now;
+        return settled.index;
+      }
+    }
   }
+
+  const state = { promise: downloadSalesforceDocsIndex(), validatedAtMs: now };
+  cachedIndexState = state;
+  const result = await state.promise;
+  if (!result.index && cachedIndexState === state) {
+    cachedIndexState = null;
+  }
+  return result.index;
 }
 
 function tokensForTopic(topic: SalesforceDocsLookupTopicLike): string[] {
@@ -2662,33 +2784,146 @@ function tokensForTopic(topic: SalesforceDocsLookupTopicLike): string[] {
   ].join(' ').toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 3)));
 }
 
-function scoreTextForTokens(text: string, tokens: string[]): number {
-  const haystack = text.toLowerCase();
+// --- BM25 chunk relevance over the cached index -----------------------------
+// Corpus stats (N, avgdl) are one cheap pass per parsed index; document
+// frequency is computed lazily per token and memoized for the index object's
+// lifetime, so the first lookup pays the scan and later lookups reuse it.
+
+const BM25_K1 = 1.2;
+const BM25_B = 0.75;
+// Chunk influence on record scores is capped at 80 so topic-alias routing
+// (see scoreRecordForTopic) is not swamped by one hot chunk.
+const BM25_DISPLAY_SCALE = 8;
+const BM25_DISPLAY_CAP = 80;
+
+export interface SalesforceDocsBm25CorpusStats {
+  totalChunks: number;
+  avgChunkLength: number;
+  dfByToken: Map<string, number>;
+}
+
+const bm25StatsByIndex = new WeakMap<SalesforceDocsIndex, SalesforceDocsBm25CorpusStats>();
+const loweredChunkTextCache = new WeakMap<SalesforceDocsIndexTextChunk, string>();
+
+function loweredChunkText(chunk: SalesforceDocsIndexTextChunk): string {
+  let lowered = loweredChunkTextCache.get(chunk);
+  if (lowered === undefined) {
+    lowered = chunk.text.toLowerCase();
+    loweredChunkTextCache.set(chunk, lowered);
+  }
+  return lowered;
+}
+
+export function buildBm25CorpusStats(index: SalesforceDocsIndex): SalesforceDocsBm25CorpusStats {
+  let totalChunks = 0;
+  let totalLength = 0;
+  for (const record of index.records) {
+    for (const chunk of record.textChunks || []) {
+      totalChunks += 1;
+      totalLength += chunk.contentLength || chunk.text.length;
+    }
+  }
+  return {
+    totalChunks,
+    avgChunkLength: totalChunks > 0 ? totalLength / totalChunks : 0,
+    dfByToken: new Map(),
+  };
+}
+
+function getBm25CorpusStats(index: SalesforceDocsIndex): SalesforceDocsBm25CorpusStats {
+  const cached = bm25StatsByIndex.get(index);
+  if (cached) return cached;
+  const stats = buildBm25CorpusStats(index);
+  bm25StatsByIndex.set(index, stats);
+  return stats;
+}
+
+function documentFrequencyForToken(
+  index: SalesforceDocsIndex,
+  stats: SalesforceDocsBm25CorpusStats,
+  token: string,
+): number {
+  const cached = stats.dfByToken.get(token);
+  if (cached !== undefined) return cached;
+  let df = 0;
+  for (const record of index.records) {
+    for (const chunk of record.textChunks || []) {
+      if (loweredChunkText(chunk).includes(token)) df += 1;
+    }
+  }
+  stats.dfByToken.set(token, df);
+  return df;
+}
+
+function countOccurrences(haystack: string, needle: string): number {
+  if (!needle) return 0;
+  let count = 0;
+  let position = haystack.indexOf(needle);
+  while (position !== -1) {
+    count += 1;
+    position = haystack.indexOf(needle, position + needle.length);
+  }
+  return count;
+}
+
+export function bm25ChunkScore(
+  loweredText: string,
+  chunkLength: number,
+  tokens: string[],
+  stats: SalesforceDocsBm25CorpusStats,
+  dfResolver: (token: string) => number,
+): number {
+  if (stats.totalChunks === 0 || stats.avgChunkLength === 0) return 0;
   let score = 0;
   for (const token of tokens) {
-    if (!haystack.includes(token)) continue;
-    score += token.length >= 8 ? 4 : 2;
+    const tf = countOccurrences(loweredText, token);
+    if (tf === 0) continue;
+    const df = dfResolver(token);
+    const idf = Math.log(1 + (stats.totalChunks - df + 0.5) / (df + 0.5));
+    const lengthNorm = 1 - BM25_B + BM25_B * (chunkLength / stats.avgChunkLength);
+    score += idf * ((tf * (BM25_K1 + 1)) / (tf + BM25_K1 * lengthNorm));
   }
   return score;
+}
+
+type ChunkScorer = (chunk: SalesforceDocsIndexTextChunk, tokens: string[]) => number;
+
+function createChunkScorer(index: SalesforceDocsIndex): ChunkScorer {
+  const stats = getBm25CorpusStats(index);
+  const dfResolver = (token: string) => documentFrequencyForToken(index, stats, token);
+  return (chunk, tokens) => bm25ChunkScore(
+    loweredChunkText(chunk),
+    chunk.contentLength || chunk.text.length,
+    tokens,
+    stats,
+    dfResolver,
+  );
+}
+
+function scaleBm25ForDisplay(rawScore: number): number {
+  if (rawScore <= 0) return 0;
+  return Math.max(1, Math.min(Math.round(rawScore * BM25_DISPLAY_SCALE), BM25_DISPLAY_CAP));
 }
 
 function matchedChunksForRecord(
   record: SalesforceDocsIndexRecord,
   tokens: string[],
+  scoreChunk: ChunkScorer,
   maxChunks = MAX_MATCHED_CHUNKS_PER_SOURCE,
 ): NonNullable<SalesforceDocsIndexEvidenceSource['matchedChunks']> {
   if (!record.textChunks || record.textChunks.length === 0) return [];
   return record.textChunks
-    .map((chunk) => ({
+    .map((chunk) => ({ chunk, rawScore: scoreChunk(chunk, tokens) }))
+    .filter(({ rawScore }) => rawScore > 0)
+    .sort((a, b) => b.rawScore - a.rawScore || a.chunk.ordinal - b.chunk.ordinal)
+    .slice(0, maxChunks)
+    .map(({ chunk, rawScore }) => ({
       id: chunk.id,
       ordinal: chunk.ordinal,
       text: chunk.text,
-      score: scoreTextForTokens(chunk.text, tokens),
+      score: scaleBm25ForDisplay(rawScore),
       contentLength: chunk.contentLength,
-    }))
-    .filter((chunk) => chunk.score > 0)
-    .sort((a, b) => b.score - a.score || a.ordinal - b.ordinal)
-    .slice(0, maxChunks);
+    }));
 }
 
 function scoreRecordForTopic(
@@ -2696,11 +2931,14 @@ function scoreRecordForTopic(
   topic: SalesforceDocsLookupTopicLike,
   tokens: string[],
   aliasTopicIds: string[],
+  scoreChunk: ChunkScorer,
 ): number {
   if (isNonEnglishLocalizedSalesforceUrl(record.url)) return 0;
   let score = 0;
   const aliasTopicMatch = record.topicIds.some((topicId) => aliasTopicIds.includes(topicId));
-  if (aliasTopicMatch) score += 100;
+  // Alias routing is a strong prior, not a trump card: BM25 chunk relevance
+  // (capped at 80) must be able to outrank an alias match with weak content.
+  if (aliasTopicMatch) score += 40;
   const haystack = [
     record.title,
     record.url,
@@ -2712,10 +2950,10 @@ function scoreRecordForTopic(
     if (haystack.includes(token)) score += 2;
   }
   const chunkScores = record.textChunks
-    ? record.textChunks.map((chunk) => scoreTextForTokens(chunk.text, tokens))
+    ? record.textChunks.map((chunk) => scoreChunk(chunk, tokens))
     : [];
   const bestChunkScore = chunkScores.length > 0 ? Math.max(...chunkScores) : 0;
-  score += Math.min(bestChunkScore, 80);
+  score += scaleBm25ForDisplay(bestChunkScore);
   for (const riskSignalId of topic.riskSignalIds || []) {
     if (riskSignalId.includes('apex') && record.topicIds.some((id) => id.startsWith('apex-'))) score += 8;
     if (riskSignalId.includes('flow') && record.topicIds.some((id) => id.startsWith('flow-'))) score += 8;
@@ -2724,7 +2962,7 @@ function scoreRecordForTopic(
   }
   const scoringCategory = scoringCategoryForTopic(topic, aliasTopicIds);
   if (aliasTopicMatch && record.sourceType === 'developer_doc') {
-    score += 30;
+    score += 15;
   }
   if (aliasTopicMatch && record.sourceFormat === 'pdf' && record.topicIds.length > 5 && aliasTopicIds.length > 2) {
     score -= 20;
@@ -2814,11 +3052,12 @@ export async function lookupSalesforceDocsIndex(
   const topicSourceCounts = new Map<string, number>();
   const seenSourceKeys = new Set<string>();
 
+  const scoreChunk = createChunkScorer(index);
   for (const topic of topics) {
     const tokens = tokensForTopic(topic);
     const aliasTopicIds = aliasTopicIdsFor(topic);
     const scored = index.records
-      .map((record) => ({ record, score: scoreRecordForTopic(record, topic, tokens, aliasTopicIds) }))
+      .map((record) => ({ record, score: scoreRecordForTopic(record, topic, tokens, aliasTopicIds, scoreChunk) }))
       .filter((item) => item.score > 0)
       .sort((a, b) => b.score - a.score || a.record.title.localeCompare(b.record.title));
     const selected = selectScoredRecordsForTopic(scored, aliasTopicIds, options.maxResultsPerTopic);
@@ -2836,7 +3075,7 @@ export async function lookupSalesforceDocsIndex(
       const recordPdfRefreshStatus = item.record.sourceFormat === 'pdf'
         ? pdfRefreshStatus(item.record)
         : null;
-      const matchedChunks = matchedChunksForRecord(item.record, tokens);
+      const matchedChunks = matchedChunksForRecord(item.record, tokens, scoreChunk);
       const sourceWarnings = [
         ...item.record.warnings,
         `Source came from cached official Salesforce docs index generated ${index.generatedAt}.`,

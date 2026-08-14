@@ -189,9 +189,17 @@ function summarizeIndex(index) {
   };
 }
 
-function uploadWithGcloud(outputPath, storagePath) {
+async function uploadWithGcloud(index, outputPath, storagePath) {
+  // The local file stays pretty-printed for inspection; the stored object must
+  // be minified because lookup paths download and parse it.
+  const minifiedPath = `${outputPath.replace(/\.json$/, '')}.upload.json`;
+  await fs.writeFile(minifiedPath, JSON.stringify(index), 'utf-8');
   const destination = `gs://${SALESFORCE_DOC_INDEX_BUCKET}/${storagePath}`;
-  execFileSync('gcloud', ['storage', 'cp', outputPath, destination], { stdio: 'inherit' });
+  try {
+    execFileSync('gcloud', ['storage', 'cp', minifiedPath, destination], { stdio: 'inherit' });
+  } finally {
+    await fs.rm(minifiedPath, { force: true });
+  }
 }
 
 async function main() {
@@ -256,7 +264,7 @@ async function main() {
   if (options.upload) {
     console.log('[salesforce-docs-index] Uploading index to Firebase Storage...');
     if (options.uploadMode === 'gcloud') {
-      uploadWithGcloud(options.out, index.sourcePolicy.storagePath);
+      await uploadWithGcloud(index, options.out, index.sourcePolicy.storagePath);
     } else {
       await writeSalesforceDocsIndex(index);
     }
