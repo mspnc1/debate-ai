@@ -253,6 +253,13 @@ export interface SalesforceDocsIndexEvidenceSource {
 export interface SalesforceDocsIndexLookupResult {
   sources: SalesforceDocsIndexEvidenceSource[];
   topicHits: string[];
+  /**
+   * Topics whose selected records belong to an indexed topic this lookup topic
+   * aliases to — i.e. the index genuinely curates them. Topics that only
+   * scavenged token-overlap matches are NOT listed here, and callers must not
+   * let those weak hits suppress live lookup.
+   */
+  aliasRoutedTopicIds: string[];
   warnings: string[];
   indexSummary?: {
     status: 'hit' | 'miss' | 'unavailable' | 'stale';
@@ -2976,6 +2983,13 @@ function scoreRecordForTopic(
   return Math.max(0, score);
 }
 
+export function selectionIsAliasRouted(
+  records: Array<Pick<SalesforceDocsIndexRecord, 'topicIds'>>,
+  aliasTopicIds: string[],
+): boolean {
+  return records.some((record) => record.topicIds.some((topicId) => aliasTopicIds.includes(topicId)));
+}
+
 function selectScoredRecordsForTopic(
   scored: Array<{ record: SalesforceDocsIndexRecord; score: number }>,
   aliasTopicIds: string[],
@@ -3016,6 +3030,7 @@ export async function lookupSalesforceDocsIndex(
     return {
       sources: [],
       topicHits: [],
+      aliasRoutedTopicIds: [],
       warnings: [`Salesforce documentation index is unavailable at ${SALESFORCE_DOC_INDEX_PATH}; falling back to live official-source lookup.`],
       indexSummary: {
         status: 'unavailable',
@@ -3049,6 +3064,7 @@ export async function lookupSalesforceDocsIndex(
 
   const sources: SalesforceDocsIndexEvidenceSource[] = [];
   const topicHits = new Set<string>();
+  const aliasRoutedTopicIds = new Set<string>();
   const topicSourceCounts = new Map<string, number>();
   const seenSourceKeys = new Set<string>();
 
@@ -3064,6 +3080,9 @@ export async function lookupSalesforceDocsIndex(
 
     if (selected.length === 0) continue;
     topicHits.add(topic.id);
+    if (selectionIsAliasRouted(selected.map((item) => item.record), aliasTopicIds)) {
+      aliasRoutedTopicIds.add(topic.id);
+    }
     topicSourceCounts.set(topic.id, selected.length);
 
     for (const item of selected) {
@@ -3115,6 +3134,7 @@ export async function lookupSalesforceDocsIndex(
   return {
     sources,
     topicHits: Array.from(topicHits),
+    aliasRoutedTopicIds: Array.from(aliasRoutedTopicIds),
     warnings,
     indexSummary: {
       status: sources.length > 0

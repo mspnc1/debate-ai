@@ -7,7 +7,24 @@ const {
   buildBm25CorpusStats,
   bm25ChunkScore,
   refreshCoverageError,
+  selectionIsAliasRouted,
 } = require('../lib/salesforceDocsIndex');
+
+describe('selectionIsAliasRouted', () => {
+  it('routes only when a selected record belongs to an aliased indexed topic', () => {
+    const aliasIds = ['apex-governor-limits', 'soql-query-selectivity'];
+    assert.equal(
+      selectionIsAliasRouted([{ topicIds: ['flow-fault-paths'] }, { topicIds: ['apex-governor-limits'] }], aliasIds),
+      true
+    );
+    assert.equal(
+      selectionIsAliasRouted([{ topicIds: ['flow-fault-paths'] }, { topicIds: ['lightning-security'] }], aliasIds),
+      false,
+      'token-scavenged selections must not count as alias-routed'
+    );
+    assert.equal(selectionIsAliasRouted([], aliasIds), false);
+  });
+});
 
 describe('canonicalizeUrl', () => {
   it('strips tracking params but preserves real params starting with d/n', () => {
