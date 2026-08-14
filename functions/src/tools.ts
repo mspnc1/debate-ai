@@ -1345,11 +1345,17 @@ async function handleSalesforceDocsLookup(
 
   warnings.push(...indexLookup.warnings);
   docsIndexSummary = indexLookup.indexSummary;
+  // Only alias-routed hits (topics the index genuinely curates) may suppress
+  // live lookup. Token-scavenged matches keep their index sources as
+  // supplementary evidence, but the topic still goes to live fallback —
+  // otherwise a tangential "bulk"/"limits" overlap blocks real coverage.
+  const aliasRoutedTopicIds = new Set(indexLookup.aliasRoutedTopicIds || []);
   const cachedTopicIds = new Set(
     indexLookup.indexSummary?.status === 'hit'
       ? indexLookup.sources
         .filter((source) => source.confidenceImpact !== 'stale-risk')
         .map((source) => source.topicId)
+        .filter((topicId) => aliasRoutedTopicIds.has(topicId))
       : []
   );
   for (const source of indexLookup.sources) {
