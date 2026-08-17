@@ -14,9 +14,12 @@ try {
 export const SALESFORCE_DOC_INDEX_PATH = 'salesforce-docs/index-v1.json';
 export const SALESFORCE_DOC_INDEX_BUCKET = 'symposium-ai.firebasestorage.app';
 const SALESFORCE_DOC_INDEX_VERSION = 1;
+// ~85% of observed yield from the 2026-08-17 expansion canary (218 records:
+// 133 developer docs, 216 full-text, 18 PDFs) so a partially blocked or
+// regressed build keeps the previous index instead of publishing a gutted one.
 const MIN_REFRESH_DEVELOPER_DOC_RECORDS = 110;
-const MIN_REFRESH_FULL_TEXT_RECORDS = 130;
-const MIN_REFRESH_PDF_RECORDS = 10;
+const MIN_REFRESH_FULL_TEXT_RECORDS = 185;
+const MIN_REFRESH_PDF_RECORDS = 15;
 const MAX_REFRESH_METADATA_ONLY_RATIO = 0.05;
 const MAX_INDEX_SOURCE_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 const MAX_INDEX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
