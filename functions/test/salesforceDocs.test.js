@@ -261,9 +261,10 @@ describe('refreshCoverageError', () => {
     };
   }
 
+  // Sized against the raised gates (dev >=110, full-text >=185, pdf >=15).
   const passingRecords = [
-    ...Array.from({ length: 120 }, (_, i) => makeRecord({ id: `dev-${i}` })),
-    ...Array.from({ length: 12 }, (_, i) => makeRecord({
+    ...Array.from({ length: 200 }, (_, i) => makeRecord({ id: `dev-${i}` })),
+    ...Array.from({ length: 16 }, (_, i) => makeRecord({
       id: `pdf-${i}`,
       domain: 'resources.docs.salesforce.com',
       sourceType: 'pdf_guide',
@@ -277,7 +278,7 @@ describe('refreshCoverageError', () => {
 
   it('rejects too few developer.salesforce.com records', () => {
     const records = passingRecords.map((record, i) =>
-      i < 60 ? { ...record, domain: 'help.salesforce.com' } : record
+      i < 100 ? { ...record, domain: 'help.salesforce.com' } : record
     );
     assert.match(refreshCoverageError(makeIndex(records)), /developer\.salesforce\.com/);
   });
@@ -297,7 +298,7 @@ describe('refreshCoverageError', () => {
   it('rejects a metadata-only ratio above the ceiling', () => {
     const records = [
       ...passingRecords,
-      ...Array.from({ length: 8 }, (_, i) => makeRecord({
+      ...Array.from({ length: 14 }, (_, i) => makeRecord({
         id: `meta-${i}`,
         contentQuality: 'metadata_only',
         contentLength: 120,
