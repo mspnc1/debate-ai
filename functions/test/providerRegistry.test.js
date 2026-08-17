@@ -53,8 +53,14 @@ describe('modelRegistry', () => {
     assert.equal(normalizeProviderTemperature('claude', 'claude-fable-5', 0.7), undefined);
     assert.equal(normalizeProviderTemperature('claude', 'claude-fable-latest', 0.7), undefined);
     assert.equal(normalizeProviderTemperature('claude', 'claude-sonnet-5', 0.7), undefined);
+    assert.equal(normalizeProviderTemperature('claude', 'claude-opus-5', 0.7), undefined);
     assert.equal(normalizeProviderTemperature('claude', 'claude-sonnet-4-6', 0.7), 0.7);
     assert.equal(normalizeProviderTemperature('openai', 'gpt-5.5', 0.7), 1);
+  });
+
+  it('routes retired Magistral aliases to the current Mistral reasoning model', () => {
+    assert.equal(resolveProviderModelId('mistral', 'magistral-latest'), 'mistral-small-2603');
+    assert.equal(resolveProviderModelId('mistral', 'magistral-medium-latest'), 'mistral-small-2603');
   });
 });
 
@@ -85,5 +91,11 @@ describe('imageModelRegistry', () => {
     assert.equal(resolveImageModelId('grok', 'grok-imagine-image-quality'), 'grok-imagine-image-quality');
     assert.equal(resolveImageModelId('grok', 'grok-imagine-image-pro'), 'grok-imagine-image-quality');
     assert.equal(getResolvedImageModel('grok', 'grok-imagine-image-quality')?.displayName, 'Grok Imagine Quality');
+  });
+
+  it('serves Grok Imagine 2.0 without changing the default image model', () => {
+    assert.equal(resolveImageModelId('grok', 'grok-imagine-image-2.0'), 'grok-imagine-image-2.0');
+    assert.equal(getResolvedImageModel('grok', 'grok-imagine-image-2.0')?.maxPromptLength, 8000);
+    assert.equal(resolveImageModelId('grok', undefined), 'grok-imagine-image');
   });
 });

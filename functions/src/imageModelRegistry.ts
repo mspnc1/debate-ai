@@ -120,6 +120,14 @@ export const IMAGE_MODELS: Record<ImageProviderId, ImageModelConfig[]> = {
   ],
   grok: [
     createImageModel({
+      id: 'grok-imagine-image-2.0',
+      displayName: 'Grok Imagine 2.0',
+      apiFamily: 'xai-images',
+      supportsImageInput: true,
+      isDefault: false,
+      maxPromptLength: 8000,
+    }),
+    createImageModel({
       id: 'grok-imagine-image',
       displayName: 'Grok Imagine',
       apiFamily: 'xai-images',

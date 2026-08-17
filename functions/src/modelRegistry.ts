@@ -80,8 +80,10 @@ export const MODEL_ALIASES: Record<string, string> = {
   'mistral-large-latest': 'mistral-large-2512',
   'mistral-small-latest': 'mistral-small-2603',
   'devstral-medium-2512': 'devstral-2512',
-  'magistral-latest': 'magistral-medium-2509',
-  'magistral-medium-latest': 'magistral-medium-2509',
+  // magistral-medium-2509 was retired by the Mistral API (2026-08); route the
+  // aliases to the current hybrid reasoning model, matching the web client.
+  'magistral-latest': 'mistral-small-2603',
+  'magistral-medium-latest': 'mistral-small-2603',
   'codestral-latest': 'codestral-2508',
 
   // Cohere aliases
@@ -144,6 +146,9 @@ const MODELS_REQUIRING_TEMPERATURE_1 = new Set([
 const MODELS_DEPRECATING_TEMPERATURE = new Set([
   'claude-fable-5',
   'claude-sonnet-5',
+  // Live-verified 2026-08-17: temperature 0.7 -> 400 "`temperature` is
+  // deprecated for this model"; omission (and the default 1) are accepted.
+  'claude-opus-5',
 ]);
 
 const MODELS_UNSUPPORTED_CHAT_COMPLETIONS = new Set([
