@@ -30,6 +30,18 @@ describe('GoogleRuntime thinking controls', () => {
     );
   });
 
+  it('uses low thinking for Gemini 3.7+ Flash, which rejects minimal', () => {
+    assert.deepEqual(
+      getGeminiThinkingConfig('gemini-3.7-flash', 256),
+      { thinkingLevel: 'low' }
+    );
+    // 3.6 and earlier still accept minimal.
+    assert.deepEqual(
+      getGeminiThinkingConfig('gemini-3.6-flash', 256),
+      { thinkingLevel: 'minimal' }
+    );
+  });
+
   it('disables Gemini 2.5 Flash thinking for tight output caps', () => {
     assert.deepEqual(
       getGeminiThinkingConfig('gemini-2.5-flash', 512),
