@@ -1355,9 +1355,11 @@ export const SALESFORCE_DOC_PDF_SOURCES: SalesforceDocsPdfSource[] = [
     keywords: ['object reference', 'standard object', 'account', 'contact', 'case', 'emailmessage', 'quote', 'order'],
   },
   {
-    id: 'apex-language-reference',
+    id: 'apex-developer-guide',
     title: 'Apex Developer Guide PDF',
-    url: `${SALESFORCE_DOC_PDF_BASE_URL}/salesforce_apex_language_reference.pdf`,
+    // Renamed by Salesforce from salesforce_apex_language_reference.pdf in the
+    // Summer '26 doc refresh (2026-08-07).
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/salesforce_apex_developer_guide.pdf`,
     topicIds: [
       'apex-governor-limits',
       'apex-sharing-security',
@@ -1395,8 +1397,10 @@ export const SALESFORCE_DOC_PDF_SOURCES: SalesforceDocsPdfSource[] = [
   },
   {
     id: 'sales-cloud-guide',
-    title: 'Sales Cloud PDF',
-    url: `${SALESFORCE_DOC_PDF_BASE_URL}/sales_core.pdf`,
+    title: 'Get Started with Sales Cloud Implementation Guide PDF',
+    // sales_core.pdf was retired (now redirects to a Help article); the Sales
+    // Cloud implementation guide is the surviving PDF for this ground.
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/smb_sales_impl_guide.pdf`,
     topicIds: [
       'sales-cloud-admin-setup',
       'standard-object-reference-sales-service',
@@ -1427,19 +1431,10 @@ export const SALESFORCE_DOC_PDF_SOURCES: SalesforceDocsPdfSource[] = [
     ],
     keywords: ['knowledge', 'article', 'knowledge__kav', 'data category', 'service cloud'],
   },
-  {
-    id: 'security-implementation-guide',
-    title: 'Salesforce Security Implementation Guide PDF',
-    url: `${SALESFORCE_DOC_PDF_BASE_URL}/salesforce_security_impl_guide.pdf`,
-    topicIds: [
-      'permissions-least-privilege',
-      'field-level-security-object-permissions',
-      'sharing-model-rules',
-      'apex-sharing-security',
-      'lightning-security',
-    ],
-    keywords: ['security', 'profile', 'permission set', 'sharing', 'field-level security', 'oauth'],
-  },
+  // salesforce_security_impl_guide.pdf and mc_data_management_and_analytics.pdf
+  // were retired by Salesforce in 2026 (both now redirect to Help articles, no
+  // replacement PDFs exist). Their topics stay covered by full-text HTML seeds:
+  // the securityImplGuide atlas pages and the Marketing Cloud developer guides.
   {
     id: 'limits-quick-reference',
     title: 'Salesforce Limits Quick Reference PDF',
@@ -1474,17 +1469,6 @@ export const SALESFORCE_DOC_PDF_SOURCES: SalesforceDocsPdfSource[] = [
       'data-cloud-ingestion-query',
     ],
     keywords: ['integration', 'event bus', 'callout', 'oauth', 'pattern'],
-  },
-  {
-    id: 'marketing-cloud-data-management',
-    title: 'Marketing Cloud Data Management and Analytics PDF',
-    url: `${SALESFORCE_DOC_PDF_BASE_URL}/mc_data_management_and_analytics.pdf`,
-    topicIds: [
-      'marketing-cloud-engagement-apis',
-      'marketing-cloud-growth-development',
-      'data-cloud-development',
-    ],
-    keywords: ['marketing cloud', 'data extension', 'subscriber', 'analytics', 'journey'],
   },
   {
     id: 'account-engagement-implementation-guide',
