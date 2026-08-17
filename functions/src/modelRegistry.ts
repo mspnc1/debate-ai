@@ -141,6 +141,13 @@ const MODELS_REQUIRING_TEMPERATURE_1 = new Set([
   'o3',
   'o3-mini',
   'o4-mini',
+  // Moonshot rejects any temperature except 1 ("invalid temperature: only 1
+  // is allowed for this model"; live-verified 2026-08-17 on all four models).
+  // First caught by the live smoke once a MOONSHOT_API_KEY existed.
+  'kimi-k3',
+  'kimi-k2.7-code',
+  'kimi-k2.7-code-highspeed',
+  'kimi-k2.6',
 ]);
 
 const MODELS_DEPRECATING_TEMPERATURE = new Set([

@@ -62,6 +62,13 @@ describe('modelRegistry', () => {
     assert.equal(resolveProviderModelId('mistral', 'magistral-latest'), 'mistral-small-2603');
     assert.equal(resolveProviderModelId('mistral', 'magistral-medium-latest'), 'mistral-small-2603');
   });
+
+  it('normalizes Kimi temperatures to the required value of 1', () => {
+    assert.equal(normalizeProviderTemperature('moonshot', 'kimi-k3', 0.7), 1);
+    assert.equal(normalizeProviderTemperature('moonshot', 'kimi-k2.7-code', 0), 1);
+    assert.equal(normalizeProviderTemperature('moonshot', 'kimi-k2.7-code-highspeed', 0.7), 1);
+    assert.equal(normalizeProviderTemperature('moonshot', 'kimi-k2.6', 0.7), 1);
+  });
 });
 
 describe('ClaudeRuntime', () => {
