@@ -11,6 +11,7 @@ const require = createRequire(import.meta.url);
 const {
   SALESFORCE_DOC_INDEX_BUCKET,
   buildSalesforceDocsIndexNow,
+  refreshCoverageError,
   writeSalesforceDocsIndex,
 } = require('../lib/salesforceDocsIndex');
 
@@ -228,6 +229,13 @@ async function main() {
     for (const failure of index.failures) {
       console.log(`- ${failure.topicId}: ${failure.url} (${failure.error})`);
     }
+  }
+
+  // Baseline quality gate shared with the (retired) in-function refresh; the
+  // --min-* flags below remain as stricter CI overrides.
+  const baselineCoverageError = refreshCoverageError(index);
+  if (baselineCoverageError) {
+    throw new Error(baselineCoverageError);
   }
 
   if (summary.developerRecordCount < options.minDeveloperRecords) {

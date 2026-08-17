@@ -8,7 +8,60 @@ const {
   bm25ChunkScore,
   refreshCoverageError,
   selectionIsAliasRouted,
+  SALESFORCE_DOC_TOPICS,
+  SALESFORCE_DOC_PDF_SOURCES,
+  SALESFORCE_DOC_TOPIC_ALIASES,
 } = require('../lib/salesforceDocsIndex');
+
+describe('topic catalog hygiene', () => {
+  it('has unique topic ids', () => {
+    const ids = SALESFORCE_DOC_TOPICS.map((topic) => topic.id);
+    assert.equal(new Set(ids).size, ids.length);
+  });
+
+  it('every seed URL is an official https Salesforce URL and canonicalizes to itself', () => {
+    for (const topic of SALESFORCE_DOC_TOPICS) {
+      assert.ok(topic.seedUrls.length > 0, `${topic.id} has no seeds`);
+      for (const seedUrl of topic.seedUrls) {
+        const canonical = canonicalizeUrl(seedUrl);
+        assert.ok(canonical, `${topic.id} seed is not an official Salesforce URL: ${seedUrl}`);
+        assert.equal(canonical, seedUrl, `${topic.id} seed is not pre-canonicalized: ${seedUrl}`);
+      }
+    }
+  });
+
+  it('every PDF source references existing topics and the shared base URL', () => {
+    const topicIds = new Set(SALESFORCE_DOC_TOPICS.map((topic) => topic.id));
+    const pdfIds = SALESFORCE_DOC_PDF_SOURCES.map((source) => source.id);
+    assert.equal(new Set(pdfIds).size, pdfIds.length, 'duplicate PDF source ids');
+    for (const source of SALESFORCE_DOC_PDF_SOURCES) {
+      assert.ok(source.topicIds.length > 0, `${source.id} maps to no topics`);
+      for (const topicId of source.topicIds) {
+        assert.ok(topicIds.has(topicId), `${source.id} references missing topic ${topicId}`);
+      }
+      assert.match(source.url, /^https:\/\/resources\.docs\.salesforce\.com\//, `${source.id} url off-pattern`);
+    }
+  });
+
+  it('every alias target is an existing topic id', () => {
+    const topicIds = new Set(SALESFORCE_DOC_TOPICS.map((topic) => topic.id));
+    for (const [alias, targets] of Object.entries(SALESFORCE_DOC_TOPIC_ALIASES)) {
+      assert.ok(targets.length > 0, `alias ${alias} has no targets`);
+      for (const target of targets) {
+        assert.ok(topicIds.has(target), `alias ${alias} references missing topic ${target}`);
+      }
+    }
+  });
+
+  it('covers the solution-architect domains', () => {
+    const categories = new Set(SALESFORCE_DOC_TOPICS.map((topic) => topic.category));
+    for (const required of ['architecture', 'identity', 'devops', 'omnistudio', 'agentforce', 'experience_cloud', 'field_service', 'analytics']) {
+      assert.ok(categories.has(required), `no topics in category ${required}`);
+    }
+    assert.ok(SALESFORCE_DOC_TOPICS.length >= 70, `expected >=70 topics, got ${SALESFORCE_DOC_TOPICS.length}`);
+    assert.ok(SALESFORCE_DOC_PDF_SOURCES.length >= 20, `expected >=20 PDF sources, got ${SALESFORCE_DOC_PDF_SOURCES.length}`);
+  });
+});
 
 describe('selectionIsAliasRouted', () => {
   it('routes only when a selected record belongs to an aliased indexed topic', () => {
@@ -98,6 +151,15 @@ describe('officialDocRetrievalPlan', () => {
   it('renders release-notes help articles only when rendering is allowed', () => {
     assert.equal(officialDocRetrievalPlan(releaseNotesUrl), 'rendered_help');
     assert.equal(officialDocRetrievalPlan(releaseNotesUrl, { allowRendering: false }), 'help_metadata');
+  });
+
+  it('renders allowlisted OmniStudio and DevOps Center help articles at build time only', () => {
+    const omnistudioUrl = 'https://help.salesforce.com/s/articleView?id=sf.os_dataraptors.htm&type=5';
+    const devopsUrl = 'https://help.salesforce.com/s/articleView?id=sf.devops_center_overview.htm&type=5';
+    assert.equal(officialDocRetrievalPlan(omnistudioUrl), 'rendered_help');
+    assert.equal(officialDocRetrievalPlan(devopsUrl), 'rendered_help');
+    assert.equal(officialDocRetrievalPlan(omnistudioUrl, { allowRendering: false }), 'help_metadata');
+    assert.equal(officialDocRetrievalPlan(devopsUrl, { allowRendering: false }), 'help_metadata');
   });
 
   it('serves other help articles as metadata and everything else as raw HTML', () => {
