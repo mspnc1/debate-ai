@@ -995,7 +995,7 @@ export const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     keywords: ['single sign-on', 'sso', 'saml', 'openid connect', 'identity provider', 'my domain', 'login'],
     seedUrls: [
       'https://developer.salesforce.com/docs/atlas.en-us.identityImplGuide.meta/identityImplGuide/identity_overview.htm',
-      'https://developer.salesforce.com/docs/atlas.en-us.identityImplGuide.meta/identityImplGuide/sso_saml.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.identityImplGuide.meta/identityImplGuide/security_overview_2fa.htm',
     ],
   },
   {
@@ -1005,8 +1005,8 @@ export const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     category: 'identity',
     keywords: ['oauth', 'authorization flow', 'jwt bearer', 'client credentials', 'web server flow', 'refresh token', 'device flow'],
     seedUrls: [
-      'https://developer.salesforce.com/docs/atlas.en-us.identityImplGuide.meta/identityImplGuide/sso_oauth.htm',
-      'https://developer.salesforce.com/docs/atlas.en-us.identityImplGuide.meta/identityImplGuide/remoteaccess_oauth_flows.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_oauth_and_connected_apps.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.securityImplGuide.meta/securityImplGuide/connected_apps.htm',
     ],
   },
   {
@@ -1016,7 +1016,9 @@ export const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     category: 'security',
     keywords: ['shield', 'platform encryption', 'tenant secret', 'key management', 'encrypted field', 'deterministic encryption'],
     seedUrls: [
-      'https://developer.salesforce.com/docs/atlas.en-us.securityImplGuide.meta/securityImplGuide/security_pe_overview.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.securityImplGuide.meta/securityImplGuide/security_pe_encryption_process.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.securityImplGuide.meta/securityImplGuide/security_pe_considerations_general.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.securityImplGuide.meta/securityImplGuide/security_pe_deployment.htm',
     ],
   },
   {
@@ -1057,7 +1059,7 @@ export const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     category: 'experience_cloud',
     keywords: ['sharing set', 'guest user', 'external user', 'community security', 'experience cloud security', 'external sharing model'],
     seedUrls: [
-      'https://developer.salesforce.com/docs/atlas.en-us.communities_dev.meta/communities_dev/communities_dev_security.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.communities_dev.meta/communities_dev/communities_dev_security_authenticated_and_guest_users.htm',
     ],
   },
   {
@@ -1150,7 +1152,7 @@ export const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     keywords: ['agentforce', 'agent', 'topics', 'actions', 'einstein', 'generative ai', 'copilot'],
     seedUrls: [
       'https://developer.salesforce.com/docs/einstein/genai/guide/get-started.html',
-      'https://developer.salesforce.com/docs/einstein/genai/guide/agents.html',
+      'https://developer.salesforce.com/docs/einstein/genai/guide/get-started-agents.html',
     ],
   },
   {
@@ -1160,7 +1162,7 @@ export const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
     category: 'agentforce',
     keywords: ['prompt builder', 'prompt template', 'grounding', 'einstein trust layer', 'merge field'],
     seedUrls: [
-      'https://developer.salesforce.com/docs/einstein/genai/guide/prompt-builder.html',
+      'https://developer.salesforce.com/docs/einstein/genai/guide/get-started-prompt-builder.html',
     ],
   },
   {
