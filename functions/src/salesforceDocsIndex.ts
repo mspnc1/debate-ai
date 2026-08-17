@@ -1,5 +1,3 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
 import { existsSync } from 'fs';
@@ -16,9 +14,12 @@ try {
 export const SALESFORCE_DOC_INDEX_PATH = 'salesforce-docs/index-v1.json';
 export const SALESFORCE_DOC_INDEX_BUCKET = 'symposium-ai.firebasestorage.app';
 const SALESFORCE_DOC_INDEX_VERSION = 1;
+// ~85% of observed yield from the 2026-08-17 expansion canary (218 records:
+// 133 developer docs, 216 full-text, 18 PDFs) so a partially blocked or
+// regressed build keeps the previous index instead of publishing a gutted one.
 const MIN_REFRESH_DEVELOPER_DOC_RECORDS = 110;
-const MIN_REFRESH_FULL_TEXT_RECORDS = 130;
-const MIN_REFRESH_PDF_RECORDS = 10;
+const MIN_REFRESH_FULL_TEXT_RECORDS = 185;
+const MIN_REFRESH_PDF_RECORDS = 15;
 const MAX_REFRESH_METADATA_ONLY_RATIO = 0.05;
 const MAX_INDEX_SOURCE_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 const MAX_INDEX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
@@ -288,7 +289,7 @@ export interface SalesforceDocsIndexLookupResult {
   };
 }
 
-const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
+export const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
   {
     id: 'salesforce-release-updates',
     label: 'Salesforce release updates and current release notes',
@@ -896,6 +897,318 @@ const SALESFORCE_DOC_TOPICS: SalesforceDocsIndexTopic[] = [
       'https://developer.salesforce.com/docs/atlas.en-us.apexref.meta/apexref/apex_classes_email_outbound_messaging.htm',
     ],
   },
+  // --- Solution-architect coverage expansion (2026-08) ---
+  {
+    id: 'well-architected-framework',
+    label: 'Salesforce Well-Architected framework',
+    query: 'Salesforce Well-Architected framework trusted easy adaptable architecture health',
+    category: 'architecture',
+    keywords: ['well-architected', 'architecture', 'trusted', 'adaptable', 'resilient', 'architecture health'],
+    seedUrls: [
+      'https://architect.salesforce.com/well-architected/overview',
+    ],
+  },
+  {
+    id: 'architecture-decision-guides',
+    label: 'Salesforce architecture decision guides',
+    query: 'Salesforce architect decision guides record-triggered automation data architecture integration architecture',
+    category: 'architecture',
+    keywords: ['decision guide', 'architecture', 'record-triggered automation', 'data architecture', 'integration architecture', 'diagrams'],
+    seedUrls: [
+      'https://architect.salesforce.com/design/decision-guides',
+    ],
+  },
+  {
+    id: 'soql-sosl-reference',
+    label: 'SOQL and SOSL reference',
+    query: 'SOQL SOSL reference SELECT WHERE relationship queries aggregate functions Salesforce',
+    category: 'apex',
+    keywords: ['soql', 'sosl', 'select', 'relationship query', 'aggregate', 'query reference', 'find'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql_sosl_intro.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql_select.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_sosl.htm',
+    ],
+  },
+  {
+    id: 'apex-order-of-execution',
+    label: 'Order of execution for record saves',
+    query: 'Salesforce order of execution triggers flows validation rules workflow save order',
+    category: 'apex',
+    keywords: ['order of execution', 'save order', 'trigger order', 'before trigger', 'after trigger', 'recursion'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_triggers_order_of_execution.htm',
+    ],
+  },
+  {
+    id: 'bulk-api-large-data',
+    label: 'Bulk API 2.0 and large data loads',
+    query: 'Bulk API 2.0 ingest query large data loads PK chunking Salesforce',
+    category: 'integration',
+    keywords: ['bulk api', 'bulk api 2.0', 'ingest', 'pk chunking', 'data load', 'batch'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.api_asynch.meta/api_asynch/asynch_api_intro.htm',
+    ],
+  },
+  {
+    id: 'ldv-performance-scale',
+    label: 'Large data volumes performance and scale',
+    query: 'Salesforce large data volumes LDV skinny tables indexes divisions performance scale',
+    category: 'architecture',
+    keywords: ['large data volumes', 'ldv', 'skinny table', 'custom index', 'selectivity', 'scale', 'data skew', 'ownership skew'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.salesforce_large_data_volumes_bp.meta/salesforce_large_data_volumes_bp/ldv_deployments_introduction.htm',
+    ],
+  },
+  {
+    id: 'streaming-api',
+    label: 'Streaming API and event subscriptions',
+    query: 'Salesforce Streaming API PushTopic generic events CometD subscriptions',
+    category: 'integration',
+    keywords: ['streaming api', 'pushtopic', 'cometd', 'generic events', 'subscribe', 'replay id'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.api_streaming.meta/api_streaming/intro_stream.htm',
+    ],
+  },
+  {
+    id: 'change-data-capture',
+    label: 'Change Data Capture',
+    query: 'Salesforce Change Data Capture change events integration sync CDC',
+    category: 'integration',
+    keywords: ['change data capture', 'cdc', 'change event', 'data sync', 'event allocations'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.change_data_capture.meta/change_data_capture/cdc_intro.htm',
+    ],
+  },
+  {
+    id: 'api-limits-allocations',
+    label: 'API request limits and allocations',
+    query: 'Salesforce API request limits allocations daily limits concurrent requests governor',
+    category: 'architecture',
+    keywords: ['api limits', 'allocations', 'daily api requests', 'concurrent', 'rate limit', 'limits cheat sheet'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.salesforce_app_limits_cheatsheet.meta/salesforce_app_limits_cheatsheet/salesforce_app_limits_overview.htm',
+    ],
+  },
+  {
+    id: 'identity-sso-saml-oidc',
+    label: 'Salesforce Identity, SSO, SAML, and OpenID Connect',
+    query: 'Salesforce identity single sign-on SAML OpenID Connect My Domain identity provider',
+    category: 'identity',
+    keywords: ['single sign-on', 'sso', 'saml', 'openid connect', 'identity provider', 'my domain', 'login'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.identityImplGuide.meta/identityImplGuide/identity_overview.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.identityImplGuide.meta/identityImplGuide/security_overview_2fa.htm',
+    ],
+  },
+  {
+    id: 'oauth-flows',
+    label: 'OAuth authorization flows',
+    query: 'Salesforce OAuth 2.0 authorization flows web server JWT bearer client credentials refresh token',
+    category: 'identity',
+    keywords: ['oauth', 'authorization flow', 'jwt bearer', 'client credentials', 'web server flow', 'refresh token', 'device flow'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_oauth_and_connected_apps.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.securityImplGuide.meta/securityImplGuide/connected_apps.htm',
+    ],
+  },
+  {
+    id: 'shield-platform-encryption',
+    label: 'Shield Platform Encryption',
+    query: 'Shield Platform Encryption tenant secret key management encrypted fields Salesforce',
+    category: 'security',
+    keywords: ['shield', 'platform encryption', 'tenant secret', 'key management', 'encrypted field', 'deterministic encryption'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.securityImplGuide.meta/securityImplGuide/security_pe_encryption_process.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.securityImplGuide.meta/securityImplGuide/security_pe_considerations_general.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.securityImplGuide.meta/securityImplGuide/security_pe_deployment.htm',
+    ],
+  },
+  {
+    id: 'event-monitoring-session-security',
+    label: 'Event Monitoring and session security',
+    query: 'Salesforce Event Monitoring EventLogFile session security transaction security policies',
+    category: 'security',
+    keywords: ['event monitoring', 'eventlogfile', 'session security', 'transaction security', 'login history', 'audit'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.securityImplGuide.meta/securityImplGuide/salesforce_security_guide.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_eventlogfile.htm',
+    ],
+  },
+  {
+    id: 'experience-cloud-architecture',
+    label: 'Experience Cloud site architecture',
+    query: 'Experience Cloud sites Experience Builder templates audiences architecture Salesforce',
+    category: 'experience_cloud',
+    keywords: ['experience cloud', 'experience builder', 'community', 'site', 'audience', 'template'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.communities_dev.meta/communities_dev/communities_dev_intro.htm',
+    ],
+  },
+  {
+    id: 'experience-cloud-lwr-sites',
+    label: 'LWR sites for Experience Cloud',
+    query: 'LWR Lightning Web Runtime sites Experience Cloud performance build your own',
+    category: 'experience_cloud',
+    keywords: ['lwr', 'lightning web runtime', 'build your own', 'experience cloud', 'site performance'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.exp_cloud_lwr.meta/exp_cloud_lwr/intro.htm',
+    ],
+  },
+  {
+    id: 'experience-cloud-sharing-security',
+    label: 'Experience Cloud sharing and guest user security',
+    query: 'Experience Cloud sharing sets guest user security external users sharing rules Salesforce',
+    category: 'experience_cloud',
+    keywords: ['sharing set', 'guest user', 'external user', 'community security', 'experience cloud security', 'external sharing model'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.communities_dev.meta/communities_dev/communities_dev_security_authenticated_and_guest_users.htm',
+    ],
+  },
+  {
+    id: 'sfdx-source-driven-dev',
+    label: 'Salesforce DX source-driven development',
+    query: 'Salesforce DX source-driven development project structure CLI metadata source tracking',
+    category: 'devops',
+    keywords: ['salesforce dx', 'sfdx', 'sf cli', 'source tracking', 'project structure', 'source format'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_intro.htm',
+    ],
+  },
+  {
+    id: 'second-generation-packaging',
+    label: 'Second-generation packaging (2GP)',
+    query: 'second-generation managed packages unlocked packages 2GP package versions Salesforce DX',
+    category: 'devops',
+    keywords: ['2gp', 'unlocked package', 'managed package', 'package version', 'namespace', 'dependency'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.pkg2_dev.meta/pkg2_dev/sfdx_dev_dev2gp.htm',
+    ],
+  },
+  {
+    id: 'devops-center-release-mgmt',
+    label: 'DevOps Center and release management',
+    query: 'DevOps Center pipelines work items promote release management Salesforce',
+    category: 'devops',
+    keywords: ['devops center', 'pipeline', 'work item', 'promote', 'release management', 'deployment stage'],
+    seedUrls: [
+      'https://help.salesforce.com/s/articleView?id=sf.devops_center_overview.htm&type=5',
+      'https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_intro.htm',
+    ],
+  },
+  {
+    id: 'scratch-orgs-sandboxes',
+    label: 'Scratch orgs, sandboxes, and environment strategy',
+    query: 'scratch orgs sandboxes environment strategy org shape sandbox seeding Salesforce DX',
+    category: 'devops',
+    keywords: ['scratch org', 'sandbox', 'org shape', 'environment hub', 'seeding', 'refresh'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_scratch_orgs.htm',
+    ],
+  },
+  {
+    id: 'omnistudio-overview-architecture',
+    label: 'OmniStudio overview and architecture',
+    query: 'OmniStudio standard runtime architecture components Salesforce industries',
+    category: 'omnistudio',
+    keywords: ['omnistudio', 'standard runtime', 'vlocity', 'industries', 'omnistudio components'],
+    seedUrls: [
+      'https://help.salesforce.com/s/articleView?id=sf.os_omnistudio_standard.htm&type=5',
+    ],
+  },
+  {
+    id: 'omnistudio-dataraptors',
+    label: 'OmniStudio DataRaptors',
+    query: 'OmniStudio DataRaptor extract transform load turbo bulk performance limits',
+    category: 'omnistudio',
+    keywords: ['dataraptor', 'extract', 'transform', 'load', 'turbo extract', 'omnistudio data mapper'],
+    seedUrls: [
+      'https://help.salesforce.com/s/articleView?id=sf.os_dataraptors.htm&type=5',
+    ],
+  },
+  {
+    id: 'omnistudio-integration-procedures',
+    label: 'OmniStudio Integration Procedures',
+    query: 'OmniStudio Integration Procedures HTTP actions chaining limits performance',
+    category: 'omnistudio',
+    keywords: ['integration procedure', 'http action', 'chainable', 'remote action', 'omnistudio integration'],
+    seedUrls: [
+      'https://help.salesforce.com/s/articleView?id=sf.os_integration_procedures.htm&type=5',
+    ],
+  },
+  {
+    id: 'omnistudio-flexcards-omniscripts',
+    label: 'OmniStudio FlexCards and OmniScripts',
+    query: 'OmniStudio FlexCards OmniScripts guided interactions design performance',
+    category: 'omnistudio',
+    keywords: ['flexcard', 'omniscript', 'guided interaction', 'lwc omniscript', 'omnistudio designer'],
+    seedUrls: [
+      'https://help.salesforce.com/s/articleView?id=sf.os_omniscripts.htm&type=5',
+      'https://help.salesforce.com/s/articleView?id=sf.os_flexcards.htm&type=5',
+    ],
+  },
+  {
+    id: 'agentforce-agents-setup',
+    label: 'Agentforce agents and setup',
+    query: 'Agentforce agents topics actions setup Einstein generative AI Salesforce',
+    category: 'agentforce',
+    keywords: ['agentforce', 'agent', 'topics', 'actions', 'einstein', 'generative ai', 'copilot'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/einstein/genai/guide/get-started.html',
+      'https://developer.salesforce.com/docs/einstein/genai/guide/get-started-agents.html',
+    ],
+  },
+  {
+    id: 'einstein-prompt-builder',
+    label: 'Einstein Prompt Builder and prompt templates',
+    query: 'Einstein Prompt Builder prompt templates grounding merge fields generative AI Salesforce',
+    category: 'agentforce',
+    keywords: ['prompt builder', 'prompt template', 'grounding', 'einstein trust layer', 'merge field'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/einstein/genai/guide/get-started-prompt-builder.html',
+    ],
+  },
+  {
+    id: 'agentforce-agent-api',
+    label: 'Agentforce Agent API',
+    query: 'Agentforce Agent API sessions messages programmatic agent invocation Salesforce',
+    category: 'agentforce',
+    keywords: ['agent api', 'agentforce api', 'session', 'invoke agent', 'einstein ai agent api'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/einstein/genai/guide/agent-api.html',
+    ],
+  },
+  {
+    id: 'field-service-architecture',
+    label: 'Field Service data model and customization',
+    query: 'Salesforce Field Service service appointments work orders scheduling data model developer',
+    category: 'field_service',
+    keywords: ['field service', 'service appointment', 'work order', 'scheduling', 'service resource', 'dispatcher'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.field_service_dev.meta/field_service_dev/fsl_dev_introduction.htm',
+    ],
+  },
+  {
+    id: 'crm-analytics-rest-data',
+    label: 'CRM Analytics REST API and datasets',
+    query: 'CRM Analytics REST API datasets dataflows SAQL lens dashboard Salesforce',
+    category: 'analytics',
+    keywords: ['crm analytics', 'tableau crm', 'einstein analytics', 'dataset', 'saql', 'dataflow', 'recipe'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.bi_dev_guide_rest.meta/bi_dev_guide_rest/bi_rest_overview.htm',
+    ],
+  },
+  {
+    id: 'omni-channel-routing',
+    label: 'Omni-Channel routing and queues',
+    query: 'Omni-Channel routing configuration PendingServiceRouting AgentWork queues skills-based routing',
+    category: 'service_cloud',
+    keywords: ['omni-channel', 'routing', 'pendingservicerouting', 'agentwork', 'skills-based routing', 'presence'],
+    seedUrls: [
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_pendingservicerouting.htm',
+      'https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_agentwork.htm',
+    ],
+  },
 ];
 
 const SALESFORCE_DOC_SITEMAP_SOURCES: SalesforceDocsSitemapSource[] = [
@@ -913,7 +1226,7 @@ const SALESFORCE_DOC_SITEMAP_SOURCES: SalesforceDocsSitemapSource[] = [
   },
 ];
 
-const SALESFORCE_DOC_TOPIC_ALIASES: Record<string, string[]> = {
+export const SALESFORCE_DOC_TOPIC_ALIASES: Record<string, string[]> = {
   'emailmessage-object-fields': ['emailmessage-object-reference'],
   'emailmessage-fields': ['emailmessage-object-reference'],
   'emailmessage-reply-threading': ['emailmessage-threading-fields'],
@@ -924,11 +1237,85 @@ const SALESFORCE_DOC_TOPIC_ALIASES: Record<string, string[]> = {
   'flow-record-update-fault': ['flow-fault-paths', 'flow-metadata-edge-cases'],
   'flow-trigger-emailmessage': ['flow-metadata-edge-cases', 'emailmessage-object-reference'],
   'apex-governor-limits-flow': ['apex-governor-limits', 'flow-order-recursion', 'flow-metadata-edge-cases'],
+  // --- Solution-architect coverage expansion (2026-08) ---
+  'well-architected': ['well-architected-framework'],
+  'salesforce-well-architected': ['well-architected-framework'],
+  'architecture-health': ['well-architected-framework', 'architecture-decision-guides'],
+  'decision-guides': ['architecture-decision-guides'],
+  'record-triggered-automation-guide': ['architecture-decision-guides', 'flow-order-recursion'],
+  'soql-performance': ['soql-sosl-reference', 'soql-query-selectivity'],
+  'sosl-search': ['soql-sosl-reference'],
+  'order-of-execution': ['apex-order-of-execution'],
+  'save-order': ['apex-order-of-execution'],
+  'bulk-api': ['bulk-api-large-data'],
+  'bulk-api-2-0': ['bulk-api-large-data'],
+  'pk-chunking': ['bulk-api-large-data', 'ldv-performance-scale'],
+  'data-migration': ['bulk-api-large-data', 'ldv-performance-scale'],
+  'ldv': ['ldv-performance-scale'],
+  'large-data-volumes': ['ldv-performance-scale'],
+  'data-skew': ['ldv-performance-scale'],
+  'skinny-tables': ['ldv-performance-scale'],
+  'cdc': ['change-data-capture'],
+  'change-events': ['change-data-capture', 'platform-events-pubsub'],
+  'api-limits': ['api-limits-allocations', 'apex-governor-limits'],
+  'sso': ['identity-sso-saml-oidc'],
+  'sso-saml': ['identity-sso-saml-oidc'],
+  'saml-setup': ['identity-sso-saml-oidc'],
+  'openid-connect': ['identity-sso-saml-oidc'],
+  'my-domain': ['identity-sso-saml-oidc'],
+  'oauth': ['oauth-flows', 'connected-app-oauth'],
+  'oauth-flow': ['oauth-flows', 'connected-app-oauth'],
+  'jwt-bearer-flow': ['oauth-flows'],
+  'client-credentials-flow': ['oauth-flows'],
+  'shield-encryption': ['shield-platform-encryption'],
+  'platform-encryption': ['shield-platform-encryption'],
+  'event-monitoring': ['event-monitoring-session-security'],
+  'eventlogfile': ['event-monitoring-session-security'],
+  'transaction-security': ['event-monitoring-session-security'],
+  'experience-cloud': ['experience-cloud-architecture'],
+  'community-cloud': ['experience-cloud-architecture'],
+  'lwr-sites': ['experience-cloud-lwr-sites'],
+  'guest-user-security': ['experience-cloud-sharing-security'],
+  'sharing-sets': ['experience-cloud-sharing-security'],
+  'external-users': ['experience-cloud-sharing-security', 'sharing-model-rules'],
+  'sfdx': ['sfdx-source-driven-dev'],
+  'salesforce-dx': ['sfdx-source-driven-dev'],
+  'source-tracking': ['sfdx-source-driven-dev', 'scratch-orgs-sandboxes'],
+  '2gp': ['second-generation-packaging'],
+  'unlocked-packages': ['second-generation-packaging'],
+  'managed-packages': ['second-generation-packaging'],
+  'devops-center': ['devops-center-release-mgmt'],
+  'release-management': ['devops-center-release-mgmt', 'metadata-deploy-retrieve-source-format'],
+  'ci-cd': ['devops-center-release-mgmt', 'sfdx-source-driven-dev'],
+  'scratch-orgs': ['scratch-orgs-sandboxes'],
+  'sandbox-strategy': ['scratch-orgs-sandboxes'],
+  'omnistudio': ['omnistudio-overview-architecture'],
+  'omnistudio-dataraptor': ['omnistudio-dataraptors'],
+  'omnistudio-dataraptor-limits': ['omnistudio-dataraptors'],
+  'dataraptor': ['omnistudio-dataraptors'],
+  'integration-procedures': ['omnistudio-integration-procedures'],
+  'omniscript': ['omnistudio-flexcards-omniscripts'],
+  'flexcard': ['omnistudio-flexcards-omniscripts'],
+  'agentforce': ['agentforce-agents-setup'],
+  'einstein-copilot': ['agentforce-agents-setup'],
+  'agent-actions': ['agentforce-agents-setup'],
+  'prompt-builder': ['einstein-prompt-builder'],
+  'prompt-templates': ['einstein-prompt-builder'],
+  'einstein-trust-layer': ['einstein-prompt-builder', 'agentforce-agents-setup'],
+  'agent-api': ['agentforce-agent-api'],
+  'field-service': ['field-service-architecture'],
+  'fsl': ['field-service-architecture'],
+  'service-appointments': ['field-service-architecture'],
+  'crm-analytics': ['crm-analytics-rest-data'],
+  'tableau-crm': ['crm-analytics-rest-data'],
+  'einstein-analytics': ['crm-analytics-rest-data'],
+  'omni-channel': ['omni-channel-routing'],
+  'skills-based-routing': ['omni-channel-routing'],
 };
 
 const SALESFORCE_DOC_PDF_BASE_URL = 'https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf';
 
-const SALESFORCE_DOC_PDF_SOURCES: SalesforceDocsPdfSource[] = [
+export const SALESFORCE_DOC_PDF_SOURCES: SalesforceDocsPdfSource[] = [
   {
     id: 'metadata-api-developer-guide',
     title: 'Metadata API Developer Guide PDF',
@@ -1109,6 +1496,87 @@ const SALESFORCE_DOC_PDF_SOURCES: SalesforceDocsPdfSource[] = [
       'sales-cloud-admin-setup',
     ],
     keywords: ['account engagement', 'pardot', 'marketing cloud', 'campaign', 'lead'],
+  },
+  // --- Solution-architect coverage expansion (2026-08) ---
+  {
+    id: 'soql-sosl-reference-guide',
+    title: 'SOQL and SOSL Reference PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/salesforce_soql_sosl.pdf`,
+    topicIds: [
+      'soql-sosl-reference',
+      'soql-query-selectivity',
+    ],
+    keywords: ['soql', 'sosl', 'select', 'query reference', 'relationship query', 'aggregate'],
+  },
+  {
+    id: 'sfdx-developer-guide',
+    title: 'Salesforce DX Developer Guide PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/sfdx_dev.pdf`,
+    topicIds: [
+      'sfdx-source-driven-dev',
+      'scratch-orgs-sandboxes',
+      'devops-center-release-mgmt',
+    ],
+    keywords: ['salesforce dx', 'sfdx', 'scratch org', 'source tracking', 'cli', 'project'],
+  },
+  {
+    id: 'second-generation-packaging-guide',
+    title: 'Second-Generation Packaging Developer Guide PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/pkg2_dev.pdf`,
+    topicIds: [
+      'second-generation-packaging',
+      'sfdx-source-driven-dev',
+    ],
+    keywords: ['2gp', 'unlocked package', 'managed package', 'package version', 'namespace'],
+  },
+  {
+    id: 'experience-cloud-developer-guide',
+    title: 'Experience Cloud Developer Guide PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/communities_dev.pdf`,
+    topicIds: [
+      'experience-cloud-architecture',
+      'experience-cloud-sharing-security',
+    ],
+    keywords: ['experience cloud', 'community', 'experience builder', 'guest user', 'sharing set'],
+  },
+  {
+    id: 'lwr-sites-guide',
+    title: 'LWR Sites for Experience Cloud PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/exp_cloud_lwr.pdf`,
+    topicIds: [
+      'experience-cloud-lwr-sites',
+      'experience-cloud-architecture',
+    ],
+    keywords: ['lwr', 'lightning web runtime', 'experience cloud', 'site performance'],
+  },
+  {
+    id: 'field-service-developer-guide',
+    title: 'Field Service Developer Guide PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/field_service_dev.pdf`,
+    topicIds: [
+      'field-service-architecture',
+    ],
+    keywords: ['field service', 'service appointment', 'work order', 'scheduling', 'service resource'],
+  },
+  {
+    id: 'large-data-volumes-guide',
+    title: 'Best Practices for Deployments with Large Data Volumes PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/salesforce_large_data_volumes_bp.pdf`,
+    topicIds: [
+      'ldv-performance-scale',
+      'bulk-api-large-data',
+      'soql-query-selectivity',
+    ],
+    keywords: ['large data volumes', 'ldv', 'skinny table', 'pk chunking', 'index', 'performance'],
+  },
+  {
+    id: 'crm-analytics-rest-guide',
+    title: 'CRM Analytics REST API Developer Guide PDF',
+    url: `${SALESFORCE_DOC_PDF_BASE_URL}/bi_dev_guide_rest.pdf`,
+    topicIds: [
+      'crm-analytics-rest-data',
+    ],
+    keywords: ['crm analytics', 'rest api', 'dataset', 'saql', 'lens', 'dashboard'],
   },
 ];
 
@@ -1384,13 +1852,22 @@ function humanizeSalesforceDocId(id: string): string {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+// Help articles whose bodies are worth headless-Chrome rendering at index-build
+// time. These are domains with no developer-guide equivalent — their Help
+// articles ARE the primary documentation.
+const RENDERABLE_HELP_ARTICLE_ID_PATTERNS: RegExp[] = [
+  /^(?:sf\.)?os_/, // OmniStudio
+  /^(?:sf\.)?devops_center/, // DevOps Center
+];
+
 function isRenderableSalesforceHelpArticleUrl(urlValue: string): boolean {
   try {
     const url = new URL(urlValue);
     if (url.hostname !== 'help.salesforce.com' || !url.pathname.includes('/articleView')) return false;
     const articleId = (url.searchParams.get('id') || '').toLowerCase();
     if (articleId.startsWith('release-notes.')) return true;
-    return articleId === 'data.c360_a_dc_releases.htm';
+    if (articleId === 'data.c360_a_dc_releases.htm') return true;
+    return RENDERABLE_HELP_ARTICLE_ID_PATTERNS.some((pattern) => pattern.test(articleId));
   } catch {
     return false;
   }
@@ -1528,7 +2005,7 @@ async function getSalesforceHelpBrowser(): Promise<any> {
   return salesforceHelpBrowserPromise;
 }
 
-async function closeSalesforceHelpBrowser(): Promise<void> {
+export async function closeSalesforceHelpBrowser(): Promise<void> {
   const browserPromise = salesforceHelpBrowserPromise;
   salesforceHelpBrowserPromise = null;
   if (!browserPromise) return;
@@ -1553,9 +2030,12 @@ async function fetchRenderedHelpArticleContent(urlValue: string): Promise<Offici
       waitUntil: 'domcontentloaded',
       timeout: SALESFORCE_HELP_RENDER_TIMEOUT_MS,
     });
+    // Substantial rendered body is the real readiness signal; the release-notes
+    // marker only lets known-slow release pages settle a little longer.
     await page.waitForFunction(
       () => {
         const text = document.body?.innerText || '';
+        if (text.length > 4000) return true;
         return text.length > 1200 && /Release Notes|Release Updates|Features Become Available|About Data 360 Releases/i.test(text);
       },
       { timeout: Math.min(30000, SALESFORCE_HELP_RENDER_TIMEOUT_MS) },
@@ -2232,6 +2712,15 @@ function scoreSitemapEntryForTopic(entry: SalesforceDocsSitemapEntry, topic: Sal
   if (topic.id === 'standard-object-reference-sales-service' && /(object reference|sforce api objects|account|contact|lead|opportunity|case|task|event|quote|order)/.test(haystack)) score += 16;
   if (topic.id === 'metadata-api-type-reference' && /(metadata coverage|metadata types|api meta|customobject|customfield|flow|profile|permissionset|layout|flexipage)/.test(haystack)) score += 16;
   if (topic.id === 'flow-metadata-edge-cases' && /(flow|visual workflow|flowdefinition|flowsettings|flowtest|record triggered|autolaunched|subflow)/.test(haystack)) score += 16;
+  if (topic.id.includes('omnistudio') && /(omnistudio|dataraptor|omniscript|flexcard|integration procedure|vlocity)/.test(haystack)) score += 14;
+  if (topic.id.includes('experience-cloud') && /(experience cloud|communities|community|lwr|experience builder|guest user)/.test(haystack)) score += 14;
+  if (topic.category === 'identity' && /(identity|sso|saml|oauth|openid|login|my domain|mfa)/.test(haystack)) score += 12;
+  if (topic.category === 'devops' && /(sfdx|salesforce dx|devops|package|packaging|scratch org|sandbox|source tracking|deploy)/.test(haystack)) score += 12;
+  if (topic.category === 'agentforce' && /(agentforce|einstein|genai|generative|prompt|copilot|agent)/.test(haystack)) score += 14;
+  if (topic.id === 'field-service-architecture' && /(field service|service appointment|work order|scheduling|dispatcher)/.test(haystack)) score += 14;
+  if (topic.id === 'crm-analytics-rest-data' && /(analytics|bi |saql|dataset|dataflow|tableau)/.test(haystack)) score += 14;
+  if (/(bulk-api|ldv|streaming-api|change-data-capture)/.test(topic.id) && /(bulk api|large data|streaming|cometd|change data capture|cdc|pk chunking)/.test(haystack)) score += 12;
+  if (/(shield|event-monitoring)/.test(topic.id) && /(shield|encryption|event monitoring|eventlogfile|transaction security|session)/.test(haystack)) score += 12;
   if (/(email|emailmessage|activity|task|outlook|gmail)/.test(topic.id) && /(email|emailmessage|emailmessageid|activity|task|outlook|gmail|emailservices)/.test(haystack)) score += 14;
   if (topic.category === 'object_reference' && /(object reference|sforce api objects|object_reference)/.test(haystack)) score += 12;
   if (topic.category === 'integration' && /(setup|integration|emailadmin|outlook|gmail|activity capture)/.test(haystack)) score += 8;
@@ -2259,6 +2748,11 @@ function scoreSitemapEntryForTopic(entry: SalesforceDocsSitemapEntry, topic: Sal
   }
   if (prefersDeveloperReferenceSources(topic.category) && url.hostname === 'architect.salesforce.com') {
     score -= 25;
+  }
+  // Architecture topics are the one family where architect.salesforce.com IS
+  // the primary source rather than a distraction from reference docs.
+  if (topic.category === 'architecture' && url.hostname === 'architect.salesforce.com') {
+    score += 12;
   }
 
   return Math.max(0, score);
@@ -2723,16 +3217,6 @@ export function refreshCoverageError(index: SalesforceDocsIndex): string | null 
   return null;
 }
 
-export async function refreshSalesforceDocsIndexNow(): Promise<SalesforceDocsIndex> {
-  const index = await buildSalesforceDocsIndexNow();
-  const coverageError = refreshCoverageError(index);
-  if (coverageError) {
-    throw new Error(coverageError);
-  }
-  await writeSalesforceDocsIndex(index);
-  return index;
-}
-
 /**
  * Cached index reader. The parsed index is multi-MB, so instances hold one
  * shared copy: the in-flight promise is cached (thundering-herd guard at cold
@@ -2980,6 +3464,9 @@ function scoreRecordForTopic(
   if (prefersDeveloperReferenceSources(scoringCategory) && record.sourceType === 'architect_doc') {
     score -= 35;
   }
+  if (scoringCategory === 'architecture' && record.sourceType === 'architect_doc') {
+    score += 15;
+  }
   return Math.max(0, score);
 }
 
@@ -3176,59 +3663,9 @@ export async function lookupSalesforceDocsIndex(
   };
 }
 
-export const refreshSalesforceDocsIndex = onCall(
-  {
-    timeoutSeconds: 1800,
-    memory: '2GiB',
-  },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Must be authenticated to refresh Salesforce docs index');
-    }
-    const token = request.auth.token as Record<string, unknown>;
-    if (token.admin !== true && token.developer !== true) {
-      throw new HttpsError('permission-denied', 'Only administrators can refresh Salesforce docs index');
-    }
-    const index = await refreshSalesforceDocsIndexNow();
-    return {
-      success: true,
-      generatedAt: index.generatedAt,
-      storagePath: SALESFORCE_DOC_INDEX_PATH,
-      recordCount: index.records.length,
-      failureCount: index.failures.length,
-      warnings: index.warnings,
-    };
-  }
-);
-
-export const scheduledSalesforceDocsIndexRefresh = onSchedule(
-  {
-    schedule: 'every 24 hours',
-    timeoutSeconds: 1800,
-    memory: '2GiB',
-  },
-  async () => {
-    try {
-      const index = await refreshSalesforceDocsIndexNow();
-      console.log('[salesforceDocsIndex] Refreshed Salesforce docs index', {
-        generatedAt: index.generatedAt,
-        recordCount: index.records.length,
-        failureCount: index.failures.length,
-      });
-    } catch (error: any) {
-      if (typeof error?.message === 'string' && error.message.includes('keeping the previous index')) {
-        console.warn('[salesforceDocsIndex] Scheduled refresh skipped', {
-          message: error.message,
-        });
-        return;
-      }
-      console.error('[salesforceDocsIndex] Scheduled refresh failed', {
-        name: error?.name,
-        message: error?.message,
-        code: error?.code,
-        stack: error?.stack,
-      });
-      throw error;
-    }
-  }
-);
+// The in-function refresh (onCall + onSchedule) was removed 2026-08: Salesforce
+// 403s all Cloud Functions egress to developer.salesforce.com, so a GCF-hosted
+// build can never pass the coverage gates. The GitHub Actions workflow
+// (.github/workflows/salesforce-docs-index.yml) is the only working build pipe;
+// scripts/salesforce-docs-index.mjs enforces refreshCoverageError as its
+// baseline quality gate before upload.
