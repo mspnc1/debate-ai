@@ -28,7 +28,7 @@ export async function launchBrowser(): Promise<Browser> {
 
   const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
 
-  let executablePath: string;
+  let executablePath: string | undefined;
   if (isEmulator) {
     // In emulator, try to use locally-installed puppeteer's bundled Chrome
     try {
@@ -37,18 +37,23 @@ export async function launchBrowser(): Promise<Browser> {
       const localPuppeteer = require('puppeteer');
       executablePath = localPuppeteer.executablePath();
     } catch {
-      // Fall back to @sparticuz/chromium even in emulator
-      executablePath = await chromium.default.executablePath();
+      executablePath = undefined;
     }
-  } else {
+  }
+  const usingBundledChromium = !executablePath;
+  if (!executablePath) {
     executablePath = await chromium.default.executablePath();
   }
 
+  // @sparticuz/chromium >=149 bakes --headless='shell' into `args` and dropped
+  // its `headless` getter; 'shell' at launch matches its README. Its args are
+  // tuned for (and only valid with) the bundled serverless binary, so a local
+  // desktop Chrome launch must not inherit them.
   const browser = await puppeteer.default.launch({
     executablePath,
-    headless: chromium.default.headless,
+    headless: usingBundledChromium ? 'shell' : true,
     args: [
-      ...chromium.default.args,
+      ...(usingBundledChromium ? chromium.default.args : []),
       '--disable-setuid-sandbox',
       '--no-first-run',
       '--no-zygote',
@@ -62,8 +67,8 @@ export async function launchBrowser(): Promise<Browser> {
 /**
  * Create a new page with deterministic viewport, timezone, and locale.
  *
- * Puppeteer's `createIncognitoBrowserContext()` does NOT accept locale/timezoneId
- * options (unlike Playwright), so timezone and locale are set per-page.
+ * Puppeteer has no launch-level locale/timezone options (unlike Playwright),
+ * so both are set per-page.
  */
 export async function createPage(browser: Browser): Promise<Page> {
   const page = await browser.newPage();

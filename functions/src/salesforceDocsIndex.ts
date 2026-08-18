@@ -1978,7 +1978,9 @@ async function getSalesforceHelpBrowser(): Promise<any> {
         ];
       return puppeteer.default.launch({
         executablePath,
-        headless: isLocalChrome ? true : chromium.default.headless,
+        // sparticuz >=149 dropped its `headless` getter; 'shell' matches the
+        // --headless='shell' flag it now bakes into `args`.
+        headless: isLocalChrome ? true : 'shell',
         args: Array.from(new Set(args)),
       });
     })().catch((error) => {
