@@ -81,10 +81,14 @@ async function renderInteractiveHtmlToPng(
     await page.setViewport({ width: VIEWPORT_WIDTH, height: viewportHeight, deviceScaleFactor: 2 });
     await setupNetworkBlocking(page);
     try {
+      // setContent no longer accepts networkidle waits (puppeteer >=24.43
+      // narrowed SetContentWaitForOptions); 'load' + waitForNetworkIdle with
+      // concurrency 2 reproduces the old networkidle2 semantics.
       await page.setContent(stripSubresourceIntegrity(html), {
-        waitUntil: 'networkidle2',
+        waitUntil: 'load',
         timeout: RENDER_TIMEOUT_MS,
       });
+      await page.waitForNetworkIdle({ idleTime: 500, concurrency: 2, timeout: RENDER_TIMEOUT_MS });
     } catch (err) {
       // A trickling tile server can hold the network open past the budget —
       // screenshot whatever has painted rather than failing the block.

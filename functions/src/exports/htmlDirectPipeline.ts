@@ -234,11 +234,16 @@ export async function runHtmlDirectPipeline(
   // Inject print-optimized CSS
   html = injectPrintCSS(html);
 
-  // Render via Puppeteer — networkidle0 ensures JS-rendered content is painted
+  // Render via Puppeteer. setContent no longer accepts networkidle waits
+  // (puppeteer >=24.43 narrowed SetContentWaitForOptions), so wait for 'load'
+  // and then for full network idle (0 in-flight connections for 500ms — the
+  // old networkidle0 semantics) so JS-rendered content is painted. Combined
+  // worst case stays within the previous 60s budget.
   await page.setContent(html, {
-    waitUntil: 'networkidle0',
-    timeout: 60_000,
+    waitUntil: 'load',
+    timeout: 30_000,
   });
+  await page.waitForNetworkIdle({ idleTime: 500, concurrency: 0, timeout: 30_000 });
   await page.emulateMediaType('print');
 
   // Generate PDF
