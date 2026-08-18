@@ -252,7 +252,7 @@ export const stripeWebhook = onRequest(
               ? Timestamp.fromMillis(currentPeriodEnd * 1000)
               : null,
             canceledAt: null,
-            hasUsedTrial: subscription.status === 'trialing' ? true : undefined,
+            ...(subscription.status === 'trialing' ? { hasUsedTrial: true } : {}),
             createdAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
           }, { merge: true });
