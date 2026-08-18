@@ -1,4 +1,3 @@
-import React from 'react';
 import { Provider } from 'react-redux';
 import { act, cleanup, render } from '@testing-library/react-native';
 import GlobalSheets from '../GlobalSheets';

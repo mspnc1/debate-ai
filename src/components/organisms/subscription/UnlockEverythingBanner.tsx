@@ -21,10 +21,10 @@ export const UnlockEverythingBanner: React.FC = () => {
         },
       ]}
     >
-      <View style={[StyleSheet.absoluteFillObject, { opacity: 0.1 }]}>
+      <View style={[StyleSheet.absoluteFill, { opacity: 0.1 }]}>
         <LinearGradient
           colors={theme.colors.gradients.premium}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         />

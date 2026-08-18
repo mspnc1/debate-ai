@@ -100,7 +100,7 @@ const AppLogo: React.FC<AppLogoProps> = ({ size = 120 }) => {
       }]} />
       
       {/* Orbiting colored nodes */}
-      <Animated.View style={[StyleSheet.absoluteFillObject, orbitAnimatedStyle]}>
+      <Animated.View style={[StyleSheet.absoluteFill, orbitAnimatedStyle]}>
         {aiNodes.map((node, index) => {
           const nodeSize = size * 0.12;
           const angle = (index * (360 / aiNodes.length)) * Math.PI / 180;

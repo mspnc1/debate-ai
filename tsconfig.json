@@ -12,9 +12,9 @@
     "resolveJsonModule": true,
     "moduleResolution": "bundler",
     "forceConsistentCasingInFileNames": true,
-    "baseUrl": ".",
+    "types": ["jest", "node"],
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": [

@@ -1,6 +1,6 @@
 // Subscription types for the three-tier model
 
-import type { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+import type { Timestamp } from '@react-native-firebase/firestore';
 
 export type MembershipStatus = 'demo' | 'trial' | 'premium';
 
@@ -14,7 +14,7 @@ export interface UserSubscriptionDoc {
   hasUsedTrial?: boolean;
   androidPurchaseToken?: string | null;
   appAccountToken?: string | null;
-  trialStartDate?: FirebaseFirestoreTypes.Timestamp | null;
-  trialEndDate?: FirebaseFirestoreTypes.Timestamp | null;
-  subscriptionExpiryDate?: FirebaseFirestoreTypes.Timestamp | null;
+  trialStartDate?: Timestamp | null;
+  trialEndDate?: Timestamp | null;
+  subscriptionExpiryDate?: Timestamp | null;
 }

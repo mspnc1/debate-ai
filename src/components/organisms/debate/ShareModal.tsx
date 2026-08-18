@@ -13,7 +13,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import ViewShot from 'react-native-view-shot';
+import ViewShot, { type ViewShotRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
@@ -45,7 +45,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   visible,
 }) => {
   const { theme } = useTheme();
-  const viewShotRef = useRef<ViewShot>(null);
+  const viewShotRef = useRef<ViewShotRef>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerateAndShare = async () => {

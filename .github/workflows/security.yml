@@ -26,7 +26,10 @@ jobs:
         run: npm ci
 
       - name: Run root npm audit
-        run: npm audit --audit-level=moderate
+        # audit-ci enforces the same moderate threshold as npm audit, but supports
+        # an explicit allowlist (audit-ci.jsonc) for advisories with no patched
+        # release. Resolved locally from devDependencies by npm ci.
+        run: npx audit-ci --config audit-ci.jsonc
 
       - name: Install Functions dependencies
         run: npm ci

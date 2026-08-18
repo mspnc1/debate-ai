@@ -34,25 +34,6 @@ jest.mock('expo-device', () => ({
   osVersion: '17.0',
 }));
 
-jest.mock('react-native/Libraries/TurboModule/TurboModuleRegistry', () => ({
-  getEnforcing: () => ({
-    getConstants: () => ({
-      isRTL: false,
-      doLeftAndRightSwapInRTL: false,
-      allowRTL: () => {},
-      forceRTL: () => {},
-    }),
-  }),
-  get: () => ({
-    getConstants: () => ({
-      isRTL: false,
-      doLeftAndRightSwapInRTL: false,
-      allowRTL: () => {},
-      forceRTL: () => {},
-    }),
-  }),
-}));
-
 jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter', () => {
   return jest.fn().mockImplementation(() => ({
     addListener: jest.fn(),
@@ -80,26 +61,6 @@ jest.mock('@expo/vector-icons', () => {
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
-
-jest.mock('react-native', () => {
-  const React = require('react');
-  const RN = jest.requireActual('react-native');
-  const { View } = RN;
-  const originalWarn = console.warn;
-  console.warn = jest.fn();
-  const linking = {
-    ...RN.Linking,
-    canOpenURL: jest.fn().mockResolvedValue(true),
-    openURL: jest.fn().mockResolvedValue(true),
-  };
-  const result = {
-    ...RN,
-    Image: ({ children, ...props }: any) => React.createElement(View, props, children),
-    Linking: linking,
-  };
-  console.warn = originalWarn;
-  return result;
-});
 
 jest.mock('@/components/molecules', () => {
   const React = require('react');

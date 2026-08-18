@@ -265,7 +265,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
             hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
           >
             {/* Pulse ripples */}
-            <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
               <Animated.View
                 style={{
                   position: 'absolute',

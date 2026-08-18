@@ -4,7 +4,7 @@ import {
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged as firebaseOnAuthStateChanged,
-  FirebaseAuthTypes,
+  type User as FirebaseAuthUser,
   signInWithCredential,
   GoogleAuthProvider,
   AppleAuthProvider,
@@ -45,7 +45,7 @@ export type AuthUser = {
   providerId?: string | null;
 };
 
-export const toAuthUser = (user: FirebaseAuthTypes.User): AuthUser => ({
+export const toAuthUser = (user: FirebaseAuthUser): AuthUser => ({
   uid: user.uid,
   email: user.email ?? null,
   displayName: user.displayName ?? null,
@@ -197,7 +197,7 @@ export interface UserDocument {
  * Mobile users start in 'demo' status with pre-recorded content access
  */
 function buildNewUserDocument(
-  user: FirebaseAuthTypes.User,
+  user: FirebaseAuthUser,
   authProvider: 'google' | 'apple' | 'email',
   additionalData?: {
     displayName?: string | null;
@@ -268,7 +268,7 @@ function buildNewUserDocument(
 export const signInWithEmail = async (
   email: string,
   password: string
-): Promise<FirebaseAuthTypes.User> => {
+): Promise<FirebaseAuthUser> => {
   try {
     const auth = getAuth();
     await verifyEmailPasswordAllowed(email, password);
@@ -297,7 +297,7 @@ export const signInWithEmail = async (
 export const signUpWithEmail = async (
   email: string,
   password: string
-): Promise<FirebaseAuthTypes.User> => {
+): Promise<FirebaseAuthUser> => {
   try {
     const auth = getAuth();
     const credential = await createUserWithEmailAndPassword(auth, email, password);
@@ -377,7 +377,7 @@ export const sendPasswordResetEmail = async (email: string): Promise<void> => {
 /**
  * Get the current authenticated user
  */
-export const getCurrentUser = (): FirebaseAuthTypes.User | null => {
+export const getCurrentUser = (): FirebaseAuthUser | null => {
   const auth = getAuth();
   return auth.currentUser;
 };
@@ -440,7 +440,7 @@ export const updateCurrentUserDisplayName = async (displayName: string): Promise
   return toAuthUser(user);
 };
 
-async function syncEmailVerificationToUserDocument(user: FirebaseAuthTypes.User): Promise<void> {
+async function syncEmailVerificationToUserDocument(user: FirebaseAuthUser): Promise<void> {
   if (!user.emailVerified) return;
 
   const db = getFirestore();
@@ -471,7 +471,7 @@ export const getIdToken = async (): Promise<string | null> => {
  * Listen to authentication state changes
  */
 export const onAuthStateChanged = (
-  callback: (user: FirebaseAuthTypes.User | null) => void
+  callback: (user: FirebaseAuthUser | null) => void
 ): (() => void) => {
   const auth = getAuth();
   return firebaseOnAuthStateChanged(auth, callback);
@@ -501,7 +501,7 @@ export const checkPremiumAccess = async (): Promise<boolean> => {
 };
 
 // Re-export User type for convenience
-export type User = FirebaseAuthTypes.User;
+export type User = FirebaseAuthUser;
 
 /**
  * Configure Google Sign In

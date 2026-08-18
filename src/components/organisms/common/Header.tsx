@@ -499,7 +499,7 @@ export const Header: React.FC<HeaderProps> = ({
     const gradientHeight = Math.max(totalHeight, 300);
 
     return (
-      <Svg width={width} height={gradientHeight} style={StyleSheet.absoluteFillObject}>
+      <Svg width={width} height={gradientHeight} style={StyleSheet.absoluteFill}>
         <Defs>
           <SvgGradient id="headerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
             {primaryGradient.map((color, index) => (

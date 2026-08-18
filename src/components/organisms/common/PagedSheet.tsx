@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   pushedPage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
 });
 
