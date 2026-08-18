@@ -187,6 +187,22 @@ export class APIKeyService {
           };
         }
         break;
+      case 'moonshot':
+        if (!normalizedKey.startsWith('sk-')) {
+          return {
+            isValid: false,
+            message: 'Kimi (Moonshot) API keys should start with "sk-"'
+          };
+        }
+        break;
+      case 'zai':
+        if (!/^[A-Za-z0-9]{16,}\.[A-Za-z0-9]{8,}$/.test(normalizedKey)) {
+          return {
+            isValid: false,
+            message: 'Z.ai keys are two dot-separated token segments from the API keys page'
+          };
+        }
+        break;
       case 'runway':
         if (!RUNWAY_API_KEY_PATTERN.test(normalizedKey)) {
           return {

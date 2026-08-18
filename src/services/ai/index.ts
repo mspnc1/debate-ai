@@ -23,4 +23,6 @@ export { MistralAdapter } from './adapters/mistral/MistralAdapter';
 export { CohereAdapter } from './adapters/cohere/CohereAdapter';
 export { DeepSeekAdapter } from './adapters/deepseek/DeepSeekAdapter';
 export { GrokAdapter } from './adapters/grok/GrokAdapter';
+export { MoonshotAdapter } from './adapters/moonshot/MoonshotAdapter';
+export { ZaiAdapter } from './adapters/zai/ZaiAdapter';
 export { MockAdapter } from './adapters/mock/MockAdapter';

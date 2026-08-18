@@ -46,6 +46,8 @@ const ALL_PROVIDERS: AIProvider[] = [
   'cohere',
   'deepseek',
   'grok',
+  'moonshot',
+  'zai',
 ];
 
 const PROVIDER_KEY_ENV_VARS: Record<AIProvider, string[]> = {
@@ -57,13 +59,24 @@ const PROVIDER_KEY_ENV_VARS: Record<AIProvider, string[]> = {
   cohere: ['COHERE_API_KEY'],
   deepseek: ['DEEPSEEK_API_KEY'],
   grok: ['GROK_API_KEY', 'XAI_API_KEY'],
+  moonshot: ['MOONSHOT_API_KEY'],
+  zai: ['ZAI_API_KEY'],
 };
 
 const LIVE_PROMPT = 'Reply with OK and nothing else.';
 const DEFAULT_TIMEOUT_MS = 180000;
 
 const demoModeMock = isDemoModeEnabled as jest.MockedFunction<typeof isDemoModeEnabled>;
-const nativeFetch = globalThis.fetch.bind(globalThis);
+// jest-expo 57's setup installs expo/src/winter, which replaces globalThis.fetch
+// with expo/fetch over a stubbed native module — unusable for real network
+// calls. Requiring undici inside the jest sandbox does not help either: it
+// binds to sandbox timer/microtask globals and stalls on multi-chunk response
+// bodies. Load undici in the HOST realm via createRequire so live smokes run
+// on real Node networking.
+const hostRequire = process
+  .getBuiltinModule('node:module')
+  .createRequire(process.cwd() + '/package.json');
+const nativeFetch = (hostRequire('undici') as { fetch: typeof fetch }).fetch;
 const liveEnabled = process.env.LIVE_MODEL_TEST === '1';
 
 const trimQuotes = (value: string): string => {
@@ -161,6 +174,9 @@ const buildLiveParameters = (
   } else if (provider === 'perplexity' && modelConfig?.supportsThinking) {
     maxTokens = 512;
   } else if (provider === 'cohere' && modelConfig?.supportsThinking) {
+    maxTokens = 512;
+  } else if (provider === 'zai' && modelConfig?.supportsThinking) {
+    // GLM reasoners can spend >128 tokens thinking before any visible text.
     maxTokens = 512;
   } else if (provider === 'deepseek' && model === 'deepseek-reasoner') {
     maxTokens = 384;

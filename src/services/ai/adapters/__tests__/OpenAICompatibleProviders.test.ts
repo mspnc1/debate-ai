@@ -1,4 +1,6 @@
 import { DeepSeekAdapter } from '../deepseek/DeepSeekAdapter';
+import { MoonshotAdapter } from '../moonshot/MoonshotAdapter';
+import { ZaiAdapter } from '../zai/ZaiAdapter';
 import { GrokAdapter } from '../grok/GrokAdapter';
 import { MistralAdapter } from '../mistral/MistralAdapter';
 import type { OpenAICompatibleAdapter } from '../../base/OpenAICompatibleAdapter';
@@ -113,6 +115,40 @@ const ADAPTER_MATRIX: AdapterEntry[] = [
       contextWindow: 262144,
     },
   },
+  {
+    name: 'Moonshot',
+    provider: 'moonshot',
+    AdapterCtor: MoonshotAdapter,
+    baseUrl: 'https://api.moonshot.ai/v1',
+    defaultModel: 'kimi-k3',
+    capabilities: {
+      streaming: true,
+      attachments: true,  // Kimi K3 and K2.x are natively multimodal
+      supportsImages: true,
+      supportsDocuments: false,
+      functionCalling: true,
+      systemPrompt: true,
+      maxTokens: 16384,
+      contextWindow: 1000000,
+    },
+  },
+  {
+    name: 'Zai',
+    provider: 'zai',
+    AdapterCtor: ZaiAdapter,
+    baseUrl: 'https://api.z.ai/api/paas/v4',
+    defaultModel: 'glm-5.2',
+    capabilities: {
+      streaming: true,
+      attachments: false,  // GLM 5.x text line has no image input (glm-5v-* is retired)
+      supportsImages: false,
+      supportsDocuments: false,
+      functionCalling: true,
+      systemPrompt: true,
+      maxTokens: 128000,
+      contextWindow: 1000000,
+    },
+  },
 ];
 
 const makeConfig = (provider: AIProvider, defaultModel: string, overrides: Partial<AIAdapterConfig> = {}): AIAdapterConfig => ({
@@ -189,7 +225,9 @@ describe.each(ADAPTER_MATRIX)('$name adapter', ({
     const [, requestInit] = fetchMock.mock.calls[0];
     const body = JSON.parse((requestInit?.body as string) || '{}');
 
-    expect(body.temperature).toBe(0);
+    // Moonshot rejects every temperature except 1 (requiresTemperature1 on
+    // all Kimi models), so even an explicit 0 must be clamped to 1 there.
+    expect(body.temperature).toBe(provider === 'moonshot' ? 1 : 0);
   });
 
   it('handles image attachments based on adapter capabilities', async () => {

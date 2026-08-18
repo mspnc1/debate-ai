@@ -35,7 +35,7 @@ describe('Model selection contract', () => {
 
   it('resolves aliases before validating provider ownership', () => {
     expect(resolveProviderModelId('claude', 'claude-latest')).toBe('claude-sonnet-5');
-    expect(resolveProviderModelId('claude', 'claude-opus-latest')).toBe('claude-opus-4-8');
+    expect(resolveProviderModelId('claude', 'claude-opus-latest')).toBe('claude-opus-5');
     expect(resolveProviderModelId('openai', 'gpt-latest')).toBe('gpt-5.6-sol');
     expect(resolveProviderModelId('google', 'gemini-pro-latest')).toBe('gemini-3.1-pro-preview');
     expect(resolveProviderModelId('cohere', 'command-a-latest')).toBe('command-a-03-2025');
@@ -47,7 +47,7 @@ describe('Model selection contract', () => {
   it('looks up persisted alias IDs with the resolved model capabilities', () => {
     expect(getModelById('openai', 'gpt-latest')?.id).toBe('gpt-5.6-sol');
     expect(getModelById('claude', 'claude-latest')?.id).toBe('claude-sonnet-5');
-    expect(getModelById('claude', 'claude-opus-latest')?.id).toBe('claude-opus-4-8');
+    expect(getModelById('claude', 'claude-opus-latest')?.id).toBe('claude-opus-5');
     expect(getModelById('google', 'gemini-pro-latest')?.supportsThinking).toBe(true);
     expect(getModelById('openai', 'gpt-5-mini')?.id).toBe('gpt-5.4-mini');
     expect(getModelById('openai', 'gpt-5-nano')?.id).toBe('gpt-5.4-nano');

@@ -99,8 +99,10 @@ const PROVIDER_LABEL_FALLBACKS: Partial<Record<AIConfig['provider'], string>> = 
   google: 'Gemini',
   grok: 'Grok',
   mistral: 'Mistral',
+  moonshot: 'Kimi',
   openai: 'ChatGPT',
   perplexity: 'Perplexity',
+  zai: 'GLM',
 };
 
 const humanizeIdentifier = (value: string): string => (

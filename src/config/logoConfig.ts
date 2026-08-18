@@ -51,6 +51,18 @@ export const LOGO_CONFIGS: Record<string, LogoConfig> = {
     darkModeStrategy: 'none', // DeepSeek logo works well on dark
     hasTransparency: true,
   },
+  moonshot: {
+    providerId: 'moonshot',
+    darkModeStrategy: 'brandBackground',
+    brandColor: '#16191E',
+    hasTransparency: true,
+  },
+  zai: {
+    providerId: 'zai',
+    darkModeStrategy: 'brandBackground',
+    brandColor: '#3859FF',
+    hasTransparency: true,
+  },
 };
 
 export const getLogoConfig = (providerId: string): LogoConfig => {

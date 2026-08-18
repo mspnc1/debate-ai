@@ -41,6 +41,17 @@ const selectedProviders = new Set(
 // (superseded generations kept alive server-side). Listed explicitly so the
 // report stays quiet without hiding genuinely new IDs.
 const KNOWN_SUPERSEDED_IDS = new Set([
+  // Z.ai keeps legacy GLM generations alive; glm-5 itself is superseded by
+  // glm-5.1/5.2 and glm-5-turbo.
+  'glm-4.5',
+  'glm-4.5-air',
+  'glm-4.6',
+  'glm-4.7',
+  'glm-5',
+  // Mistral re-hosts Z.ai's GLM under these IDs; GLM is served natively via
+  // the zai provider (dotted IDs like glm-5.2), so skip the Mistral copies.
+  'glm-5-2',
+  'zai-glm-5-2',
   'gpt-5-mini',
   'gpt-5-nano',
   'gpt-5-pro',
@@ -256,6 +267,36 @@ const PROVIDERS = [
         };
       });
     },
+  },
+  {
+    id: 'moonshot',
+    name: 'Moonshot AI',
+    env: ['MOONSHOT_API_KEY'],
+    endpoint: 'GET https://api.moonshot.ai/v1/models',
+    source: 'https://platform.kimi.ai/docs/models',
+    url: () => 'https://api.moonshot.ai/v1/models',
+    headers: (key) => ({ Authorization: `Bearer ${key}` }),
+    extract: (payload) => payload.data?.map((model) => ({
+      id: model.id,
+      ownedBy: model.owned_by,
+      raw: model,
+    })) || [],
+    note: 'Bare IDs only; capabilities/pricing are docs-curated. moonshot-v1-* series sunsets 2026-08-31 — never catalog it.',
+  },
+  {
+    id: 'zai',
+    name: 'Z.ai',
+    env: ['ZAI_API_KEY'],
+    endpoint: 'GET https://api.z.ai/api/paas/v4/models',
+    source: 'https://docs.z.ai/guides/overview/quick-start',
+    url: () => 'https://api.z.ai/api/paas/v4/models',
+    headers: (key) => ({ Authorization: `Bearer ${key}` }),
+    extract: (payload) => payload.data?.map((model) => ({
+      id: model.id,
+      ownedBy: model.owned_by,
+      raw: model,
+    })) || [],
+    note: 'Bare IDs only (verified 2026-08-17); capabilities/pricing are docs-curated. Catalog can list gated models — probe chat completions before curating new IDs (glm-5.3 returns permission error 1220 on standard keys).',
   },
 ];
 

@@ -112,7 +112,11 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
                      winner.id === 'mistral' ? 'mistral' :
                      winner.id === 'cohere' ? 'cohere' :
                      winner.id === 'deepseek' ? 'deepseek' :
-                     winner.id === 'grok' ? 'grok' : null;
+                     winner.id === 'grok' ? 'grok' :
+                     winner.id === 'moonshot' ? 'moonshot' :
+                     winner.id === 'kimi' ? 'moonshot' :
+                     winner.id === 'zai' ? 'zai' :
+                     winner.id === 'glm' ? 'zai' : null;
     
     return winnerKey ? AI_BRAND_COLORS[winnerKey as keyof typeof AI_BRAND_COLORS] : theme.colors.primary;
   };

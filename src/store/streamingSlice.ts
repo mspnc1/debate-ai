@@ -58,6 +58,8 @@ const initialState: StreamingState = {
     cohere: { enabled: true, supported: true },
     deepseek: { enabled: true, supported: true },
     grok: { enabled: true, supported: true },
+    moonshot: { enabled: true, supported: true },
+    zai: { enabled: true, supported: true },
   },
   globalStreamingEnabled: true,
   activeStreamCount: 0,

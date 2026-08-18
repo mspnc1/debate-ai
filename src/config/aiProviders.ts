@@ -352,6 +352,86 @@ export const AI_PROVIDERS: AIProvider[] = [
       ],
     },
   },
+  {
+    id: 'moonshot',
+    name: 'Kimi',
+    company: 'Moonshot AI',
+    color: '#16191E',
+    gradient: ['#3B4252', '#16191E'],
+    apiKeyPrefix: 'sk-',
+    apiKeyPlaceholder: 'sk-...',
+    docsUrl: 'https://platform.moonshot.ai/docs',
+    getKeyUrl: 'https://platform.moonshot.ai/console/api-keys',
+    description: 'Frontier open-weight reasoning with 1M context',
+    features: ['Deep reasoning', '1M context', 'Vision', 'Agentic coding'],
+    testEndpoint: 'https://api.moonshot.ai/v1/chat/completions',
+    enabled: true,
+    guidance: {
+      difficulty: 'easy',
+      estimatedTime: '~2 min',
+      steps: [
+        {
+          urlPattern: 'platform.moonshot.ai',
+          title: 'Log in to Moonshot',
+          instruction: 'Sign in or create a Moonshot AI account.',
+        },
+        {
+          urlPattern: '/console/api-keys',
+          title: 'Create API Key',
+          instruction: 'Click "Create API Key" and name it.',
+        },
+        {
+          urlPattern: '/console/api-keys',
+          title: 'Copy your key',
+          instruction: 'Copy and save your API key (starts with "sk-").',
+        },
+      ],
+      tips: [
+        'Kimi models only support the default temperature of 1',
+        'Moonshot AI is a China-based company; requests are processed on their infrastructure',
+      ],
+    },
+  },
+  {
+    id: 'zai',
+    name: 'GLM',
+    company: 'Z.ai',
+    color: '#3859FF',
+    gradient: ['#5B7BFF', '#3859FF'],
+    apiKeyPrefix: '',
+    apiKeyPlaceholder: 'Your Z.ai API key',
+    docsUrl: 'https://docs.z.ai',
+    getKeyUrl: 'https://z.ai/manage-apikey/apikey-list',
+    description: 'Frontier coding and agents at low cost',
+    features: ['Strong coding', 'Agentic tasks', '1M context', 'Low cost'],
+    testEndpoint: 'https://api.z.ai/api/paas/v4/chat/completions',
+    enabled: true,
+    guidance: {
+      difficulty: 'easy',
+      estimatedTime: '~2 min',
+      steps: [
+        {
+          urlPattern: 'z.ai',
+          title: 'Log in to Z.ai',
+          instruction: 'Sign in or create a Z.ai account.',
+        },
+        {
+          urlPattern: '/manage-apikey',
+          title: 'Create API Key',
+          instruction: 'Create a new API key from the API keys page.',
+        },
+        {
+          urlPattern: '/manage-apikey',
+          title: 'Copy your key',
+          instruction: 'Copy the full key (two dot-separated segments).',
+        },
+      ],
+      tips: [
+        'Very cost-effective for coding and agent tasks',
+        'Z.ai is a China-based company; requests are processed on their infrastructure',
+      ],
+    },
+  },
 ];
 
 export const getProviderById = (id: string): AIProvider | undefined => {

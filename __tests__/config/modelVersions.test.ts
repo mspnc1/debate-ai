@@ -19,7 +19,7 @@ describe('Model version registry', () => {
   });
 
   it('returns the latest model by provider family', () => {
-    expect(getLatestModelInFamily('claude', 'premium')).toBe('claude-opus-4-8');
+    expect(getLatestModelInFamily('claude', 'premium')).toBe('claude-opus-5');
     expect(getLatestModelInFamily('openai', 'flagship')).toBe('gpt-5.6-sol');
     expect(getLatestModelInFamily('grok', 'main')).toBe('grok-4.3');
     expect(getLatestModelInFamily('mistral', 'medium')).toBe('mistral-medium-2604');

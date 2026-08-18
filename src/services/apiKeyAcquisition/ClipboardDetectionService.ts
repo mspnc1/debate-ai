@@ -16,6 +16,8 @@ export type ProviderId =
   | 'grok'
   | 'cohere'
   | 'deepseek'
+  | 'moonshot'
+  | 'zai'
   | 'runway'
   | 'elevenlabs';
 
@@ -45,6 +47,11 @@ const API_KEY_PATTERNS: Record<ProviderId, RegExp> = {
   grok: /^xai-[a-zA-Z0-9]{40,}$/,
   cohere: /^[a-zA-Z0-9]{40}$/,
   deepseek: /^sk-[a-zA-Z0-9]{48}$/,
+  // Moonshot keys share OpenAI's bare "sk-" shape; blind prefix detection keeps
+  // resolving those to openai/deepseek — this pattern serves the
+  // expected-provider flow on the Kimi provider card.
+  moonshot: /^sk-[a-zA-Z0-9]{20,}$/,
+  zai: /^[A-Za-z0-9]{16,}\.[A-Za-z0-9]{8,}$/,
   runway: /^[Kk]ey_[0-9a-f]{128}$/,
   elevenlabs: /^[A-Za-z0-9_-]{20,}$/,
 };
@@ -74,6 +81,8 @@ const MIN_KEY_LENGTHS: Record<ProviderId, number> = {
   grok: 43,
   cohere: 40,
   deepseek: 50,
+  moonshot: 23,
+  zai: 25,
   runway: 132,
   elevenlabs: 20,
 };

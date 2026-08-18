@@ -327,6 +327,10 @@ export class SessionFilterService {
       'cohere',
       'deepseek',
       'grok',
+      'kimi',
+      'moonshot',
+      'glm',
+      'zai',
     ];
     const mentionedProviders = aiProviders.filter(provider => 
       query.toLowerCase().includes(provider)

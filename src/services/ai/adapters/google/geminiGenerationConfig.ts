@@ -47,12 +47,27 @@ function getGeminiThinkingConfig(
 
   if (normalizedModel.includes('gemini-3')) {
     if (normalizedModel.includes('flash') || normalizedModel.includes('lite')) {
-      return { thinkingLevel: 'minimal' };
+      // gemini-3.7+ rejects thinkingLevel "minimal" ("Thinking level MINIMAL
+      // is not supported for this model"; live-verified 2026-08-17 — 3.6
+      // still accepts it and 3.7 accepts "low").
+      return supportsMinimalThinkingLevel(normalizedModel)
+        ? { thinkingLevel: 'minimal' }
+        : { thinkingLevel: 'low' };
     }
     return { thinkingLevel: 'low' };
   }
 
   return undefined;
+}
+
+function supportsMinimalThinkingLevel(normalizedModel: string): boolean {
+  const version = /gemini-(\d+)(?:\.(\d+))?/.exec(normalizedModel);
+  if (!version) {
+    return true;
+  }
+  const major = Number(version[1]);
+  const minor = Number(version[2] ?? '0');
+  return major < 3 || (major === 3 && minor < 7);
 }
 
 export function buildGeminiGenerationConfig({

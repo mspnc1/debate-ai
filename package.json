@@ -39,7 +39,7 @@
     "purchase:test:reset-trial": "node scripts/purchase-testing/firestore-state.mjs reset-trial-eligibility",
     "purchase:test:capture-android": "bash scripts/purchase-testing/capture-android-purchase-evidence.sh",
     "test": "jest --watch=false --runInBand",
-    "test:model-routing": "jest --runInBand __tests__/config/modelSelectionContract.test.ts __tests__/services/ai/ModelRoutingContract.test.ts __tests__/services/modelSelectionFlow.test.ts __tests__/hooks/home/useAISelection.test.ts __tests__/services/home/AIConfigurationService.test.ts",
+    "test:model-routing": "jest --runInBand __tests__/config/modelSelectionContract.test.ts __tests__/services/ai/ModelRoutingContract.test.ts __tests__/services/modelSelectionFlow.test.ts __tests__/services/home/AIConfigurationService.test.ts",
     "test:model-routing:live": "LIVE_MODEL_TEST=1 jest --runInBand --runTestsByPath __tests__/integration/liveModelRouting.test.ts",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage --maxWorkers=50%",
@@ -134,6 +134,7 @@
     "react-test-renderer": "^19.2.4",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.64.0",
+    "undici": "^7.29.0",
     "whatwg-fetch": "^3.6.20"
   },
   "optionalDependencies": {
