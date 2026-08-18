@@ -121,7 +121,7 @@
     "@types/react": "~19.2.10",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@typescript-eslint/eslint-plugin": "^8.39.0",
-    "@typescript-eslint/parser": "^8.60.0",
+    "@typescript-eslint/parser": "^8.67.0",
     "audit-ci": "^7.1.0",
     "babel-plugin-transform-remove-console": "^6.9.4",
     "eslint": "^9.39.0",
