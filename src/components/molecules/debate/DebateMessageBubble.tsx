@@ -125,7 +125,11 @@ export const DebateMessageBubble: React.FC<DebateMessageBubbleProps> = React.mem
                        aiName === 'mistral' ? 'mistral' :
                        aiName === 'cohere' ? 'cohere' :
                        aiName === 'deepseek' ? 'deepseek' :
-                       aiName === 'grok' ? 'grok' : null;
+                       aiName === 'grok' ? 'grok' :
+                       aiName === 'moonshot' ? 'moonshot' :
+                       aiName === 'kimi' ? 'moonshot' :
+                       aiName === 'zai' ? 'zai' :
+                       aiName === 'glm' ? 'zai' : null;
     
     if (!aiBrandKey || !(aiBrandKey in AI_BRAND_COLORS)) return null;
     

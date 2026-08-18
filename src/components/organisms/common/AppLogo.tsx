@@ -34,6 +34,8 @@ const AppLogo: React.FC<AppLogoProps> = ({ size = 120 }) => {
     { color: '#FF7759', name: 'Cohere' },     // Cohere coral
     { color: '#4D6BFE', name: 'DeepSeek' },   // DeepSeek indigo
     { color: '#1DA1F2', name: 'Grok' },       // Grok X/Twitter blue
+    { color: '#3B4252', name: 'Kimi' },       // Moonshot slate
+    { color: '#3859FF', name: 'GLM' },        // Z.ai blue
   ];
 
   useEffect(() => {

@@ -13,6 +13,11 @@ const PROVIDER_TO_BRAND: Record<string, keyof typeof AI_BRAND_COLORS> = {
   cohere: 'cohere',
   deepseek: 'deepseek',
   grok: 'grok',
+  moonshot: 'moonshot',
+  kimi: 'moonshot',
+  zai: 'zai',
+  glm: 'zai',
+  zhipu: 'zai',
 };
 
 const NAME_KEYWORDS: Array<{ keyword: string; brand: keyof typeof AI_BRAND_COLORS }> = [
@@ -28,6 +33,10 @@ const NAME_KEYWORDS: Array<{ keyword: string; brand: keyof typeof AI_BRAND_COLOR
   { keyword: 'cohere', brand: 'cohere' },
   { keyword: 'deepseek', brand: 'deepseek' },
   { keyword: 'grok', brand: 'grok' },
+  { keyword: 'kimi', brand: 'moonshot' },
+  { keyword: 'moonshot', brand: 'moonshot' },
+  { keyword: 'glm', brand: 'zai' },
+  { keyword: 'zai', brand: 'zai' },
 ];
 
 const normalize = (value?: string) => value?.toLowerCase().replace(/[^a-z0-9]/g, '') ?? '';

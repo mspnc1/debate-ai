@@ -13,6 +13,8 @@ const aiProviderLogos: { [key: string]: number } = {
   grok: require('../../assets/ai-providers/grok/logo.png'),
   cohere: require('../../assets/ai-providers/cohere/logo.png'),
   deepseek: require('../../assets/ai-providers/deepseek/logo.png'),
+  moonshot: require('../../assets/ai-providers/moonshot/logo.png'),
+  zai: require('../../assets/ai-providers/zai/logo.png'),
 };
 /* eslint-enable @typescript-eslint/no-require-imports */
 
@@ -35,6 +37,8 @@ export function getAIProviderIcon(providerId: string) {
     cohere: 'Co',
     deepseek: 'DS',
     grok: 'X',
+    moonshot: 'K',
+    zai: 'GLM',
     runway: 'R',
     elevenlabs: '11',
   };

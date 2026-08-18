@@ -119,6 +119,8 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
     if (normalizedName.includes('cohere')) return AI_BRAND_COLORS.cohere[500];
     if (normalizedName.includes('deepseek')) return AI_BRAND_COLORS.deepseek[500];
     if (normalizedName.includes('grok')) return AI_BRAND_COLORS.grok[500];
+    if (normalizedName.includes('kimi') || normalizedName.includes('moonshot')) return AI_BRAND_COLORS.moonshot[500];
+    if (normalizedName.includes('glm') || normalizedName.includes('zai')) return AI_BRAND_COLORS.zai[500];
     return theme.colors.primary[500];
   };
   
@@ -134,6 +136,8 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
     if (normalizedName.includes('cohere')) return AI_BRAND_COLORS.cohere[500];
     if (normalizedName.includes('deepseek')) return AI_BRAND_COLORS.deepseek[500];
     if (normalizedName.includes('grok')) return AI_BRAND_COLORS.grok[500];
+    if (normalizedName.includes('kimi') || normalizedName.includes('moonshot')) return AI_BRAND_COLORS.moonshot[500];
+    if (normalizedName.includes('glm') || normalizedName.includes('zai')) return AI_BRAND_COLORS.zai[500];
     return theme.colors.primary[500];
   };
 

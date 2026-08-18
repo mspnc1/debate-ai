@@ -78,9 +78,9 @@ describe('Provider capability matrix', () => {
     expect(capabilities.imageGeneration).toEqual(expect.objectContaining({
       supported: true,
       supportsImageInput: true,
-      models: ['grok-imagine-image', 'grok-imagine-image-quality'],
+      models: ['grok-imagine-image-2.0', 'grok-imagine-image', 'grok-imagine-image-quality'],
       sizes: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '2:1', '1:2', '19.5:9', '9:19.5', '20:9', '9:20'],
-      maxPromptLength: 4000,
+      maxPromptLength: 8000,
     }));
     expect(capabilities.videoGeneration).toEqual({ supported: false });
   });

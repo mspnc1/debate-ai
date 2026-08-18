@@ -13,6 +13,8 @@ import { MistralAdapter } from '../adapters/mistral/MistralAdapter';
 import { CohereAdapter } from '../adapters/cohere/CohereAdapter';
 import { DeepSeekAdapter } from '../adapters/deepseek/DeepSeekAdapter';
 import { GrokAdapter } from '../adapters/grok/GrokAdapter';
+import { MoonshotAdapter } from '../adapters/moonshot/MoonshotAdapter';
+import { ZaiAdapter } from '../adapters/zai/ZaiAdapter';
 import { MockAdapter } from '../adapters/mock/MockAdapter';
 
 // Adapter registry
@@ -26,6 +28,8 @@ const ADAPTER_REGISTRY: Record<string, new (config: AIAdapterConfig) => BaseAdap
   cohere: CohereAdapter,
   deepseek: DeepSeekAdapter,
   grok: GrokAdapter,
+  moonshot: MoonshotAdapter,
+  zai: ZaiAdapter,
   mock: MockAdapter,
 };
 

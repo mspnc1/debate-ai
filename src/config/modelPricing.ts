@@ -22,6 +22,10 @@ export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
       inputPer1M: 10.0,
       outputPer1M: 50.0,
     },
+    'claude-opus-5': {
+      inputPer1M: 5.0,
+      outputPer1M: 25.0,
+    },
     'claude-opus-4-20250514': {
       inputPer1M: 15.0,
       outputPer1M: 75.0,
@@ -158,6 +162,11 @@ export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
     },
   },
   google: {
+    // Standard price; intro pricing of $0.75/$3.75 runs through 2026-12-31.
+    'gemini-3.7-flash': {
+      inputPer1M: 1.5,
+      outputPer1M: 7.5,
+    },
     'gemini-3.6-flash': {
       inputPer1M: 1.5,
       outputPer1M: 7.5,
@@ -321,7 +330,11 @@ export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
       inputPer1M: 1.25,
       outputPer1M: 2.5,
     },
-    // $4/$12 beyond the 200K long-context threshold.
+    // grok-4.6/4.5: $4/$12 beyond the 200K long-context threshold.
+    'grok-4.6': {
+      inputPer1M: 2.0,
+      outputPer1M: 6.0,
+    },
     'grok-4.5': {
       inputPer1M: 2.0,
       outputPer1M: 6.0,
@@ -361,6 +374,40 @@ export const MODEL_PRICING: { [provider: string]: ProviderPricing } = {
     'grok-3-mini': {
       inputPer1M: 0.3,
       outputPer1M: 0.5,
+    },
+  },
+  // Source: platform.kimi.ai/docs/pricing ($0.30/M cache-hit input on kimi-k3 not modeled)
+  moonshot: {
+    'kimi-k3': {
+      inputPer1M: 3.0,
+      outputPer1M: 15.0,
+    },
+    'kimi-k2.7-code': {
+      inputPer1M: 0.95,
+      outputPer1M: 4.0,
+    },
+    'kimi-k2.7-code-highspeed': {
+      inputPer1M: 0.95,
+      outputPer1M: 8.0,
+    },
+    'kimi-k2.6': {
+      inputPer1M: 0.95,
+      outputPer1M: 4.0,
+    },
+  },
+  // Source: docs.z.ai/guides/overview/pricing (glm-5.3 pricing unpublished while API access is gated)
+  zai: {
+    'glm-5.2': {
+      inputPer1M: 1.4,
+      outputPer1M: 4.4,
+    },
+    'glm-5-turbo': {
+      inputPer1M: 1.2,
+      outputPer1M: 4.0,
+    },
+    'glm-5.1': {
+      inputPer1M: 1.4,
+      outputPer1M: 4.4,
     },
   },
 };

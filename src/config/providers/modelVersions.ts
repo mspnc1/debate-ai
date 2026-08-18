@@ -31,10 +31,16 @@ export const MODEL_VERSIONS: ProviderVersions = {
   claude: {
     premium: [
       {
+        id: 'claude-opus-5',
+        version: '5-opus',
+        releaseDate: '2026-08-17',
+        isLatest: true,
+      },
+      {
         id: 'claude-opus-4-8',
         version: '4.8-opus',
         releaseDate: '2026-05-28',
-        isLatest: true,
+        isLatest: false,
       },
       {
         id: 'claude-opus-4-7',
@@ -260,10 +266,16 @@ export const MODEL_VERSIONS: ProviderVersions = {
     ],
     fast: [
       {
+        id: 'gemini-3.7-flash',
+        version: '3.7-flash',
+        releaseDate: '2026-08-17',
+        isLatest: true,
+      },
+      {
         id: 'gemini-3.6-flash',
         version: '3.6-flash',
         releaseDate: '2026-07-01',
-        isLatest: true,
+        isLatest: false,
       },
       {
         id: 'gemini-3.5-flash',
@@ -337,6 +349,12 @@ export const MODEL_VERSIONS: ProviderVersions = {
         version: '4.3',
         releaseDate: '2026-04-17',
         isLatest: true,
+      },
+      {
+        id: 'grok-4.6',
+        version: '4.6',
+        releaseDate: '2026-08-17',
+        isLatest: false,
       },
       {
         id: 'grok-4.5',
@@ -611,6 +629,60 @@ export const MODEL_VERSIONS: ProviderVersions = {
         isLatest: false,
         isDeprecated: true,
         replacedBy: 'deepseek-v4-flash',
+      },
+    ],
+  },
+  moonshot: {
+    main: [
+      {
+        id: 'kimi-k3',
+        version: 'k3',
+        releaseDate: '2026-06-10',
+        isLatest: true,
+      },
+      {
+        id: 'kimi-k2.6',
+        version: 'k2.6',
+        releaseDate: '2026-02-20',
+        isLatest: false,
+      },
+    ],
+    code: [
+      {
+        id: 'kimi-k2.7-code',
+        version: 'k2.7-code',
+        releaseDate: '2026-05-05',
+        isLatest: true,
+      },
+      {
+        id: 'kimi-k2.7-code-highspeed',
+        version: 'k2.7-code-highspeed',
+        releaseDate: '2026-05-05',
+        isLatest: false,
+      },
+    ],
+  },
+  zai: {
+    main: [
+      {
+        id: 'glm-5.2',
+        version: '5.2',
+        releaseDate: '2026-05-28',
+        isLatest: true,
+      },
+      {
+        id: 'glm-5.1',
+        version: '5.1',
+        releaseDate: '2026-02-11',
+        isLatest: false,
+      },
+    ],
+    turbo: [
+      {
+        id: 'glm-5-turbo',
+        version: '5-turbo',
+        releaseDate: '2026-03-02',
+        isLatest: true,
       },
     ],
   },

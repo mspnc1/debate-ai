@@ -36,6 +36,10 @@ const getAIBrandKey = (senderName: string): keyof typeof AI_BRAND_COLORS | null 
     cohere: 'cohere',
     deepseek: 'deepseek',
     grok: 'grok',
+    moonshot: 'moonshot',
+    kimi: 'moonshot',
+    zai: 'zai',
+    glm: 'zai',
   };
 
   // Check for direct match

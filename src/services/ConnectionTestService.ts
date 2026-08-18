@@ -186,6 +186,12 @@ export class ConnectionTestService {
       case 'deepseek':
         return await this.testDeepSeek(apiKey, signal);
 
+      case 'moonshot':
+        return await this.testMoonshot(apiKey, signal);
+
+      case 'zai':
+        return await this.testZai(apiKey, signal);
+
       case 'runway':
         return await this.testRunway(apiKey, signal);
 
@@ -274,6 +280,7 @@ export class ConnectionTestService {
     const data = await response.json();
     const models = data.models || [];
     const preferredGeminiIds = [
+      'models/gemini-3.7-flash',
       'models/gemini-3.6-flash',
       'models/gemini-3.5-flash',
       'models/gemini-3.5-flash-lite',
@@ -431,6 +438,54 @@ export class ConnectionTestService {
       || models[0];
 
     return { model: deepseekModel?.id || getDefaultModel('deepseek') };
+  }
+
+  private async testMoonshot(apiKey: string, signal: AbortSignal): Promise<{ model: string }> {
+    const response = await fetch('https://api.moonshot.ai/v1/models', {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      signal,
+    });
+
+    if (!response.ok) {
+      throw await this.createApiError(response, 'Kimi');
+    }
+
+    const data = await response.json();
+    const models = data.data || [];
+    const kimiModel = models.find((m: { id: string }) => m.id.includes('kimi'))
+      || models[0];
+
+    return { model: kimiModel?.id || getDefaultModel('moonshot') };
+  }
+
+  /**
+   * Z.ai's OpenAI-compatible surface has no reliable models-list endpoint;
+   * probe with a 1-token completion. A 400 still proves the key is valid
+   * (401/403 mean it is not), matching the server-side testApiKey probe.
+   */
+  private async testZai(apiKey: string, signal: AbortSignal): Promise<{ model: string }> {
+    const model = getDefaultModel('zai');
+    const response = await fetch('https://api.z.ai/api/paas/v4/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: 'ping' }],
+        max_tokens: 1,
+      }),
+      signal,
+    });
+
+    if (!response.ok && response.status !== 400) {
+      throw await this.createApiError(response, 'GLM');
+    }
+
+    return { model };
   }
 
   /**
@@ -624,6 +679,24 @@ export class ConnectionTestService {
         }
         break;
 
+      case 'moonshot':
+        if (!apiKey.startsWith('sk-')) {
+          return this.createErrorResult(
+            'INVALID_FORMAT',
+            'Kimi (Moonshot) API keys should start with "sk-"'
+          );
+        }
+        break;
+
+      case 'zai':
+        if (!/^[A-Za-z0-9]{16,}\.[A-Za-z0-9]{8,}$/.test(apiKey)) {
+          return this.createErrorResult(
+            'INVALID_FORMAT',
+            'Z.ai keys are two dot-separated token segments from the API keys page'
+          );
+        }
+        break;
+
       case 'runway':
         if (!RUNWAY_API_KEY_PATTERN.test(apiKey)) {
           return this.createErrorResult(
@@ -791,7 +864,7 @@ export class ConnectionTestService {
     const supportedProviders = [
       'openai', 'claude', 'google', 'grok',
       'perplexity', 'mistral', 'cohere', 'deepseek',
-      'runway', 'elevenlabs'
+      'moonshot', 'zai', 'runway', 'elevenlabs'
     ];
     return supportedProviders.includes(providerId);
   }

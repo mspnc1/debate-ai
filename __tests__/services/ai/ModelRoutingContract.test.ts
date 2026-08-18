@@ -180,6 +180,28 @@ const ROUTING_CASES: RoutingCase[] = [
       expect(body.model).toBe(model);
     },
   },
+  {
+    provider: 'moonshot',
+    model: pickSmokeModel('moonshot'),
+    response: createOpenAICompatibleResponse(pickSmokeModel('moonshot')),
+    assertRequest: (url, requestInit, model) => {
+      expect(url).toBe('https://api.moonshot.ai/v1/chat/completions');
+      const body = JSON.parse((requestInit?.body as string) || '{}');
+      expect(body.model).toBe(model);
+      // Moonshot rejects every temperature except 1; the adapter must clamp.
+      expect(body.temperature).toBe(1);
+    },
+  },
+  {
+    provider: 'zai',
+    model: pickSmokeModel('zai'),
+    response: createOpenAICompatibleResponse(pickSmokeModel('zai')),
+    assertRequest: (url, requestInit, model) => {
+      expect(url).toBe('https://api.z.ai/api/paas/v4/chat/completions');
+      const body = JSON.parse((requestInit?.body as string) || '{}');
+      expect(body.model).toBe(model);
+    },
+  },
 ];
 
 describe('Model routing contract', () => {

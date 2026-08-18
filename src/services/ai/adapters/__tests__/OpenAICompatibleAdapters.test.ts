@@ -1,5 +1,7 @@
 import { MistralAdapter } from '../mistral/MistralAdapter';
 import { DeepSeekAdapter } from '../deepseek/DeepSeekAdapter';
+import { MoonshotAdapter } from '../moonshot/MoonshotAdapter';
+import { ZaiAdapter } from '../zai/ZaiAdapter';
 import { GrokAdapter } from '../grok/GrokAdapter';
 import type {
   AIAdapterConfig,
@@ -69,6 +71,18 @@ const cases: AdapterCase[] = [
     Adapter: GrokAdapter,
     config: { provider: 'grok', apiKey: 'test-key', model: 'grok-4.20-0309-non-reasoning', parameters: { temperature: 0.7, maxTokens: 2048 } },
     expectedUrl: 'https://api.x.ai/v1/chat/completions',
+  },
+  {
+    name: 'MoonshotAdapter',
+    Adapter: MoonshotAdapter,
+    config: { provider: 'moonshot', apiKey: 'test-key', model: 'kimi-k3', parameters: { temperature: 0.7, maxTokens: 2048 } },
+    expectedUrl: 'https://api.moonshot.ai/v1/chat/completions',
+  },
+  {
+    name: 'ZaiAdapter',
+    Adapter: ZaiAdapter,
+    config: { provider: 'zai', apiKey: 'test-key', model: 'glm-5.2', parameters: { temperature: 0.7, maxTokens: 2048 } },
+    expectedUrl: 'https://api.z.ai/api/paas/v4/chat/completions',
   },
 ];
 

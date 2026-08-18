@@ -31,7 +31,11 @@ export const ScoreDisplay: React.FC<ScoreDisplayProps> = ({
                        aiId === 'mistral' ? 'mistral' :
                        aiId === 'cohere' ? 'cohere' :
                        aiId === 'deepseek' ? 'deepseek' :
-                       aiId === 'grok' ? 'grok' : null;
+                       aiId === 'grok' ? 'grok' :
+                       aiId === 'moonshot' ? 'moonshot' :
+                       aiId === 'kimi' ? 'moonshot' :
+                       aiId === 'zai' ? 'zai' :
+                       aiId === 'glm' ? 'zai' : null;
     
     return aiBrandKey ? AI_BRAND_COLORS[aiBrandKey as keyof typeof AI_BRAND_COLORS] : theme.colors.primary;
   };

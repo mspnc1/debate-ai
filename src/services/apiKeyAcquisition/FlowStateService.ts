@@ -204,6 +204,8 @@ class FlowStateServiceClass {
       grok: 'Grok',
       cohere: 'Cohere',
       deepseek: 'DeepSeek',
+      moonshot: 'Kimi',
+      zai: 'GLM',
       runway: 'Runway',
       elevenlabs: 'ElevenLabs',
     };

@@ -14,6 +14,8 @@ export const API_KEY_PROVIDER_IDS = [
   'cohere',
   'deepseek',
   'grok',
+  'moonshot',
+  'zai',
 ] as const;
 export type APIKeyProviderId = typeof API_KEY_PROVIDER_IDS[number];
 

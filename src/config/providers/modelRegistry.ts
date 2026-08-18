@@ -39,7 +39,7 @@ export const MODEL_ALIASES: Record<string, string> = {
   // Claude aliases
   'claude-latest': 'claude-sonnet-5',
   'claude-fable-latest': 'claude-fable-5',
-  'claude-opus-latest': 'claude-opus-4-8',
+  'claude-opus-latest': 'claude-opus-5',
   'claude-sonnet-latest': 'claude-sonnet-5',
   'claude-haiku-latest': 'claude-haiku-4-5-20251001',
   'claude-opus-4-8-20260520': 'claude-opus-4-8',
@@ -75,11 +75,12 @@ export const MODEL_ALIASES: Record<string, string> = {
 
   // Google aliases (mobile resolves gemini-*-latest to concrete IDs; there is
   // no unknown-ID passthrough here, unlike the web app)
-  'gemini-latest': 'gemini-3.6-flash',
+  'gemini-latest': 'gemini-3.7-flash',
   'gemini-pro-latest': 'gemini-3.1-pro-preview',
   'gemini-flash-latest': 'gemini-3.6-flash',
   'gemini-flash-lite-latest': 'gemini-3.5-flash-lite',
-  'gemini-3-latest': 'gemini-3.6-flash',
+  'gemini-3-latest': 'gemini-3.7-flash',
+  'gemini-3.7-latest': 'gemini-3.7-flash',
   'gemini-3.6-latest': 'gemini-3.6-flash',
   'gemini-3.5-latest': 'gemini-3.5-flash',
   'gemini-3.1-latest': 'gemini-3.1-pro-preview',
@@ -128,7 +129,8 @@ export const MODEL_ALIASES: Record<string, string> = {
   'mistral-small-latest': 'mistral-small-2603',
   'devstral-medium-2512': 'devstral-2512',
   'magistral-latest': 'mistral-small-2603',
-  'magistral-medium-latest': 'magistral-medium-2509',
+  // magistral-medium-2509 was retired by the Mistral API; fall back like magistral-latest
+  'magistral-medium-latest': 'mistral-small-2603',
   'codestral-latest': 'codestral-2508',
   'pixtral-large-latest': 'pixtral-large-2411',
 
@@ -161,12 +163,14 @@ export const resolveModelAlias = (modelId: string): string => {
 export const DEFAULT_PROVIDER_MODELS: Record<string, string> = {
   claude: 'claude-sonnet-5',
   openai: 'gpt-5.6-sol',
-  google: 'gemini-3.6-flash',
+  google: 'gemini-3.7-flash',
   grok: 'grok-4.3',
   perplexity: 'sonar-pro',
   mistral: 'mistral-large-2512',
   cohere: 'command-a-reasoning-08-2025',
   deepseek: 'deepseek-v4-flash',
+  moonshot: 'kimi-k3',
+  zai: 'glm-5.2',
 };
 
 // Helper function to get default model for a provider

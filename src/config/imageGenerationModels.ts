@@ -311,6 +311,27 @@ export const IMAGE_MODELS: Partial<Record<AIProvider, ImageModelConfig[]>> = {
   ],
   grok: [
     createImageModel({
+      id: 'grok-imagine-image-2.0',
+      displayName: 'Grok Imagine 2.0',
+      providerDisplayName: 'Grok (Imagine 2.0)',
+      shortProviderName: 'Grok',
+      description: 'Latest xAI image model with quality tiers, edits, and aspect-ratio controls.',
+      apiFamily: 'xai-images',
+      supportsImageInput: true,
+      sizes: [...XAI_ASPECT_RATIOS],
+      aspectRatios: [...XAI_ASPECT_RATIOS],
+      resolutions: ['1K', '2K'],
+      maxPromptLength: 8000,
+      supportsMultipleReferenceImages: true,
+      maxImagesPerRequest: 10,
+      maxReferenceImages: 3,
+      qualityOptions: [...XAI_IMAGE_QUALITIES],
+      outputFormats: [...XAI_IMAGE_FORMATS],
+      // grok-imagine-image stays the resolved default; this flag is
+      // load-bearing because getDefaultImageModel falls back to models[0].
+      isDefault: false,
+    }),
+    createImageModel({
       id: 'grok-imagine-image',
       displayName: 'Grok Imagine',
       providerDisplayName: 'Grok (Imagine)',

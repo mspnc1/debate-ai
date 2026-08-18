@@ -115,6 +115,30 @@ export const AI_BRAND_COLORS = {
     800: '#1A1A1A',
     900: '#0D0D0D',
   },
+  moonshot: {
+    50: '#F0F1F3',
+    100: '#D9DCE1',
+    200: '#B4BAC5',
+    300: '#8E97A8',
+    400: '#5F6B80',
+    500: '#3B4252',
+    600: '#2F3542',
+    700: '#242833',
+    800: '#16191E',
+    900: '#0D0F12',
+  },
+  zai: {
+    50: '#EEF1FF',
+    100: '#D6DDFF',
+    200: '#B3C0FF',
+    300: '#8FA2FF',
+    400: '#6C85FF',
+    500: '#3859FF',
+    600: '#3050E6',
+    700: '#2946CC',
+    800: '#233CB2',
+    900: '#1C3199',
+  },
 } as const;
 
 export type AIProvider = keyof typeof AI_BRAND_COLORS;
