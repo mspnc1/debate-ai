@@ -2,7 +2,7 @@
  * CreateScreen - Active Create generation session screen.
  * Shows generation progress, media gallery, and refinement options.
  */
-import React, { useEffect, useCallback, useState, useRef, useMemo } from 'react';
+import { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -2171,10 +2171,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   videoPlayerSurface: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   videoPressSurface: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   audioPreview: {
     width: IMAGE_SIZE,
@@ -2331,7 +2331,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   libraryPlayOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },

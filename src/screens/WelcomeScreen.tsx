@@ -66,10 +66,10 @@ const AnimatedGradientBackground: React.FC = () => {
   if (!isDark) return null;
   
   return (
-    <Animated.View style={[StyleSheet.absoluteFillObject, animatedStyle]}>
+    <Animated.View style={[StyleSheet.absoluteFill, animatedStyle]}>
       <LinearGradient
         colors={[theme.colors.primary[900], theme.colors.background, theme.colors.background]}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       />
@@ -275,10 +275,10 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = () => {
               }
             ]}
           >
-          <View style={[StyleSheet.absoluteFillObject, { opacity: 0.1 }]}>
+          <View style={[StyleSheet.absoluteFill, { opacity: 0.1 }]}>
             <LinearGradient
               colors={theme.colors.gradients.premium}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             />

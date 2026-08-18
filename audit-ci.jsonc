@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/IBM/audit-ci/main/docs/schema.json",
+  "moderate": true,
+  "allowlist": [
+    // image-size DoS advisories (ICNS / JXL / HEIF parser infinite loops),
+    // reached only through metro's dev-time asset pipeline (metro -> expo /
+    // react-native). Every published image-size version (<=2.0.2) is in the
+    // vulnerable range, so no upgrade or override can resolve these yet.
+    // Remove both entries as soon as a patched image-size ships and metro
+    // picks it up. Allowlisted 2026-08-18 during the Expo SDK 57 upgrade.
+    "GHSA-w3rx-r6r6-pgpr",
+    "GHSA-5p2g-fcmc-qvqq"
+  ]
+}

@@ -3,7 +3,7 @@
  * audio generation. Premium-only feature; each media tab shares one docked
  * composer whose pills come from that tab's provider catalog.
  */
-import React, { useEffect, useCallback, useMemo, useState } from 'react';
+import { useEffect, useCallback, useMemo, useState } from 'react';
 import {
   View,
   ScrollView,
