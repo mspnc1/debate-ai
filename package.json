@@ -1,6 +1,6 @@
 {
   "name": "symposium-ai",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "main": "index.ts",
   "scripts": {
     "start": "expo start --dev-client",
@@ -43,7 +43,10 @@
     "test:model-routing:live": "LIVE_MODEL_TEST=1 jest --runInBand --runTestsByPath __tests__/integration/liveModelRouting.test.ts",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage --maxWorkers=50%",
-    "eas-build-post-install": "bash scripts/eas-prebuild.sh"
+    "eas-build-post-install": "bash scripts/eas-prebuild.sh",
+    "release:preflight": "node scripts/release/preflight-version.mjs",
+    "release:build": "npm run release:preflight && eas build --platform all --profile production --non-interactive --no-wait",
+    "release:submit": "npm run release:preflight && eas submit --platform ios --profile production --latest --non-interactive && eas submit --platform android --profile production --latest --non-interactive"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",

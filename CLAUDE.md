@@ -155,6 +155,12 @@ refactor: [component] to atomic architecture
 4. 📦 Submit to App Store and Google Play
 5. 🚀 Launch with focus on AI Debate Arena as unique feature
 
+## Release Process (MANDATORY)
+- **NEVER run `eas build --profile production` or `eas submit` directly.** Use `npm run release:build` and `npm run release:submit` — they run `scripts/release/preflight-version.mjs`, which refuses to proceed unless app.json's `version` is strictly greater than the live App Store version AND every finished production build in EAS history.
+- EAS remote versioning (`appVersionSource: "remote"` + `autoIncrement`) auto-increments ONLY buildNumber/versionCode. The **marketing version in app.json is manual** and must be bumped for every store release. Forgetting this has repeatedly produced unusable builds.
+- Any native change also requires bumping `runtimeVersion` in app.json (keep it equal to the marketing version of the release that shipped the native change) so EAS Updates can never reach incompatible binaries.
+- After changing versions: `npx expo prebuild --no-install`, verify, commit the regenerated native projects — EAS builds from the committed android/ and ios/ directories.
+
 ## Repository Information
 - **GitHub**: https://github.com/mspnc1/symposium-ai
 - **Bundle IDs**: com.braveheartinnovations.debateai
