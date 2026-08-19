@@ -18,6 +18,14 @@ const appJson = JSON.parse(readFileSync(new URL('../../app.json', import.meta.ur
 const version = appJson.expo.version;
 const bundleId = appJson.expo.ios.bundleIdentifier;
 
+// --phase build (default): version must be strictly greater than every
+//   finished production build — you are about to create the artifact.
+// --phase submit: the artifact for this version already exists in history
+//   (you just built it), so equality with the newest build is expected;
+//   the live-store check below still guards against re-releasing.
+const phaseArg = process.argv.indexOf('--phase');
+const phase = phaseArg !== -1 ? process.argv[phaseArg + 1] : 'build';
+
 const cmp = (a, b) => {
   const pa = String(a).split('.').map(Number);
   const pb = String(b).split('.').map(Number);
@@ -63,12 +71,13 @@ try {
     .map((b) => b.appVersion)
     .filter(Boolean);
   const maxPrior = prior.sort(cmp).at(-1);
-  if (maxPrior && cmp(version, maxPrior) <= 0) {
+  const comparison = maxPrior ? cmp(version, maxPrior) : 1;
+  if (maxPrior && (phase === 'submit' ? comparison < 0 : comparison <= 0)) {
     failures.push(
-      `app.json version ${version} is not greater than the newest FINISHED production build (${maxPrior}) in EAS history`
+      `app.json version ${version} is not ${phase === 'submit' ? 'at least' : 'greater than'} the newest FINISHED production build (${maxPrior}) in EAS history`
     );
   } else if (maxPrior) {
-    console.log(`ok: newest EAS production build is ${maxPrior}, building ${version}`);
+    console.log(`ok: newest EAS production build is ${maxPrior}, ${phase === 'submit' ? 'submitting' : 'building'} ${version}`);
   } else {
     console.log('warn: no prior production builds found in EAS history');
   }
