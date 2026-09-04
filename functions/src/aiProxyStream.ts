@@ -1283,10 +1283,17 @@ function modelSupportsVision(providerId: string, model: string): boolean {
     case 'cohere':
       return modelLower.includes('vision') ||
              modelLower.includes('command-a');
+    case 'deepseek':
+      // deepseek-v4-flash-vision-exp (2026-08-21) is the only DeepSeek model
+      // that accepts image input.
+      return modelLower.includes('vision');
     case 'moonshot':
       return modelLower.includes('kimi-k');
     case 'zai':
-      return modelLower.includes('glm-5v');
+      // GLM-5.3 Flash is the first natively multimodal GLM-5 model; the
+      // flagship glm-5.3 rejects image content (verified 2026-09-03).
+      return modelLower.includes('glm-5v') ||
+             modelLower.includes('glm-5.3-flash');
     default:
       return false;
   }

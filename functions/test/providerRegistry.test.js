@@ -4,6 +4,7 @@ const { isV2Supported, ProviderRegistry } = require('../lib/providers/registry')
 const {
   getDefaultModel,
   normalizeProviderTemperature,
+  requiresReasoningEffortNoneForTools,
   resolveProviderModelId,
 } = require('../lib/modelRegistry');
 const {
@@ -37,20 +38,39 @@ describe('ProviderRegistry', () => {
 
 describe('modelRegistry', () => {
   it('aligns refreshed provider defaults and aliases', () => {
-    assert.equal(resolveProviderModelId('claude', 'claude-fable-latest'), 'claude-fable-5');
+    assert.equal(resolveProviderModelId('claude', 'claude-fable-latest'), 'claude-fable-5-1');
     assert.equal(getDefaultModel('claude'), 'claude-sonnet-4-6');
     assert.equal(resolveProviderModelId('google', 'gemini-flash-latest'), 'gemini-flash-latest');
     assert.equal(getDefaultModel('grok'), 'grok-4.3');
     assert.equal(resolveProviderModelId('grok', 'grok-build-latest'), 'grok-build-0.1');
     assert.equal(getDefaultModel('cohere'), 'command-a-reasoning-08-2025');
     assert.equal(getDefaultModel('moonshot'), 'kimi-k3');
-    assert.equal(getDefaultModel('zai'), 'glm-5.2');
+    assert.equal(getDefaultModel('zai'), 'glm-5.3');
     assert.equal(resolveProviderModelId('moonshot', ''), 'kimi-k3');
-    assert.equal(resolveProviderModelId('zai', ''), 'glm-5.2');
+    assert.equal(resolveProviderModelId('zai', ''), 'glm-5.3');
+    assert.equal(getDefaultModel('google'), 'gemini-3.8-flash');
+    assert.equal(resolveProviderModelId('google', 'gemini-latest'), 'gemini-3.8-flash');
+  });
+
+  it('follows the September 2026 Mistral catalog', () => {
+    assert.equal(getDefaultModel('mistral'), 'mistral-medium-2604');
+    assert.equal(resolveProviderModelId('mistral', 'mistral-latest'), 'mistral-medium-2604');
+    assert.equal(resolveProviderModelId('mistral', 'devstral-2512'), 'mistral-medium-2604');
+    assert.equal(resolveProviderModelId('mistral', 'devstral-medium-2512'), 'mistral-medium-2604');
+    assert.equal(resolveProviderModelId('mistral', 'mistral-medium-2508'), 'mistral-medium-2604');
+    assert.equal(resolveProviderModelId('mistral', 'mistral-large-2512'), 'mistral-large-2512');
+  });
+
+  it('applies GPT-6 Astra sampling rules ahead of API availability', () => {
+    assert.equal(normalizeProviderTemperature('openai', 'gpt-6-astra', 0.7), 1);
+    assert.equal(normalizeProviderTemperature('openai', 'gpt-6-latest', 0.7), 1);
+    assert.equal(requiresReasoningEffortNoneForTools('gpt-6-astra'), true);
+    assert.equal(requiresReasoningEffortNoneForTools('gpt-5.5'), false);
   });
 
   it('omits temperature for Claude 5-family models while preserving other model normalization', () => {
     assert.equal(normalizeProviderTemperature('claude', 'claude-fable-5', 0.7), undefined);
+    assert.equal(normalizeProviderTemperature('claude', 'claude-fable-5-1', 0.7), undefined);
     assert.equal(normalizeProviderTemperature('claude', 'claude-fable-latest', 0.7), undefined);
     assert.equal(normalizeProviderTemperature('claude', 'claude-sonnet-5', 0.7), undefined);
     assert.equal(normalizeProviderTemperature('claude', 'claude-opus-5', 0.7), undefined);
