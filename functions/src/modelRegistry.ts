@@ -8,7 +8,7 @@
 export const MODEL_ALIASES: Record<string, string> = {
   // Claude aliases
   'claude-latest': 'claude-sonnet-4-6',
-  'claude-fable-latest': 'claude-fable-5',
+  'claude-fable-latest': 'claude-fable-5-1',
   'claude-opus-latest': 'claude-opus-4-8',
   'claude-sonnet-latest': 'claude-sonnet-4-6',
   'claude-haiku-latest': 'claude-haiku-4-5-20251001',
@@ -20,6 +20,7 @@ export const MODEL_ALIASES: Record<string, string> = {
 
   // OpenAI aliases
   'gpt-latest': 'gpt-5.5',
+  'gpt-6-latest': 'gpt-6-astra',
   'gpt-5-latest': 'gpt-5.5',
   'gpt-5.5-latest': 'gpt-5.5',
   'gpt-5.5-2026-04-23': 'gpt-5.5',
@@ -39,11 +40,14 @@ export const MODEL_ALIASES: Record<string, string> = {
   'o3-mini-latest': 'o3-mini',
 
   // Google aliases
-  'gemini-latest': 'gemini-3.5-flash',
+  'gemini-latest': 'gemini-3.8-flash',
   'gemini-pro-latest': 'gemini-pro-latest',
   'gemini-flash-latest': 'gemini-flash-latest',
   'gemini-flash-lite-latest': 'gemini-flash-lite-latest',
-  'gemini-3-latest': 'gemini-3.5-flash',
+  'gemini-3-latest': 'gemini-3.8-flash',
+  'gemini-3.8-latest': 'gemini-3.8-flash',
+  'gemini-3.7-latest': 'gemini-3.7-flash',
+  'gemini-3.6-latest': 'gemini-3.6-flash',
   'gemini-3.5-latest': 'gemini-3.5-flash',
   'gemini-3.1-latest': 'gemini-3.1-pro-preview',
   'gemini-3.1-flash-lite-latest': 'gemini-3.1-flash-lite',
@@ -76,10 +80,16 @@ export const MODEL_ALIASES: Record<string, string> = {
   'sonar-research-latest': 'sonar-deep-research',
 
   // Mistral aliases
-  'mistral-latest': 'mistral-large-2512',
+  // mistral-large-2512 became tier-gated for standard keys (403
+  // tier_not_allowed, 2026-09-03), so the generic alias now follows the web
+  // default to Mistral Medium 3.5. The Mistral API itself serves Medium 3.5
+  // for the retired Devstral 2 / Mistral Medium 3.1 ids — route them the same.
+  'mistral-latest': 'mistral-medium-2604',
   'mistral-large-latest': 'mistral-large-2512',
   'mistral-small-latest': 'mistral-small-2603',
-  'devstral-medium-2512': 'devstral-2512',
+  'devstral-medium-2512': 'mistral-medium-2604',
+  'devstral-2512': 'mistral-medium-2604',
+  'mistral-medium-2508': 'mistral-medium-2604',
   // magistral-medium-2509 was retired by the Mistral API (2026-08); route the
   // aliases to the current hybrid reasoning model, matching the web client.
   'magistral-latest': 'mistral-small-2603',
@@ -108,14 +118,14 @@ export const MODEL_ALIASES: Record<string, string> = {
 export const DEFAULT_PROVIDER_MODELS: Record<string, string> = {
   claude: 'claude-sonnet-4-6',
   openai: 'gpt-5.5',
-  google: 'gemini-3.5-flash',
+  google: 'gemini-3.8-flash',
   perplexity: 'sonar-pro',
-  mistral: 'mistral-large-2512',
+  mistral: 'mistral-medium-2604',
   cohere: 'command-a-reasoning-08-2025',
   deepseek: 'deepseek-v4-flash',
   grok: 'grok-4.3',
   moonshot: 'kimi-k3',
-  zai: 'glm-5.2',
+  zai: 'glm-5.3',
 };
 
 const MODELS_REQUIRING_TEMPERATURE_1 = new Set([
@@ -128,6 +138,10 @@ const MODELS_REQUIRING_TEMPERATURE_1 = new Set([
   'gpt-5.6-sol',
   'gpt-5.6-terra',
   'gpt-5.6-luna',
+  // GPT-6 Astra (announced 2026-09-03) mirrors the GPT-5.6 sampling rules.
+  // NOT live-verified: OpenAI still returned 404 for standard keys at refresh
+  // time — re-run the live smoke as soon as the API serves it.
+  'gpt-6-astra',
   'gpt-5.5',
   'gpt-5.5-pro',
   'gpt-5.4',
@@ -156,6 +170,8 @@ const MODELS_DEPRECATING_TEMPERATURE = new Set([
   // Live-verified 2026-08-17: temperature 0.7 -> 400 "`temperature` is
   // deprecated for this model"; omission (and the default 1) are accepted.
   'claude-opus-5',
+  // Live-verified 2026-09-03: same 400 on temperature 0.7; omission accepted.
+  'claude-fable-5-1',
 ]);
 
 const MODELS_UNSUPPORTED_CHAT_COMPLETIONS = new Set([
@@ -172,6 +188,9 @@ const MODELS_REQUIRING_REASONING_EFFORT_NONE_FOR_TOOLS = new Set([
   'gpt-5.6-sol',
   'gpt-5.6-terra',
   'gpt-5.6-luna',
+  // Assumed to inherit the GPT-5.6 chat-completions restriction; not
+  // live-verifiable until OpenAI serves gpt-6-astra to standard keys.
+  'gpt-6-astra',
 ]);
 
 export function requiresReasoningEffortNoneForTools(modelId: string | undefined): boolean {

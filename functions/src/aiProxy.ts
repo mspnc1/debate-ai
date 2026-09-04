@@ -1301,12 +1301,19 @@ function modelSupportsVision(providerId: string, model: string): boolean {
       // Command A Vision model supports vision
       return modelLower.includes('vision') ||
              modelLower.includes('command-a');
+    case 'deepseek':
+      // deepseek-v4-flash-vision-exp (2026-08-21) is the only DeepSeek model
+      // that accepts image input.
+      return modelLower.includes('vision');
     case 'moonshot':
       // Kimi K3 and K2.x are natively multimodal
       return modelLower.includes('kimi-k');
     case 'zai':
       // Only the GLM vision line (glm-5v-*) accepts image input
-      return modelLower.includes('glm-5v');
+      // GLM-5.3 Flash is the first natively multimodal GLM-5 model; the
+      // flagship glm-5.3 rejects image content (verified 2026-09-03).
+      return modelLower.includes('glm-5v') ||
+             modelLower.includes('glm-5.3-flash');
     default:
       // DeepSeek doesn't support vision via their chat API
       return false;
