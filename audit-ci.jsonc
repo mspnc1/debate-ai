@@ -9,6 +9,13 @@
     // Remove both entries as soon as a patched image-size ships and metro
     // picks it up. Allowlisted 2026-08-18 during the Expo SDK 57 upgrade.
     "GHSA-w3rx-r6r6-pgpr",
-    "GHSA-5p2g-fcmc-qvqq"
+    "GHSA-5p2g-fcmc-qvqq",
+    // decode-uri-component DoS (exponential decoding of malformed input),
+    // reached only through @react-navigation/native -> @react-navigation/core
+    // -> query-string. The only "fix" npm offers is `--force`, which DOWNGRADES
+    // @react-navigation/native to 3.8.4 — never do that. Allowlisted
+    // 2026-09-04; REVISIT when a react-navigation release bumps query-string
+    // (or query-string's decode-uri-component) to a patched version.
+    "GHSA-vcc3-ghjq-m6fr"
   ]
 }
